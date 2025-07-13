@@ -4,6 +4,8 @@ export interface MinecraftInstallation {
   is_valid: boolean;
   type: 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge';
   loader_version?: string;
+  name?: string; // Display name for the installation
+  last_played?: string; // ISO date string
 }
 
 export interface LaunchOptions {
@@ -189,19 +191,50 @@ export interface ShaderPack {
   author: string;
   description?: string;
   file_path: string;
+  file_name: string;
+  file_size: number;
   compatible_versions: string[];
   enabled: boolean;
   source_url?: string;
   thumbnail?: string;
+  shader_loader: 'OptiFine' | 'Iris' | 'Sodium';
+  installed_date: number;
+  last_used?: number;
 }
 
-// World Management
-export interface MinecraftWorld {
+export interface ShaderSettings {
+  quality: 'Low' | 'Medium' | 'High' | 'Ultra' | 'Custom';
+  shadows: boolean;
+  shadow_resolution: number;
+  anti_aliasing: boolean;
+  bloom: boolean;
+  motion_blur: boolean;
+  custom_settings: Record<string, any>;
+}
+
+export interface ShaderDownload {
+  id: string;
+  name: string;
+  author: string;
+  description: string;
+  download_url: string;
+  thumbnail?: string;
+  tags: string[];
+  minecraft_versions: string[];
+  shader_loader: 'OptiFine' | 'Iris' | 'Sodium';
+  rating: number;
+  downloads: number;
+  size_mb: number;
+  source: 'Modrinth' | 'CurseForge' | 'Other';
+}
+
+// Map/World Management
+export interface LocalWorld {
   id: string;
   name: string;
   folder_name: string;
-  game_mode: 'survival' | 'creative' | 'adventure' | 'spectator';
-  difficulty: 'peaceful' | 'easy' | 'normal' | 'hard';
+  game_mode: 'Survival' | 'Creative' | 'Adventure' | 'Spectator';
+  difficulty: 'Peaceful' | 'Easy' | 'Normal' | 'Hard';
   version: string;
   size_mb: number;
   last_played: number;
@@ -209,6 +242,8 @@ export interface MinecraftWorld {
   seed?: string;
   icon?: string;
   backup_count: number;
+  has_cheats: boolean;
+  world_type: string;
 }
 
 export interface WorldDownload {
@@ -223,7 +258,47 @@ export interface WorldDownload {
   size_mb: number;
   rating: number;
   downloads: number;
-  source: 'planetminecraft' | 'other';
+  source: 'PlanetMinecraft' | 'MinecraftMaps' | 'Other';
+  created_date: number;
+}
+
+// Skin Management
+export interface MinecraftSkin {
+  id: string;
+  name: string;
+  file_path: string;
+  file_name: string;
+  is_slim: boolean; // Alex or Steve model
+  preview_url?: string;
+  source: 'Local' | 'Mojang' | 'Custom';
+  created_date: number;
+  last_used?: number;
+}
+
+export interface SkinDownload {
+  id: string;
+  name: string;
+  author: string;
+  download_url: string;
+  preview_url?: string;
+  tags: string[];
+  is_slim: boolean;
+  rating: number;
+  downloads: number;
+  source: 'NameMC' | 'MinecraftSkins' | 'Other';
+}
+
+// Minecraft Directory Management
+export interface MinecraftDirectoryInfo {
+  path: string;
+  is_valid: boolean;
+  has_saves: boolean;
+  has_shaderpacks: boolean;
+  has_resourcepacks: boolean;
+  saves_count: number;
+  shaderpacks_count: number;
+  resourcepacks_count: number;
+  size_mb: number;
 }
 
 // Settings System
@@ -255,6 +330,12 @@ export interface LauncherSettings {
   parallel_downloads: number;
   connection_timeout: number;
   enable_experimental_features: boolean;
+  
+  // Content Management (from Rust backend)
+  auto_backup_worlds: boolean;
+  max_world_backups: number;
+  shader_quality_preset: string;
+  enable_shader_caching: boolean;
   
   // Custom settings (for future extensibility)
   custom: Record<string, any>;

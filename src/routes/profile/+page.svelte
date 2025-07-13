@@ -91,7 +91,7 @@
   <section class="account-status">
     {#if $currentAccount}
       <div class="account-card">
-        <img src={$currentAccount?.avatar_url || '/default-avatar.png'} alt="Avatar" class="account-avatar" />
+        <img src={$currentAccount?.skin_url || '/default-avatar.png'} alt="Avatar" class="account-avatar" />
         <div class="account-info">
           <h3>{$currentAccount.username}</h3>
           <p>UUID: <code>{$currentAccount.uuid}</code></p>
@@ -180,14 +180,14 @@
           <div class="profile-card">
             <div class="profile-header">
               <div class="profile-icon">
-                {#if installation.mod_loader && installation.mod_loader !== 'vanilla'}
+                {#if installation.type && installation.type !== 'vanilla'}
                   <Icon name="puzzle" />
                 {:else}
                   <Icon name="package" />
                 {/if}
               </div>
               <div class="profile-title">
-                <h3>{installation.name}</h3>
+                <h3>{installation.path.split('\\').pop() || installation.path}</h3>
                 <span class="profile-version">{installation.version}</span>
               </div>
             </div>
@@ -195,25 +195,25 @@
             <div class="profile-details">
               <div class="detail-item">
                 <span class="label">Type:</span>
-                <span class="value">{installation.installation_type}</span>
+                <span class="value">{installation.type}</span>
               </div>
               
-              {#if installation.mod_loader}
+              {#if installation.loader_version}
                 <div class="detail-item">
-                  <span class="label">Mod Loader:</span>
-                  <span class="value">{installation.mod_loader}</span>
+                  <span class="label">Loader Version:</span>
+                  <span class="value">{installation.loader_version}</span>
                 </div>
               {/if}
               
               <div class="detail-item">
-                <span class="label">Last Played:</span>
-                <span class="value">Never</span>
+                <span class="label">Status:</span>
+                <span class="value">{installation.is_valid ? 'Valid' : 'Invalid'}</span>
               </div>
             </div>
             
             <div class="profile-actions">
               <button 
-                on:click={() => editProfile(installation.id)}
+                on:click={() => editProfile(installation.path)}
                 class="action-btn edit-btn btn btn-secondary"
                 title="Edit Profile"
               >
@@ -221,7 +221,7 @@
               </button>
               
               <button 
-                on:click={() => duplicateProfile(installation.id)}
+                on:click={() => duplicateProfile(installation.path)}
                 class="action-btn duplicate-btn btn btn-secondary"
                 title="Duplicate Profile"
               >
@@ -229,7 +229,7 @@
               </button>
               
               <button 
-                on:click={() => deleteProfile(installation.id)}
+                on:click={() => deleteProfile(installation.path)}
                 class="action-btn delete-btn btn btn-danger"
                 title="Delete Profile"
               >
@@ -245,7 +245,7 @@
           <div class="empty-icon"><Icon name="clipboard" size="xl" /></div>
           <h3>No profiles found</h3>
           <p>Create your first profile to get started, or refresh to scan for existing installations.</p>
-          <button on:click={() => GameManager.refreshInstallations()} class="btn btn-primary">
+          <button on:click={() => GameManager.loadInstallations()} class="btn btn-primary">
             <Icon name="refresh" size="sm" /> Scan for profiles
           </button>
         </div>

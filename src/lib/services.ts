@@ -5,8 +5,22 @@ import type {
   MinecraftInstallation, 
   LaunchOptions, 
   MicrosoftAccount, 
-  LauncherSettings 
+  LauncherSettings, 
+  MinecraftDirectoryInfo 
 } from './types';
+
+// Installations Management
+export async function getMinecraftInstallations(): Promise<MinecraftInstallation[]> {
+  return await invoke('get_minecraft_installations');
+}
+
+export async function refreshInstallation(id: string): Promise<MinecraftInstallation> {
+  return await invoke('refresh_installation', { id });
+}
+
+export async function updateInstallationLastPlayed(id: string): Promise<void> {
+  return await invoke('update_installation_last_played', { id });
+}
 
 // Settings Management
 export async function loadSettings(): Promise<LauncherSettings> {
@@ -57,6 +71,11 @@ export async function checkJavaInstallation(): Promise<string> {
 
 export async function getDefaultMinecraftDir(): Promise<string> {
   return await invoke('get_default_minecraft_dir');
+}
+
+// Add missing validation function
+export async function validateMinecraftDirectory(path: string): Promise<MinecraftDirectoryInfo> {
+  return await invoke('validate_minecraft_directory', { path });
 }
 
 // Proper OAuth flow for desktop applications using embedded webview
@@ -139,6 +158,10 @@ export class MinecraftService {
 
   static async getDefaultMinecraftDir(): Promise<string> {
     return getDefaultMinecraftDir();
+  }
+
+  static async validateMinecraftDirectory(path: string): Promise<MinecraftDirectoryInfo> {
+    return validateMinecraftDirectory(path);
   }
 
   static async startMicrosoftAuth(): Promise<string> {

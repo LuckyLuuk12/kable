@@ -3,6 +3,9 @@ export * from './services';
 export * from './types';
 export { AuthService } from './authService';
 
+// Managers
+export * from './managers';
+
 // Components
 export * from './components';
 

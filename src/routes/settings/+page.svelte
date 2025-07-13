@@ -1,6 +1,7 @@
 <script lang="ts">
   import { SettingsManager } from '$lib';
   import { settings } from '$lib/settings';
+  import type { LauncherSettings } from '$lib/types';
   import Icon from '$lib/components/Icon.svelte';
   import { onMount } from 'svelte';
 
@@ -11,11 +12,10 @@
     await SettingsManager.initialize();
   });
 
-  async function updateSetting(key: string, value: any) {
+  async function updateSetting(key: keyof LauncherSettings, value: any) {
     try {
       isLoading = true;
-      // This would need to be implemented in SettingsManager
-      console.log(`Update setting ${key} to ${value}`);
+      await SettingsManager.updateSetting(key, value);
       saveStatus = 'Saved successfully';
       setTimeout(() => saveStatus = '', 2000);
     } catch (error) {
@@ -29,8 +29,8 @@
 
   async function selectMinecraftDirectory() {
     try {
-      // This would need to be implemented in the Rust backend
-      console.log('Directory selection not yet implemented');
+      // For now, just show a message that this feature will be implemented
+      alert('Directory selection will be implemented in a future update. Please manually enter the path.');
     } catch (error) {
       console.error('Failed to select directory:', error);
     }
@@ -38,8 +38,8 @@
 
   async function selectJavaPath() {
     try {
-      // This would need to be implemented in the Rust backend
-      console.log('Java path selection not yet implemented');
+      // For now, just show a message that this feature will be implemented  
+      alert('Java path selection will be implemented in a future update. Please manually enter the path.');
     } catch (error) {
       console.error('Failed to select Java path:', error);
     }
@@ -74,8 +74,9 @@
                 <input 
                   id="minecraft-dir"
                   type="text" 
-                  value={$settings.minecraft_directory} 
-                  readonly
+                  value={$settings.minecraft_path || ''} 
+                  on:blur={(e) => updateSetting('minecraft_path', (e.target as HTMLInputElement).value)}
+                  placeholder="Path to .minecraft directory"
                   class="path-field"
                 />
                 <button on:click={selectMinecraftDirectory} class="btn btn-secondary">
@@ -95,8 +96,9 @@
                 <input 
                   id="java-path"
                   type="text" 
-                  value={$settings.java_path || 'Auto-detect'} 
-                  readonly
+                  value={$settings.java_path || ''} 
+                  on:blur={(e) => updateSetting('java_path', (e.target as HTMLInputElement).value)}
+                  placeholder="Auto-detect Java"
                   class="path-field"
                 />
                 <button on:click={selectJavaPath} class="btn btn-secondary">
@@ -123,16 +125,16 @@
                 <input 
                   id="memory-allocation"
                   type="range" 
-                  min="1024" 
-                  max="16384" 
+                  min="512" 
+                  max="262144" 
                   step="512"
-                  value={$settings.memory_allocation}
-                  on:input={(e) => updateSetting('memory_allocation', parseInt((e.target as HTMLInputElement).value))}
+                  value={$settings.default_memory}
+                  on:input={(e) => updateSetting('default_memory', parseInt((e.target as HTMLInputElement).value))}
                   class="memory-slider"
                 />
                 <div class="memory-display">
-                  <span class="memory-value">{$settings.memory_allocation}MB</span>
-                  <span class="memory-gb">({Math.round($settings.memory_allocation / 1024 * 10) / 10}GB)</span>
+                  <span class="memory-value">{$settings.default_memory}MB</span>
+                  <span class="memory-gb">({Math.round($settings.default_memory / 1024 * 10) / 10}GB)</span>
                 </div>
               </div>
             </div>
@@ -140,17 +142,26 @@
 
           <div class="setting-item">
             <div class="setting-info">
-              <label for="launch-options">Additional JVM Arguments</label>
-              <p class="setting-description">Advanced Java options for performance tuning</p>
+              <label for="max-memory">Maximum Memory Limit</label>
+              <p class="setting-description">Maximum RAM that can be allocated to Minecraft</p>
             </div>
             <div class="setting-control">
-              <textarea 
-                id="launch-options"
-                value={$settings.jvm_args || ''}
-                on:blur={(e) => updateSetting('jvm_args', (e.target as HTMLTextAreaElement).value)}
-                placeholder="-XX:+UnlockExperimentalVMOptions -XX:+UseG1GC"
-                class="jvm-args"
-              ></textarea>
+              <div class="memory-control">
+                <input 
+                  id="max-memory"
+                  type="range" 
+                  min={$settings.default_memory || 1024}
+                  max="262144" 
+                  step="512"
+                  value={$settings.max_memory}
+                  on:input={(e) => updateSetting('max_memory', parseInt((e.target as HTMLInputElement).value))}
+                  class="memory-slider"
+                />
+                <div class="memory-display">
+                  <span class="memory-value">{$settings.max_memory}MB</span>
+                  <span class="memory-gb">({Math.round($settings.max_memory / 1024 * 10) / 10}GB)</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -182,20 +193,19 @@
 
           <div class="setting-item">
             <div class="setting-info">
-              <label for="close-behavior">Close Button Behavior</label>
-              <p class="setting-description">What happens when you close the launcher</p>
+              <label for="close-behavior">Close Launcher on Game Start</label>
+              <p class="setting-description">Close the launcher when Minecraft starts</p>
             </div>
             <div class="setting-control">
-              <select 
-                id="close-behavior"
-                value={$settings.close_behavior || 'minimize'}
-                on:change={(e) => updateSetting('close_behavior', (e.target as HTMLSelectElement).value)}
-                class="behavior-select"
-              >
-                <option value="close"><Icon name="door" size="sm" /> Exit completely</option>
-                <option value="minimize"><Icon name="package" size="sm" /> Minimize to tray</option>
-                <option value="hide"><Icon name="eye-off" size="sm" /> Hide window</option>
-              </select>
+              <label class="toggle-switch">
+                <input 
+                  id="close-behavior"
+                  type="checkbox" 
+                  checked={$settings.close_launcher_on_game_start}
+                  on:change={(e) => updateSetting('close_launcher_on_game_start', (e.target as HTMLInputElement).checked)}
+                />
+                <span class="toggle-slider"></span>
+              </label>
             </div>
           </div>
         </div>
@@ -216,8 +226,8 @@
                 <input 
                   id="auto-update"
                   type="checkbox" 
-                  checked={$settings.auto_update ?? true}
-                  on:change={(e) => updateSetting('auto_update', (e.target as HTMLInputElement).checked)}
+                  checked={$settings.auto_update_launcher}
+                  on:change={(e) => updateSetting('auto_update_launcher', (e.target as HTMLInputElement).checked)}
                 />
                 <span class="toggle-slider"></span>
               </label>
@@ -226,16 +236,16 @@
 
           <div class="setting-item">
             <div class="setting-info">
-              <label for="analytics">Send Anonymous Analytics</label>
-              <p class="setting-description">Help improve the launcher by sharing usage data</p>
+              <label for="keep-open">Keep Launcher Open</label>
+              <p class="setting-description">Keep launcher running after starting Minecraft</p>
             </div>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input 
-                  id="analytics"
+                  id="keep-open"
                   type="checkbox" 
-                  checked={$settings.analytics ?? false}
-                  on:change={(e) => updateSetting('analytics', (e.target as HTMLInputElement).checked)}
+                  checked={$settings.keep_launcher_open}
+                  on:change={(e) => updateSetting('keep_launcher_open', (e.target as HTMLInputElement).checked)}
                 />
                 <span class="toggle-slider"></span>
               </label>
@@ -244,16 +254,225 @@
 
           <div class="setting-item">
             <div class="setting-info">
-              <label for="debug-mode">Debug Mode</label>
-              <p class="setting-description">Enable detailed logging for troubleshooting</p>
+              <label for="show-logs">Show Logs on Launch</label>
+              <p class="setting-description">Display game logs when Minecraft starts</p>
             </div>
             <div class="setting-control">
               <label class="toggle-switch">
                 <input 
-                  id="debug-mode"
+                  id="show-logs"
                   type="checkbox" 
-                  checked={$settings.debug_mode ?? false}
-                  on:change={(e) => updateSetting('debug_mode', (e.target as HTMLInputElement).checked)}
+                  checked={$settings.show_logs_on_launch}
+                  on:change={(e) => updateSetting('show_logs_on_launch', (e.target as HTMLInputElement).checked)}
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="experimental">Experimental Features</label>
+              <p class="setting-description">Enable experimental launcher features</p>
+            </div>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input 
+                  id="experimental"
+                  type="checkbox" 
+                  checked={$settings.enable_experimental_features}
+                  on:change={(e) => updateSetting('enable_experimental_features', (e.target as HTMLInputElement).checked)}
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Network Settings -->
+      <section class="settings-section">
+        <h2><Icon name="wifi" /> Network & Downloads</h2>
+        
+        <div class="setting-group">
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="parallel-downloads">Parallel Downloads</label>
+              <p class="setting-description">Number of simultaneous downloads</p>
+            </div>
+            <div class="setting-control">
+              <input 
+                id="parallel-downloads"
+                type="number" 
+                min="1" 
+                max="10"
+                value={$settings.parallel_downloads}
+                on:blur={(e) => updateSetting('parallel_downloads', parseInt((e.target as HTMLInputElement).value))}
+                class="number-input"
+              />
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="connection-timeout">Connection Timeout (seconds)</label>
+              <p class="setting-description">Network timeout for downloads and API calls</p>
+            </div>
+            <div class="setting-control">
+              <input 
+                id="connection-timeout"
+                type="number" 
+                min="5" 
+                max="120"
+                value={$settings.connection_timeout}
+                on:blur={(e) => updateSetting('connection_timeout', parseInt((e.target as HTMLInputElement).value))}
+                class="number-input"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- UI Settings -->
+      <section class="settings-section">
+        <h2><Icon name="layout" /> Interface</h2>
+        
+        <div class="setting-group">
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="animation-speed">Animation Speed</label>
+              <p class="setting-description">Speed of UI animations</p>
+            </div>
+            <div class="setting-control">
+              <select 
+                id="animation-speed"
+                value={$settings.animation_speed}
+                on:change={(e) => updateSetting('animation_speed', (e.target as HTMLSelectElement).value)}
+                class="animation-select"
+              >
+                <option value="disabled">Disabled</option>
+                <option value="slow">Slow</option>
+                <option value="normal">Normal</option>
+                <option value="fast">Fast</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="card-spacing">Card Spacing</label>
+              <p class="setting-description">Spacing between cards in grid layouts</p>
+            </div>
+            <div class="setting-control">
+              <input 
+                id="card-spacing"
+                type="range" 
+                min="0" 
+                max="128" 
+                step="1"
+                value={$settings.card_spacing}
+                on:input={(e) => updateSetting('card_spacing', parseInt((e.target as HTMLInputElement).value))}
+                class="spacing-slider"
+              />
+              <span class="spacing-value">{$settings.card_spacing}px</span>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="sidebar-width">Sidebar Width</label>
+              <p class="setting-description">Width of the navigation sidebar</p>
+            </div>
+            <div class="setting-control">
+              <input 
+                id="sidebar-width"
+                type="range" 
+                min="100" 
+                max="800" 
+                step="25"
+                value={$settings.sidebar_width}
+                on:input={(e) => updateSetting('sidebar_width', parseInt((e.target as HTMLInputElement).value))}
+                class="width-slider"
+              />
+              <span class="width-value">{$settings.sidebar_width}px</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Content Management Settings -->
+      <section class="settings-section">
+        <h2><Icon name="database" /> Content Management</h2>
+        
+        <div class="setting-group">
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="auto-backup">Auto-backup Worlds</label>
+              <p class="setting-description">Automatically create backups before modifying worlds</p>
+            </div>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input 
+                  id="auto-backup"
+                  type="checkbox" 
+                  checked={$settings.auto_backup_worlds}
+                  on:change={(e) => updateSetting('auto_backup_worlds', (e.target as HTMLInputElement).checked)}
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="max-backups">Maximum World Backups</label>
+              <p class="setting-description">How many backups to keep per world</p>
+            </div>
+            <div class="setting-control">
+              <input 
+                id="max-backups"
+                type="number" 
+                min="1" 
+                max="50"
+                value={$settings.max_world_backups}
+                on:blur={(e) => updateSetting('max_world_backups', parseInt((e.target as HTMLInputElement).value))}
+                class="number-input"
+              />
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="shader-quality">Shader Quality Preset</label>
+              <p class="setting-description">Default quality preset for shader packs</p>
+            </div>
+            <div class="setting-control">
+              <select 
+                id="shader-quality"
+                value={$settings.shader_quality_preset}
+                on:change={(e) => updateSetting('shader_quality_preset', (e.target as HTMLSelectElement).value)}
+                class="animation-select"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="ultra">Ultra</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="shader-caching">Enable Shader Caching</label>
+              <p class="setting-description">Cache compiled shaders for faster loading</p>
+            </div>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input 
+                  id="shader-caching"
+                  type="checkbox" 
+                  checked={$settings.enable_shader_caching}
+                  on:change={(e) => updateSetting('enable_shader_caching', (e.target as HTMLInputElement).checked)}
                 />
                 <span class="toggle-slider"></span>
               </label>
@@ -511,6 +730,51 @@
       animation: spin 1s linear infinite;
       margin-bottom: 1rem;
     }
+  }
+
+  .number-input {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    width: 80px;
+    
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+    }
+  }
+
+  .animation-select {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    min-width: 120px;
+    
+    &:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+    }
+  }
+
+  .spacing-slider, .width-slider {
+    flex: 1;
+    margin-right: 12px;
+  }
+
+  .spacing-value, .width-value {
+    font-weight: 600;
+    color: var(--primary);
+    font-size: 0.9rem;
+    min-width: 50px;
+    text-align: center;
   }
 
   @keyframes spin {

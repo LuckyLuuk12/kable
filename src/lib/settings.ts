@@ -1,6 +1,11 @@
 import { writable, get } from 'svelte/store';
-import { loadSettings, saveSettings as saveSettingsToBackend } from './services';
-import type { LauncherSettings } from './types';
+import { 
+  loadSettings, 
+  saveSettings as saveSettingsToBackend,
+  getDefaultMinecraftDir,
+  validateMinecraftDirectory
+} from './services';
+import type { LauncherSettings, MinecraftDirectoryInfo } from './types';
 
 // Default settings
 const defaultSettings: LauncherSettings = {
@@ -14,14 +19,18 @@ const defaultSettings: LauncherSettings = {
   show_logs_on_launch: false,
   auto_update_launcher: true,
   close_launcher_on_game_start: false,
-  window_width: 1200,
-  window_height: 800,
+  window_width: 1080,
+  window_height: 720,
   sidebar_width: 250,
   card_spacing: 16,
   animation_speed: 'normal',
   parallel_downloads: 3,
   connection_timeout: 30,
   enable_experimental_features: false,
+  auto_backup_worlds: false,
+  max_world_backups: 5,
+  shader_quality_preset: 'medium',
+  enable_shader_caching: true,
   custom: {}
 };
 
@@ -29,31 +38,92 @@ const defaultSettings: LauncherSettings = {
 export const settings = writable<LauncherSettings>(defaultSettings);
 export const isSettingsLoading = writable(false);
 export const settingsError = writable<string | null>(null);
+export const isSettingsInitialized = writable(false);
+
+// Minecraft directory info store
+export const minecraftDirectoryInfo = writable<MinecraftDirectoryInfo | null>(null);
+export const isMinecraftFound = writable(false);
 
 export class SettingsManager {
   /**
-   * Initialize settings - load from backend
+   * Initialize settings - load from backend and detect Minecraft directory
    */
   static async initialize(): Promise<void> {
+    if (get(isSettingsInitialized)) {
+      return; // Already initialized
+    }
+
     isSettingsLoading.set(true);
     settingsError.set(null);
 
     try {
+      // Load settings from backend
       const loadedSettings = await loadSettings();
       
       // Merge with defaults to ensure all properties exist
       const mergedSettings = { ...defaultSettings, ...loadedSettings };
       
+      // Auto-detect Minecraft directory if not set
+      if (!mergedSettings.minecraft_path) {
+        try {
+          const defaultMinecraftPath = await getDefaultMinecraftDir();
+          mergedSettings.minecraft_path = defaultMinecraftPath;
+        } catch (error) {
+          console.warn('Could not auto-detect Minecraft directory:', error);
+        }
+      }
+
+      // Validate and update Minecraft directory info
+      await this.updateMinecraftDirectoryInfo(mergedSettings.minecraft_path);
+      
       settings.set(mergedSettings);
+      isSettingsInitialized.set(true);
+
+      // Save updated settings back to backend if we auto-detected the path
+      if (mergedSettings.minecraft_path && !loadedSettings.minecraft_path) {
+        await this.save();
+      }
     } catch (error) {
       console.error('Failed to load settings:', error);
       settingsError.set(`Failed to load settings: ${error}`);
       
       // Use default settings if loading fails
       settings.set(defaultSettings);
+      isSettingsInitialized.set(true);
     } finally {
       isSettingsLoading.set(false);
     }
+  }
+
+  /**
+   * Validate and update Minecraft directory information
+   */
+  static async updateMinecraftDirectoryInfo(minecraftPath?: string): Promise<void> {
+    if (!minecraftPath) {
+      minecraftDirectoryInfo.set(null);
+      isMinecraftFound.set(false);
+      return;
+    }
+
+    try {
+      const directoryInfo = await validateMinecraftDirectory(minecraftPath);
+      minecraftDirectoryInfo.set(directoryInfo);
+      isMinecraftFound.set(directoryInfo.is_valid);
+    } catch (error) {
+      console.error('Failed to validate Minecraft directory:', error);
+      minecraftDirectoryInfo.set(null);
+      isMinecraftFound.set(false);
+    }
+  }
+
+  /**
+   * Get current Minecraft path, with fallback
+   */
+  static getMinecraftPath(): string | null {
+    const currentSettings = get(settings);
+    const isFound = get(isMinecraftFound);
+    
+    return isFound ? currentSettings.minecraft_path || null : null;
   }
 
   /**
@@ -84,33 +154,16 @@ export class SettingsManager {
       [key]: value
     }));
 
-    // Auto-save after update
+    // If updating minecraft_path, also update directory info
+    if (key === 'minecraft_path') {
+      await this.updateMinecraftDirectoryInfo(value as string);
+    }
+
     await this.save();
   }
 
   /**
-   * Update multiple settings at once
-   */
-  static async updateSettings(updates: Partial<LauncherSettings>): Promise<void> {
-    settings.update(current => ({
-      ...current,
-      ...updates
-    }));
-
-    // Auto-save after update
-    await this.save();
-  }
-
-  /**
-   * Reset settings to defaults
-   */
-  static async reset(): Promise<void> {
-    settings.set(defaultSettings);
-    await this.save();
-  }
-
-  /**
-   * Get current settings value
+   * Get current settings
    */
   static getSettings(): LauncherSettings {
     return get(settings);
@@ -124,41 +177,25 @@ export class SettingsManager {
   }
 
   /**
-   * Subscribe to settings changes
+   * Reset settings to defaults
    */
-  static subscribe(callback: (settings: LauncherSettings) => void) {
-    return settings.subscribe(callback);
+  static async resetToDefaults(): Promise<void> {
+    settings.set(defaultSettings);
+    await this.save();
+    await this.updateMinecraftDirectoryInfo(defaultSettings.minecraft_path);
   }
 
   /**
-   * Validate memory settings
+   * Check if Minecraft directory is valid
    */
-  static validateMemorySettings(defaultMemory: number, maxMemory: number): { isValid: boolean; error?: string } {
-    if (defaultMemory < 512) {
-      return { isValid: false, error: 'Default memory must be at least 512 MB' };
-    }
-    
-    if (defaultMemory > maxMemory) {
-      return { isValid: false, error: 'Default memory cannot be higher than max memory' };
-    }
-    
-    if (maxMemory > 32768) { // 32 GB limit
-      return { isValid: false, error: 'Max memory cannot exceed 32 GB' };
-    }
-
-    return { isValid: true };
+  static isMinecraftDirectoryValid(): boolean {
+    return get(isMinecraftFound);
   }
 
   /**
-   * Get recommended memory settings based on system RAM
+   * Get Minecraft directory info
    */
-  static getRecommendedMemory(): { defaultMemory: number; maxMemory: number } {
-    // This is a basic calculation - in a real app you'd get system RAM
-    const systemRAM = 8192; // Assume 8GB for now
-    
-    return {
-      defaultMemory: Math.min(2048, Math.floor(systemRAM * 0.25)),
-      maxMemory: Math.min(8192, Math.floor(systemRAM * 0.75))
-    };
+  static getMinecraftDirectoryInfo(): MinecraftDirectoryInfo | null {
+    return get(minecraftDirectoryInfo);
   }
 }

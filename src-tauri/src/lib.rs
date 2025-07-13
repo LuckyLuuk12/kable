@@ -5,16 +5,22 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 // Module declarations
-mod auth;
+// mod auth; // Skipped for now - focus on content management
 mod settings;
 mod profile;
 mod maps;
 mod mods;
 mod shaders;
+mod skins;
+mod installations;
 
-// Re-export public items from modules
-pub use auth::{MicrosoftAccount, start_microsoft_auth, complete_microsoft_auth, refresh_minecraft_token, get_oauth_callback_result};
-pub use settings::{LauncherSettings, load_settings, save_settings, get_launcher_dir};
+// Re-export public items from modules (excluding auth for now)
+// pub use auth::{MicrosoftAccount, start_microsoft_auth, complete_microsoft_auth, refresh_minecraft_token, get_oauth_callback_result};
+pub use settings::{LauncherSettings, load_settings, save_settings, get_launcher_dir, get_default_minecraft_directory, validate_minecraft_directory, MinecraftDirectoryInfo};
+pub use maps::{LocalWorld, WorldDownload, get_local_worlds, delete_world, backup_world};
+pub use shaders::{ShaderPack, get_installed_shaders, toggle_shader, delete_shader, install_shader_pack, get_shader_info};
+pub use skins::{MinecraftSkin, get_local_skins, save_skin, delete_skin, install_skin, get_skin_data, get_current_minecraft_skin, upload_skin_to_minecraft};
+pub use installations::{MinecraftInstallation, get_minecraft_installations, refresh_installation, update_installation_last_played};
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -40,16 +46,6 @@ impl From<AppError> for String {
 
 // Existing structures
 #[derive(Debug, Serialize, Deserialize)]
-pub struct MinecraftInstallation {
-    pub path: PathBuf,
-    pub version: String,
-    pub is_valid: bool,
-    #[serde(rename = "type")]
-    pub installation_type: String, // 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge'
-    pub loader_version: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct LaunchOptions {
     pub version: String,
     pub username: String,
@@ -66,49 +62,6 @@ pub struct LaunchOptions {
 
 
 
-// Find Minecraft installations on the system
-#[tauri::command]
-async fn find_minecraft_installations() -> Result<Vec<MinecraftInstallation>, String> {
-    let mut installations = Vec::new();
-    
-    // Try common Minecraft locations
-    let possible_paths = vec![
-        // Windows
-        dirs::data_dir().map(|p| p.join(".minecraft")),
-        dirs::home_dir().map(|p| p.join("AppData").join("Roaming").join(".minecraft")),
-        // macOS
-        dirs::home_dir().map(|p| p.join("Library").join("Application Support").join("minecraft")),
-        // Linux
-        dirs::home_dir().map(|p| p.join(".minecraft")),
-    ];
-    
-    for path in possible_paths.into_iter().flatten() {
-        if path.exists() {
-            let versions_path = path.join("versions");
-            if versions_path.exists() {
-                // Check for versions
-                if let Ok(entries) = std::fs::read_dir(&versions_path) {
-                    for entry in entries.flatten() {
-                        if entry.path().is_dir() {
-                            let version_name = entry.file_name().to_string_lossy().to_string();
-                            let jar_path = entry.path().join(format!("{}.jar", version_name));
-                            
-                            installations.push(MinecraftInstallation {
-                                path: path.clone(),
-                                version: version_name,
-                                is_valid: jar_path.exists(),
-                                installation_type: "vanilla".to_string(), // Default to vanilla, can be detected later
-                                loader_version: None,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    Ok(installations)
-}
 
 // Read usernames from usercache.json for offline mode reference
 #[tauri::command]
@@ -215,18 +168,43 @@ async fn get_default_minecraft_dir() -> Result<String, String> {
 pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
-            find_minecraft_installations,
             get_cached_usernames,
             launch_minecraft,
             check_java_installation,
             get_default_minecraft_dir,
-            auth::start_microsoft_auth,
-            auth::complete_microsoft_auth,
-            auth::refresh_minecraft_token,
-            auth::get_oauth_callback_result,
+            // Auth commands - skipped for now
+            // auth::start_microsoft_auth,
+            // auth::complete_microsoft_auth,
+            // auth::refresh_minecraft_token,
+            // auth::get_oauth_callback_result,
+            // Settings commands
             settings::load_settings,
             settings::save_settings,
-            settings::get_launcher_dir
+            settings::get_launcher_dir,
+            settings::get_default_minecraft_directory,
+            settings::validate_minecraft_directory,
+            // Installation commands
+            installations::get_minecraft_installations,
+            installations::refresh_installation,
+            installations::update_installation_last_played,
+            // Maps/Worlds commands
+            maps::get_local_worlds,
+            maps::delete_world,
+            maps::backup_world,
+            // Shaders commands
+            shaders::get_installed_shaders,
+            shaders::toggle_shader,
+            shaders::delete_shader,
+            shaders::install_shader_pack,
+            shaders::get_shader_info,
+            // Skins commands
+            skins::get_local_skins,
+            skins::save_skin,
+            skins::delete_skin,
+            skins::install_skin,
+            skins::get_skin_data,
+            skins::get_current_minecraft_skin,
+            skins::upload_skin_to_minecraft
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
