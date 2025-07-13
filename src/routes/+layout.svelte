@@ -2,7 +2,7 @@
   import '$lib/styles/global.scss';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { AuthManager, SettingsManager, GameManager } from '$lib';
+  import { AuthManager, SettingsManager, GameManager, Icon } from '$lib';
   
   let isTauriReady = false;
   let initializationStatus = 'Initializing...';
@@ -33,12 +33,12 @@
 
   // Navigation items
   const navItems = [
-    { path: '/', label: 'Home', icon: '🏠' },
-    { path: '/settings', label: 'Settings', icon: '⚙️' },
-    { path: '/profile', label: 'Profile', icon: '👤' },
-    { path: '/mods', label: 'Mods', icon: '🧩' },
-    { path: '/shaders', label: 'Shaders', icon: '✨' },
-    { path: '/maps', label: 'Maps', icon: '🗺️' }
+    { path: '/', label: 'Home', icon: 'home' },
+    { path: '/settings', label: 'Settings', icon: 'settings' },
+    { path: '/profile', label: 'Profile', icon: 'profile' },
+    { path: '/mods', label: 'Mods', icon: 'mods' },
+    { path: '/shaders', label: 'Shaders', icon: 'shaders' },
+    { path: '/maps', label: 'Maps', icon: 'maps' }
   ];
 
   $: currentPath = $page.url.pathname;
@@ -58,7 +58,7 @@
           class="nav-item" 
           class:active={currentPath === item.path}
         >
-          <span class="icon">{item.icon}</span>
+          <Icon name={item.icon} size="md" className="nav-icon" />
           <span class="label">{item.label}</span>
         </a>
       {/each}
@@ -76,17 +76,19 @@
 </div>
 
 <style lang="scss">
+  @use '@kablan/clean-ui/scss/variables' as *;
+
   .app-layout {
     display: flex;
     height: 100vh;
-    background: var(--background);
-    color: var(--text);
+    background: $background;
+    color: $text;
   }
 
   .sidebar {
     width: 250px;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
+    background: $container;
+    border-right: 1px solid $dark-600;
     display: flex;
     flex-direction: column;
     padding: 1rem;
@@ -99,12 +101,12 @@
       margin: 0;
       font-size: 1.5rem;
       font-weight: 700;
-      color: var(--primary);
+      color: $primary;
     }
     
     .subtitle {
       font-size: 0.875rem;
-      color: var(--text-muted);
+      color: $placeholder;
     }
   }
 
@@ -120,22 +122,22 @@
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
-    border-radius: 0.5rem;
+    border-radius: $border-radius;
     text-decoration: none;
-    color: var(--text);
+    color: $text;
     transition: all 0.2s ease;
     
     &:hover {
-      background: var(--surface-hover);
+      background: $button-hover;
     }
     
     &.active {
-      background: var(--primary);
+      background: $primary;
       color: white;
     }
     
-    .icon {
-      font-size: 1.25rem;
+    :global(.nav-icon) {
+      flex-shrink: 0;
     }
     
     .label {
@@ -148,23 +150,23 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem;
-    border-radius: 0.5rem;
-    background: var(--surface-variant);
+    border-radius: $border-radius;
+    background: $input;
     
     .status-indicator {
       width: 8px;
       height: 8px;
       border-radius: 50%;
-      background: var(--warning);
+      background: $yellow;
       
       &.ready {
-        background: var(--success);
+        background: $green;
       }
     }
     
     .status-text {
       font-size: 0.875rem;
-      color: var(--text-muted);
+      color: $placeholder;
     }
   }
 

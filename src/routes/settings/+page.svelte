@@ -1,6 +1,7 @@
 <script lang="ts">
   import { SettingsManager } from '$lib';
   import { settings } from '$lib/settings';
+  import Icon from '$lib/components/Icon.svelte';
   import { onMount } from 'svelte';
 
   let isLoading = false;
@@ -50,7 +51,7 @@
     <h1>Settings</h1>
     <p>Configure your launcher preferences</p>
     {#if saveStatus}
-      <div class="save-status" class:success={saveStatus.includes('success')} class:error={saveStatus.includes('Failed')}>
+      <div class="warning-card" class:success={saveStatus.includes('success')} class:error={saveStatus.includes('Failed')}>
         {saveStatus}
       </div>
     {/if}
@@ -60,7 +61,7 @@
     <div class="settings-sections">
       <!-- General Settings -->
       <section class="settings-section">
-        <h2>🎯 General</h2>
+        <h2><Icon name="target" /> General</h2>
         
         <div class="setting-group">
           <div class="setting-item">
@@ -77,8 +78,8 @@
                   readonly
                   class="path-field"
                 />
-                <button on:click={selectMinecraftDirectory} class="browse-btn">
-                  📁 Browse
+                <button on:click={selectMinecraftDirectory} class="btn btn-secondary">
+                  <Icon name="folder" /> Browse
                 </button>
               </div>
             </div>
@@ -98,8 +99,8 @@
                   readonly
                   class="path-field"
                 />
-                <button on:click={selectJavaPath} class="browse-btn">
-                  ☕ Browse
+                <button on:click={selectJavaPath} class="btn btn-secondary">
+                  <Icon name="coffee" /> Browse
                 </button>
               </div>
             </div>
@@ -109,7 +110,7 @@
 
       <!-- Performance Settings -->
       <section class="settings-section">
-        <h2>⚡ Performance</h2>
+        <h2><Icon name="zap" /> Performance</h2>
         
         <div class="setting-group">
           <div class="setting-item">
@@ -157,7 +158,7 @@
 
       <!-- Appearance Settings -->
       <section class="settings-section">
-        <h2>🎨 Appearance</h2>
+        <h2><Icon name="palette" /> Appearance</h2>
         
         <div class="setting-group">
           <div class="setting-item">
@@ -172,9 +173,9 @@
                 on:change={(e) => updateSetting('theme', (e.target as HTMLSelectElement).value)}
                 class="theme-select"
               >
-                <option value="dark">🌙 Dark</option>
-                <option value="light">☀️ Light</option>
-                <option value="auto">🔄 Auto</option>
+                <option value="dark"><Icon name="moon" size="sm" /> Dark</option>
+                <option value="light"><Icon name="sun" size="sm" /> Light</option>
+                <option value="auto"><Icon name="refresh" size="sm" /> Auto</option>
               </select>
             </div>
           </div>
@@ -191,9 +192,9 @@
                 on:change={(e) => updateSetting('close_behavior', (e.target as HTMLSelectElement).value)}
                 class="behavior-select"
               >
-                <option value="close">🚪 Exit completely</option>
-                <option value="minimize">📦 Minimize to tray</option>
-                <option value="hide">👻 Hide window</option>
+                <option value="close"><Icon name="door" size="sm" /> Exit completely</option>
+                <option value="minimize"><Icon name="package" size="sm" /> Minimize to tray</option>
+                <option value="hide"><Icon name="eye-off" size="sm" /> Hide window</option>
               </select>
             </div>
           </div>
@@ -202,7 +203,7 @@
 
       <!-- Advanced Settings -->
       <section class="settings-section">
-        <h2>🔧 Advanced</h2>
+        <h2><Icon name="wrench" /> Advanced</h2>
         
         <div class="setting-group">
           <div class="setting-item">
@@ -275,44 +276,6 @@
     margin: 0 auto;
   }
 
-  .page-header {
-    text-align: center;
-    margin-bottom: 2rem;
-    
-    h1 {
-      margin: 0 0 0.5rem 0;
-      font-size: 2.5rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, var(--primary), var(--accent));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    
-    p {
-      margin: 0;
-      color: var(--text-muted);
-      font-size: 1.1rem;
-    }
-
-    .save-status {
-      margin-top: 1rem;
-      padding: 0.5rem 1rem;
-      border-radius: 0.5rem;
-      font-weight: 500;
-      
-      &.success {
-        background: var(--success-light);
-        color: var(--success);
-      }
-      
-      &.error {
-        background: var(--error-light);
-        color: var(--error);
-      }
-    }
-  }
-
   .settings-sections {
     display: flex;
     flex-direction: column;
@@ -320,9 +283,7 @@
   }
 
   .settings-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 1rem;
+    @extend .card !optional;
     padding: 2rem;
     
     h2 {
@@ -398,21 +359,6 @@
       background: var(--background);
       color: var(--text);
       font-size: 0.875rem;
-    }
-    
-    .browse-btn {
-      padding: 0.5rem 1rem;
-      background: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 0.5rem;
-      font-size: 0.875rem;
-      cursor: pointer;
-      transition: background 0.2s ease;
-      
-      &:hover {
-        background: var(--primary-hover);
-      }
     }
   }
 
@@ -553,12 +499,8 @@
   }
 
   .loading-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    @extend .empty-state !optional;
     padding: 4rem;
-    color: var(--text-muted);
     
     .spinner {
       width: 40px;
@@ -568,11 +510,6 @@
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin-bottom: 1rem;
-    }
-    
-    p {
-      margin: 0;
-      font-size: 1.1rem;
     }
   }
 

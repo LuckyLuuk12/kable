@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AuthManager, GameManager } from '$lib';
+  import { AuthManager, GameManager, Icon } from '$lib';
 
   // Subscribe to reactive stores
   $: currentAccount = AuthManager.currentAccount;
@@ -73,8 +73,9 @@
   <section class="game-launcher">
     <div class="section-header">
       <h2>Your Installations</h2>
-      <button on:click={refreshProfiles} class="refresh-btn">
-        🔄 Refresh
+      <button on:click={refreshProfiles} class="btn btn-secondary btn-sm">
+        <Icon name="refresh" size="sm" />
+        Refresh
       </button>
     </div>
     
@@ -103,13 +104,15 @@
             <div class="installation-actions">
               <button 
                 on:click={() => launchGame(installation.id)} 
-                class="launch-btn"
+                class="action-btn install-btn"
                 disabled={!$currentAccount}
               >
                 {#if !$currentAccount}
-                  🔒 Sign in to play
+                  <Icon name="lock" size="sm" />
+                  Sign in to play
                 {:else}
-                  ▶️ Launch
+                  <Icon name="launch" size="sm" />
+                  Launch
                 {/if}
               </button>
             </div>
@@ -119,10 +122,11 @@
     {:else}
       <div class="no-installations">
         <div class="empty-state">
-          <div class="empty-icon">📦</div>
+          <Icon name="package" size="xl" className="empty-icon" />
           <h3>No installations found</h3>
           <p>Click refresh to scan for existing Minecraft installations, or create a new one from the profile page.</p>
-          <button on:click={refreshProfiles} class="refresh-btn primary">
+          <button on:click={refreshProfiles} class="btn btn-primary btn-md">
+            <Icon name="refresh" size="sm" />
             Scan for installations
           </button>
         </div>
@@ -135,27 +139,6 @@
   .home-page {
     max-width: 1200px;
     margin: 0 auto;
-  }
-
-  .page-header {
-    text-align: center;
-    margin-bottom: 2rem;
-    
-    h1 {
-      margin: 0 0 0.5rem 0;
-      font-size: 2.5rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, var(--primary), var(--accent));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    
-    p {
-      margin: 0;
-      color: var(--text-muted);
-      font-size: 1.1rem;
-    }
   }
 
   .quick-auth {
@@ -224,19 +207,6 @@
     padding: 2rem;
   }
 
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
-    
-    h2 {
-      margin: 0;
-      color: var(--text);
-      font-size: 1.5rem;
-    }
-  }
-
   .installations-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -244,167 +214,46 @@
   }
 
   .installation-card {
-    background: var(--background);
-    border: 1px solid var(--border);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    transition: all 0.2s ease;
+    @extend .card !optional;
     
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-      border-color: var(--primary);
-    }
-  }
-
-  .installation-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
-    
-    h3 {
-      margin: 0;
-      color: var(--text);
-      font-size: 1.25rem;
-    }
-    
-    .version-badge {
-      background: var(--primary);
-      color: white;
-      padding: 0.25rem 0.75rem;
-      border-radius: 1rem;
-      font-size: 0.75rem;
-      font-weight: 500;
-    }
-  }
-
-  .installation-details {
-    margin-bottom: 1.5rem;
-  }
-
-  .detail-row {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    
-    .label {
-      color: var(--text-muted);
-      font-size: 0.875rem;
-    }
-    
-    .value {
-      color: var(--text);
-      font-size: 0.875rem;
-      font-weight: 500;
-    }
-  }
-
-  .installation-actions {
-    .launch-btn {
-      width: 100%;
-      padding: 0.75rem;
-      background: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 0.75rem;
-      font-weight: 600;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
+    .installation-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
       
-      &:hover:not(:disabled) {
-        background: var(--primary-hover);
-        transform: translateY(-1px);
+      h3 {
+        margin: 0;
+        color: var(--text);
+        font-size: 1.25rem;
       }
       
-      &:disabled {
-        background: var(--surface-variant);
-        color: var(--text-muted);
-        cursor: not-allowed;
+      .version-badge {
+        background: var(--primary);
+        color: white;
+        padding: 0.25rem 0.75rem;
+        border-radius: 1rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+      }
+    }
+    
+    .installation-details {
+      margin-bottom: 1.5rem;
+    }
+    
+    .installation-actions {
+      .action-btn {
+        width: 100%;
+        padding: 0.75rem;
+        border-radius: 0.75rem;
+        font-weight: 600;
+        font-size: 1rem;
       }
     }
   }
 
   .no-installations {
     padding: 3rem 1rem;
-  }
-
-  .empty-state {
-    text-align: center;
-    max-width: 400px;
-    margin: 0 auto;
-    
-    .empty-icon {
-      font-size: 4rem;
-      margin-bottom: 1rem;
-    }
-    
-    h3 {
-      margin: 0 0 1rem 0;
-      color: var(--text);
-    }
-    
-    p {
-      margin: 0 0 2rem 0;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
-  }
-
-  // Button styles
-  button {
-    border: none;
-    border-radius: 0.5rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-  }
-
-  .sign-in-btn {
-    background: var(--primary);
-    color: white;
-    padding: 0.75rem 2rem;
-    font-size: 1rem;
-    
-    &:hover {
-      background: var(--primary-hover);
-      transform: translateY(-1px);
-    }
-  }
-
-  .sign-out-btn {
-    background: var(--surface-variant);
-    color: var(--text);
-    padding: 0.5rem 1rem;
-    
-    &:hover {
-      background: var(--surface-hover);
-    }
-  }
-
-  .refresh-btn {
-    background: var(--surface-variant);
-    color: var(--text);
-    padding: 0.5rem 1rem;
-    
-    &:hover {
-      background: var(--surface-hover);
-    }
-    
-    &.primary {
-      background: var(--primary);
-      color: white;
-      padding: 0.75rem 1.5rem;
-      
-      &:hover {
-        background: var(--primary-hover);
-      }
-    }
   }
 </style>

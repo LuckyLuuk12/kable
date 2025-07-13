@@ -2,6 +2,7 @@
   import { AuthManager, GameManager } from '$lib';
   import { currentAccount } from '$lib/auth';
   import { installations } from '$lib/game';
+  import Icon from '$lib/components/Icon.svelte';
   import { onMount } from 'svelte';
 
   let isCreatingProfile = false;
@@ -94,16 +95,16 @@
         <div class="account-info">
           <h3>{$currentAccount.username}</h3>
           <p>UUID: <code>{$currentAccount.uuid}</code></p>
-          <span class="account-status-badge">✅ Authenticated</span>
+          <span class="account-status-badge"><Icon name="check" size="sm" /> Authenticated</span>
         </div>
       </div>
     {:else}
       <div class="no-account">
-        <div class="warning-icon">⚠️</div>
+        <div class="warning-icon"><Icon name="warning" /></div>
         <div class="warning-content">
           <h3>No account connected</h3>
           <p>Sign in with Microsoft to create and manage profiles</p>
-          <button on:click={() => AuthManager.signIn()} class="sign-in-btn">
+          <button on:click={() => AuthManager.signIn()} class="btn btn-primary">
             Sign in with Microsoft
           </button>
         </div>
@@ -158,12 +159,12 @@
       <button 
         on:click={createNewProfile}
         disabled={!newProfileName.trim() || isCreatingProfile || !$currentAccount}
-        class="create-btn"
+        class="btn btn-primary"
       >
         {#if isCreatingProfile}
           Creating...
         {:else}
-          Create Profile
+          <Icon name="plus" size="sm" /> Create Profile
         {/if}
       </button>
     </div>
@@ -180,9 +181,9 @@
             <div class="profile-header">
               <div class="profile-icon">
                 {#if installation.mod_loader && installation.mod_loader !== 'vanilla'}
-                  🧩
+                  <Icon name="puzzle" />
                 {:else}
-                  📦
+                  <Icon name="package" />
                 {/if}
               </div>
               <div class="profile-title">
@@ -213,26 +214,26 @@
             <div class="profile-actions">
               <button 
                 on:click={() => editProfile(installation.id)}
-                class="action-btn edit-btn"
+                class="action-btn edit-btn btn btn-secondary"
                 title="Edit Profile"
               >
-                ✏️
+                <Icon name="edit" size="sm" />
               </button>
               
               <button 
                 on:click={() => duplicateProfile(installation.id)}
-                class="action-btn duplicate-btn"
+                class="action-btn duplicate-btn btn btn-secondary"
                 title="Duplicate Profile"
               >
-                📋
+                <Icon name="copy" size="sm" />
               </button>
               
               <button 
                 on:click={() => deleteProfile(installation.id)}
-                class="action-btn delete-btn"
+                class="action-btn delete-btn btn btn-danger"
                 title="Delete Profile"
               >
-                🗑️
+                <Icon name="trash" size="sm" />
               </button>
             </div>
           </div>
@@ -241,11 +242,11 @@
     {:else}
       <div class="no-profiles">
         <div class="empty-state">
-          <div class="empty-icon">📋</div>
+          <div class="empty-icon"><Icon name="clipboard" size="xl" /></div>
           <h3>No profiles found</h3>
           <p>Create your first profile to get started, or refresh to scan for existing installations.</p>
-          <button on:click={() => GameManager.refreshInstallations()} class="refresh-btn">
-            🔄 Scan for profiles
+          <button on:click={() => GameManager.refreshInstallations()} class="btn btn-primary">
+            <Icon name="refresh" size="sm" /> Scan for profiles
           </button>
         </div>
       </div>
@@ -259,39 +260,16 @@
     margin: 0 auto;
   }
 
-  .page-header {
-    text-align: center;
-    margin-bottom: 2rem;
-    
-    h1 {
-      margin: 0 0 0.5rem 0;
-      font-size: 2.5rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, var(--primary), var(--accent));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    
-    p {
-      margin: 0;
-      color: var(--text-muted);
-      font-size: 1.1rem;
-    }
-  }
-
   .account-status {
     margin-bottom: 2rem;
   }
 
   .account-card {
+    @extend .card !optional;
     display: flex;
     align-items: center;
     gap: 1rem;
     padding: 1.5rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 1rem;
     
     .account-avatar {
       width: 64px;
@@ -335,17 +313,10 @@
   }
 
   .no-account {
+    @extend .warning-card !optional;
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 1.5rem;
-    background: var(--warning-light);
-    border: 1px solid var(--warning);
-    border-radius: 1rem;
-    
-    .warning-icon {
-      font-size: 2rem;
-    }
     
     .warning-content {
       flex: 1;
@@ -363,24 +334,15 @@
   }
 
   .create-profile {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 1rem;
+    @extend .card !optional;
     padding: 2rem;
     margin-bottom: 2rem;
-    
-    h2 {
-      margin: 0 0 1.5rem 0;
-      color: var(--text);
-      font-size: 1.5rem;
-    }
   }
 
   .profile-form {
     .form-row {
-      display: grid;
+      @extend .form-grid !optional;
       grid-template-columns: 2fr 1fr 1fr;
-      gap: 1rem;
       margin-bottom: 1.5rem;
       
       @media (max-width: 768px) {
@@ -388,60 +350,8 @@
       }
     }
     
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      
-      label {
-        font-weight: 500;
-        color: var(--text);
-        font-size: 0.875rem;
-      }
-    }
-    
     .profile-input, .profile-select {
-      padding: 0.75rem;
-      border: 1px solid var(--border);
-      border-radius: 0.5rem;
-      background: var(--background);
-      color: var(--text);
-      font-size: 0.875rem;
-      
-      &:focus {
-        outline: none;
-        border-color: var(--primary);
-      }
-    }
-    
-    .create-btn {
-      padding: 0.75rem 2rem;
-      background: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 0.5rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      
-      &:hover:not(:disabled) {
-        background: var(--primary-hover);
-        transform: translateY(-1px);
-      }
-      
-      &:disabled {
-        background: var(--surface-variant);
-        color: var(--text-muted);
-        cursor: not-allowed;
-      }
-    }
-  }
-
-  .existing-profiles {
-    h2 {
-      margin: 0 0 1.5rem 0;
-      color: var(--text);
-      font-size: 1.5rem;
+      @extend .form-input !optional;
     }
   }
 
@@ -452,17 +362,7 @@
   }
 
   .profile-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    transition: all 0.2s ease;
-    
-    &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-      border-color: var(--primary);
-    }
+    @extend .card !optional;
   }
 
   .profile-header {
@@ -508,20 +408,7 @@
   }
 
   .detail-item {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 0.5rem;
-    
-    .label {
-      color: var(--text-muted);
-      font-size: 0.875rem;
-    }
-    
-    .value {
-      color: var(--text);
-      font-size: 0.875rem;
-      font-weight: 500;
-    }
+    @extend .detail-row !optional;
   }
 
   .profile-actions {
@@ -531,80 +418,11 @@
     .action-btn {
       flex: 1;
       padding: 0.5rem;
-      border: none;
-      border-radius: 0.5rem;
       font-size: 1rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      
-      &.edit-btn {
-        background: var(--primary);
-        color: white;
-        
-        &:hover {
-          background: var(--primary-hover);
-        }
-      }
-      
-      &.duplicate-btn {
-        background: var(--surface-variant);
-        color: var(--text);
-        
-        &:hover {
-          background: var(--surface-hover);
-        }
-      }
-      
-      &.delete-btn {
-        background: var(--error);
-        color: white;
-        
-        &:hover {
-          background: var(--error-hover);
-        }
-      }
     }
   }
 
   .no-profiles {
     padding: 3rem 1rem;
-  }
-
-  .empty-state {
-    text-align: center;
-    max-width: 400px;
-    margin: 0 auto;
-    
-    .empty-icon {
-      font-size: 4rem;
-      margin-bottom: 1rem;
-    }
-    
-    h3 {
-      margin: 0 0 1rem 0;
-      color: var(--text);
-    }
-    
-    p {
-      margin: 0 0 2rem 0;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
-  }
-
-  .sign-in-btn, .refresh-btn {
-    padding: 0.75rem 1.5rem;
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    
-    &:hover {
-      background: var(--primary-hover);
-      transform: translateY(-1px);
-    }
   }
 </style>
