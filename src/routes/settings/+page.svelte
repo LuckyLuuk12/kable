@@ -8,6 +8,23 @@
   let isLoading = false;
   let saveStatus = '';
 
+  // Local validation functions
+  function validateMemory(value: string): number | null {
+    const num = parseInt(value);
+    if (isNaN(num) || num < 512 || num > 262144) return null;
+    return Math.floor(num / 512) * 512; // Round to nearest 512MB
+  }
+
+  function validateNumber(value: string, min: number, max: number): number | null {
+    const num = parseInt(value);
+    if (isNaN(num) || num < min || num > max) return null;
+    return num;
+  }
+
+  function validatePath(value: string): string {
+    return value.trim();
+  }
+
   onMount(async () => {
     await SettingsManager.initialize();
   });
@@ -74,10 +91,11 @@
                 <input 
                   id="minecraft-dir"
                   type="text" 
-                  value={$settings.minecraft_path || ''} 
-                  on:blur={(e) => updateSetting('minecraft_path', (e.target as HTMLInputElement).value)}
+                  bind:value={$settings.minecraft_path}
+                  on:blur={(e) => updateSetting('minecraft_path', validatePath((e.target as HTMLInputElement).value))}
                   placeholder="Path to .minecraft directory"
                   class="path-field"
+                  style="flex: 1;"
                 />
                 <button on:click={selectMinecraftDirectory} class="btn btn-secondary">
                   <Icon name="folder" /> Browse
@@ -96,10 +114,11 @@
                 <input 
                   id="java-path"
                   type="text" 
-                  value={$settings.java_path || ''} 
-                  on:blur={(e) => updateSetting('java_path', (e.target as HTMLInputElement).value)}
+                  bind:value={$settings.java_path}
+                  on:blur={(e) => updateSetting('java_path', validatePath((e.target as HTMLInputElement).value))}
                   placeholder="Auto-detect Java"
                   class="path-field"
+                  style="flex: 1;"
                 />
                 <button on:click={selectJavaPath} class="btn btn-secondary">
                   <Icon name="coffee" /> Browse
@@ -128,13 +147,25 @@
                   min="512" 
                   max="262144" 
                   step="512"
-                  value={$settings.default_memory}
-                  on:input={(e) => updateSetting('default_memory', parseInt((e.target as HTMLInputElement).value))}
+                  bind:value={$settings.default_memory}
                   class="memory-slider"
                 />
-                <div class="memory-display">
-                  <span class="memory-value">{$settings.default_memory}MB</span>
-                  <span class="memory-gb">({Math.round($settings.default_memory / 1024 * 10) / 10}GB)</span>
+                <div class="memory-input-row">
+                  <input 
+                    type="text"
+                    bind:value={$settings.default_memory}
+                    on:blur={(e) => {
+                      const validated = validateMemory((e.target as HTMLInputElement).value);
+                      if (validated !== null) {
+                        updateSetting('default_memory', validated);
+                      } else {
+                        e.target.value = $settings.default_memory.toString();
+                      }
+                    }}
+                    class="memory-text-input"
+                  />
+                  <span class="memory-unit">MB</span>
+                  <span class="memory-gb">({Math.round(($settings.default_memory || 0) / 1024 * 10) / 10}GB)</span>
                 </div>
               </div>
             </div>
@@ -153,13 +184,25 @@
                   min={$settings.default_memory || 1024}
                   max="262144" 
                   step="512"
-                  value={$settings.max_memory}
-                  on:input={(e) => updateSetting('max_memory', parseInt((e.target as HTMLInputElement).value))}
+                  bind:value={$settings.max_memory}
                   class="memory-slider"
                 />
-                <div class="memory-display">
-                  <span class="memory-value">{$settings.max_memory}MB</span>
-                  <span class="memory-gb">({Math.round($settings.max_memory / 1024 * 10) / 10}GB)</span>
+                <div class="memory-input-row">
+                  <input 
+                    type="text"
+                    bind:value={$settings.max_memory}
+                    on:blur={(e) => {
+                      const validated = validateMemory((e.target as HTMLInputElement).value);
+                      if (validated !== null && validated >= ($settings.default_memory || 1024)) {
+                        updateSetting('max_memory', validated);
+                      } else {
+                        e.target.value = $settings.max_memory.toString();
+                      }
+                    }}
+                    class="memory-text-input"
+                  />
+                  <span class="memory-unit">MB</span>
+                  <span class="memory-gb">({Math.round(($settings.max_memory || 0) / 1024 * 10) / 10}GB)</span>
                 </div>
               </div>
             </div>
@@ -206,6 +249,98 @@
                 />
                 <span class="toggle-slider"></span>
               </label>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="animation-speed">Animation Speed</label>
+              <p class="setting-description">Speed of UI animations</p>
+            </div>
+            <div class="setting-control">
+              <select 
+                id="animation-speed"
+                value={$settings.animation_speed}
+                on:change={(e) => updateSetting('animation_speed', (e.target as HTMLSelectElement).value)}
+                class="animation-select"
+              >
+                <option value="disabled">Disabled</option>
+                <option value="slow">Slow</option>
+                <option value="normal">Normal</option>
+                <option value="fast">Fast</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="card-spacing">Card Spacing</label>
+              <p class="setting-description">Spacing between cards in grid layouts</p>
+            </div>
+            <div class="setting-control">
+              <div class="slider-control">
+                <input 
+                  id="card-spacing"
+                  type="range" 
+                  min="0" 
+                  max="128" 
+                  step="1"
+                  bind:value={$settings.card_spacing}
+                  class="spacing-slider"
+                />
+                <div class="value-input-row">
+                  <input 
+                    type="text"
+                    bind:value={$settings.card_spacing}
+                    on:blur={(e) => {
+                      const validated = validateNumber((e.target as HTMLInputElement).value, 0, 128);
+                      if (validated !== null) {
+                        updateSetting('card_spacing', validated);
+                      } else {
+                        e.target.value = $settings.card_spacing.toString();
+                      }
+                    }}
+                    class="value-text-input"
+                  />
+                  <span class="spacing-value">px</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="sidebar-width">Sidebar Width</label>
+              <p class="setting-description">Width of the navigation sidebar</p>
+            </div>
+            <div class="setting-control">
+              <div class="slider-control">
+                <input 
+                  id="sidebar-width"
+                  type="range" 
+                  min="100" 
+                  max="800" 
+                  step="25"
+                  bind:value={$settings.sidebar_width}
+                  class="width-slider"
+                />
+                <div class="value-input-row">
+                  <input 
+                    type="text"
+                    bind:value={$settings.sidebar_width}
+                    on:blur={(e) => {
+                      const validated = validateNumber((e.target as HTMLInputElement).value, 100, 800);
+                      if (validated !== null) {
+                        updateSetting('sidebar_width', validated);
+                      } else {
+                        e.target.value = $settings.sidebar_width.toString();
+                      }
+                    }}
+                    class="value-text-input"
+                  />
+                  <span class="width-value">px</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -301,15 +436,33 @@
               <p class="setting-description">Number of simultaneous downloads</p>
             </div>
             <div class="setting-control">
-              <input 
-                id="parallel-downloads"
-                type="number" 
-                min="1" 
-                max="10"
-                value={$settings.parallel_downloads}
-                on:blur={(e) => updateSetting('parallel_downloads', parseInt((e.target as HTMLInputElement).value))}
-                class="number-input"
-              />
+              <div class="slider-control">
+                <input 
+                  id="parallel-downloads"
+                  type="range" 
+                  min="1" 
+                  max="10"
+                  step="1"
+                  bind:value={$settings.parallel_downloads}
+                  class="number-slider"
+                />
+                <div class="value-input-row">
+                  <input 
+                    type="text"
+                    bind:value={$settings.parallel_downloads}
+                    on:blur={(e) => {
+                      const validated = validateNumber((e.target as HTMLInputElement).value, 1, 10);
+                      if (validated !== null) {
+                        updateSetting('parallel_downloads', validated);
+                      } else {
+                        e.target.value = $settings.parallel_downloads.toString();
+                      }
+                    }}
+                    class="value-text-input"
+                  />
+                  <span class="number-unit">downloads</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -319,82 +472,33 @@
               <p class="setting-description">Network timeout for downloads and API calls</p>
             </div>
             <div class="setting-control">
-              <input 
-                id="connection-timeout"
-                type="number" 
-                min="5" 
-                max="120"
-                value={$settings.connection_timeout}
-                on:blur={(e) => updateSetting('connection_timeout', parseInt((e.target as HTMLInputElement).value))}
-                class="number-input"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- UI Settings -->
-      <section class="settings-section">
-        <h2><Icon name="layout" /> Interface</h2>
-        
-        <div class="setting-group">
-          <div class="setting-item">
-            <div class="setting-info">
-              <label for="animation-speed">Animation Speed</label>
-              <p class="setting-description">Speed of UI animations</p>
-            </div>
-            <div class="setting-control">
-              <select 
-                id="animation-speed"
-                value={$settings.animation_speed}
-                on:change={(e) => updateSetting('animation_speed', (e.target as HTMLSelectElement).value)}
-                class="animation-select"
-              >
-                <option value="disabled">Disabled</option>
-                <option value="slow">Slow</option>
-                <option value="normal">Normal</option>
-                <option value="fast">Fast</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <label for="card-spacing">Card Spacing</label>
-              <p class="setting-description">Spacing between cards in grid layouts</p>
-            </div>
-            <div class="setting-control">
-              <input 
-                id="card-spacing"
-                type="range" 
-                min="0" 
-                max="128" 
-                step="1"
-                value={$settings.card_spacing}
-                on:input={(e) => updateSetting('card_spacing', parseInt((e.target as HTMLInputElement).value))}
-                class="spacing-slider"
-              />
-              <span class="spacing-value">{$settings.card_spacing}px</span>
-            </div>
-          </div>
-
-          <div class="setting-item">
-            <div class="setting-info">
-              <label for="sidebar-width">Sidebar Width</label>
-              <p class="setting-description">Width of the navigation sidebar</p>
-            </div>
-            <div class="setting-control">
-              <input 
-                id="sidebar-width"
-                type="range" 
-                min="100" 
-                max="800" 
-                step="25"
-                value={$settings.sidebar_width}
-                on:input={(e) => updateSetting('sidebar_width', parseInt((e.target as HTMLInputElement).value))}
-                class="width-slider"
-              />
-              <span class="width-value">{$settings.sidebar_width}px</span>
+              <div class="slider-control">
+                <input 
+                  id="connection-timeout"
+                  type="range" 
+                  min="5" 
+                  max="120"
+                  step="5"
+                  bind:value={$settings.connection_timeout}
+                  class="number-slider"
+                />
+                <div class="value-input-row">
+                  <input 
+                    type="text"
+                    bind:value={$settings.connection_timeout}
+                    on:blur={(e) => {
+                      const validated = validateNumber((e.target as HTMLInputElement).value, 5, 120);
+                      if (validated !== null) {
+                        updateSetting('connection_timeout', validated);
+                      } else {
+                        e.target.value = $settings.connection_timeout.toString();
+                      }
+                    }}
+                    class="value-text-input"
+                  />
+                  <span class="number-unit">seconds</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -429,15 +533,33 @@
               <p class="setting-description">How many backups to keep per world</p>
             </div>
             <div class="setting-control">
-              <input 
-                id="max-backups"
-                type="number" 
-                min="1" 
-                max="50"
-                value={$settings.max_world_backups}
-                on:blur={(e) => updateSetting('max_world_backups', parseInt((e.target as HTMLInputElement).value))}
-                class="number-input"
-              />
+              <div class="slider-control">
+                <input 
+                  id="max-backups"
+                  type="range" 
+                  min="1" 
+                  max="50"
+                  step="1"
+                  bind:value={$settings.max_world_backups}
+                  class="number-slider"
+                />
+                <div class="value-input-row">
+                  <input 
+                    type="text"
+                    bind:value={$settings.max_world_backups}
+                    on:blur={(e) => {
+                      const validated = validateNumber((e.target as HTMLInputElement).value, 1, 50);
+                      if (validated !== null) {
+                        updateSetting('max_world_backups', validated);
+                      } else {
+                        e.target.value = $settings.max_world_backups.toString();
+                      }
+                    }}
+                    class="value-text-input"
+                  />
+                  <span class="number-unit">backups</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -490,9 +612,34 @@
 </div>
 
 <style lang="scss">
+  @use '@kablan/clean-ui/scss/variables' as *;
+
   .settings-page {
     max-width: 800px;
     margin: 0 auto;
+  }
+
+  .warning-card {
+    position: fixed;
+    bottom: 1rem;
+    width: fit-content;
+    @extend .card !optional;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    color: $text;
+    background: $container;
+    border-radius: 0.75rem;
+    font-size: 0.875rem;
+
+    &.success {
+      border-color: $green;
+      background-color: $green-900;
+    }
+    
+    &.error {
+      border-color: $red-700;
+      background-color: $red-900;
+    }
   }
 
   .settings-sections {
@@ -507,7 +654,7 @@
     
     h2 {
       margin: 0 0 1.5rem 0;
-      color: var(--text);
+      color: $text;
       font-size: 1.25rem;
       font-weight: 600;
       display: flex;
@@ -528,8 +675,8 @@
     align-items: flex-start;
     gap: 2rem;
     padding: 1.5rem;
-    background: var(--background);
-    border: 1px solid var(--border);
+    background: $container;
+    border: 1px solid $dark-600;
     border-radius: 0.75rem;
     
     @media (max-width: 768px) {
@@ -544,14 +691,14 @@
     label {
       display: block;
       font-weight: 600;
-      color: var(--text);
+      color: $text;
       margin-bottom: 0.25rem;
       font-size: 1rem;
     }
     
     .setting-description {
       margin: 0;
-      color: var(--text-muted);
+      color: $placeholder;
       font-size: 0.875rem;
       line-height: 1.4;
     }
@@ -569,16 +716,6 @@
   .path-input {
     display: flex;
     gap: 0.5rem;
-    
-    .path-field {
-      flex: 1;
-      padding: 0.5rem 0.75rem;
-      border: 1px solid var(--border);
-      border-radius: 0.5rem;
-      background: var(--background);
-      color: var(--text);
-      font-size: 0.875rem;
-    }
   }
 
   .memory-control {
@@ -586,88 +723,84 @@
     flex-direction: column;
     gap: 0.75rem;
     
-    .memory-slider {
-      width: 100%;
-      height: 6px;
-      border-radius: 3px;
-      background: var(--surface-variant);
-      outline: none;
-      cursor: pointer;
+    .memory-input-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
       
-      &::-webkit-slider-thumb {
-        appearance: none;
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: var(--primary);
-        cursor: pointer;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+      .memory-text-input {
+        background: transparent;
+        border: none;
+        color: $primary;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-align: right;
+        min-width: 60px;
+        max-width: 80px;
+        padding: 0;
+        border-radius: 4px;
+        transition: all 0.2s ease;
         
         &:hover {
-          transform: scale(1.1);
+          color: rgba($primary, 0.8);
+        }
+        
+        &:focus {
+          color: rgba($primary, 0.75);
+        }
+        
+        &::placeholder {
+          color: transparent;
         }
       }
       
-      &::-moz-range-thumb {
-        width: 20px;
-        height: 20px;
-        border-radius: 50%;
-        background: var(--primary);
-        cursor: pointer;
-        border: none;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-      }
-    }
-    
-    .memory-display {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      
-      .memory-value {
-        font-weight: 600;
-        color: var(--primary);
-        font-size: 1rem;
-      }
-      
       .memory-gb {
-        color: var(--text-muted);
+        color: $placeholder;
         font-size: 0.875rem;
+        min-width: 60px;
+      }
+      
+      .memory-unit {
+        color: $primary;
+        font-weight: 600;
+        font-size: 0.9rem;
       }
     }
   }
 
-  .jvm-args {
-    width: 100%;
-    min-height: 80px;
-    padding: 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    background: var(--background);
-    color: var(--text);
-    font-family: 'Fira Code', monospace;
-    font-size: 0.875rem;
-    resize: vertical;
+  .slider-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
     
-    &:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-  }
-
-  .theme-select {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    background: var(--background);
-    color: var(--text);
-    font-size: 0.875rem;
-    cursor: pointer;
-    
-    &:focus {
-      outline: none;
-      border-color: var(--primary);
+    .value-input-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      
+      .value-text-input {
+        background: transparent;
+        border: none;
+        color: $primary;
+        font-weight: 600;
+        font-size: 0.9rem;
+        text-align: right;
+        padding: 0;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+        
+        &:hover {
+          color: rgba($primary, 0.8);
+        }
+        
+        &:focus {
+          color: rgba($primary, 0.75);
+        }
+        
+        &::placeholder {
+          color: transparent;
+        }
+      }
     }
   }
 
@@ -683,7 +816,7 @@
       height: 0;
       
       &:checked + .toggle-slider {
-        background-color: var(--primary);
+        background-color: $primary;
         
         &:before {
           transform: translateX(24px);
@@ -698,7 +831,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background-color: var(--surface-variant);
+      background-color: $input;
       transition: 0.3s;
       border-radius: 28px;
       
@@ -724,57 +857,53 @@
     .spinner {
       width: 40px;
       height: 40px;
-      border: 4px solid var(--surface-variant);
-      border-top: 4px solid var(--primary);
+      border: 4px solid $input;
+      border-top: 4px solid $primary;
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin-bottom: 1rem;
     }
   }
 
-  .number-input {
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    width: 80px;
-    
-    &:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
-    }
-  }
-
-  .animation-select {
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    min-width: 120px;
-    
-    &:focus {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
-    }
-  }
-
-  .spacing-slider, .width-slider {
-    flex: 1;
-    margin-right: 12px;
-  }
-
   .spacing-value, .width-value {
     font-weight: 600;
-    color: var(--primary);
+    color: $primary;
     font-size: 0.9rem;
-    min-width: 50px;
-    text-align: center;
+    // min-width: 50px;
+    text-align: left;
+  }
+
+  .number-input {
+    background: transparent;
+    border: none;
+    color: $primary;
+    font-weight: 600;
+    font-size: 0.9rem;
+    width: fit-content;
+    max-width: fit-content;
+    text-align: right;
+    padding: 0;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background: rgba($primary, 0.1);
+    }
+    
+    &:focus {
+      outline: none;
+      background: rgba($primary, 0.15);
+    }
+    
+    /* Hide spinner arrows */
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    
+    /* Firefox */
+    -moz-appearance: textfield;
   }
 
   @keyframes spin {

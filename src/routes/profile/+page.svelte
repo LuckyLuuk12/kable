@@ -3,13 +3,11 @@
   import { AuthService } from '$lib/services';
   import { currentAccount, isSignedIn } from '$lib/auth';
   import Icon from '$lib/components/Icon.svelte';
-  import type { MinecraftSkin } from '$lib/types';
+  import AccountSwitcher from '$lib/components/AccountSwitcher.svelte';
 
   // State variables
   let isLoading = false;
   let error: string | null = null;
-  let skins: MinecraftSkin[] = [];
-  let selectedSkinIndex = 0;
   let userStats = {
     totalPlaytime: 0,
     lastPlayed: null as string | null,
@@ -24,32 +22,6 @@
   let isPolling = false;
   let pollInterval: ReturnType<typeof setInterval> | null = null;
 
-  // Mock skins data for now
-  const mockSkins: MinecraftSkin[] = [
-    {
-      id: 'steve',
-      name: 'Steve (Default)',
-      file_path: '',
-      file_name: 'steve.png',
-      is_slim: false,
-      preview_url: undefined,
-      source: 'Default' as any,
-      created_date: 0,
-      last_used: undefined
-    },
-    {
-      id: 'alex',
-      name: 'Alex (Default)',
-      file_path: '',
-      file_name: 'alex.png',
-      is_slim: true,
-      preview_url: undefined,
-      source: 'Default' as any,
-      created_date: 0,
-      last_used: undefined
-    }
-  ];
-
   onMount(async () => {
     await loadProfileData();
   });
@@ -59,9 +31,6 @@
     error = null;
     
     try {
-      // TODO: Load skins from backend
-      skins = mockSkins;
-      
       // TODO: Load user stats from Minecraft data
       userStats = {
         totalPlaytime: 247, // hours
@@ -188,17 +157,6 @@
     }
   }
 
-  async function changeSkin(skinIndex: number) {
-    selectedSkinIndex = skinIndex;
-    // TODO: Apply skin change
-    console.log('Changing to skin:', skins[skinIndex].name);
-  }
-
-  async function uploadSkin() {
-    // TODO: Implement skin upload
-    alert('Skin upload feature coming soon!');
-  }
-
   function formatPlaytime(hours: number): string {
     if (hours < 24) {
       return `${hours} hours`;
@@ -212,7 +170,7 @@
 <div class="profile-page">
   <div class="page-header">
     <h1>Profile & Account</h1>
-    <p>Manage your Microsoft account, skins, and view your Minecraft statistics</p>
+    <p>Manage your Microsoft account and view your Minecraft statistics</p>
   </div>
 
   {#if error}
@@ -223,36 +181,53 @@
   {/if}
 
   <div class="profile-sections">
-    <!-- Microsoft Account Section -->
-    <section class="profile-section account-section">
-      <div class="section-header">
-        <h2><Icon name="user" /> Microsoft Account</h2>
-      </div>
-      
-      {#if $isSignedIn && $currentAccount}
-        <div class="account-info">
-          <div class="account-avatar">
-            <Icon name="user" size="xl" />
-          </div>
-          <div class="account-details">
-            <h3>{$currentAccount.username}</h3>
-            <p class="account-email">Minecraft Account</p>
-            <p class="account-id">UUID: {$currentAccount.uuid}</p>
-          </div>
-          <button on:click={signOut} class="btn btn-secondary">
-            <Icon name="logout" size="sm" />
-            Sign Out
-          </button>
+    <!-- Top Row: Account Switcher and Sign-in/Add Account -->
+    <div class="top-row">
+      <!-- Account Switcher Section -->
+      <section class="profile-section account-switcher-section">
+        <div class="section-header">
+          <h2><Icon name="user" /> Account Switcher</h2>
         </div>
-      {:else}
-        <div class="sign-in-prompt">
-          <div class="sign-in-icon">
-            <Icon name="user-plus" size="xl" />
+        
+        <div class="account-switcher-container">
+          <h3>Current Account</h3>
+          <p>Switch between Microsoft accounts or add new ones from your launcher_accounts.json file.</p>
+          <AccountSwitcher />
+        </div>
+      </section>
+
+      <!-- Sign-in/Add Account Section -->
+      <section class="profile-section sign-in-section">
+        <div class="section-header">
+          <h2><Icon name="user-plus" /> Account Management</h2>
+        </div>
+        
+        {#if $isSignedIn && $currentAccount}
+          <div class="account-info">
+            <div class="account-avatar">
+              <Icon name="user" size="xl" />
+            </div>
+            <div class="account-details">
+              <h3>{$currentAccount.username}</h3>
+              <p class="account-email">Microsoft Account</p>
+              <p class="account-id">UUID: {$currentAccount.uuid}</p>
+            </div>
+            <div class="account-actions">
+              <button on:click={signOut} class="btn btn-secondary">
+                <Icon name="logout" size="sm" />
+                Sign Out
+              </button>
+            </div>
           </div>
-          <h3>Sign in to Microsoft</h3>
-          <p>Sign in with your Microsoft account to access online features, sync your skins, and view your Minecraft profile.</p>
-          
-          {#if deviceCodeMessage}
+        {:else}
+          <div class="sign-in-prompt">
+            <div class="sign-in-icon">
+              <Icon name="user-plus" size="xl" />
+            </div>
+            <h3>Sign in to Microsoft</h3>
+            <p>Sign in with your Microsoft account to access online features and view your Minecraft profile.</p>
+            
+            {#if deviceCodeMessage}
             <div class="device-code-info">
               <div class="device-code-header">
                 <Icon name="info" size="sm" />
@@ -314,54 +289,9 @@
             </div>
           {/if}
         </div>
-      {/if}
-    </section>
-
-    <!-- Skins & Appearance Section -->
-    <section class="profile-section skins-section">
-      <div class="section-header">
-        <h2><Icon name="palette" /> Skins & Appearance</h2>
-        <button on:click={uploadSkin} class="btn btn-secondary">
-          <Icon name="upload" size="sm" />
-          Upload Skin
-        </button>
-      </div>
-      
-      {#if isLoading}
-        <div class="loading-state">
-          <Icon name="refresh" size="md" />
-          <span>Loading skins...</span>
-        </div>
-      {:else}
-        <div class="skins-grid">
-          {#each skins as skin, index}
-            <div 
-              class="skin-card" 
-              class:selected={index === selectedSkinIndex}
-              on:click={() => changeSkin(index)}
-              on:keydown={(e) => e.key === 'Enter' && changeSkin(index)}
-              role="button"
-              tabindex="0"
-            >
-              <div class="skin-preview">
-                <div class="skin-placeholder">
-                  <Icon name="user" size="lg" />
-                </div>
-                <div class="skin-model-type">
-                  {skin.is_slim ? 'Slim' : 'Classic'}
-                </div>
-              </div>
-              <div class="skin-info">
-                <h4>{skin.name}</h4>
-                {#if index === selectedSkinIndex}
-                  <span class="current-skin">Current</span>
-                {/if}
-              </div>
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </section>
+        {/if}
+      </section>
+    </div>
 
     <!-- Statistics Section -->
     <section class="profile-section stats-section">
@@ -422,6 +352,30 @@
   .profile-page {
     max-width: 1200px;
     margin: 0 auto;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .page-header {
+    margin-bottom: 2rem;
+    text-align: center;
+    
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, $primary, $tertiary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    p {
+      margin: 0;
+      color: $placeholder;
+      font-size: 1.125rem;
+      line-height: 1.6;
+    }
   }
 
   .profile-sections {
@@ -430,17 +384,50 @@
     gap: 2rem;
   }
 
+  .top-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: stretch;
+    
+    @media (max-width: 1024px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .profile-section {
     background: $container;
     border: 1px solid $dark-600;
-    border-radius: $border-radius;
+    border-radius: $border-radius-large;
     padding: 2rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: visible;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba($primary, 0.3), transparent);
+    }
+    
+    &:hover {
+      border-color: rgba($primary, 0.3);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
 
     .section-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid rgba($dark-600, 0.5);
 
       h2 {
         margin: 0;
@@ -450,60 +437,171 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        position: relative;
+        word-wrap: break-word;
+        
+        &::after {
+          content: '';
+          position: absolute;
+          bottom: -1rem;
+          left: 0;
+          width: 30px;
+          height: 2px;
+          background: $primary;
+          border-radius: 1px;
+        }
       }
     }
   }
-
-  .account-section {
+  
+  .account-switcher-section {
+    z-index: 20;
+    position: relative;
+    
+    .account-switcher-container {
+      padding: 1.5rem;
+      background: linear-gradient(135deg, rgba($primary, 0.05) 0%, rgba($tertiary, 0.03) 100%);
+      border-radius: $border-radius-large;
+      border: 1px solid rgba($primary, 0.1);
+      position: relative;
+      overflow: visible;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      z-index: 10;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, $primary, $tertiary);
+      }
+      
+      h3 {
+        margin: 0 0 0.5rem;
+        color: $text;
+        font-size: 1.1rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        word-wrap: break-word;
+        
+        &::before {
+          content: '👤';
+          font-size: 1.2rem;
+        }
+      }
+      
+      p {
+        margin: 0 0 1rem;
+        color: $placeholder;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
+    }
+  }
+  
+  .sign-in-section {
     .account-info {
       display: flex;
-      align-items: center;
+      flex-direction: column;
       gap: 1.5rem;
+      padding: 1.5rem;
+      background: linear-gradient(135deg, rgba($primary, 0.05) 0%, rgba($tertiary, 0.03) 100%);
+      border-radius: $border-radius;
+      border: 1px solid rgba($primary, 0.1);
+      word-wrap: break-word;
+      overflow-wrap: break-word;
 
       .account-avatar {
         width: 80px;
         height: 80px;
         border-radius: 50%;
-        background: $primary;
+        background: linear-gradient(135deg, $primary, $tertiary);
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         flex-shrink: 0;
+        box-shadow: 0 4px 15px rgba($primary, 0.3);
+        position: relative;
+        margin: 0 auto;
+        
+        &::after {
+          content: '';
+          position: absolute;
+          inset: -2px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, $primary, $tertiary);
+          z-index: -1;
+          opacity: 0.5;
+          filter: blur(8px);
+        }
       }
 
       .account-details {
-        flex: 1;
+        text-align: center;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
 
         h3 {
           margin: 0 0 0.5rem;
           font-size: 1.5rem;
           font-weight: 600;
           color: $text;
+          background: linear-gradient(135deg, $primary, $tertiary);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          word-wrap: break-word;
         }
 
         .account-email {
           margin: 0 0 0.25rem;
           color: $text;
           font-size: 1rem;
+          font-weight: 500;
+          word-wrap: break-word;
         }
 
         .account-id {
           margin: 0;
           color: $placeholder;
           font-size: 0.875rem;
-          font-family: monospace;
+          font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+          background: rgba($dark-600, 0.3);
+          padding: 0.5rem;
+          border-radius: 4px;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          line-height: 1.4;
         }
+      }
+
+      .account-actions {
+        display: flex;
+        justify-content: center;
       }
     }
 
     .sign-in-prompt {
       text-align: center;
       padding: 2rem;
+      background: linear-gradient(135deg, rgba($primary, 0.03) 0%, rgba($tertiary, 0.02) 100%);
+      border-radius: $border-radius;
+      border: 1px dashed rgba($primary, 0.2);
+      word-wrap: break-word;
+      overflow-wrap: break-word;
 
       .sign-in-icon {
-        margin-bottom: 1rem;
-        color: $placeholder;
+        margin-bottom: 1.5rem;
+        color: $primary;
+        opacity: 0.8;
       }
 
       h3 {
@@ -511,121 +609,100 @@
         font-size: 1.25rem;
         font-weight: 600;
         color: $text;
+        word-wrap: break-word;
       }
 
       p {
         margin: 0 0 2rem;
         color: $placeholder;
-        line-height: 1.5;
-        max-width: 400px;
-        margin-left: auto;
-        margin-right: auto;
-      }
-    }
-  }
-
-  .skins-section {
-    .skins-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 1rem;
-
-      .skin-card {
-        background: $background;
-        border: 2px solid $dark-600;
-        border-radius: $border-radius;
-        padding: 1rem;
-        text-align: center;
-        cursor: pointer;
-        transition: all 0.2s ease;
-
-        &:hover {
-          border-color: $primary;
-          transform: translateY(-2px);
-        }
-
-        &.selected {
-          border-color: $primary;
-          background: rgba($primary, 0.1);
-        }
-
-        .skin-preview {
-          position: relative;
-          margin-bottom: 1rem;
-
-          .skin-placeholder {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 0.5rem;
-            background: $container;
-            border-radius: $border-radius;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: $placeholder;
-          }
-
-          .skin-model-type {
-            font-size: 0.75rem;
-            color: $placeholder;
-            text-transform: uppercase;
-            font-weight: 500;
-          }
-        }
-
-        .skin-info {
-          h4 {
-            margin: 0 0 0.5rem;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: $text;
-          }
-
-          .current-skin {
-            font-size: 0.75rem;
-            color: $primary;
-            font-weight: 600;
-            text-transform: uppercase;
-          }
-        }
+        line-height: 1.6;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
       }
     }
   }
 
   .stats-section {
+    grid-column: 1 / -1; /* Full width in the main container */
+    
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
 
       .stat-card {
-        background: $background;
-        border: 1px solid $dark-600;
+        background: linear-gradient(135deg, rgba($primary, 0.03) 0%, rgba($tertiary, 0.02) 100%);
+        border: 1px solid rgba($dark-600, 0.6);
         border-radius: $border-radius;
         padding: 1.5rem;
         display: flex;
         align-items: center;
         gap: 1rem;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 2px;
+          background: linear-gradient(90deg, $primary, $tertiary);
+          transform: translateX(-100%);
+          transition: transform 0.3s ease;
+        }
+        
+        &:hover {
+          border-color: rgba($primary, 0.3);
+          transform: translateY(-2px);
+          box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+          
+          &::before {
+            transform: translateX(0);
+          }
+        }
 
         .stat-icon {
           width: 48px;
           height: 48px;
           border-radius: $border-radius;
-          background: rgba($primary, 0.1);
+          background: linear-gradient(135deg, rgba($primary, 0.15), rgba($tertiary, 0.1));
           display: flex;
           align-items: center;
           justify-content: center;
           color: $primary;
           flex-shrink: 0;
+          position: relative;
+          
+          &::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: $border-radius;
+            background: linear-gradient(135deg, $primary, $tertiary);
+            z-index: -1;
+            opacity: 0.3;
+            filter: blur(4px);
+          }
         }
 
         .stat-content {
+          flex: 1;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          
           h4 {
             margin: 0 0 0.25rem;
             font-size: 0.875rem;
             font-weight: 500;
             color: $placeholder;
             text-transform: uppercase;
+            letter-spacing: 0.5px;
+            word-wrap: break-word;
           }
 
           .stat-value {
@@ -633,6 +710,13 @@
             font-size: 1.25rem;
             font-weight: 600;
             color: $text;
+            background: linear-gradient(135deg, $primary, $tertiary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            line-height: 1.3;
           }
         }
       }
@@ -800,15 +884,6 @@
     to { transform: rotate(360deg); }
   }
 
-  .loading-state {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 2rem;
-    color: $placeholder;
-  }
-
   @media (max-width: 768px) {
     .profile-section {
       padding: 1rem;
@@ -817,14 +892,19 @@
     .account-info {
       flex-direction: column;
       text-align: center;
-    }
-
-    .skins-grid {
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1rem !important;
     }
 
     .stats-grid {
-      grid-template-columns: 1fr;
+      grid-template-columns: 1fr !important;
+    }
+    
+    .profile-sections {
+      grid-template-columns: 1fr !important;
+    }
+    
+    .sign-in-prompt {
+      padding: 2rem 1rem !important;
     }
   }
 </style>

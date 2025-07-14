@@ -255,7 +255,7 @@ fn read_launcher_profiles(minecraft_dir: &Path) -> Result<LauncherProfiles, AppE
 
     let content = fs::read_to_string(&profiles_path)?;
     let profiles: LauncherProfiles = serde_json::from_str(&content)
-        .map_err(|e| AppError::Json(e))?;
+        .map_err(AppError::Json)?;
 
     Ok(profiles)
 }
@@ -325,4 +325,422 @@ pub async fn update_installation_last_played(installation_id: String, minecraft_
         .map_err(|e| format!("Failed to write profiles: {}", e))?;
 
     Ok(())
+}
+
+/// Extended installation management for Kable launcher
+use uuid::Uuid;
+use chrono::Utc;
+use std::collections::HashMap;
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct KableInstallation {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub mod_loader: String, // vanilla, fabric, forge, quilt, neoforge
+    pub loader_version: Option<String>,
+    pub description: Option<String>,
+    pub game_directory: Option<String>,
+    pub java_path: Option<String>,
+    pub jvm_args: Option<String>,
+    pub last_played: Option<String>,
+    pub created: String,
+    pub path: String,
+    pub is_valid: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct KableProfiles {
+    pub profiles: HashMap<String, KableInstallation>,
+    pub version: String,
+    pub last_used: Option<String>,
+}
+
+impl Default for KableProfiles {
+    fn default() -> Self {
+        Self {
+            profiles: HashMap::new(),
+            version: "1.0.0".to_string(),
+            last_used: None,
+        }
+    }
+}
+
+pub fn get_kable_directory() -> Result<PathBuf, AppError> {
+    let minecraft_dir = get_default_minecraft_directory()
+        .map_err(|e| AppError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, e)))?;
+    Ok(minecraft_dir.join("kable"))
+}
+
+pub fn get_kable_profiles_path() -> Result<PathBuf, AppError> {
+    let kable_dir = get_kable_directory()?;
+    Ok(kable_dir.join("profiles.json"))
+}
+
+pub fn ensure_kable_directory() -> Result<PathBuf, AppError> {
+    let kable_dir = get_kable_directory()?;
+    
+    if !kable_dir.exists() {
+        fs::create_dir_all(&kable_dir)?;
+        println!("Created Kable directory: {:?}", kable_dir);
+    }
+    
+    // Create only essential subdirectories - much simpler!
+    let mods_dir = kable_dir.join("mods");
+    if !mods_dir.exists() {
+        fs::create_dir_all(&mods_dir)?;
+        println!("Created mods directory: {:?}", mods_dir);
+    }
+    
+    Ok(kable_dir)
+}
+
+pub fn load_kable_profiles() -> Result<KableProfiles, AppError> {
+    let profiles_path = get_kable_profiles_path()?;
+    
+    if !profiles_path.exists() {
+        // Create default profiles file
+        let default_profiles = KableProfiles::default();
+        save_kable_profiles(&default_profiles)?;
+        return Ok(default_profiles);
+    }
+    
+    let content = fs::read_to_string(profiles_path)?;
+    let profiles: KableProfiles = serde_json::from_str(&content)
+        .unwrap_or_else(|_| KableProfiles::default());
+    
+    Ok(profiles)
+}
+
+pub fn save_kable_profiles(profiles: &KableProfiles) -> Result<(), AppError> {
+    ensure_kable_directory()?;
+    let profiles_path = get_kable_profiles_path()?;
+    let content = serde_json::to_string_pretty(profiles)?;
+    fs::write(profiles_path, content)?;
+    Ok(())
+}
+
+pub fn get_installation_mods_directory(installation_id: &str) -> Result<PathBuf, AppError> {
+    let kable_dir = get_kable_directory()?;
+    Ok(kable_dir.join("mods").join(installation_id))
+}
+
+pub fn create_installation_mods_directory(installation_id: &str) -> Result<PathBuf, AppError> {
+    let mods_dir = get_installation_mods_directory(installation_id)?;
+    
+    if !mods_dir.exists() {
+        fs::create_dir_all(&mods_dir)?;
+        println!("Created mods directory for installation {}: {:?}", installation_id, mods_dir);
+    }
+    
+    Ok(mods_dir)
+}
+
+#[tauri::command]
+pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
+    let mut all_installations = Vec::new();
+    
+    println!("=== Loading installations ===");
+    
+    // 1. Load Kable-managed profiles
+    match load_kable_profiles() {
+        Ok(profiles) => {
+            let kable_installations: Vec<KableInstallation> = profiles.profiles.into_values().collect();
+            println!("Found {} Kable-managed installations", kable_installations.len());
+            for install in &kable_installations {
+                println!("  - {} ({})", install.name, install.version);
+            }
+            all_installations.extend(kable_installations);
+        }
+        Err(e) => {
+            println!("Warning: Failed to load Kable profiles: {}", e);
+            // Continue anyway - we can still show existing Minecraft installations
+        }
+    }
+    
+    // 2. Scan for existing Minecraft installations and convert them to KableInstallation format
+    match get_minecraft_installations(None).await {
+        Ok(minecraft_installations) => {
+            println!("Found {} existing Minecraft installations", minecraft_installations.len());
+            for mc_install in minecraft_installations {
+                println!("  - Processing: {} ({})", mc_install.name, mc_install.version);
+                
+                // Convert MinecraftInstallation to KableInstallation format
+                // Only add if we don't already have a Kable profile for this version
+                let version_id = format!("minecraft-{}", mc_install.version);
+                
+                // Check if we already have this in our Kable profiles
+                let already_exists = all_installations.iter().any(|kable_install| {
+                    kable_install.version == mc_install.version && kable_install.name == mc_install.name
+                });
+                
+                if !already_exists {
+                    let kable_installation = KableInstallation {
+                        id: version_id,
+                        name: format!("Minecraft {}", mc_install.version),
+                        version: mc_install.version,
+                        mod_loader: "vanilla".to_string(), // Existing installations are vanilla unless detected otherwise
+                        loader_version: None,
+                        description: Some("Existing Minecraft installation".to_string()),
+                        game_directory: Some(mc_install.game_dir.to_string_lossy().to_string()),
+                        java_path: mc_install.java_path,
+                        jvm_args: mc_install.jvm_args.map(|args| args.join(" ")),
+                        last_played: mc_install.last_played,
+                        created: mc_install.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+                        path: mc_install.path.to_string_lossy().to_string(),
+                        is_valid: mc_install.is_valid,
+                    };
+                    
+                    println!("    + Added as: {}", kable_installation.name);
+                    all_installations.push(kable_installation);
+                } else {
+                    println!("    - Skipped (already exists in Kable profiles)");
+                }
+            }
+        }
+        Err(e) => {
+            println!("Warning: Failed to scan existing Minecraft installations: {}", e);
+            // Continue anyway - we can still show Kable-managed installations
+        }
+    }
+    
+    println!("=== Total installations found: {} ===", all_installations.len());
+    Ok(all_installations)
+}
+
+#[tauri::command]
+pub async fn create_installation(
+    name: String,
+    version: String,
+    mod_loader: String,
+    game_directory: Option<String>,
+    java_path: Option<String>,
+    jvm_args: Option<String>,
+    description: Option<String>,
+) -> Result<KableInstallation, String> {
+    let installation_id = Uuid::new_v4().to_string();
+    let now = Utc::now().to_rfc3339();
+    
+    // Use the default Minecraft directory structure - no custom installation paths
+    let minecraft_dir = get_default_minecraft_directory()
+        .map_err(|e| format!("Failed to get Minecraft directory: {}", e))?;
+    
+    let installation = KableInstallation {
+        id: installation_id.clone(),
+        name,
+        version,
+        mod_loader,
+        loader_version: None, // TODO: Detect mod loader version
+        description,
+        game_directory,
+        java_path,
+        jvm_args,
+        last_played: None,
+        created: now,
+        path: minecraft_dir.to_string_lossy().to_string(),
+        is_valid: true,
+    };
+    
+    // Create mods directory for this installation
+    create_installation_mods_directory(&installation_id)
+        .map_err(|e| format!("Failed to create mods directory: {}", e))?;
+    
+    // Save to kable profiles
+    let mut profiles = load_kable_profiles()
+        .map_err(|e| format!("Failed to load kable profiles: {}", e))?;
+    
+    profiles.profiles.insert(installation_id, installation.clone());
+    
+    save_kable_profiles(&profiles)
+        .map_err(|e| format!("Failed to save kable profiles: {}", e))?;
+    
+    println!("Created installation: {} ({})", installation.name, installation.id);
+    Ok(installation)
+}
+
+#[tauri::command]
+pub async fn delete_installation(installation_id: String) -> Result<(), String> {
+    let mut profiles = load_kable_profiles()
+        .map_err(|e| format!("Failed to load kable profiles: {}", e))?;
+    
+    if let Some(installation) = profiles.profiles.remove(&installation_id) {
+        // Remove the mods directory for this installation
+        let mods_dir = get_installation_mods_directory(&installation_id)
+            .map_err(|e| format!("Failed to get mods directory: {}", e))?;
+        
+        if mods_dir.exists() {
+            fs::remove_dir_all(&mods_dir)
+                .map_err(|e| format!("Failed to remove mods directory: {}", e))?;
+            println!("Removed mods directory: {:?}", mods_dir);
+        }
+        
+        save_kable_profiles(&profiles)
+            .map_err(|e| format!("Failed to save kable profiles: {}", e))?;
+        
+        println!("Deleted installation: {} ({})", installation.name, installation.id);
+        Ok(())
+    } else {
+        Err("Installation not found".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn get_minecraft_versions() -> Result<Vec<VersionInfo>, String> {
+    // Fetch from Mojang's version manifest API
+    let client = reqwest::Client::new();
+    
+    match client
+        .get("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json")
+        .send()
+        .await
+    {
+        Ok(response) => {
+            match response.json::<VersionManifest>().await {
+                Ok(manifest) => {
+                    // Return only release versions for now, limit to recent versions
+                    let mut versions: Vec<VersionInfo> = manifest
+                        .versions
+                        .into_iter()
+                        .filter(|v| v.version_type == "release")
+                        .take(20) // Limit to most recent 20 releases
+                        .collect();
+                    
+                    // Sort by release time (newest first)
+                    versions.sort_by(|a, b| b.release_time.cmp(&a.release_time));
+                    
+                    Ok(versions)
+                }
+                Err(e) => {
+                    println!("Failed to parse version manifest: {}", e);
+                    // Return fallback versions
+                    Ok(get_fallback_versions())
+                }
+            }
+        }
+        Err(e) => {
+            println!("Failed to fetch version manifest: {}", e);
+            // Return fallback versions
+            Ok(get_fallback_versions())
+        }
+    }
+}
+
+fn get_fallback_versions() -> Vec<VersionInfo> {
+    vec![
+        VersionInfo {
+            id: "1.21.3".to_string(),
+            version_type: "release".to_string(),
+            url: "".to_string(),
+            time: "2024-10-23T12:00:00Z".to_string(),
+            release_time: "2024-10-23T12:00:00Z".to_string(),
+        },
+        VersionInfo {
+            id: "1.21.2".to_string(),
+            version_type: "release".to_string(),
+            url: "".to_string(),
+            time: "2024-10-22T12:00:00Z".to_string(),
+            release_time: "2024-10-22T12:00:00Z".to_string(),
+        },
+        VersionInfo {
+            id: "1.21.1".to_string(),
+            version_type: "release".to_string(),
+            url: "".to_string(),
+            time: "2024-08-08T12:00:00Z".to_string(),
+            release_time: "2024-08-08T12:00:00Z".to_string(),
+        },
+        VersionInfo {
+            id: "1.21".to_string(),
+            version_type: "release".to_string(),
+            url: "".to_string(),
+            time: "2024-06-13T12:00:00Z".to_string(),
+            release_time: "2024-06-13T12:00:00Z".to_string(),
+        },
+        VersionInfo {
+            id: "1.20.6".to_string(),
+            version_type: "release".to_string(),
+            url: "".to_string(),
+            time: "2024-04-29T12:00:00Z".to_string(),
+            release_time: "2024-04-29T12:00:00Z".to_string(),
+        },
+    ]
+}
+
+#[tauri::command]
+pub async fn open_installation_folder(installation_id: String) -> Result<(), String> {
+    let profiles = load_kable_profiles()
+        .map_err(|e| format!("Failed to load kable profiles: {}", e))?;
+    
+    if let Some(_installation) = profiles.profiles.get(&installation_id) {
+        // Open the mods directory for this installation
+        let mods_dir = get_installation_mods_directory(&installation_id)
+            .map_err(|e| format!("Failed to get mods directory: {}", e))?;
+        
+        if mods_dir.exists() {
+            #[cfg(target_os = "windows")]
+            {
+                std::process::Command::new("explorer")
+                    .arg(&mods_dir)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open folder: {}", e))?;
+            }
+            
+            #[cfg(target_os = "macos")]
+            {
+                std::process::Command::new("open")
+                    .arg(&mods_dir)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open folder: {}", e))?;
+            }
+            
+            #[cfg(target_os = "linux")]
+            {
+                std::process::Command::new("xdg-open")
+                    .arg(&mods_dir)
+                    .spawn()
+                    .map_err(|e| format!("Failed to open folder: {}", e))?;
+            }
+            
+            Ok(())
+        } else {
+            Err("Mods directory does not exist".to_string())
+        }
+    } else {
+        Err("Installation not found".to_string())
+    }
+}
+
+#[tauri::command]
+pub async fn launch_minecraft_installation(installation_id: String) -> Result<(), String> {
+    let profiles = load_kable_profiles()
+        .map_err(|e| format!("Failed to load kable profiles: {}", e))?;
+    
+    if let Some(installation) = profiles.profiles.get(&installation_id) {
+        // TODO: Implement actual Minecraft launching with the installation
+        // This would involve:
+        // 1. Downloading the version if not present
+        // 2. Setting up the game directory with mod loader configs
+        // 3. Setting mod folder arguments to point to our kable/mods/{id}/ directory
+        // 4. Building launch arguments
+        // 5. Starting the Minecraft process
+        
+        let mods_dir = get_installation_mods_directory(&installation_id)
+            .map_err(|e| format!("Failed to get mods directory: {}", e))?;
+        
+        println!("Would launch installation: {} ({})", installation.name, installation.id);
+        println!("Version: {}, Mod Loader: {}", installation.version, installation.mod_loader);
+        println!("Mods directory: {:?}", mods_dir);
+        
+        // For now, just update last played time
+        let mut profiles_mut = profiles;
+        if let Some(install_mut) = profiles_mut.profiles.get_mut(&installation_id) {
+            install_mut.last_played = Some(Utc::now().to_rfc3339());
+        }
+        
+        save_kable_profiles(&profiles_mut)
+            .map_err(|e| format!("Failed to save kable profiles: {}", e))?;
+        
+        Ok(())
+    } else {
+        Err("Installation not found".to_string())
+    }
 }

@@ -1,27 +1,64 @@
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import type { 
   MinecraftInstallation, 
+  MinecraftVersion,
   LaunchOptions, 
   MicrosoftAccount, 
-  LauncherSettings, 
+  LauncherSettings,
   MinecraftDirectoryInfo,
   LauncherProfiles,
-  MinecraftSession
+  LauncherAccountsJson
 } from './types';
 
-// Installations Management
-export async function getMinecraftInstallations(): Promise<MinecraftInstallation[]> {
-  return await invoke('get_minecraft_installations');
+// Extend window interface for Tauri
+declare global {
+  interface Window {
+    __TAURI__: {
+      invoke: typeof invoke;
+    };
+  }
 }
 
-export async function refreshInstallation(id: string): Promise<MinecraftInstallation> {
-  return await invoke('refresh_installation', { id });
+// Installation Management
+export async function getInstallations(): Promise<MinecraftInstallation[]> {
+  return await invoke('get_installations');
 }
 
-export async function updateInstallationLastPlayed(id: string): Promise<void> {
-  return await invoke('update_installation_last_played', { id });
+export async function createInstallation(
+  name: string,
+  version: string,
+  modLoader: string,
+  gameDirectory?: string,
+  javaPath?: string,
+  jvmArgs?: string,
+  description?: string
+): Promise<MinecraftInstallation> {
+  return await invoke('create_installation', {
+    name,
+    version,
+    modLoader,
+    gameDirectory,
+    javaPath,
+    jvmArgs,
+    description
+  });
+}
+
+export async function deleteInstallation(installationId: string): Promise<void> {
+  return await invoke('delete_installation', { installationId });
+}
+
+export async function launchMinecraftInstallation(installationId: string): Promise<void> {
+  return await invoke('launch_minecraft_installation', { installationId });
+}
+
+export async function openInstallationFolder(installationId: string): Promise<void> {
+  return await invoke('open_installation_folder', { installationId });
+}
+
+export async function getMinecraftVersions(): Promise<MinecraftVersion[]> {
+  return await invoke('get_minecraft_versions');
 }
 
 // Settings Management
@@ -242,35 +279,76 @@ export class AuthService {
   }
 }
 
-// Legacy compatibility - keep the existing class structure for now
-export class MinecraftService {
-  static async findInstallations(): Promise<MinecraftInstallation[]> {
-    return getMinecraftInstallations();
+// Installation Service Class
+export class InstallationService {
+  static async getInstallations(): Promise<MinecraftInstallation[]> {
+    return getInstallations();
   }
 
-  static async launchMinecraft(options: LaunchOptions, minecraftPath: string): Promise<string> {
-    return launchMinecraft(options, minecraftPath);
+  static async createInstallation(
+    name: string,
+    version: string,
+    mod_loader: string,
+    game_directory?: string,
+    java_path?: string,
+    jvm_args?: string,
+    description?: string
+  ): Promise<MinecraftInstallation> {
+    return await invoke('create_installation', {
+      name,
+      version,
+      mod_loader,
+      game_directory,
+      java_path,
+      jvm_args,
+      description
+    });
   }
 
-  static async checkJavaInstallation(): Promise<string> {
-    return checkJavaInstallation();
+  static async deleteInstallation(installationId: string): Promise<void> {
+    return deleteInstallation(installationId);
   }
 
-  static async getDefaultMinecraftDir(): Promise<string> {
-    return getDefaultMinecraftDir();
+  static async launchInstallation(installationId: string): Promise<void> {
+    return launchMinecraftInstallation(installationId);
   }
 
-  static async validateMinecraftDirectory(path: string): Promise<MinecraftDirectoryInfo> {
-    return validateMinecraftDirectory(path);
+  static async launchMinecraftInstallation(installationId: string): Promise<void> {
+    return launchMinecraftInstallation(installationId);
   }
 
-  static async startMicrosoftAuth(): Promise<string> {
-    return startMicrosoftAuth();
+  static async openInstallationFolder(installationId: string): Promise<void> {
+    return openInstallationFolder(installationId);
   }
 
-  static async authenticateWithMicrosoft(): Promise<MicrosoftAccount> {
-    return authenticateWithMicrosoft();
+  static async getMinecraftVersions(): Promise<MinecraftVersion[]> {
+    return getMinecraftVersions();
   }
+}
+
+// Launcher Accounts Management (launcher_accounts.json)
+export async function readLauncherAccounts(): Promise<LauncherAccountsJson> {
+  return invoke('read_launcher_accounts');
+}
+
+export async function writeLauncherAccount(account: MicrosoftAccount): Promise<void> {
+  return invoke('write_launcher_account', { account });
+}
+
+export async function removeLauncherAccount(accountId: string): Promise<void> {
+  return invoke('remove_launcher_account', { accountId });
+}
+
+export async function setActiveLauncherAccount(accountId: string): Promise<void> {
+  return invoke('set_active_launcher_account', { accountId });
+}
+
+export async function getActiveLauncherAccount(): Promise<MicrosoftAccount | null> {
+  return invoke('get_active_launcher_account');
+}
+
+export async function getAllLauncherAccounts(): Promise<MicrosoftAccount[]> {
+  return invoke('get_all_launcher_accounts');
 }
 
 export class SettingsService {

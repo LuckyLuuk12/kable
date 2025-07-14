@@ -20,7 +20,9 @@ pub use settings::{LauncherSettings, load_settings, save_settings, get_launcher_
 pub use maps::{LocalWorld, WorldDownload, get_local_worlds, delete_world, backup_world};
 pub use shaders::{ShaderPack, get_installed_shaders, toggle_shader, delete_shader, install_shader_pack, get_shader_info};
 pub use skins::{MinecraftSkin, get_local_skins, save_skin, delete_skin, install_skin, get_skin_data, get_current_minecraft_skin, upload_skin_to_minecraft};
-pub use installations::{MinecraftInstallation, get_minecraft_installations, refresh_installation, update_installation_last_played};
+pub use installations::{MinecraftInstallation, get_minecraft_installations, refresh_installation, update_installation_last_played, 
+    KableInstallation, get_installations, create_installation, delete_installation, get_minecraft_versions, 
+    open_installation_folder, launch_minecraft_installation};
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -186,6 +188,13 @@ pub fn run() {
             auth::get_minecraft_launch_args,
             auth::validate_minecraft_token,
             auth::open_url,
+            // Launcher accounts commands
+            auth::read_launcher_accounts,
+            auth::write_launcher_account,
+            auth::remove_launcher_account,
+            auth::set_active_launcher_account,
+            auth::get_active_launcher_account,
+            auth::get_all_launcher_accounts,
             // Settings commands
             settings::load_settings,
             settings::save_settings,
@@ -196,6 +205,13 @@ pub fn run() {
             installations::get_minecraft_installations,
             installations::refresh_installation,
             installations::update_installation_last_played,
+            // Kable installation management
+            installations::get_installations,
+            installations::create_installation,
+            installations::delete_installation,
+            installations::get_minecraft_versions,
+            installations::open_installation_folder,
+            installations::launch_minecraft_installation,
             // Maps/Worlds commands
             maps::get_local_worlds,
             maps::delete_world,
@@ -213,8 +229,10 @@ pub fn run() {
             skins::install_skin,
             skins::get_skin_data,
             skins::get_current_minecraft_skin,
-            skins::upload_skin_to_minecraft
+            skins::upload_skin_to_minecraft,
+            skins::select_skin_file
         ])
+        .plugin(tauri_plugin_dialog::init())
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

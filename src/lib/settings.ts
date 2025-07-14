@@ -31,7 +31,9 @@ const defaultSettings: LauncherSettings = {
   max_world_backups: 5,
   shader_quality_preset: 'medium',
   enable_shader_caching: true,
-  custom: {}
+  custom: {},
+  jvm_args: '',
+  memory: 2048,
 };
 
 // Settings store

@@ -96,14 +96,14 @@
             <div class="installation-card" class:selected={false}>
               <div class="installation-header">
                 <div class="installation-icon">
-                  <Icon name={installation.type === 'vanilla' ? 'home' : 'mods'} size="md" />
+                  <Icon name={installation.mod_loader === 'vanilla' ? 'home' : 'mods'} size="md" />
                 </div>
                 <div class="installation-info">
                   <h3>{installation.name || `Minecraft ${installation.version}`}</h3>
                   <p class="installation-details">
                     {installation.version}
-                    {#if installation.type !== 'vanilla'}
-                      • {installation.type}
+                    {#if installation.mod_loader !== 'vanilla'}
+                      • {installation.mod_loader}
                       {#if installation.loader_version}
                         {installation.loader_version}
                       {/if}

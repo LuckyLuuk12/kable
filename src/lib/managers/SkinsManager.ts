@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
+import { get } from 'svelte/store';
+import { currentAccount } from '../auth';
 import type { MinecraftSkin, SkinDownload } from '../types';
-import { SettingsManager } from '../settings';
 
 export class SkinsManager {
   /**
@@ -50,6 +51,66 @@ export class SkinsManager {
    */
   static async uploadSkinToMinecraft(accessToken: string, skinFile: string, isSlim: boolean): Promise<void> {
     return invoke('upload_skin_to_minecraft', { accessToken, skinFile, isSlim });
+  }
+
+  /**
+   * Get all skins (alias for getLocalSkins for compatibility)
+   */
+  static async getSkins(): Promise<MinecraftSkin[]> {
+    return this.getLocalSkins();
+  }
+
+  /**
+   * Apply skin to player account
+   */
+  static async applySkin(skinId: string): Promise<void> {
+    const account = get(currentAccount);
+    if (!account) {
+      throw new Error('No account selected');
+    }
+
+    const skins = await this.getLocalSkins();
+    const skin = skins.find(s => s.file_name === skinId);
+    
+    if (!skin) {
+      throw new Error('Skin not found');
+    }
+
+    await this.uploadSkinToMinecraft(
+      account.minecraft_access_token,
+      skin.file_name,
+      skin.is_slim
+    );
+  }
+
+  /**
+   * Upload new skin (opens file dialog)
+   */
+  static async uploadSkin(): Promise<MinecraftSkin | null> {
+    try {
+      // Use Tauri dialog to select file
+      const skinFilePath = await invoke<string | null>('select_skin_file');
+      
+      if (!skinFilePath) {
+        return null; // User cancelled
+      }
+
+      // Validate the file
+      const validation = this.validateSkinFile(skinFilePath);
+      if (!validation.valid) {
+        throw new Error(validation.error);
+      }
+
+      // Install the skin
+      const fileName = await this.installSkin(skinFilePath);
+      
+      // Get the newly installed skin
+      const skins = await this.getLocalSkins();
+      return skins.find(skin => skin.file_name === fileName) || null;
+    } catch (error) {
+      console.error('Error uploading skin:', error);
+      throw error;
+    }
   }
 
   /**

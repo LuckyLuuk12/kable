@@ -50,11 +50,11 @@ export class MapsManager {
     const totalWorlds = worlds.length;
     const totalSize = worlds.reduce((sum, world) => sum + world.size_mb, 0);
     const lastPlayedWorld = worlds.reduce((latest, world) => 
-      world.last_played > latest.last_played ? world : latest
+      (world?.last_played || 0) > (latest?.last_played || 0) ? world : latest
     , worlds[0]);
 
     const gameModeCounts = worlds.reduce((counts, world) => {
-      counts[world.game_mode] = (counts[world.game_mode] || 0) + 1;
+      counts[world?.game_mode as string] = (counts[world?.game_mode as string] || 0) + 1;
       return counts;
     }, {} as Record<string, number>);
 
@@ -112,13 +112,13 @@ export class MapsManager {
           comparison = a.name.localeCompare(b.name);
           break;
         case 'last_played':
-          comparison = a.last_played - b.last_played;
+          comparison = (a.last_played || 0) - (b.last_played || 0);
           break;
         case 'size':
-          comparison = a.size_mb - b.size_mb;
+          comparison = (a.size_mb || 0) - (b.size_mb || 0);
           break;
         case 'created':
-          comparison = a.created - b.created;
+          comparison = (a.created || 0) - (b.created || 0);
           break;
       }
       

@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.kable.launcher",
   "build": {
-    "frontendDist": "../.sveltekit/output",
+    "frontendDist": "../build",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "npm run web:dev",
     "beforeBuildCommand": "npm run build"

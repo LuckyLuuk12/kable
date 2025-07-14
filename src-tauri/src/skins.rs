@@ -88,7 +88,7 @@ async fn parse_skin_file(skin_path: &PathBuf) -> Result<MinecraftSkin, AppError>
         .to_string();
     
     let name = extract_skin_name(&file_name);
-    let is_slim = detect_slim_model(&skin_path).unwrap_or(false);
+    let is_slim = detect_slim_model(skin_path).unwrap_or(false);
     
     // Get creation date from file metadata
     let created_date = if let Ok(metadata) = fs::metadata(skin_path) {
@@ -128,7 +128,7 @@ fn extract_skin_name(filename: &str) -> String {
 }
 
 // Detect if skin uses slim (Alex) model
-fn detect_slim_model(skin_path: &PathBuf) -> Result<bool, AppError> {
+fn detect_slim_model(skin_path: &std::path::Path) -> Result<bool, AppError> {
     // This is a simplified implementation. 
     // In reality, you'd analyze the skin texture to determine if it's slim or classic model
     // For now, we'll use filename heuristics
@@ -265,4 +265,26 @@ pub async fn upload_skin_to_minecraft(access_token: String, skin_file: String, i
     // 4. Send the skin file data in the request body
     
     Err("Skin upload not implemented yet".to_string())
+}
+
+// Select skin file using file dialog
+#[tauri::command]
+pub async fn select_skin_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    
+    let file_path = app.dialog()
+        .file()
+        .add_filter("PNG Images", &["png"])
+        .set_title("Select Skin File")
+        .blocking_pick_file();
+    
+    match file_path {
+        Some(path) => {
+            match path.as_path() {
+                Some(path_buf) => Ok(Some(path_buf.to_string_lossy().to_string())),
+                None => Err("Invalid file path".to_string()),
+            }
+        },
+        None => Ok(None), // User cancelled
+    }
 }

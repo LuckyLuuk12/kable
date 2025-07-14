@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use chrono::Utc;
+use chrono::{Utc, DateTime};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use std::path::PathBuf;
@@ -339,6 +339,11 @@ pub async fn complete_microsoft_auth(auth_code: String) -> Result<MicrosoftAccou
         eprintln!("Warning: Failed to write Minecraft session: {}", e);
     }
     
+    // Write to launcher_accounts.json
+    if let Err(e) = write_launcher_account(account.clone()).await {
+        eprintln!("Warning: Failed to write launcher account: {}", e);
+    }
+    
     Ok(account)
 }
 
@@ -413,7 +418,7 @@ async fn get_xsts_token(xbox_token: &str) -> Result<XboxLiveAuthenticationRespon
             println!("401 Unauthorized - This usually means:");
             println!("1. The Xbox Live token is invalid or expired");
             println!("2. The account doesn't have Xbox Live access");
-            return Err(AppError::OAuth(format!("XSTS authorization failed: 401 Unauthorized - Account may not have Xbox Live access")));
+            return Err(AppError::OAuth("XSTS authorization failed: 401 Unauthorized - Account may not have Xbox Live access".to_string()));
         }
         
         return Err(AppError::OAuth(format!("XSTS token request failed: {} - {}", status, error_text)));
@@ -476,7 +481,7 @@ async fn authenticate_minecraft(xsts_token: &str, user_hash: &str) -> Result<Min
             println!("1. The Xbox Live account doesn't own Minecraft");
             println!("2. The XSTS token doesn't have the right permissions");
             println!("3. The identity token format is incorrect");
-            return Err(AppError::OAuth(format!("Minecraft authentication failed: 403 Forbidden - Account may not own Minecraft or lacks permissions")));
+            return Err(AppError::OAuth("Minecraft authentication failed: 403 Forbidden - Account may not own Minecraft or lacks permissions".to_string()));
         }
         
         return Err(AppError::OAuth(format!("Minecraft authentication failed: {} - {}", status, error_text)));
@@ -951,4 +956,315 @@ pub async fn copy_to_clipboard(text: String) -> Result<(), String> {
     }
     
     Ok(())
+}
+
+// Launcher Accounts JSON structure (matches .minecraft/launcher_accounts.json)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LauncherAccount {
+    #[serde(default)]
+    pub access_token: String,
+    #[serde(default)]
+    pub access_token_expires_at: String, // ISO date string
+    #[serde(default)]
+    pub avatar: String, // base64 encoded image
+    #[serde(default)]
+    pub eligible_for_free_trials: bool,
+    #[serde(default)]
+    pub eligible_for_migration: bool,
+    #[serde(default)]
+    pub franchise_inventory_id: String,
+    #[serde(default)]
+    pub has_multiple_profiles: bool,
+    #[serde(default)]
+    pub in_forced_migration: bool,
+    #[serde(default)]
+    pub legacy: bool,
+    #[serde(default)]
+    pub license_product_ids: Vec<String>,
+    pub local_id: String, // This is required for identification
+    #[serde(default)]
+    pub minecraft_profile: Option<MinecraftProfile>,
+    #[serde(default)]
+    pub persistent: bool,
+    #[serde(default)]
+    pub remote_id: String,
+    #[serde(rename = "type", default)]
+    pub account_type: String, // Usually "Xbox"
+    // Handle both "userProperties" and "userProperites" (typo in some files)
+    #[serde(alias = "userProperites", default)]
+    pub user_properties: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub username: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct MinecraftProfile {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub requires_profile_name_change: bool,
+    #[serde(default)]
+    pub requires_skin_change: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LauncherAccountsJson {
+    #[serde(default)]
+    pub accounts: HashMap<String, LauncherAccount>,
+    #[serde(default)]
+    pub active_account_local_id: String,
+    #[serde(default)]
+    pub mojang_client_token: String,
+}
+
+/// Read all accounts from launcher_accounts.json
+#[tauri::command]
+pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
+    let minecraft_dir = get_minecraft_directory().map_err(|e| e.to_string())?;
+    let launcher_accounts_path = minecraft_dir.join("launcher_accounts.json");
+    
+    if !launcher_accounts_path.exists() {
+        // Create empty accounts file if it doesn't exist
+        let default_accounts = LauncherAccountsJson {
+            accounts: HashMap::new(),
+            active_account_local_id: String::new(),
+            mojang_client_token: String::new(),
+        };
+        return Ok(default_accounts);
+    }
+    
+    let content = fs::read_to_string(&launcher_accounts_path)
+        .map_err(|e| format!("Failed to read launcher_accounts.json: {}", e))?;
+    
+    let accounts: LauncherAccountsJson = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse launcher_accounts.json: {}", e))?;
+    
+    Ok(accounts)
+}
+
+/// Write account to launcher_accounts.json
+#[tauri::command]
+pub async fn write_launcher_account(account: MicrosoftAccount) -> Result<(), String> {
+    let minecraft_dir = get_minecraft_directory().map_err(|e| e.to_string())?;
+    let launcher_accounts_path = minecraft_dir.join("launcher_accounts.json");
+    
+    // Ensure minecraft directory exists
+    fs::create_dir_all(&minecraft_dir)
+        .map_err(|e| format!("Failed to create minecraft directory: {}", e))?;
+    
+    // Load existing accounts or create new
+    let mut accounts_data = if launcher_accounts_path.exists() {
+        let content = fs::read_to_string(&launcher_accounts_path)
+            .map_err(|e| format!("Failed to read launcher_accounts.json: {}", e))?;
+        serde_json::from_str(&content)
+            .unwrap_or_else(|_| LauncherAccountsJson {
+                accounts: HashMap::new(),
+                active_account_local_id: String::new(),
+                mojang_client_token: String::new(),
+            })
+    } else {
+        LauncherAccountsJson {
+            accounts: HashMap::new(),
+            active_account_local_id: String::new(),
+            mojang_client_token: String::new(),
+        }
+    };
+    
+    // Convert MicrosoftAccount to LauncherAccount format
+    let expires_at = if let Some(minecraft_expires_at) = account.minecraft_expires_at {
+        DateTime::from_timestamp(minecraft_expires_at, 0)
+            .unwrap_or_else(|| Utc::now())
+            .to_rfc3339()
+    } else {
+        DateTime::from_timestamp(account.expires_at, 0)
+            .unwrap_or_else(|| Utc::now())
+            .to_rfc3339()
+    };
+    
+    // Generate a default avatar if none provided
+    let default_avatar = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsMAAA7DAcdvqGQAAATFSURBVHhe7Vo7jxxFEK55z97u2nt3KUj8A8syQiAkAidGxpIlIEHiByATkOCIjJSMwEIkkDgDAss6icCJAxvJQpbJcEoM99jdeT+o6u7Tze50T9/c+MDrme/0Xd3MbNdUVU9XVc+ecfPKdgk9hilkbzEEQMjeYgiAkL3FEAAhe4shAEL2FkMAhOwthgAI2Vtod4NFudmbRdMwxF9yNAaAho58DwyNkpcW6FkQx1A2TKIyADTIc1249dEHsD2dQlEU4spmgCYtTlK488t92D+ag2nKV3tjAHwMwO1PP4adC5sZgChJ4Ju7P8M/h0fKAGiTIDlOeWBTqcNQBoXsLYYAsDUuYU6y3KzEJwP3BfNBxbcqzZ2LF0DGXSSVP5499cnkZYSBP7PpBH2ZSn0kGn98/0Wjd65tb24jhEjSDKdP7aLx/MfbjQFo6qI2AbrJM8nBJm46ZD5VOVQBIXuLIQBCqoG9QEn9wBqPz5mYY5rYFTKdVVZtkVID488fvmzIdAZY3ohSqTheRYkNxmIeoQHixBpo1MgrVMO1ILVhbKB+tYLJ1AfTUlxHBXkSoFS7qA4AZUjHg9evfw7OZBudXY0m3fRwP4Cvbt2Fw4MAG6ZVI+ienlPCZzcOYDahrktcOCUoaHFqwHf3Z3CwsFD/qpmk33Es+PrbT+C1N3Yhz9ZugAqKNIK/9u5AutzHQ/nD3rwEUInlj8F0R0xWaThbYHoTWMQWzAMT5mGdi8hs7XgV5OQSdch0zwODScMdA9h1+yxvC2x/yiMpn2KGU+SAhtG4xvhaxKeFyTrZOugArkeiHy3n7zjU9rHcoIE+AK84hgAI2VvoA9BUwzCzUorAQsdklVghmaQtKWmgTUk78jGoAnXV9R+T7qAEKdFAG4AijaHMUyarxF9QYpnxnAJGSN+lt8gnHCGpDGZ5BmmGxG1pW2Y4zrVRv1vXz4j6ywxtKev2FVnCJF7kjijQ3AhhBO0RlZJ6nCi2BU7z/t9L9mZlfSJwDpnzT5/9DlEUsdlsA9qp2bYNly9dAd/32fEK8JB0znbH+Dn+JNZRQh7M8Zq6Gmg6QTIEBys+QT6xBkjiHJ2hmd978BsslmGtUdKBHHYcG65ffQcm45HyFXeRUyssDiQwFN8HHEO7BKiDIiUy4i+2PukBqJGd5+uZnOfruj0pl6CPdf2CZIPMtmPqoP/EK44hAEL2Fp0DIFu3J+TJjBIYyfbk+uk7/rpuzq7QVoEmkIFJgv2ApEyQcWmWw6MnzyAMz1AGkbZlwbtvXWL/o0ABqcMAz+322v7MAaCbRlEC9x48YXLdCDKY9uvX3rsMky1fWcZUIHVpmsOvD5/CMojr+vHHwix/4+qbMLs4xopwJje6LQEygpwPohhCCaMoBdd1sJFxwffa0gPPcyCOUwhCif4wQYndXsvAruOF5AD1GuVPAr06O1nXbcj1Gw19RFcMVUDI3mIIgJDnBtm6PR1xrNDBauI54dwDQPt6+oq6NRMume/dc50SnfoAKkc/7T1mko7XQaeoidH9t6YKZBiVQKoI66BTlmXCh++/DTuzyf/TB+hARi6DCI4WIRwtWxLHzFHKnH+R+E9yAL0PoKegFcWY88ZQBYTsLYYACNlb9DwAAP8CwzL5HoQDEDYAAAAASUVORK5CYII=";
+    
+    let launcher_account = LauncherAccount {
+        access_token: account.minecraft_access_token.clone().unwrap_or_default(),
+        access_token_expires_at: expires_at,
+        avatar: account.skin_url.clone().unwrap_or_else(|| default_avatar.to_string()),
+        eligible_for_free_trials: true,
+        eligible_for_migration: false,
+        franchise_inventory_id: "1/OQ==".to_string(),
+        has_multiple_profiles: false,
+        in_forced_migration: false,
+        legacy: false,
+        license_product_ids: vec![],
+        local_id: account.uuid.clone(),
+        minecraft_profile: Some(MinecraftProfile {
+            id: account.uuid.replace("-", ""), // Minecraft profile IDs don't have dashes
+            name: account.username.clone(),
+            requires_profile_name_change: false,
+            requires_skin_change: false,
+        }),
+        persistent: true,
+        remote_id: account.id.clone(),
+        account_type: "Xbox".to_string(),
+        user_properties: vec![],
+        username: account.username.clone(),
+    };
+    
+    // Add/update the account
+    accounts_data.accounts.insert(account.uuid.clone(), launcher_account);
+    accounts_data.active_account_local_id = account.uuid;
+    
+    // Generate mojang client token if empty
+    if accounts_data.mojang_client_token.is_empty() {
+        accounts_data.mojang_client_token = uuid::Uuid::new_v4().to_string();
+    }
+    
+    // Write back to file
+    let content = serde_json::to_string_pretty(&accounts_data)
+        .map_err(|e| format!("Failed to serialize launcher accounts: {}", e))?;
+    
+    fs::write(&launcher_accounts_path, content)
+        .map_err(|e| format!("Failed to write launcher_accounts.json: {}", e))?;
+    
+    Ok(())
+}
+
+/// Remove account from launcher_accounts.json
+#[tauri::command]
+pub async fn remove_launcher_account(account_id: String) -> Result<(), String> {
+    let minecraft_dir = get_minecraft_directory().map_err(|e| e.to_string())?;
+    let launcher_accounts_path = minecraft_dir.join("launcher_accounts.json");
+    
+    if !launcher_accounts_path.exists() {
+        return Ok(()); // Nothing to remove
+    }
+    
+    let content = fs::read_to_string(&launcher_accounts_path)
+        .map_err(|e| format!("Failed to read launcher_accounts.json: {}", e))?;
+    
+    let mut accounts_data: LauncherAccountsJson = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse launcher_accounts.json: {}", e))?;
+    
+    // Remove the account
+    accounts_data.accounts.remove(&account_id);
+    
+    // Update active account if it was the removed one
+    if accounts_data.active_account_local_id == account_id {
+        accounts_data.active_account_local_id = accounts_data.accounts.keys().next().unwrap_or(&String::new()).clone();
+    }
+    
+    // Write back to file
+    let content = serde_json::to_string_pretty(&accounts_data)
+        .map_err(|e| format!("Failed to serialize launcher accounts: {}", e))?;
+    
+    fs::write(&launcher_accounts_path, content)
+        .map_err(|e| format!("Failed to write launcher_accounts.json: {}", e))?;
+    
+    Ok(())
+}
+
+/// Set the active account in launcher_accounts.json
+#[tauri::command]
+pub async fn set_active_launcher_account(account_id: String) -> Result<(), String> {
+    let minecraft_dir = get_minecraft_directory().map_err(|e| e.to_string())?;
+    let launcher_accounts_path = minecraft_dir.join("launcher_accounts.json");
+    
+    if !launcher_accounts_path.exists() {
+        return Err("launcher_accounts.json not found".to_string());
+    }
+    
+    let content = fs::read_to_string(&launcher_accounts_path)
+        .map_err(|e| format!("Failed to read launcher_accounts.json: {}", e))?;
+    
+    let mut accounts_data: LauncherAccountsJson = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse launcher_accounts.json: {}", e))?;
+    
+    // Check if account exists
+    if !accounts_data.accounts.contains_key(&account_id) {
+        return Err("Account not found".to_string());
+    }
+    
+    // Set as active
+    accounts_data.active_account_local_id = account_id;
+    
+    // Write back to file
+    let content = serde_json::to_string_pretty(&accounts_data)
+        .map_err(|e| format!("Failed to serialize launcher accounts: {}", e))?;
+    
+    fs::write(&launcher_accounts_path, content)
+        .map_err(|e| format!("Failed to write launcher_accounts.json: {}", e))?;
+    
+    Ok(())
+}
+
+/// Convert LauncherAccount to MicrosoftAccount for internal use
+fn launcher_account_to_microsoft_account(launcher_account: &LauncherAccount) -> MicrosoftAccount {
+    let expires_at = if !launcher_account.access_token_expires_at.is_empty() {
+        DateTime::parse_from_rfc3339(&launcher_account.access_token_expires_at)
+            .map(|dt| dt.timestamp())
+            .unwrap_or_else(|_| Utc::now().timestamp() + 3600)
+    } else {
+        Utc::now().timestamp() + 3600 // Default 1 hour from now
+    };
+    
+    // Get username from minecraft profile if available, otherwise use account username
+    let username = launcher_account.minecraft_profile
+        .as_ref()
+        .map(|profile| profile.name.clone())
+        .filter(|name| !name.is_empty())
+        .unwrap_or_else(|| launcher_account.username.clone());
+    
+    // Get UUID from minecraft profile if available, otherwise use local_id
+    let uuid = launcher_account.minecraft_profile
+        .as_ref()
+        .map(|profile| profile.id.clone())
+        .filter(|id| !id.is_empty())
+        .unwrap_or_else(|| launcher_account.local_id.clone());
+    
+    MicrosoftAccount {
+        id: if !launcher_account.remote_id.is_empty() { launcher_account.remote_id.clone() } else { launcher_account.local_id.clone() },
+        username,
+        uuid,
+        access_token: launcher_account.access_token.clone(),
+        refresh_token: String::new(), // Not stored in launcher_accounts.json
+        expires_at,
+        skin_url: if !launcher_account.avatar.is_empty() { Some(launcher_account.avatar.clone()) } else { None },
+        is_active: true,
+        last_used: Utc::now().timestamp(),
+        minecraft_access_token: if !launcher_account.access_token.is_empty() { Some(launcher_account.access_token.clone()) } else { None },
+        minecraft_expires_at: Some(expires_at),
+        xbox_user_hash: String::new(), // Not stored in launcher_accounts.json
+    }
+}
+
+/// Get the currently active account from launcher_accounts.json
+#[tauri::command]
+pub async fn get_active_launcher_account() -> Result<Option<MicrosoftAccount>, String> {
+    let accounts_data = read_launcher_accounts().await?;
+    
+    if accounts_data.active_account_local_id.is_empty() {
+        return Ok(None);
+    }
+    
+    if let Some(launcher_account) = accounts_data.accounts.get(&accounts_data.active_account_local_id) {
+        Ok(Some(launcher_account_to_microsoft_account(launcher_account)))
+    } else {
+        Ok(None)
+    }
+}
+
+/// Get all accounts from launcher_accounts.json as MicrosoftAccount list
+#[tauri::command]
+pub async fn get_all_launcher_accounts() -> Result<Vec<MicrosoftAccount>, String> {
+    let accounts_data = read_launcher_accounts().await?;
+    
+    let accounts: Vec<MicrosoftAccount> = accounts_data.accounts.values()
+        .map(launcher_account_to_microsoft_account)
+        .collect();
+    
+    Ok(accounts)
 }

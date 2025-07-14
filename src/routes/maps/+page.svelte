@@ -214,7 +214,7 @@
               {#if world.difficulty}
                 <div class="detail-row">
                   <span class="label">Difficulty:</span>
-                  <span class="value">{world.difficulty}</span>
+                  <span class="value">{world.difficulty || 'Unknown'}</span>
                 </div>
               {/if}
             </div>
@@ -443,20 +443,7 @@
         white-space: nowrap;
       }
       
-      .badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 1rem;
-        font-size: 0.75rem;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        
-        &.hardcore {
-          background: var(--danger);
-          color: white;
-        }
-      }
+
     }
     
     .world-details {

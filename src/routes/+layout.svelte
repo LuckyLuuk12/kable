@@ -34,9 +34,11 @@
   // Navigation items - removed Profile and Settings from main nav
   const navItems = [
     { path: '/', label: 'Home', icon: 'home' },
+    { path: '/installations', label: 'Installations', icon: 'minecraft' },
     { path: '/mods', label: 'Mods', icon: 'mods' },
     { path: '/shaders', label: 'Shaders', icon: 'shaders' },
-    { path: '/maps', label: 'Maps', icon: 'maps' }
+    { path: '/maps', label: 'Maps', icon: 'maps' },
+    { path: '/skins', label: 'Skins', icon: 'palette' }
   ];
 
   // State for navigation collapse
