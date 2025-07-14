@@ -159,7 +159,7 @@
                       if (validated !== null) {
                         updateSetting('default_memory', validated);
                       } else {
-                        e.target.value = $settings.default_memory.toString();
+                        (e.target as HTMLInputElement).value = ($settings.default_memory || 0).toString();
                       }
                     }}
                     class="memory-text-input"
@@ -196,7 +196,7 @@
                       if (validated !== null && validated >= ($settings.default_memory || 1024)) {
                         updateSetting('max_memory', validated);
                       } else {
-                        e.target.value = $settings.max_memory.toString();
+                        (e.target as HTMLInputElement).value = ($settings.max_memory || 0).toString();
                       }
                     }}
                     class="memory-text-input"
@@ -297,7 +297,7 @@
                       if (validated !== null) {
                         updateSetting('card_spacing', validated);
                       } else {
-                        e.target.value = $settings.card_spacing.toString();
+                        (e.target as HTMLInputElement).value = ($settings.card_spacing || 0).toString();
                       }
                     }}
                     class="value-text-input"
@@ -333,7 +333,7 @@
                       if (validated !== null) {
                         updateSetting('sidebar_width', validated);
                       } else {
-                        e.target.value = $settings.sidebar_width.toString();
+                        (e.target as HTMLInputElement).value = ($settings.sidebar_width || 0).toString();
                       }
                     }}
                     class="value-text-input"
@@ -455,7 +455,7 @@
                       if (validated !== null) {
                         updateSetting('parallel_downloads', validated);
                       } else {
-                        e.target.value = $settings.parallel_downloads.toString();
+                        (e.target as HTMLInputElement).value = ($settings.parallel_downloads || 1).toString();
                       }
                     }}
                     class="value-text-input"
@@ -491,7 +491,7 @@
                       if (validated !== null) {
                         updateSetting('connection_timeout', validated);
                       } else {
-                        e.target.value = $settings.connection_timeout.toString();
+                        (e.target as HTMLInputElement).value = ($settings.connection_timeout || 5).toString();
                       }
                     }}
                     class="value-text-input"
@@ -552,7 +552,7 @@
                       if (validated !== null) {
                         updateSetting('max_world_backups', validated);
                       } else {
-                        e.target.value = $settings.max_world_backups.toString();
+                        (e.target as HTMLInputElement).value = ($settings.max_world_backups || 1).toString();
                       }
                     }}
                     class="value-text-input"
@@ -871,39 +871,6 @@
     font-size: 0.9rem;
     // min-width: 50px;
     text-align: left;
-  }
-
-  .number-input {
-    background: transparent;
-    border: none;
-    color: $primary;
-    font-weight: 600;
-    font-size: 0.9rem;
-    width: fit-content;
-    max-width: fit-content;
-    text-align: right;
-    padding: 0;
-    border-radius: 4px;
-    transition: all 0.2s ease;
-    
-    &:hover {
-      background: rgba($primary, 0.1);
-    }
-    
-    &:focus {
-      outline: none;
-      background: rgba($primary, 0.15);
-    }
-    
-    /* Hide spinner arrows */
-    &::-webkit-outer-spin-button,
-    &::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-      margin: 0;
-    }
-    
-    /* Firefox */
-    -moz-appearance: textfield;
   }
 
   @keyframes spin {
