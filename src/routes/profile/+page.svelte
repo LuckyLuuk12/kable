@@ -1,428 +1,830 @@
 <script lang="ts">
-  import { AuthManager, GameManager } from '$lib';
-  import { currentAccount } from '$lib/auth';
-  import { installations } from '$lib/game';
-  import Icon from '$lib/components/Icon.svelte';
   import { onMount } from 'svelte';
+  import { AuthService } from '$lib/services';
+  import { currentAccount, isSignedIn } from '$lib/auth';
+  import Icon from '$lib/components/Icon.svelte';
+  import type { MinecraftSkin } from '$lib/types';
 
-  let isCreatingProfile = false;
-  let newProfileName = '';
-  let newProfileVersion = '1.21.1';
-  let newProfileModLoader = 'vanilla';
+  // State variables
+  let isLoading = false;
+  let error: string | null = null;
+  let skins: MinecraftSkin[] = [];
+  let selectedSkinIndex = 0;
+  let userStats = {
+    totalPlaytime: 0,
+    lastPlayed: null as string | null,
+    favoriteDimension: 'Overworld',
+    worldsCreated: 0
+  };
+
+  // Device Code Flow state
+  let deviceCodeMessage = '';
+  let userCode = '';
+  let verificationUrl = '';
+  let isPolling = false;
+  let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Mock skins data for now
+  const mockSkins: MinecraftSkin[] = [
+    {
+      id: 'steve',
+      name: 'Steve (Default)',
+      file_path: '',
+      file_name: 'steve.png',
+      is_slim: false,
+      preview_url: undefined,
+      source: 'Default' as any,
+      created_date: 0,
+      last_used: undefined
+    },
+    {
+      id: 'alex',
+      name: 'Alex (Default)',
+      file_path: '',
+      file_name: 'alex.png',
+      is_slim: true,
+      preview_url: undefined,
+      source: 'Default' as any,
+      created_date: 0,
+      last_used: undefined
+    }
+  ];
 
   onMount(async () => {
-    await Promise.all([
-      AuthManager.initialize(),
-      GameManager.initialize()
-    ]);
+    await loadProfileData();
   });
 
-  async function createNewProfile() {
-    if (!newProfileName.trim()) return;
+  async function loadProfileData() {
+    isLoading = true;
+    error = null;
     
     try {
-      isCreatingProfile = true;
-      // This would need to be implemented in GameManager
-      console.log('Creating profile:', {
-        name: newProfileName,
-        version: newProfileVersion,
-        modLoader: newProfileModLoader
-      });
+      // TODO: Load skins from backend
+      skins = mockSkins;
       
-      // Reset form
-      newProfileName = '';
-      newProfileVersion = '1.21.1';
-      newProfileModLoader = 'vanilla';
-    } catch (error) {
-      console.error('Failed to create profile:', error);
+      // TODO: Load user stats from Minecraft data
+      userStats = {
+        totalPlaytime: 247, // hours
+        lastPlayed: '2025-01-13T10:30:00Z',
+        favoriteDimension: 'The Nether',
+        worldsCreated: 12
+      };
+      
+    } catch (err) {
+      console.error('Failed to load profile data:', err);
+      error = `Failed to load profile data: ${err}`;
     } finally {
-      isCreatingProfile = false;
+      isLoading = false;
     }
   }
 
-  async function deleteProfile(profileId: string) {
-    if (!confirm('Are you sure you want to delete this profile? This action cannot be undone.')) {
-      return;
-    }
-    
+  async function signIn() {
     try {
-      // This would need to be implemented in GameManager
-      console.log('Deleting profile:', profileId);
-    } catch (error) {
-      console.error('Failed to delete profile:', error);
+      isLoading = true;
+      const account = await AuthService.authenticateWithMicrosoft();
+      currentAccount.set(account);
+      console.log('Successfully authenticated:', account);
+    } catch (err) {
+      console.error('Sign in failed:', err);
+      error = `Sign in failed: ${err}`;
+    } finally {
+      isLoading = false;
     }
   }
 
-  async function editProfile(profileId: string) {
-    // This would open an edit modal or navigate to an edit page
-    console.log('Editing profile:', profileId);
-  }
-
-  async function duplicateProfile(profileId: string) {
+  async function signInWithDeviceCode() {
     try {
-      // This would need to be implemented in GameManager
-      console.log('Duplicating profile:', profileId);
-    } catch (error) {
-      console.error('Failed to duplicate profile:', error);
+      isLoading = true;
+      error = null;
+      
+      // Start device code flow
+      const response = await AuthService.startDeviceCodeAuth();
+      const [code, url] = response.split('|');
+      
+      userCode = code;
+      verificationUrl = url;
+      deviceCodeMessage = `Code: ${code}`;
+      
+      // Copy code to clipboard automatically
+      try {
+        await AuthService.copyToClipboard(code);
+        deviceCodeMessage = `Code: ${code} (copied to clipboard!)`;
+      } catch (err) {
+        console.warn('Failed to copy to clipboard:', err);
+      }
+      
+      // Start polling for completion
+      isPolling = true;
+      pollInterval = setInterval(async () => {
+        try {
+          const account = await AuthService.pollDeviceCodeAuth();
+          if (account) {
+            // Authentication successful
+            clearInterval(pollInterval!);
+            pollInterval = null;
+            isPolling = false;
+            deviceCodeMessage = '';
+            userCode = '';
+            verificationUrl = '';
+            currentAccount.set(account);
+            console.log('Successfully authenticated with device code:', account);
+          }
+        } catch (err) {
+          // Authentication failed or expired
+          clearInterval(pollInterval!);
+          pollInterval = null;
+          isPolling = false;
+          deviceCodeMessage = '';
+          userCode = '';
+          verificationUrl = '';
+          error = `Device code authentication failed: ${err}`;
+        }
+      }, 3000); // Poll every 3 seconds
+      
+    } catch (err) {
+      console.error('Device code sign in failed:', err);
+      error = `Device code sign in failed: ${err}`;
+    } finally {
+      isLoading = false;
     }
   }
 
-  // Available Minecraft versions (this would come from an API)
-  const availableVersions = [
-    '1.21.1', '1.21', '1.20.6', '1.20.4', '1.20.1', '1.19.4', '1.19.2', '1.18.2', '1.17.1', '1.16.5'
-  ];
+  function cancelDeviceCodeAuth() {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+    isPolling = false;
+    deviceCodeMessage = '';
+    userCode = '';
+    verificationUrl = '';
+    isLoading = false;
+  }
 
-  const modLoaders = [
-    { id: 'vanilla', name: 'Vanilla' },
-    { id: 'fabric', name: 'Fabric' },
-    { id: 'forge', name: 'Forge' },
-    { id: 'quilt', name: 'Quilt' },
-    { id: 'neoforge', name: 'NeoForge' }
-  ];
+  async function copyCodeAgain() {
+    if (userCode) {
+      try {
+        await AuthService.copyToClipboard(userCode);
+        deviceCodeMessage = `Code: ${userCode} (copied to clipboard!)`;
+        setTimeout(() => {
+          if (userCode) {
+            deviceCodeMessage = `Code: ${userCode}`;
+          }
+        }, 2000);
+      } catch (err) {
+        console.warn('Failed to copy to clipboard:', err);
+      }
+    }
+  }
+
+  async function signOut() {
+    try {
+      currentAccount.set(null);
+      // Clear localStorage if needed
+      localStorage.removeItem('kable_account');
+    } catch (err) {
+      console.error('Sign out failed:', err);
+      error = `Sign out failed: ${err}`;
+    }
+  }
+
+  async function changeSkin(skinIndex: number) {
+    selectedSkinIndex = skinIndex;
+    // TODO: Apply skin change
+    console.log('Changing to skin:', skins[skinIndex].name);
+  }
+
+  async function uploadSkin() {
+    // TODO: Implement skin upload
+    alert('Skin upload feature coming soon!');
+  }
+
+  function formatPlaytime(hours: number): string {
+    if (hours < 24) {
+      return `${hours} hours`;
+    }
+    const days = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
+    return `${days} days, ${remainingHours} hours`;
+  }
 </script>
 
 <div class="profile-page">
   <div class="page-header">
-    <h1>Profiles</h1>
-    <p>Manage your Minecraft game profiles</p>
+    <h1>Profile & Account</h1>
+    <p>Manage your Microsoft account, skins, and view your Minecraft statistics</p>
   </div>
 
-  <!-- Account Status -->
-  <section class="account-status">
-    {#if $currentAccount}
-      <div class="account-card">
-        <img src={$currentAccount?.skin_url || '/default-avatar.png'} alt="Avatar" class="account-avatar" />
-        <div class="account-info">
-          <h3>{$currentAccount.username}</h3>
-          <p>UUID: <code>{$currentAccount.uuid}</code></p>
-          <span class="account-status-badge"><Icon name="check" size="sm" /> Authenticated</span>
-        </div>
-      </div>
-    {:else}
-      <div class="no-account">
-        <div class="warning-icon"><Icon name="warning" /></div>
-        <div class="warning-content">
-          <h3>No account connected</h3>
-          <p>Sign in with Microsoft to create and manage profiles</p>
-          <button on:click={() => AuthManager.signIn()} class="btn btn-primary">
-            Sign in with Microsoft
-          </button>
-        </div>
-      </div>
-    {/if}
-  </section>
+  {#if error}
+    <div class="error-message">
+      <Icon name="alert" size="sm" />
+      {error}
+    </div>
+  {/if}
 
-  <!-- Create New Profile -->
-  <section class="create-profile">
-    <h2>Create New Profile</h2>
-    
-    <div class="profile-form">
-      <div class="form-row">
-        <div class="form-group">
-          <label for="profile-name">Profile Name</label>
-          <input 
-            id="profile-name"
-            type="text" 
-            bind:value={newProfileName}
-            placeholder="My Awesome Profile"
-            class="profile-input"
-          />
-        </div>
-        
-        <div class="form-group">
-          <label for="profile-version">Minecraft Version</label>
-          <select 
-            id="profile-version"
-            bind:value={newProfileVersion}
-            class="profile-select"
-          >
-            {#each availableVersions as version}
-              <option value={version}>{version}</option>
-            {/each}
-          </select>
-        </div>
-        
-        <div class="form-group">
-          <label for="profile-modloader">Mod Loader</label>
-          <select 
-            id="profile-modloader"
-            bind:value={newProfileModLoader}
-            class="profile-select"
-          >
-            {#each modLoaders as loader}
-              <option value={loader.id}>{loader.name}</option>
-            {/each}
-          </select>
-        </div>
+  <div class="profile-sections">
+    <!-- Microsoft Account Section -->
+    <section class="profile-section account-section">
+      <div class="section-header">
+        <h2><Icon name="user" /> Microsoft Account</h2>
       </div>
       
-      <button 
-        on:click={createNewProfile}
-        disabled={!newProfileName.trim() || isCreatingProfile || !$currentAccount}
-        class="btn btn-primary"
-      >
-        {#if isCreatingProfile}
-          Creating...
-        {:else}
-          <Icon name="plus" size="sm" /> Create Profile
-        {/if}
-      </button>
-    </div>
-  </section>
-
-  <!-- Existing Profiles -->
-  <section class="existing-profiles">
-    <h2>Your Profiles</h2>
-    
-    {#if $installations && $installations.length > 0}
-      <div class="profiles-grid">
-        {#each $installations as installation}
-          <div class="profile-card">
-            <div class="profile-header">
-              <div class="profile-icon">
-                {#if installation.type && installation.type !== 'vanilla'}
-                  <Icon name="puzzle" />
-                {:else}
-                  <Icon name="package" />
-                {/if}
-              </div>
-              <div class="profile-title">
-                <h3>{installation.path.split('\\').pop() || installation.path}</h3>
-                <span class="profile-version">{installation.version}</span>
-              </div>
-            </div>
-            
-            <div class="profile-details">
-              <div class="detail-item">
-                <span class="label">Type:</span>
-                <span class="value">{installation.type}</span>
+      {#if $isSignedIn && $currentAccount}
+        <div class="account-info">
+          <div class="account-avatar">
+            <Icon name="user" size="xl" />
+          </div>
+          <div class="account-details">
+            <h3>{$currentAccount.username}</h3>
+            <p class="account-email">Minecraft Account</p>
+            <p class="account-id">UUID: {$currentAccount.uuid}</p>
+          </div>
+          <button on:click={signOut} class="btn btn-secondary">
+            <Icon name="logout" size="sm" />
+            Sign Out
+          </button>
+        </div>
+      {:else}
+        <div class="sign-in-prompt">
+          <div class="sign-in-icon">
+            <Icon name="user-plus" size="xl" />
+          </div>
+          <h3>Sign in to Microsoft</h3>
+          <p>Sign in with your Microsoft account to access online features, sync your skins, and view your Minecraft profile.</p>
+          
+          {#if deviceCodeMessage}
+            <div class="device-code-info">
+              <div class="device-code-header">
+                <Icon name="info" size="sm" />
+                <span>Authentication Started</span>
               </div>
               
-              {#if installation.loader_version}
-                <div class="detail-item">
-                  <span class="label">Loader Version:</span>
-                  <span class="value">{installation.loader_version}</span>
+              <div class="device-code-instructions">
+                <p>A browser window has opened to:</p>
+                <div class="url-display">
+                  <code>{verificationUrl}</code>
+                </div>
+                
+                <p>Enter this code when prompted:</p>
+                <div class="code-display">
+                  <code class="user-code">{userCode}</code>
+                  <button on:click={copyCodeAgain} class="copy-btn" title="Copy code again">
+                    <Icon name="duplicate" size="sm" />
+                  </button>
+                </div>
+                
+                <div class="code-status">
+                  {deviceCodeMessage}
+                </div>
+              </div>
+              
+              {#if isPolling}
+                <div class="polling-status">
+                  <Icon name="refresh" size="sm" />
+                  <span>Waiting for you to complete authentication...</span>
                 </div>
               {/if}
               
-              <div class="detail-item">
-                <span class="label">Status:</span>
-                <span class="value">{installation.is_valid ? 'Valid' : 'Invalid'}</span>
+              <div class="device-code-actions">
+                <button on:click={cancelDeviceCodeAuth} class="btn btn-secondary">
+                  Cancel
+                </button>
               </div>
             </div>
-            
-            <div class="profile-actions">
-              <button 
-                on:click={() => editProfile(installation.path)}
-                class="action-btn edit-btn btn btn-secondary"
-                title="Edit Profile"
-              >
-                <Icon name="edit" size="sm" />
+          {:else}
+            <div class="auth-options">
+              <button on:click={signIn} class="btn btn-primary" disabled={isLoading}>
+                <Icon name="microsoft" size="sm" />
+                {isLoading ? 'Signing in...' : 'Sign in with Microsoft'}
               </button>
               
-              <button 
-                on:click={() => duplicateProfile(installation.path)}
-                class="action-btn duplicate-btn btn btn-secondary"
-                title="Duplicate Profile"
-              >
-                <Icon name="copy" size="sm" />
+              <div class="auth-separator">
+                <span>or</span>
+              </div>
+              
+              <button on:click={signInWithDeviceCode} class="btn btn-secondary" disabled={isLoading}>
+                <Icon name="qr-code" size="sm" />
+                Use Device Code (Alternative)
               </button>
               
-              <button 
-                on:click={() => deleteProfile(installation.path)}
-                class="action-btn delete-btn btn btn-danger"
-                title="Delete Profile"
-              >
-                <Icon name="trash" size="sm" />
-              </button>
+              <p class="auth-help">
+                <Icon name="info" size="sm" />
+                If the standard sign-in doesn't work, try the device code option.
+              </p>
             </div>
-          </div>
-        {/each}
+          {/if}
+        </div>
+      {/if}
+    </section>
+
+    <!-- Skins & Appearance Section -->
+    <section class="profile-section skins-section">
+      <div class="section-header">
+        <h2><Icon name="palette" /> Skins & Appearance</h2>
+        <button on:click={uploadSkin} class="btn btn-secondary">
+          <Icon name="upload" size="sm" />
+          Upload Skin
+        </button>
       </div>
-    {:else}
-      <div class="no-profiles">
-        <div class="empty-state">
-          <div class="empty-icon"><Icon name="clipboard" size="xl" /></div>
-          <h3>No profiles found</h3>
-          <p>Create your first profile to get started, or refresh to scan for existing installations.</p>
-          <button on:click={() => GameManager.loadInstallations()} class="btn btn-primary">
-            <Icon name="refresh" size="sm" /> Scan for profiles
-          </button>
+      
+      {#if isLoading}
+        <div class="loading-state">
+          <Icon name="refresh" size="md" />
+          <span>Loading skins...</span>
+        </div>
+      {:else}
+        <div class="skins-grid">
+          {#each skins as skin, index}
+            <div 
+              class="skin-card" 
+              class:selected={index === selectedSkinIndex}
+              on:click={() => changeSkin(index)}
+              on:keydown={(e) => e.key === 'Enter' && changeSkin(index)}
+              role="button"
+              tabindex="0"
+            >
+              <div class="skin-preview">
+                <div class="skin-placeholder">
+                  <Icon name="user" size="lg" />
+                </div>
+                <div class="skin-model-type">
+                  {skin.is_slim ? 'Slim' : 'Classic'}
+                </div>
+              </div>
+              <div class="skin-info">
+                <h4>{skin.name}</h4>
+                {#if index === selectedSkinIndex}
+                  <span class="current-skin">Current</span>
+                {/if}
+              </div>
+            </div>
+          {/each}
+        </div>
+      {/if}
+    </section>
+
+    <!-- Statistics Section -->
+    <section class="profile-section stats-section">
+      <div class="section-header">
+        <h2><Icon name="chart" /> Minecraft Statistics</h2>
+      </div>
+      
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon">
+            <Icon name="clock" size="md" />
+          </div>
+          <div class="stat-content">
+            <h4>Total Playtime</h4>
+            <p class="stat-value">{formatPlaytime(userStats.totalPlaytime)}</p>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon">
+            <Icon name="calendar" size="md" />
+          </div>
+          <div class="stat-content">
+            <h4>Last Played</h4>
+            <p class="stat-value">
+              {userStats.lastPlayed ? new Date(userStats.lastPlayed).toLocaleDateString() : 'Never'}
+            </p>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon">
+            <Icon name="world" size="md" />
+          </div>
+          <div class="stat-content">
+            <h4>Favorite Dimension</h4>
+            <p class="stat-value">{userStats.favoriteDimension}</p>
+          </div>
+        </div>
+        
+        <div class="stat-card">
+          <div class="stat-icon">
+            <Icon name="folder" size="md" />
+          </div>
+          <div class="stat-content">
+            <h4>Worlds Created</h4>
+            <p class="stat-value">{userStats.worldsCreated}</p>
+          </div>
         </div>
       </div>
-    {/if}
-  </section>
+    </section>
+  </div>
 </div>
 
 <style lang="scss">
+  @use '@kablan/clean-ui/scss/variables' as *;
+
   .profile-page {
     max-width: 1200px;
     margin: 0 auto;
   }
 
-  .account-status {
-    margin-bottom: 2rem;
+  .profile-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
   }
 
-  .account-card {
-    @extend .card !optional;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1.5rem;
-    
-    .account-avatar {
-      width: 64px;
-      height: 64px;
-      border-radius: 1rem;
-      border: 2px solid var(--border);
-    }
-    
-    .account-info {
-      flex: 1;
-      
-      h3 {
-        margin: 0 0 0.5rem 0;
-        color: var(--text);
+  .profile-section {
+    background: $container;
+    border: 1px solid $dark-600;
+    border-radius: $border-radius;
+    padding: 2rem;
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+
+      h2 {
+        margin: 0;
         font-size: 1.25rem;
+        font-weight: 600;
+        color: $text;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
       }
-      
-      p {
-        margin: 0 0 0.5rem 0;
-        color: var(--text-muted);
-        font-size: 0.875rem;
-        
-        code {
-          background: var(--surface-variant);
-          padding: 0.25rem 0.5rem;
-          border-radius: 0.25rem;
-          font-family: 'Fira Code', monospace;
+    }
+  }
+
+  .account-section {
+    .account-info {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+
+      .account-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        background: $primary;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        flex-shrink: 0;
+      }
+
+      .account-details {
+        flex: 1;
+
+        h3 {
+          margin: 0 0 0.5rem;
+          font-size: 1.5rem;
+          font-weight: 600;
+          color: $text;
+        }
+
+        .account-email {
+          margin: 0 0 0.25rem;
+          color: $text;
+          font-size: 1rem;
+        }
+
+        .account-id {
+          margin: 0;
+          color: $placeholder;
+          font-size: 0.875rem;
+          font-family: monospace;
         }
       }
-      
-      .account-status-badge {
-        display: inline-block;
-        background: var(--success-light);
-        color: var(--success);
-        padding: 0.25rem 0.75rem;
-        border-radius: 1rem;
-        font-size: 0.75rem;
-        font-weight: 500;
-      }
     }
-  }
 
-  .no-account {
-    @extend .warning-card !optional;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    
-    .warning-content {
-      flex: 1;
-      
+    .sign-in-prompt {
+      text-align: center;
+      padding: 2rem;
+
+      .sign-in-icon {
+        margin-bottom: 1rem;
+        color: $placeholder;
+      }
+
       h3 {
-        margin: 0 0 0.5rem 0;
-        color: var(--warning);
+        margin: 0 0 1rem;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: $text;
       }
-      
+
       p {
-        margin: 0 0 1rem 0;
-        color: var(--text-muted);
+        margin: 0 0 2rem;
+        color: $placeholder;
+        line-height: 1.5;
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
       }
     }
   }
 
-  .create-profile {
-    @extend .card !optional;
-    padding: 2rem;
-    margin-bottom: 2rem;
-  }
+  .skins-section {
+    .skins-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
 
-  .profile-form {
-    .form-row {
-      @extend .form-grid !optional;
-      grid-template-columns: 2fr 1fr 1fr;
-      margin-bottom: 1.5rem;
-      
-      @media (max-width: 768px) {
-        grid-template-columns: 1fr;
+      .skin-card {
+        background: $background;
+        border: 2px solid $dark-600;
+        border-radius: $border-radius;
+        padding: 1rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+
+        &:hover {
+          border-color: $primary;
+          transform: translateY(-2px);
+        }
+
+        &.selected {
+          border-color: $primary;
+          background: rgba($primary, 0.1);
+        }
+
+        .skin-preview {
+          position: relative;
+          margin-bottom: 1rem;
+
+          .skin-placeholder {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 0.5rem;
+            background: $container;
+            border-radius: $border-radius;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: $placeholder;
+          }
+
+          .skin-model-type {
+            font-size: 0.75rem;
+            color: $placeholder;
+            text-transform: uppercase;
+            font-weight: 500;
+          }
+        }
+
+        .skin-info {
+          h4 {
+            margin: 0 0 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: $text;
+          }
+
+          .current-skin {
+            font-size: 0.75rem;
+            color: $primary;
+            font-weight: 600;
+            text-transform: uppercase;
+          }
+        }
       }
     }
-    
-    .profile-input, .profile-select {
-      @extend .form-input !optional;
+  }
+
+  .stats-section {
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+
+      .stat-card {
+        background: $background;
+        border: 1px solid $dark-600;
+        border-radius: $border-radius;
+        padding: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+
+        .stat-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: $border-radius;
+          background: rgba($primary, 0.1);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: $primary;
+          flex-shrink: 0;
+        }
+
+        .stat-content {
+          h4 {
+            margin: 0 0 0.25rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: $placeholder;
+            text-transform: uppercase;
+          }
+
+          .stat-value {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: $text;
+          }
+        }
+      }
     }
   }
 
-  .profiles-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
-  }
-
-  .profile-card {
-    @extend .card !optional;
-  }
-
-  .profile-header {
+  .error-message {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: rgba($red, 0.1);
+    border: 1px solid $red;
+    border-radius: $border-radius;
+    color: $red;
     margin-bottom: 1rem;
+  }
+
+  // Device Code Authentication Styles
+  .auth-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: center;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  .auth-separator {
+    position: relative;
+    width: 100%;
+    text-align: center;
     
-    .profile-icon {
-      font-size: 2rem;
-      width: 48px;
-      height: 48px;
+    span {
+      background: $container;
+      padding: 0 1rem;
+      color: $placeholder;
+      font-size: 0.875rem;
+    }
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: $dark-600;
+      z-index: -1;
+    }
+  }
+
+  .device-code-info {
+    padding: 1.5rem;
+    background: rgba($primary, 0.05);
+    border: 1px solid rgba($primary, 0.1);
+    border-radius: $border-radius;
+    text-align: center;
+    
+    .device-code-header {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: var(--background);
-      border-radius: 0.75rem;
-      border: 1px solid var(--border);
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      color: $primary;
+      font-weight: 600;
     }
     
-    .profile-title {
-      flex: 1;
+    .device-code-instructions {
+      margin-bottom: 1rem;
       
-      h3 {
-        margin: 0 0 0.25rem 0;
-        color: var(--text);
-        font-size: 1.125rem;
+      p {
+        margin: 0 0 0.5rem;
+        color: $text;
+        font-size: 0.9rem;
       }
       
-      .profile-version {
-        background: var(--primary);
-        color: white;
-        padding: 0.25rem 0.75rem;
-        border-radius: 1rem;
-        font-size: 0.75rem;
+      .url-display {
+        margin-bottom: 1rem;
+        padding: 0.75rem;
+        background: $background;
+        border: 1px solid $dark-600;
+        border-radius: $border-radius;
+        
+        code {
+          color: $text;
+          font-size: 0.875rem;
+          word-break: break-all;
+        }
+      }
+      
+      .code-display {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: $container;
+        border: 2px solid $primary;
+        border-radius: $border-radius;
+        
+        .user-code {
+          font-size: 1.25rem;
+          font-weight: 700;
+          color: $primary;
+          letter-spacing: 0.1em;
+        }
+        
+        .copy-btn {
+          background: none;
+          border: 1px solid rgba($primary, 0.3);
+          border-radius: 4px;
+          padding: 0.25rem;
+          color: $primary;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          
+          &:hover {
+            background: rgba($primary, 0.1);
+            border-color: $primary;
+          }
+        }
+      }
+      
+      .code-status {
+        font-size: 0.875rem;
+        color: $green;
         font-weight: 500;
       }
     }
-  }
-
-  .profile-details {
-    margin-bottom: 1.5rem;
-  }
-
-  .detail-item {
-    @extend .detail-row !optional;
-  }
-
-  .profile-actions {
-    display: flex;
-    gap: 0.5rem;
     
-    .action-btn {
-      flex: 1;
-      padding: 0.5rem;
-      font-size: 1rem;
+    .polling-status {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      color: $placeholder;
+      
+      :global(.icon) {
+        animation: spin 1s linear infinite;
+      }
+    }
+    
+    .device-code-actions {
+      margin-top: 1rem;
     }
   }
 
-  .no-profiles {
-    padding: 3rem 1rem;
+  .auth-help {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: $placeholder;
+    margin: 0;
+    text-align: center;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  .loading-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 2rem;
+    color: $placeholder;
+  }
+
+  @media (max-width: 768px) {
+    .profile-section {
+      padding: 1rem;
+    }
+
+    .account-info {
+      flex-direction: column;
+      text-align: center;
+    }
+
+    .skins-grid {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    }
+
+    .stats-grid {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

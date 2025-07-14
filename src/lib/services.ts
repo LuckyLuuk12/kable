@@ -6,7 +6,9 @@ import type {
   LaunchOptions, 
   MicrosoftAccount, 
   LauncherSettings, 
-  MinecraftDirectoryInfo 
+  MinecraftDirectoryInfo,
+  LauncherProfiles,
+  MinecraftSession
 } from './types';
 
 // Installations Management
@@ -44,6 +46,19 @@ export async function completeMicrosoftAuth(authCode: string): Promise<Microsoft
   return await invoke('complete_microsoft_auth', { authCode });
 }
 
+// Device Code Flow for public clients
+export async function startDeviceCodeAuth(): Promise<string> {
+  return await invoke('start_device_code_auth');
+}
+
+export async function pollDeviceCodeAuth(): Promise<MicrosoftAccount | null> {
+  return await invoke('poll_device_code_auth');
+}
+
+export async function copyToClipboard(text: string): Promise<void> {
+  return await invoke('copy_to_clipboard', { text });
+}
+
 export async function refreshMinecraftToken(accountId: string): Promise<MicrosoftAccount> {
   return await invoke('refresh_minecraft_token', { accountId });
 }
@@ -53,10 +68,6 @@ export async function getOAuthCallbackResult(): Promise<string | null> {
 }
 
 // Minecraft Management
-export async function findMinecraftInstallations(): Promise<MinecraftInstallation[]> {
-  return await invoke('find_minecraft_installations');
-}
-
 export async function getCachedUsernames(minecraftPath: string): Promise<string[]> {
   return await invoke('get_cached_usernames', { minecraftPath });
 }
@@ -142,10 +153,99 @@ export async function authenticateWithMicrosoft(): Promise<MicrosoftAccount> {
   });
 }
 
+// Enhanced Authentication Service with Session Management
+export class AuthService {
+  static async authenticateWithMicrosoft(): Promise<MicrosoftAccount> {
+    const authUrl = await invoke<string>('start_microsoft_auth');
+    
+    // Open the authentication URL in the system's default browser
+    await invoke('open_url', { url: authUrl });
+    
+    return new Promise((resolve, reject) => {
+      const checkCallback = async () => {
+        try {
+          const result = await invoke<string | null>('get_oauth_callback_result');
+          
+          if (result) {
+            // Complete the authentication flow
+            const account = await invoke<MicrosoftAccount>('complete_microsoft_auth', { 
+              authCode: result 
+            });
+            
+            resolve(account);
+          } else {
+            // Continue checking
+            setTimeout(checkCallback, 1000);
+          }
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      // Start checking for callback result
+      setTimeout(checkCallback, 1000);
+    });
+  }
+
+  static async startDeviceCodeAuth(): Promise<string> {
+    return await invoke<string>('start_device_code_auth');
+  }
+
+  static async pollDeviceCodeAuth(): Promise<MicrosoftAccount | null> {
+    return await invoke<MicrosoftAccount | null>('poll_device_code_auth');
+  }
+
+  static async copyToClipboard(text: string): Promise<void> {
+    return await invoke('copy_to_clipboard', { text });
+  }
+
+  static async refreshAccountToken(accountId: string): Promise<MicrosoftAccount> {
+    return await invoke<MicrosoftAccount>('refresh_minecraft_token', { accountId });
+  }
+
+  static isTokenValid(account: MicrosoftAccount): boolean {
+    const now = Date.now() / 1000;
+    return account.minecraft_expires_at > now + 300; // 5 minute buffer
+  }
+
+  static needsRefresh(account: MicrosoftAccount): boolean {
+    const now = Date.now() / 1000;
+    return account.minecraft_expires_at < now + 600; // 10 minute buffer
+  }
+
+  // Session Management Functions
+  static async getMinecraftSessionPath(): Promise<string> {
+    return await invoke<string>('get_minecraft_session_path');
+  }
+
+  static async readMinecraftSessions(): Promise<LauncherProfiles> {
+    return await invoke<LauncherProfiles>('read_minecraft_sessions');
+  }
+
+  static async writeMinecraftSession(account: MicrosoftAccount): Promise<void> {
+    return await invoke<void>('write_minecraft_session', { account });
+  }
+
+  static async getMinecraftLaunchArgs(account: MicrosoftAccount): Promise<string[]> {
+    return await invoke<string[]>('get_minecraft_launch_args', { account });
+  }
+
+  static async validateMinecraftToken(accessToken: string): Promise<boolean> {
+    return await invoke<boolean>('validate_minecraft_token', { accessToken });
+  }
+
+  static async refreshIfNeeded(account: MicrosoftAccount): Promise<MicrosoftAccount> {
+    if (this.needsRefresh(account)) {
+      return await this.refreshAccountToken(account.id);
+    }
+    return account;
+  }
+}
+
 // Legacy compatibility - keep the existing class structure for now
 export class MinecraftService {
   static async findInstallations(): Promise<MinecraftInstallation[]> {
-    return findMinecraftInstallations();
+    return getMinecraftInstallations();
   }
 
   static async launchMinecraft(options: LaunchOptions, minecraftPath: string): Promise<string> {

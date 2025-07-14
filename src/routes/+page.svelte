@@ -1,53 +1,44 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SettingsManager, Icon } from '$lib';
-  import { getMinecraftInstallations, updateInstallationLastPlayed } from '$lib/services';
+  import { installations, isLoadingInstallations, installationsError, GameManager } from '$lib/game';
   import type { MinecraftInstallation } from '$lib/types';
 
   // State variables
   let lastPlayedInstallations: MinecraftInstallation[] = [];
-  let isLoading = false;
   let error: string | null = null;
   let viewMode: 'grid' | 'list' = 'grid';
 
-  // Initialize settings on component mount
+  // Subscribe to the installations store
+  $: {
+    lastPlayedInstallations = $installations
+      .filter((installation: MinecraftInstallation) => installation.is_valid)
+      .sort((a: MinecraftInstallation, b: MinecraftInstallation) => {
+        const aTime = new Date(a.last_played || 0).getTime();
+        const bTime = new Date(b.last_played || 0).getTime();
+        return bTime - aTime;
+      })
+      .slice(0, 8); // Show up to 8 installations
+  }
+
+  // Subscribe to loading and error states
+  $: isLoading = $isLoadingInstallations;
+  $: if ($installationsError) {
+    error = $installationsError;
+  }
+
+  // Initialize on component mount
   onMount(async () => {
     console.log('Home page mounted, initializing...');
     try {
-      await SettingsManager.initialize();
-      console.log('Settings initialized successfully');
-      await loadInstallations();
-    } catch (error) {
-      console.error('Error during initialization:', error);
-      error = `Initialization failed: ${error}`;
+      // GameManager should already be initialized by the layout, 
+      // but trigger a refresh to ensure we have the latest data
+      await GameManager.loadInstallations();
+    } catch (err) {
+      console.error('Error during initialization:', err);
+      error = `Initialization failed: ${err}`;
     }
   });
-
-  async function loadInstallations() {
-    console.log('Loading installations...');
-    isLoading = true;
-    error = null;
-    try {
-      const installations = await getMinecraftInstallations();
-      console.log('Detected installations:', installations);
-      lastPlayedInstallations = installations
-        .filter((installation: MinecraftInstallation) => installation.is_valid)
-        .sort((a: MinecraftInstallation, b: MinecraftInstallation) => {
-          const aTime = new Date(a.last_played || 0).getTime();
-          const bTime = new Date(b.last_played || 0).getTime();
-          return bTime - aTime;
-        })
-        .slice(0, 8); // Show up to 8 installations
-      console.log('Filtered and sorted installations:', lastPlayedInstallations);
-    } catch (err) {
-      console.error('Failed to load installations:', err);
-      error = `Failed to load installations: ${err}`;
-      // Set empty array as fallback
-      lastPlayedInstallations = [];
-    } finally {
-      isLoading = false;
-    }
-  }
 
   function toggleViewMode() {
     viewMode = viewMode === 'grid' ? 'list' : 'grid';

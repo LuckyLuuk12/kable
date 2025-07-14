@@ -1,6 +1,6 @@
 import { writable, get } from 'svelte/store';
 import { 
-  findMinecraftInstallations, 
+  getMinecraftInstallations, 
   launchMinecraft, 
   checkJavaInstallation, 
   getDefaultMinecraftDir 
@@ -50,11 +50,11 @@ export class GameManager {
     installationsError.set(null);
 
     try {
-      const foundInstallations = await findMinecraftInstallations();
+      const foundInstallations = await getMinecraftInstallations();
       installations.set(foundInstallations);
 
       // Auto-select the first valid installation
-      const validInstallation = foundInstallations.find(i => i.is_valid);
+      const validInstallation = foundInstallations.find((i: MinecraftInstallation) => i.is_valid);
       const toSelect = validInstallation || foundInstallations[0] || null;
       selectedInstallation.set(toSelect);
 

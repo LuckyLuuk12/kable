@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 // Module declarations
-// mod auth; // Skipped for now - focus on content management
+mod auth; // Re-enabled for OAuth2 integration
 mod settings;
 mod profile;
 mod maps;
@@ -14,8 +14,8 @@ mod shaders;
 mod skins;
 mod installations;
 
-// Re-export public items from modules (excluding auth for now)
-// pub use auth::{MicrosoftAccount, start_microsoft_auth, complete_microsoft_auth, refresh_minecraft_token, get_oauth_callback_result};
+// Re-export public items from modules
+pub use auth::{MicrosoftAccount, start_microsoft_auth, complete_microsoft_auth, start_device_code_auth, poll_device_code_auth, copy_to_clipboard, refresh_minecraft_token, get_oauth_callback_result, read_minecraft_sessions, write_minecraft_session, get_minecraft_session_path, get_minecraft_launch_args, validate_minecraft_token, open_url};
 pub use settings::{LauncherSettings, load_settings, save_settings, get_launcher_dir, get_default_minecraft_directory, validate_minecraft_directory, MinecraftDirectoryInfo};
 pub use maps::{LocalWorld, WorldDownload, get_local_worlds, delete_world, backup_world};
 pub use shaders::{ShaderPack, get_installed_shaders, toggle_shader, delete_shader, install_shader_pack, get_shader_info};
@@ -172,11 +172,20 @@ pub fn run() {
             launch_minecraft,
             check_java_installation,
             get_default_minecraft_dir,
-            // Auth commands - skipped for now
-            // auth::start_microsoft_auth,
-            // auth::complete_microsoft_auth,
-            // auth::refresh_minecraft_token,
-            // auth::get_oauth_callback_result,
+            // Auth commands - Re-enabled with enhanced OAuth2 integration
+            auth::start_microsoft_auth,
+            auth::complete_microsoft_auth,
+            auth::start_device_code_auth,
+            auth::poll_device_code_auth,
+            auth::copy_to_clipboard,
+            auth::refresh_minecraft_token,
+            auth::get_oauth_callback_result,
+            auth::read_minecraft_sessions,
+            auth::write_minecraft_session,
+            auth::get_minecraft_session_path,
+            auth::get_minecraft_launch_args,
+            auth::validate_minecraft_token,
+            auth::open_url,
             // Settings commands
             settings::load_settings,
             settings::save_settings,

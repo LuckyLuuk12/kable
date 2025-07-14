@@ -4,6 +4,13 @@ import { SettingsManager } from '../settings';
 
 export class MapsManager {
   /**
+   * Load worlds data (alias for getLocalWorlds for consistency with other managers)
+   */
+  static async loadWorlds(): Promise<LocalWorld[]> {
+    return this.getLocalWorlds();
+  }
+
+  /**
    * Get all local worlds from the Minecraft saves directory
    */
   static async getLocalWorlds(): Promise<LocalWorld[]> {

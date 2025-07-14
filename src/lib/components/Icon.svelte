@@ -29,12 +29,18 @@
       launch: '▶️',
       info: 'ℹ️',
       preview: '👁️',
+      backup: '💾',
+      more: '⋯',
+      menu: '☰',
+      hamburger: '☰',
       
       // Status & Indicators
       success: '✅',
       error: '❌',
       warning: '⚠️',
+      alert: '⚠️',
       loading: '⏳',
+      loader: '⏳',
       authenticated: '✅',
       lock: '🔒',
       unlock: '🔓',
@@ -73,6 +79,10 @@
       players: '👥',
       avatar: '👤',
       crown: '👑',
+      user: '👤',
+      'user-plus': '👤➕',
+      'qr-code': '📱',
+      logout: '🚪',
       
       // System & Technical
       memory: '💾',
@@ -81,6 +91,12 @@
       bug: '🐛',
       analytics: '📊',
       debug: '🔧',
+      coffee: '☕',
+      database: '🗄️',
+      wifi: '📶',
+      target: '🎯',
+      zap: '⚡',
+      wrench: '🔧',
       
       // Minecraft Specific
       minecraft: '🎮',
@@ -92,6 +108,8 @@
       gold: '🟨',
       iron: '⚪',
       redstone: '🔴',
+      world: '🌍',
+      skull: '💀',
       
       // General UI
       close: '✖️',
@@ -105,6 +123,9 @@
       copy: '📋',
       paste: '📄',
       cut: '✂️',
+      grid: '▦',
+      list: '☰',
+      layout: '🎛️',
       
       // Arrows & Navigation
       'arrow-up': '⬆️',
@@ -121,6 +142,7 @@
       contrast: '🌓',
       color: '🎨',
       filter: '🎚️',
+      palette: '🎨',
       
       // Networking
       online: '🌐',
@@ -128,12 +150,19 @@
       sync: '🔄',
       cloud: '☁️',
       server: '🖥️',
+      microsoft: 'Ⓜ️',
       
       // Time & Calendar
       time: '⏰',
       date: '📅',
       clock: '🕐',
       timer: '⏱️',
+      calendar: '📅',
+      chart: '📊',
+      
+      // Geography & Navigation
+      compass: '🧭',
+      eye: '👁️',
       
       // Weather & Environment
       sun: '☀️',
@@ -168,12 +197,16 @@
       launch: 'fas fa-rocket',
       info: 'fas fa-info-circle',
       preview: 'fas fa-eye',
+      backup: 'fas fa-save',
+      more: 'fas fa-ellipsis-h',
       
       // Status & Indicators
       success: 'fas fa-check-circle',
       error: 'fas fa-times-circle',
       warning: 'fas fa-exclamation-triangle',
+      alert: 'fas fa-exclamation-triangle',
       loading: 'fas fa-spinner fa-spin',
+      loader: 'fas fa-circle-notch fa-spin',
       authenticated: 'fas fa-shield-check',
       lock: 'fas fa-lock',
       unlock: 'fas fa-unlock',
@@ -191,7 +224,41 @@
       terminal: 'fas fa-terminal',
       bug: 'fas fa-bug',
       analytics: 'fas fa-chart-bar',
-      debug: 'fas fa-wrench'
+      debug: 'fas fa-wrench',
+      coffee: 'fas fa-coffee',
+      database: 'fas fa-database',
+      wifi: 'fas fa-wifi',
+      target: 'fas fa-bullseye',
+      zap: 'fas fa-bolt',
+      wrench: 'fas fa-wrench',
+      
+      // Players & Social
+      user: 'fas fa-user',
+      'user-plus': 'fas fa-user-plus',
+      'qr-code': 'fas fa-qrcode',
+      logout: 'fas fa-sign-out-alt',
+      
+      // Minecraft Specific
+      world: 'fas fa-globe',
+      skull: 'fas fa-skull',
+      
+      // General UI
+      grid: 'fas fa-th',
+      list: 'fas fa-list',
+      layout: 'fas fa-th-large',
+      palette: 'fas fa-palette',
+      
+      // Geography & Navigation
+      compass: 'fas fa-compass',
+      eye: 'fas fa-eye',
+      
+      // Time & Calendar
+      clock: 'fas fa-clock',
+      calendar: 'fas fa-calendar-alt',
+      chart: 'fas fa-chart-line',
+      
+      // Microsoft
+      microsoft: 'fab fa-microsoft'
     },
     
     system: {
@@ -214,7 +281,7 @@
   };
 
   // Get the icon based on provider and name
-  $: icon = iconMaps[provider]?.[name] || iconMaps.emoji[name] || '❓';
+  $: icon = (iconMaps[provider] as Record<string, string>)?.[name] || (iconMaps.emoji as Record<string, string>)[name] || '❓';
   $: isEmoji = provider === 'emoji';
   $: isFontAwesome = provider === 'fontawesome';
   $: isSystem = provider === 'system';
@@ -229,7 +296,7 @@
 {:else if isSystem}
   <span class="icon icon-system {sizeClasses[size]} {className}" data-icon={icon} aria-label={name}>
     <!-- System icon placeholder - would be replaced by actual system icon rendering -->
-    {iconMaps.emoji[name] || '❓'}
+    {(iconMaps.emoji as Record<string, string>)[name] || '❓'}
   </span>
 {/if}
 

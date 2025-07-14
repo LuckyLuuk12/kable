@@ -30,7 +30,7 @@ export interface AuthResponse {
   expires_at?: number;
 }
 
-// Microsoft Account Management
+// Microsoft Account Management - Enhanced for session management
 export interface MicrosoftAccount {
   id: string;
   username: string;
@@ -41,6 +41,25 @@ export interface MicrosoftAccount {
   skin_url?: string;
   is_active: boolean;
   last_used: number;
+  minecraft_access_token: string; // Minecraft-specific token
+  minecraft_expires_at: number;
+  xbox_user_hash: string;
+}
+
+// Minecraft Session Data (launcher_profiles.json)
+export interface MinecraftSession {
+  access_token: string;
+  client_token: string;
+  uuid: string;
+  username: string;
+  user_type: string;
+  user_properties: Record<string, any>;
+}
+
+export interface LauncherProfiles {
+  authentication_database: Record<string, MinecraftSession>;
+  launcher_version: string;
+  selected_user?: string;
 }
 
 // Version Management

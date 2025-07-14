@@ -7,6 +7,9 @@ export const currentAccount = writable<MicrosoftAccount | null>(null);
 export const isAuthenticated = derived(currentAccount, $account => $account !== null);
 export const isAuthenticating = writable(false);
 
+// Derived store for checking if signed in
+export const isSignedIn = isAuthenticated;
+
 // Persist account to localStorage
 export function saveAccountToStorage(account: MicrosoftAccount) {
   localStorage.setItem('kable_account', JSON.stringify(account));
