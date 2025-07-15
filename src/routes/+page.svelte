@@ -11,6 +11,7 @@
   let viewMode: 'grid' | 'list' = 'grid';
   let isLaunching = false;
   let launchStatus = '';
+  let openDropdownId: string | null = null;
 
   // Subscribe to the installations store
   $: {
@@ -36,20 +37,54 @@
   }
 
   // Initialize on component mount
-  onMount(async () => {
+  onMount(() => {
     console.log('Home page mounted, initializing...');
-    try {
-      // GameManager should already be initialized by the layout, 
-      // but trigger a refresh to ensure we have the latest data
-      await GameManager.loadInstallations();
-    } catch (err) {
-      console.error('Error during initialization:', err);
-      error = `Initialization failed: ${err}`;
+    
+    // Load installations asynchronously
+    (async () => {
+      try {
+        // GameManager should already be initialized by the layout, 
+        // but trigger a refresh to ensure we have the latest data
+        await GameManager.loadInstallations();
+      } catch (err) {
+        console.error('Error during initialization:', err);
+        error = `Initialization failed: ${err}`;
+      }
+    })();
+
+    // Add click outside handler for dropdown
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Element;
+      if (!target.closest('.dropdown-container')) {
+        openDropdownId = null;
+      }
     }
+    document.addEventListener('click', handleClickOutside);
+    
+    // Return cleanup function
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
   });
 
   function toggleViewMode() {
     viewMode = viewMode === 'grid' ? 'list' : 'grid';
+  }
+
+  function getModLoaderIcon(modLoader: string) {
+    switch (modLoader) {
+      case 'fabric': return 'fabric';
+      case 'forge': return 'hammer';
+      default: return 'cube';
+    }
+  }
+
+  function toggleDropdown(installationId: string) {
+    openDropdownId = openDropdownId === installationId ? null : installationId;
+  }
+
+  function closeDropdown() {
+    openDropdownId = null;
   }
 
   async function handlePlay() {
@@ -193,7 +228,7 @@
             <div class="installation-card" class:selected={false}>
               <div class="installation-header">
                 <div class="installation-icon">
-                  <Icon name={installation.mod_loader === 'vanilla' ? 'home' : 'mods'} size="md" />
+                  <Icon name={getModLoaderIcon(installation.mod_loader)} size="md" />
                 </div>
                 <div class="installation-info">
                   <h3>{installation.name || `Minecraft ${installation.version}`}</h3>
@@ -219,9 +254,36 @@
                   <button class="action-btn" title="Launch this installation" on:click={() => handleInstallationLaunch(installation)}>
                     <Icon name="play" size="sm" />
                   </button>
-                  <button class="action-btn" title="More options">
-                    <Icon name="more" size="sm" />
-                  </button>
+                  <div class="dropdown-container">
+                    <button 
+                      class="action-btn dropdown-trigger" 
+                      title="More options"
+                      on:click={() => toggleDropdown(installation.id)}
+                    >
+                      <Icon name="more" size="sm" />
+                    </button>
+                    {#if openDropdownId === installation.id}
+                      <div 
+                        class="dropdown-menu"
+                        role="menu"
+                        tabindex="-1"
+                        on:mouseleave={closeDropdown}
+                      >
+                        <button class="dropdown-item" role="menuitem" on:click={() => { /* Edit installation */ closeDropdown(); }}>
+                          <Icon name="edit" size="sm" />
+                          Edit
+                        </button>
+                        <button class="dropdown-item" role="menuitem" on:click={() => { /* Duplicate installation */ closeDropdown(); }}>
+                          <Icon name="copy" size="sm" />
+                          Duplicate
+                        </button>
+                        <button class="dropdown-item danger" role="menuitem" on:click={() => { /* Delete installation */ closeDropdown(); }}>
+                          <Icon name="trash" size="sm" />
+                          Delete
+                        </button>
+                      </div>
+                    {/if}
+                  </div>
                 </div>
               </div>
             </div>
@@ -469,6 +531,51 @@
               color: white;
             }
           }
+
+          .dropdown-container {
+            position: relative;
+
+            .dropdown-menu {
+              position: absolute;
+              right: 0;
+              top: calc(100% + 0.5rem);
+              background: $dark-800;
+              border: 1px solid $dark-600;
+              border-radius: 8px;
+              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+              z-index: 100;
+              min-width: 140px;
+              padding: 0.5rem 0;
+              animation: dropdownSlide 0.2s ease-out;
+
+              .dropdown-item {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                width: 100%;
+                padding: 0.75rem 1rem;
+                background: none;
+                border: none;
+                color: $text;
+                font-size: 0.875rem;
+                cursor: pointer;
+                transition: background 0.15s ease;
+                text-align: left;
+
+                &:hover {
+                  background: $dark-700;
+                }
+
+                &.danger {
+                  color: $red;
+
+                  &:hover {
+                    background: rgba($red, 0.1);
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -486,13 +593,15 @@
     color: $placeholder;
     gap: 1rem;
 
+    p {
+      margin: 0;
+    }
+  }
+
+  .empty-state {
     h2 {
       margin: 0;
       color: $text;
-    }
-
-    p {
-      margin: 0;
     }
 
     .btn {
@@ -505,7 +614,7 @@
   }
 
   .loading-state {
-    .icon {
+    :global(.icon) {
       animation: spin 1s linear infinite;
     }
   }
@@ -513,6 +622,17 @@
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+  }
+
+  @keyframes dropdownSlide {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   // Responsive design

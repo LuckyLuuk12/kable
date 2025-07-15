@@ -3,6 +3,7 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { AuthManager, SettingsManager, GameManager, Icon } from '$lib';
+  import { IconManager } from '$lib/managers/IconManager';
   
   let isTauriReady = false;
   let initializationStatus = 'Initializing...';
@@ -20,7 +21,8 @@
       await Promise.all([
         AuthManager.initialize(),
         SettingsManager.initialize(),
-        GameManager.initialize()
+        GameManager.initialize(),
+        IconManager.initialize()
       ]);
       
       initializationStatus = 'Ready';

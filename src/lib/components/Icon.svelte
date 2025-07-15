@@ -1,11 +1,54 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
+  import { IconManager, selectedTemplate } from '../managers/IconManager';
+
   export let name: string;
-  export let provider: 'emoji' | 'fontawesome' | 'system' = 'emoji';
+  export let provider: 'emoji' | 'fontawesome' | 'system' | 'auto' = 'auto';
   export let size: 'sm' | 'md' | 'lg' | 'xl' = 'md';
   export let className: string = '';
 
-  // Icon mappings by provider
-  const iconMaps = {
+  let iconData: { icon: string; type: string; fallback: string } = { icon: '❓', type: 'emoji', fallback: '❓' };
+
+  // Size mappings
+  const sizeClasses = {
+    sm: 'icon-sm',
+    md: 'icon-md', 
+    lg: 'icon-lg',
+    xl: 'icon-xl'
+  };
+
+  // Initialize icon system on mount
+  onMount(async () => {
+    await IconManager.initialize();
+    updateIcon();
+  });
+
+  // Update icon when name, provider changes, or when selected template changes
+  $: if (name || $selectedTemplate) {
+    updateIcon();
+  }
+
+  function updateIcon() {
+    if (provider === 'auto') {
+      // Use IconManager for dynamic template selection
+      iconData = IconManager.getIcon(name);
+    } else {
+      // Use legacy static mappings for specific providers
+      iconData = getLegacyIcon(name, provider);
+    }
+  }
+
+  function getLegacyIcon(iconName: string, iconProvider: string): { icon: string; type: string; fallback: string } {
+  // Define icon map types with index signatures
+  type EmojiIconMap = { [key: string]: string };
+  type FontAwesomeIconMap = { [key: string]: string };
+  type SystemIconMap = { [key: string]: string };
+
+  const iconMaps: {
+    emoji: EmojiIconMap;
+    fontawesome: FontAwesomeIconMap;
+    system: SystemIconMap;
+  } = {
     emoji: {
       // Navigation & UI
       home: '🏠',
@@ -25,12 +68,14 @@
       edit: '✏️',
       duplicate: '📋',
       delete: '🗑️',
+      trash: '🗑️',
       play: '▶️',
       launch: '▶️',
       info: 'ℹ️',
       preview: '👁️',
       backup: '💾',
-      more: '⋯',
+      more: '•••',
+      'more-horizontal': '•••',
       menu: '☰',
       hamburger: '☰',
       
@@ -47,6 +92,7 @@
       
       // Content Types
       folder: '📂',
+      'folder-open': '📂',
       file: '📄',
       image: '🖼️',
       code: '💻',
@@ -110,6 +156,9 @@
       redstone: '🔴',
       world: '🌍',
       skull: '💀',
+      fabric: '🧵',
+      hammer: '🔨',
+      cube: '🧊',
       
       // General UI
       close: '✖️',
@@ -193,12 +242,14 @@
       edit: 'fas fa-edit',
       duplicate: 'fas fa-copy',
       delete: 'fas fa-trash',
+      trash: 'fas fa-trash',
       play: 'fas fa-play',
       launch: 'fas fa-rocket',
       info: 'fas fa-info-circle',
       preview: 'fas fa-eye',
       backup: 'fas fa-save',
       more: 'fas fa-ellipsis-h',
+      'more-horizontal': 'fas fa-ellipsis-h',
       
       // Status & Indicators
       success: 'fas fa-check-circle',
@@ -213,6 +264,7 @@
       
       // Content Types
       folder: 'fas fa-folder',
+      'folder-open': 'fas fa-folder-open',
       file: 'fas fa-file',
       image: 'fas fa-image',
       code: 'fas fa-code',
@@ -241,6 +293,9 @@
       // Minecraft Specific
       world: 'fas fa-globe',
       skull: 'fas fa-skull',
+      fabric: 'fas fa-thread',
+      hammer: 'fas fa-hammer',
+      cube: 'fas fa-cube',
       
       // General UI
       grid: 'fas fa-th',
@@ -280,23 +335,43 @@
     xl: 'icon-xl'
   };
 
+  // Define allowed icon providers as a type
+  type IconProvider = 'emoji' | 'fontawesome' | 'system';
+
   // Get the icon based on provider and name
-  $: icon = (iconMaps[provider] as Record<string, string>)?.[name] || (iconMaps.emoji as Record<string, string>)[name] || '❓';
-  $: isEmoji = provider === 'emoji';
-  $: isFontAwesome = provider === 'fontawesome';
-  $: isSystem = provider === 'system';
+  const icon =
+    iconMaps[iconProvider as IconProvider]?.[iconName] ||
+    iconMaps.emoji[iconName] ||
+    '❓';
+
+  return {
+    icon,
+    type: iconProvider,
+    fallback: '❓'
+  };
+}
+
+// Reactive statements
+$: isEmoji = iconData.type === 'emoji';
+$: isFontAwesome = iconData.type === 'fontawesome';
+$: isSystem = iconData.type === 'system';
 </script>
 
 {#if isEmoji}
   <span class="icon icon-emoji {sizeClasses[size]} {className}" role="img" aria-label={name}>
-    {icon}
+    {iconData.icon}
   </span>
 {:else if isFontAwesome}
-  <i class="icon icon-fontawesome {icon} {sizeClasses[size]} {className}" aria-label={name}></i>
+  <i class="icon icon-fontawesome {iconData.icon} {sizeClasses[size]} {className}" aria-label={name}></i>
 {:else if isSystem}
-  <span class="icon icon-system {sizeClasses[size]} {className}" data-icon={icon} aria-label={name}>
-    <!-- System icon placeholder - would be replaced by actual system icon rendering -->
-    {(iconMaps.emoji as Record<string, string>)[name] || '❓'}
+  <span class="icon icon-system {sizeClasses[size]} {className}" data-icon={iconData.icon} aria-label={name}>
+    <!-- System icon placeholder - fallback to emoji -->
+    {iconData.fallback}
+  </span>
+{:else}
+  <!-- Custom template or unknown type - render as span -->
+  <span class="icon icon-custom {sizeClasses[size]} {className}" role="img" aria-label={name}>
+    {iconData.icon}
   </span>
 {/if}
 
@@ -342,6 +417,12 @@
     &.icon-system {
       // System icon specific styles
       color: currentColor;
+    }
+    
+    &.icon-custom {
+      // Custom template icon styles
+      color: currentColor;
+      font-family: inherit;
     }
   }
 </style>

@@ -567,10 +567,16 @@ pub fn get_java_path(java_path: Option<String>) -> Result<String, String> {
 
 /// Build memory arguments
 pub fn build_memory_arguments(settings: &LauncherSettings) -> Vec<String> {
+    build_memory_arguments_with_override(settings, None)
+}
+
+/// Build memory arguments with optional memory override for per-installation settings
+pub fn build_memory_arguments_with_override(settings: &LauncherSettings, memory_override: Option<u32>) -> Vec<String> {
     let mut args = Vec::new();
     
-    // Add memory settings
-    args.push(format!("-Xmx{}M", settings.default_memory));
+    // Use installation-specific memory if provided, otherwise use global default
+    let memory = memory_override.unwrap_or(settings.default_memory);
+    args.push(format!("-Xmx{}M", memory));
     
     // Add other common JVM arguments for better performance
     args.extend_from_slice(&[
@@ -587,7 +593,12 @@ pub fn build_memory_arguments(settings: &LauncherSettings) -> Vec<String> {
 
 /// Build JVM arguments including natives path
 pub fn build_jvm_arguments(settings: &LauncherSettings, natives_path: &Path) -> Vec<String> {
-    let mut args = build_memory_arguments(settings);
+    build_jvm_arguments_with_memory(settings, natives_path, None)
+}
+
+/// Build JVM arguments including natives path with optional memory override
+pub fn build_jvm_arguments_with_memory(settings: &LauncherSettings, natives_path: &Path, memory_override: Option<u32>) -> Vec<String> {
+    let mut args = build_memory_arguments_with_override(settings, memory_override);
     
     // Add the crucial java.library.path for native libraries (LWJGL)
     args.push(format!("-Djava.library.path={}", natives_path.display()));

@@ -11,15 +11,18 @@
   let isLoading = false;
   let error: string | null = null;
   let showCreateModal = false;
+  let showEditModal = false;
+  let editingInstallation: MinecraftInstallation | null = null;
   
   // New installation form
   let newInstallation = {
     name: '',
     version: '',
-    mod_loader: 'vanilla' as 'vanilla' | 'fabric' | 'forge',
+    mod_loader: 'vanilla' as 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge',
     game_directory: '',
     java_path: '',
     jvm_args: '-Xmx2G',
+    memory: 2048, // Memory in MB
     description: ''
   };
 
@@ -79,6 +82,7 @@
         newInstallation.game_directory,
         newInstallation.java_path,
         newInstallation.jvm_args,
+        newInstallation.memory,
         newInstallation.description
       );
       
@@ -93,6 +97,7 @@
         game_directory: '',
         java_path: '',
         jvm_args: '-Xmx2G',
+        memory: 2048,
         description: ''
       };
       
@@ -175,6 +180,90 @@
       case 'old_alpha': return '#6c757d';
       default: return '#6c757d';
     }
+  }
+
+  function editInstallation(installation: MinecraftInstallation) {
+    editingInstallation = installation;
+    // Pre-fill the form with existing installation data
+    newInstallation = {
+      name: installation.name,
+      version: installation.version,
+      mod_loader: installation.mod_loader,
+      game_directory: installation.game_directory || '',
+      java_path: installation.java_path || '',
+      jvm_args: installation.jvm_args || '-Xmx2G',
+      memory: installation.memory || 2048,
+      description: installation.description || ''
+    };
+    showEditModal = true;
+  }
+
+  async function updateInstallation() {
+    if (!editingInstallation) return;
+    
+    try {
+      isLoading = true;
+      error = null;
+      
+      const updatedInstallation = await InstallationService.updateInstallation(
+        editingInstallation.id,
+        newInstallation.name,
+        newInstallation.version,
+        newInstallation.mod_loader,
+        newInstallation.game_directory,
+        newInstallation.java_path,
+        newInstallation.jvm_args,
+        newInstallation.memory,
+        newInstallation.description
+      );
+      
+      // Update the installation in the list
+      installations = installations.map(inst => 
+        inst.id === editingInstallation?.id ? updatedInstallation : inst
+      );
+      
+      showEditModal = false;
+      editingInstallation = null;
+      
+      // Reset form
+      newInstallation = {
+        name: '',
+        version: '',
+        mod_loader: 'vanilla',
+        game_directory: '',
+        java_path: '',
+        jvm_args: '-Xmx2G',
+        memory: 2048,
+        description: ''
+      };
+      
+    } catch (err) {
+      console.error('Failed to update installation:', err);
+      error = `Failed to update installation: ${err}`;
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  function closeEditModal() {
+    showEditModal = false;
+    editingInstallation = null;
+    const modal = document.querySelector('.modern-modal') as HTMLDialogElement;
+    if (modal && modal.close) {
+      modal.close();
+    }
+  }
+
+  function openEditModal() {
+    const modal = document.querySelector('.modern-modal') as HTMLDialogElement;
+    if (modal && modal.showModal) {
+      modal.showModal();
+    }
+  }
+
+  // Watch for showEditModal changes to control the dialog
+  $: if (showEditModal) {
+    setTimeout(() => openEditModal(), 10);
   }
 </script>
 
@@ -275,7 +364,7 @@
                 <Icon name="more-horizontal" size="sm" />
               </button>
               <div class="dropdown-menu">
-                <button on:click={() => console.log('Edit installation')}>
+                <button on:click={() => editInstallation(installation)}>
                   <Icon name="edit" size="sm" />
                   Edit
                 </button>
@@ -385,9 +474,37 @@
             id="jvm-args"
             type="text"
             bind:value={newInstallation.jvm_args}
-            placeholder="-Xmx2G"
+            placeholder="-XX:+UseG1GC"
           />
-          <small>Java Virtual Machine arguments</small>
+          <small>Additional Java Virtual Machine arguments (memory is set separately below)</small>
+        </div>
+
+        <div class="form-group">
+          <label for="memory">Memory Allocation</label>
+          <div class="memory-control">
+            <input 
+              id="memory"
+              type="range" 
+              min="512" 
+              max="16384" 
+              step="256"
+              bind:value={newInstallation.memory}
+              class="memory-slider"
+            />
+            <div class="memory-input-row">
+              <input 
+                type="number"
+                bind:value={newInstallation.memory}
+                min="512"
+                max="16384"
+                step="256"
+                class="memory-text-input"
+              />
+              <span class="memory-unit">MB</span>
+              <span class="memory-gb">({Math.round(newInstallation.memory / 1024 * 10) / 10}GB)</span>
+            </div>
+          </div>
+          <small>RAM allocated to this installation (overrides global memory setting)</small>
         </div>
 
         <div class="form-group">
@@ -411,6 +528,132 @@
       </form>
     </div>
   </div>
+{/if}
+
+<!-- Edit Installation Modal -->
+{#if showEditModal}
+  <dialog class="modern-modal" open>
+    <div class="modal-header">
+      <h2>Edit Installation</h2>
+      <button class="modal-close" on:click={() => { showEditModal = false; editingInstallation = null; }}>
+        <Icon name="x" size="sm" />
+      </button>
+    </div>
+
+    <form on:submit|preventDefault={updateInstallation} class="modal-content">
+      <div class="form-group">
+        <label for="edit-installation-name">Installation Name</label>
+        <input
+          id="edit-installation-name"
+          type="text"
+          bind:value={newInstallation.name}
+          placeholder="My Minecraft Installation"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="edit-minecraft-version">Minecraft Version</label>
+        <select id="edit-minecraft-version" bind:value={newInstallation.version} required>
+          <option value="">Select a version</option>
+          {#each availableVersions as version}
+            <option value={version.id} style="color: {getVersionTypeColor(version.type)}">
+              {version.id} ({version.type})
+            </option>
+          {/each}
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="edit-mod-loader">Mod Loader</label>
+        <select id="edit-mod-loader" bind:value={newInstallation.mod_loader}>
+          <option value="vanilla">Vanilla (No mods)</option>
+          <option value="fabric">Fabric</option>
+          <option value="forge">Forge</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="edit-game-directory">Game Directory</label>
+        <input
+          id="edit-game-directory"
+          type="text"
+          bind:value={newInstallation.game_directory}
+          placeholder="Leave empty for default (.minecraft)"
+        />
+        <small>Custom game directory for this installation</small>
+      </div>
+
+      <div class="form-group">
+        <label for="edit-java-path">Java Path</label>
+        <input
+          id="edit-java-path"
+          type="text"
+          bind:value={newInstallation.java_path}
+          placeholder="Leave empty for auto-detection"
+        />
+        <small>Path to Java executable (java.exe)</small>
+      </div>
+
+      <div class="form-group">
+        <label for="edit-jvm-args">JVM Arguments</label>
+        <input
+          id="edit-jvm-args"
+          type="text"
+          bind:value={newInstallation.jvm_args}
+          placeholder="-XX:+UseG1GC"
+        />
+        <small>Additional Java Virtual Machine arguments (memory is set separately below)</small>
+      </div>
+
+      <div class="form-group">
+        <label for="edit-memory">Memory Allocation</label>
+        <div class="memory-control">
+          <input 
+            id="edit-memory"
+            type="range" 
+            min="512" 
+            max="16384" 
+            step="256"
+            bind:value={newInstallation.memory}
+            class="memory-slider"
+          />
+          <div class="memory-input-row">
+            <input 
+              type="number"
+              bind:value={newInstallation.memory}
+              min="512"
+              max="16384"
+              step="256"
+              class="memory-text-input"
+            />
+            <span class="memory-unit">MB</span>
+            <span class="memory-gb">({Math.round(newInstallation.memory / 1024 * 10) / 10}GB)</span>
+          </div>
+        </div>
+        <small>RAM allocated to this installation (overrides global memory setting)</small>
+      </div>
+
+      <div class="form-group">
+        <label for="edit-description">Description</label>
+        <textarea
+          id="edit-description"
+          bind:value={newInstallation.description}
+          placeholder="Optional description for this installation"
+          rows="3"
+        ></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" on:click={() => { showEditModal = false; editingInstallation = null; }}>
+          Cancel
+        </button>
+        <button type="submit" class="btn btn-primary" disabled={isLoading || !newInstallation.name || !newInstallation.version}>
+          {isLoading ? 'Updating...' : 'Update Installation'}
+        </button>
+      </div>
+    </form>
+  </dialog>
 {/if}
 
 <style lang="scss">
@@ -538,62 +781,79 @@
     .installation-actions {
       display: flex;
       gap: 0.75rem;
-      align-items: center;
+      align-items: center;        .dropdown {
+          position: relative;
+          margin-left: auto;
 
-      .dropdown {
-        position: relative;
-        margin-left: auto;
+          .dropdown-toggle {
+            padding: 0.5rem;
+          }
 
-        .dropdown-toggle {
-          padding: 0.5rem;
-        }
+          .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 0.25rem;
+            background: $container;
+            border: 1px solid $dark-600;
+            border-radius: $border-radius;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            min-width: 150px;
+            z-index: 10;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
+            transition-delay: 0s;
 
-        .dropdown-menu {
-          position: absolute;
-          top: 100%;
-          right: 0;
-          margin-top: 0.25rem;
-          background: $container;
-          border: 1px solid $dark-600;
-          border-radius: $border-radius;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-          min-width: 150px;
-          z-index: 10;
-          display: none;
+            button {
+              display: flex;
+              align-items: center;
+              gap: 0.5rem;
+              width: 100%;
+              padding: 0.75rem 1rem;
+              border: none;
+              background: none;
+              color: $text;
+              font-size: 0.875rem;
+              cursor: pointer;
+              transition: background-color 0.2s ease;
 
-          button {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+              &:hover {
+                background: rgba($primary, 0.1);
+              }
+
+              &.danger {
+                color: $red;
+              }
+            }
+
+            .dropdown-separator {
+              height: 1px;
+              background: $dark-600;
+              margin: 0.5rem 0;
+            }
+          }
+
+          &:hover .dropdown-menu {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+            transition-delay: 0.1s;
+          }
+
+          // Add a small invisible bridge to help with mouse navigation
+          &::before {
+            content: '';
+            position: absolute;
+            top: 100%;
+            right: 0;
             width: 100%;
-            padding: 0.75rem 1rem;
-            border: none;
-            background: none;
-            color: $text;
-            font-size: 0.875rem;
-            cursor: pointer;
-            transition: background-color 0.2s ease;
-
-            &:hover {
-              background: rgba($primary, 0.1);
-            }
-
-            &.danger {
-              color: $red;
-            }
-          }
-
-          .dropdown-separator {
-            height: 1px;
-            background: $dark-600;
-            margin: 0.5rem 0;
+            height: 0.25rem;
+            background: transparent;
+            z-index: 9;
           }
         }
-
-        &:hover .dropdown-menu {
-          display: block;
-        }
-      }
     }
   }
 
@@ -740,6 +1000,215 @@
           margin-top: 0.25rem;
           font-size: 0.75rem;
           color: $placeholder;
+        }
+      }
+
+      .memory-control {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        
+        .memory-slider {
+          width: 100%;
+        }
+        
+        .memory-input-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          
+          .memory-text-input {
+            background: transparent;
+            border: 1px solid $dark-600;
+            color: $primary;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-align: right;
+            min-width: 60px;
+            max-width: 80px;
+            padding: 0.5rem;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            
+            &:hover {
+              border-color: $primary;
+              color: rgba($primary, 0.8);
+            }
+            
+            &:focus {
+              border-color: $primary;
+              color: rgba($primary, 0.75);
+            }
+          }
+          
+          .memory-gb {
+            color: $placeholder;
+            font-size: 0.875rem;
+            min-width: 60px;
+          }
+          
+          .memory-unit {
+            color: $primary;
+            font-weight: 600;
+            font-size: 0.9rem;
+          }
+        }
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-top: 2rem;
+      }
+    }
+  }
+
+  // Modern dialog element styles
+  .modern-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: $container;
+    border: 1px solid $dark-600;
+    border-radius: $border-radius;
+    width: 100%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    z-index: 9999;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+
+    &::backdrop {
+      background: rgba(0, 0, 0, 0.7);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem;
+      border-bottom: 1px solid $dark-600;
+
+      h2 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: $text;
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        padding: 0.5rem;
+        color: $placeholder;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba($placeholder, 0.1);
+          color: $text;
+        }
+      }
+    }
+
+    .modal-content {
+      padding: 1.5rem;
+
+      .form-group {
+        margin-bottom: 1.5rem;
+
+        label {
+          display: block;
+          margin-bottom: 0.5rem;
+          font-weight: 500;
+          color: $text;
+        }
+
+        input, select, textarea {
+          width: 100%;
+          padding: 0.75rem;
+          border: 1px solid $dark-600;
+          border-radius: $border-radius;
+          background: $background;
+          color: $text;
+          font-size: 0.875rem;
+
+          &:focus {
+            outline: none;
+            border-color: $primary;
+          }
+
+          &::placeholder {
+            color: $placeholder;
+          }
+        }
+
+        select {
+          cursor: pointer;
+        }
+
+        small {
+          display: block;
+          margin-top: 0.25rem;
+          font-size: 0.75rem;
+          color: $placeholder;
+        }
+      }
+
+      .memory-control {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        
+        .memory-slider {
+          width: 100%;
+        }
+        
+        .memory-input-row {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          
+          .memory-text-input {
+            background: transparent;
+            border: 1px solid $dark-600;
+            color: $primary;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-align: right;
+            min-width: 60px;
+            max-width: 80px;
+            padding: 0.5rem;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            
+            &:hover {
+              border-color: $primary;
+              color: rgba($primary, 0.8);
+            }
+            
+            &:focus {
+              border-color: $primary;
+              color: rgba($primary, 0.75);
+            }
+          }
+          
+          .memory-gb {
+            color: $placeholder;
+            font-size: 0.875rem;
+            min-width: 60px;
+          }
+          
+          .memory-unit {
+            color: $primary;
+            font-weight: 600;
+            font-size: 0.9rem;
+          }
         }
       }
 

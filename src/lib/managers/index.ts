@@ -3,5 +3,7 @@ export { AuthManager } from './AuthManager';
 export { SettingsManager } from './SettingsManager';
 export { GameManager } from './GameManager';
 export { MapsManager } from './MapsManager';
+export { ModsManager } from './ModsManager';
 export { ShadersManager } from './ShadersManager';
 export { SkinsManager } from './SkinsManager';
+export { IconManager } from './IconManager';

@@ -32,16 +32,46 @@ export async function createInstallation(
   gameDirectory?: string,
   javaPath?: string,
   jvmArgs?: string,
+  memory?: number,
   description?: string
 ): Promise<MinecraftInstallation> {
   return await invoke('create_installation', {
-    name,
-    version,
-    modLoader,
-    gameDirectory,
-    javaPath,
-    jvmArgs,
-    description
+    request: {
+      name,
+      version,
+      mod_loader: modLoader,
+      game_directory: gameDirectory,
+      java_path: javaPath,
+      jvm_args: jvmArgs,
+      memory,
+      description
+    }
+  });
+}
+
+export async function updateInstallation(
+  installationId: string,
+  name: string,
+  version: string,
+  modLoader: string,
+  gameDirectory?: string,
+  javaPath?: string,
+  jvmArgs?: string,
+  memory?: number,
+  description?: string
+): Promise<MinecraftInstallation> {
+  return await invoke('update_installation', {
+    installationId,
+    request: {
+      name,
+      version,
+      mod_loader: modLoader,
+      game_directory: gameDirectory,
+      java_path: javaPath,
+      jvm_args: jvmArgs,
+      memory,
+      description
+    }
   });
 }
 
@@ -292,17 +322,45 @@ export class InstallationService {
     game_directory?: string,
     java_path?: string,
     jvm_args?: string,
+    memory?: number,
     description?: string
   ): Promise<MinecraftInstallation> {
     return await invoke('create_installation', {
+      request: {
+        name,
+        version,
+        mod_loader,
+        game_directory,
+        java_path,
+        jvm_args,
+        memory,
+        description
+      }
+    });
+  }
+
+  static async updateInstallation(
+    installationId: string,
+    name: string,
+    version: string,
+    mod_loader: string,
+    game_directory?: string,
+    java_path?: string,
+    jvm_args?: string,
+    memory?: number,
+    description?: string
+  ): Promise<MinecraftInstallation> {
+    return updateInstallation(
+      installationId,
       name,
       version,
       mod_loader,
       game_directory,
       java_path,
       jvm_args,
+      memory,
       description
-    });
+    );
   }
 
   static async deleteInstallation(installationId: string): Promise<void> {

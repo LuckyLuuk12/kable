@@ -14,17 +14,20 @@ mod shaders;
 mod skins;
 mod installations;
 mod launcher;
+mod icons;
 
 // Re-export public items from modules
 pub use auth::{MicrosoftAccount, start_microsoft_auth, complete_microsoft_auth, start_device_code_auth, poll_device_code_auth, copy_to_clipboard, refresh_minecraft_token, get_oauth_callback_result, read_minecraft_sessions, write_minecraft_session, get_minecraft_session_path, get_minecraft_launch_args, validate_minecraft_token, open_url, check_auth_status, get_access_token, microsoft_login};
 pub use settings::{LauncherSettings, load_settings, save_settings, get_launcher_dir, get_default_minecraft_directory, validate_minecraft_directory, MinecraftDirectoryInfo};
 pub use maps::{LocalWorld, WorldDownload, get_local_worlds, delete_world, backup_world};
+pub use mods::{ModInstallationConfig, InstalledMod, get_modded_installations, setup_installation_mods, get_installed_mods, toggle_mod_enabled, update_installation_mod_config};
 pub use shaders::{ShaderPack, get_installed_shaders, toggle_shader, delete_shader, install_shader_pack, get_shader_info};
 pub use skins::{MinecraftSkin, get_local_skins, save_skin, delete_skin, install_skin, get_skin_data, get_current_minecraft_skin, upload_skin_to_minecraft};
 pub use installations::{MinecraftInstallation, get_minecraft_installations, refresh_installation, update_installation_last_played, 
-    KableInstallation, get_installations, create_installation, delete_installation, get_minecraft_versions, 
+    KableInstallation, get_installations, create_installation, update_installation, delete_installation, get_minecraft_versions, 
     open_installation_folder, launch_minecraft_installation, quick_launch_minecraft, launch_most_recent_installation};
 pub use launcher::{LaunchContext, VersionManifest, load_version_manifest, get_minecraft_paths, get_java_path};
+pub use icons::{CustomIconTemplate, IconSettings, get_custom_icon_templates, save_custom_icon_template, delete_custom_icon_template, validate_icon_template, get_icons_directory_path, open_icons_directory};
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -214,6 +217,7 @@ pub fn run() {
             // Kable installation management
             installations::get_installations,
             installations::create_installation,
+            installations::update_installation,
             installations::delete_installation,
             installations::get_minecraft_versions,
             installations::open_installation_folder,
@@ -226,6 +230,12 @@ pub fn run() {
             maps::get_local_worlds,
             maps::delete_world,
             maps::backup_world,
+            // Mods commands
+            mods::get_modded_installations,
+            mods::setup_installation_mods,
+            mods::get_installed_mods,
+            mods::toggle_mod_enabled,
+            mods::update_installation_mod_config,
             // Shaders commands
             shaders::get_installed_shaders,
             shaders::toggle_shader,
@@ -240,7 +250,14 @@ pub fn run() {
             skins::get_skin_data,
             skins::get_current_minecraft_skin,
             skins::upload_skin_to_minecraft,
-            skins::select_skin_file
+            skins::select_skin_file,
+            // Icons commands
+            icons::get_custom_icon_templates,
+            icons::save_custom_icon_template,
+            icons::delete_custom_icon_template,
+            icons::validate_icon_template,
+            icons::get_icons_directory_path,
+            icons::open_icons_directory
         ])
         .plugin(tauri_plugin_dialog::init())
         .run(tauri::generate_context!())

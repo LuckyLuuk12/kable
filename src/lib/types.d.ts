@@ -10,8 +10,9 @@ export interface MinecraftInstallation {
   game_directory?: string; // Backend uses game_directory
   java_path?: string; // Backend uses java_path
   jvm_args?: string; // Backend uses jvm_args as string
+  memory?: number; // Memory allocation in MB for this installation
   last_played?: string; // Backend uses last_played (snake_case)
-  created: string; // ISO date string
+  created?: string; // ISO date string
 }
 
 // Keep the legacy interface for backwards compatibility if needed
@@ -179,6 +180,11 @@ export interface LauncherSettings {
   max_world_backups?: number;
   shader_quality_preset?: string;
   enable_shader_caching?: boolean;
+  
+  // Icon settings
+  selected_icon_template?: string;
+  icon_settings?: IconSettings;
+  
   custom?: any; // For custom user settings
 }
 
@@ -266,4 +272,80 @@ export interface SkinDownload {
   url: string;
   type: 'steve' | 'alex';
   description?: string;
+}
+
+// Mod Management Types
+export interface ModInstallationConfig {
+  id: string;
+  name: string;
+  installation_type: string;
+  use_global_mods: boolean;
+  mods_folder_path: string;
+}
+
+export interface InstalledMod {
+  id: string;
+  name: string;
+  version: string;
+  source: 'Modrinth' | 'CurseForge' | 'Local';
+  source_id: string;
+  file_path: string;
+  minecraft_version: string;
+  mod_loader: 'Fabric' | 'Forge' | 'Quilt' | 'NeoForge';
+  enabled: boolean;
+  dependencies: string[];
+  auto_update: boolean;
+}
+
+export interface ModProject {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  categories: string[];
+  client_side: 'Required' | 'Optional' | 'Unsupported';
+  server_side: 'Required' | 'Optional' | 'Unsupported';
+  downloads: number;
+  icon_url?: string;
+  source: 'Modrinth' | 'CurseForge' | 'Other';
+}
+
+export interface ModVersion {
+  id: string;
+  version_number: string;
+  version_type: 'Release' | 'Beta' | 'Alpha';
+  minecraft_versions: string[];
+  mod_loaders: string[];
+  date_published: string;
+  downloads: number;
+  changelog?: string;
+  files: ModFile[];
+}
+
+export interface ModFile {
+  url: string;
+  filename: string;
+  size: number;
+  sha1: string;
+  primary: boolean;
+}
+
+// Icon template definitions
+export interface CustomIconTemplate {
+  name: string;
+  displayName: string;
+  version: string;
+  author?: string;
+  description?: string;
+  iconType: 'emoji' | 'fontawesome' | 'css' | 'svg' | 'image';
+  fallbackIcon: string;
+  icons: Record<string, string>;
+  cssClasses?: Record<string, string>; // For CSS-based icons
+  baseUrl?: string; // For image-based icons
+}
+
+export interface IconSettings {
+  selectedTemplate: string; // The currently selected template name
+  customTemplates: CustomIconTemplate[]; // User-uploaded templates
+  builtinTemplates: string[]; // Available built-in templates (emoji, fontawesome)
 }

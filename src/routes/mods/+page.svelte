@@ -1,251 +1,389 @@
 <script lang="ts">
-  import { AuthManager } from '$lib';
-  import { currentAccount } from '$lib/auth';
   import { onMount } from 'svelte';
+  import { ModsManager, SettingsManager, Icon } from '$lib';
+  import type { ModInstallationConfig, InstalledMod } from '$lib/types';
 
+  let selectedInstallation: string = 'global';
+  let installations: ModInstallationConfig[] = [];
+  let installedMods: InstalledMod[] = [];
+  let isLoading = false;
+  let error: string | null = null;
   let searchQuery = '';
-  let selectedCategory = 'all';
-  let sortBy = 'popular';
-  
-  // Mock mod data - this would come from an API
-  const categories = [
-    { id: 'all', name: 'All Categories', icon: '📂' },
-    { id: 'technology', name: 'Technology', icon: '⚙️' },
-    { id: 'magic', name: 'Magic', icon: '✨' },
-    { id: 'adventure', name: 'Adventure', icon: '🗺️' },
-    { id: 'decoration', name: 'Decoration', icon: '🎨' },
-    { id: 'utility', name: 'Utility', icon: '🔧' },
-    { id: 'world-gen', name: 'World Generation', icon: '🌍' }
+  let useGlobalMods = true;
+  let showConfigModal = false;
+
+  // Add global option to installations list
+  $: installationOptions = [
+    { id: 'global', name: 'Global Mods (All Installations)', installation_type: 'global', use_global_mods: true, mods_folder_path: '' },
+    ...installations
   ];
 
-  const mockMods = [
-    {
-      id: 'jei',
-      name: 'Just Enough Items (JEI)',
-      description: 'JEI is an item and recipe viewing mod for Minecraft, built from the ground up for stability and performance.',
-      author: 'mezz',
-      downloads: '234M',
-      version: '15.2.0.27',
-      category: 'utility',
-      icon: '🔍',
-      installed: false
-    },
-    {
-      id: 'optifine',
-      name: 'OptiFine',
-      description: 'OptiFine is a Minecraft optimization mod. It allows Minecraft to run faster and look better with full support for HD textures.',
-      author: 'sp614x',
-      downloads: '456M',
-      version: 'HD U I5',
-      category: 'utility',
-      icon: '⚡',
-      installed: true
-    },
-    {
-      id: 'thermal',
-      name: 'Thermal Expansion',
-      description: 'Expanding Minecraft Thermally! A server-friendly and content-rich blend of magic and technology!',
-      author: 'TeamCoFH',
-      downloads: '89M',
-      version: '10.0.2.18',
-      category: 'technology',
-      icon: '🔥',
-      installed: false
-    }
-  ];
-
-  let filteredMods = mockMods;
+  $: filteredMods = installedMods.filter(mod => 
+    mod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    mod.version.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   onMount(async () => {
-    await AuthManager.initialize();
-    updateFilter();
+    await SettingsManager.initialize();
+    await loadInstallations();
   });
 
-  function updateFilter() {
-    filteredMods = mockMods.filter(mod => {
-      const matchesSearch = mod.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           mod.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategory === 'all' || mod.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    });
-
-    // Sort mods
-    if (sortBy === 'popular') {
-      filteredMods.sort((a, b) => parseFloat(b.downloads) - parseFloat(a.downloads));
-    } else if (sortBy === 'name') {
-      filteredMods.sort((a, b) => a.name.localeCompare(b.name));
-    } else if (sortBy === 'installed') {
-      filteredMods.sort((a, b) => (b.installed ? 1 : 0) - (a.installed ? 1 : 0));
-    }
-  }
-
-  async function installMod(modId: string) {
+  async function loadInstallations() {
+    isLoading = true;
+    error = null;
     try {
-      console.log('Installing mod:', modId);
-      // Update mock data
-      const mod = mockMods.find(m => m.id === modId);
-      if (mod) mod.installed = true;
-      updateFilter();
-    } catch (error) {
-      console.error('Failed to install mod:', error);
+      const settings = await SettingsManager.getSettings();
+      installations = await ModsManager.getModdedInstallations(settings.minecraft_path || '');
+      if (installations.length > 0 && selectedInstallation === 'global') {
+        // Keep global selected by default
+      }
+      await loadMods();
+    } catch (err) {
+      console.error('Failed to load installations:', err);
+      error = `Failed to load installations: ${err}`;
+    } finally {
+      isLoading = false;
     }
   }
 
-  async function uninstallMod(modId: string) {
+  async function loadMods() {
+    if (!selectedInstallation) return;
+    
+    isLoading = true;
+    error = null;
     try {
-      console.log('Uninstalling mod:', modId);
-      // Update mock data
-      const mod = mockMods.find(m => m.id === modId);
-      if (mod) mod.installed = false;
-      updateFilter();
-    } catch (error) {
-      console.error('Failed to uninstall mod:', error);
+      const settings = await SettingsManager.getSettings();
+      
+      if (selectedInstallation === 'global') {
+        // For global, we need to set up the global mods folder first
+        await ModsManager.setupInstallationMods(settings.minecraft_path || '', 'kable-global', true);
+        installedMods = await ModsManager.getInstalledMods(settings.minecraft_path || '', 'kable-global');
+      } else {
+        installedMods = await ModsManager.getInstalledMods(settings.minecraft_path || '', selectedInstallation);
+      }
+    } catch (err) {
+      console.error('Failed to load mods:', err);
+      error = `Failed to load mods: ${err}`;
+      installedMods = [];
+    } finally {
+      isLoading = false;
     }
   }
 
-  // React to changes
-  $: searchQuery, selectedCategory, sortBy, updateFilter();
+  async function toggleMod(mod: InstalledMod) {
+    try {
+      await ModsManager.toggleModEnabled(mod.file_path, !mod.enabled);
+      // Update the mod in the list
+      mod.enabled = !mod.enabled;
+      installedMods = [...installedMods];
+    } catch (err) {
+      console.error('Failed to toggle mod:', err);
+      error = `Failed to toggle mod: ${err}`;
+    }
+  }
+
+  async function openModsFolder() {
+    const selectedConfig = installationOptions.find(inst => inst.id === selectedInstallation);
+    if (selectedConfig) {
+      // TODO: Add command to open folder in file explorer
+      console.log('Opening mods folder:', selectedConfig.mods_folder_path);
+    }
+  }
+
+  async function configureInstallation() {
+    showConfigModal = true;
+  }
+
+  async function saveInstallationConfig() {
+    if (selectedInstallation === 'global') {
+      showConfigModal = false;
+      return;
+    }
+
+    try {
+      const settings = await SettingsManager.getSettings();
+      await ModsManager.updateInstallationModConfig(
+        settings.minecraft_path || '',
+        selectedInstallation,
+        useGlobalMods
+      );
+      
+      // Reload installations and mods
+      await loadInstallations();
+      showConfigModal = false;
+    } catch (err) {
+      console.error('Failed to update configuration:', err);
+      error = `Failed to update configuration: ${err}`;
+    }
+  }
+
+  function getModLoaderIcon(loader: string): string {
+    switch (loader.toLowerCase()) {
+      case 'fabric': return '🧵';
+      case 'forge': return '⚒️';
+      case 'quilt': return '🪡';
+      case 'neoforge': return '🔨';
+      default: return '📦';
+    }
+  }
+
+  function formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
 </script>
 
 <div class="mods-page">
   <div class="page-header">
-    <h1>Mods</h1>
-    <p>Browse, install, and manage your Minecraft mods</p>
+    <h1>Mod Management</h1>
+    <p>Manage mods for your Minecraft installations</p>
   </div>
 
-  {#if !$currentAccount}
-    <div class="auth-required">
-      <div class="warning-card">
-        <div class="warning-icon">🔒</div>
-        <div class="warning-content">
-          <h3>Authentication Required</h3>
-          <p>Sign in with Microsoft to access mod management features</p>
-          <button on:click={() => AuthManager.signIn()} class="sign-in-btn">
-            Sign in with Microsoft
-          </button>
-        </div>
-      </div>
+  {#if error}
+    <div class="error-message">
+      <Icon name="alert" size="sm" />
+      {error}
     </div>
   {/if}
 
-  <!-- Search and Filters -->
+  <!-- Installation Selection -->
+  <section class="installation-section">
+    <div class="section-header">
+      <h2>Select Installation</h2>
+      <div class="header-actions">
+        <button on:click={configureInstallation} class="btn btn-secondary btn-sm">
+          <Icon name="settings" size="sm" />
+          Configure
+        </button>
+        <button on:click={openModsFolder} class="btn btn-secondary btn-sm">
+          <Icon name="folder" size="sm" />
+          Open Folder
+        </button>
+        <button on:click={loadInstallations} class="btn btn-secondary btn-sm" disabled={isLoading}>
+          <Icon name="refresh" size="sm" />
+          Refresh
+        </button>
+      </div>
+    </div>
+
+    <div class="installation-selector">
+      <select bind:value={selectedInstallation} on:change={loadMods} class="installation-select">
+        {#each installationOptions as installation}
+          <option value={installation.id}>
+            {installation.name}
+            {#if installation.installation_type !== 'global'}
+              ({installation.installation_type})
+            {/if}
+          </option>
+        {/each}
+      </select>
+
+      {#if installationOptions.find(inst => inst.id === selectedInstallation)}
+        {@const selectedConfig = installationOptions.find(inst => inst.id === selectedInstallation)}
+        {#if selectedConfig}
+          <div class="installation-info">
+            <div class="info-item">
+              <span class="label">Type:</span>
+              <span class="value">
+                {getModLoaderIcon(selectedConfig.installation_type)}
+                {selectedConfig.installation_type === 'global' ? 'Global' : selectedConfig.installation_type}
+              </span>
+            </div>
+            <div class="info-item">
+              <span class="label">Mods Folder:</span>
+              <span class="value">{selectedConfig.use_global_mods ? 'Global' : 'Installation-specific'}</span>
+            </div>
+          </div>
+        {/if}
+      {/if}
+    </div>
+  </section>
+
+  <!-- Search and Actions -->
   <section class="search-section">
     <div class="search-bar">
       <div class="search-input-wrapper">
-        <span class="search-icon">🔍</span>
+        <Icon name="search" size="sm" className="search-icon" />
         <input 
           type="text" 
-          placeholder="Search mods..." 
+          placeholder="Search installed mods..." 
           bind:value={searchQuery}
           class="search-input"
         />
       </div>
       
-      <div class="filter-controls">
-        <select bind:value={selectedCategory} class="category-select">
-          {#each categories as category}
-            <option value={category.id}>
-              {category.icon} {category.name}
-            </option>
-          {/each}
-        </select>
-        
-        <select bind:value={sortBy} class="sort-select">
-          <option value="popular">Most Popular</option>
-          <option value="name">Name (A-Z)</option>
-          <option value="installed">Installed First</option>
-        </select>
+      <div class="action-buttons">
+        <!-- TODO: Add mod installation from Modrinth/CurseForge -->
+        <button class="btn btn-primary" disabled>
+          <Icon name="download" size="sm" />
+          Browse Mods
+        </button>
       </div>
     </div>
   </section>
 
-  <!-- Mods Grid -->
+  <!-- Installed Mods -->
   <section class="mods-section">
     <div class="section-header">
-      <h2>Available Mods ({filteredMods.length})</h2>
-      <div class="view-options">
-        <button class="view-btn active">Grid</button>
-        <button class="view-btn">List</button>
-      </div>
+      <h2>Installed Mods ({filteredMods.length})</h2>
     </div>
 
-    {#if filteredMods.length > 0}
+    {#if isLoading}
+      <div class="loading-state">
+        <Icon name="loader" size="lg" />
+        <p>Loading mods...</p>
+      </div>
+    {:else if filteredMods.length > 0}
       <div class="mods-grid">
         {#each filteredMods as mod}
-          <div class="mod-card" class:installed={mod.installed}>
+          <div class="mod-card" class:disabled={!mod.enabled}>
             <div class="mod-header">
-              <div class="mod-icon">{mod.icon}</div>
+              <div class="mod-icon">
+                {getModLoaderIcon(mod.mod_loader)}
+              </div>
+              <div class="mod-info">
+                <h3 class="mod-name">{mod.name}</h3>
+                <p class="mod-version">Version {mod.version}</p>
+              </div>
               <div class="mod-status">
-                {#if mod.installed}
-                  <span class="status-badge installed">✅ Installed</span>
-                {:else}
-                  <span class="status-badge available">📦 Available</span>
-                {/if}
+                <label class="toggle-switch">
+                  <input 
+                    type="checkbox" 
+                    checked={mod.enabled}
+                    on:change={() => toggleMod(mod)}
+                  />
+                  <span class="slider"></span>
+                </label>
               </div>
             </div>
             
-            <div class="mod-content">
-              <h3 class="mod-name">{mod.name}</h3>
-              <p class="mod-description">{mod.description}</p>
+            <div class="mod-details">
+              <div class="detail-row">
+                <span class="label">Loader:</span>
+                <span class="value">{mod.mod_loader}</span>
+              </div>
               
-              <div class="mod-meta">
-                <div class="meta-item">
-                  <span class="meta-label">Author:</span>
-                  <span class="meta-value">{mod.author}</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-label">Downloads:</span>
-                  <span class="meta-value">{mod.downloads}</span>
-                </div>
-                <div class="meta-item">
-                  <span class="meta-label">Version:</span>
-                  <span class="meta-value">{mod.version}</span>
-                </div>
+              <div class="detail-row">
+                <span class="label">MC Version:</span>
+                <span class="value">{mod.minecraft_version}</span>
               </div>
-            </div>
-            
-            <div class="mod-actions">
-              {#if mod.installed}
-                <button 
-                  on:click={() => uninstallMod(mod.id)}
-                  class="action-btn uninstall-btn"
-                  disabled={!$currentAccount}
-                >
-                  🗑️ Uninstall
-                </button>
-              {:else}
-                <button 
-                  on:click={() => installMod(mod.id)}
-                  class="action-btn install-btn"
-                  disabled={!$currentAccount}
-                >
-                  ⬇️ Install
-                </button>
+              
+              <div class="detail-row">
+                <span class="label">Source:</span>
+                <span class="value">{mod.source}</span>
+              </div>
+              
+              {#if mod.dependencies.length > 0}
+                <div class="detail-row">
+                  <span class="label">Dependencies:</span>
+                  <span class="value">{mod.dependencies.length} mod(s)</span>
+                </div>
               {/if}
+            </div>
+
+            <div class="mod-actions">
+              <button class="action-btn secondary-btn" disabled>
+                <Icon name="info" size="sm" />
+                Details
+              </button>
               
-              <button class="action-btn info-btn">
-                ℹ️ Info
+              <button class="action-btn danger-btn" disabled>
+                <Icon name="trash" size="sm" />
+                Remove
               </button>
             </div>
           </div>
         {/each}
       </div>
     {:else}
-      <div class="no-results">
-        <div class="empty-state">
-          <div class="empty-icon">🔍</div>
-          <h3>No mods found</h3>
-          <p>Try adjusting your search criteria or browse different categories.</p>
-        </div>
+      <div class="empty-state">
+        <Icon name="package" size="xl" className="empty-icon" />
+        <h3>No mods installed</h3>
+        <p>
+          {#if searchQuery.trim()}
+            No mods match your search criteria.
+          {:else if selectedInstallation === 'global'}
+            No mods are installed in the global mods folder.
+          {:else}
+            No mods are installed for this installation.
+          {/if}
+        </p>
+        <button class="btn btn-primary" disabled>
+          <Icon name="download" size="sm" />
+          Browse Available Mods
+        </button>
       </div>
     {/if}
   </section>
 </div>
 
+<!-- Configuration Modal -->
+{#if showConfigModal}
+  <div 
+    class="modal-overlay" 
+    role="button" 
+    tabindex="0"
+    on:click={() => showConfigModal = false}
+    on:keydown={(e) => e.key === 'Escape' && (showConfigModal = false)}
+  >
+    <div 
+      class="modal" 
+      role="dialog"
+      aria-labelledby="modal-title"
+      tabindex="-1"
+      on:click|stopPropagation
+      on:keydown|stopPropagation
+    >
+      <div class="modal-header">
+        <h3 id="modal-title">Configure Mod Settings</h3>
+        <button class="close-btn" on:click={() => showConfigModal = false}>
+          <Icon name="x" size="sm" />
+        </button>
+      </div>
+      
+      <div class="modal-content">
+        {#if selectedInstallation === 'global'}
+          <p>Global mod settings affect all installations that use global mods.</p>
+        {:else}
+          <div class="config-option">
+            <label class="checkbox-label">
+              <input type="checkbox" bind:checked={useGlobalMods} />
+              <span class="checkmark"></span>
+              Use global mods folder
+            </label>
+            <p class="option-description">
+              {#if useGlobalMods}
+                This installation will use the global mods folder, sharing mods with other installations.
+              {:else}
+                This installation will use its own mods folder, separate from other installations.
+              {/if}
+            </p>
+          </div>
+        {/if}
+      </div>
+      
+      <div class="modal-actions">
+        <button class="btn btn-secondary" on:click={() => showConfigModal = false}>
+          Cancel
+        </button>
+        <button class="btn btn-primary" on:click={saveInstallationConfig}>
+          Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
+
 <style lang="scss">
+  @use '@kablan/clean-ui/scss/variables' as *;
+
   .mods-page {
-    max-width: 1400px;
+    max-width: 1200px;
     margin: 0 auto;
+    padding: 1rem;
   }
 
   .page-header {
@@ -254,121 +392,36 @@
     
     h1 {
       margin: 0 0 0.5rem 0;
+      color: $text;
       font-size: 2.5rem;
       font-weight: 700;
-      background: linear-gradient(135deg, var(--primary), var(--accent));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
     }
     
     p {
       margin: 0;
-      color: var(--text-muted);
+      color: $placeholder;
       font-size: 1.1rem;
     }
   }
 
-  .auth-required {
-    margin-bottom: 2rem;
-  }
-
-  .warning-card {
+  .error-message {
+    background: rgba($red, 0.1);
+    color: $red;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
     display: flex;
     align-items: center;
-    gap: 1rem;
-    padding: 1.5rem;
-    background: var(--warning-light);
-    border: 1px solid var(--warning);
-    border-radius: 1rem;
-    
-    .warning-icon {
-      font-size: 2rem;
-    }
-    
-    .warning-content {
-      flex: 1;
-      
-      h3 {
-        margin: 0 0 0.5rem 0;
-        color: var(--warning);
-      }
-      
-      p {
-        margin: 0 0 1rem 0;
-        color: var(--text-muted);
-      }
-    }
-  }
-
-  .search-section {
-    margin-bottom: 2rem;
-  }
-
-  .search-bar {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    
-    @media (max-width: 768px) {
-      flex-direction: column;
-    }
-  }
-
-  .search-input-wrapper {
-    flex: 1;
-    position: relative;
-    min-width: 250px;
-    
-    .search-icon {
-      position: absolute;
-      left: 1rem;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-muted);
-    }
-    
-    .search-input {
-      width: 100%;
-      padding: 0.75rem 1rem 0.75rem 2.5rem;
-      border: 1px solid var(--border);
-      border-radius: 0.75rem;
-      background: var(--surface);
-      color: var(--text);
-      font-size: 1rem;
-      
-      &:focus {
-        outline: none;
-        border-color: var(--primary);
-      }
-    }
-  }
-
-  .filter-controls {
-    display: flex;
     gap: 0.5rem;
+    font-weight: 500;
   }
 
-  .category-select, .sort-select {
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    background: var(--surface);
-    color: var(--text);
-    cursor: pointer;
-    
-    &:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-  }
-
-  .mods-section {
-    h2 {
-      margin: 0;
-      color: var(--text);
-      font-size: 1.5rem;
-    }
+  .installation-section, .search-section, .mods-section {
+    background: $card;
+    border: 1px solid $dark-600;
+    border-radius: 1rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
   }
 
   .section-header {
@@ -376,31 +429,127 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1.5rem;
+    
+    h2 {
+      margin: 0;
+      color: $text;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+    
+    .header-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
   }
 
-  .view-options {
+  .installation-selector {
     display: flex;
-    gap: 0.5rem;
+    gap: 1.5rem;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .installation-select {
+    flex: 1;
+    min-width: 300px;
+    padding: 0.75rem 1rem;
+    border: 1px solid $dark-600;
+    border-radius: 0.75rem;
+    background: $input;
+    color: $text;
+    font-size: 1rem;
     
-    .view-btn {
-      padding: 0.5rem 1rem;
-      border: 1px solid var(--border);
-      border-radius: 0.5rem;
-      background: var(--surface);
-      color: var(--text);
-      cursor: pointer;
-      transition: all 0.2s ease;
+    &:focus {
+      outline: none;
+      border-color: $primary;
+    }
+  }
+
+  .installation-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 250px;
+    
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       
-      &.active {
-        background: var(--primary);
-        color: white;
-        border-color: var(--primary);
+      .label {
+        color: $placeholder;
+        font-size: 0.875rem;
+        font-weight: 500;
       }
       
-      &:hover:not(.active) {
-        background: var(--surface-hover);
+      .value {
+        color: $text;
+        font-size: 0.875rem;
+        font-weight: 500;
       }
     }
+  }
+
+  .search-bar {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .search-input-wrapper {
+    flex: 1;
+    position: relative;
+    min-width: 300px;
+    
+    :global(.search-icon) {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: $placeholder;
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 0.75rem 1rem 0.75rem 2.5rem;
+      border: 1px solid $dark-600;
+      border-radius: 0.75rem;
+      background: $input;
+      color: $text;
+      font-size: 1rem;
+      
+      &:focus {
+        outline: none;
+        border-color: $primary;
+      }
+    }
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .loading-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    
+    :global(.loader) {
+      color: $primary;
+      margin-bottom: 1rem;
+      animation: spin 1s linear infinite;
+    }
+    
+    p {
+      color: $placeholder;
+      font-size: 1.1rem;
+    }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
 
   .mods-grid {
@@ -410,188 +559,353 @@
   }
 
   .mod-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 1rem;
+    background: $container;
+    border: 1px solid $dark-600;
+    border-radius: 0.75rem;
     padding: 1.5rem;
     transition: all 0.2s ease;
     
     &:hover {
+      border-color: $primary;
       transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     
-    &.installed {
-      border-color: var(--success);
-      background: var(--success-light);
+    &.disabled {
+      opacity: 0.6;
+      
+      .mod-name {
+        text-decoration: line-through;
+      }
     }
-  }
-
-  .mod-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
     
-    .mod-icon {
-      font-size: 2rem;
-      width: 48px;
-      height: 48px;
+    .mod-header {
       display: flex;
       align-items: center;
-      justify-content: center;
-      background: var(--background);
-      border-radius: 0.75rem;
-      border: 1px solid var(--border);
-    }
-    
-    .status-badge {
-      padding: 0.25rem 0.75rem;
-      border-radius: 1rem;
-      font-size: 0.75rem;
-      font-weight: 500;
+      gap: 1rem;
+      margin-bottom: 1rem;
       
-      &.installed {
-        background: var(--success);
-        color: white;
+      .mod-icon {
+        width: 3rem;
+        height: 3rem;
+        background: $dark-600;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
       }
       
-      &.available {
-        background: var(--surface-variant);
-        color: var(--text);
+      .mod-info {
+        flex: 1;
+        
+        .mod-name {
+          margin: 0 0 0.25rem 0;
+          color: $text;
+          font-size: 1.1rem;
+          font-weight: 600;
+        }
+        
+        .mod-version {
+          margin: 0;
+          color: $placeholder;
+          font-size: 0.875rem;
+        }
+      }
+      
+      .mod-status {
+        display: flex;
+        align-items: center;
+      }
+    }
+    
+    .mod-details {
+      margin-bottom: 1.5rem;
+      
+      .detail-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.5rem;
+        
+        .label {
+          color: $placeholder;
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+        
+        .value {
+          color: $text;
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+      }
+    }
+    
+    .mod-actions {
+      display: flex;
+      gap: 0.75rem;
+      
+      .action-btn {
+        flex: 1;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: 0.875rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        
+        &.secondary-btn {
+          background: $dark-600;
+          color: $text;
+          
+          &:hover:not(:disabled) {
+            background: $dark-500;
+          }
+        }
+        
+        &.danger-btn {
+          background: $red;
+          color: white;
+          
+          &:hover:not(:disabled) {
+            background: $red-600;
+          }
+        }
+        
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
       }
     }
   }
 
-  .mod-content {
-    margin-bottom: 1.5rem;
+  .toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
     
-    .mod-name {
-      margin: 0 0 0.5rem 0;
-      color: var(--text);
-      font-size: 1.125rem;
-      font-weight: 600;
+    input {
+      opacity: 0;
+      width: 0;
+      height: 0;
     }
     
-    .mod-description {
-      margin: 0 0 1rem 0;
-      color: var(--text-muted);
-      font-size: 0.875rem;
-      line-height: 1.5;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    
-    .mod-meta {
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-    
-    .meta-item {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.75rem;
-      
-      .meta-label {
-        color: var(--text-muted);
-      }
-      
-      .meta-value {
-        color: var(--text);
-        font-weight: 500;
-      }
-    }
-  }
-
-  .mod-actions {
-    display: flex;
-    gap: 0.5rem;
-    
-    .action-btn {
-      flex: 1;
-      padding: 0.5rem;
-      border: none;
-      border-radius: 0.5rem;
-      font-size: 0.875rem;
+    .slider {
+      position: absolute;
       cursor: pointer;
-      transition: all 0.2s ease;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: $dark-600;
+      transition: .4s;
+      border-radius: 24px;
       
-      &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      
-      &.install-btn {
-        background: var(--primary);
-        color: white;
-        
-        &:hover:not(:disabled) {
-          background: var(--primary-hover);
-        }
-      }
-      
-      &.uninstall-btn {
-        background: var(--error);
-        color: white;
-        
-        &:hover:not(:disabled) {
-          background: var(--error-hover);
-        }
-      }
-      
-      &.info-btn {
-        background: var(--surface-variant);
-        color: var(--text);
-        
-        &:hover {
-          background: var(--surface-hover);
-        }
+      &:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
       }
     }
-  }
-
-  .no-results {
-    padding: 3rem 1rem;
+    
+    input:checked + .slider {
+      background-color: $primary;
+    }
+    
+    input:checked + .slider:before {
+      transform: translateX(20px);
+    }
   }
 
   .empty-state {
     text-align: center;
-    max-width: 400px;
-    margin: 0 auto;
+    padding: 3rem 1rem;
     
-    .empty-icon {
-      font-size: 4rem;
+    :global(.empty-icon) {
+      color: $placeholder;
       margin-bottom: 1rem;
     }
     
     h3 {
-      margin: 0 0 1rem 0;
-      color: var(--text);
+      margin: 0 0 0.5rem 0;
+      color: $text;
+      font-size: 1.25rem;
+      font-weight: 600;
     }
     
     p {
-      margin: 0;
-      color: var(--text-muted);
-      line-height: 1.5;
+      margin: 0 0 1.5rem 0;
+      color: $placeholder;
+      font-size: 1rem;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
     }
   }
 
-  .sign-in-btn {
-    padding: 0.75rem 1.5rem;
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 0.5rem;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
+  // Modal styles
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal {
+    background: $card;
+    border: 1px solid $dark-600;
+    border-radius: 1rem;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
     
-    &:hover {
-      background: var(--primary-hover);
-      transform: translateY(-1px);
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem;
+      border-bottom: 1px solid $dark-600;
+      
+      h3 {
+        margin: 0;
+        color: $text;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+      
+      .close-btn {
+        background: none;
+        border: none;
+        color: $placeholder;
+        cursor: pointer;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        
+        &:hover {
+          background: $dark-600;
+          color: $text;
+        }
+      }
+    }
+    
+    .modal-content {
+      padding: 1.5rem;
+      
+      .config-option {
+        margin-bottom: 1.5rem;
+        
+        .checkbox-label {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          cursor: pointer;
+          
+          input[type="checkbox"] {
+            appearance: none;
+            width: 1.25rem;
+            height: 1.25rem;
+            border: 2px solid $dark-600;
+            border-radius: 0.25rem;
+            background: $input;
+            cursor: pointer;
+            position: relative;
+            
+            &:checked {
+              background: $primary;
+              border-color: $primary;
+              
+              &::after {
+                content: '✓';
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                color: white;
+                font-size: 0.875rem;
+                font-weight: bold;
+              }
+            }
+          }
+          
+          span:not(.checkmark) {
+            color: $text;
+            font-weight: 500;
+          }
+        }
+        
+        .option-description {
+          margin: 0.5rem 0 0 2rem;
+          color: $placeholder;
+          font-size: 0.875rem;
+        }
+      }
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 1rem;
+      padding: 1.5rem;
+      border-top: 1px solid $dark-600;
+      justify-content: flex-end;
+    }
+  }
+
+  // Responsive design
+  @media (max-width: 768px) {
+    .mods-page {
+      padding: 0.5rem;
+    }
+    
+    .mods-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .installation-selector {
+      flex-direction: column;
+    }
+    
+    .search-bar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    
+    .search-input-wrapper {
+      min-width: auto;
+    }
+    
+    .mod-actions {
+      flex-direction: column;
+    }
+    
+    .section-header {
+      flex-direction: column;
+      gap: 1rem;
+      align-items: stretch;
+      
+      .header-actions {
+        justify-content: center;
+      }
     }
   }
 </style>

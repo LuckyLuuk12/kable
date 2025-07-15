@@ -20,7 +20,10 @@ pub struct MinecraftInstallation {
     pub game_dir: PathBuf,
     pub java_path: Option<String>,
     pub jvm_args: Option<Vec<String>>,
+    pub memory: Option<u32>, // Memory allocation in MB for this installation
     pub resolution: Option<Resolution>,
+    pub use_global_mods: bool, // Whether this installation uses global mod folder
+    pub custom_mods_path: Option<String>, // Custom mods directory path for mod loaders
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -202,7 +205,10 @@ fn create_installation_from_version(
                     .collect()
             })
         }),
+        memory: profile.and_then(|p| extract_memory_from_jvm_args(p.java_args.as_ref())),
         resolution: profile.and_then(|p| p.resolution.clone()),
+        use_global_mods: true, // Default to global mods
+        custom_mods_path: None, // Will be set up when needed
     })
 }
 
@@ -269,6 +275,30 @@ fn extract_version_from_library_name(library_name: &str, loader_type: &str) -> O
         let parts: Vec<&str> = library_name.split(':').collect();
         if parts.len() >= 3 {
             return Some(parts[2].to_string());
+        }
+    }
+    None
+}
+
+/// Extract memory allocation from JVM arguments (e.g., "-Xmx2G" -> Some(2048))
+fn extract_memory_from_jvm_args(java_args: Option<&String>) -> Option<u32> {
+    if let Some(args) = java_args {
+        for arg in args.split_whitespace() {
+            if let Some(memory_part) = arg.strip_prefix("-Xmx") {
+                
+                // Parse different memory formats: 2G, 2048M, 2048
+                if memory_part.ends_with('G') || memory_part.ends_with('g') {
+                    if let Ok(gb) = memory_part[..memory_part.len()-1].parse::<u32>() {
+                        return Some(gb * 1024); // Convert GB to MB
+                    }
+                } else if memory_part.ends_with('M') || memory_part.ends_with('m') {
+                    if let Ok(mb) = memory_part[..memory_part.len()-1].parse::<u32>() {
+                        return Some(mb);
+                    }
+                } else if let Ok(mb) = memory_part.parse::<u32>() {
+                    return Some(mb); // Assume MB if no unit specified
+                }
+            }
         }
     }
     None
@@ -365,6 +395,18 @@ pub async fn update_installation_last_played(installation_id: String, minecraft_
 use uuid::Uuid;
 use std::collections::HashMap;
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateInstallationRequest {
+    pub name: String,
+    pub version: String,
+    pub mod_loader: String,
+    pub game_directory: Option<String>,
+    pub java_path: Option<String>,
+    pub jvm_args: Option<String>,
+    pub memory: Option<u32>,
+    pub description: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct KableInstallation {
     pub id: String,
@@ -376,6 +418,7 @@ pub struct KableInstallation {
     pub game_directory: Option<String>,
     pub java_path: Option<String>,
     pub jvm_args: Option<String>,
+    pub memory: Option<u32>, // Memory allocation in MB for this installation
     pub last_played: Option<String>,
     pub created: String,
     pub path: String,
@@ -532,6 +575,7 @@ pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
                         game_directory: Some(mc_install.game_dir.to_string_lossy().to_string()),
                         java_path: mc_install.java_path,
                         jvm_args: mc_install.jvm_args.map(|args| args.join(" ")),
+                        memory: mc_install.memory, // Use detected memory from JVM args
                         last_played: mc_install.last_played,
                         created: mc_install.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
                         path: mc_install.path.to_string_lossy().to_string(),
@@ -557,13 +601,7 @@ pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
 
 #[tauri::command]
 pub async fn create_installation(
-    name: String,
-    version: String,
-    mod_loader: String,
-    game_directory: Option<String>,
-    java_path: Option<String>,
-    jvm_args: Option<String>,
-    description: Option<String>,
+    request: CreateInstallationRequest,
 ) -> Result<KableInstallation, String> {
     let installation_id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
@@ -574,14 +612,15 @@ pub async fn create_installation(
     
     let installation = KableInstallation {
         id: installation_id.clone(),
-        name,
-        version,
-        mod_loader,
+        name: request.name,
+        version: request.version,
+        mod_loader: request.mod_loader,
         loader_version: None, // TODO: Detect mod loader version
-        description,
-        game_directory,
-        java_path,
-        jvm_args,
+        description: request.description,
+        game_directory: request.game_directory,
+        java_path: request.java_path,
+        jvm_args: request.jvm_args,
+        memory: request.memory, // Use the provided memory allocation
         last_played: None,
         created: now,
         path: minecraft_dir.to_string_lossy().to_string(),
@@ -776,6 +815,12 @@ pub async fn launch_minecraft_installation(installation_id: String) -> Result<()
     let launcher_profiles = read_launcher_profiles(&minecraft_dir)
         .map_err(|e| format!("Failed to load launcher profiles: {}", e))?;
     
+    // Load Kable profiles to get installation-specific settings
+    let kable_profiles = load_kable_profiles()
+        .map_err(|e| format!("Failed to load Kable profiles: {}", e))?;
+    
+    let kable_installation = kable_profiles.profiles.get(&installation_id);
+    
     // Debug: Print available profile keys
     println!("Available profile keys:");
     for key in launcher_profiles.profiles.keys() {
@@ -830,7 +875,9 @@ pub async fn launch_minecraft_installation(installation_id: String) -> Result<()
     let mut command_args = Vec::new();
     
     // Add memory and JVM arguments (including natives path)
-    command_args.extend(build_jvm_arguments(&settings, &natives_path));
+    // Use installation-specific memory if available, otherwise fall back to global settings
+    let installation_memory = kable_installation.and_then(|ki| ki.memory);
+    command_args.extend(build_jvm_arguments_with_memory(&settings, &natives_path, installation_memory));
     
     // Process JVM arguments from manifest
     let jvm_args = process_arguments(&version_manifest.arguments.jvm, &variables)?;
@@ -1153,4 +1200,36 @@ pub async fn launch_most_recent_installation() -> Result<(), String> {
     
     // Launch using the installation's version
     launch_minecraft_installation(profile.last_version_id.clone()).await
+}
+
+#[tauri::command]
+pub async fn update_installation(
+    installation_id: String,
+    request: CreateInstallationRequest,
+) -> Result<KableInstallation, String> {
+    let mut profiles = load_kable_profiles()
+        .map_err(|e| format!("Failed to load kable profiles: {}", e))?;
+    
+    if let Some(mut installation) = profiles.profiles.get(&installation_id).cloned() {
+        // Update the installation with new values
+        installation.name = request.name;
+        installation.version = request.version;
+        installation.mod_loader = request.mod_loader;
+        installation.description = request.description;
+        installation.game_directory = request.game_directory;
+        installation.java_path = request.java_path;
+        installation.jvm_args = request.jvm_args;
+        installation.memory = request.memory;
+        
+        // Update the installation in the profiles
+        profiles.profiles.insert(installation_id.clone(), installation.clone());
+        
+        save_kable_profiles(&profiles)
+            .map_err(|e| format!("Failed to save kable profiles: {}", e))?;
+        
+        println!("Updated installation: {} ({})", installation.name, installation.id);
+        Ok(installation)
+    } else {
+        Err("Installation not found".to_string())
+    }
 }

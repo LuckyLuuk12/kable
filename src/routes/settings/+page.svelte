@@ -3,10 +3,17 @@
   import { settings } from '$lib/settings';
   import type { LauncherSettings } from '$lib/types';
   import Icon from '$lib/components/Icon.svelte';
+  import { IconManager, selectedTemplate, availableTemplates, isIconsLoading } from '$lib/managers/IconManager';
   import { onMount } from 'svelte';
 
   let isLoading = false;
   let saveStatus = '';
+
+  // Icon template management
+  let showIconUpload = false;
+  let uploadError = '';
+  let uploadFile: File | null = null;
+  let isDragOver = false;
 
   // Local validation functions
   function validateMemory(value: string): number | null {
@@ -27,7 +34,121 @@
 
   onMount(async () => {
     await SettingsManager.initialize();
+    await IconManager.initialize();
   });
+
+  async function selectIconTemplate(templateName: string) {
+    try {
+      await IconManager.setActiveTemplate(templateName);
+      saveStatus = 'Icon template updated successfully';
+      setTimeout(() => saveStatus = '', 2000);
+    } catch (error) {
+      console.error('Failed to set icon template:', error);
+      saveStatus = 'Failed to update template';
+      setTimeout(() => saveStatus = '', 2000);
+    }
+  }
+
+  async function handleIconUpload() {
+    if (!uploadFile) return;
+    
+    try {
+      uploadError = '';
+      isLoading = true;
+      
+      const content = await uploadFile.text();
+      const format = uploadFile.name.endsWith('.yml') || uploadFile.name.endsWith('.yaml') ? 'yaml' : 'json';
+      
+      // Validate template
+      const template = await IconManager.validateTemplate(content, format);
+      
+      // Install template
+      await IconManager.installCustomTemplate(template);
+      
+      // Clear upload state
+      uploadFile = null;
+      showIconUpload = false;
+      
+      saveStatus = `Template "${template.displayName}" installed successfully`;
+      setTimeout(() => saveStatus = '', 3000);
+      
+    } catch (error) {
+      uploadError = `Upload failed: ${error}`;
+      console.error('Template upload failed:', error);
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  async function removeTemplate(templateName: string) {
+    try {
+      await IconManager.removeCustomTemplate(templateName);
+      saveStatus = 'Template removed successfully';
+      setTimeout(() => saveStatus = '', 2000);
+    } catch (error) {
+      console.error('Failed to remove template:', error);
+      saveStatus = 'Failed to remove template';
+      setTimeout(() => saveStatus = '', 2000);
+    }
+  }
+
+  // File drag and drop handlers
+  function handleDragOver(event: DragEvent) {
+    event.preventDefault();
+    isDragOver = true;
+  }
+
+  function handleDragLeave() {
+    isDragOver = false;
+  }
+
+  function handleDrop(event: DragEvent) {
+    event.preventDefault();
+    isDragOver = false;
+    
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.name.endsWith('.json') || file.name.endsWith('.yml') || file.name.endsWith('.yaml')) {
+        uploadFile = file;
+        uploadError = '';
+      } else {
+        uploadError = 'Please upload a JSON or YAML file';
+      }
+    }
+  }
+
+  function handleFileSelect(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (file) {
+      uploadFile = file;
+      uploadError = '';
+    }
+  }
+
+  async function removeCustomTemplate(templateName: string) {
+    if (!confirm('Are you sure you want to remove this icon template?')) return;
+    
+    try {
+      await IconManager.removeCustomTemplate(templateName);
+      loadAvailableTemplates();
+      saveStatus = 'Template removed successfully';
+      setTimeout(() => saveStatus = '', 2000);
+    } catch (error) {
+      console.error('Failed to remove template:', error);
+      saveStatus = 'Failed to remove template';
+      setTimeout(() => saveStatus = '', 2000);
+    }
+  }
+
+  async function openIconsDirectory() {
+    try {
+      await IconManager.openIconsDirectory();
+    } catch (error) {
+      console.error('Failed to open icons directory:', error);
+    }
+  }
 
   async function updateSetting(key: keyof LauncherSettings, value: any) {
     try {
@@ -136,8 +257,8 @@
         <div class="setting-group">
           <div class="setting-item">
             <div class="setting-info">
-              <label for="memory-allocation">Memory Allocation</label>
-              <p class="setting-description">RAM allocated to Minecraft (in MB)</p>
+              <label for="memory-allocation">Default Memory Allocation</label>
+              <p class="setting-description">Default RAM allocated to new installations (can be overridden per installation)</p>
             </div>
             <div class="setting-control">
               <div class="memory-control">
@@ -343,6 +464,170 @@
               </div>
             </div>
           </div>
+
+          <!-- Icon Template Selection -->
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="icon-template">Icon Template</label>
+              <p class="setting-description">Choose your preferred icon style</p>
+            </div>
+            <div class="setting-control">
+              <select 
+                id="icon-template"
+                value={$selectedTemplate}
+                on:change={(e) => selectIconTemplate((e.target as HTMLSelectElement).value)}
+                class="template-select"
+              >
+                {#each $availableTemplates as template}
+                  <option value={template.name}>
+                    {template.displayName} {template.type === 'custom' ? '(Custom)' : ''}
+                  </option>
+                {/each}
+              </select>
+            </div>
+          </div>
+
+          <!-- Custom Template Management -->
+          <div class="setting-item">
+            <div class="setting-info">
+              <label>Custom Icon Templates</label>
+              <p class="setting-description">Upload and manage custom icon templates</p>
+            </div>
+            <div class="setting-control template-management">
+              <button 
+                class="btn btn-outline" 
+                on:click={() => showIconUpload = !showIconUpload}
+                type="button"
+              >
+                <Icon name="upload" size="sm" />
+                Upload Template
+              </button>
+              
+              <button 
+                class="btn btn-outline" 
+                on:click={openIconsDirectory}
+                type="button"
+              >
+                <Icon name="folder" size="sm" />
+                Open Icons Folder
+              </button>
+            </div>
+          </div>
+
+          {#if showIconUpload}
+            <div class="setting-item template-upload">
+              <div 
+                class="upload-zone" 
+                class:error={uploadError}
+                class:drag-over={isDragOver}
+                on:dragover={handleDragOver}
+                on:dragleave={handleDragLeave}
+                on:drop={handleDrop}
+                role="button"
+                tabindex="0"
+                on:click={() => document.getElementById('template-file-input')?.click()}
+                on:keydown={(e) => e.key === 'Enter' && document.getElementById('template-file-input')?.click()}
+              >
+                <input 
+                  id="template-file-input"
+                  type="file" 
+                  accept=".json,.yml,.yaml"
+                  on:change={handleFileSelect}
+                  class="file-input"
+                  style="display: none;"
+                />
+                
+                {#if uploadFile}
+                  <div class="file-info">
+                    <Icon name="file" size="sm" />
+                    <span class="file-name">{uploadFile.name}</span>
+                    <div class="file-actions">
+                      <button 
+                        class="btn btn-primary btn-sm" 
+                        on:click|stopPropagation={handleIconUpload}
+                        disabled={isLoading}
+                        type="button"
+                      >
+                        {#if isLoading}
+                          <Icon name="loading" size="sm" />
+                          Installing...
+                        {:else}
+                          <Icon name="install" size="sm" />
+                          Install Template
+                        {/if}
+                      </button>
+                      <button 
+                        class="btn btn-outline btn-sm" 
+                        on:click|stopPropagation={() => { uploadFile = null; uploadError = ''; }}
+                        type="button"
+                      >
+                        <Icon name="x" size="sm" />
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                {:else}
+                  <div class="upload-placeholder">
+                    <Icon name="upload" size="lg" />
+                    <h4>Upload Icon Template</h4>
+                    <p>Drop a template file here or click to browse</p>
+                    <small>Supports JSON (.json) and YAML (.yml, .yaml) files</small>
+                  </div>
+                {/if}
+                
+                {#if uploadError}
+                  <div class="error-message">
+                    <Icon name="error" size="sm" />
+                    <span>{uploadError}</span>
+                  </div>
+                {/if}
+              </div>
+            </div>
+          {/if}
+
+          <!-- Custom Templates List -->
+          {#if $availableTemplates.some(t => t.type === 'custom')}
+            <div class="setting-item">
+              <div class="custom-templates-list">
+                <h4>Installed Custom Templates</h4>
+                <div class="templates-grid">
+                  {#each $availableTemplates.filter(t => t.type === 'custom') as template}
+                    <div class="template-card" class:active={$selectedTemplate === template.name}>
+                      <div class="template-info">
+                        <span class="template-name">{template.displayName}</span>
+                        <small class="template-id">({template.name})</small>
+                      </div>
+                      <div class="template-actions">
+                        {#if $selectedTemplate !== template.name}
+                          <button 
+                            class="btn btn-outline btn-sm" 
+                            on:click={() => selectIconTemplate(template.name)}
+                            type="button"
+                          >
+                            <Icon name="play" size="sm" />
+                            Use
+                          </button>
+                        {:else}
+                          <span class="active-indicator">
+                            <Icon name="success" size="sm" />
+                            Active
+                          </span>
+                        {/if}
+                        <button 
+                          class="btn btn-danger btn-sm" 
+                          on:click={() => removeTemplate(template.name)}
+                          type="button"
+                        >
+                          <Icon name="delete" size="sm" />
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            </div>
+          {/if}
         </div>
       </section>
 
@@ -871,6 +1156,191 @@
     font-size: 0.9rem;
     // min-width: 50px;
     text-align: left;
+  }
+
+  /* Icon Template Management Styles */
+  .template-management {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .template-upload {
+    margin-top: 0.5rem;
+    padding: 0;
+  }
+
+  .upload-zone {
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.2s ease;
+    background: var(--background-secondary);
+    cursor: pointer;
+    position: relative;
+    
+    &:hover {
+      border-color: var(--accent-color);
+      background: var(--background-hover);
+    }
+    
+    &.drag-over {
+      border-color: var(--accent-color);
+      background: rgba(74, 144, 226, 0.1);
+      transform: scale(1.02);
+    }
+    
+    &.error {
+      border-color: var(--error-color);
+      background: rgba(220, 53, 69, 0.1);
+    }
+  }
+
+  .upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+    
+    h4 {
+      margin: 0;
+      color: var(--text-primary);
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    
+    p {
+      margin: 0;
+      font-weight: 500;
+    }
+    
+    small {
+      opacity: 0.7;
+      font-size: 0.85rem;
+    }
+  }
+
+  .file-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    
+    .file-name {
+      font-weight: 500;
+      color: var(--text-primary);
+      font-size: 1rem;
+    }
+    
+    .file-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+  }
+
+  .error-message {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--error-color);
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    background: rgba(220, 53, 69, 0.1);
+    border-radius: 4px;
+  }
+
+  .custom-templates-list {
+    width: 100%;
+    
+    h4 {
+      margin: 0 0 1rem 0;
+      color: var(--text-primary);
+      font-size: 1rem;
+      font-weight: 600;
+    }
+  }
+
+  .templates-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .template-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: var(--background-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background: var(--background-hover);
+      border-color: var(--accent-color);
+    }
+    
+    &.active {
+      border-color: var(--accent-color);
+      background: rgba(74, 144, 226, 0.1);
+    }
+  }
+
+  .template-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    
+    .template-name {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    
+    .template-id {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+    }
+  }
+
+  .template-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .active-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--accent-color);
+    font-weight: 500;
+    font-size: 0.9rem;
+  }
+
+  .btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    
+    :global(.icon) {
+      font-size: 0.75rem;
+    }
+  }
+
+  .btn-danger {
+    background: var(--error-color);
+    border-color: var(--error-color);
+    color: white;
+    
+    &:hover {
+      background: #c82333;
+      border-color: #bd2130;
+    }
   }
 
   @keyframes spin {

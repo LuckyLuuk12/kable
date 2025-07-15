@@ -17,6 +17,10 @@ fn default_enable_shader_caching() -> bool {
     true
 }
 
+fn default_selected_icon_template() -> String {
+    "emoji".to_string()
+}
+
 fn default_sidebar_width() -> u32 {
     250
 }
@@ -82,6 +86,9 @@ pub struct LauncherSettings {
     pub shader_quality_preset: String,
     #[serde(default = "default_enable_shader_caching")]
     pub enable_shader_caching: bool,
+    // Icon template settings
+    #[serde(default = "default_selected_icon_template")]
+    pub selected_icon_template: String,
     // Custom settings for extensibility - use default values if missing from file
     #[serde(default = "default_custom_settings")]
     pub custom: serde_json::Value,
@@ -114,6 +121,7 @@ impl Default for LauncherSettings {
             max_world_backups: 5,
             shader_quality_preset: "medium".to_string(),
             enable_shader_caching: true,
+            selected_icon_template: "emoji".to_string(),
             custom: serde_json::Value::Object(serde_json::Map::new()),
         }
     }
