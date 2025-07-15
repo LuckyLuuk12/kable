@@ -1,7 +1,9 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
+use chrono::Utc;
 use crate::AppError;
+use crate::auth::{MicrosoftAccount, check_auth_status, get_access_token};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MinecraftInstallation {
@@ -137,8 +139,32 @@ fn create_installation_from_version(
     let is_valid = jar_path.exists() && json_path.exists();
 
     // Try to find a profile that uses this version
-    let profile = profiles.profiles.values()
-        .find(|p| p.last_version_id == version_id);
+    // First try exact match, then try partial matches for mod loader versions
+    println!("=== Creating installation for version: {} ===", version_id);
+    let profile_entry = profiles.profiles.iter()
+        .find(|(_, p)| p.last_version_id == version_id)
+        .or_else(|| {
+            // If no exact match, try to find a profile that might correspond to this version
+            // This helps with mod loader installations where the version ID might be different
+            profiles.profiles.iter()
+                .find(|(_, p)| {
+                    // Check if the profile's last_version_id contains key parts of our version_id
+                    version_id.contains(&p.last_version_id) || 
+                    p.last_version_id.contains(version_id) ||
+                    // Check for common patterns in modded installations
+                    (version_id.contains("fabric") && p.name.to_lowercase().contains("fabric")) ||
+                    (version_id.contains("forge") && p.name.to_lowercase().contains("forge")) ||
+                    (version_id.contains("iris") && p.name.to_lowercase().contains("iris"))
+                })
+        });
+    let profile = profile_entry.map(|(_, p)| p);
+    let profile_key = profile_entry.map(|(key, _)| key.clone());
+    
+    if let Some(key) = &profile_key {
+        println!("Found matching profile key: {}", key);
+    } else {
+        println!("No matching profile found, using version_id as ID");
+    }
 
     // Determine installation type and loader version
     let (installation_type, loader_version) = detect_installation_type(&version_dir, version_id)?;
@@ -155,7 +181,7 @@ fn create_installation_from_version(
         });
 
     Ok(MinecraftInstallation {
-        id: version_id.to_string(),
+        id: profile_key.clone().unwrap_or_else(|| version_id.to_string()),
         name,
         version: version_id.to_string(),
         path: version_dir,
@@ -189,7 +215,15 @@ fn detect_installation_type(version_dir: &Path, version_id: &str) -> Result<(Str
     }
 
     let json_content = fs::read_to_string(&json_path)?;
-    let version_json: serde_json::Value = serde_json::from_str(&json_content)?;
+    let version_json: serde_json::Value = match serde_json::from_str(&json_content) {
+        Ok(json) => json,
+        Err(e) => {
+            println!("Warning: Failed to parse JSON for {}: {}", version_id, e);
+            println!("JSON file path: {:?}", json_path);
+            // Return vanilla as fallback when JSON parsing fails
+            return Ok(("vanilla".to_string(), None));
+        }
+    };
 
     // Check for Fabric
     if let Some(libraries) = version_json["libraries"].as_array() {
@@ -329,7 +363,6 @@ pub async fn update_installation_last_played(installation_id: String, minecraft_
 
 /// Extended installation management for Kable launcher
 use uuid::Uuid;
-use chrono::Utc;
 use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -436,6 +469,21 @@ pub fn create_installation_mods_directory(installation_id: &str) -> Result<PathB
     Ok(mods_dir)
 }
 
+#[allow(dead_code)]
+pub fn get_installation_directory(installation_id: &str) -> Result<PathBuf, String> {
+    let kable_dir = get_kable_directory()
+        .map_err(|e| format!("Failed to get kable directory: {}", e))?;
+    let installation_dir = kable_dir.join("instances").join(installation_id);
+    
+    // Create directory if it doesn't exist
+    if !installation_dir.exists() {
+        fs::create_dir_all(&installation_dir)
+            .map_err(|e| format!("Failed to create installation directory: {}", e))?;
+    }
+    
+    Ok(installation_dir)
+}
+
 #[tauri::command]
 pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
     let mut all_installations = Vec::new();
@@ -466,18 +514,17 @@ pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
                 println!("  - Processing: {} ({})", mc_install.name, mc_install.version);
                 
                 // Convert MinecraftInstallation to KableInstallation format
-                // Only add if we don't already have a Kable profile for this version
-                let version_id = format!("minecraft-{}", mc_install.version);
+                // Use the MinecraftInstallation's ID which should be the profile key
                 
                 // Check if we already have this in our Kable profiles
                 let already_exists = all_installations.iter().any(|kable_install| {
-                    kable_install.version == mc_install.version && kable_install.name == mc_install.name
+                    kable_install.id == mc_install.id
                 });
                 
                 if !already_exists {
                     let kable_installation = KableInstallation {
-                        id: version_id,
-                        name: format!("Minecraft {}", mc_install.version),
+                        id: mc_install.id,
+                        name: mc_install.name,
                         version: mc_install.version,
                         mod_loader: "vanilla".to_string(), // Existing installations are vanilla unless detected otherwise
                         loader_version: None,
@@ -711,36 +758,352 @@ pub async fn open_installation_folder(installation_id: String) -> Result<(), Str
 
 #[tauri::command]
 pub async fn launch_minecraft_installation(installation_id: String) -> Result<(), String> {
-    let profiles = load_kable_profiles()
-        .map_err(|e| format!("Failed to load kable profiles: {}", e))?;
+    use crate::launcher::*;
+    use crate::settings::load_settings;
+    use std::process::Command;
     
-    if let Some(installation) = profiles.profiles.get(&installation_id) {
-        // TODO: Implement actual Minecraft launching with the installation
-        // This would involve:
-        // 1. Downloading the version if not present
-        // 2. Setting up the game directory with mod loader configs
-        // 3. Setting mod folder arguments to point to our kable/mods/{id}/ directory
-        // 4. Building launch arguments
-        // 5. Starting the Minecraft process
-        
-        let mods_dir = get_installation_mods_directory(&installation_id)
-            .map_err(|e| format!("Failed to get mods directory: {}", e))?;
-        
-        println!("Would launch installation: {} ({})", installation.name, installation.id);
-        println!("Version: {}, Mod Loader: {}", installation.version, installation.mod_loader);
-        println!("Mods directory: {:?}", mods_dir);
-        
-        // For now, just update last played time
-        let mut profiles_mut = profiles;
-        if let Some(install_mut) = profiles_mut.profiles.get_mut(&installation_id) {
-            install_mut.last_played = Some(Utc::now().to_rfc3339());
-        }
-        
-        save_kable_profiles(&profiles_mut)
-            .map_err(|e| format!("Failed to save kable profiles: {}", e))?;
-        
-        Ok(())
-    } else {
-        Err("Installation not found".to_string())
+    println!("=== Launching installation: {} ===", installation_id);
+    
+    // Load required data
+    let settings = load_settings().await
+        .map_err(|e| format!("Failed to load settings: {}", e))?;
+    
+    // Get minecraft directory
+    let minecraft_dir = PathBuf::from(settings.minecraft_path.as_ref()
+        .ok_or("Minecraft path not set in settings")?);
+    
+    // Load launcher profiles  
+    let launcher_profiles = read_launcher_profiles(&minecraft_dir)
+        .map_err(|e| format!("Failed to load launcher profiles: {}", e))?;
+    
+    // Debug: Print available profile keys
+    println!("Available profile keys:");
+    for key in launcher_profiles.profiles.keys() {
+        println!("  - {}", key);
     }
+    
+    // Get current account using mock auth system
+    let account = get_mock_auth_account().await?;
+    
+    // Get installation
+    let installation = launcher_profiles.profiles.get(&installation_id)
+        .ok_or(format!("Installation not found. Looking for key: '{}'. Available keys: {:?}", 
+            installation_id, 
+            launcher_profiles.profiles.keys().collect::<Vec<_>>()))?;
+    
+    // Get minecraft directory and paths
+    let minecraft_dir = PathBuf::from(settings.minecraft_path.as_ref()
+        .ok_or("Minecraft path not set in settings")?);
+    let (assets_path, libraries_path, versions_path, natives_path) = get_minecraft_paths(&minecraft_dir)?;
+    
+    // Load version manifest
+    let version_manifest = load_version_manifest(&installation.last_version_id, &minecraft_dir)?;
+    
+    // Create launch context
+    let launch_context = LaunchContext {
+        account,
+        settings: settings.clone(),
+        installation_path: minecraft_dir.clone(),
+        assets_path,
+        natives_path: natives_path.clone(),
+        libraries_path: libraries_path.clone(),
+        version_manifest: version_manifest.clone(),
+    };
+    
+    // Build classpath
+    let version_jar_path = versions_path
+        .join(&installation.last_version_id)
+        .join(format!("{}.jar", installation.last_version_id));
+    
+    let classpath = build_classpath(&version_manifest.libraries, &libraries_path, &version_jar_path)?;
+    
+    // Extract native libraries
+    extract_natives(&version_manifest.libraries, &libraries_path, &natives_path)?;
+    
+    // Build variable substitution map
+    let variables = build_variable_map(&launch_context, &installation.last_version_id, &classpath)?;
+    
+    // Find Java executable
+    let java_executable = find_java_executable(settings.java_path.as_ref())?;
+    
+    // Build command arguments
+    let mut command_args = Vec::new();
+    
+    // Add memory and JVM arguments (including natives path)
+    command_args.extend(build_jvm_arguments(&settings, &natives_path));
+    
+    // Process JVM arguments from manifest
+    let jvm_args = process_arguments(&version_manifest.arguments.jvm, &variables)?;
+    command_args.extend(jvm_args);
+    
+    // Add classpath
+    command_args.push("-cp".to_string());
+    command_args.push(classpath);
+    
+    // Add main class
+    command_args.push(version_manifest.main_class.clone());
+    
+    // Process game arguments from manifest
+    let game_args = process_arguments(&version_manifest.arguments.game, &variables)?;
+    command_args.extend(game_args);
+    
+    // Set up game directory (use installation-specific directory or default)
+    let game_dir = if let Some(custom_game_dir) = &installation.game_dir {
+        PathBuf::from(custom_game_dir)
+    } else {
+        minecraft_dir.clone()
+    };
+    
+    // For Kable mod management, we need the mods directory
+    let _mods_dir = get_installation_mods_directory(&installation_id)?;
+    
+    // Create necessary directories in the game directory
+    for subdir in ["saves", "resourcepacks", "shaderpacks", "screenshots", "config"] {
+        let dir_path = game_dir.join(subdir);
+        if !dir_path.exists() {
+            fs::create_dir_all(&dir_path)
+                .map_err(|e| format!("Failed to create directory {}: {}", dir_path.display(), e))?;
+        }
+    }
+    
+    // TODO: Skip mods linking for now to get basic launching working
+    // We'll implement proper mod management later
+    /*
+    // Link Kable-managed mods to the game directory
+    let target_mods_dir = game_dir.join("mods");
+    
+    // Remove existing mods directory if it exists and is not a link to our mods
+    if target_mods_dir.exists() && !target_mods_dir.is_symlink() {
+        fs::remove_dir_all(&target_mods_dir)
+            .map_err(|e| format!("Failed to remove existing mods directory: {}", e))?;
+    }
+    
+    
+    #[cfg(windows)]
+    {
+        // On Windows, create a junction link
+        if !target_mods_dir.exists() {
+            let output = Command::new("cmd")
+                .args(["/C", "mklink", "/J", 
+                       &target_mods_dir.to_string_lossy(), 
+                       &mods_dir.to_string_lossy()])
+                .output()
+                .map_err(|e| format!("Failed to create mods junction: {}", e))?;
+            
+            if !output.status.success() {
+                return Err(format!("Failed to create mods junction: {}", 
+                    String::from_utf8_lossy(&output.stderr)));
+            }
+        }
+    }
+    
+    #[cfg(not(windows))]
+    {
+        // On Unix-like systems, create a symlink
+        if !target_mods_dir.exists() {
+            std::os::unix::fs::symlink(&mods_dir, &target_mods_dir)
+                .map_err(|e| format!("Failed to create mods symlink: {}", e))?;
+        }
+    }
+    */
+    
+    // Launch Minecraft
+    println!("=== LAUNCH DEBUG INFO ===");
+    println!("Java executable: {}", java_executable);
+    println!("Working directory: {}", game_dir.display());
+    println!("Command args count: {}", command_args.len());
+    println!("Full command:");
+    println!("  {} {}", java_executable, command_args.join(" "));
+    println!("=========================");
+    
+    let mut command = Command::new(&java_executable);
+    command.args(&command_args);
+    command.current_dir(&game_dir);
+    
+    // Set environment variables
+    command.env("JAVA_HOME", java_executable.clone());
+    
+    // For better debugging, let's run the command and capture output immediately
+    match command.output() {
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            
+            println!("=== PROCESS OUTPUT ===");
+            println!("Exit status: {}", output.status);
+            
+            if !stdout.trim().is_empty() {
+                println!("STDOUT:");
+                println!("{}", stdout);
+            }
+            
+            if !stderr.trim().is_empty() {
+                println!("STDERR:");
+                println!("{}", stderr);
+            }
+            println!("=====================");
+            
+            if output.status.success() {
+                println!("Minecraft launched successfully!");
+                Ok(())
+            } else {
+                Err(format!("Minecraft process failed to start. Exit code: {}", output.status))
+            }
+        },
+        Err(e) => {
+            Err(format!("Failed to spawn Minecraft process: {}", e))
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn quick_launch_minecraft(version_name: String) -> Result<(), String> {
+    use crate::launcher::*;
+    use crate::settings::load_settings;
+    use std::process::Command;
+    
+    // Load required data
+    let settings = load_settings().await
+        .map_err(|e| format!("Failed to load settings: {}", e))?;
+    
+    // Get current account using mock auth system
+    let account = get_mock_auth_account().await?;
+    
+    // Get minecraft directory and paths
+    let minecraft_dir = PathBuf::from(settings.minecraft_path.as_ref()
+        .ok_or("Minecraft path not set in settings")?);
+    let (assets_path, libraries_path, versions_path, natives_path) = get_minecraft_paths(&minecraft_dir)?;
+    
+    // Check if version exists
+    let version_dir = versions_path.join(&version_name);
+    if !version_dir.exists() {
+        return Err(format!("Version '{}' not found in .minecraft/versions/", version_name));
+    }
+    
+    // Load version manifest
+    let version_manifest = load_version_manifest(&version_name, &minecraft_dir)?;
+    
+    // Create launch context
+    let launch_context = LaunchContext {
+        account,
+        settings: settings.clone(),
+        installation_path: minecraft_dir.clone(),
+        assets_path,
+        natives_path: natives_path.clone(),
+        libraries_path: libraries_path.clone(),
+        version_manifest: version_manifest.clone(),
+    };
+    
+    // Build classpath
+    let version_jar_path = version_dir.join(format!("{}.jar", version_name));
+    let classpath = build_classpath(&version_manifest.libraries, &libraries_path, &version_jar_path)?;
+    
+    // Extract native libraries
+    extract_natives(&version_manifest.libraries, &libraries_path, &natives_path)?;
+    
+    // Build variable substitution map
+    let variables = build_variable_map(&launch_context, &version_name, &classpath)?;
+    
+    // Find Java executable
+    let java_executable = find_java_executable(settings.java_path.as_ref())?;
+    
+    // Build command arguments
+    let mut command_args = Vec::new();
+    
+    // Add memory and JVM arguments (including natives path)
+    command_args.extend(build_jvm_arguments(&settings, &natives_path));
+    
+    // Process JVM arguments from manifest
+    let jvm_args = process_arguments(&version_manifest.arguments.jvm, &variables)?;
+    command_args.extend(jvm_args);
+    
+    // Add classpath
+    command_args.push("-cp".to_string());
+    command_args.push(classpath);
+    
+    // Add main class
+    command_args.push(version_manifest.main_class.clone());
+    
+    // Process game arguments from manifest
+    let game_args = process_arguments(&version_manifest.arguments.game, &variables)?;
+    command_args.extend(game_args);
+    
+    // Use default minecraft directory as game directory for quick launch
+    let game_dir = &minecraft_dir;
+    
+    // Launch Minecraft
+    println!("Quick launching Minecraft {} with command: {} {}", version_name, java_executable, command_args.join(" "));
+    
+    let mut command = Command::new(&java_executable);
+    command.args(&command_args);
+    command.current_dir(game_dir);
+    
+    // Set environment variables
+    command.env("JAVA_HOME", java_executable.clone());
+    
+    let child = command.spawn()
+        .map_err(|e| format!("Failed to launch Minecraft: {}", e))?;
+    
+    println!("Minecraft launched with PID: {}", child.id());
+    
+    Ok(())
+}
+
+/// Helper function to get mock auth account for testing
+async fn get_mock_auth_account() -> Result<MicrosoftAccount, String> {
+    // Check if auth is enabled (this will always return true in our mock system)
+    let auth_status = check_auth_status().await?;
+    if !auth_status.authenticated {
+        return Err("No authenticated Microsoft account found. Please log in first.".to_string());
+    }
+    
+    // Get mock access token
+    let access_token = get_access_token().await?;
+    
+    // Return mock account
+    Ok(MicrosoftAccount {
+        id: "test-id".to_string(),
+        username: auth_status.username.unwrap_or("TestUser".to_string()),
+        uuid: auth_status.uuid.unwrap_or("test-uuid-1234".to_string()),
+        access_token,
+        refresh_token: "mock_refresh_token".to_string(),
+        expires_at: chrono::Utc::now().timestamp() + 3600,
+        skin_url: None,
+        is_active: true,
+        last_used: chrono::Utc::now().timestamp(),
+        minecraft_access_token: Some("mock_minecraft_token".to_string()),
+        minecraft_expires_at: Some(chrono::Utc::now().timestamp() + 3600),
+        xbox_user_hash: "mock_xbox_hash".to_string(),
+    })
+}
+
+#[tauri::command]
+pub async fn launch_most_recent_installation() -> Result<(), String> {
+    use crate::settings::load_settings;
+    
+    // Load settings to get minecraft path
+    let settings = load_settings().await
+        .map_err(|e| format!("Failed to load settings: {}", e))?;
+    
+    let minecraft_dir = PathBuf::from(settings.minecraft_path.as_ref()
+        .ok_or("Minecraft path not set in settings")?);
+    
+    // Read launcher profiles to find most recent installation
+    let profiles = read_launcher_profiles(&minecraft_dir)?;
+    
+    // Find the most recently used profile
+    let most_recent_profile = profiles.profiles
+        .values()
+        .filter(|profile| profile.last_used.is_some())
+        .max_by(|a, b| {
+            let a_time = a.last_used.as_ref().unwrap();
+            let b_time = b.last_used.as_ref().unwrap();
+            a_time.cmp(b_time)
+        });
+    
+    let profile = most_recent_profile
+        .ok_or("No recently used installations found. Please select an installation to play.")?;
+    
+    // Launch using the installation's version
+    launch_minecraft_installation(profile.last_version_id.clone()).await
 }

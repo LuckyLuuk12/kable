@@ -2,15 +2,21 @@
   import { onMount } from 'svelte';
   import { SettingsManager, Icon } from '$lib';
   import { installations, isLoadingInstallations, installationsError, GameManager } from '$lib/game';
+  import { quickLaunchDefault, launchInstallation, prepareForLaunch, formatLaunchResult } from '$lib/launcher';
   import type { MinecraftInstallation } from '$lib/types';
 
   // State variables
   let lastPlayedInstallations: MinecraftInstallation[] = [];
   let error: string | null = null;
   let viewMode: 'grid' | 'list' = 'grid';
+  let isLaunching = false;
+  let launchStatus = '';
 
   // Subscribe to the installations store
   $: {
+    console.log('Total installations:', $installations.length);
+    console.log('Valid installations:', $installations.filter(i => i.is_valid).length);
+    
     lastPlayedInstallations = $installations
       .filter((installation: MinecraftInstallation) => installation.is_valid)
       .sort((a: MinecraftInstallation, b: MinecraftInstallation) => {
@@ -19,6 +25,8 @@
         return bTime - aTime;
       })
       .slice(0, 8); // Show up to 8 installations
+      
+    console.log('Last played installations:', lastPlayedInstallations.length);
   }
 
   // Subscribe to loading and error states
@@ -44,44 +52,115 @@
     viewMode = viewMode === 'grid' ? 'list' : 'grid';
   }
 
-  function handlePlay() {
-    // TODO: Implement play functionality once auth is ready
-    alert('Play functionality coming soon! Authentication system needed first.');
+  async function handlePlay() {
+    isLaunching = true;
+    launchStatus = 'Preparing to launch...';
+    let result;
+    
+    try {
+      // Check if we're ready to launch
+      const prep = await prepareForLaunch();
+      if (!prep.ready) {
+        launchStatus = prep.message;
+        setTimeout(() => {
+          launchStatus = '';
+          isLaunching = false;
+        }, 10000);
+        return;
+      }
+      
+      // Try to launch the most recent installation
+      if (lastPlayedInstallations.length > 0) {
+        console.log('Launching installation:', lastPlayedInstallations[0]);
+        launchStatus = `Launching ${lastPlayedInstallations[0].name}...`;
+        result = await launchInstallation(lastPlayedInstallations[0].id);
+      } else {
+        launchStatus = 'Launching default Minecraft...';
+        result = await quickLaunchDefault();
+      }
+      
+      launchStatus = formatLaunchResult(result);
+      
+      if (result.success) {
+        // Refresh installations to update last played
+        setTimeout(() => {
+          GameManager.loadInstallations();
+        }, 1000);
+      }
+      
+    } catch (err) {
+      console.error('Launch error:', err);
+      launchStatus = `Launch failed: ${err}`;
+    } finally {
+      setTimeout(() => {
+        launchStatus = '';
+        isLaunching = false;
+      }, result?.success ? 2000 : 5000);
+    }
+  }
+
+  async function handleInstallationLaunch(installation: MinecraftInstallation) {
+    const launchButton = event?.target as HTMLButtonElement;
+    if (launchButton) {
+      launchButton.disabled = true;
+    }
+    
+    try {
+      const prep = await prepareForLaunch();
+      if (!prep.ready) {
+        alert(prep.message);
+        return;
+      }
+      
+      const result = await launchInstallation(installation.id);
+      
+      if (result.success) {
+        // Refresh installations to update last played
+        setTimeout(() => {
+          GameManager.loadInstallations();
+        }, 1000);
+      } else {
+        alert(formatLaunchResult(result));
+      }
+    } catch (err) {
+      console.error('Installation launch error:', err);
+      alert(`Launch failed: ${err}`);
+    } finally {
+      if (launchButton) {
+        launchButton.disabled = false;
+      }
+    }
   }
 </script>
 
-<div class="home-page">
-  <!-- Header Section - Fixed -->
-  <div class="page-header">
-    <h1>Welcome to Kable</h1>
+<div class="page-wrapper">
+  <!-- Header -->
+  <div class="header">
+    <h1>Kable Launcher</h1>
     <p>Your Minecraft launcher for all installations</p>
   </div>
 
   <!-- Play Button Section - Fixed -->
   <div class="play-section">
-    <button class="play-button" on:click={handlePlay} disabled={lastPlayedInstallations.length === 0}>
-      <Icon name="play" size="lg" />
-      <span>Play Minecraft</span>
+    <button class="play-button" on:click={handlePlay} disabled={isLaunching || lastPlayedInstallations.length === 0}>
+      <Icon name={isLaunching ? "refresh" : "play"} size="lg" />
+      <span>{isLaunching ? 'Launching...' : 'Play Minecraft'}</span>
     </button>
     {#if lastPlayedInstallations.length === 0}
-      <p class="no-installations">No installations found. Add some Minecraft installations to get started!</p>
+      <p class="no-installations">No installations found. Please check your Minecraft directory in settings.</p>
+    {/if}
+    {#if launchStatus}
+      <p class="launch-status" class:error={launchStatus.includes('fail') || launchStatus.includes('error')}>
+        {launchStatus}
+      </p>
     {/if}
   </div>
 
   <!-- Last Played Section - Scrollable -->
   <div class="installations-section">
-    <div class="section-header">
-      <h2>Last Played Installations</h2>
-      <div class="section-controls">
-        <button class="view-toggle" on:click={toggleViewMode} title="Toggle view mode">
-          <Icon name={viewMode === 'grid' ? 'list' : 'grid'} size="sm" />
-        </button>
-      </div>
-    </div>
-
     {#if error}
-      <div class="error-message">
-        <Icon name="alert" size="sm" />
+      <div class="error-state">
+        <Icon name="warning" size="md" />
         {error}
       </div>
     {:else if isLoading}
@@ -90,6 +169,12 @@
         <span>Loading installations...</span>
       </div>
     {:else if lastPlayedInstallations.length > 0}
+      <div class="section-header">
+        <h2>Last Played Installations</h2>
+        <button class="view-toggle" on:click={toggleViewMode} title="Toggle view mode">
+          <Icon name={viewMode === 'grid' ? 'list' : 'grid'} size="sm" />
+        </button>
+      </div>
       <div class="installations-container">
         <div class="installations-{viewMode}">
           {#each lastPlayedInstallations as installation}
@@ -119,7 +204,7 @@
                   </span>
                 {/if}
                 <div class="installation-actions">
-                  <button class="action-btn" title="Launch this installation">
+                  <button class="action-btn" title="Launch this installation" on:click={() => handleInstallationLaunch(installation)}>
                     <Icon name="play" size="sm" />
                   </button>
                   <button class="action-btn" title="More options">
@@ -133,9 +218,9 @@
       </div>
     {:else}
       <div class="empty-state">
-        <Icon name="folder" size="xl" />
-        <h3>No installations found</h3>
-        <p>Add some Minecraft installations to see them here</p>
+        <Icon name="home" size="lg" />
+        <h2>No Installations Found</h2>
+        <p>It looks like you don't have any Minecraft installations yet.</p>
         <button class="btn btn-primary">Add Installation</button>
       </div>
     {/if}
@@ -144,25 +229,29 @@
 
 <style lang="scss">
   @use '@kablan/clean-ui/scss/variables' as *;
-
-  .home-page {
-    height: 100%;
+  .page-wrapper {
     display: flex;
     flex-direction: column;
+    height: 100vh;
+    background: $container;
     overflow: hidden;
   }
 
-  .page-header {
+  .header {
+    text-align: center;
     padding: 2rem 2rem 1rem;
+    background: $container;
     border-bottom: 1px solid $dark-600;
-    background: $background;
     flex-shrink: 0;
 
     h1 {
-      margin: 0 0 0.5rem;
-      font-size: 2rem;
-      font-weight: 600;
-      color: $text;
+      margin: 0 0 0.5rem 0;
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, $primary, $tertiary);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     p {
@@ -176,7 +265,7 @@
     padding: 2rem;
     text-align: center;
     border-bottom: 1px solid $dark-600;
-    background: $background;
+    background: $container;
     flex-shrink: 0;
 
     .play-button {
@@ -187,8 +276,8 @@
       background: $primary;
       color: white;
       border: none;
-      border-radius: $border-radius;
-      font-size: 1.125rem;
+      border-radius: 12px;
+      font-size: 1.1rem;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -196,12 +285,11 @@
 
       &:hover:not(:disabled) {
         background: $primary-600;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
       }
 
       &:disabled {
-        background: $dark-600;
-        color: $placeholder;
+        opacity: 0.6;
         cursor: not-allowed;
         transform: none;
       }
@@ -211,6 +299,22 @@
       margin: 1rem 0 0;
       color: $placeholder;
       font-size: 0.875rem;
+    }
+    
+    .launch-status {
+      margin: 1rem 0 0;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      background: rgba($green, 0.1);
+      color: $green;
+      border: 1px solid rgba($green, 0.3);
+      
+      &.error {
+        background: rgba($red, 0.1);
+        color: $red;
+        border-color: rgba($red, 0.3);
+      }
     }
   }
 
@@ -230,28 +334,21 @@
 
       h2 {
         margin: 0;
-        font-size: 1.25rem;
+        font-size: 1.5rem;
         font-weight: 600;
-        color: $text;
-      }
-
-      .section-controls {
-        display: flex;
-        gap: 0.5rem;
       }
 
       .view-toggle {
         padding: 0.5rem;
-        background: $container;
-        border: 1px solid $dark-600;
-        border-radius: $border-radius;
-        color: $placeholder;
+        background: $dark-600;
+        border: none;
+        border-radius: 6px;
+        color: $text;
         cursor: pointer;
-        transition: all 0.2s ease;
+        transition: background 0.2s ease;
 
         &:hover {
-          background: $button-hover;
-          color: $text;
+          background: $dark-500;
         }
       }
     }
@@ -259,72 +356,55 @@
     .installations-container {
       flex: 1;
       overflow-y: auto;
-      margin: 0 -0.5rem;
-      padding: 0 0.5rem;
-
-      &::-webkit-scrollbar {
-        width: 8px;
-      }
-
-      &::-webkit-scrollbar-track {
-        background: $container;
-      }
-
-      &::-webkit-scrollbar-thumb {
-        background: $dark-600;
-        border-radius: 4px;
-      }
-
-      &::-webkit-scrollbar-thumb:hover {
-        background: $placeholder;
-      }
+      padding-right: 0.5rem;
     }
 
     .installations-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
       gap: 1rem;
-      padding-bottom: 1rem;
     }
 
     .installations-list {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
-      padding-bottom: 1rem;
+      gap: 0.75rem;
     }
 
     .installation-card {
-      background: $container;
+      background: $dark-700;
       border: 1px solid $dark-600;
-      border-radius: $border-radius;
-      padding: 1rem;
+      border-radius: 12px;
+      padding: 1.5rem;
       transition: all 0.2s ease;
       cursor: pointer;
 
       &:hover {
-        background: $button-hover;
         border-color: $primary;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
       }
 
       &.selected {
         border-color: $primary;
-        background: rgba($primary, 0.1);
+        background: rgba($primary, 0.05);
       }
 
       .installation-header {
         display: flex;
         align-items: flex-start;
-        gap: 0.75rem;
-        margin-bottom: 0.75rem;
+        gap: 1rem;
+        margin-bottom: 1rem;
 
         .installation-icon {
-          padding: 0.5rem;
-          background: rgba($primary, 0.1);
-          border-radius: $border-radius;
-          color: $primary;
           flex-shrink: 0;
+          width: 40px;
+          height: 40px;
+          background: $primary;
+          border-radius: 8px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
         }
 
         .installation-info {
@@ -332,8 +412,8 @@
           min-width: 0;
 
           h3 {
-            margin: 0 0 0.25rem;
-            font-size: 1rem;
+            margin: 0 0 0.25rem 0;
+            font-size: 1.1rem;
             font-weight: 600;
             color: $text;
             white-space: nowrap;
@@ -345,9 +425,6 @@
             margin: 0;
             font-size: 0.875rem;
             color: $placeholder;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
           }
         }
       }
@@ -364,93 +441,71 @@
 
         .installation-actions {
           display: flex;
-          gap: 0.25rem;
-        }
+          gap: 0.5rem;
 
-        .action-btn {
-          padding: 0.375rem;
-          background: transparent;
-          border: 1px solid $dark-600;
-          border-radius: $border-radius;
-          color: $placeholder;
-          cursor: pointer;
-          transition: all 0.2s ease;
+          .action-btn {
+            padding: 0.5rem;
+            background: $dark-600;
+            border: none;
+            border-radius: 6px;
+            color: $text;
+            cursor: pointer;
+            transition: all 0.2s ease;
 
-          &:hover {
-            background: $primary;
-            border-color: $primary;
-            color: white;
+            &:hover {
+              background: $primary;
+              color: white;
+            }
           }
-        }
-      }
-    }
-
-    .installations-list .installation-card {
-      .installation-header {
-        margin-bottom: 0.5rem;
-      }
-
-      .installation-meta {
-        align-items: flex-end;
-      }
-    }
-
-    .error-message,
-    .loading-state {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      padding: 3rem;
-      color: $placeholder;
-      font-size: 0.875rem;
-    }
-
-    .error-message {
-      color: $red;
-    }
-
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 3rem;
-      text-align: center;
-      color: $placeholder;
-
-      h3 {
-        margin: 1rem 0 0.5rem;
-        font-size: 1.125rem;
-        font-weight: 600;
-        color: $text;
-      }
-
-      p {
-        margin: 0 0 1.5rem;
-        font-size: 0.875rem;
-      }
-
-      .btn {
-        padding: 0.75rem 1.5rem;
-        background: $primary;
-        color: white;
-        border: none;
-        border-radius: $border-radius;
-        font-weight: 500;
-        cursor: pointer;
-        transition: background 0.2s ease;
-
-        &:hover {
-          background: $primary-600;
         }
       }
     }
   }
 
+  .error-state,
+  .loading-state,
+  .empty-state {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: $placeholder;
+    gap: 1rem;
+
+    h2 {
+      margin: 0;
+      color: $text;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .btn {
+      margin-top: 1rem;
+    }
+  }
+
+  .error-state {
+    color: $red;
+  }
+
+  .loading-state {
+    .icon {
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
   // Responsive design
   @media (max-width: 768px) {
-    .page-header,
+    .header,
     .play-section,
     .installations-section {
       padding-left: 1rem;

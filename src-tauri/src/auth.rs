@@ -94,6 +94,27 @@ pub struct MinecraftSession {
     pub user_properties: serde_json::Value,
 }
 
+impl MinecraftSession {
+    /// Convert MinecraftSession to MicrosoftAccount for launcher compatibility
+    pub fn to_microsoft_account(&self) -> MicrosoftAccount {
+        let now = Utc::now().timestamp();
+        MicrosoftAccount {
+            id: self.uuid.clone(),
+            username: self.username.clone(),
+            uuid: self.uuid.clone(),
+            access_token: self.access_token.clone(),
+            refresh_token: String::new(), // Not available in MinecraftSession
+            expires_at: now + 3600, // Assume 1 hour expiry
+            skin_url: None,
+            is_active: true,
+            last_used: now,
+            minecraft_access_token: Some(self.access_token.clone()),
+            minecraft_expires_at: Some(now + 3600),
+            xbox_user_hash: String::new(), // Not available in MinecraftSession
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LauncherProfiles {
     pub authentication_database: HashMap<String, MinecraftSession>,
@@ -539,11 +560,12 @@ pub async fn get_minecraft_session_path() -> Result<String, String> {
 
 #[tauri::command]
 pub async fn read_minecraft_sessions() -> Result<LauncherProfiles, String> {
-    let minecraft_dir = get_minecraft_directory().map_err(|e| e.to_string())?;
-    let launcher_profiles_path = minecraft_dir.join("launcher_profiles.json");
+    // Read Kable's own auth sessions, not the Minecraft launcher profiles
+    let kable_dir = crate::installations::get_kable_directory().map_err(|e| e.to_string())?;
+    let sessions_path = kable_dir.join("minecraft_sessions.json");
     
-    if !launcher_profiles_path.exists() {
-        // Create default launcher profiles if it doesn't exist
+    if !sessions_path.exists() {
+        // Create default auth sessions if it doesn't exist
         let default_profiles = LauncherProfiles {
             authentication_database: HashMap::new(),
             launcher_version: "3.0.0".to_string(),
@@ -552,11 +574,11 @@ pub async fn read_minecraft_sessions() -> Result<LauncherProfiles, String> {
         return Ok(default_profiles);
     }
     
-    let content = fs::read_to_string(&launcher_profiles_path)
-        .map_err(|e| format!("Failed to read launcher_profiles.json: {}", e))?;
+    let content = fs::read_to_string(&sessions_path)
+        .map_err(|e| format!("Failed to read minecraft_sessions.json: {}", e))?;
     
     let profiles: LauncherProfiles = serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse launcher_profiles.json: {}", e))?;
+        .map_err(|e| format!("Failed to parse minecraft_sessions.json: {}", e))?;
     
     Ok(profiles)
 }
@@ -572,17 +594,17 @@ pub async fn write_minecraft_session(account: MicrosoftAccount) -> Result<(), St
         }
     };
 
-    let minecraft_dir = get_minecraft_directory().map_err(|e| e.to_string())?;
-    let launcher_profiles_path = minecraft_dir.join("launcher_profiles.json");
+    let kable_dir = crate::installations::get_kable_directory().map_err(|e| e.to_string())?;
+    let sessions_path = kable_dir.join("minecraft_sessions.json");
     
-    // Ensure minecraft directory exists
-    fs::create_dir_all(&minecraft_dir)
-        .map_err(|e| format!("Failed to create minecraft directory: {}", e))?;
+    // Ensure kable directory exists
+    fs::create_dir_all(&kable_dir)
+        .map_err(|e| format!("Failed to create kable directory: {}", e))?;
     
     // Load existing profiles or create new
-    let mut profiles = if launcher_profiles_path.exists() {
-        let content = fs::read_to_string(&launcher_profiles_path)
-            .map_err(|e| format!("Failed to read launcher_profiles.json: {}", e))?;
+    let mut profiles = if sessions_path.exists() {
+        let content = fs::read_to_string(&sessions_path)
+            .map_err(|e| format!("Failed to read minecraft_sessions.json: {}", e))?;
         serde_json::from_str(&content)
             .unwrap_or_else(|_| LauncherProfiles {
                 authentication_database: HashMap::new(),
@@ -613,10 +635,10 @@ pub async fn write_minecraft_session(account: MicrosoftAccount) -> Result<(), St
     
     // Write back to file
     let content = serde_json::to_string_pretty(&profiles)
-        .map_err(|e| format!("Failed to serialize launcher profiles: {}", e))?;
+        .map_err(|e| format!("Failed to serialize minecraft sessions: {}", e))?;
     
-    fs::write(&launcher_profiles_path, content)
-        .map_err(|e| format!("Failed to write launcher_profiles.json: {}", e))?;
+    fs::write(&sessions_path, content)
+        .map_err(|e| format!("Failed to write minecraft_sessions.json: {}", e))?;
     
     Ok(())
 }
@@ -1078,11 +1100,11 @@ pub async fn write_launcher_account(account: MicrosoftAccount) -> Result<(), Str
     // Convert MicrosoftAccount to LauncherAccount format
     let expires_at = if let Some(minecraft_expires_at) = account.minecraft_expires_at {
         DateTime::from_timestamp(minecraft_expires_at, 0)
-            .unwrap_or_else(|| Utc::now())
+            .unwrap_or_else(Utc::now)
             .to_rfc3339()
     } else {
         DateTime::from_timestamp(account.expires_at, 0)
-            .unwrap_or_else(|| Utc::now())
+            .unwrap_or_else(Utc::now)
             .to_rfc3339()
     };
     
@@ -1267,4 +1289,54 @@ pub async fn get_all_launcher_accounts() -> Result<Vec<MicrosoftAccount>, String
         .collect();
     
     Ok(accounts)
+}
+
+// Simplified auth status for testing
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthStatus {
+    pub authenticated: bool,
+    pub username: Option<String>,
+    pub uuid: Option<String>,
+}
+
+// Simple auth status check - for now, return mock data for testing
+// TODO: Replace with proper Microsoft OAuth implementation
+#[tauri::command]
+pub async fn check_auth_status() -> Result<AuthStatus, String> {
+    // For testing purposes, always return authenticated
+    // In production, this would check for valid stored tokens
+    Ok(AuthStatus {
+        authenticated: true,
+        username: Some("TestUser".to_string()),
+        uuid: Some("test-uuid-1234".to_string()),
+    })
+}
+
+// Mock function to get access token - replace with real Microsoft OAuth
+#[tauri::command]
+pub async fn get_access_token() -> Result<String, String> {
+    // TODO: Implement proper Microsoft OAuth flow
+    // For now, return a mock token so we can test the launcher
+    Ok("mock_access_token_for_testing".to_string())
+}
+
+// Mock function for Microsoft login - replace with real OAuth
+#[tauri::command]
+pub async fn microsoft_login() -> Result<MicrosoftAccount, String> {
+    // TODO: Open browser for Microsoft OAuth
+    // For now, return mock data
+    Ok(MicrosoftAccount {
+        id: "test-id".to_string(),
+        username: "TestUser".to_string(),
+        uuid: "test-uuid-1234".to_string(),
+        access_token: "mock_access_token".to_string(),
+        refresh_token: "mock_refresh_token".to_string(),
+        expires_at: chrono::Utc::now().timestamp() + 3600,
+        skin_url: None,
+        is_active: true,
+        last_used: chrono::Utc::now().timestamp(),
+        minecraft_access_token: Some("mock_minecraft_token".to_string()),
+        minecraft_expires_at: Some(chrono::Utc::now().timestamp() + 3600),
+        xbox_user_hash: "mock_xbox_hash".to_string(),
+    })
 }

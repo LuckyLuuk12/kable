@@ -14,5 +14,8 @@ export * from './auth';
 export * from './settings';
 export * from './game';
 
+// Launcher system
+export * from './launcher';
+
 // Legacy exports for backward compatibility
 export { SettingsService } from './services';

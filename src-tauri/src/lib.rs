@@ -13,16 +13,18 @@ mod mods;
 mod shaders;
 mod skins;
 mod installations;
+mod launcher;
 
 // Re-export public items from modules
-pub use auth::{MicrosoftAccount, start_microsoft_auth, complete_microsoft_auth, start_device_code_auth, poll_device_code_auth, copy_to_clipboard, refresh_minecraft_token, get_oauth_callback_result, read_minecraft_sessions, write_minecraft_session, get_minecraft_session_path, get_minecraft_launch_args, validate_minecraft_token, open_url};
+pub use auth::{MicrosoftAccount, start_microsoft_auth, complete_microsoft_auth, start_device_code_auth, poll_device_code_auth, copy_to_clipboard, refresh_minecraft_token, get_oauth_callback_result, read_minecraft_sessions, write_minecraft_session, get_minecraft_session_path, get_minecraft_launch_args, validate_minecraft_token, open_url, check_auth_status, get_access_token, microsoft_login};
 pub use settings::{LauncherSettings, load_settings, save_settings, get_launcher_dir, get_default_minecraft_directory, validate_minecraft_directory, MinecraftDirectoryInfo};
 pub use maps::{LocalWorld, WorldDownload, get_local_worlds, delete_world, backup_world};
 pub use shaders::{ShaderPack, get_installed_shaders, toggle_shader, delete_shader, install_shader_pack, get_shader_info};
 pub use skins::{MinecraftSkin, get_local_skins, save_skin, delete_skin, install_skin, get_skin_data, get_current_minecraft_skin, upload_skin_to_minecraft};
 pub use installations::{MinecraftInstallation, get_minecraft_installations, refresh_installation, update_installation_last_played, 
     KableInstallation, get_installations, create_installation, delete_installation, get_minecraft_versions, 
-    open_installation_folder, launch_minecraft_installation};
+    open_installation_folder, launch_minecraft_installation, quick_launch_minecraft, launch_most_recent_installation};
+pub use launcher::{LaunchContext, VersionManifest, load_version_manifest, get_minecraft_paths, get_java_path};
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -195,6 +197,10 @@ pub fn run() {
             auth::set_active_launcher_account,
             auth::get_active_launcher_account,
             auth::get_all_launcher_accounts,
+            // Simplified auth commands for testing
+            auth::check_auth_status,
+            auth::get_access_token,
+            auth::microsoft_login,
             // Settings commands
             settings::load_settings,
             settings::save_settings,
@@ -212,6 +218,10 @@ pub fn run() {
             installations::get_minecraft_versions,
             installations::open_installation_folder,
             installations::launch_minecraft_installation,
+            installations::quick_launch_minecraft,
+            installations::launch_most_recent_installation,
+            // Launcher commands
+            launcher::get_java_path,
             // Maps/Worlds commands
             maps::get_local_worlds,
             maps::delete_world,

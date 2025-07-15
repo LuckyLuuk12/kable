@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { InstallationService } from '$lib/services';
+  import { launchInstallation as launchInstallationWithLauncher, prepareForLaunch, formatLaunchResult } from '$lib/launcher';
   import type { MinecraftInstallation, MinecraftVersion } from '$lib/types';
   
   // State variables
@@ -122,7 +123,24 @@
       isLoading = true;
       error = null;
       
-      await InstallationService.launchMinecraftInstallation(installation.id);
+      // Check prerequisites
+      const prep = await prepareForLaunch();
+      if (!prep.ready) {
+        error = prep.message;
+        return;
+      }
+      
+      // Launch using the new launcher system
+      const result = await launchInstallationWithLauncher(installation.id);
+      
+      if (result.success) {
+        // Refresh installations to update last played
+        setTimeout(() => {
+          loadInstallations();
+        }, 1000);
+      } else {
+        error = formatLaunchResult(result);
+      }
       
     } catch (err) {
       console.error('Failed to launch Minecraft:', err);
