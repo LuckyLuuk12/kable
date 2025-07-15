@@ -4,6 +4,7 @@
   import { onMount } from 'svelte';
   import { AuthManager, SettingsManager, GameManager, Icon } from '$lib';
   import { IconManager } from '$lib/managers/IconManager';
+  import { windowStateManager } from '$lib/windowStateManager';
   
   let isTauriReady = false;
   let initializationStatus = 'Initializing...';
@@ -19,6 +20,7 @@
       
       // Initialize all managers
       await Promise.all([
+        windowStateManager.initialize(), // Initialize window state first
         AuthManager.initialize(),
         SettingsManager.initialize(),
         GameManager.initialize(),

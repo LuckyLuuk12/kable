@@ -132,7 +132,6 @@
     
     try {
       await IconManager.removeCustomTemplate(templateName);
-      loadAvailableTemplates();
       saveStatus = 'Template removed successfully';
       setTimeout(() => saveStatus = '', 2000);
     } catch (error) {
@@ -490,7 +489,7 @@
           <!-- Custom Template Management -->
           <div class="setting-item">
             <div class="setting-info">
-              <label>Custom Icon Templates</label>
+              <span class="section-label">Custom Icon Templates</span>
               <p class="setting-description">Upload and manage custom icon templates</p>
             </div>
             <div class="setting-control template-management">
@@ -974,6 +973,14 @@
     flex: 1;
     
     label {
+      display: block;
+      font-weight: 600;
+      color: $text;
+      margin-bottom: 0.25rem;
+      font-size: 1rem;
+    }
+    
+    .section-label {
       display: block;
       font-weight: 600;
       color: $text;

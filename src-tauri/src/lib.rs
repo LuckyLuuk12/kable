@@ -15,6 +15,7 @@ mod skins;
 mod installations;
 mod launcher;
 mod icons;
+mod window_state;
 
 // Re-export public items from modules
 pub use auth::{MicrosoftAccount, start_microsoft_auth, complete_microsoft_auth, start_device_code_auth, poll_device_code_auth, copy_to_clipboard, refresh_minecraft_token, get_oauth_callback_result, read_minecraft_sessions, write_minecraft_session, get_minecraft_session_path, get_minecraft_launch_args, validate_minecraft_token, open_url, check_auth_status, get_access_token, microsoft_login};
@@ -28,6 +29,7 @@ pub use installations::{MinecraftInstallation, get_minecraft_installations, refr
     open_installation_folder, launch_minecraft_installation, quick_launch_minecraft, launch_most_recent_installation};
 pub use launcher::{LaunchContext, VersionManifest, load_version_manifest, get_minecraft_paths, get_java_path};
 pub use icons::{CustomIconTemplate, IconSettings, get_custom_icon_templates, save_custom_icon_template, delete_custom_icon_template, validate_icon_template, get_icons_directory_path, open_icons_directory};
+pub use window_state::{WindowState, load_window_state, save_window_state, get_current_window_state, apply_window_state, setup_window_state_handlers};
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -257,9 +259,21 @@ pub fn run() {
             icons::delete_custom_icon_template,
             icons::validate_icon_template,
             icons::get_icons_directory_path,
-            icons::open_icons_directory
+            icons::open_icons_directory,
+            // Window state commands
+            window_state::load_window_state,
+            window_state::save_window_state,
+            window_state::get_current_window_state,
+            window_state::apply_window_state
         ])
         .plugin(tauri_plugin_dialog::init())
+        .setup(|app| {
+            // Set up window state handlers
+            if let Err(e) = setup_window_state_handlers(app) {
+                eprintln!("Failed to setup window state handlers: {}", e);
+            }
+            Ok(())
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
