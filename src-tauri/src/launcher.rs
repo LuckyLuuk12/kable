@@ -286,7 +286,11 @@ pub fn process_arguments(args: &[serde_json::Value], variables: &HashMap<String,
         match arg {
             serde_json::Value::String(s) => {
                 // Simple string argument - substitute variables
-                processed.push(substitute_variables(s, variables));
+                let substituted = substitute_variables(s, variables);
+                // Only add non-empty arguments
+                if !substituted.trim().is_empty() {
+                    processed.push(substituted);
+                }
             },
             serde_json::Value::Object(obj) => {
                 // Complex argument with rules
@@ -295,12 +299,19 @@ pub fn process_arguments(args: &[serde_json::Value], variables: &HashMap<String,
                         if let Some(value) = obj.get("value") {
                             match value {
                                 serde_json::Value::String(s) => {
-                                    processed.push(substitute_variables(s, variables));
+                                    let substituted = substitute_variables(s, variables);
+                                    // Filter out problematic arguments and empty ones
+                                    if !substituted.trim().is_empty() && !is_problematic_argument(&substituted) {
+                                        processed.push(substituted);
+                                    }
                                 },
                                 serde_json::Value::Array(arr) => {
                                     for item in arr {
                                         if let serde_json::Value::String(s) = item {
-                                            processed.push(substitute_variables(s, variables));
+                                            let substituted = substitute_variables(s, variables);
+                                            if !substituted.trim().is_empty() && !is_problematic_argument(&substituted) {
+                                                processed.push(substituted);
+                                            }
                                         }
                                     }
                                 },
@@ -317,6 +328,26 @@ pub fn process_arguments(args: &[serde_json::Value], variables: &HashMap<String,
     Ok(processed)
 }
 
+/// Check if an argument is problematic for the current platform
+fn is_problematic_argument(arg: &str) -> bool {
+    // Filter out macOS-specific arguments on Windows/Linux
+    if cfg!(not(target_os = "macos")) && arg == "-XstartOnFirstThread" {
+        return true;
+    }
+    
+    // Filter out demo mode argument - we want normal gameplay
+    if arg == "--demo" {
+        return true;
+    }
+    
+    // Filter out quick play arguments until we implement proper quick play functionality
+    if arg.starts_with("--quickPlay") || arg.starts_with("--quick-play") {
+        return true;
+    }
+    
+    false
+}
+
 /// Substitute variables in template string
 pub fn substitute_variables(template: &str, variables: &HashMap<String, String>) -> String {
     let mut result = template.to_string();
@@ -325,6 +356,11 @@ pub fn substitute_variables(template: &str, variables: &HashMap<String, String>)
         let placeholder = format!("${{{}}}", key);
         result = result.replace(&placeholder, value);
     }
+    
+    // Handle any remaining unresolved variables by removing them
+    // This handles cases like ${quickPlayPath} that aren't in our variable map
+    let re = regex::Regex::new(r"\$\{[^}]+\}").unwrap();
+    result = re.replace_all(&result, "").to_string();
     
     result
 }
@@ -381,8 +417,8 @@ pub fn evaluate_os_condition(os_condition: &serde_json::Value) -> Result<bool, S
 /// Build classpath from libraries
 pub fn build_classpath(
     libraries: &[Library], 
-    libraries_path: &PathBuf,
-    version_jar_path: &PathBuf
+    libraries_path: &Path,
+    version_jar_path: &Path
 ) -> Result<String, String> {
     let mut classpath_entries = Vec::new();
     
@@ -419,12 +455,10 @@ pub fn build_classpath(
                         println!("  Found library: {}", artifact.path);
                     }
                     classpath_entries.push(lib_path.to_string_lossy().to_string());
+                } else if library.name.contains("lwjgl") {
+                    println!("  Missing LWJGL library: {} (path: {})", library.name, lib_path.display());
                 } else {
-                    if library.name.contains("lwjgl") {
-                        println!("  Missing LWJGL library: {} (path: {})", library.name, lib_path.display());
-                    } else {
-                        println!("  Missing library: {} (path: {})", library.name, lib_path.display());
-                    }
+                    println!("  Missing library: {} (path: {})", library.name, lib_path.display());
                 }
             } else {
                 println!("  No artifact for library: {}", library.name);
@@ -473,7 +507,7 @@ pub fn build_classpath(
 }
 
 /// Try to find library manually using common Maven patterns
-fn try_find_library_manually(library_name: &str, libraries_path: &PathBuf) -> Option<PathBuf> {
+fn try_find_library_manually(library_name: &str, libraries_path: &Path) -> Option<PathBuf> {
     // Parse library name like "net.fabricmc:fabric-loader:0.16.10"
     let parts: Vec<&str> = library_name.split(':').collect();
     if parts.len() >= 3 {
@@ -552,7 +586,7 @@ pub fn build_memory_arguments(settings: &LauncherSettings) -> Vec<String> {
 }
 
 /// Build JVM arguments including natives path
-pub fn build_jvm_arguments(settings: &LauncherSettings, natives_path: &PathBuf) -> Vec<String> {
+pub fn build_jvm_arguments(settings: &LauncherSettings, natives_path: &Path) -> Vec<String> {
     let mut args = build_memory_arguments(settings);
     
     // Add the crucial java.library.path for native libraries (LWJGL)
@@ -564,7 +598,7 @@ pub fn build_jvm_arguments(settings: &LauncherSettings, natives_path: &PathBuf) 
 /// Extract native libraries for the current platform
 pub fn extract_natives(
     libraries: &[Library],
-    libraries_path: &PathBuf,
+    libraries_path: &Path,
     natives_path: &PathBuf,
 ) -> Result<(), String> {
     // Clear existing natives
@@ -610,7 +644,7 @@ pub fn extract_natives(
 }
 
 /// Extract a JAR file to a directory
-fn extract_jar(jar_path: &PathBuf, extract_to: &PathBuf) -> Result<(), String> {
+fn extract_jar(jar_path: &PathBuf, extract_to: &Path) -> Result<(), String> {
     let file = fs::File::open(jar_path)
         .map_err(|e| format!("Failed to open JAR: {}", e))?;
     

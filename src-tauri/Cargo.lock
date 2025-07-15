@@ -1976,6 +1976,7 @@ dependencies = [
  "dirs 5.0.1",
  "dotenvy",
  "once_cell",
+ "regex",
  "reqwest 0.11.27",
  "serde",
  "serde_json",

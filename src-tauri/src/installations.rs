@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use chrono::Utc;
 use crate::AppError;
-use crate::auth::{MicrosoftAccount, check_auth_status, get_access_token};
+use crate::auth::{MicrosoftAccount, check_auth_status, get_access_token, get_active_launcher_account};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MinecraftInstallation {
@@ -782,8 +782,8 @@ pub async fn launch_minecraft_installation(installation_id: String) -> Result<()
         println!("  - {}", key);
     }
     
-    // Get current account using mock auth system
-    let account = get_mock_auth_account().await?;
+    // Get current account (try real auth first, fall back to mock)
+    let account = get_launch_auth_account().await?;
     
     // Get installation
     let installation = launcher_profiles.profiles.get(&installation_id)
@@ -836,9 +836,11 @@ pub async fn launch_minecraft_installation(installation_id: String) -> Result<()
     let jvm_args = process_arguments(&version_manifest.arguments.jvm, &variables)?;
     command_args.extend(jvm_args);
     
-    // Add classpath
-    command_args.push("-cp".to_string());
-    command_args.push(classpath);
+    // Add classpath only if not already present in JVM args
+    if !command_args.contains(&"-cp".to_string()) && !command_args.contains(&"-classpath".to_string()) {
+        command_args.push("-cp".to_string());
+        command_args.push(classpath);
+    }
     
     // Add main class
     command_args.push(version_manifest.main_class.clone());
@@ -966,8 +968,8 @@ pub async fn quick_launch_minecraft(version_name: String) -> Result<(), String> 
     let settings = load_settings().await
         .map_err(|e| format!("Failed to load settings: {}", e))?;
     
-    // Get current account using mock auth system
-    let account = get_mock_auth_account().await?;
+    // Get current account (try real auth first, fall back to mock)
+    let account = get_launch_auth_account().await?;
     
     // Get minecraft directory and paths
     let minecraft_dir = PathBuf::from(settings.minecraft_path.as_ref()
@@ -1017,9 +1019,11 @@ pub async fn quick_launch_minecraft(version_name: String) -> Result<(), String> 
     let jvm_args = process_arguments(&version_manifest.arguments.jvm, &variables)?;
     command_args.extend(jvm_args);
     
-    // Add classpath
-    command_args.push("-cp".to_string());
-    command_args.push(classpath);
+    // Add classpath only if not already present in JVM args
+    if !command_args.contains(&"-cp".to_string()) && !command_args.contains(&"-classpath".to_string()) {
+        command_args.push("-cp".to_string());
+        command_args.push(classpath);
+    }
     
     // Add main class
     command_args.push(version_manifest.main_class.clone());
@@ -1050,7 +1054,59 @@ pub async fn quick_launch_minecraft(version_name: String) -> Result<(), String> 
 }
 
 /// Helper function to get mock auth account for testing
-async fn get_mock_auth_account() -> Result<MicrosoftAccount, String> {
+async fn get_launch_auth_account() -> Result<MicrosoftAccount, String> {
+    // First, try to get a real authenticated account from storage
+    match get_active_launcher_account().await {
+        Ok(Some(account)) => {
+            println!("Using real Microsoft account: {}", account.username);
+            
+            // Check if the Minecraft token is still valid
+            if let Some(_minecraft_token) = &account.minecraft_access_token {
+                if let Some(expires_at) = account.minecraft_expires_at {
+                    if expires_at > chrono::Utc::now().timestamp() {
+                        println!("Minecraft token is valid, launching with real authentication");
+                        return Ok(account);
+                    } else {
+                        println!("Minecraft token expired, need to refresh");
+                    }
+                } else {
+                    println!("No Minecraft token expiry info, assuming valid");
+                    return Ok(account);
+                }
+            } else {
+                println!("No Minecraft access token available");
+            }
+            
+            // Use the real account data but fall back to offline mode for launch
+            println!("Using real account data in offline mode");
+            return Ok(MicrosoftAccount {
+                id: account.id,
+                username: account.username, // Use real username
+                uuid: account.uuid, // Use real UUID if available
+                access_token: account.access_token,
+                refresh_token: account.refresh_token,
+                expires_at: account.expires_at,
+                skin_url: account.skin_url,
+                is_active: account.is_active,
+                last_used: account.last_used,
+                minecraft_access_token: None, // No valid Minecraft token, will use offline mode
+                minecraft_expires_at: None,
+                xbox_user_hash: account.xbox_user_hash,
+            });
+        }
+        Ok(None) => {
+            println!("No active Microsoft account found");
+        }
+        Err(e) => {
+            println!("Failed to load active account: {}", e);
+        }
+    }
+    
+    // Fall back to mock auth for testing
+    println!("No real Microsoft account found, using mock authentication");
+    println!("Note: This will launch Minecraft in offline mode");
+    println!("To get online authentication, please log in through the UI first");
+    
     // Check if auth is enabled (this will always return true in our mock system)
     let auth_status = check_auth_status().await?;
     if !auth_status.authenticated {
@@ -1071,8 +1127,8 @@ async fn get_mock_auth_account() -> Result<MicrosoftAccount, String> {
         skin_url: None,
         is_active: true,
         last_used: chrono::Utc::now().timestamp(),
-        minecraft_access_token: Some("mock_minecraft_token".to_string()),
-        minecraft_expires_at: Some(chrono::Utc::now().timestamp() + 3600),
+        minecraft_access_token: None, // Use offline mode instead of mock tokens
+        minecraft_expires_at: None,
         xbox_user_hash: "mock_xbox_hash".to_string(),
     })
 }
