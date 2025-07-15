@@ -79,19 +79,21 @@
         result = await quickLaunchDefault();
       }
       
-      launchStatus = formatLaunchResult(result);
-      
       if (result.success) {
+        launchStatus = 'Launched Minecraft!';
         // Refresh installations to update last played
         setTimeout(() => {
           GameManager.loadInstallations();
         }, 1000);
+      } else {
+        launchStatus = formatLaunchResult(result);
       }
       
     } catch (err) {
       console.error('Launch error:', err);
       launchStatus = `Launch failed: ${err}`;
     } finally {
+      // Reset the button state quickly since Minecraft is now running independently
       setTimeout(() => {
         launchStatus = '';
         isLaunching = false;
@@ -101,8 +103,11 @@
 
   async function handleInstallationLaunch(installation: MinecraftInstallation) {
     const launchButton = event?.target as HTMLButtonElement;
+    const originalText = launchButton?.textContent || '';
+    
     if (launchButton) {
       launchButton.disabled = true;
+      launchButton.textContent = 'Launching...';
     }
     
     try {
@@ -115,6 +120,9 @@
       const result = await launchInstallation(installation.id);
       
       if (result.success) {
+        if (launchButton) {
+          launchButton.textContent = 'Launched!';
+        }
         // Refresh installations to update last played
         setTimeout(() => {
           GameManager.loadInstallations();
@@ -126,9 +134,13 @@
       console.error('Installation launch error:', err);
       alert(`Launch failed: ${err}`);
     } finally {
-      if (launchButton) {
-        launchButton.disabled = false;
-      }
+      // Reset button state after a short delay
+      setTimeout(() => {
+        if (launchButton) {
+          launchButton.disabled = false;
+          launchButton.textContent = originalText;
+        }
+      }, 2000);
     }
   }
 </script>

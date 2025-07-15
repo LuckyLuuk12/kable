@@ -97,9 +97,13 @@
 
   async function backupWorld(worldName: string) {
     try {
-      await MapsManager.backupWorld(worldName);
-      // Show success message or refresh UI
-      console.log(`World "${worldName}" backed up successfully`);
+      const backupName = await MapsManager.backupWorld(worldName);
+      // Show success message with backup location info
+      const successMessage = `World "${worldName}" backed up successfully as "${backupName}".\nBackups are stored in .minecraft/kable/world-backups/`;
+      alert(successMessage);
+      console.log(successMessage);
+      // Refresh the worlds list to update backup counts
+      await loadWorlds();
     } catch (err) {
       console.error('Failed to backup world:', err);
       error = `Failed to backup world: ${err}`;
@@ -217,6 +221,11 @@
                   <span class="value">{world.difficulty || 'Unknown'}</span>
                 </div>
               {/if}
+              
+              <div class="detail-row">
+                <span class="label">Backups:</span>
+                <span class="value">{world.backup_count || 0}</span>
+              </div>
             </div>
             
             <div class="world-actions">
@@ -260,6 +269,8 @@
 </div>
 
 <style lang="scss">
+  @use '@kablan/clean-ui/scss/variables' as *;
+
   .maps-page {
     max-width: 1200px;
     margin: 0 auto;
@@ -272,21 +283,21 @@
     
     h1 {
       margin: 0 0 0.5rem 0;
-      color: var(--text);
+      color: $text;
       font-size: 2.5rem;
       font-weight: 700;
     }
     
     p {
       margin: 0;
-      color: var(--text-muted);
+      color: $placeholder;
       font-size: 1.1rem;
     }
   }
 
   .error-message {
-    background: var(--danger-bg);
-    color: var(--danger);
+    background: rgba($red, 0.1);
+    color: $red;
     padding: 1rem;
     border-radius: 0.5rem;
     margin-bottom: 1rem;
@@ -297,8 +308,8 @@
   }
 
   .search-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: $card;
+    border: 1px solid $dark-600;
     border-radius: 1rem;
     padding: 1.5rem;
     margin-bottom: 2rem;
@@ -325,21 +336,21 @@
       left: 1rem;
       top: 50%;
       transform: translateY(-50%);
-      color: var(--text-muted);
+      color: $placeholder;
     }
     
     .search-input {
       width: 100%;
       padding: 0.75rem 1rem 0.75rem 2.5rem;
-      border: 1px solid var(--border);
+      border: 1px solid $dark-600;
       border-radius: 0.75rem;
-      background: var(--background);
-      color: var(--text);
+      background: $input;
+      color: $text;
       font-size: 1rem;
       
       &:focus {
         outline: none;
-        border-color: var(--primary);
+        border-color: $primary;
       }
     }
   }
@@ -353,22 +364,22 @@
 
   .category-select, .sort-select {
     padding: 0.75rem 1rem;
-    border: 1px solid var(--border);
+    border: 1px solid $dark-600;
     border-radius: 0.75rem;
-    background: var(--background);
-    color: var(--text);
+    background: $input;
+    color: $text;
     font-size: 0.9rem;
     cursor: pointer;
     
     &:focus {
       outline: none;
-      border-color: var(--primary);
+      border-color: $primary;
     }
   }
 
   .worlds-section {
-    background: var(--surface);
-    border: 1px solid var(--border);
+    background: $card;
+    border: 1px solid $dark-600;
     border-radius: 1rem;
     padding: 2rem;
   }
@@ -381,7 +392,7 @@
     
     h2 {
       margin: 0;
-      color: var(--text);
+      color: $text;
       font-size: 1.5rem;
       font-weight: 600;
     }
@@ -392,13 +403,13 @@
     padding: 3rem 1rem;
     
     :global(.loader) {
-      color: var(--primary);
+      color: $primary;
       margin-bottom: 1rem;
       animation: spin 1s linear infinite;
     }
     
     p {
-      color: var(--text-muted);
+      color: $placeholder;
       font-size: 1.1rem;
     }
   }
@@ -414,14 +425,14 @@
   }
 
   .world-card {
-    background: var(--background);
-    border: 1px solid var(--border);
+    background: $container;
+    border: 1px solid $dark-600;
     border-radius: 0.75rem;
     padding: 1.5rem;
     transition: all 0.2s ease;
     
     &:hover {
-      border-color: var(--primary);
+      border-color: $primary;
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
@@ -434,7 +445,7 @@
       
       .world-name {
         margin: 0;
-        color: var(--text);
+        color: $text;
         font-size: 1.25rem;
         font-weight: 600;
         flex: 1;
@@ -456,13 +467,13 @@
         margin-bottom: 0.5rem;
         
         .label {
-          color: var(--text-muted);
+          color: $placeholder;
           font-size: 0.875rem;
           font-weight: 500;
         }
         
         .value {
-          color: var(--text);
+          color: $text;
           font-size: 0.875rem;
           font-weight: 500;
         }
@@ -487,23 +498,12 @@
         cursor: pointer;
         transition: all 0.2s ease;
         
-        &.secondary-btn {
-          background: var(--surface);
-          color: var(--text);
-          border: 1px solid var(--border);
-          
-          &:hover {
-            background: var(--background);
-            border-color: var(--primary);
-          }
-        }
-        
         &.danger-btn {
-          background: var(--danger);
+          background: $red;
           color: white;
           
           &:hover {
-            background: var(--danger-hover);
+            background: $red-600;
           }
         }
       }
@@ -515,20 +515,20 @@
     padding: 3rem 1rem;
     
     :global(.empty-icon) {
-      color: var(--text-muted);
+      color: $placeholder;
       margin-bottom: 1rem;
     }
     
     h3 {
       margin: 0 0 0.5rem 0;
-      color: var(--text);
+      color: $text;
       font-size: 1.25rem;
       font-weight: 600;
     }
     
     p {
       margin: 0 0 1.5rem 0;
-      color: var(--text-muted);
+      color: $placeholder;
       font-size: 1rem;
       max-width: 500px;
       margin-left: auto;

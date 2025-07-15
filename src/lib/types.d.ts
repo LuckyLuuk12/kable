@@ -203,6 +203,7 @@ export interface LocalWorld {
   difficulty?: string;  // Added difficulty for world stats
   folder_name: string;  // Folder name for searching
   created: number;  // Creation timestamp
+  backup_count: number;  // Number of backups for this world
 }
 
 export interface WorldDownload {

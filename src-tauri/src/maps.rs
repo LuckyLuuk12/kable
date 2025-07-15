@@ -87,7 +87,7 @@ struct LevelData {
 // Get all local worlds from the saves directory
 #[tauri::command]
 pub async fn get_local_worlds(minecraft_path: String) -> Result<Vec<LocalWorld>, String> {
-    let saves_dir = PathBuf::from(minecraft_path).join("saves");
+    let saves_dir = PathBuf::from(&minecraft_path).join("saves");
     
     if !saves_dir.exists() {
         return Ok(Vec::new());
@@ -100,7 +100,7 @@ pub async fn get_local_worlds(minecraft_path: String) -> Result<Vec<LocalWorld>,
         let world_path = entry.path();
         
         if world_path.is_dir() {
-            if let Ok(world) = parse_world_folder(&world_path).await {
+            if let Ok(world) = parse_world_folder(&world_path, &minecraft_path).await {
                 worlds.push(world);
             }
         }
@@ -108,12 +108,12 @@ pub async fn get_local_worlds(minecraft_path: String) -> Result<Vec<LocalWorld>,
     
     // Sort by last played (most recent first)
     worlds.sort_by(|a, b| b.last_played.cmp(&a.last_played));
-    
+
     Ok(worlds)
 }
 
 // Parse individual world folder
-async fn parse_world_folder(world_path: &PathBuf) -> Result<LocalWorld, AppError> {
+async fn parse_world_folder(world_path: &PathBuf, minecraft_path: &str) -> Result<LocalWorld, AppError> {
     let folder_name = world_path
         .file_name()
         .and_then(|n| n.to_str())
@@ -125,6 +125,9 @@ async fn parse_world_folder(world_path: &PathBuf) -> Result<LocalWorld, AppError
     
     // Calculate world size
     let size_mb = calculate_folder_size(world_path).unwrap_or(0) / (1024 * 1024);
+    
+    // Count backups for this world
+    let backup_count = count_world_backups(minecraft_path, &folder_name);
     
     // Default values
     let mut world = LocalWorld {
@@ -139,7 +142,7 @@ async fn parse_world_folder(world_path: &PathBuf) -> Result<LocalWorld, AppError
         created: 0,
         seed: None,
         icon: if icon_path.exists() { Some(icon_path.to_string_lossy().to_string()) } else { None },
-        backup_count: 0,
+        backup_count,
         has_cheats: false,
         world_type: "default".to_string(),
     };
@@ -208,6 +211,9 @@ async fn parse_world_folder(world_path: &PathBuf) -> Result<LocalWorld, AppError
         }
     }
     
+    // Count backups for this world
+    world.backup_count = count_world_backups(minecraft_path, &folder_name);
+    
     Ok(world)
 }
 
@@ -265,15 +271,19 @@ pub async fn delete_world(minecraft_path: String, world_folder: String) -> Resul
 // Create backup of a world
 #[tauri::command]
 pub async fn backup_world(minecraft_path: String, world_folder: String) -> Result<String, String> {
-    let saves_dir = PathBuf::from(minecraft_path).join("saves");
+    let minecraft_dir = PathBuf::from(minecraft_path);
+    let saves_dir = minecraft_dir.join("saves");
     let world_path = saves_dir.join(&world_folder);
-    let backups_dir = saves_dir.join("backups");
+    
+    // Use .minecraft/kable/world-backups for backup storage
+    let kable_dir = minecraft_dir.join("kable");
+    let backups_dir = kable_dir.join("world-backups");
     
     if !world_path.exists() {
         return Err("World folder does not exist".to_string());
     }
     
-    // Create backups directory if it doesn't exist
+    // Create kable and backups directories if they don't exist
     if !backups_dir.exists() {
         fs::create_dir_all(&backups_dir).map_err(|e| e.to_string())?;
     }
@@ -287,6 +297,30 @@ pub async fn backup_world(minecraft_path: String, world_folder: String) -> Resul
     copy_dir_all(&world_path, &backup_path).map_err(|e| format!("Failed to create backup: {}", e))?;
     
     Ok(backup_name)
+}
+
+// Helper function to count backups for a world
+fn count_world_backups(minecraft_path: &str, world_folder: &str) -> u32 {
+    let minecraft_dir = PathBuf::from(minecraft_path);
+    let backups_dir = minecraft_dir.join("kable").join("world-backups");
+    
+    if !backups_dir.exists() {
+        return 0;
+    }
+    
+    let mut count = 0;
+    if let Ok(entries) = fs::read_dir(&backups_dir) {
+        for entry in entries.flatten() {
+            if let Some(file_name) = entry.file_name().to_str() {
+                // Check if the backup file starts with the world folder name
+                if file_name.starts_with(&format!("{}_", world_folder)) {
+                    count += 1;
+                }
+            }
+        }
+    }
+    
+    count
 }
 
 // Helper function to copy directory recursively

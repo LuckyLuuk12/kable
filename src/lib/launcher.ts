@@ -179,7 +179,7 @@ export async function launchInstallation(installationId: string): Promise<Launch
  */
 export function formatLaunchResult(result: LaunchResult): string {
     if (result.success) {
-        return 'Minecraft launched successfully!';
+        return 'Launched Minecraft!';
     } else {
         return result.error || 'Unknown launch error occurred';
     }

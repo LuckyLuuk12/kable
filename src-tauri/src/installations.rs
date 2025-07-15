@@ -925,32 +925,23 @@ pub async fn launch_minecraft_installation(installation_id: String) -> Result<()
     // Set environment variables
     command.env("JAVA_HOME", java_executable.clone());
     
-    // For better debugging, let's run the command and capture output immediately
-    match command.output() {
-        Ok(output) => {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let stderr = String::from_utf8_lossy(&output.stderr);
+    // Spawn the Minecraft process without waiting for it to finish
+    match command.spawn() {
+        Ok(mut child) => {
+            println!("=== MINECRAFT PROCESS SPAWNED ===");
+            println!("Process ID: {}", child.id());
+            println!("Minecraft launched successfully!");
+            println!("================================");
             
-            println!("=== PROCESS OUTPUT ===");
-            println!("Exit status: {}", output.status);
+            // Optionally, we can detach the process so it continues running 
+            // even if the launcher closes
+            std::thread::spawn(move || {
+                if let Ok(status) = child.wait() {
+                    println!("Minecraft process exited with status: {}", status);
+                }
+            });
             
-            if !stdout.trim().is_empty() {
-                println!("STDOUT:");
-                println!("{}", stdout);
-            }
-            
-            if !stderr.trim().is_empty() {
-                println!("STDERR:");
-                println!("{}", stderr);
-            }
-            println!("=====================");
-            
-            if output.status.success() {
-                println!("Minecraft launched successfully!");
-                Ok(())
-            } else {
-                Err(format!("Minecraft process failed to start. Exit code: {}", output.status))
-            }
+            Ok(())
         },
         Err(e) => {
             Err(format!("Failed to spawn Minecraft process: {}", e))
