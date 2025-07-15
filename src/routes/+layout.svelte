@@ -3,8 +3,7 @@
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
   import { AuthManager, SettingsManager, GameManager, Icon } from '$lib';
-  import { IconManager } from '$lib/managers/IconManager';
-  import { windowStateManager } from '$lib/windowStateManager';
+  import { IconManager, WindowStateManager } from '$lib/managers';
   
   let isTauriReady = false;
   let initializationStatus = 'Initializing...';
@@ -20,7 +19,7 @@
       
       // Initialize all managers
       await Promise.all([
-        windowStateManager.initialize(), // Initialize window state first
+        WindowStateManager.initialize(), // Initialize window state first
         AuthManager.initialize(),
         SettingsManager.initialize(),
         GameManager.initialize(),
@@ -64,6 +63,7 @@
   $: currentPath = $page.url.pathname;
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <div class="app-layout" class:nav-open={!isNavCollapsed} on:keydown={handleKeydown} role="application" tabindex="-1">
   <nav class="sidebar" class:collapsed={isNavCollapsed}>
     <!-- Header Section with Profile -->

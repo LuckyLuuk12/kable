@@ -32,7 +32,7 @@
     isLoading = true;
     error = null;
     try {
-      const settings = await SettingsManager.getSettings();
+      const settings = await SettingsManager.getSettingsAsync();
       installations = await ModsManager.getModdedInstallations(settings.minecraft_path || '');
       if (installations.length > 0 && selectedInstallation === 'global') {
         // Keep global selected by default
@@ -52,7 +52,7 @@
     isLoading = true;
     error = null;
     try {
-      const settings = await SettingsManager.getSettings();
+      const settings = await SettingsManager.getSettingsAsync();
       
       if (selectedInstallation === 'global') {
         // For global, we need to set up the global mods folder first
@@ -101,7 +101,7 @@
     }
 
     try {
-      const settings = await SettingsManager.getSettings();
+      const settings = await SettingsManager.getSettingsAsync();
       await ModsManager.updateInstallationModConfig(
         settings.minecraft_path || '',
         selectedInstallation,

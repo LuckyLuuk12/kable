@@ -29,7 +29,7 @@ pub use installations::{MinecraftInstallation, get_minecraft_installations, refr
     open_installation_folder, launch_minecraft_installation, quick_launch_minecraft, launch_most_recent_installation};
 pub use launcher::{LaunchContext, VersionManifest, load_version_manifest, get_minecraft_paths, get_java_path};
 pub use icons::{CustomIconTemplate, IconSettings, get_custom_icon_templates, save_custom_icon_template, delete_custom_icon_template, validate_icon_template, get_icons_directory_path, open_icons_directory};
-pub use window_state::{WindowState, load_window_state, save_window_state, get_current_window_state, apply_window_state, setup_window_state_handlers};
+pub use window_state::{WindowState, load_window_state, save_window_state, get_current_window_state, apply_window_state, setup_window_state_handlers, get_monitor_info};
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -264,7 +264,8 @@ pub fn run() {
             window_state::load_window_state,
             window_state::save_window_state,
             window_state::get_current_window_state,
-            window_state::apply_window_state
+            window_state::apply_window_state,
+            window_state::get_monitor_info
         ])
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {

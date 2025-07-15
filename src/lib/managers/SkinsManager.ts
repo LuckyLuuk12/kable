@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { get } from 'svelte/store';
-import { currentAccount } from '../auth';
+import { currentAccount } from '../stores/auth';
 import type { MinecraftSkin, SkinDownload } from '../types';
 
 export class SkinsManager {

@@ -1,6 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
+import { get } from 'svelte/store';
 import type { LocalWorld, WorldDownload, MinecraftDirectoryInfo } from '../types';
-import { SettingsManager } from '../settings';
+import { settings } from '../stores/settings';
 
 export class MapsManager {
   /**
@@ -14,7 +15,7 @@ export class MapsManager {
    * Get all local worlds from the Minecraft saves directory
    */
   static async getLocalWorlds(): Promise<LocalWorld[]> {
-    const minecraftPath = SettingsManager.getMinecraftPath();
+    const minecraftPath = get(settings).minecraft_path;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -25,7 +26,7 @@ export class MapsManager {
    * Delete a world from the saves directory
    */
   static async deleteWorld(worldFolder: string): Promise<void> {
-    const minecraftPath = SettingsManager.getMinecraftPath();
+    const minecraftPath = get(settings).minecraft_path;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -36,7 +37,7 @@ export class MapsManager {
    * Create a backup of a world
    */
   static async backupWorld(worldFolder: string): Promise<string> {
-    const minecraftPath = SettingsManager.getMinecraftPath();
+    const minecraftPath = get(settings).minecraft_path;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }

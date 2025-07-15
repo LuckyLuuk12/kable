@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
-import { SettingsManager } from './settings';
-import { GameManager } from './game';
-import { MapsManager } from './managers/MapsManager';
+import { SettingsManager } from './SettingsManager';
+import { GameManager } from './GameManager';
+import { MapsManager } from './MapsManager';
 
 // Global initialization state
 export const isAppInitialized = writable(false);

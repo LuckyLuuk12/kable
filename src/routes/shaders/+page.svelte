@@ -1,6 +1,6 @@
 <script lang="ts">
   import { AuthManager } from '$lib';
-  import { currentAccount } from '$lib/auth';
+  import { currentAccount } from '$lib/stores/auth';
   import { onMount } from 'svelte';
 
   let searchQuery = '';

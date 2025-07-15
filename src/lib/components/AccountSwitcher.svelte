@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { AuthManager, currentAccount, availableAccounts, isAuthenticated } from '../auth';
+  import { AuthManager } from '../managers/AuthManager';
+  import { currentAccount, availableAccounts, isAuthenticated } from '../stores/auth';
   import type { MicrosoftAccount } from '../types';
   import { fly, scale } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';

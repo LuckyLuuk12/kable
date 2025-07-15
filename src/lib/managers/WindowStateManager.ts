@@ -8,6 +8,9 @@ export interface WindowState {
   y: number;
   maximized: boolean;
   fullscreen: boolean;
+  monitor_name?: string;
+  monitor_position?: [number, number];
+  monitor_size?: [number, number];
 }
 
 export class WindowStateManager {
@@ -22,6 +25,14 @@ export class WindowStateManager {
       WindowStateManager.instance = new WindowStateManager();
     }
     return WindowStateManager.instance;
+  }
+
+  /**
+   * Static initialize method for consistency with other managers
+   */
+  static async initialize(): Promise<void> {
+    const instance = WindowStateManager.getInstance();
+    return await instance.initialize();
   }
 
   async initialize(): Promise<void> {
@@ -86,7 +97,10 @@ export class WindowStateManager {
         x: -1, // -1 means center
         y: -1, // -1 means center
         maximized: false,
-        fullscreen: false
+        fullscreen: false,
+        monitor_name: undefined,
+        monitor_position: undefined,
+        monitor_size: undefined
       };
     }
   }
@@ -187,13 +201,25 @@ export class WindowStateManager {
         x: -1,
         y: -1,
         maximized: false,
-        fullscreen: false
+        fullscreen: false,
+        monitor_name: undefined,
+        monitor_position: undefined,
+        monitor_size: undefined
       };
       
       await this.applyWindowState(defaultState);
       await this.saveWindowState(defaultState);
     } catch (error) {
       console.error('Failed to reset window state:', error);
+    }
+  }
+
+  async getMonitorInfo(): Promise<any[]> {
+    try {
+      return await invoke<any[]>('get_monitor_info');
+    } catch (error) {
+      console.error('Failed to get monitor info:', error);
+      return [];
     }
   }
 }

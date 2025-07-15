@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { AuthService } from '$lib/services';
-  import { currentAccount, isSignedIn } from '$lib/auth';
+  import { AuthService } from '$lib/services/AuthService';
+  import { currentAccount, isSignedIn } from '$lib/stores/auth';
   import Icon from '$lib/components/Icon.svelte';
   import AccountSwitcher from '$lib/components/AccountSwitcher.svelte';
 

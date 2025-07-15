@@ -1,21 +1,9 @@
-// Core services
-export * from './services';
-export type * from './types';
-export { AuthService } from './authService';
-
-// Managers
+// Export organized structure
+export * from './stores';
 export * from './managers';
 
-// Components
+// Export types
+export type * from './types';
+
+// Re-export components for convenience
 export * from './components';
-
-// State management
-export * from './auth';
-export * from './settings';
-export * from './game';
-
-// Launcher system
-export * from './launcher';
-
-// Legacy exports for backward compatibility
-export { SettingsService } from './services';

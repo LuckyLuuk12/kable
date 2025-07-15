@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { SettingsManager, Icon } from '$lib';
-  import { installations, isLoadingInstallations, installationsError, GameManager } from '$lib/game';
-  import { quickLaunchDefault, launchInstallation, prepareForLaunch, formatLaunchResult } from '$lib/launcher';
+  import { installations, isLoadingInstallations, installationsError } from '$lib/stores/game';
+  import { GameManager } from '$lib/managers/GameManager';
+  import { LaunchService } from '$lib/services/LaunchService';
   import type { MinecraftInstallation } from '$lib/types';
 
   // State variables
@@ -94,9 +95,9 @@
     
     try {
       // Check if we're ready to launch
-      const prep = await prepareForLaunch();
-      if (!prep.ready) {
-        launchStatus = prep.message;
+      const { canLaunch, reason } = GameManager.canLaunch();
+      if (!canLaunch) {
+        launchStatus = reason || 'Cannot launch';
         setTimeout(() => {
           launchStatus = '';
           isLaunching = false;
@@ -108,10 +109,15 @@
       if (lastPlayedInstallations.length > 0) {
         console.log('Launching installation:', lastPlayedInstallations[0]);
         launchStatus = `Launching ${lastPlayedInstallations[0].name}...`;
-        result = await launchInstallation(lastPlayedInstallations[0].id);
+        // Select the installation and launch with GameManager
+        GameManager.selectInstallation(lastPlayedInstallations[0]);
+        await GameManager.launchGame();
+        result = { success: true };
       } else {
         launchStatus = 'Launching default Minecraft...';
-        result = await quickLaunchDefault();
+        // Use LaunchService for quick launch fallback
+        const launchService = LaunchService.getInstance();
+        result = await launchService.launchLatest();
       }
       
       if (result.success) {
@@ -121,7 +127,7 @@
           GameManager.loadInstallations();
         }, 1000);
       } else {
-        launchStatus = formatLaunchResult(result);
+        launchStatus = `Launch failed: ${result.error || 'Unknown error'}`;
       }
       
     } catch (err) {
@@ -146,27 +152,26 @@
     }
     
     try {
-      const prep = await prepareForLaunch();
-      if (!prep.ready) {
-        alert(prep.message);
+      // Select the installation and check if we can launch
+      GameManager.selectInstallation(installation);
+      const { canLaunch, reason } = GameManager.canLaunch();
+      if (!canLaunch) {
+        alert(reason || 'Cannot launch');
         return;
       }
       
-      const result = await launchInstallation(installation.id);
+      await GameManager.launchGame();
       
-      if (result.success) {
-        if (launchButton) {
-          launchButton.textContent = 'Launched!';
-        }
-        // Refresh installations to update last played
-        setTimeout(() => {
-          GameManager.loadInstallations();
-        }, 1000);
-      } else {
-        alert(formatLaunchResult(result));
+      if (launchButton) {
+        launchButton.textContent = 'Launched!';
       }
+      // Refresh installations to update last played
+      setTimeout(() => {
+        GameManager.loadInstallations();
+      }, 1000);
     } catch (err) {
       console.error('Installation launch error:', err);
+      alert(`Launch failed: ${err}`);
       alert(`Launch failed: ${err}`);
     } finally {
       // Reset button state after a short delay

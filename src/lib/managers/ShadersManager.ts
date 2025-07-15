@@ -1,13 +1,14 @@
 import { invoke } from '@tauri-apps/api/core';
+import { get } from 'svelte/store';
 import type { ShaderPack, ShaderDownload, ShaderSettings } from '../types';
-import { SettingsManager } from '../settings';
+import { settings } from '../stores/settings';
 
 export class ShadersManager {
   /**
    * Get all installed shader packs
    */
   static async getInstalledShaders(): Promise<ShaderPack[]> {
-    const minecraftPath = SettingsManager.getMinecraftPath();
+    const minecraftPath = get(settings).minecraft_path;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -18,7 +19,7 @@ export class ShadersManager {
    * Toggle shader pack enabled/disabled state
    */
   static async toggleShader(shaderFile: string, enabled: boolean): Promise<void> {
-    const minecraftPath = SettingsManager.getMinecraftPath();
+    const minecraftPath = get(settings).minecraft_path;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -29,7 +30,7 @@ export class ShadersManager {
    * Delete a shader pack
    */
   static async deleteShader(shaderFile: string): Promise<void> {
-    const minecraftPath = SettingsManager.getMinecraftPath();
+    const minecraftPath = get(settings).minecraft_path;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -40,7 +41,7 @@ export class ShadersManager {
    * Install shader pack from file
    */
   static async installShaderPack(shaderFilePath: string): Promise<string> {
-    const minecraftPath = SettingsManager.getMinecraftPath();
+    const minecraftPath = get(settings).minecraft_path;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -51,7 +52,7 @@ export class ShadersManager {
    * Get detailed info about a shader pack
    */
   static async getShaderInfo(shaderFile: string): Promise<ShaderPack> {
-    const minecraftPath = SettingsManager.getMinecraftPath();
+    const minecraftPath = get(settings).minecraft_path;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -182,7 +183,7 @@ export class ShadersManager {
    * Check if shader is compatible with Minecraft version
    */
   static isCompatible(shader: ShaderPack, minecraftVersion: string): boolean {
-    if (shader.compatible_versions.length === 0) {
+    if (!shader.compatible_versions || shader.compatible_versions.length === 0) {
       return true; // Assume compatible if no specific versions listed
     }
     

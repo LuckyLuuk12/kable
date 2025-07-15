@@ -1,6 +1,6 @@
 <script lang="ts">
   import { SettingsManager } from '$lib';
-  import { settings } from '$lib/settings';
+  import { settings } from '$lib/stores/settings';
   import type { LauncherSettings } from '$lib/types';
   import Icon from '$lib/components/Icon.svelte';
   import { IconManager, selectedTemplate, availableTemplates, isIconsLoading } from '$lib/managers/IconManager';

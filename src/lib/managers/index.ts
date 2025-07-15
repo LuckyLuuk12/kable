@@ -7,3 +7,5 @@ export { ModsManager } from './ModsManager';
 export { ShadersManager } from './ShadersManager';
 export { SkinsManager } from './SkinsManager';
 export { IconManager } from './IconManager';
+export { WindowStateManager } from './WindowStateManager';
+export { DataManager } from './DataManager';
