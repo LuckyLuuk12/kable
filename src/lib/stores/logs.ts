@@ -89,25 +89,23 @@ export const LogsManager = {
   },
 
   addLauncherLog(message: string, level: LogEntry['level'] = 'info', instanceId?: string) {
-    // Simple duplicate detection for launcher messages (5 minute window)
-    if (!instanceId) {
-      const now = Date.now();
-      const messageKey = `${level}:${message}`;
-      const lastSeen = recentLauncherMessages.get(messageKey);
-      
-      if (lastSeen && (now - lastSeen) < 5 * 60 * 1000) {
-        // Skip duplicate message within 5 minutes
-        return;
-      }
-      
-      recentLauncherMessages.set(messageKey, now);
-      
-      // Clean up old entries (older than 5 minutes)
-      const cutoff = now - 5 * 60 * 1000;
-      for (const [key, timestamp] of recentLauncherMessages.entries()) {
-        if (timestamp < cutoff) {
-          recentLauncherMessages.delete(key);
-        }
+    // Enhanced duplicate detection for launcher messages (5 minute window)
+    const now = Date.now();
+    const messageKey = instanceId ? `${instanceId}:${level}:${message}` : `global:${level}:${message}`;
+    const lastSeen = recentLauncherMessages.get(messageKey);
+    
+    if (lastSeen && (now - lastSeen) < 5 * 60 * 1000) {
+      // Skip duplicate message within 5 minutes
+      return;
+    }
+    
+    recentLauncherMessages.set(messageKey, now);
+    
+    // Clean up old entries (older than 5 minutes)
+    const cutoff = now - 5 * 60 * 1000;
+    for (const [key, timestamp] of recentLauncherMessages.entries()) {
+      if (timestamp < cutoff) {
+        recentLauncherMessages.delete(key);
       }
     }
 

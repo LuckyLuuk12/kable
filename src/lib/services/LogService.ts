@@ -1,7 +1,8 @@
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { UnlistenFn } from '@tauri-apps/api/event';
-import { LogsManager } from '../stores/logs';
+import { get } from 'svelte/store';
+import { LogsManager, gameInstances } from '../stores/logs';
 import type { GameInstance, LogEntry } from '../types';
 
 export class LogsService {
@@ -86,14 +87,33 @@ export class LogsService {
             break;
 
           case 'exit':
+            // Better exit code interpretation
+            const exitCode = data.code;
+            let status: 'completed' | 'crashed' | 'stopped';
+            
+            if (exitCode === 0) {
+              status = 'completed'; // Normal exit
+            } else if (exitCode === 130 || exitCode === 143 || exitCode === -1073741510) {
+              status = 'stopped'; // User terminated (Ctrl+C, SIGTERM, or Windows close)
+            } else if (exitCode < 0 || exitCode > 128) {
+              status = 'crashed'; // Abnormal exit or system termination
+            } else {
+              status = 'stopped'; // Other controlled exits
+            }
+            
             LogsManager.updateGameInstance(instanceId, { 
-              status: data.code === 0 ? 'completed' : 'crashed',
-              exitCode: data.code,
+              status,
+              exitCode,
               completedAt: new Date()
             });
+            
+            const statusMessage = status === 'completed' ? 'completed normally' : 
+                                status === 'stopped' ? 'was stopped by user' : 
+                                'crashed';
+            
             LogsManager.addLauncherLog(
-              `Game process exited with code ${data.code}`,
-              data.code === 0 ? 'info' : 'error',
+              `Game process ${statusMessage} (exit code: ${exitCode})`,
+              status === 'crashed' ? 'error' : 'info',
               instanceId
             );
             break;
@@ -147,23 +167,48 @@ export class LogsService {
 
     LogsManager.addGameLog(instanceId, line, level);
 
-    // Check for crash indicators
+    // Only check for actual crashes, not just any error
     if (this.isCrashIndicator(line)) {
-      LogsManager.updateGameInstance(instanceId, { status: 'crashed' });
-      LogsManager.addLauncherLog('Game crash detected', 'error', instanceId);
+      // Only update to crashed if not already in a final state
+      const instances = get(gameInstances);
+      const instance = instances.get(instanceId);
+      if (instance && instance.status === 'running') {
+        LogsManager.updateGameInstance(instanceId, { status: 'crashed' });
+        LogsManager.addLauncherLog('Game crash detected from output', 'error', instanceId);
+      }
     }
   }
 
   private isCrashIndicator(line: string): boolean {
     const crashPatterns = [
-      /crash/i,
-      /fatal/i,
+      /fatal error/i,
       /segmentation fault/i,
       /access violation/i,
       /out of memory/i,
       /java\.lang\.OutOfMemoryError/i,
-      /unexpected error/i
+      /unexpected error/i,
+      /exception in thread "main"/i,
+      /at java\./i // Stack trace
     ];
+
+    // Be more specific about what constitutes a crash
+    // Exclude common false positives
+    if (line.toLowerCase().includes('crashreport') && line.toLowerCase().includes('generating')) {
+      return false; // Just generating crash reports, not actually crashed
+    }
+    
+    if (line.toLowerCase().includes('error loading class')) {
+      return false; // Class loading errors are often non-fatal
+    }
+    
+    if (line.toLowerCase().includes('warn') || line.toLowerCase().includes('warning')) {
+      return false; // Warnings are not crashes
+    }
+    
+    // Don't treat regular log errors as crashes unless they match specific patterns
+    if (line.toLowerCase().includes('error') && !crashPatterns.some(pattern => pattern.test(line))) {
+      return false; // Regular errors are not crashes
+    }
 
     return crashPatterns.some(pattern => pattern.test(line));
   }

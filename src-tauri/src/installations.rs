@@ -1063,6 +1063,13 @@ pub async fn launch_minecraft_installation(app: AppHandle, installation_id: Stri
     // Get current account (try real auth first, fall back to mock)
     let account = get_launch_auth_account().await?;
     
+    // Log authentication mode
+    if account.minecraft_access_token.is_some() {
+        Logger::info(&app, &format!("🌐 Launching in ONLINE mode with account: {}", account.username), Some(&instance_id));
+    } else {
+        Logger::info(&app, &format!("📴 Launching in OFFLINE mode with account: {}", account.username), Some(&instance_id));
+    }
+    
     // Get installation
     let installation = launcher_profiles.profiles.get(&installation_id)
         .ok_or(format!("Installation not found. Looking for key: '{}'. Available keys: {:?}", 
@@ -1143,51 +1150,133 @@ pub async fn launch_minecraft_installation(app: AppHandle, installation_id: Stri
     for subdir in ["saves", "resourcepacks", "shaderpacks", "screenshots", "config"] {
         let dir_path = game_dir.join(subdir);
         if !dir_path.exists() {
-            fs::create_dir_all(&dir_path)
-                .map_err(|e| format!("Failed to create directory {}: {}", dir_path.display(), e))?;
-        }
-    }
-    
-    // TODO: Skip mods linking for now to get basic launching working
-    // We'll implement proper mod management later
-    /*
-    // Link Kable-managed mods to the game directory
-    let target_mods_dir = game_dir.join("mods");
-    
-    // Remove existing mods directory if it exists and is not a link to our mods
-    if target_mods_dir.exists() && !target_mods_dir.is_symlink() {
-        fs::remove_dir_all(&target_mods_dir)
-            .map_err(|e| format!("Failed to remove existing mods directory: {}", e))?;
-    }
-    
-    
-    #[cfg(windows)]
-    {
-        // On Windows, create a junction link
-        if !target_mods_dir.exists() {
-            let output = Command::new("cmd")
-                .args(["/C", "mklink", "/J", 
-                       &target_mods_dir.to_string_lossy(), 
-                       &mods_dir.to_string_lossy()])
-                .output()
-                .map_err(|e| format!("Failed to create mods junction: {}", e))?;
-            
-            if !output.status.success() {
-                return Err(format!("Failed to create mods junction: {}", 
-                    String::from_utf8_lossy(&output.stderr)));
+            if let Err(e) = fs::create_dir_all(&dir_path) {
+                Logger::warn(&app, &format!("Failed to create directory {}: {}. This may not affect gameplay.", dir_path.display(), e), Some(&instance_id));
+                // Don't fail the launch for this, just warn and continue
             }
         }
     }
     
-    #[cfg(not(windows))]
-    {
-        // On Unix-like systems, create a symlink
-        if !target_mods_dir.exists() {
-            std::os::unix::fs::symlink(&mods_dir, &target_mods_dir)
-                .map_err(|e| format!("Failed to create mods symlink: {}", e))?;
+    // TODO: Implement proper mod linking for Fabric installations
+    // For now, we'll scan for mods in the global mods directory and link them
+    let mut mods_dir = get_installation_mods_directory(&installation_id)?;
+    
+    // If the installation-specific mods directory doesn't exist, 
+    // try to use global mods or create the directory
+    if !mods_dir.exists() {
+        // Try global mods first
+        let global_mods_dir = minecraft_dir.join("kable").join("mods").join("kable-global");
+        if global_mods_dir.exists() {
+            mods_dir = global_mods_dir;
+        } else {
+            // Create installation-specific mods directory
+            if let Err(e) = create_installation_mods_directory(&installation_id) {
+                Logger::warn(&app, &format!("Failed to create installation mods directory: {}. Using default location.", e), Some(&instance_id));
+                // Fall back to default mods directory
+                mods_dir = game_dir.join("mods");
+                if let Err(e) = std::fs::create_dir_all(&mods_dir) {
+                    Logger::warn(&app, &format!("Failed to create fallback mods directory: {}. Mods may not load properly.", e), Some(&instance_id));
+                }
+            }
         }
     }
-    */
+    
+    // Link mods directory to game directory for mod loader access
+    let target_mods_dir = game_dir.join("mods");
+    
+    // Check if target mods directory already exists and handle gracefully
+    if target_mods_dir.exists() {
+        // Check if it's already pointing to our mods directory
+        if target_mods_dir.is_symlink() {
+            if let Ok(link_target) = target_mods_dir.read_link() {
+                if link_target == mods_dir {
+                    Logger::info(&app, &format!("Mods directory already linked correctly: {} -> {}", 
+                        target_mods_dir.display(), mods_dir.display()), Some(&instance_id));
+                    // Skip creating the link since it already exists and points to the right place
+                } else {
+                    Logger::warn(&app, &format!("Mods directory linked to different location: {} -> {}. Removing old link.", 
+                        target_mods_dir.display(), link_target.display()), Some(&instance_id));
+                    if let Err(e) = fs::remove_dir_all(&target_mods_dir) {
+                        Logger::warn(&app, &format!("Failed to remove existing mods link: {}. Continuing anyway.", e), Some(&instance_id));
+                    }
+                }
+            }
+        } else {
+            // It's a regular directory, try to remove it
+            Logger::warn(&app, &format!("Existing mods directory found at {}. Attempting to remove.", 
+                target_mods_dir.display()), Some(&instance_id));
+            if let Err(e) = fs::remove_dir_all(&target_mods_dir) {
+                Logger::warn(&app, &format!("Failed to remove existing mods directory: {}. This may cause mod loading issues.", e), Some(&instance_id));
+                // Don't fail the launch, just warn and continue
+            }
+        }
+    }
+    
+    // Only create the link if the target directory doesn't exist now
+    if !target_mods_dir.exists() {
+        #[cfg(windows)]
+        {
+            // On Windows, create a junction link
+            let output = Command::new("cmd")
+                .args(["/C", "mklink", "/J", 
+                       &target_mods_dir.to_string_lossy(), 
+                       &mods_dir.to_string_lossy()])
+                .output();
+            
+            match output {
+                Ok(result) => {
+                    if result.status.success() {
+                        Logger::info(&app, &format!("Created mods junction: {} -> {}", 
+                            target_mods_dir.display(), mods_dir.display()), Some(&instance_id));
+                    } else {
+                        let error_msg = String::from_utf8_lossy(&result.stderr);
+                        Logger::warn(&app, &format!("Failed to create mods junction: {}. Falling back to directory creation.", error_msg), Some(&instance_id));
+                        
+                        // Fall back to creating a regular directory
+                        if mods_dir.exists() && mods_dir != target_mods_dir {
+                            if let Err(e) = std::fs::create_dir_all(&target_mods_dir) {
+                                Logger::warn(&app, &format!("Failed to create fallback mods directory: {}. Mods may not load properly.", e), Some(&instance_id));
+                            } else {
+                                Logger::info(&app, &format!("Created fallback mods directory: {}", target_mods_dir.display()), Some(&instance_id));
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    Logger::warn(&app, &format!("Failed to execute mklink command: {}. Falling back to directory creation.", e), Some(&instance_id));
+                    
+                    // Fall back to creating a regular directory
+                    if mods_dir.exists() && mods_dir != target_mods_dir {
+                        if let Err(e) = std::fs::create_dir_all(&target_mods_dir) {
+                            Logger::warn(&app, &format!("Failed to create fallback mods directory: {}. Mods may not load properly.", e), Some(&instance_id));
+                        } else {
+                            Logger::info(&app, &format!("Created fallback mods directory: {}", target_mods_dir.display()), Some(&instance_id));
+                        }
+                    }
+                }
+            }
+        }
+        
+        #[cfg(not(windows))]
+        {
+            // On Unix-like systems, create a symlink
+            if let Err(e) = std::os::unix::fs::symlink(&mods_dir, &target_mods_dir) {
+                Logger::warn(&app, &format!("Failed to create mods symlink: {}. Falling back to directory creation.", e), Some(&instance_id));
+                
+                // Fall back to creating a regular directory
+                if mods_dir.exists() && mods_dir != target_mods_dir {
+                    if let Err(e) = std::fs::create_dir_all(&target_mods_dir) {
+                        Logger::warn(&app, &format!("Failed to create fallback mods directory: {}. Mods may not load properly.", e), Some(&instance_id));
+                    } else {
+                        Logger::info(&app, &format!("Created fallback mods directory: {}", target_mods_dir.display()), Some(&instance_id));
+                    }
+                }
+            } else {
+                Logger::info(&app, &format!("Created mods symlink: {} -> {}", 
+                    target_mods_dir.display(), mods_dir.display()), Some(&instance_id));
+            }
+        }
+    }
     
     // Launch Minecraft
     Logger::debug_global("=== LAUNCH DEBUG INFO ===", Some(&instance_id));
@@ -1345,6 +1434,13 @@ pub async fn quick_launch_minecraft(version_name: String) -> Result<(), String> 
     // Get current account (try real auth first, fall back to mock)
     let account = get_launch_auth_account().await?;
     
+    // Log authentication mode for quick launch
+    if account.minecraft_access_token.is_some() {
+        Logger::info_global(&format!("🌐 Quick launching {} in ONLINE mode with account: {}", version_name, account.username), None);
+    } else {
+        Logger::info_global(&format!("📴 Quick launching {} in OFFLINE mode with account: {}", version_name, account.username), None);
+    }
+    
     // Get minecraft directory and paths
     let minecraft_dir = PathBuf::from(settings.minecraft_path.as_ref()
         .ok_or("Minecraft path not set in settings")?);
@@ -1434,45 +1530,81 @@ pub async fn quick_launch_minecraft(version_name: String) -> Result<(), String> 
 }
 
 /// Helper function to get mock auth account for testing
+/// Helper function to get properly authenticated account for launching
 async fn get_launch_auth_account() -> Result<MicrosoftAccount, String> {
     // First, try to get a real authenticated account from storage
     match get_active_launcher_account().await {
-        Ok(Some(account)) => {
-            Logger::info_global(&format!("Using real Microsoft account: {}", account.username), None);
+        Ok(Some(mut account)) => {
+            Logger::info_global(&format!("Found Microsoft account: {}", account.username), None);
             
-            // Check if the Minecraft token is still valid
-            if let Some(_minecraft_token) = &account.minecraft_access_token {
+            // Check if we have a Minecraft access token
+            if let Some(minecraft_token) = &account.minecraft_access_token {
+                // Check if the token is still valid
                 if let Some(expires_at) = account.minecraft_expires_at {
-                    if expires_at > chrono::Utc::now().timestamp() {
-                        Logger::info_global("Minecraft token is valid, launching with real authentication", None);
+                    let now = chrono::Utc::now().timestamp();
+                    
+                    if expires_at > now + 300 { // Token valid for at least 5 more minutes
+                        Logger::info_global("Minecraft token is valid, launching with online authentication", None);
                         return Ok(account);
                     } else {
-                        Logger::warn_global("Minecraft token expired, need to refresh", None);
+                        Logger::warn_global("Minecraft token expired or expiring soon, attempting to refresh", None);
+                        
+                        // Try to validate the token first
+                        match crate::auth::validate_minecraft_token(minecraft_token.clone()).await {
+                            Ok(true) => {
+                                Logger::info_global("Token validation successful, using existing token", None);
+                                return Ok(account);
+                            }
+                            Ok(false) => {
+                                Logger::warn_global("Token validation failed, needs refresh", None);
+                            }
+                            Err(e) => {
+                                Logger::warn_global(&format!("Token validation error: {}", e), None);
+                            }
+                        }
+                        
+                        // Attempt to refresh the token
+                        match crate::auth::refresh_minecraft_token(account.id.clone()).await {
+                            Ok(refreshed_account) => {
+                                Logger::info_global("Successfully refreshed Minecraft token", None);
+                                return Ok(refreshed_account);
+                            }
+                            Err(e) => {
+                                Logger::warn_global(&format!("Failed to refresh token: {}", e), None);
+                                Logger::info_global("Falling back to offline mode with real account data", None);
+                                
+                                // Use real account data but remove expired minecraft token
+                                account.minecraft_access_token = None;
+                                account.minecraft_expires_at = None;
+                                return Ok(account);
+                            }
+                        }
                     }
                 } else {
-                    Logger::info_global("No Minecraft token expiry info, assuming valid", None);
-                    return Ok(account);
+                    Logger::warn_global("No token expiry information, validating token", None);
+                    
+                    // Validate token if no expiry info
+                    match crate::auth::validate_minecraft_token(minecraft_token.clone()).await {
+                        Ok(true) => {
+                            Logger::info_global("Token validation successful, launching with online authentication", None);
+                            return Ok(account);
+                        }
+                        Ok(false) => {
+                            Logger::warn_global("Token validation failed, removing invalid token", None);
+                            account.minecraft_access_token = None;
+                            account.minecraft_expires_at = None;
+                            return Ok(account);
+                        }
+                        Err(e) => {
+                            Logger::warn_global(&format!("Token validation error: {}, assuming valid", e), None);
+                            return Ok(account);
+                        }
+                    }
                 }
             } else {
-                Logger::warn_global("No Minecraft access token available", None);
+                Logger::warn_global("No Minecraft access token available, will use offline mode", None);
+                return Ok(account);
             }
-            
-            // Use the real account data but fall back to offline mode for launch
-            Logger::info_global("Using real account data in offline mode", None);
-            return Ok(MicrosoftAccount {
-                id: account.id,
-                username: account.username, // Use real username
-                uuid: account.uuid, // Use real UUID if available
-                access_token: account.access_token,
-                refresh_token: account.refresh_token,
-                expires_at: account.expires_at,
-                skin_url: account.skin_url,
-                is_active: account.is_active,
-                last_used: account.last_used,
-                minecraft_access_token: None, // No valid Minecraft token, will use offline mode
-                minecraft_expires_at: None,
-                xbox_user_hash: account.xbox_user_hash,
-            });
         }
         Ok(None) => {
             Logger::info_global("No active Microsoft account found", None);
@@ -1482,7 +1614,7 @@ async fn get_launch_auth_account() -> Result<MicrosoftAccount, String> {
         }
     }
     
-    // Fall back to mock auth for testing
+    // Fall back to mock auth for testing when no real account is available
     Logger::info_global("No real Microsoft account found, using mock authentication", None);
     Logger::info_global("Note: This will launch Minecraft in offline mode", None);
     Logger::info_global("To get online authentication, please log in through the UI first", None);
@@ -1496,7 +1628,7 @@ async fn get_launch_auth_account() -> Result<MicrosoftAccount, String> {
     // Get mock access token
     let access_token = get_access_token().await?;
     
-    // Return mock account
+    // Return mock account for offline mode
     Ok(MicrosoftAccount {
         id: "test-id".to_string(),
         username: auth_status.username.unwrap_or("TestUser".to_string()),
@@ -1507,7 +1639,7 @@ async fn get_launch_auth_account() -> Result<MicrosoftAccount, String> {
         skin_url: None,
         is_active: true,
         last_used: chrono::Utc::now().timestamp(),
-        minecraft_access_token: None, // Use offline mode instead of mock tokens
+        minecraft_access_token: None, // No valid token = offline mode
         minecraft_expires_at: None,
         xbox_user_hash: "mock_xbox_hash".to_string(),
     })

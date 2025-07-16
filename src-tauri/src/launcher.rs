@@ -422,17 +422,22 @@ pub fn build_classpath(
     version_jar_path: &Path
 ) -> Result<String, String> {
     let mut classpath_entries = Vec::new();
+    let mut fabric_libraries = Vec::new();
+    let mut mod_dependencies = Vec::new();
     
     Logger::console_log(LogLevel::Debug, "=== CLASSPATH DEBUG ===", None);
     Logger::console_log(LogLevel::Debug, &format!("Libraries path: {}", libraries_path.display()), None);
     Logger::console_log(LogLevel::Debug, &format!("Version JAR path: {}", version_jar_path.display()), None);
     Logger::console_log(LogLevel::Debug, &format!("Total libraries to process: {}", libraries.len()), None);
     
-    // Debug: Count LWJGL libraries specifically
-    let lwjgl_count = libraries.iter()
-        .filter(|lib| lib.name.contains("lwjgl"))
-        .count();
+    // Debug: Count different library types
+    let lwjgl_count = libraries.iter().filter(|lib| lib.name.contains("lwjgl")).count();
+    let fabric_count = libraries.iter().filter(|lib| lib.name.contains("fabric")).count();
+    let jetbrains_count = libraries.iter().filter(|lib| lib.name.contains("jetbrains")).count();
+    
     Logger::console_log(LogLevel::Debug, &format!("LWJGL libraries found: {}", lwjgl_count), None);
+    Logger::console_log(LogLevel::Debug, &format!("Fabric libraries found: {}", fabric_count), None);
+    Logger::console_log(LogLevel::Debug, &format!("JetBrains libraries found: {}", jetbrains_count), None);
     
     // Add all library JARs
     for library in libraries {
@@ -446,18 +451,35 @@ pub fn build_classpath(
             }
         }
         
+        // Categorize libraries for better handling
+        let is_fabric_lib = library.name.contains("fabric") || library.name.contains("quilt");
+        let is_mod_dependency = library.name.contains("jetbrains") || 
+                               library.name.contains("sodium") ||
+                               library.name.contains("annotations") ||
+                               library.name.contains("mixin");
+        
         if let Some(downloads) = &library.downloads {
             if let Some(artifact) = &downloads.artifact {
                 let lib_path = libraries_path.join(&artifact.path);
                 if lib_path.exists() {
                     if library.name.contains("lwjgl") {
                         Logger::console_log(LogLevel::Debug, &format!("  Found LWJGL library: {} -> {}", library.name, artifact.path), None);
+                    } else if is_fabric_lib {
+                        Logger::console_log(LogLevel::Debug, &format!("  Found Fabric library: {} -> {}", library.name, artifact.path), None);
+                        fabric_libraries.push(lib_path.to_string_lossy().to_string());
+                    } else if is_mod_dependency {
+                        Logger::console_log(LogLevel::Debug, &format!("  Found Mod dependency: {} -> {}", library.name, artifact.path), None);
+                        mod_dependencies.push(lib_path.to_string_lossy().to_string());
                     } else {
                         Logger::console_log(LogLevel::Debug, &format!("  Found library: {}", artifact.path), None);
                     }
                     classpath_entries.push(lib_path.to_string_lossy().to_string());
                 } else if library.name.contains("lwjgl") {
                     Logger::console_log(LogLevel::Debug, &format!("  Missing LWJGL library: {} (path: {})", library.name, lib_path.display()), None);
+                } else if is_fabric_lib {
+                    Logger::console_log(LogLevel::Debug, &format!("  Missing Fabric library: {} (path: {})", library.name, lib_path.display()), None);
+                } else if is_mod_dependency {
+                    Logger::console_log(LogLevel::Debug, &format!("  Missing Mod dependency: {} (path: {})", library.name, lib_path.display()), None);
                 } else {
                     Logger::console_log(LogLevel::Debug, &format!("  Missing library: {} (path: {})", library.name, lib_path.display()), None);
                 }
@@ -469,6 +491,10 @@ pub fn build_classpath(
             // This is a fallback for mod loader libraries that might be embedded
             if library.name.contains("lwjgl") {
                 Logger::console_log(LogLevel::Debug, &format!("  No downloads for LWJGL library: {}", library.name), None);
+            } else if is_fabric_lib {
+                Logger::console_log(LogLevel::Debug, &format!("  No downloads for Fabric library: {}", library.name), None);
+            } else if is_mod_dependency {
+                Logger::console_log(LogLevel::Debug, &format!("  No downloads for Mod dependency: {}", library.name), None);
             } else {
                 Logger::console_log(LogLevel::Debug, &format!("  No downloads for library: {}", library.name), None);
             }
@@ -478,6 +504,12 @@ pub fn build_classpath(
                 if jar_path.exists() {
                     if library.name.contains("lwjgl") {
                         Logger::console_log(LogLevel::Debug, &format!("  Found LWJGL library manually: {}", jar_path.display()), None);
+                    } else if is_fabric_lib {
+                        Logger::console_log(LogLevel::Debug, &format!("  Found Fabric library manually: {}", jar_path.display()), None);
+                        fabric_libraries.push(jar_path.to_string_lossy().to_string());
+                    } else if is_mod_dependency {
+                        Logger::console_log(LogLevel::Debug, &format!("  Found Mod dependency manually: {}", jar_path.display()), None);
+                        mod_dependencies.push(jar_path.to_string_lossy().to_string());
                     } else {
                         Logger::console_log(LogLevel::Debug, &format!("  Found library manually: {}", jar_path.display()), None);
                     }
@@ -499,7 +531,31 @@ pub fn build_classpath(
         classpath_entries.push(version_jar_path.to_string_lossy().to_string());
     }
     
+    // Check for mod JARs in the mods directory and add common mod dependencies
+    let version_dir = version_jar_path.parent().unwrap();
+    let minecraft_dir = version_dir.parent().unwrap().parent().unwrap();
+    let mods_dir = minecraft_dir.join("mods");
+    
+    if mods_dir.exists() {
+        Logger::console_log(LogLevel::Debug, &format!("Scanning mods directory: {}", mods_dir.display()), None);
+        if let Ok(entries) = std::fs::read_dir(&mods_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().and_then(|s| s.to_str()) == Some("jar") {
+                    let mod_name = path.file_name().unwrap().to_string_lossy();
+                    if mod_name.contains("sodium") || mod_name.contains("fabric-api") || 
+                       mod_name.contains("jetbrains") || mod_name.contains("annotations") {
+                        Logger::console_log(LogLevel::Debug, &format!("  Adding mod dependency: {}", mod_name), None);
+                        classpath_entries.push(path.to_string_lossy().to_string());
+                    }
+                }
+            }
+        }
+    }
+    
     Logger::console_log(LogLevel::Debug, &format!("Total classpath entries: {}", classpath_entries.len()), None);
+    Logger::console_log(LogLevel::Debug, &format!("Fabric libraries: {}", fabric_libraries.len()), None);
+    Logger::console_log(LogLevel::Debug, &format!("Mod dependencies: {}", mod_dependencies.len()), None);
     Logger::console_log(LogLevel::Debug, "=======================", None);
     
     // Join with platform-specific separator

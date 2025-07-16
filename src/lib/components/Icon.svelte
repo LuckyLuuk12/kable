@@ -31,11 +31,44 @@
     iconData = IconManager.getIcon(name);
   }
 
+  // Validate SVG content for security
+  function isValidSvg(content: string): boolean {
+    if (!content || typeof content !== 'string') return false;
+    
+    // Must start with <svg and end with </svg>
+    if (!content.trim().startsWith('<svg') || !content.trim().endsWith('</svg>')) {
+      return false;
+    }
+    
+    // Check for potentially dangerous content
+    const dangerousPatterns = [
+      /<script/i,
+      /javascript:/i,
+      /on\w+\s*=/i, // onclick, onload, etc.
+      /<iframe/i,
+      /<object/i,
+      /<embed/i,
+      /<link/i,
+      /<style/i,
+      /<meta/i,
+      /data:text\/html/i,
+      /data:application\/javascript/i
+    ];
+    
+    return !dangerousPatterns.some(pattern => pattern.test(content));
+  }
+
   // Reactive statements for rendering type
   $: isEmoji = iconData.type === 'emoji';
   $: isFontAwesome = iconData.type === 'fontawesome';
+  $: isSvg = iconData.type === 'svg' && isValidSvg(iconData.icon);
   $: isSystem = iconData.type === 'system' || iconData.type === 'css';
-  $: isCustom = !isEmoji && !isFontAwesome && !isSystem;
+  $: isCustom = !isEmoji && !isFontAwesome && !isSvg && !isSystem;
+  
+  // Log warning if SVG type but invalid content
+  $: if (iconData.type === 'svg' && !isValidSvg(iconData.icon)) {
+    console.warn(`Icon "${name}": Invalid or potentially unsafe SVG content detected, falling back to custom renderer`, iconData.icon.substring(0, 100));
+  }
 </script>
 
 {#if isEmoji}
@@ -44,6 +77,10 @@
   </span>
 {:else if isFontAwesome}
   <i class="icon icon-fontawesome {iconData.icon} {sizeClasses[size]} {className}" aria-label={name}></i>
+{:else if isSvg}
+  <span class="icon icon-svg {sizeClasses[size]} {className}" aria-label={name}>
+    {@html iconData.icon}
+  </span>
 {:else if isSystem}
   <span class="icon icon-system {sizeClasses[size]} {className}" data-icon={iconData.icon} aria-label={name}>
     <!-- System/CSS icon placeholder - fallback to emoji -->
@@ -93,6 +130,18 @@
     
     &.icon-fontawesome {
       font-family: 'Font Awesome 6 Free', 'Font Awesome 6 Brands';
+    }
+    
+    &.icon-svg {
+      // SVG icon specific styles
+      color: currentColor;
+      
+      :global(svg) {
+        width: 100%;
+        height: 100%;
+        fill: currentColor;
+        stroke: currentColor;
+      }
     }
     
     &.icon-system {

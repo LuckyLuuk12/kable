@@ -183,7 +183,66 @@ pub async fn validate_icon_template(template_content: String, format: String) ->
         return Err("At least one icon mapping is required".to_string());
     }
     
+    // If this is an SVG template, validate all SVG content
+    if template.icon_type == "svg" {
+        // Validate fallback icon
+        if !is_valid_svg(&template.fallback_icon) {
+            return Err("Invalid or potentially unsafe SVG in fallback icon".to_string());
+        }
+        
+        // Validate all icon SVG content
+        for (name, svg_content) in &template.icons {
+            if !is_valid_svg(svg_content) {
+                return Err(format!("Invalid or potentially unsafe SVG in icon '{}': {}", name, svg_content.chars().take(50).collect::<String>()));
+            }
+        }
+    }
+    
     Ok(template)
+}
+
+/// Validate SVG content for security
+fn is_valid_svg(content: &str) -> bool {
+    if content.is_empty() {
+        return false;
+    }
+    
+    let content = content.trim();
+    
+    // Must start with <svg and end with </svg>
+    if !content.starts_with("<svg") || !content.ends_with("</svg>") {
+        return false;
+    }
+    
+    // Check for potentially dangerous content (case-insensitive)
+    let content_lower = content.to_lowercase();
+    let dangerous_patterns = [
+        "<script",
+        "javascript:",
+        "onclick=", "onload=", "onerror=", "onmouseover=", "onfocus=", "onblur=",
+        "<iframe", "<object", "<embed", "<link", "<style", "<meta",
+        "data:text/html", "data:application/javascript", "data:text/javascript",
+        "href=\"javascript:", "src=\"javascript:",
+        "&#x", "&#", // HTML entities that could be used for obfuscation
+        "expression(", // CSS expressions
+        "import(", // ES6 imports
+        "eval(", // JavaScript eval
+        "settimeout", "setinterval" // Timer functions
+    ];
+    
+    for pattern in &dangerous_patterns {
+        if content_lower.contains(pattern) {
+            return false;
+        }
+    }
+    
+    // Additional check for event handlers with various quote styles
+    let event_handler_regex = regex::Regex::new(r"(?i)on\w+\s*=").unwrap();
+    if event_handler_regex.is_match(content) {
+        return false;
+    }
+    
+    true
 }
 
 /// Get the icons directory path for frontend file operations

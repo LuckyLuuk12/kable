@@ -11,17 +11,31 @@
 
   let selectedLogType: 'launcher' | 'game' = 'launcher';
   let logContainer: HTMLElement;
-  let autoScroll = true;
+  let autoScroll = true; // Ensure auto-scroll is enabled by default
   let searchTerm = '';
-  let showOnlyErrors = false;
+  
+  // Log level filters (all enabled by default except debug)
+  let logLevelFilters = {
+    error: true,
+    warn: true,
+    info: true,
+    debug: false
+  };
+  
+  let showLogLevelDropdown = false;
 
   onMount(async () => {
     // Logs service is already initialized in the layout
     // No need to initialize again here
+    
+    // Add event listener for clicking outside dropdown
+    document.addEventListener('click', handleClickOutside);
   });
 
   onDestroy(() => {
     // Keep logs service running since it's used globally
+    // Remove event listener
+    document.removeEventListener('click', handleClickOutside);
   });
 
   function selectInstance(instanceId: string | 'global') {
@@ -48,7 +62,7 @@
       case 'running': return 'play';
       case 'completed': return 'check';
       case 'crashed': return 'alert';
-      case 'stopped': return 'stop';
+      case 'stopped': return 'square'; // Better icon for stopped
       default: return 'help';
     }
   }
@@ -59,7 +73,7 @@
       case 'running': return 'success';
       case 'completed': return 'info';
       case 'crashed': return 'danger';
-      case 'stopped': return 'muted';
+      case 'stopped': return 'secondary'; // Changed from 'muted' for better visibility
       default: return 'muted';
     }
   }
@@ -132,6 +146,32 @@
     }
   }
 
+  function toggleLogLevelDropdown() {
+    showLogLevelDropdown = !showLogLevelDropdown;
+  }
+
+  function getLogLevelDisplayName(level: string): string {
+    switch (level) {
+      case 'error': return 'Errors';
+      case 'warn': return 'Warnings';
+      case 'info': return 'Info';
+      case 'debug': return 'Debug';
+      default: return level;
+    }
+  }
+
+  function getEnabledLogLevelsCount(): number {
+    return Object.values(logLevelFilters).filter(Boolean).length;
+  }
+
+  // Close dropdown when clicking outside
+  function handleClickOutside(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    if (!target.closest('.log-level-dropdown')) {
+      showLogLevelDropdown = false;
+    }
+  }
+
   $: sortedInstances = $gameInstances ? Array.from($gameInstances.values()).sort((a: GameInstance, b: GameInstance) => {
     const aTime = a.launchedAt instanceof Date ? a.launchedAt.getTime() : new Date(a.launchedAt).getTime();
     const bTime = b.launchedAt instanceof Date ? b.launchedAt.getTime() : new Date(b.launchedAt).getTime();
@@ -143,20 +183,28 @@
     ? (currentLogsData.launcherLogs || [])
     : (currentLogsData.gameLogs || []);
 
-  // Filter logs based on search and error filter
+  // Filter logs based on search and log level filters
   $: filteredLogs = (activeLogEntries || []).filter(log => {
     if (!log) return false;
     const matchesSearch = !searchTerm || 
       (log.message && log.message.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesErrorFilter = !showOnlyErrors || 
-      log.level === 'error' || log.level === 'warn';
-    return matchesSearch && matchesErrorFilter;
+    
+    // Check if the log level is enabled in filters
+    const logLevel = (log.level || 'info').toLowerCase();
+    const matchesLevelFilter = logLevel in logLevelFilters ? 
+      logLevelFilters[logLevel as keyof typeof logLevelFilters] : 
+      true; // Show unknown log levels by default
+    
+    return matchesSearch && matchesLevelFilter;
   });
 
   // Auto-scroll when new logs arrive
   $: if (filteredLogs && filteredLogs.length > 0 && autoScroll) {
     setTimeout(() => scrollToBottom(), 50);
   }
+
+  // Check if any filters are active
+  $: hasActiveFilters = searchTerm || getEnabledLogLevelsCount() < 4;
 </script>
 
 <div class="logs-page">
@@ -207,13 +255,39 @@
       />
     </div>
     <div class="filter-controls">
-      <label class="checkbox-label">
-        <input
-          type="checkbox"
-          bind:checked={showOnlyErrors}
-        />
-        <span>Errors/Warnings only</span>
-      </label>
+      <div class="log-level-dropdown">
+        <button 
+          class="dropdown-trigger"
+          on:click={toggleLogLevelDropdown}
+          type="button"
+        >
+          <span>Log Levels ({getEnabledLogLevelsCount()}/4)</span>
+          <Icon name={showLogLevelDropdown ? 'chevron-up' : 'chevron-down'} size="sm" />
+        </button>
+        
+        {#if showLogLevelDropdown}
+          <div class="dropdown-menu">
+            <div class="dropdown-header">
+              <span>Select log levels to display</span>
+            </div>
+            {#each Object.entries(logLevelFilters) as [level, enabled]}
+              <label class="dropdown-item">
+                <input
+                  type="checkbox"
+                  checked={enabled}
+                  on:change={(e) => {
+                    const target = e.target as HTMLInputElement;
+                    logLevelFilters[level as keyof typeof logLevelFilters] = target.checked;
+                  }}
+                />
+                <Icon name={getLogLevelIcon(level)} size="sm" />
+                <span>{getLogLevelDisplayName(level)}</span>
+              </label>
+            {/each}
+          </div>
+        {/if}
+      </div>
+      
       <label class="checkbox-label">
         <input
           type="checkbox"
@@ -286,21 +360,21 @@
       {#if filteredLogs.length === 0}
         <div class="empty-state">
           <div class="empty-icon">
-            {#if searchTerm || showOnlyErrors}
+            {#if hasActiveFilters}
               <Icon name="search" size="xl" />
             {:else}
               <Icon name="archive" size="xl" />
             {/if}
           </div>
           <h3>
-            {#if searchTerm || showOnlyErrors}
+            {#if hasActiveFilters}
               No logs match your filters
             {:else}
               No logs yet
             {/if}
           </h3>
           <p>
-            {#if searchTerm || showOnlyErrors}
+            {#if hasActiveFilters}
               Try adjusting your search or filter settings
             {:else}
               Launch an installation to see logs here
@@ -349,7 +423,7 @@
         {:else}
           {selectedLogType === 'launcher' ? 'Launcher' : 'Game'} logs: {(activeLogEntries || []).length} entries
         {/if}
-        {#if searchTerm || showOnlyErrors}
+        {#if hasActiveFilters}
           (filtered: {(filteredLogs || []).length})
         {/if}
       </span>
@@ -463,6 +537,77 @@
     .filter-controls {
       display: flex;
       gap: 1rem;
+      align-items: center;
+      
+      .log-level-dropdown {
+        position: relative;
+        
+        .dropdown-trigger {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.5rem 0.75rem;
+          background: $card;
+          border: 1px solid $dark-200;
+          border-radius: $border-radius-small;
+          color: $text;
+          font-size: 0.9rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+          
+          &:hover {
+            background: $dark-200;
+            border-color: $primary;
+          }
+          
+          &:focus {
+            outline: none;
+            border-color: $primary;
+          }
+        }
+        
+        .dropdown-menu {
+          position: absolute;
+          top: calc(100% + 0.25rem);
+          right: 0;
+          min-width: 180px;
+          background: $container;
+          border: 1px solid $dark-200;
+          border-radius: $border-radius;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          z-index: 1000;
+          overflow: hidden;
+          
+          .dropdown-header {
+            padding: 0.75rem;
+            background: $card;
+            border-bottom: 1px solid $dark-200;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: $placeholder;
+          }
+          
+          .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+            
+            &:hover {
+              background: $card;
+            }
+            
+            input[type="checkbox"] {
+              accent-color: $primary;
+            }
+          }
+        }
+      }
       
       .checkbox-label {
         display: flex;
@@ -527,6 +672,7 @@
           &.warning { background: rgba($yellow, 0.1); color: $yellow; }
           &.danger { background: rgba($red, 0.1); color: $red; }
           &.info { background: rgba($blue, 0.1); color: $blue; }
+          &.secondary { background: rgba($text, 0.2); color: $text; }
           &.muted { background: rgba($dark-300, 0.1); color: white; }
         }
       }
@@ -546,7 +692,7 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        padding: 0.5rem 1rem;
+        padding: 0.25rem 0.75rem;
         background: transparent;
         border: none;
         color: $placeholder;
@@ -555,6 +701,7 @@
         cursor: pointer;
         transition: all 0.2s ease;
         border-right: 1px solid $dark-200;
+        border-radius: $border-radius-small;
         
         &:last-child {
           border-right: none;
