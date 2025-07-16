@@ -1,11 +1,12 @@
 // Manager exports for centralized access
-export { AuthManager } from './AuthManager';
-export { SettingsManager } from './SettingsManager';
-export { GameManager } from './GameManager';
-export { MapsManager } from './MapsManager';
-export { ModsManager } from './ModsManager';
-export { ShadersManager } from './ShadersManager';
-export { SkinsManager } from './SkinsManager';
-export { IconManager } from './IconManager';
-export { WindowStateManager } from './WindowStateManager';
-export { DataManager } from './DataManager';
+export * from './AuthManager';
+export * from './DataManager';
+export * from './GameManager';
+export * from './IconManager';
+
+export * from './MapsManager';
+export * from './ModsManager';
+export * from './SettingsManager';
+export * from './ShadersManager';
+export * from './SkinsManager';
+export * from './WindowStateManager';

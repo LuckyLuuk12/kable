@@ -1,8 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
-  import { SkinsManager } from '$lib';
-  import type { MinecraftSkin } from '$lib/types';
+  import { Icon, SkinsManager, type MinecraftSkin } from '$lib';
 
   // State variables
   let skins: MinecraftSkin[] = [];

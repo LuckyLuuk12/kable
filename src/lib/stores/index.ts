@@ -5,5 +5,6 @@
 
 export * from './auth';
 export * from './game';
-export * from './settings';
+
 export * from './logs';
+export * from './settings';

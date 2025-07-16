@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { ModsManager, SettingsManager, Icon } from '$lib';
-  import type { ModInstallationConfig, InstalledMod } from '$lib/types';
+  import { ModsManager, SettingsManager, Icon, type ModInstallationConfig, type InstalledMod } from '$lib';
 
   let selectedInstallation: string = 'global';
   let installations: ModInstallationConfig[] = [];

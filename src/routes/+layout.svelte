@@ -2,9 +2,8 @@
   import '$lib/styles/global.scss';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { AuthManager, SettingsManager, GameManager, Icon, logsService, LogsManager } from '$lib';
-  import { IconManager, WindowStateManager } from '$lib/managers';
-  
+  import { AuthManager, SettingsManager, GameManager, Icon, logsService, LogsManager, IconManager, WindowStateManager } from '$lib';
+
   let isTauriReady = false;
   let initializationStatus = 'Initializing...';
 

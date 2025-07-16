@@ -1,8 +1,5 @@
 <script lang="ts">
-  import { SettingsManager, Icon } from '$lib';
-  import { settings } from '$lib/stores/settings';
-  import type { LauncherSettings } from '$lib/types';
-  import { IconManager, selectedTemplate, availableTemplates, isIconsLoading } from '$lib/managers/IconManager';
+  import { SettingsManager, Icon, settings, type LauncherSettings, IconManager, selectedTemplate, availableTemplates } from '$lib';
   import { onMount } from 'svelte';
 
   let isLoading = false;

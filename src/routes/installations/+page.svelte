@@ -1,12 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Icon } from '$lib';
-  import { InstallationService } from '$lib/services/InstallationService';
-  import { ModDetectionService } from '$lib/services/ModDetectionService';
-  import { GameManager } from '$lib/managers/GameManager';
-  import type { MinecraftInstallation, MinecraftVersion } from '$lib/types';
-  import type { ModDetectionResult } from '$lib/services/ModDetectionService';
-  
+  import { 
+    Icon, InstallationService, ModDetectionService, GameManager, 
+    type MinecraftInstallation, type MinecraftVersion, type ModDetectionResult 
+  } from '$lib';
+
   // State variables
   let installations: MinecraftInstallation[] = [];
   let availableVersions: MinecraftVersion[] = [];

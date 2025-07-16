@@ -1,10 +1,7 @@
-/**
- * Services Layer
- * High-level business logic and service classes
- */
-
 export { AuthService } from './AuthService';
-export { InstallationService } from './InstallationService';
-export { LaunchService } from './LaunchService';
-export { SettingsService } from './SettingsService';
-export { LogsService, logsService } from './logs';
+
+export * from './InstallationService';
+export * from './LaunchService';
+export * from './LogService';
+export * from './ModDetectionService';
+export * from './SettingsService';
