@@ -18,7 +18,9 @@
         "resizable": true,
         "fullscreen": false,
         "center": true,
-        "visible": true
+        "visible": false,
+        "backgroundColor": "#000000",
+        "titleBarStyle": "Visible"
       }
     ],
     "security": {

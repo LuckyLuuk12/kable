@@ -3,6 +3,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::collections::HashMap;
 use crate::AppError;
+use crate::logging::{info, error, debug};
 
 // Map/World management structures
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -257,20 +258,34 @@ fn calculate_folder_size(path: &PathBuf) -> Result<u64, std::io::Error> {
 // Delete a world
 #[tauri::command]
 pub async fn delete_world(minecraft_path: String, world_folder: String) -> Result<(), String> {
-    let world_path = PathBuf::from(minecraft_path).join("saves").join(world_folder);
+    info(&format!("Deleting world: {} from {}", world_folder, minecraft_path));
+    
+    let world_path = PathBuf::from(minecraft_path).join("saves").join(&world_folder);
     
     if !world_path.exists() {
-        return Err("World folder does not exist".to_string());
+        let error_msg = "World folder does not exist".to_string();
+        error(&error_msg);
+        return Err(error_msg);
     }
     
-    fs::remove_dir_all(&world_path).map_err(|e| format!("Failed to delete world: {}", e))?;
-    
-    Ok(())
+    match fs::remove_dir_all(&world_path) {
+        Ok(_) => {
+            info(&format!("Successfully deleted world: {}", world_folder));
+            Ok(())
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to delete world: {}", e);
+            error(&error_msg);
+            Err(error_msg)
+        }
+    }
 }
 
 // Create backup of a world
 #[tauri::command]
 pub async fn backup_world(minecraft_path: String, world_folder: String) -> Result<String, String> {
+    info(&format!("Creating backup for world: {} from {}", world_folder, minecraft_path));
+    
     let minecraft_dir = PathBuf::from(minecraft_path);
     let saves_dir = minecraft_dir.join("saves");
     let world_path = saves_dir.join(&world_folder);
@@ -280,12 +295,19 @@ pub async fn backup_world(minecraft_path: String, world_folder: String) -> Resul
     let backups_dir = kable_dir.join("world-backups");
     
     if !world_path.exists() {
-        return Err("World folder does not exist".to_string());
+        let error_msg = "World folder does not exist".to_string();
+        error(&error_msg);
+        return Err(error_msg);
     }
     
     // Create kable and backups directories if they don't exist
     if !backups_dir.exists() {
-        fs::create_dir_all(&backups_dir).map_err(|e| e.to_string())?;
+        debug(&format!("Creating backups directory: {}", backups_dir.display()));
+        fs::create_dir_all(&backups_dir).map_err(|e| {
+            let error_msg = format!("Failed to create backups directory: {}", e);
+            error(&error_msg);
+            error_msg
+        })?;
     }
     
     // Create backup name with timestamp
@@ -293,10 +315,20 @@ pub async fn backup_world(minecraft_path: String, world_folder: String) -> Resul
     let backup_name = format!("{}_{}", world_folder, timestamp);
     let backup_path = backups_dir.join(&backup_name);
     
-    // Copy world folder to backup location
-    copy_dir_all(&world_path, &backup_path).map_err(|e| format!("Failed to create backup: {}", e))?;
+    debug(&format!("Copying world from {} to {}", world_path.display(), backup_path.display()));
     
-    Ok(backup_name)
+    // Copy world folder to backup location
+    match copy_dir_all(&world_path, &backup_path) {
+        Ok(_) => {
+            info(&format!("Successfully created backup: {}", backup_name));
+            Ok(backup_name)
+        }
+        Err(e) => {
+            let error_msg = format!("Failed to create backup: {}", e);
+            error(&error_msg);
+            Err(error_msg)
+        }
+    }
 }
 
 // Helper function to count backups for a world

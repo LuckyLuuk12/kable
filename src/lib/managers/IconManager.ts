@@ -167,9 +167,57 @@ export class IconManager {
         copy: '📋',
         paste: '📄',
         cut: '✂️',
+        clipboard: '📋',
+        archive: '🗃️',
         grid: '▦',
         list: '☰',
         layout: '🎛️',
+        
+        // Arrows & Navigation
+        'arrow-up': '⬆️',
+        'arrow-down': '⬇️',
+        'arrow-left': '⬅️',
+        'arrow-right': '➡️',
+        'arrow-back': '🔙',
+        'arrow-forward': '🔜',
+        
+        // Media & Effects
+        volume: '🔊',
+        mute: '🔇',
+        brightness: '☀️',
+        contrast: '🌓',
+        color: '🎨',
+        filter: '🎚️',
+        
+        // Networking
+        online: '🌐',
+        offline: '📴',
+        sync: '🔄',
+        cloud: '☁️',
+        server: '🖥️',
+        microsoft: 'Ⓜ️',
+        
+        // Time & Calendar
+        time: '⏰',
+        date: '📅',
+        timer: '⏱️',
+        
+        // Weather & Environment
+        sun: '☀️',
+        moon: '🌙',
+        star: '⭐',
+        fire: '🔥',
+        water: '💧',
+        air: '💨',
+        
+        // Additional common icons
+        rocket: '🚀',
+        check: '✅',
+        stop: '⏹️',
+        help: '❓',
+        activity: '📊',
+        globe: '🌐',
+        gamepad: '🎮',
         
         // Additional icons
         plus: '➕',
@@ -271,6 +319,43 @@ export class IconManager {
         list: 'fas fa-list',
         layout: 'fas fa-th-large',
         palette: 'fas fa-palette',
+        
+        // Missing common icons
+        clipboard: 'fas fa-clipboard',
+        archive: 'fas fa-archive',
+        'arrow-up': 'fas fa-arrow-up',
+        'arrow-down': 'fas fa-arrow-down',
+        'arrow-left': 'fas fa-arrow-left',
+        'arrow-right': 'fas fa-arrow-right',
+        'arrow-back': 'fas fa-arrow-left',
+        'arrow-forward': 'fas fa-arrow-right',
+        volume: 'fas fa-volume-up',
+        mute: 'fas fa-volume-mute',
+        brightness: 'fas fa-sun',
+        contrast: 'fas fa-adjust',
+        color: 'fas fa-palette',
+        filter: 'fas fa-filter',
+        online: 'fas fa-wifi',
+        offline: 'fas fa-wifi-slash',
+        sync: 'fas fa-sync',
+        cloud: 'fas fa-cloud',
+        server: 'fas fa-server',
+        time: 'fas fa-clock',
+        date: 'fas fa-calendar',
+        timer: 'fas fa-stopwatch',
+        sun: 'fas fa-sun',
+        moon: 'fas fa-moon',
+        star: 'fas fa-star',
+        fire: 'fas fa-fire',
+        water: 'fas fa-tint',
+        air: 'fas fa-wind',
+        rocket: 'fas fa-rocket',
+        check: 'fas fa-check',
+        stop: 'fas fa-stop',
+        help: 'fas fa-question',
+        activity: 'fas fa-chart-line',
+        globe: 'fas fa-globe',
+        gamepad: 'fas fa-gamepad',
         
         // Additional icons
         plus: 'fas fa-plus',

@@ -3,6 +3,7 @@ import { InstallationService } from '../services/InstallationService';
 import { LaunchService } from '../services/LaunchService';
 import { AuthManager } from './AuthManager';
 import { SettingsManager } from './SettingsManager';
+import * as installationsApi from '../api/installations';
 import * as minecraftApi from '../api/minecraft';
 import { 
   installations, 
@@ -13,7 +14,7 @@ import {
   isLaunching,
   launchError
 } from '../stores/game';
-import type { MinecraftInstallation, LaunchOptions } from '../types';
+import type { MinecraftInstallation } from '../types';
 
 /**
  * Game Manager
@@ -21,14 +22,22 @@ import type { MinecraftInstallation, LaunchOptions } from '../types';
  */
 
 export class GameManager {
+  private static isInitialized = false;
+
   /**
    * Initialize game manager - check Java and load installations
    */
   static async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
     await Promise.all([
       this.checkJava(),
       this.loadInstallations()
     ]);
+    
+    this.isInitialized = true;
   }
 
   /**
@@ -248,21 +257,9 @@ export class GameManager {
     launchError.set(null);
 
     try {
-      const launchOptions: LaunchOptions = {
-        version: installation.version,
-        username: validAccount.username,
-        uuid: validAccount.uuid,
-        access_token: validAccount.access_token,
-        memory: settings.memory,
-        java_path: settings.java_path,
-        window_width: settings.window_width,
-        window_height: settings.window_height,
-        jvm_args: [],
-        game_args: []
-      };
-
-      const result = await minecraftApi.launchMinecraft(launchOptions, installation.path);
-      console.log('Launch result:', result);
+      // Use the installation-specific launch function that handles everything internally
+      await installationsApi.launchMinecraftInstallation(installation.id);
+      console.log('Launch initiated for installation:', installation.name);
 
       // Update last played time for the account
       validAccount.last_used = Math.floor(Date.now() / 1000);

@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 // use crate::auth::MicrosoftAccount; // Skipped for now
 use crate::AppError;
+use crate::logging::{Logger, LogLevel};
 
 // Default functions for new settings fields
 fn default_max_world_backups() -> u32 {
@@ -172,6 +173,7 @@ pub async fn save_settings(settings: LauncherSettings) -> Result<(), String> {
     let settings_path = get_settings_path().map_err(|e| e.to_string())?;
     let contents = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     fs::write(&settings_path, contents).map_err(|e| e.to_string())?;
+    Logger::console_log(LogLevel::Info, &format!("Settings saved to: {}", settings_path.display()), None);
     Ok(())
 }
 

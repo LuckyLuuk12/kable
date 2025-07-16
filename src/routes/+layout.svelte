@@ -2,13 +2,15 @@
   import '$lib/styles/global.scss';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { AuthManager, SettingsManager, GameManager, Icon } from '$lib';
+  import { AuthManager, SettingsManager, GameManager, Icon, logsService, LogsManager } from '$lib';
   import { IconManager, WindowStateManager } from '$lib/managers';
   
   let isTauriReady = false;
   let initializationStatus = 'Initializing...';
 
   onMount(async () => {
+    console.log('Starting layout initialization...');
+    
     // Wait a bit for Tauri to fully initialize
     await new Promise(resolve => setTimeout(resolve, 100));
     
@@ -17,7 +19,13 @@
       await GameManager.getDefaultMinecraftDirectory();
       isTauriReady = true;
       
+      // Initialize logs service first
+      await logsService.initialize();
+      LogsManager.emitLauncherEvent('Kable launcher starting up...', 'info');
+      
       // Initialize all managers
+      LogsManager.emitLauncherEvent('Initializing launcher components...', 'info');
+      
       await Promise.all([
         WindowStateManager.initialize(), // Initialize window state first
         AuthManager.initialize(),
@@ -26,9 +34,21 @@
         IconManager.initialize()
       ]);
       
+      LogsManager.emitLauncherEvent('All components initialized successfully', 'info');
       initializationStatus = 'Ready';
+      
+      console.log('Layout initialization complete');
+
+      // Show the window now that initialization is complete
+      try {
+        const { invoke } = await import('@tauri-apps/api/core');
+        await invoke('show_main_window');
+      } catch (error) {
+        console.error('Failed to show main window:', error);
+      }
     } catch (error) {
       console.error('Tauri initialization error:', error);
+      LogsManager.emitLauncherEvent(`Initialization error: ${error}`, 'error');
       initializationStatus = `Initialization error: ${error}`;
       isTauriReady = false;
     }
@@ -41,7 +61,8 @@
     { path: '/mods', label: 'Mods', icon: 'mods' },
     { path: '/shaders', label: 'Shaders', icon: 'shaders' },
     { path: '/maps', label: 'Maps', icon: 'maps' },
-    { path: '/skins', label: 'Skins', icon: 'palette' }
+    { path: '/skins', label: 'Skins', icon: 'palette' },
+    { path: '/logs', label: 'Logs', icon: 'terminal' }
   ];
 
   // State for navigation collapse

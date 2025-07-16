@@ -2,8 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use chrono::Utc;
+use tauri::{AppHandle, Emitter};
 use crate::AppError;
 use crate::auth::{MicrosoftAccount, check_auth_status, get_access_token, get_active_launcher_account};
+use crate::logging::{Logger, LogLevel};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MinecraftInstallation {
@@ -16,7 +18,7 @@ pub struct MinecraftInstallation {
     pub installation_type: String, // 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge'
     pub loader_version: Option<String>,
     pub last_played: Option<String>, // ISO date string
-    pub created: Option<String>,     // ISO date string
+    pub created: Option<String>,
     pub game_dir: PathBuf,
     pub java_path: Option<String>,
     pub jvm_args: Option<Vec<String>>,
@@ -143,7 +145,6 @@ fn create_installation_from_version(
 
     // Try to find a profile that uses this version
     // First try exact match, then try partial matches for mod loader versions
-    println!("=== Creating installation for version: {} ===", version_id);
     let profile_entry = profiles.profiles.iter()
         .find(|(_, p)| p.last_version_id == version_id)
         .or_else(|| {
@@ -162,12 +163,6 @@ fn create_installation_from_version(
         });
     let profile = profile_entry.map(|(_, p)| p);
     let profile_key = profile_entry.map(|(key, _)| key.clone());
-    
-    if let Some(key) = &profile_key {
-        println!("Found matching profile key: {}", key);
-    } else {
-        println!("No matching profile found, using version_id as ID");
-    }
 
     // Determine installation type and loader version
     let (installation_type, loader_version) = detect_installation_type(&version_dir, version_id)?;
@@ -214,59 +209,244 @@ fn create_installation_from_version(
 
 /// Detect the installation type (vanilla, fabric, forge, etc.) and loader version
 fn detect_installation_type(version_dir: &Path, version_id: &str) -> Result<(String, Option<String>), AppError> {
-    let json_path = version_dir.join(format!("{}.json", version_id));
-    
-    if !json_path.exists() {
-        return Ok(("vanilla".to_string(), None));
+    // Method 1: Check version ID patterns first (most reliable for common patterns)
+    if let Some((loader_type, version)) = detect_from_version_id(version_id) {
+        return Ok((loader_type, version));
     }
+    
+    // Method 2: Check JSON file for library dependencies
+    let json_path = version_dir.join(format!("{}.json", version_id));
+    if json_path.exists() {
+        if let Ok((loader_type, version)) = detect_from_json_file(&json_path, version_id) {
+            if loader_type != "vanilla" {
+                return Ok((loader_type, version));
+            }
+        }
+    }
+    
+    // Method 3: Check for additional files that indicate mod loaders
+    if let Some((loader_type, version)) = detect_from_directory_contents(version_dir) {
+        return Ok((loader_type, version));
+    }
+    
+    // Method 4: Check JAR file name patterns
+    if let Some((loader_type, version)) = detect_from_jar_name(version_dir, version_id) {
+        return Ok((loader_type, version));
+    }
+    
+    // Default to vanilla if no mod loader detected
+    Ok(("vanilla".to_string(), None))
+}
 
-    let json_content = fs::read_to_string(&json_path)?;
+/// Detect mod loader from version ID patterns
+fn detect_from_version_id(version_id: &str) -> Option<(String, Option<String>)> {
+    let version_id_lower = version_id.to_lowercase();
+    
+    // Fabric patterns (broadest first)
+    if version_id_lower.contains("fabric") {
+        // Try to extract fabric loader version
+        if let Ok(re) = regex::Regex::new(r"fabric-loader-([0-9]+\.[0-9]+\.[0-9]+)") {
+            if let Some(captures) = re.captures(version_id) {
+                if let Some(version_match) = captures.get(1) {
+                    let version = version_match.as_str().to_string();
+                    return Some(("fabric".to_string(), Some(version)));
+                }
+            }
+        }
+        
+        // Broader fabric pattern for any version number
+        if let Ok(re) = regex::Regex::new(r"([0-9]+\.[0-9]+\.[0-9]+)") {
+            if let Some(captures) = re.captures(version_id) {
+                if let Some(version_match) = captures.get(1) {
+                    let version = version_match.as_str().to_string();
+                    return Some(("fabric".to_string(), Some(version)));
+                }
+            }
+        }
+        
+        return Some(("fabric".to_string(), None));
+    }
+    
+    // Iris + Fabric patterns
+    if version_id_lower.contains("iris") {
+        return Some(("fabric".to_string(), None));
+    }
+    
+    // Forge patterns
+    if version_id_lower.contains("forge") {
+        // Try to extract forge version
+        if let Ok(re) = regex::Regex::new(r"([0-9]+\.[0-9]+\.[0-9]+)") {
+            if let Some(captures) = re.captures(version_id) {
+                if let Some(version_match) = captures.get(1) {
+                    let version = version_match.as_str().to_string();
+                    return Some(("forge".to_string(), Some(version)));
+                }
+            }
+        }
+        
+        return Some(("forge".to_string(), None));
+    }
+    
+    // NeoForge patterns
+    if version_id_lower.contains("neoforge") {
+        if let Ok(re) = regex::Regex::new(r"([0-9]+\.[0-9]+\.[0-9]+)") {
+            if let Some(captures) = re.captures(version_id) {
+                if let Some(version_match) = captures.get(1) {
+                    let version = version_match.as_str().to_string();
+                    return Some(("neoforge".to_string(), Some(version)));
+                }
+            }
+        }
+        
+        return Some(("neoforge".to_string(), None));
+    }
+    
+    // Quilt patterns
+    if version_id_lower.contains("quilt") {
+        if let Ok(re) = regex::Regex::new(r"([0-9]+\.[0-9]+\.[0-9]+)") {
+            if let Some(captures) = re.captures(version_id) {
+                if let Some(version_match) = captures.get(1) {
+                    let version = version_match.as_str().to_string();
+                    return Some(("quilt".to_string(), Some(version)));
+                }
+            }
+        }
+        
+        return Some(("quilt".to_string(), None));
+    }
+    
+    // OptiFine patterns
+    if version_id_lower.contains("optifine") {
+        return Some(("optifine".to_string(), None));
+    }
+    
+    None
+}
+
+/// Detect mod loader from JSON file analysis
+fn detect_from_json_file(json_path: &Path, _version_id: &str) -> Result<(String, Option<String>), AppError> {
+    let json_content = fs::read_to_string(json_path)?;
     let version_json: serde_json::Value = match serde_json::from_str(&json_content) {
         Ok(json) => json,
-        Err(e) => {
-            println!("Warning: Failed to parse JSON for {}: {}", version_id, e);
-            println!("JSON file path: {:?}", json_path);
-            // Return vanilla as fallback when JSON parsing fails
+        Err(_) => {
+            // If JSON parsing fails, try other detection methods
             return Ok(("vanilla".to_string(), None));
         }
     };
 
-    // Check for Fabric
+    // Check libraries array for mod loader dependencies
     if let Some(libraries) = version_json["libraries"].as_array() {
         for lib in libraries {
             if let Some(name) = lib["name"].as_str() {
-                if name.contains("fabric-loader") {
+                // Fabric detection
+                if name.contains("net.fabricmc:fabric-loader") {
                     let loader_version = extract_version_from_library_name(name, "fabric-loader");
                     return Ok(("fabric".to_string(), loader_version));
                 }
-                if name.contains("forge") || name.contains("minecraftforge") {
-                    let loader_version = extract_version_from_library_name(name, "forge");
+                
+                // Forge detection (multiple patterns)
+                if name.contains("net.minecraftforge:forge") || 
+                   name.contains("net.minecraftforge:minecraftforge") ||
+                   name.contains("cpw.mods:modlauncher") {
+                    let loader_version = extract_version_from_library_name(name, "forge")
+                        .or_else(|| extract_version_from_library_name(name, "minecraftforge"));
                     return Ok(("forge".to_string(), loader_version));
                 }
-                if name.contains("quilt-loader") {
+                
+                // NeoForge detection
+                if name.contains("net.neoforged:forge") || name.contains("net.neoforged:neoforge") {
+                    let loader_version = extract_version_from_library_name(name, "neoforge")
+                        .or_else(|| extract_version_from_library_name(name, "forge"));
+                    return Ok(("neoforge".to_string(), loader_version));
+                }
+                
+                // Quilt detection
+                if name.contains("org.quiltmc:quilt-loader") {
                     let loader_version = extract_version_from_library_name(name, "quilt-loader");
                     return Ok(("quilt".to_string(), loader_version));
                 }
-                if name.contains("neoforge") {
-                    let loader_version = extract_version_from_library_name(name, "neoforge");
-                    return Ok(("neoforge".to_string(), loader_version));
+                
+                // OptiFine detection
+                if name.contains("optifine") || name.contains("OptiFine") {
+                    return Ok(("optifine".to_string(), None));
                 }
             }
         }
     }
-
-    // Check version ID for loader info
-    if version_id.contains("fabric") {
-        return Ok(("fabric".to_string(), None));
+    
+    // Check mainClass field for mod loader indicators
+    if let Some(main_class) = version_json["mainClass"].as_str() {
+        if main_class.contains("fabric") {
+            return Ok(("fabric".to_string(), None));
+        }
+        if main_class.contains("forge") || main_class.contains("minecraftforge") {
+            return Ok(("forge".to_string(), None));
+        }
+        if main_class.contains("neoforge") {
+            return Ok(("neoforge".to_string(), None));
+        }
+        if main_class.contains("quilt") {
+            return Ok(("quilt".to_string(), None));
+        }
     }
-    if version_id.contains("forge") {
-        return Ok(("forge".to_string(), None));
-    }
-    if version_id.contains("quilt") {
-        return Ok(("quilt".to_string(), None));
-    }
-
+    
     Ok(("vanilla".to_string(), None))
+}
+
+/// Detect mod loader from directory contents (additional files)
+fn detect_from_directory_contents(version_dir: &Path) -> Option<(String, Option<String>)> {
+    if let Ok(entries) = fs::read_dir(version_dir) {
+        for entry in entries.flatten() {
+            let file_name = entry.file_name().to_string_lossy().to_lowercase();
+            
+            // Look for mod loader specific files
+            if file_name.contains("fabric") && (file_name.ends_with(".jar") || file_name.ends_with(".json")) {
+                return Some(("fabric".to_string(), None));
+            }
+            if file_name.contains("forge") && (file_name.ends_with(".jar") || file_name.ends_with(".json")) {
+                return Some(("forge".to_string(), None));
+            }
+            if file_name.contains("neoforge") && (file_name.ends_with(".jar") || file_name.ends_with(".json")) {
+                return Some(("neoforge".to_string(), None));
+            }
+            if file_name.contains("quilt") && (file_name.ends_with(".jar") || file_name.ends_with(".json")) {
+                return Some(("quilt".to_string(), None));
+            }
+            if file_name.contains("optifine") && file_name.ends_with(".jar") {
+                return Some(("optifine".to_string(), None));
+            }
+        }
+    }
+    None
+}
+
+/// Detect mod loader from JAR file name patterns
+fn detect_from_jar_name(version_dir: &Path, version_id: &str) -> Option<(String, Option<String>)> {
+    let jar_path = version_dir.join(format!("{}.jar", version_id));
+    if jar_path.exists() {
+        let jar_name = jar_path.file_name()?.to_string_lossy().to_lowercase();
+        
+        // Check JAR name for mod loader patterns
+        if jar_name.contains("fabric") {
+            return Some(("fabric".to_string(), None));
+        }
+        if jar_name.contains("forge") {
+            return Some(("forge".to_string(), None));
+        }
+        if jar_name.contains("neoforge") {
+            return Some(("neoforge".to_string(), None));
+        }
+        if jar_name.contains("quilt") {
+            return Some(("quilt".to_string(), None));
+        }
+        if jar_name.contains("optifine") {
+            return Some(("optifine".to_string(), None));
+        }
+        if jar_name.contains("iris") {
+            return Some(("fabric".to_string(), None)); // Iris typically uses Fabric
+        }
+    }
+    None
 }
 
 /// Extract version from library name (e.g., "net.fabricmc:fabric-loader:0.15.0" -> Some("0.15.0"))
@@ -277,6 +457,28 @@ fn extract_version_from_library_name(library_name: &str, loader_type: &str) -> O
             return Some(parts[2].to_string());
         }
     }
+    
+    // Try alternative patterns for different mod loaders
+    match loader_type {
+        "forge" | "minecraftforge" => {
+            // Handle forge patterns like "net.minecraftforge:forge:1.20.1-47.2.0"
+            if let Some(captures) = regex::Regex::new(r"([0-9]+\.[0-9]+\.[0-9]+(?:-[0-9]+\.[0-9]+\.[0-9]+)?)")
+                .ok()?
+                .captures(library_name) {
+                return Some(captures.get(1)?.as_str().to_string());
+            }
+        }
+        "fabric-loader" => {
+            // Handle fabric loader patterns
+            if let Some(captures) = regex::Regex::new(r"fabric-loader:([0-9]+\.[0-9]+\.[0-9]+)")
+                .ok()?
+                .captures(library_name) {
+                return Some(captures.get(1)?.as_str().to_string());
+            }
+        }
+        _ => {}
+    }
+    
     None
 }
 
@@ -458,14 +660,14 @@ pub fn ensure_kable_directory() -> Result<PathBuf, AppError> {
     
     if !kable_dir.exists() {
         fs::create_dir_all(&kable_dir)?;
-        println!("Created Kable directory: {:?}", kable_dir);
+        Logger::info_global(&format!("Created Kable directory: {:?}", kable_dir), None);
     }
     
     // Create only essential subdirectories - much simpler!
     let mods_dir = kable_dir.join("mods");
     if !mods_dir.exists() {
         fs::create_dir_all(&mods_dir)?;
-        println!("Created mods directory: {:?}", mods_dir);
+        Logger::info_global(&format!("Created mods directory: {:?}", mods_dir), None);
     }
     
     Ok(kable_dir)
@@ -506,7 +708,7 @@ pub fn create_installation_mods_directory(installation_id: &str) -> Result<PathB
     
     if !mods_dir.exists() {
         fs::create_dir_all(&mods_dir)?;
-        println!("Created mods directory for installation {}: {:?}", installation_id, mods_dir);
+        Logger::info_global(&format!("Created mods directory for installation {}: {:?}", installation_id, mods_dir), Some(installation_id));
     }
     
     Ok(mods_dir)
@@ -530,35 +732,32 @@ pub fn get_installation_directory(installation_id: &str) -> Result<PathBuf, Stri
 #[tauri::command]
 pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
     let mut all_installations = Vec::new();
-    
-    println!("=== Loading installations ===");
+    let mut stats = std::collections::HashMap::new();
     
     // 1. Load Kable-managed profiles
     match load_kable_profiles() {
         Ok(profiles) => {
             let kable_installations: Vec<KableInstallation> = profiles.profiles.into_values().collect();
-            println!("Found {} Kable-managed installations", kable_installations.len());
+            
+            // Count by mod loader for stats
             for install in &kable_installations {
-                println!("  - {} ({})", install.name, install.version);
+                *stats.entry(install.mod_loader.clone()).or_insert(0) += 1;
             }
+            
             all_installations.extend(kable_installations);
         }
         Err(e) => {
-            println!("Warning: Failed to load Kable profiles: {}", e);
-            // Continue anyway - we can still show existing Minecraft installations
+            Logger::warn_global(&format!("Failed to load Kable profiles: {}", e), None);
         }
     }
     
     // 2. Scan for existing Minecraft installations and convert them to KableInstallation format
     match get_minecraft_installations(None).await {
         Ok(minecraft_installations) => {
-            println!("Found {} existing Minecraft installations", minecraft_installations.len());
+            let mut added_count = 0;
+            let mut skipped_count = 0;
+            
             for mc_install in minecraft_installations {
-                println!("  - Processing: {} ({})", mc_install.name, mc_install.version);
-                
-                // Convert MinecraftInstallation to KableInstallation format
-                // Use the MinecraftInstallation's ID which should be the profile key
-                
                 // Check if we already have this in our Kable profiles
                 let already_exists = all_installations.iter().any(|kable_install| {
                     kable_install.id == mc_install.id
@@ -566,36 +765,53 @@ pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
                 
                 if !already_exists {
                     let kable_installation = KableInstallation {
-                        id: mc_install.id,
-                        name: mc_install.name,
-                        version: mc_install.version,
-                        mod_loader: "vanilla".to_string(), // Existing installations are vanilla unless detected otherwise
-                        loader_version: None,
+                        id: mc_install.id.clone(),
+                        name: mc_install.name.clone(),
+                        version: mc_install.version.clone(),
+                        mod_loader: mc_install.installation_type.clone(), // Use the detected mod loader instead of hardcoded "vanilla"
+                        loader_version: mc_install.loader_version.clone(),
                         description: Some("Existing Minecraft installation".to_string()),
                         game_directory: Some(mc_install.game_dir.to_string_lossy().to_string()),
-                        java_path: mc_install.java_path,
-                        jvm_args: mc_install.jvm_args.map(|args| args.join(" ")),
-                        memory: mc_install.memory, // Use detected memory from JVM args
-                        last_played: mc_install.last_played,
-                        created: mc_install.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+                        java_path: mc_install.java_path.clone(),
+                        jvm_args: mc_install.jvm_args.as_ref().map(|args| args.join(" ")),
+                        memory: mc_install.memory,
+                        last_played: mc_install.last_played.clone(),
+                        created: mc_install.created.clone().unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
                         path: mc_install.path.to_string_lossy().to_string(),
                         is_valid: mc_install.is_valid,
                     };
                     
-                    println!("    + Added as: {}", kable_installation.name);
+                    // Count by mod loader for stats
+                    *stats.entry(kable_installation.mod_loader.clone()).or_insert(0) += 1;
+                    
                     all_installations.push(kable_installation);
+                    added_count += 1;
                 } else {
-                    println!("    - Skipped (already exists in Kable profiles)");
+                    skipped_count += 1;
                 }
+            }
+            
+            if added_count > 0 || skipped_count > 0 {
+                Logger::info_global(&format!("Processed {} existing installations: {} added, {} skipped", 
+                    added_count + skipped_count, added_count, skipped_count), None);
             }
         }
         Err(e) => {
-            println!("Warning: Failed to scan existing Minecraft installations: {}", e);
-            // Continue anyway - we can still show Kable-managed installations
+            Logger::warn_global(&format!("Failed to scan existing Minecraft installations: {}", e), None);
         }
     }
     
-    println!("=== Total installations found: {} ===", all_installations.len());
+    // Print installation statistics
+    let stats_parts: Vec<String> = stats.iter()
+        .map(|(mod_loader, count)| format!("{}: {}", mod_loader, count))
+        .collect();
+    let stats_summary = if stats_parts.is_empty() {
+        "No installations found".to_string()
+    } else {
+        format!("Installation Statistics - {} (Total: {})", stats_parts.join(", "), all_installations.len())
+    };
+    Logger::info_global(&stats_summary, None);
+    
     Ok(all_installations)
 }
 
@@ -640,7 +856,7 @@ pub async fn create_installation(
     save_kable_profiles(&profiles)
         .map_err(|e| format!("Failed to save kable profiles: {}", e))?;
     
-    println!("Created installation: {} ({})", installation.name, installation.id);
+    Logger::info_global(&format!("Created installation: {} ({})", installation.name, installation.id), Some(&installation.id));
     Ok(installation)
 }
 
@@ -657,13 +873,13 @@ pub async fn delete_installation(installation_id: String) -> Result<(), String> 
         if mods_dir.exists() {
             fs::remove_dir_all(&mods_dir)
                 .map_err(|e| format!("Failed to remove mods directory: {}", e))?;
-            println!("Removed mods directory: {:?}", mods_dir);
+            Logger::info_global(&format!("Removed mods directory: {:?}", mods_dir), Some(&installation_id));
         }
         
         save_kable_profiles(&profiles)
             .map_err(|e| format!("Failed to save kable profiles: {}", e))?;
         
-        println!("Deleted installation: {} ({})", installation.name, installation.id);
+        Logger::info_global(&format!("Deleted installation: {} ({})", installation.name, installation.id), Some(&installation.id));
         Ok(())
     } else {
         Err("Installation not found".to_string())
@@ -697,14 +913,14 @@ pub async fn get_minecraft_versions() -> Result<Vec<VersionInfo>, String> {
                     Ok(versions)
                 }
                 Err(e) => {
-                    println!("Failed to parse version manifest: {}", e);
+                    Logger::error_global(&format!("Failed to parse version manifest: {}", e), None);
                     // Return fallback versions
                     Ok(get_fallback_versions())
                 }
             }
         }
         Err(e) => {
-            println!("Failed to fetch version manifest: {}", e);
+            Logger::error_global(&format!("Failed to fetch version manifest: {}", e), None);
             // Return fallback versions
             Ok(get_fallback_versions())
         }
@@ -796,16 +1012,33 @@ pub async fn open_installation_folder(installation_id: String) -> Result<(), Str
 }
 
 #[tauri::command]
-pub async fn launch_minecraft_installation(installation_id: String) -> Result<(), String> {
+pub async fn launch_minecraft_installation(app: AppHandle, installation_id: String) -> Result<(), String> {
     use crate::launcher::*;
     use crate::settings::load_settings;
-    use std::process::Command;
+    use std::process::{Command, Stdio};
+    use serde_json::json;
+    use uuid::Uuid;
     
-    println!("=== Launching installation: {} ===", installation_id);
+    let instance_id = Uuid::new_v4().to_string();
+    
+    Logger::info(&app, &format!("=== Launching installation: {} ===", installation_id), Some(&instance_id));
+    
+    // Emit game launch event  
+    if let Err(e) = app.emit_to("main", "game-launched", json!({
+        "instanceId": instance_id,
+        "installationId": installation_id,
+        "profile": { "name": installation_id.clone() },
+        "installation": { "path": "loading..." }
+    })) {
+        Logger::error(&app, &format!("Failed to emit game-launched event: {}", e), Some(&instance_id));
+    }
     
     // Load required data
     let settings = load_settings().await
-        .map_err(|e| format!("Failed to load settings: {}", e))?;
+        .map_err(|e| {
+            Logger::error(&app, &format!("Failed to load settings: {}", e), Some(&instance_id));
+            format!("Failed to load settings: {}", e)
+        })?;
     
     // Get minecraft directory
     let minecraft_dir = PathBuf::from(settings.minecraft_path.as_ref()
@@ -822,9 +1055,9 @@ pub async fn launch_minecraft_installation(installation_id: String) -> Result<()
     let kable_installation = kable_profiles.profiles.get(&installation_id);
     
     // Debug: Print available profile keys
-    println!("Available profile keys:");
+    Logger::debug(&app, "Available profile keys:", Some(&instance_id));
     for key in launcher_profiles.profiles.keys() {
-        println!("  - {}", key);
+        Logger::debug(&app, &format!("  - {}", key), Some(&instance_id));
     }
     
     // Get current account (try real auth first, fall back to mock)
@@ -957,41 +1190,144 @@ pub async fn launch_minecraft_installation(installation_id: String) -> Result<()
     */
     
     // Launch Minecraft
-    println!("=== LAUNCH DEBUG INFO ===");
-    println!("Java executable: {}", java_executable);
-    println!("Working directory: {}", game_dir.display());
-    println!("Command args count: {}", command_args.len());
-    println!("Full command:");
-    println!("  {} {}", java_executable, command_args.join(" "));
-    println!("=========================");
+    Logger::debug_global("=== LAUNCH DEBUG INFO ===", Some(&instance_id));
+    Logger::debug_global(&format!("Java executable: {}", java_executable), Some(&instance_id));
+    Logger::debug_global(&format!("Working directory: {}", game_dir.display()), Some(&instance_id));
+    Logger::debug_global(&format!("Command args count: {}", command_args.len()), Some(&instance_id));
+    Logger::debug_global("Full command:", Some(&instance_id));
+    Logger::debug_global(&format!("  {} {}", java_executable, command_args.join(" ")), Some(&instance_id));
+    Logger::debug_global("=========================", Some(&instance_id));
     
     let mut command = Command::new(&java_executable);
     command.args(&command_args);
     command.current_dir(&game_dir);
     
-    // Set environment variables
+    // Set environment variables  
     command.env("JAVA_HOME", java_executable.clone());
     
-    // Spawn the Minecraft process without waiting for it to finish
+    // Configure process for logging
+    command.stdout(Stdio::piped());
+    command.stderr(Stdio::piped());
+    
+    // Emit launcher log for launch attempt
+    if let Err(e) = app.emit_to("main", "launcher-log", json!({
+        "level": "info",
+        "message": format!("Starting {} with Java: {}", installation_id, java_executable),
+        "instanceId": instance_id
+    })) {
+        Logger::error_global(&format!("Failed to emit launcher-log event: {}", e), Some(&instance_id));
+    }
+    
+    // Spawn the Minecraft process
     match command.spawn() {
         Ok(mut child) => {
-            println!("=== MINECRAFT PROCESS SPAWNED ===");
-            println!("Process ID: {}", child.id());
-            println!("Minecraft launched successfully!");
-            println!("================================");
+            let pid = child.id();
+            Logger::log(&app, LogLevel::Info, "=== MINECRAFT PROCESS SPAWNED ===", Some(&instance_id));
+            Logger::log(&app, LogLevel::Info, &format!("Process ID: {}", pid), Some(&instance_id));
+            Logger::log(&app, LogLevel::Info, "Minecraft launched successfully!", Some(&instance_id));
+            Logger::log(&app, LogLevel::Info, "================================", Some(&instance_id));
+
+            // Emit process started event
+            if let Err(e) = app.emit_to("main", "game-process-event", json!({
+                "instanceId": instance_id,
+                "type": "started",
+                "data": { "pid": pid }
+            })) {
+                Logger::error_global(&format!("Failed to emit game-process-event: {}", e), Some(&instance_id));
+            }
             
-            // Optionally, we can detach the process so it continues running 
-            // even if the launcher closes
+            // Update the lastUsed timestamp in launcher profiles
+            if let Err(e) = update_profile_last_used(&installation_id, &minecraft_dir).await {
+                Logger::log(&app, LogLevel::Warning, &format!("Failed to update lastUsed timestamp: {}", e), Some(&instance_id));
+            }
+            
+            // Handle process output and completion
+            let app_clone = app.clone();
+            let instance_id_clone = instance_id.clone();
             std::thread::spawn(move || {
+                // Handle stdout
+                if let Some(stdout) = child.stdout.take() {
+                    use std::io::{BufRead, BufReader};
+                    let reader = BufReader::new(stdout);
+                    let app_stdout = app_clone.clone();
+                    let instance_stdout = instance_id_clone.clone();
+                    
+                    std::thread::spawn(move || {
+                        for line_result in reader.lines() {
+                            match line_result {
+                                Ok(line) => {
+                                    if let Err(e) = app_stdout.emit_to("main", "game-process-event", json!({
+                                        "instanceId": instance_stdout,
+                                        "type": "output",
+                                        "data": { "line": line }
+                                    })) {
+                                        Logger::console_log(LogLevel::Error, &format!("Failed to emit stdout event: {}", e), Some(&instance_stdout));
+                                    }
+                                }
+                                Err(e) => {
+                                    Logger::console_log(LogLevel::Error, &format!("Error reading stdout line: {}", e), Some(&instance_stdout));
+                                    break; // Exit on error to prevent infinite loop
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // Handle stderr
+                if let Some(stderr) = child.stderr.take() {
+                    use std::io::{BufRead, BufReader};
+                    let reader = BufReader::new(stderr);
+                    let app_stderr = app_clone.clone();
+                    let instance_stderr = instance_id_clone.clone();
+                    
+                    std::thread::spawn(move || {
+                        for line_result in reader.lines() {
+                            match line_result {
+                                Ok(line) => {
+                                    if let Err(e) = app_stderr.emit_to("main", "game-process-event", json!({
+                                        "instanceId": instance_stderr,
+                                        "type": "error", 
+                                        "data": { "line": line }
+                                    })) {
+                                        Logger::console_log(LogLevel::Error, &format!("Failed to emit stderr event: {}", e), Some(&instance_stderr));
+                                    }
+                                }
+                                Err(e) => {
+                                    Logger::console_log(LogLevel::Error, &format!("Error reading stderr line: {}", e), Some(&instance_stderr));
+                                    break; // Exit on error to prevent infinite loop
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // Wait for process completion
                 if let Ok(status) = child.wait() {
-                    println!("Minecraft process exited with status: {}", status);
+                    let exit_code = status.code().unwrap_or(-1);
+                    Logger::info_global(&format!("Minecraft process exited with status: {}", exit_code), Some(&instance_id_clone));
+                    
+                    if let Err(e) = app_clone.emit_to("main", "game-process-event", json!({
+                        "instanceId": instance_id_clone,
+                        "type": "exit",
+                        "data": { "code": exit_code }
+                    })) {
+                        Logger::error_global(&format!("Failed to emit exit event: {}", e), Some(&instance_id_clone));
+                    }
                 }
             });
             
             Ok(())
         },
         Err(e) => {
-            Err(format!("Failed to spawn Minecraft process: {}", e))
+            let error_msg = format!("Failed to spawn Minecraft process: {}", e);
+            if let Err(emit_err) = app.emit_to("main", "launcher-log", json!({
+                "level": "error",
+                "message": error_msg.clone(),
+                "instanceId": instance_id
+            })) {
+                Logger::error_global(&format!("Failed to emit error event: {}", emit_err), Some(&instance_id));
+            }
+            Err(error_msg)
         }
     }
 }
@@ -1074,7 +1410,7 @@ pub async fn quick_launch_minecraft(version_name: String) -> Result<(), String> 
     let game_dir = &minecraft_dir;
     
     // Launch Minecraft
-    println!("Quick launching Minecraft {} with command: {} {}", version_name, java_executable, command_args.join(" "));
+    Logger::info_global(&format!("Quick launching Minecraft {} with command: {} {}", version_name, java_executable, command_args.join(" ")), None);
     
     let mut command = Command::new(&java_executable);
     command.args(&command_args);
@@ -1086,7 +1422,13 @@ pub async fn quick_launch_minecraft(version_name: String) -> Result<(), String> 
     let child = command.spawn()
         .map_err(|e| format!("Failed to launch Minecraft: {}", e))?;
     
-    println!("Minecraft launched with PID: {}", child.id());
+    Logger::info_global(&format!("Minecraft launched with PID: {}", child.id()), None);
+    
+    // Try to find and update any profile that uses this version
+    if let Err(e) = update_profile_last_used_by_version(&version_name, &minecraft_dir).await {
+        Logger::warn_global(&format!("Failed to update lastUsed timestamp for version {}: {}", version_name, e), None);
+        // Don't fail the launch for this, just log the warning
+    }
     
     Ok(())
 }
@@ -1096,27 +1438,27 @@ async fn get_launch_auth_account() -> Result<MicrosoftAccount, String> {
     // First, try to get a real authenticated account from storage
     match get_active_launcher_account().await {
         Ok(Some(account)) => {
-            println!("Using real Microsoft account: {}", account.username);
+            Logger::info_global(&format!("Using real Microsoft account: {}", account.username), None);
             
             // Check if the Minecraft token is still valid
             if let Some(_minecraft_token) = &account.minecraft_access_token {
                 if let Some(expires_at) = account.minecraft_expires_at {
                     if expires_at > chrono::Utc::now().timestamp() {
-                        println!("Minecraft token is valid, launching with real authentication");
+                        Logger::info_global("Minecraft token is valid, launching with real authentication", None);
                         return Ok(account);
                     } else {
-                        println!("Minecraft token expired, need to refresh");
+                        Logger::warn_global("Minecraft token expired, need to refresh", None);
                     }
                 } else {
-                    println!("No Minecraft token expiry info, assuming valid");
+                    Logger::info_global("No Minecraft token expiry info, assuming valid", None);
                     return Ok(account);
                 }
             } else {
-                println!("No Minecraft access token available");
+                Logger::warn_global("No Minecraft access token available", None);
             }
             
             // Use the real account data but fall back to offline mode for launch
-            println!("Using real account data in offline mode");
+            Logger::info_global("Using real account data in offline mode", None);
             return Ok(MicrosoftAccount {
                 id: account.id,
                 username: account.username, // Use real username
@@ -1133,17 +1475,17 @@ async fn get_launch_auth_account() -> Result<MicrosoftAccount, String> {
             });
         }
         Ok(None) => {
-            println!("No active Microsoft account found");
+            Logger::info_global("No active Microsoft account found", None);
         }
         Err(e) => {
-            println!("Failed to load active account: {}", e);
+            Logger::warn_global(&format!("Failed to load active account: {}", e), None);
         }
     }
     
     // Fall back to mock auth for testing
-    println!("No real Microsoft account found, using mock authentication");
-    println!("Note: This will launch Minecraft in offline mode");
-    println!("To get online authentication, please log in through the UI first");
+    Logger::info_global("No real Microsoft account found, using mock authentication", None);
+    Logger::info_global("Note: This will launch Minecraft in offline mode", None);
+    Logger::info_global("To get online authentication, please log in through the UI first", None);
     
     // Check if auth is enabled (this will always return true in our mock system)
     let auth_status = check_auth_status().await?;
@@ -1172,7 +1514,7 @@ async fn get_launch_auth_account() -> Result<MicrosoftAccount, String> {
 }
 
 #[tauri::command]
-pub async fn launch_most_recent_installation() -> Result<(), String> {
+pub async fn launch_most_recent_installation(app: AppHandle) -> Result<(), String> {
     use crate::settings::load_settings;
     
     // Load settings to get minecraft path
@@ -1187,19 +1529,19 @@ pub async fn launch_most_recent_installation() -> Result<(), String> {
     
     // Find the most recently used profile
     let most_recent_profile = profiles.profiles
-        .values()
-        .filter(|profile| profile.last_used.is_some())
-        .max_by(|a, b| {
+        .iter() // Use iter() to get both key and value
+        .filter(|(_, profile)| profile.last_used.is_some())
+        .max_by(|(_, a), (_, b)| {
             let a_time = a.last_used.as_ref().unwrap();
             let b_time = b.last_used.as_ref().unwrap();
             a_time.cmp(b_time)
         });
     
-    let profile = most_recent_profile
+    let (profile_id, _profile) = most_recent_profile
         .ok_or("No recently used installations found. Please select an installation to play.")?;
     
-    // Launch using the installation's version
-    launch_minecraft_installation(profile.last_version_id.clone()).await
+    // Launch using the profile ID
+    launch_minecraft_installation(app, profile_id.clone()).await
 }
 
 #[tauri::command]
@@ -1227,9 +1569,116 @@ pub async fn update_installation(
         save_kable_profiles(&profiles)
             .map_err(|e| format!("Failed to save kable profiles: {}", e))?;
         
-        println!("Updated installation: {} ({})", installation.name, installation.id);
+        Logger::info_global(&format!("Updated installation: {} ({})", installation.name, installation.id), Some(&installation.id));
         Ok(installation)
     } else {
         Err("Installation not found".to_string())
     }
 }
+
+#[derive(Serialize)]
+pub struct ModLoaderDetectionResult {
+    pub mod_loader: String,
+    pub loader_version: Option<String>,
+}
+
+#[tauri::command]
+pub async fn detect_installation_mod_loader(installation_id: String) -> Result<ModLoaderDetectionResult, String> {
+    // Try to find the installation in kable profiles first
+    let kable_profiles = load_kable_profiles()
+        .map_err(|e| format!("Failed to load kable profiles: {}", e))?;
+    
+    if let Some(installation) = kable_profiles.profiles.get(&installation_id) {
+        // If it's a kable installation and has a configured mod loader, use that
+        if installation.mod_loader != "vanilla" {
+            return Ok(ModLoaderDetectionResult {
+                mod_loader: installation.mod_loader.clone(),
+                loader_version: installation.loader_version.clone(),
+            });
+        }
+    }
+    
+    // If it's not a kable installation or is vanilla, scan the actual Minecraft installation
+    let settings = crate::settings::load_settings().await
+        .map_err(|e| format!("Failed to load settings: {}", e))?;
+    
+    let minecraft_installations = get_minecraft_installations(settings.minecraft_path)
+        .await
+        .map_err(|e| format!("Failed to get minecraft installations: {}", e))?;
+    
+    let installation = minecraft_installations
+        .iter()
+        .find(|i| i.id == installation_id)
+        .ok_or("Installation not found")?;
+    
+    // Use the existing detection logic
+    Ok(ModLoaderDetectionResult {
+        mod_loader: installation.installation_type.clone(),
+        loader_version: installation.loader_version.clone(),
+    })
+}
+
+/// Update the lastUsed timestamp for a profile in launcher_profiles.json
+async fn update_profile_last_used(installation_id: &str, minecraft_dir: &Path) -> Result<(), String> {
+    // Load current launcher profiles
+    let mut launcher_profiles = read_launcher_profiles(minecraft_dir)
+        .map_err(|e| format!("Failed to read launcher profiles: {}", e))?;
+    
+    // Find and update the profile
+    if let Some(profile) = launcher_profiles.profiles.get_mut(installation_id) {
+        let now = chrono::Utc::now().to_rfc3339();
+        profile.last_used = Some(now.clone());
+        
+        Logger::info_global(&format!("Updated lastUsed for profile '{}' to: {}", installation_id, now), Some(installation_id));
+        
+        // Write back to file
+        let profiles_path = minecraft_dir.join("launcher_profiles.json");
+        let json_content = serde_json::to_string_pretty(&launcher_profiles)
+            .map_err(|e| format!("Failed to serialize launcher profiles: {}", e))?;
+        
+        fs::write(&profiles_path, json_content)
+            .map_err(|e| format!("Failed to write launcher profiles: {}", e))?;
+        
+        Ok(())
+    } else {
+        Err(format!("Profile '{}' not found in launcher_profiles.json", installation_id))
+    }
+}
+
+/// Update the lastUsed timestamp for profiles that use a specific version
+async fn update_profile_last_used_by_version(version_name: &str, minecraft_dir: &Path) -> Result<(), String> {
+    // Load current launcher profiles
+    let mut launcher_profiles = read_launcher_profiles(minecraft_dir)
+        .map_err(|e| format!("Failed to read launcher profiles: {}", e))?;
+    
+    let mut updated_count = 0;
+    let now = chrono::Utc::now().to_rfc3339();
+    
+    // Find and update profiles that use this version
+    for (profile_id, profile) in launcher_profiles.profiles.iter_mut() {
+        if profile.last_version_id == version_name {
+            profile.last_used = Some(now.clone());
+            Logger::info_global(&format!("Updated lastUsed for profile '{}' (version: {}) to: {}", profile_id, version_name, now), None);
+            updated_count += 1;
+        }
+    }
+    
+    if updated_count > 0 {
+        // Write back to file
+        let profiles_path = minecraft_dir.join("launcher_profiles.json");
+        let json_content = serde_json::to_string_pretty(&launcher_profiles)
+            .map_err(|e| format!("Failed to serialize launcher profiles: {}", e))?;
+        
+        fs::write(&profiles_path, json_content)
+            .map_err(|e| format!("Failed to write launcher profiles: {}", e))?;
+        
+        Logger::info_global(&format!("Updated {} profile(s) for version '{}'", updated_count, version_name), None);
+        Ok(())
+    } else {
+        // This is not necessarily an error - the version might be launched directly without a profile
+        Logger::info_global(&format!("No profiles found for version '{}', this is normal for direct version launches", version_name), None);
+        Ok(())
+    }
+}
+
+

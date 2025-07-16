@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import Icon from '$lib/components/Icon.svelte';
+  import { Icon } from '$lib';
   import { InstallationService } from '$lib/services/InstallationService';
-  import { LaunchService } from '$lib/services/LaunchService';
+  import { ModDetectionService } from '$lib/services/ModDetectionService';
   import { GameManager } from '$lib/managers/GameManager';
   import type { MinecraftInstallation, MinecraftVersion } from '$lib/types';
+  import type { ModDetectionResult } from '$lib/services/ModDetectionService';
   
   // State variables
   let installations: MinecraftInstallation[] = [];
@@ -14,6 +15,9 @@
   let showCreateModal = false;
   let showEditModal = false;
   let editingInstallation: MinecraftInstallation | null = null;
+  
+  // Mod detection results
+  let modDetectionResults: Map<string, ModDetectionResult> = new Map();
   
   // New installation form
   let newInstallation = {
@@ -41,12 +45,30 @@
       const result = await InstallationService.getInstallations();
       installations = result || [];
       
+      // Run mod detection on each installation
+      await analyzeAllInstallations();
+      
     } catch (err) {
       console.error('Failed to load installations:', err);
       error = `Failed to load installations: ${err}`;
     } finally {
       isLoading = false;
     }
+  }
+
+  async function analyzeAllInstallations() {
+    const detectionPromises = installations.map(async (installation) => {
+      try {
+        const detection = await ModDetectionService.analyzeInstallation(installation);
+        modDetectionResults.set(installation.id, detection);
+      } catch (err) {
+        console.error(`Failed to analyze installation ${installation.name}:`, err);
+      }
+    });
+    
+    await Promise.all(detectionPromises);
+    // Force reactivity update
+    modDetectionResults = new Map(modDetectionResults);
   }
 
   async function loadAvailableVersions() {
@@ -88,6 +110,16 @@
       );
       
       installations = [...installations, installation];
+      
+      // Analyze the new installation for mod detection
+      try {
+        const detection = await ModDetectionService.analyzeInstallation(installation);
+        modDetectionResults.set(installation.id, detection);
+        modDetectionResults = new Map(modDetectionResults);
+      } catch (err) {
+        console.error('Failed to analyze new installation:', err);
+      }
+      
       showCreateModal = false;
       
       // Reset form
@@ -162,12 +194,38 @@
     }
   }
 
-  function getModLoaderIcon(modLoader: string) {
-    switch (modLoader) {
-      case 'fabric': return 'fabric';
-      case 'forge': return 'hammer';
-      default: return 'cube';
+  function getModLoaderIcon(installation: MinecraftInstallation) {
+    const detection = modDetectionResults.get(installation.id);
+    if (detection) {
+      return ModDetectionService.getModLoaderIcon(detection.modLoaderType);
     }
+    return ModDetectionService.getModLoaderIcon(installation.mod_loader);
+  }
+
+  function getModLoaderDisplay(installation: MinecraftInstallation): string {
+    const detection = modDetectionResults.get(installation.id);
+    if (detection) {
+      return ModDetectionService.getModdingStatusDescription(detection);
+    }
+    
+    // Fallback to basic display
+    if (installation.mod_loader === 'vanilla') {
+      return 'Vanilla Minecraft';
+    }
+    
+    let display = installation.mod_loader.charAt(0).toUpperCase() + installation.mod_loader.slice(1);
+    if (installation.loader_version) {
+      display += ` ${installation.loader_version}`;
+    }
+    return display;
+  }
+
+  function getModLoaderColor(installation: MinecraftInstallation): string {
+    const detection = modDetectionResults.get(installation.id);
+    if (detection) {
+      return ModDetectionService.getModLoaderColor(detection.modLoaderType);
+    }
+    return ModDetectionService.getModLoaderColor(installation.mod_loader);
   }
 
   function getVersionTypeColor(type: string) {
@@ -219,6 +277,15 @@
       installations = installations.map(inst => 
         inst.id === editingInstallation?.id ? updatedInstallation : inst
       );
+      
+      // Re-analyze the updated installation
+      try {
+        const detection = await ModDetectionService.analyzeInstallation(updatedInstallation);
+        modDetectionResults.set(updatedInstallation.id, detection);
+        modDetectionResults = new Map(modDetectionResults);
+      } catch (err) {
+        console.error('Failed to analyze updated installation:', err);
+      }
       
       showEditModal = false;
       editingInstallation = null;
@@ -313,14 +380,14 @@
       {#each installations as installation}
         <div class="installation-card">
           <div class="installation-header">
-            <div class="installation-icon">
-              <Icon name={getModLoaderIcon(installation.mod_loader)} size="lg" />
+            <div class="installation-icon" style="background-color: {getModLoaderColor(installation)}20; color: {getModLoaderColor(installation)};">
+              <Icon name={getModLoaderIcon(installation)} size="lg" />
             </div>
             <div class="installation-info">
               <h3>{installation.name}</h3>
               <div class="installation-details">
                 <span class="version">{installation.version}</span>
-                <span class="mod-loader">{installation.mod_loader}</span>
+                <span class="mod-loader" style="color: {getModLoaderColor(installation)};">{getModLoaderDisplay(installation)}</span>
               </div>
               {#if installation.description}
                 <p class="description">{installation.description}</p>

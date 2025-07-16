@@ -2,10 +2,13 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use tauri::{Manager, PhysicalPosition, PhysicalSize, WebviewWindow};
+use crate::logging::{Logger, LogLevel};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct WindowState {
+    /// Window width (inner size on Windows to avoid title bar issues)
     pub width: u32,
+    /// Window height (inner size on Windows to avoid title bar issues)  
     pub height: u32,
     pub x: i32,
     pub y: i32,
@@ -68,7 +71,13 @@ pub async fn save_window_state(state: WindowState) -> Result<(), String> {
 
 #[tauri::command]
 pub async fn get_current_window_state(window: WebviewWindow) -> Result<WindowState, String> {
-    let size = window.outer_size().map_err(|e| e.to_string())?;
+    // On Windows, use inner_size to avoid title bar issues
+    let size = if cfg!(target_os = "windows") {
+        window.inner_size().map_err(|e| e.to_string())?
+    } else {
+        window.outer_size().map_err(|e| e.to_string())?
+    };
+    
     let position = window.outer_position().map_err(|e| e.to_string())?;
     let maximized = window.is_maximized().map_err(|e| e.to_string())?;
     let fullscreen = window.is_fullscreen().map_err(|e| e.to_string())?;
@@ -137,9 +146,16 @@ pub async fn apply_window_state(window: WebviewWindow, state: WindowState) -> Re
         None
     };
     
-    // Set size first
+    // Set size first - use appropriate method for Windows
     let size = PhysicalSize::new(state.width, state.height);
-    window.set_size(size).map_err(|e| e.to_string())?;
+    
+    // On Windows, we might need to account for decorations differently
+    if cfg!(target_os = "windows") {
+        // For Windows, we're using inner_size when saving state, so set_size should work correctly
+        window.set_size(size).map_err(|e| e.to_string())?;
+    } else {
+        window.set_size(size).map_err(|e| e.to_string())?;
+    }
     
     // Handle position based on whether we found the target monitor
     if let Some(monitor) = target_monitor {
@@ -223,6 +239,17 @@ pub async fn get_monitor_info(window: WebviewWindow) -> Result<Vec<serde_json::V
     }).collect();
     
     Ok(monitor_info)
+}
+
+#[tauri::command]
+pub async fn show_main_window(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("main") {
+        window.show().map_err(|e| format!("Failed to show window: {}", e))?;
+        Logger::console_log(LogLevel::Info, "Main window shown after initialization", None);
+        Ok(())
+    } else {
+        Err("Main window not found".to_string())
+    }
 }
 
 pub fn setup_window_state_handlers(app: &tauri::App) -> Result<(), Box<dyn std::error::Error>> {

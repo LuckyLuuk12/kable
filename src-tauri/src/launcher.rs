@@ -6,6 +6,7 @@ use std::fs;
 use crate::auth::MicrosoftAccount;
 use crate::settings::LauncherSettings;
 use crate::AppError;
+use crate::logging::{Logger, LogLevel};
 
 #[derive(Debug, Clone)]
 pub struct LaunchContext {
@@ -170,8 +171,8 @@ fn load_version_manifest_recursive(
     let mut manifest: VersionManifest = match serde_json::from_str(&content) {
         Ok(manifest) => manifest,
         Err(err) => {
-            println!("Failed to parse version manifest for {}: {}", version_id, err);
-            println!("Manifest path: {}", manifest_path.display());
+            Logger::console_log(LogLevel::Error, &format!("Failed to parse version manifest for {}: {}", version_id, err), Some(version_id));
+            Logger::console_log(LogLevel::Error, &format!("Manifest path: {}", manifest_path.display()), Some(version_id));
             return Err(AppError::Io(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!("Failed to parse version manifest for {}: {}", version_id, err)
@@ -181,7 +182,7 @@ fn load_version_manifest_recursive(
     
     // If this version inherits from another, load and merge the parent
     if let Some(parent_id) = &manifest.inherits_from {
-        println!("Loading parent version: {} for {}", parent_id, version_id);
+        Logger::console_log(LogLevel::Debug, &format!("Loading parent version: {} for {}", parent_id, version_id), Some(version_id));
         let parent_manifest = load_version_manifest_recursive(parent_id, minecraft_dir, visited)?;
         
         // Merge parent libraries with current libraries
@@ -215,8 +216,8 @@ fn load_version_manifest_recursive(
             manifest.asset_index = parent_manifest.asset_index;
         }
         
-        println!("Merged {} parent + {} current = {} total libraries (after deduplication)", 
-                parent_lib_count, current_lib_count, manifest.libraries.len());
+        Logger::console_log(LogLevel::Debug, &format!("Merged {} parent + {} current = {} total libraries (after deduplication)", 
+                parent_lib_count, current_lib_count, manifest.libraries.len()), Some(version_id));
     }
     
     Ok(manifest)
@@ -422,16 +423,16 @@ pub fn build_classpath(
 ) -> Result<String, String> {
     let mut classpath_entries = Vec::new();
     
-    println!("=== CLASSPATH DEBUG ===");
-    println!("Libraries path: {}", libraries_path.display());
-    println!("Version JAR path: {}", version_jar_path.display());
-    println!("Total libraries to process: {}", libraries.len());
+    Logger::console_log(LogLevel::Debug, "=== CLASSPATH DEBUG ===", None);
+    Logger::console_log(LogLevel::Debug, &format!("Libraries path: {}", libraries_path.display()), None);
+    Logger::console_log(LogLevel::Debug, &format!("Version JAR path: {}", version_jar_path.display()), None);
+    Logger::console_log(LogLevel::Debug, &format!("Total libraries to process: {}", libraries.len()), None);
     
     // Debug: Count LWJGL libraries specifically
     let lwjgl_count = libraries.iter()
         .filter(|lib| lib.name.contains("lwjgl"))
         .count();
-    println!("LWJGL libraries found: {}", lwjgl_count);
+    Logger::console_log(LogLevel::Debug, &format!("LWJGL libraries found: {}", lwjgl_count), None);
     
     // Add all library JARs
     for library in libraries {
@@ -440,7 +441,7 @@ pub fn build_classpath(
             let rules_value = serde_json::to_value(rules)
                 .map_err(|e| format!("Failed to serialize rules: {}", e))?;
             if !evaluate_rules(&rules_value)? {
-                println!("  Skipping library {} (rule failed)", library.name);
+                Logger::console_log(LogLevel::Debug, &format!("  Skipping library {} (rule failed)", library.name), None);
                 continue; // Skip this library
             }
         }
@@ -450,35 +451,35 @@ pub fn build_classpath(
                 let lib_path = libraries_path.join(&artifact.path);
                 if lib_path.exists() {
                     if library.name.contains("lwjgl") {
-                        println!("  Found LWJGL library: {} -> {}", library.name, artifact.path);
+                        Logger::console_log(LogLevel::Debug, &format!("  Found LWJGL library: {} -> {}", library.name, artifact.path), None);
                     } else {
-                        println!("  Found library: {}", artifact.path);
+                        Logger::console_log(LogLevel::Debug, &format!("  Found library: {}", artifact.path), None);
                     }
                     classpath_entries.push(lib_path.to_string_lossy().to_string());
                 } else if library.name.contains("lwjgl") {
-                    println!("  Missing LWJGL library: {} (path: {})", library.name, lib_path.display());
+                    Logger::console_log(LogLevel::Debug, &format!("  Missing LWJGL library: {} (path: {})", library.name, lib_path.display()), None);
                 } else {
-                    println!("  Missing library: {} (path: {})", library.name, lib_path.display());
+                    Logger::console_log(LogLevel::Debug, &format!("  Missing library: {} (path: {})", library.name, lib_path.display()), None);
                 }
             } else {
-                println!("  No artifact for library: {}", library.name);
+                Logger::console_log(LogLevel::Debug, &format!("  No artifact for library: {}", library.name), None);
             }
         } else {
             // For libraries without downloads (like Fabric), try to find them manually
             // This is a fallback for mod loader libraries that might be embedded
             if library.name.contains("lwjgl") {
-                println!("  No downloads for LWJGL library: {}", library.name);
+                Logger::console_log(LogLevel::Debug, &format!("  No downloads for LWJGL library: {}", library.name), None);
             } else {
-                println!("  No downloads for library: {}", library.name);
+                Logger::console_log(LogLevel::Debug, &format!("  No downloads for library: {}", library.name), None);
             }
             
             // Try to construct the path manually for common libraries
             if let Some(jar_path) = try_find_library_manually(&library.name, libraries_path) {
                 if jar_path.exists() {
                     if library.name.contains("lwjgl") {
-                        println!("  Found LWJGL library manually: {}", jar_path.display());
+                        Logger::console_log(LogLevel::Debug, &format!("  Found LWJGL library manually: {}", jar_path.display()), None);
                     } else {
-                        println!("  Found library manually: {}", jar_path.display());
+                        Logger::console_log(LogLevel::Debug, &format!("  Found library manually: {}", jar_path.display()), None);
                     }
                     classpath_entries.push(jar_path.to_string_lossy().to_string());
                 }
@@ -488,18 +489,18 @@ pub fn build_classpath(
     
     // Add the main version JAR
     if version_jar_path.exists() {
-        println!("  Found version JAR: {}", version_jar_path.display());
+        Logger::console_log(LogLevel::Debug, &format!("  Found version JAR: {}", version_jar_path.display()), None);
         classpath_entries.push(version_jar_path.to_string_lossy().to_string());
     } else {
-        println!("  Missing version JAR: {}", version_jar_path.display());
+        Logger::console_log(LogLevel::Debug, &format!("  Missing version JAR: {}", version_jar_path.display()), None);
         
         // For Fabric installations, the JAR might be embedded in the version JAR
         // Try using just the version JAR as the full classpath
         classpath_entries.push(version_jar_path.to_string_lossy().to_string());
     }
     
-    println!("Total classpath entries: {}", classpath_entries.len());
-    println!("=======================");
+    Logger::console_log(LogLevel::Debug, &format!("Total classpath entries: {}", classpath_entries.len()), None);
+    Logger::console_log(LogLevel::Debug, "=======================", None);
     
     // Join with platform-specific separator
     let separator = if cfg!(windows) { ";" } else { ":" };
@@ -716,13 +717,13 @@ fn deduplicate_libraries(libraries: Vec<Library>) -> Vec<Library> {
         
         // Always keep the latest version (last one wins)
         if let Some(existing) = library_map.get(&dedup_key) {
-            println!("  Deduplicating: {} (keeping) vs {} (removing)", library.name, existing.name);
+            Logger::console_log(LogLevel::Debug, &format!("  Deduplicating: {} (keeping) vs {} (removing)", library.name, existing.name), None);
         }
         library_map.insert(dedup_key, library);
     }
     
     let deduplicated: Vec<Library> = library_map.into_values().collect();
-    println!("Deduplicated libraries: {} -> {}", original_count, deduplicated.len());
+    Logger::console_log(LogLevel::Debug, &format!("Deduplicated libraries: {} -> {}", original_count, deduplicated.len()), None);
     
     deduplicated
 }

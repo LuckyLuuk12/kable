@@ -7,3 +7,4 @@ export { AuthService } from './AuthService';
 export { InstallationService } from './InstallationService';
 export { LaunchService } from './LaunchService';
 export { SettingsService } from './SettingsService';
+export { LogsService, logsService } from './logs';

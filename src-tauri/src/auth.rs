@@ -5,6 +5,7 @@ use tokio::sync::Mutex;
 use std::path::PathBuf;
 use std::fs;
 use crate::AppError;
+use crate::logging::{Logger, LogLevel};
 use std::collections::HashMap;
 use std::env;
 use serde_json::json;
@@ -159,8 +160,8 @@ pub async fn start_microsoft_auth() -> Result<String, String> {
         urlencoding::encode(&code_challenge)
     );
     
-    println!("Generated auth URL with PKCE: {}", auth_url);
-    println!("Code challenge: {}", code_challenge);
+    Logger::console_log(LogLevel::Debug, &format!("Generated auth URL with PKCE: {}", auth_url), None);
+    Logger::console_log(LogLevel::Debug, &format!("Code challenge: {}", code_challenge), None);
     Ok(auth_url)
 }
 
@@ -169,13 +170,13 @@ async fn start_oauth_callback_server() {
     let port = get_oauth_port();
     
     tokio::spawn(async move {
-        println!("Starting OAuth callback server on port {}", port);
+        Logger::console_log(LogLevel::Info, &format!("Starting OAuth callback server on port {}", port), None);
         
         let server = tiny_http::Server::http(format!("localhost:{}", port)).unwrap();
         
         for request in server.incoming_requests() {
             let url = request.url();
-            println!("Received callback request: {}", url);
+            Logger::console_log(LogLevel::Debug, &format!("Received callback request: {}", url), None);
             
             if url.starts_with("/callback") {
                 let response_html = r#"
@@ -203,13 +204,13 @@ async fn start_oauth_callback_server() {
                     let query_pairs: HashMap<_, _> = parsed_url.query_pairs().collect();
                     
                     let result = if let Some(code) = query_pairs.get("code") {
-                        println!("Authorization code received: {}", code);
+                        Logger::console_log(LogLevel::Info, &format!("Authorization code received: {}", code), None);
                         Ok(code.to_string())
                     } else if let Some(error) = query_pairs.get("error") {
-                        println!("OAuth error: {}", error);
+                        Logger::console_log(LogLevel::Error, &format!("OAuth error: {}", error), None);
                         Err(format!("OAuth error: {}", error))
                     } else {
-                        println!("No authorization code received");
+                        Logger::console_log(LogLevel::Warning, "No authorization code received", None);
                         Err("No authorization code received".to_string())
                     };
                     
@@ -229,7 +230,7 @@ async fn start_oauth_callback_server() {
             }
         }
         
-        println!("OAuth callback server stopped");
+        Logger::console_log(LogLevel::Info, "OAuth callback server stopped", None);
     });
 }
 
@@ -246,12 +247,12 @@ pub async fn complete_microsoft_auth(auth_code: String) -> Result<MicrosoftAccou
         verifier_guard.as_ref().ok_or("No PKCE verifier found")?.clone()
     };
     
-    println!("Token exchange parameters:");
-    println!("  client_id: {}", client_id);
-    println!("  redirect_uri: {}", redirect_uri);
-    println!("  auth_code: {}", auth_code);
-    println!("  code_verifier: {}", code_verifier);
-    println!("  using PKCE (no client_secret)");
+    Logger::console_log(LogLevel::Debug, "Token exchange parameters:", None);
+    Logger::console_log(LogLevel::Debug, &format!("  client_id: {}", client_id), None);
+    Logger::console_log(LogLevel::Debug, &format!("  redirect_uri: {}", redirect_uri), None);
+    Logger::console_log(LogLevel::Debug, &format!("  auth_code: {}", auth_code), None);
+    Logger::console_log(LogLevel::Debug, &format!("  code_verifier: {}", code_verifier), None);
+    Logger::console_log(LogLevel::Debug, "  using PKCE (no client_secret)", None);
     
     // Build form data for PKCE token exchange
     let form_data = [
@@ -262,7 +263,7 @@ pub async fn complete_microsoft_auth(auth_code: String) -> Result<MicrosoftAccou
         ("code_verifier", &code_verifier),
     ];
     
-    println!("Form data being sent: {:?}", form_data);
+    Logger::console_log(LogLevel::Debug, &format!("Form data being sent: {:?}", form_data), None);
     
     let token_response = client
         .post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token")
@@ -275,7 +276,7 @@ pub async fn complete_microsoft_auth(auth_code: String) -> Result<MicrosoftAccou
     if !token_response.status().is_success() {
         let status = token_response.status();
         let error_body = token_response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
-        println!("Token exchange failed with status {}: {}", status, error_body);
+        Logger::console_log(LogLevel::Error, &format!("Token exchange failed with status {}: {}", status, error_body), None);
         return Err(format!("Token exchange failed with status {}: {}", status, error_body));
     }
 
@@ -301,8 +302,8 @@ pub async fn complete_microsoft_auth(auth_code: String) -> Result<MicrosoftAccou
         .map(|s| s.as_str())
         .ok_or("Failed to extract user hash")?;
     
-    println!("Xbox user hash: {}", user_hash);
-    println!("XSTS token (first 50 chars): {}", &xsts_response.token[..std::cmp::min(50, xsts_response.token.len())]);
+    Logger::console_log(LogLevel::Debug, &format!("Xbox user hash: {}", user_hash), None);
+    Logger::console_log(LogLevel::Debug, &format!("XSTS token (first 50 chars): {}", &xsts_response.token[..std::cmp::min(50, xsts_response.token.len())]), None);
     
     // Step 4: Authenticate with Minecraft (or fall back to Xbox profile)
     let (minecraft_access_token, minecraft_expires_at, username, uuid) = 
@@ -311,7 +312,7 @@ pub async fn complete_microsoft_auth(auth_code: String) -> Result<MicrosoftAccou
                 // Try to get Minecraft profile
                 match get_minecraft_profile(&minecraft_response.access_token).await {
                     Ok(profile) => {
-                        println!("Full Minecraft authentication successful!");
+                        Logger::console_log(LogLevel::Info, "Full Minecraft authentication successful!", None);
                         (
                             Some(minecraft_response.access_token),
                             Some(Utc::now().timestamp() + minecraft_response.expires_in as i64),

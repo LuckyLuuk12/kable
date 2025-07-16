@@ -15,6 +15,8 @@ import type { MicrosoftAccount } from '../types';
  */
 
 export class AuthManager {
+  private static isInitialized = false;
+
   /**
    * Get the current active account
    */
@@ -26,6 +28,10 @@ export class AuthManager {
    * Initialize authentication - load from storage if available
    */
   static async initialize(): Promise<void> {
+    if (this.isInitialized) {
+      return;
+    }
+
     try {
       const stored = await authApi.getActiveLauncherAccount();
       if (stored) {
@@ -46,6 +52,8 @@ export class AuthManager {
       
       // Load all available accounts
       await this.refreshAccountsList();
+      
+      this.isInitialized = true;
     } catch (error) {
       console.error('Auth initialization failed:', error);
     }

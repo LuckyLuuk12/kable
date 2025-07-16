@@ -1,9 +1,11 @@
+// Re-export components for convenience
+export * from './components/';
+
 // Export organized structure
-export * from './stores';
-export * from './managers';
+export * from './api/';
+export * from './managers/';
+export * from './services/';
+export * from './stores/';
 
 // Export types
 export type * from './types';
-
-// Re-export components for convenience
-export * from './components';

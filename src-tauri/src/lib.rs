@@ -3,6 +3,7 @@ use std::process::Command;
 use std::fs;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tauri::Manager;
 
 // Module declarations
 mod auth; // Re-enabled for OAuth2 integration
@@ -17,6 +18,9 @@ mod launcher;
 mod icons;
 mod window_state;
 
+#[macro_use]
+mod logging;
+
 // Re-export public items from modules
 pub use auth::{MicrosoftAccount, start_microsoft_auth, complete_microsoft_auth, start_device_code_auth, poll_device_code_auth, copy_to_clipboard, refresh_minecraft_token, get_oauth_callback_result, read_minecraft_sessions, write_minecraft_session, get_minecraft_session_path, get_minecraft_launch_args, validate_minecraft_token, open_url, check_auth_status, get_access_token, microsoft_login};
 pub use settings::{LauncherSettings, load_settings, save_settings, get_launcher_dir, get_default_minecraft_directory, validate_minecraft_directory, MinecraftDirectoryInfo};
@@ -26,10 +30,12 @@ pub use shaders::{ShaderPack, get_installed_shaders, toggle_shader, delete_shade
 pub use skins::{MinecraftSkin, get_local_skins, save_skin, delete_skin, install_skin, get_skin_data, get_current_minecraft_skin, upload_skin_to_minecraft};
 pub use installations::{MinecraftInstallation, get_minecraft_installations, refresh_installation, update_installation_last_played, 
     KableInstallation, get_installations, create_installation, update_installation, delete_installation, get_minecraft_versions, 
-    open_installation_folder, launch_minecraft_installation, quick_launch_minecraft, launch_most_recent_installation};
+    open_installation_folder, launch_minecraft_installation, quick_launch_minecraft, launch_most_recent_installation, 
+    detect_installation_mod_loader, ModLoaderDetectionResult};
 pub use launcher::{LaunchContext, VersionManifest, load_version_manifest, get_minecraft_paths, get_java_path};
 pub use icons::{CustomIconTemplate, IconSettings, get_custom_icon_templates, save_custom_icon_template, delete_custom_icon_template, validate_icon_template, get_icons_directory_path, open_icons_directory};
-pub use window_state::{WindowState, load_window_state, save_window_state, get_current_window_state, apply_window_state, setup_window_state_handlers, get_monitor_info};
+pub use window_state::{WindowState, load_window_state, save_window_state, get_current_window_state, apply_window_state, setup_window_state_handlers, get_monitor_info, show_main_window};
+pub use logging::{Logger, LogLevel};
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -226,6 +232,7 @@ pub fn run() {
             installations::launch_minecraft_installation,
             installations::quick_launch_minecraft,
             installations::launch_most_recent_installation,
+            installations::detect_installation_mod_loader,
             // Launcher commands
             launcher::get_java_path,
             // Maps/Worlds commands
@@ -265,14 +272,33 @@ pub fn run() {
             window_state::save_window_state,
             window_state::get_current_window_state,
             window_state::apply_window_state,
-            window_state::get_monitor_info
+            window_state::get_monitor_info,
+            window_state::show_main_window,
+            // Logging commands
+            logging::export_logs
         ])
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            // Initialize global logger first
+            logging::init_global_logger(&app.handle());
+            
             // Set up window state handlers
             if let Err(e) = setup_window_state_handlers(app) {
-                eprintln!("Failed to setup window state handlers: {}", e);
+                Logger::console_log(LogLevel::Error, &format!("Failed to setup window state handlers: {}", e), None);
             }
+            
+            // Apply window state but don't show the window yet - let frontend trigger it
+            if let Some(window) = app.get_webview_window("main") {
+                tauri::async_runtime::spawn(async move {
+                    if let Ok(state) = load_window_state().await {
+                        if let Err(e) = apply_window_state(window.clone(), state).await {
+                            Logger::console_log(LogLevel::Warning, &format!("Failed to apply window state: {}", e), None);
+                        }
+                    }
+                    // Window will be shown by frontend after initialization
+                });
+            }
+            
             Ok(())
         })
         .run(tauri::generate_context!())

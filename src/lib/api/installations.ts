@@ -75,3 +75,11 @@ export async function openInstallationFolder(installationId: string): Promise<vo
 export async function getMinecraftVersions(): Promise<MinecraftVersion[]> {
   return await invoke('get_minecraft_versions');
 }
+
+export async function getInstalledMods(minecraftPath: string, installationId: string): Promise<any[]> {
+  return await invoke('get_installed_mods', { minecraftPath, installationId });
+}
+
+export async function detectInstallationModLoader(installationId: string): Promise<{ modLoader: string; loaderVersion?: string }> {
+  return await invoke('detect_installation_mod_loader', { installationId });
+}

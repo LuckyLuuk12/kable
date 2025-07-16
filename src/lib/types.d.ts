@@ -349,3 +349,35 @@ export interface IconSettings {
   customTemplates: CustomIconTemplate[]; // User-uploaded templates
   builtinTemplates: string[]; // Available built-in templates (emoji, fontawesome)
 }
+
+// Log system types
+export interface GameInstance {
+  id: string;
+  installationId?: string;
+  installationName?: string;
+  installationPath: string;
+  profileName: string;
+  startTime?: Date;
+  launchedAt: Date;
+  lastActivity: Date;
+  completedAt?: Date;
+  status: 'launching' | 'running' | 'crashed' | 'stopped' | 'completed';
+  exitCode?: number;
+  processId?: number;
+  restartAttempts?: number;
+}
+
+export interface LogEntry {
+  timestamp: Date;
+  level: 'debug' | 'info' | 'warn' | 'error';
+  source: 'launcher' | 'game';
+  instanceId?: string; // For game logs
+  message: string;
+  raw?: string; // Raw log line for syntax highlighting
+}
+
+export interface GameInstanceLogs {
+  instanceId: string;
+  launcherLogs: LogEntry[];
+  gameLogs: LogEntry[];
+}
