@@ -252,11 +252,22 @@ pub fn build_variable_map(
     // Authentication variables
     variables.insert("auth_player_name".to_string(), context.account.username.clone());
     variables.insert("auth_uuid".to_string(), context.account.uuid.clone());
+    
+    // Check if we have a valid (non-empty) Minecraft access token
+    let has_valid_token = context.account.minecraft_access_token
+        .as_ref()
+        .map(|token| !token.is_empty())
+        .unwrap_or(false);
+    
     variables.insert("auth_access_token".to_string(), 
-        context.account.minecraft_access_token.clone().unwrap_or_else(|| "offline".to_string()));
+        if has_valid_token {
+            context.account.minecraft_access_token.clone().unwrap()
+        } else {
+            "offline".to_string()
+        });
     variables.insert("auth_xuid".to_string(), context.account.xbox_user_hash.clone());
     variables.insert("user_type".to_string(), 
-        if context.account.minecraft_access_token.is_some() { "microsoft" } else { "offline" }.to_string());
+        if has_valid_token { "microsoft" } else { "offline" }.to_string());
     variables.insert("clientid".to_string(), uuid::Uuid::new_v4().to_string());
     
     // Version and launcher info

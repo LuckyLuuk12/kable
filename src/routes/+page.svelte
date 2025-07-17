@@ -39,19 +39,8 @@
 
   // Initialize on component mount
   onMount(() => {
-    console.log('Home page mounted, initializing...');
-    
-    // Load installations asynchronously
-    (async () => {
-      try {
-        // GameManager should already be initialized by the layout, 
-        // but trigger a refresh to ensure we have the latest data
-        await GameManager.loadInstallations();
-      } catch (err) {
-        console.error('Error during initialization:', err);
-        error = `Initialization failed: ${err}`;
-      }
-    })();
+    console.log('Home page mounted');
+    // GameManager is already initialized by the layout with installations loaded
 
     // Add click outside handler for dropdown
     function handleClickOutside(event: MouseEvent) {

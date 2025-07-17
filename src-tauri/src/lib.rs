@@ -275,12 +275,15 @@ pub fn run() {
             window_state::get_monitor_info,
             window_state::show_main_window,
             // Logging commands
-            logging::export_logs
+            logging::export_logs,
+            logging::update_logging_config,
+            logging::cleanup_old_logs,
+            logging::get_log_stats
         ])
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Initialize global logger first
-            logging::init_global_logger(&app.handle());
+            logging::init_global_logger(app.handle());
             
             // Set up window state handlers
             if let Err(e) = setup_window_state_handlers(app) {

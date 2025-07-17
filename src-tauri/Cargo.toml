@@ -37,6 +37,7 @@ once_cell = "1.17"
 dotenvy = "0.15"
 sha2 = "0.10"
 zip = "0.6"
+sevenz-rust = "0.5"
 regex = "1.0"
 
 # Pin problematic dependencies to avoid edition2024 issues

@@ -46,6 +46,27 @@ fn default_custom_settings() -> serde_json::Value {
     serde_json::Value::Object(serde_json::Map::new())
 }
 
+// Default functions for logging system settings
+fn default_show_logs_page_in_nav() -> bool {
+    true
+}
+
+fn default_enable_persistent_logging() -> bool {
+    false
+}
+
+fn default_enable_log_compression() -> bool {
+    true
+}
+
+fn default_log_file_size_limit_mb() -> u32 {
+    10
+}
+
+fn default_log_retention_days() -> u32 {
+    30
+}
+
 // Launcher settings
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LauncherSettings {
@@ -93,6 +114,17 @@ pub struct LauncherSettings {
     // Custom settings for extensibility - use default values if missing from file
     #[serde(default = "default_custom_settings")]
     pub custom: serde_json::Value,
+    // Logging system settings - use default values if missing from file
+    #[serde(default = "default_show_logs_page_in_nav")]
+    pub show_logs_page_in_nav: bool,
+    #[serde(default = "default_enable_persistent_logging")]
+    pub enable_persistent_logging: bool,
+    #[serde(default = "default_enable_log_compression")]
+    pub enable_log_compression: bool,
+    #[serde(default = "default_log_file_size_limit_mb")]
+    pub log_file_size_limit_mb: u32,
+    #[serde(default = "default_log_retention_days")]
+    pub log_retention_days: u32,
 }
 
 impl Default for LauncherSettings {
@@ -124,6 +156,11 @@ impl Default for LauncherSettings {
             enable_shader_caching: true,
             selected_icon_template: "emoji".to_string(),
             custom: serde_json::Value::Object(serde_json::Map::new()),
+            show_logs_page_in_nav: true,
+            enable_persistent_logging: false,
+            enable_log_compression: true,
+            log_file_size_limit_mb: 10,
+            log_retention_days: 30,
         }
     }
 }

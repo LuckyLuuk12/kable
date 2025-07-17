@@ -179,25 +179,52 @@ export class AuthService {
   }
 
   static isTokenValid(account: MicrosoftAccount): boolean {
-    const now = Date.now() / 1000;
-    const isValid = account.minecraft_expires_at > now + 300; // 5 minute buffer
-    
-    if (!isValid) {
-      console.warn('⚠️ Token is expired or expiring soon for:', account.username);
+    // First check if we even have a Minecraft access token
+    if (!account.minecraft_access_token || account.minecraft_access_token.trim() === '') {
+      console.warn('⚠️ No Minecraft access token available for:', account.username);
+      return false;
     }
     
-    return isValid;
+    // Then check expiry if we have expiry information
+    if (account.minecraft_expires_at) {
+      const now = Date.now() / 1000;
+      const isValid = account.minecraft_expires_at > now + 300; // 5 minute buffer
+      
+      if (!isValid) {
+        console.warn('⚠️ Token is expired or expiring soon for:', account.username);
+      }
+      
+      return isValid;
+    }
+    
+    // If we have a token but no expiry info, assume it's valid for now
+    // The actual validation should happen when launching
+    console.log('ℹ️ Token exists but no expiry info available for:', account.username);
+    return true;
   }
 
   static needsRefresh(account: MicrosoftAccount): boolean {
-    const now = Date.now() / 1000;
-    const needsRefresh = account.minecraft_expires_at < now + 600; // 10 minute buffer
-    
-    if (needsRefresh) {
-      console.log('🔄 Token needs refresh for:', account.username);
+    // First check if we even have a Minecraft access token
+    if (!account.minecraft_access_token || account.minecraft_access_token.trim() === '') {
+      console.log('🔄 No Minecraft token available, needs refresh for:', account.username);
+      return true;
     }
     
-    return needsRefresh;
+    // Then check expiry if we have expiry information
+    if (account.minecraft_expires_at) {
+      const now = Date.now() / 1000;
+      const needsRefresh = account.minecraft_expires_at < now + 600; // 10 minute buffer
+      
+      if (needsRefresh) {
+        console.log('🔄 Token needs refresh due to expiry for:', account.username);
+      }
+      
+      return needsRefresh;
+    }
+    
+    // If we have a token but no expiry info, let's not refresh unless necessary
+    console.log('ℹ️ Token exists but no expiry info, will validate when needed for:', account.username);
+    return false;
   }
 
   static getTokenExpiresIn(account: MicrosoftAccount): number {

@@ -2,7 +2,7 @@
   import '$lib/styles/global.scss';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { AuthManager, SettingsManager, GameManager, Icon, logsService, LogsManager, IconManager, WindowStateManager } from '$lib';
+  import { AuthManager, SettingsManager, GameManager, Icon, logsService, LogsManager, IconManager, WindowStateManager, settings } from '$lib';
 
   let isTauriReady = false;
   let initializationStatus = 'Initializing...';
@@ -53,15 +53,16 @@
     }
   });
 
-  // Navigation items - removed Profile and Settings from main nav
-  const navItems = [
+  // Navigation items - conditionally include logs based on settings
+  $: navItems = [
     { path: '/', label: 'Home', icon: 'home' },
     { path: '/installations', label: 'Installations', icon: 'minecraft' },
     { path: '/mods', label: 'Mods', icon: 'mods' },
     { path: '/shaders', label: 'Shaders', icon: 'shaders' },
     { path: '/maps', label: 'Maps', icon: 'maps' },
     { path: '/skins', label: 'Skins', icon: 'palette' },
-    { path: '/logs', label: 'Logs', icon: 'terminal' }
+    // Only show logs if enabled in settings (default: true for developers)
+    ...($settings?.show_logs_page_in_nav !== false ? [{ path: '/logs', label: 'Logs', icon: 'terminal' }] : [])
   ];
 
   // State for navigation collapse

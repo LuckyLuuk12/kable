@@ -28,10 +28,7 @@
     return value.trim();
   }
 
-  onMount(async () => {
-    await SettingsManager.initialize();
-    await IconManager.initialize();
-  });
+  // No need to initialize managers here - they're already initialized in the layout
 
   async function selectIconTemplate(templateName: string) {
     try {
@@ -700,6 +697,144 @@
                 />
                 <span class="toggle-slider"></span>
               </label>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Logging Settings -->
+      <section class="settings-section">
+        <h2><Icon name="archive" /> Logging</h2>
+        
+        <div class="setting-group">
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="show-logs-page">Show Logs Page in Navigation</label>
+              <p class="setting-description">Display the logs page in the sidebar navigation (useful for developers and debugging)</p>
+            </div>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input 
+                  id="show-logs-page"
+                  type="checkbox" 
+                  checked={$settings.show_logs_page_in_nav}
+                  on:change={(e) => updateSetting('show_logs_page_in_nav', (e.target as HTMLInputElement).checked)}
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="persistent-logging">Persistent Log Storage</label>
+              <p class="setting-description">Save logs to disk in .minecraft/kable/logs/ for permanent storage and analysis</p>
+            </div>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input 
+                  id="persistent-logging"
+                  type="checkbox" 
+                  checked={$settings.enable_persistent_logging}
+                  on:change={(e) => updateSetting('enable_persistent_logging', (e.target as HTMLInputElement).checked)}
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="log-compression">Log Compression</label>
+              <p class="setting-description">Automatically compress large log files using 7zip to save disk space</p>
+            </div>
+            <div class="setting-control">
+              <label class="toggle-switch">
+                <input 
+                  id="log-compression"
+                  type="checkbox" 
+                  checked={$settings.enable_log_compression}
+                  on:change={(e) => updateSetting('enable_log_compression', (e.target as HTMLInputElement).checked)}
+                  disabled={!$settings.enable_persistent_logging}
+                />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="log-size-limit">Log File Size Limit</label>
+              <p class="setting-description">Maximum size for individual log files before compression (MB)</p>
+            </div>
+            <div class="setting-control">
+              <div class="slider-control">
+                <input 
+                  id="log-size-limit"
+                  type="range" 
+                  min="1" 
+                  max="100"
+                  step="1"
+                  bind:value={$settings.log_file_size_limit_mb}
+                  class="number-slider"
+                  disabled={!$settings.enable_persistent_logging}
+                />
+                <div class="value-input-row">
+                  <input 
+                    type="text"
+                    bind:value={$settings.log_file_size_limit_mb}
+                    on:blur={(e) => {
+                      const validated = validateNumber((e.target as HTMLInputElement).value, 1, 100);
+                      if (validated !== null) {
+                        updateSetting('log_file_size_limit_mb', validated);
+                      } else {
+                        (e.target as HTMLInputElement).value = ($settings.log_file_size_limit_mb || 10).toString();
+                      }
+                    }}
+                    class="value-text-input"
+                    disabled={!$settings.enable_persistent_logging}
+                  />
+                  <span class="number-unit">MB</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="log-retention-days">Log Retention Period</label>
+              <p class="setting-description">How many days to keep log files before automatic cleanup</p>
+            </div>
+            <div class="setting-control">
+              <div class="slider-control">
+                <input 
+                  id="log-retention-days"
+                  type="range" 
+                  min="1" 
+                  max="365"
+                  step="1"
+                  bind:value={$settings.log_retention_days}
+                  class="number-slider"
+                  disabled={!$settings.enable_persistent_logging}
+                />
+                <div class="value-input-row">
+                  <input 
+                    type="text"
+                    bind:value={$settings.log_retention_days}
+                    on:blur={(e) => {
+                      const validated = validateNumber((e.target as HTMLInputElement).value, 1, 365);
+                      if (validated !== null) {
+                        updateSetting('log_retention_days', validated);
+                      } else {
+                        (e.target as HTMLInputElement).value = ($settings.log_retention_days || 30).toString();
+                      }
+                    }}
+                    class="value-text-input"
+                    disabled={!$settings.enable_persistent_logging}
+                  />
+                  <span class="number-unit">days</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

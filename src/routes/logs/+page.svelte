@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
+  import { page } from '$app/stores';
   import { 
     Icon, 
     logsService, 
@@ -13,6 +14,7 @@
   let logContainer: HTMLElement;
   let autoScroll = true; // Ensure auto-scroll is enabled by default
   let searchTerm = '';
+  let searchMode: 'normal' | 'regex' | 'fuzzy' = 'fuzzy';
   
   // Log level filters (all enabled by default except debug)
   let logLevelFilters = {
@@ -23,19 +25,31 @@
   };
   
   let showLogLevelDropdown = false;
+  let showCopyNotification = false;
 
   onMount(async () => {
     // Logs service is already initialized in the layout
     // No need to initialize again here
     
+    // Check for instance parameter in URL
+    const instanceParam = $page.url.searchParams.get('instance');
+    if (instanceParam) {
+      // Set the selected instance from the URL parameter
+      selectedInstanceId.set(instanceParam);
+      console.log(`Auto-selected instance from URL: ${instanceParam}`);
+    }
+    
     // Add event listener for clicking outside dropdown
     document.addEventListener('click', handleClickOutside);
+    // Add event listener for Ctrl+A override
+    document.addEventListener('keydown', handleKeyDown);
   });
 
   onDestroy(() => {
     // Keep logs service running since it's used globally
-    // Remove event listener
+    // Remove event listeners
     document.removeEventListener('click', handleClickOutside);
+    document.removeEventListener('keydown', handleKeyDown);
   });
 
   function selectInstance(instanceId: string | 'global') {
@@ -60,7 +74,7 @@
     switch (status) {
       case 'launching': return 'rocket';
       case 'running': return 'play';
-      case 'completed': return 'check';
+      case 'closed': return 'check';
       case 'crashed': return 'alert';
       case 'stopped': return 'square'; // Better icon for stopped
       default: return 'help';
@@ -71,7 +85,7 @@
     switch (status) {
       case 'launching': return 'warning';
       case 'running': return 'success';
-      case 'completed': return 'info';
+      case 'closed': return 'info';
       case 'crashed': return 'danger';
       case 'stopped': return 'secondary'; // Changed from 'muted' for better visibility
       default: return 'muted';
@@ -124,12 +138,98 @@
       ? logEntry.timestamp 
       : new Date(logEntry.timestamp);
       
-    const logText = `[${formatTime(timestamp)}] ${formatLogLevel(logEntry.level || 'info')} ${logEntry.message || ''}`;
+    // Clean the message for copy (remove duplicate timestamps)
+    const cleanMessage = removeDuplicateTimestamp(logEntry.message || '', timestamp);
+    const logText = `[${formatTime(timestamp)}] ${formatLogLevel(logEntry.level || 'info')} ${cleanMessage}`;
     try {
       await navigator.clipboard.writeText(logText);
       // Could add a toast notification here if desired
     } catch (err) {
       console.error('Failed to copy log entry:', err);
+    }
+  }
+
+  // Function to detect and remove duplicate timestamps from log messages
+  function removeDuplicateTimestamp(message: string, logTimestamp: Date | string): string {
+    if (!message) return message;
+    
+    // Remove timestamp from the beginning of the message since we display it separately
+    // Pattern to match timestamps like [HH:MM:SS] at the start
+    const timestampPattern = /^\[\d{2}:\d{2}:\d{2}\]\s*/;
+    
+    let result = message.replace(timestampPattern, '');
+    
+    // Also remove log level if it appears right after the timestamp
+    // This handles cases like "[22:54:42] INFO [Render thread/INFO]: message"
+    if (result.match(/^(INFO|ERROR|WARN|DEBUG)\s+/)) {
+      result = result.replace(/^(INFO|ERROR|WARN|DEBUG)\s+/, '');
+    }
+    
+    return result.trim();
+  }
+
+  // Function to get display message (with duplicate timestamps removed)
+  function getDisplayMessage(logEntry: any): string {
+    if (!logEntry || !logEntry.message) return '';
+    
+    const timestamp = logEntry.timestamp instanceof Date 
+      ? logEntry.timestamp 
+      : new Date(logEntry.timestamp);
+      
+    return removeDuplicateTimestamp(logEntry.message, timestamp);
+  }
+
+  // Fuzzy search implementation
+  function fuzzyMatch(needle: string, haystack: string): boolean {
+    if (!needle || !haystack) return false;
+    
+    const needleLower = needle.toLowerCase();
+    const haystackLower = haystack.toLowerCase();
+    
+    // Simple fuzzy matching: allow for missing characters and transpositions
+    let needleIndex = 0;
+    let score = 0;
+    
+    for (let i = 0; i < haystackLower.length && needleIndex < needleLower.length; i++) {
+      if (haystackLower[i] === needleLower[needleIndex]) {
+        needleIndex++;
+        score++;
+      }
+    }
+    
+    // Calculate match ratio (how much of the needle was found)
+    const matchRatio = score / needleLower.length;
+    
+    // Also check for substring match (higher weight)
+    const substringMatch = haystackLower.includes(needleLower);
+    
+    // Consider it a match if:
+    // 1. It's a direct substring match, OR
+    // 2. At least 70% of characters are found in order
+    return substringMatch || matchRatio >= 0.7;
+  }
+
+  // Advanced search function
+  function matchesSearch(message: string, searchTerm: string, mode: string): boolean {
+    if (!searchTerm) return true;
+    if (!message) return false;
+
+    switch (mode) {
+      case 'regex':
+        try {
+          const regex = new RegExp(searchTerm, 'i');
+          return regex.test(message);
+        } catch (error) {
+          // If regex is invalid, fall back to normal search
+          return message.toLowerCase().includes(searchTerm.toLowerCase());
+        }
+      
+      case 'fuzzy':
+        return fuzzyMatch(searchTerm, message);
+      
+      case 'normal':
+      default:
+        return message.toLowerCase().includes(searchTerm.toLowerCase());
     }
   }
 
@@ -172,6 +272,54 @@
     }
   }
 
+  // Handle keyboard shortcuts
+  function handleKeyDown(event: KeyboardEvent) {
+    // Override Ctrl+A to select all logs in the current tab
+    if (event.ctrlKey && event.key === 'a') {
+      // Only override if we're not in an input field
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+        return; // Let default behavior happen in input fields
+      }
+
+      event.preventDefault();
+      selectAllCurrentLogs();
+    }
+  }
+
+  // Function to select all logs in the current tab
+  async function selectAllCurrentLogs() {
+    if (filteredLogs.length === 0) return;
+
+    // Show visual feedback
+    showCopyNotification = true;
+    
+    // Generate the text for all logs
+    const allLogsText = filteredLogs.map(logEntry => {
+      if (!logEntry) return '';
+      
+      const timestamp = logEntry.timestamp instanceof Date 
+        ? logEntry.timestamp 
+        : new Date(logEntry.timestamp);
+        
+      // Clean the message for copy (remove duplicate timestamps)
+      const cleanMessage = removeDuplicateTimestamp(logEntry.message || '', timestamp);
+      return `[${formatTime(timestamp)}] ${formatLogLevel(logEntry.level || 'info')} ${cleanMessage}`;
+    }).filter(Boolean).join('\n');
+
+    try {
+      await navigator.clipboard.writeText(allLogsText);
+      console.log(`Copied ${filteredLogs.length} log entries to clipboard`);
+    } catch (err) {
+      console.error('Failed to copy all logs:', err);
+    }
+    
+    // Hide notification after delay
+    setTimeout(() => {
+      showCopyNotification = false;
+    }, 1000);
+  }
+
   $: sortedInstances = $gameInstances ? Array.from($gameInstances.values()).sort((a: GameInstance, b: GameInstance) => {
     const aTime = a.launchedAt instanceof Date ? a.launchedAt.getTime() : new Date(a.launchedAt).getTime();
     const bTime = b.launchedAt instanceof Date ? b.launchedAt.getTime() : new Date(b.launchedAt).getTime();
@@ -186,8 +334,9 @@
   // Filter logs based on search and log level filters
   $: filteredLogs = (activeLogEntries || []).filter(log => {
     if (!log) return false;
-    const matchesSearch = !searchTerm || 
-      (log.message && log.message.toLowerCase().includes(searchTerm.toLowerCase()));
+    // Use cleaned message for search to avoid searching duplicate timestamps
+    const cleanMessage = getDisplayMessage(log);
+    const matchesSearchTerm = matchesSearch(cleanMessage, searchTerm, searchMode);
     
     // Check if the log level is enabled in filters
     const logLevel = (log.level || 'info').toLowerCase();
@@ -195,7 +344,7 @@
       logLevelFilters[logLevel as keyof typeof logLevelFilters] : 
       true; // Show unknown log levels by default
     
-    return matchesSearch && matchesLevelFilter;
+    return matchesSearchTerm && matchesLevelFilter;
   });
 
   // Auto-scroll when new logs arrive
@@ -249,10 +398,35 @@
       <Icon name="search" size="sm" />
       <input
         type="text"
-        placeholder="Search logs..."
+        placeholder={searchMode === 'regex' ? 'Search with regex...' : 
+                   searchMode === 'fuzzy' ? 'Fuzzy search (try "frge" for "forge")...' : 
+                   'Search logs...'}
         bind:value={searchTerm}
         class="search-input"
       />
+      <div class="search-mode-selector">
+        <button
+          class="search-mode-button {searchMode === 'normal' ? 'active' : ''}"
+          on:click={() => searchMode = 'normal'}
+          title="Normal text search"
+        >
+          <Icon name="text" size="sm" />
+        </button>
+        <button
+          class="search-mode-button {searchMode === 'fuzzy' ? 'active' : ''}"
+          on:click={() => searchMode = 'fuzzy'}
+          title="Fuzzy search (handles typos)"
+        >
+          <Icon name="zap" size="sm" />
+        </button>
+        <button
+          class="search-mode-button {searchMode === 'regex' ? 'active' : ''}"
+          on:click={() => searchMode = 'regex'}
+          title="Regular expression search"
+        >
+          <Icon name="code" size="sm" />
+        </button>
+      </div>
     </div>
     <div class="filter-controls">
       <div class="log-level-dropdown">
@@ -355,8 +529,17 @@
     <div
       bind:this={logContainer}
       on:scroll={handleScroll}
-      class="log-container"
+      class="log-container {showCopyNotification ? 'copy-notification-active' : ''}"
     >
+      {#if showCopyNotification}
+        <div class="copy-notification">
+          <div class="copy-notification-content">
+            <Icon name="clipboard" size="md" />
+            <span>Copied {filteredLogs.length} log entries</span>
+          </div>
+        </div>
+      {/if}
+      
       {#if filteredLogs.length === 0}
         <div class="empty-state">
           <div class="empty-icon">
@@ -404,7 +587,7 @@
                   {formatLogLevel(logEntry.level || 'info')}
                 </div>
                 <div class="log-message">
-                  {logEntry.message || ''}
+                  <pre class="log-message-content"><code>{getDisplayMessage(logEntry)}</code></pre>
                 </div>
               </div>
             {/if}
@@ -424,7 +607,7 @@
           {selectedLogType === 'launcher' ? 'Launcher' : 'Game'} logs: {(activeLogEntries || []).length} entries
         {/if}
         {#if hasActiveFilters}
-          (filtered: {(filteredLogs || []).length})
+          (filtered: {(filteredLogs || []).length}{#if searchTerm && searchMode !== 'normal'} • {searchMode}{/if})
         {/if}
       </span>
       {#if !autoScroll}
@@ -456,6 +639,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    user-select: none; // Disable text selection for the entire page
   }
 
   .page-header {
@@ -530,6 +714,47 @@
         
         &::placeholder {
           color: $placeholder;
+        }
+      }
+      
+      .search-mode-selector {
+        display: flex;
+        background: $card;
+        // border: 1px solid $dark-200;
+        border-radius: $border-radius-tiny;
+        overflow: hidden;
+        
+        .search-mode-button {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.5rem;
+          background: transparent;
+          border: none;
+          color: $placeholder;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          min-width: 2.5rem;
+          border-right: 1px solid $dark-200;
+          
+          &:last-child {
+            border-right: none;
+          }
+          
+          &:hover {
+            background: $dark-200;
+            color: $text;
+          }
+          
+          &.active {
+            background: $primary;
+            color: white;
+          }
+          
+          &:focus {
+            outline: none;
+            box-shadow: inset 0 0 0 2px rgba($primary, 0.3);
+          }
         }
       }
     }
@@ -624,14 +849,14 @@
   }
 
   .tabs-container {
-    margin-bottom: 1rem;
     
     .tab-list {
       display: flex;
       background: $container;
-      border-radius: $border-radius;
+      border-radius: $border-radius $border-radius 0 0;
       border: 1px solid $dark-200;
       overflow-x: auto;
+      gap: 0.05rem;
       
       .tab-button {
         display: flex;
@@ -647,6 +872,7 @@
         white-space: nowrap;
         transition: all 0.2s ease;
         border-right: 1px solid $dark-200;
+        border-radius: $border-radius $border-radius 0 0;
 
         &:last-child {
           border-right: none;
@@ -671,7 +897,7 @@
           &.success { background: rgba($green, 0.1); color: $green; }
           &.warning { background: rgba($yellow, 0.1); color: $yellow; }
           &.danger { background: rgba($red, 0.1); color: $red; }
-          &.info { background: rgba($blue, 0.1); color: $blue; }
+          &.info { background: rgba($green, 0.1); color: $green-900; }
           &.secondary { background: rgba($text, 0.2); color: $text; }
           &.muted { background: rgba($dark-300, 0.1); color: white; }
         }
@@ -680,13 +906,14 @@
   }
 
   .sub-tabs-container {
-    margin-bottom: 1rem;
+    // margin-bottom: 1rem;
     
     .sub-tab-list {
       display: flex;
       background: $container;
-      border-radius: $border-radius;
-      border: 1px solid $dark-200;
+      border-left: 1px solid $dark-200;
+      border-right: 1px solid $dark-200;
+      gap: 0.05rem;
       
       .sub-tab-button {
         display: flex;
@@ -701,7 +928,7 @@
         cursor: pointer;
         transition: all 0.2s ease;
         border-right: 1px solid $dark-200;
-        border-radius: $border-radius-small;
+        border-radius: $border-radius $border-radius 0 0;
         
         &:last-child {
           border-right: none;
@@ -740,8 +967,54 @@
       overflow-y: auto;
       background: $container;
       border: 1px solid $dark-200;
-      border-radius: $border-radius;
+      border-radius: 0 0 $border-radius $border-radius;
       margin-bottom: 0.5rem;
+      position: relative;
+      
+      &.copy-notification-active {
+        .log-entries {
+          .log-entry {
+            background: rgba($primary, 0.1);
+            border: 1px solid rgba($primary, 0.2);
+          }
+        }
+      }
+      
+      .copy-notification {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba($dark-100, 0.35);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        animation: fadeInOut 1s ease-in-out;
+        
+        .copy-notification-content {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 2rem;
+          background: $card;
+          border: 1px solid $primary;
+          border-radius: $border-radius;
+          color: $primary;
+          font-weight: 600;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+      }
+      
+      @keyframes fadeInOut {
+        0% { opacity: 0; transform: scale(0.9); }
+        20% { opacity: 1; transform: scale(1); }
+        80% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(0.9); }
+      }
       
       .empty-state {
         display: flex;
@@ -828,7 +1101,8 @@
             gap: 0.25rem;
             font-size: 0.75rem;
             font-weight: 1000;
-            min-width: 3rem;
+            min-width: 5.5rem;
+            max-width: 5.5rem;
             border-radius: $border-radius-small;
           }
           
@@ -837,6 +1111,21 @@
             font-size: 0.9rem;
             line-height: 1.3;
             word-break: break-all;
+            user-select: text; // Re-enable text selection for log content
+            
+            .log-message-content {
+              margin: 0;
+              padding: 0;
+              font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
+              font-size: inherit;
+              line-height: inherit;
+              color: inherit;
+              background: transparent;
+              border: none;
+              white-space: pre-wrap;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+            }
           }
         }
       }

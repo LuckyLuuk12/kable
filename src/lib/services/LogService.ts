@@ -89,10 +89,10 @@ export class LogsService {
           case 'exit':
             // Better exit code interpretation
             const exitCode = data.code;
-            let status: 'completed' | 'crashed' | 'stopped';
+            let status: 'closed' | 'crashed' | 'stopped';
             
             if (exitCode === 0) {
-              status = 'completed'; // Normal exit
+              status = 'closed'; // Normal exit
             } else if (exitCode === 130 || exitCode === 143 || exitCode === -1073741510) {
               status = 'stopped'; // User terminated (Ctrl+C, SIGTERM, or Windows close)
             } else if (exitCode < 0 || exitCode > 128) {
@@ -107,7 +107,7 @@ export class LogsService {
               completedAt: new Date()
             });
             
-            const statusMessage = status === 'completed' ? 'completed normally' : 
+            const statusMessage = status === 'closed' ? 'completed normally' : 
                                 status === 'stopped' ? 'was stopped by user' : 
                                 'crashed';
             
@@ -140,9 +140,30 @@ export class LogsService {
       }
     });
 
+    // Listen for show logs page events
+    const showLogsListener = await listen('show-logs-page', (event) => {
+      try {
+        const { instanceId, installationId, reason } = event.payload as {
+          instanceId: string;
+          installationId: string;
+          reason: string;
+        };
+
+        console.log(`Show logs request: ${reason} for ${installationId} (${instanceId})`);
+        LogsManager.addLauncherLog(`Navigating to logs page (${reason})`, 'info', instanceId);
+        
+        // Navigate to logs page and set the active instance
+        this.navigateToLogs(instanceId);
+      } catch (error) {
+        console.error('Error handling show-logs-page event:', error);
+        LogsManager.addLauncherLog('Error processing show logs event', 'error');
+      }
+    });
+
     this.listeners.set('game-launched', launchListener);
     this.listeners.set('game-process-event', processListener);
     this.listeners.set('launcher-log', launcherLogListener);
+    this.listeners.set('show-logs-page', showLogsListener);
     
     // Mark as initialized
     this.isInitialized = true;
@@ -228,6 +249,31 @@ export class LogsService {
       instanceId ? `Cleared logs for instance ${instanceId}` : 'Cleared global logs',
       'info'
     );
+  }
+
+  /**
+   * Navigate to logs page and optionally set active instance
+   */
+  private navigateToLogs(instanceId?: string): void {
+    try {
+      // Build URL
+      let url = '/logs';
+      if (instanceId) {
+        // Add instance ID as a query parameter
+        url += `?instance=${encodeURIComponent(instanceId)}`;
+      }
+      
+      // Use SvelteKit's goto to navigate
+      import('$app/navigation').then(({ goto }) => {
+        goto(url);
+      }).catch(error => {
+        console.error('Failed to navigate to logs page:', error);
+        // Fallback to window location
+        window.location.href = url;
+      });
+    } catch (error) {
+      console.error('Error navigating to logs page:', error);
+    }
   }
 
   isReady(): boolean {

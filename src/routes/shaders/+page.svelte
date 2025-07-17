@@ -61,7 +61,7 @@
   let filteredShaders = mockShaders;
 
   onMount(async () => {
-    await AuthManager.initialize();
+    // AuthManager is already initialized in the layout
     updateFilter();
   });
 

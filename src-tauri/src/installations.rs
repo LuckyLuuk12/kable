@@ -1296,16 +1296,26 @@ pub async fn launch_minecraft_installation(app: AppHandle, installation_id: Stri
     
     // Configure process for logging
     command.stdout(Stdio::piped());
-    command.stderr(Stdio::piped());
-    
-    // Emit launcher log for launch attempt
-    if let Err(e) = app.emit_to("main", "launcher-log", json!({
-        "level": "info",
-        "message": format!("Starting {} with Java: {}", installation_id, java_executable),
-        "instanceId": instance_id
-    })) {
-        Logger::error_global(&format!("Failed to emit launcher-log event: {}", e), Some(&instance_id));
-    }
+    command.stderr(Stdio::piped());            // Emit launcher log for launch attempt
+            if let Err(e) = app.emit_to("main", "launcher-log", json!({
+                "level": "info",
+                "message": format!("Starting {} with Java: {}", installation_id, java_executable),
+                "instanceId": instance_id
+            })) {
+                Logger::error_global(&format!("Failed to emit launcher-log event: {}", e), Some(&instance_id));
+            }
+            
+            // Check if we should show logs on launch
+            if settings.show_logs_on_launch {
+                Logger::info(&app, "Show logs on launch enabled - emitting navigation event", Some(&instance_id));
+                if let Err(e) = app.emit_to("main", "show-logs-page", json!({
+                    "instanceId": instance_id,
+                    "installationId": installation_id,
+                    "reason": "launch"
+                })) {
+                    Logger::error(&app, &format!("Failed to emit show-logs-page event: {}", e), Some(&instance_id));
+                }
+            }
     
     // Spawn the Minecraft process
     match command.spawn() {
@@ -1539,70 +1549,79 @@ async fn get_launch_auth_account() -> Result<MicrosoftAccount, String> {
             
             // Check if we have a Minecraft access token
             if let Some(minecraft_token) = &account.minecraft_access_token {
-                // Check if the token is still valid
-                if let Some(expires_at) = account.minecraft_expires_at {
-                    let now = chrono::Utc::now().timestamp();
-                    
-                    if expires_at > now + 300 { // Token valid for at least 5 more minutes
-                        Logger::info_global("Minecraft token is valid, launching with online authentication", None);
-                        return Ok(account);
-                    } else {
-                        Logger::warn_global("Minecraft token expired or expiring soon, attempting to refresh", None);
+                // Also check that the token is not an empty string
+                if minecraft_token.is_empty() {
+                    Logger::warn_global("Minecraft access token is empty, falling back to offline mode", None);
+                } else {
+                    // Check if the token is still valid
+                    if let Some(expires_at) = account.minecraft_expires_at {
+                        let now = chrono::Utc::now().timestamp();
                         
-                        // Try to validate the token first
+                        if expires_at > now + 300 { // Token valid for at least 5 more minutes
+                            Logger::info_global("Minecraft token is valid, launching with online authentication", None);
+                            return Ok(account);
+                        } else {
+                            Logger::warn_global("Minecraft token expired or expiring soon, attempting to refresh", None);
+                            
+                            // Try to validate the token first
+                            match crate::auth::validate_minecraft_token(minecraft_token.clone()).await {
+                                Ok(true) => {
+                                    Logger::info_global("Token validation successful, using existing token", None);
+                                    return Ok(account);
+                                }
+                                Ok(false) => {
+                                    Logger::warn_global("Token validation failed, needs refresh", None);
+                                }
+                                Err(e) => {
+                                    Logger::warn_global(&format!("Token validation error: {}", e), None);
+                                }
+                            }
+                            
+                            // Attempt to refresh the token (requires existing refresh_token)
+                            match crate::auth::refresh_minecraft_token(account.id.clone()).await {
+                                Ok(refreshed_account) => {
+                                    Logger::info_global("Successfully refreshed Minecraft token", None);
+                                    return Ok(refreshed_account);
+                                }
+                                Err(e) => {
+                                    Logger::warn_global(&format!("Failed to refresh token: {}", e), None);
+                                    Logger::info_global("💡 Token refresh failed - this usually means no refresh_token is available", None);
+                                    Logger::info_global("💡 This is different from getting a new token (which requires full OAuth)", None);
+                                    Logger::info_global("Falling back to offline mode with real account data", None);
+                                    
+                                    // Use real account data but remove expired minecraft token
+                                    account.minecraft_access_token = None;
+                                    account.minecraft_expires_at = None;
+                                    return Ok(account);
+                                }
+                            }
+                        }
+                    } else {
+                        Logger::warn_global("No token expiry information, validating token", None);
+                        
+                        // Validate token if no expiry info
                         match crate::auth::validate_minecraft_token(minecraft_token.clone()).await {
                             Ok(true) => {
-                                Logger::info_global("Token validation successful, using existing token", None);
+                                Logger::info_global("Token validation successful, launching with online authentication", None);
                                 return Ok(account);
                             }
                             Ok(false) => {
-                                Logger::warn_global("Token validation failed, needs refresh", None);
-                            }
-                            Err(e) => {
-                                Logger::warn_global(&format!("Token validation error: {}", e), None);
-                            }
-                        }
-                        
-                        // Attempt to refresh the token
-                        match crate::auth::refresh_minecraft_token(account.id.clone()).await {
-                            Ok(refreshed_account) => {
-                                Logger::info_global("Successfully refreshed Minecraft token", None);
-                                return Ok(refreshed_account);
-                            }
-                            Err(e) => {
-                                Logger::warn_global(&format!("Failed to refresh token: {}", e), None);
-                                Logger::info_global("Falling back to offline mode with real account data", None);
-                                
-                                // Use real account data but remove expired minecraft token
+                                Logger::warn_global("Token validation failed, removing invalid token", None);
                                 account.minecraft_access_token = None;
                                 account.minecraft_expires_at = None;
                                 return Ok(account);
                             }
-                        }
-                    }
-                } else {
-                    Logger::warn_global("No token expiry information, validating token", None);
-                    
-                    // Validate token if no expiry info
-                    match crate::auth::validate_minecraft_token(minecraft_token.clone()).await {
-                        Ok(true) => {
-                            Logger::info_global("Token validation successful, launching with online authentication", None);
-                            return Ok(account);
-                        }
-                        Ok(false) => {
-                            Logger::warn_global("Token validation failed, removing invalid token", None);
-                            account.minecraft_access_token = None;
-                            account.minecraft_expires_at = None;
-                            return Ok(account);
-                        }
-                        Err(e) => {
-                            Logger::warn_global(&format!("Token validation error: {}, assuming valid", e), None);
-                            return Ok(account);
+                            Err(e) => {
+                                Logger::warn_global(&format!("Token validation error: {}, assuming valid", e), None);
+                                return Ok(account);
+                            }
                         }
                     }
                 }
             } else {
                 Logger::warn_global("No Minecraft access token available, will use offline mode", None);
+                // Debug the account data:
+                Logger::debug_global(&format!("Account data: {}", account), None);
                 return Ok(account);
             }
         }

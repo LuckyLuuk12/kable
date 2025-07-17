@@ -19,9 +19,26 @@
   let isPolling = false;
   let pollInterval: ReturnType<typeof setInterval> | null = null;
 
+  // Token state
+  let isTokenValid = false;
+  let isRefreshingToken = false;
+
   onMount(async () => {
     await loadProfileData();
+    checkTokenValidity();
   });
+
+  // React to account changes
+  $: if ($currentAccount) {
+    checkTokenValidity();
+  }
+
+  function checkTokenValidity() {
+    if ($currentAccount) {
+      isTokenValid = AuthService.isTokenValid($currentAccount);
+      console.log('🔍 Token validity check:', isTokenValid ? 'Valid' : 'Invalid/Expired');
+    }
+  }
 
   async function loadProfileData() {
     isLoading = true;
@@ -143,6 +160,48 @@
     }
   }
 
+  async function refreshToken() {
+    if (!$currentAccount) return;
+    
+    try {
+      isRefreshingToken = true;
+      error = null;
+      console.log('🔄 Attempting to refresh token for:', $currentAccount.username);
+      
+      const refreshedAccount = await AuthService.refreshAccountToken($currentAccount.id);
+      currentAccount.set(refreshedAccount);
+      checkTokenValidity();
+      console.log('✅ Token refresh successful');
+      
+    } catch (err) {
+      console.error('❌ Token refresh failed:', err);
+      error = `Token refresh failed: ${err}. Please re-authenticate.`;
+      isTokenValid = false;
+    } finally {
+      isRefreshingToken = false;
+    }
+  }
+
+  async function reAuthenticate() {
+    try {
+      isLoading = true;
+      error = null;
+      console.log('🔄 Starting re-authentication for:', $currentAccount?.username);
+      
+      // Start fresh authentication
+      const account = await AuthService.authenticateWithMicrosoft();
+      currentAccount.set(account);
+      checkTokenValidity();
+      console.log('✅ Re-authentication successful:', account);
+      
+    } catch (err) {
+      console.error('❌ Re-authentication failed:', err);
+      error = `Re-authentication failed: ${err}`;
+    } finally {
+      isLoading = false;
+    }
+  }
+
   async function signOut() {
     try {
       currentAccount.set(null);
@@ -208,8 +267,34 @@
               <h3>{$currentAccount.username}</h3>
               <p class="account-email">Microsoft Account</p>
               <p class="account-id">UUID: {$currentAccount.uuid}</p>
+              
+              <!-- Token Status Indicator -->
+              <div class="token-status">
+                {#if isTokenValid}
+                  <span class="status-badge status-valid">
+                    <Icon name="check" size="sm" />
+                    Online Token Valid
+                  </span>
+                {:else}
+                  <span class="status-badge status-invalid">
+                    <Icon name="alert" size="sm" />
+                    Token Expired/Invalid
+                  </span>
+                {/if}
+              </div>
             </div>
             <div class="account-actions">
+              {#if !isTokenValid}
+                <!-- Show refresh/re-auth options when token is invalid -->
+                <button on:click={refreshToken} class="btn btn-primary" disabled={isRefreshingToken}>
+                  <Icon name="refresh" size="sm" />
+                  {isRefreshingToken ? 'Refreshing...' : 'Refresh Token'}
+                </button>
+                <button on:click={reAuthenticate} class="btn btn-secondary" disabled={isLoading}>
+                  <Icon name="user-plus" size="sm" />
+                  {isLoading ? 'Re-authenticating...' : 'Re-authenticate'}
+                </button>
+              {/if}
               <button on:click={signOut} class="btn btn-secondary">
                 <Icon name="logout" size="sm" />
                 Sign Out
@@ -902,6 +987,65 @@
     
     .sign-in-prompt {
       padding: 2rem 1rem !important;
+    }
+  }
+
+  /* Token Status Styles */
+  .token-status {
+    margin-top: 0.5rem;
+    
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: $border-radius;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+      
+      &.status-valid {
+        background: rgba(34, 197, 94, 0.1);
+        color: rgb(34, 197, 94);
+        border: 1px solid rgba(34, 197, 94, 0.2);
+      }
+      
+      &.status-invalid {
+        background: rgba(239, 68, 68, 0.1);
+        color: rgb(239, 68, 68);
+        border: 1px solid rgba(239, 68, 68, 0.2);
+        animation: pulse-warning 2s infinite;
+      }
+    }
+  }
+
+  /* Account Actions Enhancement */
+  .account-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    
+    .btn + .btn {
+      margin-left: 0;
+    }
+    
+    @media (min-width: 768px) {
+      flex-direction: row;
+      
+      .btn + .btn {
+        margin-left: 0.5rem;
+      }
+    }
+  }
+
+  @keyframes pulse-warning {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.7;
     }
   }
 </style>

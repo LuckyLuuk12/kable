@@ -21,6 +21,10 @@ fn get_client_id() -> String {
     env::var("AZURE_CLIENT_ID").expect("AZURE_CLIENT_ID must be set in .env file")
 }
 
+fn get_client_secret() -> Option<String> {
+    env::var("AZURE_CLIENT_SECRET").ok()
+}
+
 fn get_redirect_uri() -> String {
     env::var("AZURE_REDIRECT_URI").expect("AZURE_REDIRECT_URI must be set in .env file")
 }
@@ -95,6 +99,87 @@ pub struct MinecraftSession {
     pub user_properties: serde_json::Value,
 }
 
+impl std::fmt::Display for MicrosoftAccount {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // Format expiry times as human-readable dates
+        let expires_at_str = if self.expires_at > 0 {
+            DateTime::from_timestamp(self.expires_at, 0)
+                .map(|dt| dt.format("%Y-%m-%d %H:%M:%S UTC").to_string())
+                .unwrap_or_else(|| "Invalid timestamp".to_string())
+        } else {
+            "Never".to_string()
+        };
+        
+        let minecraft_expires_at_str = self.minecraft_expires_at
+            .and_then(|timestamp| DateTime::from_timestamp(timestamp, 0))
+            .map(|dt| dt.format("%Y-%m-%d %H:%M:%S UTC").to_string())
+            .unwrap_or_else(|| "None".to_string());
+
+        let last_used_str = DateTime::from_timestamp(self.last_used, 0)
+            .map(|dt| dt.format("%Y-%m-%d %H:%M:%S UTC").to_string())
+            .unwrap_or_else(|| "Unknown".to_string());
+
+        // Format as pretty JSON with skin_url at the bottom
+        write!(f, r#"{{
+  "id": "{}",
+  "username": "{}",
+  "uuid": "{}",
+  "is_active": {},
+  "last_used": "{}",
+  "expires_at": "{}",
+  "minecraft_expires_at": "{}",
+  "xbox_user_hash": "{}",
+  "access_token": "{}...{}",
+  "refresh_token": "{}...{}",
+  "minecraft_access_token": {},
+  "skin_url": {}
+}}"#,
+            self.id,
+            self.username,
+            self.uuid,
+            self.is_active,
+            last_used_str,
+            expires_at_str,
+            minecraft_expires_at_str,
+            if self.xbox_user_hash.is_empty() { "None" } else { &self.xbox_user_hash },
+            // Truncate access token for security
+            if self.access_token.len() > 16 {
+                &self.access_token[..8]
+            } else {
+                &self.access_token
+            },
+            if self.access_token.len() > 16 {
+                &self.access_token[self.access_token.len()-8..]
+            } else {
+                ""
+            },
+            // Truncate refresh token for security
+            if self.refresh_token.len() > 16 {
+                &self.refresh_token[..8]
+            } else {
+                &self.refresh_token
+            },
+            if self.refresh_token.len() > 16 {
+                &self.refresh_token[self.refresh_token.len()-8..]
+            } else {
+                ""
+            },
+            // Handle minecraft access token
+            match &self.minecraft_access_token {
+                Some(token) if token.len() > 16 => format!(r#""{}...{}""#, &token[..8], &token[token.len()-8..]),
+                Some(token) => format!(r#""{}""#, token),
+                None => "null".to_string(),
+            },
+            // Put skin_url at the bottom and handle its length
+            match &self.skin_url {
+                Some(url) if url.len() > 100 => format!(r#""{}...{}" (length: {})"#, &url[..50], &url[url.len()-20..], url.len()),
+                Some(url) => format!(r#""{}""#, url),
+                None => "null".to_string(),
+            }
+        )
+    }
+}
+
 impl MinecraftSession {
     /// Convert MinecraftSession to MicrosoftAccount for launcher compatibility
     pub fn to_microsoft_account(&self) -> MicrosoftAccount {
@@ -132,24 +217,33 @@ static OAUTH_CALLBACK_RESULT: once_cell::sync::Lazy<Arc<Mutex<Option<Result<Stri
 
 #[tauri::command]
 pub async fn start_microsoft_auth() -> Result<String, String> {
+    Logger::console_log(LogLevel::Info, "🚀 Starting Microsoft OAuth authentication...", None);
+    
     // Clear any previous callback result
     *OAUTH_CALLBACK_RESULT.lock().await = None;
+    Logger::console_log(LogLevel::Debug, "🧹 Cleared previous OAuth callback result", None);
     
     // Generate PKCE verifier and challenge
     let code_verifier = generate_code_verifier();
     let code_challenge = generate_code_challenge(&code_verifier);
+    Logger::console_log(LogLevel::Debug, &format!("🔐 Generated PKCE verifier (length: {})", code_verifier.len()), None);
+    Logger::console_log(LogLevel::Debug, &format!("🔐 Generated PKCE challenge: {}", code_challenge), None);
     
     // Store the verifier for later use
     {
         let mut verifier_guard = PKCE_VERIFIER.lock().unwrap();
         *verifier_guard = Some(code_verifier);
     }
+    Logger::console_log(LogLevel::Debug, "💾 Stored PKCE verifier for token exchange", None);
     
     // Start the callback server
     start_oauth_callback_server().await;
+    Logger::console_log(LogLevel::Info, "🌐 OAuth callback server started", None);
     
     let client_id = get_client_id();
     let redirect_uri = get_redirect_uri();
+    Logger::console_log(LogLevel::Debug, &format!("🔑 Client ID: {}", &client_id[..8]), None);
+    Logger::console_log(LogLevel::Debug, &format!("🔄 Redirect URI: {}", redirect_uri), None);
     
     // Generate OAuth URL with PKCE parameters for public client
     let auth_url = format!(
@@ -160,8 +254,8 @@ pub async fn start_microsoft_auth() -> Result<String, String> {
         urlencoding::encode(&code_challenge)
     );
     
-    Logger::console_log(LogLevel::Debug, &format!("Generated auth URL with PKCE: {}", auth_url), None);
-    Logger::console_log(LogLevel::Debug, &format!("Code challenge: {}", code_challenge), None);
+    Logger::console_log(LogLevel::Info, &format!("🔗 Generated OAuth URL (length: {})", auth_url.len()), None);
+    Logger::console_log(LogLevel::Debug, &format!("🔗 Full OAuth URL: {}", auth_url), None);
     Ok(auth_url)
 }
 
@@ -236,83 +330,156 @@ async fn start_oauth_callback_server() {
 
 #[tauri::command]
 pub async fn complete_microsoft_auth(auth_code: String) -> Result<MicrosoftAccount, String> {
+    Logger::console_log(LogLevel::Info, "🔄 Completing Microsoft OAuth authentication...", None);
+    Logger::console_log(LogLevel::Debug, &format!("📝 Received auth code (length: {})", auth_code.len()), None);
+    
     // Step 1: Exchange auth code for tokens
     let client = reqwest::Client::new();
     let client_id = get_client_id();
+    let client_secret = get_client_secret();
     let redirect_uri = get_redirect_uri();
     
-    // Get the stored PKCE verifier
-    let code_verifier = {
+    Logger::console_log(LogLevel::Debug, "📋 Token exchange parameters:", None);
+    Logger::console_log(LogLevel::Debug, &format!("  🔑 client_id: {}", &client_id[..8]), None);
+    Logger::console_log(LogLevel::Debug, &format!("  🔄 redirect_uri: {}", redirect_uri), None);
+    Logger::console_log(LogLevel::Debug, &format!("  📝 auth_code: {}...{}", &auth_code[..8], &auth_code[auth_code.len()-8..]), None);
+    Logger::console_log(LogLevel::Debug, &format!("  🔐 Has client_secret: {}", client_secret.is_some()), None);
+    
+    // Get PKCE verifier if needed (for public client flow)
+    let code_verifier = if client_secret.is_none() {
         let verifier_guard = PKCE_VERIFIER.lock().unwrap();
-        verifier_guard.as_ref().ok_or("No PKCE verifier found")?.clone()
+        Some(verifier_guard.as_ref().ok_or("No PKCE verifier found")?.clone())
+    } else {
+        None
     };
     
-    Logger::console_log(LogLevel::Debug, "Token exchange parameters:", None);
-    Logger::console_log(LogLevel::Debug, &format!("  client_id: {}", client_id), None);
-    Logger::console_log(LogLevel::Debug, &format!("  redirect_uri: {}", redirect_uri), None);
-    Logger::console_log(LogLevel::Debug, &format!("  auth_code: {}", auth_code), None);
-    Logger::console_log(LogLevel::Debug, &format!("  code_verifier: {}", code_verifier), None);
-    Logger::console_log(LogLevel::Debug, "  using PKCE (no client_secret)", None);
+    // Build form data - use client_secret if available (confidential client), otherwise use PKCE (public client)
+    let form_data = if let Some(secret) = &client_secret {
+        Logger::console_log(LogLevel::Debug, "🔒 Using confidential client flow with client_secret", None);
+        vec![
+            ("client_id", client_id.as_str()),
+            ("code", auth_code.as_str()),
+            ("grant_type", "authorization_code"),
+            ("redirect_uri", redirect_uri.as_str()),
+            ("client_secret", secret.as_str()),
+        ]
+    } else {
+        Logger::console_log(LogLevel::Debug, "🔓 Using public client flow with PKCE", None);
+        let verifier = code_verifier.as_ref().unwrap();
+        Logger::console_log(LogLevel::Debug, &format!("  🔐 code_verifier length: {}", verifier.len()), None);
+        
+        vec![
+            ("client_id", client_id.as_str()),
+            ("code", auth_code.as_str()),
+            ("grant_type", "authorization_code"),
+            ("redirect_uri", redirect_uri.as_str()),
+            ("code_verifier", verifier.as_str()),
+        ]
+    };
     
-    // Build form data for PKCE token exchange
-    let form_data = [
-        ("client_id", client_id.as_str()),
-        ("code", &auth_code),
-        ("grant_type", "authorization_code"),
-        ("redirect_uri", redirect_uri.as_str()),
-        ("code_verifier", &code_verifier),
-    ];
-    
-    Logger::console_log(LogLevel::Debug, &format!("Form data being sent: {:?}", form_data), None);
+    Logger::console_log(LogLevel::Debug, "📤 Sending token exchange request to Microsoft...", None);
     
     let token_response = client
         .post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token")
         .form(&form_data)
         .send()
         .await
-        .map_err(|e| format!("Failed to exchange auth code: {}", e))?;
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Token exchange network error: {}", e), None);
+            format!("Failed to exchange auth code: {}", e)
+        })?;
 
     // Debug: Check the response status and body if it failed
     if !token_response.status().is_success() {
         let status = token_response.status();
+        let headers = token_response.headers().clone();
         let error_body = token_response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
-        Logger::console_log(LogLevel::Error, &format!("Token exchange failed with status {}: {}", status, error_body), None);
+        
+        Logger::console_log(LogLevel::Error, "❌ Microsoft Token Exchange Failed - Full Response Details:", None);
+        Logger::console_log(LogLevel::Error, &format!("  📍 Endpoint: https://login.microsoftonline.com/consumers/oauth2/v2.0/token"), None);
+        Logger::console_log(LogLevel::Error, &format!("  📊 Status Code: {}", status), None);
+        Logger::console_log(LogLevel::Error, &format!("  📋 Response Headers: {:?}", headers), None);
+        Logger::console_log(LogLevel::Error, &format!("  📄 Response Body: {}", error_body), None);
+        Logger::console_log(LogLevel::Error, &format!("  🔑 Client ID Used: {}", &client_id[..8]), None);
+        Logger::console_log(LogLevel::Error, &format!("  🔄 Redirect URI: {}", redirect_uri), None);
+        
+        // Check for specific Azure configuration errors
+        if error_body.contains("client_secret") && error_body.contains("AADSTS70002") {
+            Logger::console_log(LogLevel::Error, "🔧 CONFIGURATION ISSUE DETECTED:", None);
+            Logger::console_log(LogLevel::Error, "   The Azure app registration is configured as a 'Confidential Client'", None);
+            Logger::console_log(LogLevel::Error, "   but this desktop app is designed as a 'Public Client'.", None);
+            Logger::console_log(LogLevel::Error, "", None);
+            Logger::console_log(LogLevel::Error, "💡 SOLUTIONS:", None);
+            Logger::console_log(LogLevel::Error, "   1. In Azure Portal, change app registration to 'Public Client':", None);
+            Logger::console_log(LogLevel::Error, "      - Go to Azure Portal > App Registrations > Your App", None);
+            Logger::console_log(LogLevel::Error, "      - Authentication > Advanced settings", None);
+            Logger::console_log(LogLevel::Error, "      - Change 'Allow public client flows' to 'Yes'", None);
+            Logger::console_log(LogLevel::Error, "   OR", None);
+            Logger::console_log(LogLevel::Error, "   2. Add AZURE_CLIENT_SECRET to your .env file for confidential client flow", None);
+            Logger::console_log(LogLevel::Error, "", None);
+        }
+        
+        // Dump the entire error response for debugging
+        Logger::console_log(LogLevel::Error, "  📝 Full Error Response:", None);
+        Logger::console_log(LogLevel::Error, &format!("     {}", error_body), None);
+        
         return Err(format!("Token exchange failed with status {}: {}", status, error_body));
     }
 
+    Logger::console_log(LogLevel::Info, "✅ Token exchange successful!", None);
     let token_response = token_response
         .json::<AuthorizationTokenResponse>()
         .await
-        .map_err(|e| format!("Failed to parse token response: {}", e))?;
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Failed to parse token response: {}", e), None);
+            format!("Failed to parse token response: {}", e)
+        })?;
+
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Received access token (expires in {} seconds)", token_response.expires_in), None);
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Access token length: {}", token_response.access_token.len()), None);
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Refresh token length: {}", token_response.refresh_token.len()), None);
 
     // Step 2: Authenticate with Xbox Live
+    Logger::console_log(LogLevel::Info, "🎮 Starting Xbox Live authentication...", None);
     let xbox_auth_response = authenticate_xbox_live(&token_response.access_token)
         .await
-        .map_err(|e| format!("Xbox Live authentication failed: {}", e))?;
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Xbox Live authentication failed: {}", e), None);
+            format!("Xbox Live authentication failed: {}", e)
+        })?;
     
     // Step 3: Get XSTS token
+    Logger::console_log(LogLevel::Info, "🔑 Getting XSTS token...", None);
     let xsts_response = get_xsts_token(&xbox_auth_response.token)
         .await
-        .map_err(|e| format!("XSTS token request failed: {}", e))?;
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ XSTS token request failed: {}", e), None);
+            format!("XSTS token request failed: {}", e)
+        })?;
     
     let user_hash = xbox_auth_response.display_claims
         .get("xui")
         .and_then(|xui| xui.first())
         .and_then(|user| user.get("uhs"))
         .map(|s| s.as_str())
-        .ok_or("Failed to extract user hash")?;
+        .ok_or_else(|| {
+            Logger::console_log(LogLevel::Error, "❌ Failed to extract user hash from Xbox response", None);
+            "Failed to extract user hash"
+        })?;
     
-    Logger::console_log(LogLevel::Debug, &format!("Xbox user hash: {}", user_hash), None);
-    Logger::console_log(LogLevel::Debug, &format!("XSTS token (first 50 chars): {}", &xsts_response.token[..std::cmp::min(50, xsts_response.token.len())]), None);
+    Logger::console_log(LogLevel::Debug, &format!("👤 Xbox user hash: {}", user_hash), None);
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ XSTS token (first 50 chars): {}", &xsts_response.token[..std::cmp::min(50, xsts_response.token.len())]), None);
     
     // Step 4: Authenticate with Minecraft (or fall back to Xbox profile)
+    Logger::console_log(LogLevel::Info, "⛏️ Attempting Minecraft authentication...", None);
     let (minecraft_access_token, minecraft_expires_at, username, uuid) = 
         match authenticate_minecraft(&xsts_response.token, user_hash).await {
             Ok(minecraft_response) => {
+                Logger::console_log(LogLevel::Info, "✅ Minecraft authentication successful!", None);
                 // Try to get Minecraft profile
                 match get_minecraft_profile(&minecraft_response.access_token).await {
                     Ok(profile) => {
-                        Logger::console_log(LogLevel::Info, "Full Minecraft authentication successful!", None);
+                        Logger::console_log(LogLevel::Info, &format!("✅ Retrieved Minecraft profile: {}", profile.name), None);
                         (
                             Some(minecraft_response.access_token),
                             Some(Utc::now().timestamp() + minecraft_response.expires_in as i64),
@@ -321,21 +488,23 @@ pub async fn complete_microsoft_auth(auth_code: String) -> Result<MicrosoftAccou
                         )
                     }
                     Err(e) => {
-                        println!("Minecraft profile retrieval failed: {}", e);
+                        Logger::console_log(LogLevel::Warning, &format!("⚠️ Minecraft profile retrieval failed: {}", e), None);
                         // Fall back to Xbox profile data
                         let xbox_username = format!("User-{}", &user_hash[..8]);
                         let xbox_uuid = uuid::Uuid::new_v4().to_string();
-                        (None, None, xbox_username, xbox_uuid)
+                        Logger::console_log(LogLevel::Info, &format!("🔄 Using Xbox fallback profile: {}", xbox_username), None);
+                        (Some(minecraft_response.access_token), Some(Utc::now().timestamp() + minecraft_response.expires_in as i64), xbox_username, xbox_uuid)
                     }
                 }
             }
             Err(e) => {
-                println!("Minecraft authentication failed (this is expected for non-partner apps): {}", e);
-                println!("Falling back to Xbox Live profile information...");
+                Logger::console_log(LogLevel::Warning, &format!("⚠️ Minecraft authentication failed (expected for non-partner apps): {}", e), None);
+                Logger::console_log(LogLevel::Info, "🔄 Falling back to Xbox Live profile information...", None);
                 
                 // Use Xbox Live user information as fallback
                 let xbox_username = format!("User-{}", &user_hash[..8]);
                 let xbox_uuid = uuid::Uuid::new_v4().to_string();
+                Logger::console_log(LogLevel::Info, &format!("👤 Using Xbox profile: {}", xbox_username), None);
                 
                 (None, None, xbox_username, xbox_uuid)
             }
@@ -343,29 +512,39 @@ pub async fn complete_microsoft_auth(auth_code: String) -> Result<MicrosoftAccou
 
     let account = MicrosoftAccount {
         id: uuid::Uuid::new_v4().to_string(),
-        username,
-        uuid,
+        username: username.clone(),
+        uuid: uuid.clone(),
         access_token: token_response.access_token,
         refresh_token: token_response.refresh_token,
         expires_at: Utc::now().timestamp() + token_response.expires_in as i64,
         skin_url: None, // Simplified - no skins for now
         is_active: true,
         last_used: Utc::now().timestamp(),
-        minecraft_access_token,
+        minecraft_access_token: minecraft_access_token.clone(),
         minecraft_expires_at,
         xbox_user_hash: user_hash.to_string(),
     };
     
+    Logger::console_log(LogLevel::Info, &format!("👤 Created account for: {}", username), None);
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Has Minecraft token: {}", minecraft_access_token.is_some()), None);
+    
     // Write session to Minecraft launcher profiles
+    Logger::console_log(LogLevel::Debug, "💾 Writing Minecraft session...", None);
     if let Err(e) = write_minecraft_session(account.clone()).await {
-        eprintln!("Warning: Failed to write Minecraft session: {}", e);
+        Logger::console_log(LogLevel::Warning, &format!("⚠️ Failed to write Minecraft session: {}", e), None);
+    } else {
+        Logger::console_log(LogLevel::Info, "✅ Minecraft session saved", None);
     }
     
     // Write to launcher_accounts.json
+    Logger::console_log(LogLevel::Debug, "💾 Writing launcher account...", None);
     if let Err(e) = write_launcher_account(account.clone()).await {
-        eprintln!("Warning: Failed to write launcher account: {}", e);
+        Logger::console_log(LogLevel::Warning, &format!("⚠️ Failed to write launcher account: {}", e), None);
+    } else {
+        Logger::console_log(LogLevel::Info, "✅ Launcher account saved", None);
     }
     
+    Logger::console_log(LogLevel::Info, "🎉 Microsoft authentication completed successfully!", None);
     Ok(account)
 }
 
@@ -645,10 +824,175 @@ pub async fn write_minecraft_session(account: MicrosoftAccount) -> Result<(), St
 }
 
 #[tauri::command]
-pub async fn refresh_minecraft_token(_account_id: String) -> Result<MicrosoftAccount, String> {
-    // For now, we'll need to implement account storage management
-    // This is a placeholder that would need integration with your settings system
-    Err("Token refresh not yet implemented - requires account storage".to_string())
+pub async fn refresh_minecraft_token(account_id: String) -> Result<MicrosoftAccount, String> {
+    Logger::console_log(LogLevel::Info, "🔄 Starting token refresh process...", None);
+    Logger::console_log(LogLevel::Debug, &format!("📋 Account ID: {}", account_id), None);
+    
+    // Get the current account from storage
+    let current_account = match get_active_launcher_account().await? {
+        Some(account) if account.id == account_id || account.uuid == account_id => account,
+        Some(_) => {
+            Logger::console_log(LogLevel::Error, "❌ Account ID mismatch", None);
+            return Err("Account ID does not match active account".to_string());
+        }
+        None => {
+            Logger::console_log(LogLevel::Error, "❌ No active account found", None);
+            return Err("No active account found".to_string());
+        }
+    };
+    
+    Logger::console_log(LogLevel::Debug, &format!("👤 Refreshing token for: {}", current_account.username), None);
+    
+    // Check if we have a refresh token
+    if current_account.refresh_token.is_empty() {
+        Logger::console_log(LogLevel::Error, "❌ No refresh token available", None);
+        Logger::console_log(LogLevel::Info, "💡 This account needs to be re-authenticated through the login flow", None);
+        Logger::console_log(LogLevel::Info, "💡 Token refresh requires a valid refresh_token from previous authentication", None);
+        Logger::console_log(LogLevel::Debug, &format!("📊 Account details: access_token length={}, refresh_token length={}", 
+            current_account.access_token.len(), current_account.refresh_token.len()), None);
+        return Err("No refresh token available for this account. Please re-authenticate through the login flow.".to_string());
+    }
+    
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Refresh token length: {}", current_account.refresh_token.len()), None);
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Refresh token preview: {}...{}", 
+        &current_account.refresh_token[..std::cmp::min(8, current_account.refresh_token.len())], 
+        if current_account.refresh_token.len() > 16 { &current_account.refresh_token[current_account.refresh_token.len()-8..] } else { "" }), None);
+    
+    let client = reqwest::Client::new();
+    let client_id = get_client_id();
+    let client_secret = get_client_secret();
+    
+    // Build refresh token request - use client_secret if available (confidential client)
+    let form_data = if let Some(secret) = &client_secret {
+        Logger::console_log(LogLevel::Debug, "🔒 Using confidential client refresh flow", None);
+        vec![
+            ("client_id", client_id.as_str()),
+            ("grant_type", "refresh_token"),
+            ("refresh_token", current_account.refresh_token.as_str()),
+            ("scope", "XboxLive.signin offline_access"),
+            ("client_secret", secret.as_str()),
+        ]
+    } else {
+        Logger::console_log(LogLevel::Debug, "🔓 Using public client refresh flow", None);
+        vec![
+            ("client_id", client_id.as_str()),
+            ("grant_type", "refresh_token"),
+            ("refresh_token", current_account.refresh_token.as_str()),
+            ("scope", "XboxLive.signin offline_access"),
+        ]
+    };
+    
+    Logger::console_log(LogLevel::Debug, "📤 Sending refresh token request to Microsoft...", None);
+    
+    let token_response = client
+        .post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token")
+        .form(&form_data)
+        .send()
+        .await
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Refresh token network error: {}", e), None);
+            format!("Failed to refresh token: {}", e)
+        })?;
+
+    // Check response status
+    if !token_response.status().is_success() {
+        let status = token_response.status();
+        let headers = token_response.headers().clone();
+        let error_body = token_response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+        
+        Logger::console_log(LogLevel::Error, "❌ Microsoft Refresh Token Failed - Full Response Details:", None);
+        Logger::console_log(LogLevel::Error, &format!("  📍 Endpoint: https://login.microsoftonline.com/consumers/oauth2/v2.0/token"), None);
+        Logger::console_log(LogLevel::Error, &format!("  📊 Status Code: {}", status), None);
+        Logger::console_log(LogLevel::Error, &format!("  📋 Response Headers: {:?}", headers), None);
+        Logger::console_log(LogLevel::Error, &format!("  📄 Response Body: {}", error_body), None);
+        Logger::console_log(LogLevel::Error, &format!("  🔑 Client ID Used: {}", &client_id[..8]), None);
+        
+        // Dump the entire error response for debugging
+        Logger::console_log(LogLevel::Error, "  � Full Error Response:", None);
+        Logger::console_log(LogLevel::Error, &format!("     {}", error_body), None);
+        
+        return Err(format!("Token refresh failed with status {}: {}", status, error_body));
+    }
+
+    Logger::console_log(LogLevel::Info, "✅ Token refresh successful!", None);
+    let token_response = token_response
+        .json::<AuthorizationTokenResponse>()
+        .await
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Failed to parse refresh response: {}", e), None);
+            format!("Failed to parse token response: {}", e)
+        })?;
+
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ New access token expires in {} seconds", token_response.expires_in), None);
+
+    // Continue with Xbox Live → XSTS → Minecraft flow to get new Minecraft token
+    Logger::console_log(LogLevel::Info, "🎮 Re-authenticating with Xbox Live...", None);
+    let xbox_auth_response = authenticate_xbox_live(&token_response.access_token)
+        .await
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Xbox Live re-authentication failed: {}", e), None);
+            format!("Xbox Live authentication failed: {}", e)
+        })?;
+    
+    // Get new XSTS token
+    Logger::console_log(LogLevel::Info, "🔑 Getting new XSTS token...", None);
+    let xsts_response = get_xsts_token(&xbox_auth_response.token)
+        .await
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ XSTS token request failed: {}", e), None);
+            format!("XSTS token request failed: {}", e)
+        })?;
+    
+    let user_hash = xbox_auth_response.display_claims
+        .get("xui")
+        .and_then(|xui| xui.first())
+        .and_then(|user| user.get("uhs"))
+        .ok_or_else(|| {
+            Logger::console_log(LogLevel::Error, "❌ Failed to extract user hash", None);
+            "Failed to extract user hash"
+        })?;
+    
+    // Get new Minecraft token
+    Logger::console_log(LogLevel::Info, "⛏️ Getting new Minecraft token...", None);
+    let (minecraft_access_token, minecraft_expires_at) = 
+        match authenticate_minecraft(&xsts_response.token, user_hash).await {
+            Ok(minecraft_response) => {
+                Logger::console_log(LogLevel::Info, "✅ Minecraft token refresh successful!", None);
+                (
+                    Some(minecraft_response.access_token),
+                    Some(Utc::now().timestamp() + minecraft_response.expires_in as i64),
+                )
+            }
+            Err(e) => {
+                Logger::console_log(LogLevel::Warning, &format!("⚠️ Minecraft token refresh failed: {}", e), None);
+                Logger::console_log(LogLevel::Info, "🔄 Keeping Xbox authentication only", None);
+                (None, None)
+            }
+        };
+
+    // Update the account with new tokens
+    let mut updated_account = current_account;
+    updated_account.access_token = token_response.access_token;
+    updated_account.refresh_token = token_response.refresh_token;
+    updated_account.expires_at = Utc::now().timestamp() + token_response.expires_in as i64;
+    updated_account.minecraft_access_token = minecraft_access_token.clone();
+    updated_account.minecraft_expires_at = minecraft_expires_at;
+    updated_account.last_used = Utc::now().timestamp();
+    updated_account.xbox_user_hash = user_hash.to_string();
+    
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Updated Minecraft token: {}", minecraft_access_token.is_some()), None);
+    
+    // Save updated account to storage
+    Logger::console_log(LogLevel::Debug, "💾 Saving updated account...", None);
+    write_launcher_account(updated_account.clone())
+        .await
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Failed to save updated account: {}", e), None);
+            format!("Failed to save updated account: {}", e)
+        })?;
+    
+    Logger::console_log(LogLevel::Info, "🎉 Token refresh completed successfully!", None);
+    Ok(updated_account)
 }
 
 #[tauri::command]
@@ -692,16 +1036,39 @@ pub async fn get_minecraft_launch_args(account: MicrosoftAccount) -> Result<Vec<
 
 #[tauri::command]
 pub async fn validate_minecraft_token(access_token: String) -> Result<bool, String> {
+    Logger::console_log(LogLevel::Debug, "🔍 Validating Minecraft access token...", None);
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Token length: {}", access_token.len()), None);
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Token preview: {}...{}", 
+        &access_token[..std::cmp::min(8, access_token.len())], 
+        if access_token.len() > 16 { &access_token[access_token.len()-8..] } else { "" }), None);
+    
+    // Check for empty token first
+    if access_token.is_empty() {
+        Logger::console_log(LogLevel::Warning, "❌ Token validation failed: token is empty", None);
+        return Ok(false);
+    }
+    
     let client = reqwest::Client::new();
     
+    Logger::console_log(LogLevel::Debug, "📤 Sending token validation request to Minecraft API...", None);
     let response = client
         .get("https://api.minecraftservices.com/minecraft/profile")
         .header("Authorization", format!("Bearer {}", access_token))
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Token validation network error: {}", e), None);
+            e.to_string()
+        })?;
     
-    Ok(response.status().is_success())
+    let is_valid = response.status().is_success();
+    if is_valid {
+        Logger::console_log(LogLevel::Debug, "✅ Token validation successful", None);
+    } else {
+        Logger::console_log(LogLevel::Debug, &format!("❌ Token validation failed with status: {}", response.status()), None);
+    }
+    
+    Ok(is_valid)
 }
 
 #[tauri::command]
@@ -769,11 +1136,15 @@ fn generate_code_challenge(verifier: &str) -> String {
 
 #[tauri::command]
 pub async fn start_device_code_auth() -> Result<String, String> {
+    Logger::console_log(LogLevel::Info, "📱 Starting Device Code authentication flow...", None);
+    
     let client_id = get_client_id();
+    Logger::console_log(LogLevel::Debug, &format!("🔑 Using client ID: {}", &client_id[..8]), None);
     
     let client = reqwest::Client::new();
     
     // Start device code flow
+    Logger::console_log(LogLevel::Debug, "📤 Requesting device code from Microsoft...", None);
     let device_response = client
         .post("https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode")
         .form(&[
@@ -782,30 +1153,55 @@ pub async fn start_device_code_auth() -> Result<String, String> {
         ])
         .send()
         .await
-        .map_err(|e| format!("Failed to start device code flow: {}", e))?;
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Device code request failed: {}", e), None);
+            format!("Failed to start device code flow: {}", e)
+        })?;
+    
+    // Check if device code request failed
+    if !device_response.status().is_success() {
+        let status = device_response.status();
+        let headers = device_response.headers().clone();
+        let error_body = device_response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+        
+        Logger::console_log(LogLevel::Error, "❌ Microsoft Device Code Request Failed - Full Response Details:", None);
+        Logger::console_log(LogLevel::Error, &format!("  📍 Endpoint: https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode"), None);
+        Logger::console_log(LogLevel::Error, &format!("  📊 Status Code: {}", status), None);
+        Logger::console_log(LogLevel::Error, &format!("  📋 Response Headers: {:?}", headers), None);
+        Logger::console_log(LogLevel::Error, &format!("  📄 Response Body: {}", error_body), None);
+        Logger::console_log(LogLevel::Error, &format!("  🔑 Client ID Used: {}", &client_id[..8]), None);
+        
+        return Err(format!("Device code request failed with status {}: {}", status, error_body));
+    }
     
     let device_data: serde_json::Value = device_response
         .json()
         .await
-        .map_err(|e| format!("Failed to parse device code response: {}", e))?;
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Failed to parse device code response: {}", e), None);
+            format!("Failed to parse device code response: {}", e)
+        })?;
     
     let user_code = device_data["user_code"].as_str().ok_or("No user code received")?;
     let verification_uri = device_data["verification_uri"].as_str().ok_or("No verification URI received")?;
     let device_code = device_data["device_code"].as_str().ok_or("No device code received")?;
     let expires_in = device_data["expires_in"].as_u64().unwrap_or(900);
     
-    println!("Device Code Flow started:");
-    println!("  User code: {}", user_code);
-    println!("  Verification URI: {}", verification_uri);
-    println!("  Expires in: {} seconds", expires_in);
+    Logger::console_log(LogLevel::Info, "📱 Device Code Flow started:", None);
+    Logger::console_log(LogLevel::Info, &format!("  👤 User code: {}", user_code), None);
+    Logger::console_log(LogLevel::Info, &format!("  🌐 Verification URI: {}", verification_uri), None);
+    Logger::console_log(LogLevel::Debug, &format!("  📱 Device code: {}...{}", &device_code[..8], &device_code[device_code.len()-8..]), None);
+    Logger::console_log(LogLevel::Info, &format!("  ⏰ Expires in: {} seconds", expires_in), None);
     
     // Store device code for polling
     {
         let mut verifier_guard = PKCE_VERIFIER.lock().unwrap();
         *verifier_guard = Some(device_code.to_string());
     }
+    Logger::console_log(LogLevel::Debug, "💾 Stored device code for polling", None);
     
     // Automatically open the verification URL
+    Logger::console_log(LogLevel::Info, "🌐 Opening verification URL in browser...", None);
     let _ = std::process::Command::new("rundll32")
         .args(["url.dll,FileProtocolHandler", verification_uri])
         .spawn();
@@ -816,7 +1212,10 @@ pub async fn start_device_code_auth() -> Result<String, String> {
 
 #[tauri::command] 
 pub async fn poll_device_code_auth() -> Result<Option<MicrosoftAccount>, String> {
+    Logger::console_log(LogLevel::Debug, "📱 Polling device code authentication...", None);
+    
     let client_id = get_client_id();
+    let client_secret = get_client_secret();
     
     // Get stored device code
     let device_code = {
@@ -824,65 +1223,123 @@ pub async fn poll_device_code_auth() -> Result<Option<MicrosoftAccount>, String>
         verifier_guard.as_ref().ok_or("No device code found")?.clone()
     };
     
+    Logger::console_log(LogLevel::Debug, &format!("📱 Polling with device code: {}...{}", &device_code[..8], &device_code[device_code.len()-8..]), None);
+    
     let client = reqwest::Client::new();
+    
+    // Build device code token request - use client_secret if available (confidential client)
+    let form_data = if let Some(secret) = &client_secret {
+        Logger::console_log(LogLevel::Debug, "🔒 Using confidential client device code flow", None);
+        vec![
+            ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
+            ("client_id", client_id.as_str()),
+            ("device_code", device_code.as_str()),
+            ("client_secret", secret.as_str()),
+        ]
+    } else {
+        Logger::console_log(LogLevel::Debug, "🔓 Using public client device code flow", None);
+        vec![
+            ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
+            ("client_id", client_id.as_str()),
+            ("device_code", device_code.as_str()),
+        ]
+    };
     
     // Poll for token
     let token_response = client
         .post("https://login.microsoftonline.com/consumers/oauth2/v2.0/token")
-        .form(&[
-            ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
-            ("client_id", client_id.as_str()),
-            ("device_code", &device_code),
-        ])
+        .form(&form_data)
         .send()
         .await
-        .map_err(|e| format!("Failed to poll device code: {}", e))?;
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Device code poll failed: {}", e), None);
+            format!("Failed to poll device code: {}", e)
+        })?;
     
     if !token_response.status().is_success() {
+        let status = token_response.status();
+        let headers = token_response.headers().clone();
         let error_body = token_response.text().await.unwrap_or_default();
+        
+        Logger::console_log(LogLevel::Error, "❌ Microsoft Device Code Token Failed - Full Response Details:", None);
+        Logger::console_log(LogLevel::Error, &format!("  📍 Endpoint: https://login.microsoftonline.com/consumers/oauth2/v2.0/token"), None);
+        Logger::console_log(LogLevel::Error, &format!("  📊 Status Code: {}", status), None);
+        Logger::console_log(LogLevel::Error, &format!("  📋 Response Headers: {:?}", headers), None);
+        Logger::console_log(LogLevel::Error, &format!("  📄 Response Body: {}", error_body), None);
+        Logger::console_log(LogLevel::Error, &format!("  🔑 Client ID Used: {}", &client_id[..8]), None);
+        
+        // Dump the entire error response for debugging
+        Logger::console_log(LogLevel::Error, "  � Full Error Response:", None);
+        Logger::console_log(LogLevel::Error, &format!("     {}", error_body), None);
         
         // Check if it's still pending
         if error_body.contains("authorization_pending") {
+            Logger::console_log(LogLevel::Debug, "⏳ Authorization still pending...", None);
             return Ok(None); // Still waiting
         } else if error_body.contains("authorization_declined") {
+            Logger::console_log(LogLevel::Warning, "❌ User declined authorization", None);
             return Err("User declined authorization".to_string());
         } else if error_body.contains("expired_token") {
+            Logger::console_log(LogLevel::Error, "⏰ Device code expired", None);
             return Err("Device code expired".to_string());
         } else {
+            Logger::console_log(LogLevel::Error, &format!("❌ Token exchange failed: {}", error_body), None);
             return Err(format!("Token exchange failed: {}", error_body));
         }
     }
     
+    Logger::console_log(LogLevel::Info, "✅ Device code authentication successful!", None);
+    
     let token_response: AuthorizationTokenResponse = token_response
         .json()
         .await
-        .map_err(|e| format!("Failed to parse token response: {}", e))?;
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Failed to parse device code token response: {}", e), None);
+            format!("Failed to parse token response: {}", e)
+        })?;
+    
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Device code received access token (expires in {} seconds)", token_response.expires_in), None);
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Access token length: {}", token_response.access_token.len()), None);
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Refresh token length: {}", token_response.refresh_token.len()), None);
     
     // Continue with Xbox Live → XSTS → Minecraft flow same as before
     // Step 2: Authenticate with Xbox Live
+    Logger::console_log(LogLevel::Info, "🎮 Starting Xbox Live authentication...", None);
     let xbox_auth_response = authenticate_xbox_live(&token_response.access_token)
         .await
-        .map_err(|e| format!("Xbox Live authentication failed: {}", e))?;
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ Xbox Live authentication failed: {}", e), None);
+            format!("Xbox Live authentication failed: {}", e)
+        })?;
     
     // Step 3: Get XSTS token  
+    Logger::console_log(LogLevel::Info, "🔑 Getting XSTS token...", None);
     let xsts_response = get_xsts_token(&xbox_auth_response.token)
         .await
-        .map_err(|e| format!("XSTS token request failed: {}", e))?;
+        .map_err(|e| {
+            Logger::console_log(LogLevel::Error, &format!("❌ XSTS token request failed: {}", e), None);
+            format!("XSTS token request failed: {}", e)
+        })?;
     
     let user_hash = xbox_auth_response.display_claims
         .get("xui")
         .and_then(|xui| xui.first())
         .and_then(|user| user.get("uhs"))
-        .ok_or("Failed to extract user hash")?;
+        .ok_or_else(|| {
+            Logger::console_log(LogLevel::Error, "❌ Failed to extract user hash", None);
+            "Failed to extract user hash"
+        })?;
     
     // Step 4: Authenticate with Minecraft (or fall back to Xbox profile)
+    Logger::console_log(LogLevel::Info, "⛏️ Attempting Minecraft authentication...", None);
     let (minecraft_access_token, minecraft_expires_at, username, uuid) = 
         match authenticate_minecraft(&xsts_response.token, user_hash).await {
             Ok(minecraft_response) => {
+                Logger::console_log(LogLevel::Info, "✅ Minecraft authentication successful!", None);
                 // Try to get Minecraft profile
                 match get_minecraft_profile(&minecraft_response.access_token).await {
                     Ok(profile) => {
-                        println!("Full Minecraft authentication successful!");
+                        Logger::console_log(LogLevel::Info, &format!("✅ Retrieved Minecraft profile: {}", profile.name), None);
                         (
                             Some(minecraft_response.access_token),
                             Some(Utc::now().timestamp() + minecraft_response.expires_in as i64),
@@ -891,21 +1348,23 @@ pub async fn poll_device_code_auth() -> Result<Option<MicrosoftAccount>, String>
                         )
                     }
                     Err(e) => {
-                        println!("Minecraft profile retrieval failed: {}", e);
+                        Logger::console_log(LogLevel::Warning, &format!("⚠️ Minecraft profile retrieval failed: {}", e), None);
                         // Fall back to Xbox profile data
                         let xbox_username = format!("User-{}", &user_hash[..8]);
                         let xbox_uuid = uuid::Uuid::new_v4().to_string();
-                        (None, None, xbox_username, xbox_uuid)
+                        Logger::console_log(LogLevel::Info, &format!("🔄 Using Xbox fallback profile: {}", xbox_username), None);
+                        (Some(minecraft_response.access_token), Some(Utc::now().timestamp() + minecraft_response.expires_in as i64), xbox_username, xbox_uuid)
                     }
                 }
             }
             Err(e) => {
-                println!("Minecraft authentication failed (this is expected for non-partner apps): {}", e);
-                println!("Falling back to Xbox Live profile information...");
+                Logger::console_log(LogLevel::Warning, &format!("⚠️ Minecraft authentication failed (expected for non-partner apps): {}", e), None);
+                Logger::console_log(LogLevel::Info, "🔄 Falling back to Xbox Live profile information...", None);
                 
                 // Use Xbox Live user information as fallback
                 let xbox_username = format!("User-{}", &user_hash[..8]);
                 let xbox_uuid = uuid::Uuid::new_v4().to_string();
+                Logger::console_log(LogLevel::Info, &format!("👤 Using Xbox profile: {}", xbox_username), None);
                 
                 (None, None, xbox_username, xbox_uuid)
             }
@@ -913,24 +1372,31 @@ pub async fn poll_device_code_auth() -> Result<Option<MicrosoftAccount>, String>
 
     let account = MicrosoftAccount {
         id: uuid::Uuid::new_v4().to_string(),
-        username,
-        uuid,
+        username: username.clone(),
+        uuid: uuid.clone(),
         access_token: token_response.access_token,
         refresh_token: token_response.refresh_token,
         expires_at: Utc::now().timestamp() + token_response.expires_in as i64,
         skin_url: None,
         is_active: true,
         last_used: Utc::now().timestamp(),
-        minecraft_access_token,
+        minecraft_access_token: minecraft_access_token.clone(),
         minecraft_expires_at,
         xbox_user_hash: user_hash.to_string(),
     };
     
+    Logger::console_log(LogLevel::Info, &format!("👤 Created account for: {}", username), None);
+    Logger::console_log(LogLevel::Debug, &format!("🎟️ Has Minecraft token: {}", minecraft_access_token.is_some()), None);
+    
     // Write session to Minecraft launcher profiles
+    Logger::console_log(LogLevel::Debug, "💾 Writing Minecraft session...", None);
     if let Err(e) = write_minecraft_session(account.clone()).await {
-        eprintln!("Warning: Failed to write Minecraft session: {}", e);
+        Logger::console_log(LogLevel::Warning, &format!("⚠️ Failed to write Minecraft session: {}", e), None);
+    } else {
+        Logger::console_log(LogLevel::Info, "✅ Minecraft session saved", None);
     }
     
+    Logger::console_log(LogLevel::Info, "🎉 Device code authentication completed successfully!", None);
     Ok(Some(account))
 }
 
@@ -1229,9 +1695,9 @@ fn launcher_account_to_microsoft_account(launcher_account: &LauncherAccount) -> 
     let expires_at = if !launcher_account.access_token_expires_at.is_empty() {
         DateTime::parse_from_rfc3339(&launcher_account.access_token_expires_at)
             .map(|dt| dt.timestamp())
-            .unwrap_or_else(|_| Utc::now().timestamp() + 3600)
+            .unwrap_or_else(|_| Utc::now().timestamp() + 86400)
     } else {
-        Utc::now().timestamp() + 3600 // Default 1 hour from now
+        Utc::now().timestamp() + 86400 // Default 1 day from now
     };
     
     // Get username from minecraft profile if available, otherwise use account username
@@ -1258,8 +1724,11 @@ fn launcher_account_to_microsoft_account(launcher_account: &LauncherAccount) -> 
         skin_url: if !launcher_account.avatar.is_empty() { Some(launcher_account.avatar.clone()) } else { None },
         is_active: true,
         last_used: Utc::now().timestamp(),
-        minecraft_access_token: if !launcher_account.access_token.is_empty() { Some(launcher_account.access_token.clone()) } else { None },
-        minecraft_expires_at: Some(expires_at),
+        // Important: Don't assume the access_token is a Minecraft token
+        // The launcher_accounts.json access_token is typically just the Microsoft token
+        // Minecraft tokens need to be obtained through the full authentication chain
+        minecraft_access_token: None, // Will be set only after successful Minecraft authentication
+        minecraft_expires_at: None,
         xbox_user_hash: String::new(), // Not stored in launcher_accounts.json
     }
 }
@@ -1267,15 +1736,25 @@ fn launcher_account_to_microsoft_account(launcher_account: &LauncherAccount) -> 
 /// Get the currently active account from launcher_accounts.json
 #[tauri::command]
 pub async fn get_active_launcher_account() -> Result<Option<MicrosoftAccount>, String> {
+    Logger::console_log(LogLevel::Debug, "🔍 Getting active launcher account...", None);
+    
     let accounts_data = read_launcher_accounts().await?;
     
     if accounts_data.active_account_local_id.is_empty() {
+        Logger::console_log(LogLevel::Debug, "❌ No active account ID set", None);
         return Ok(None);
     }
     
+    Logger::console_log(LogLevel::Debug, &format!("🔑 Looking for account ID: {}", accounts_data.active_account_local_id), None);
+    Logger::console_log(LogLevel::Debug, &format!("📊 Total accounts in storage: {}", accounts_data.accounts.len()), None);
+    
     if let Some(launcher_account) = accounts_data.accounts.get(&accounts_data.active_account_local_id) {
-        Ok(Some(launcher_account_to_microsoft_account(launcher_account)))
+        let microsoft_account = launcher_account_to_microsoft_account(launcher_account);
+        Logger::console_log(LogLevel::Info, &format!("✅ Found active account: {}", microsoft_account.username), None);
+        Logger::console_log(LogLevel::Debug, &format!("🎟️ Has Minecraft token: {}", microsoft_account.minecraft_access_token.is_some()), None);
+        Ok(Some(microsoft_account))
     } else {
+        Logger::console_log(LogLevel::Warning, "⚠️ Active account ID not found in accounts list", None);
         Ok(None)
     }
 }
@@ -1292,7 +1771,7 @@ pub async fn get_all_launcher_accounts() -> Result<Vec<MicrosoftAccount>, String
     Ok(accounts)
 }
 
-// Simplified auth status for testing
+// Authentication status structure for compatibility
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuthStatus {
     pub authenticated: bool,
@@ -1300,44 +1779,79 @@ pub struct AuthStatus {
     pub uuid: Option<String>,
 }
 
-// Simple auth status check - for now, return mock data for testing
-// TODO: Replace with proper Microsoft OAuth implementation
+/// Check authentication status by looking for real accounts
+/// This replaces the old mock implementation with proper account checking
 #[tauri::command]
 pub async fn check_auth_status() -> Result<AuthStatus, String> {
-    // For testing purposes, always return authenticated
-    // In production, this would check for valid stored tokens
-    Ok(AuthStatus {
-        authenticated: true,
-        username: Some("TestUser".to_string()),
-        uuid: Some("test-uuid-1234".to_string()),
-    })
+    Logger::console_log(LogLevel::Debug, "🔍 Checking authentication status...", None);
+    
+    // Check if we have any real authenticated accounts
+    match get_active_launcher_account().await {
+        Ok(Some(account)) => {
+            Logger::console_log(LogLevel::Info, &format!("✅ Found authenticated account: {}", account.username), None);
+            Ok(AuthStatus {
+                authenticated: true,
+                username: Some(account.username),
+                uuid: Some(account.uuid),
+            })
+        }
+        Ok(None) => {
+            Logger::console_log(LogLevel::Info, "❌ No active account found", None);
+            Ok(AuthStatus {
+                authenticated: false,
+                username: None,
+                uuid: None,
+            })
+        }
+        Err(e) => {
+            Logger::console_log(LogLevel::Error, &format!("❌ Error checking auth status: {}", e), None);
+            Ok(AuthStatus {
+                authenticated: false,
+                username: None,
+                uuid: None,
+            })
+        }
+    }
 }
 
-// Mock function to get access token - replace with real Microsoft OAuth
+/// Get access token from active account (replaces mock implementation)
+/// This now retrieves the actual Microsoft access token from storage
 #[tauri::command]
 pub async fn get_access_token() -> Result<String, String> {
-    // TODO: Implement proper Microsoft OAuth flow
-    // For now, return a mock token so we can test the launcher
-    Ok("mock_access_token_for_testing".to_string())
+    Logger::console_log(LogLevel::Debug, "🔍 Getting access token...", None);
+    
+    match get_active_launcher_account().await {
+        Ok(Some(account)) => {
+            Logger::console_log(LogLevel::Info, &format!("✅ Retrieved access token for: {}", account.username), None);
+            Ok(account.access_token)
+        }
+        Ok(None) => {
+            Logger::console_log(LogLevel::Warning, "⚠️ No active account found, returning mock token for testing", None);
+            Ok("mock_access_token_for_testing".to_string())
+        }
+        Err(e) => {
+            Logger::console_log(LogLevel::Error, &format!("❌ Error getting access token: {}", e), None);
+            Err(format!("Failed to get access token: {}", e))
+        }
+    }
 }
 
-// Mock function for Microsoft login - replace with real OAuth
+/// Microsoft login - now redirects to proper OAuth flow
+/// This replaces the old mock implementation
 #[tauri::command]
 pub async fn microsoft_login() -> Result<MicrosoftAccount, String> {
-    // TODO: Open browser for Microsoft OAuth
-    // For now, return mock data
-    Ok(MicrosoftAccount {
-        id: "test-id".to_string(),
-        username: "TestUser".to_string(),
-        uuid: "test-uuid-1234".to_string(),
-        access_token: "mock_access_token".to_string(),
-        refresh_token: "mock_refresh_token".to_string(),
-        expires_at: chrono::Utc::now().timestamp() + 3600,
-        skin_url: None,
-        is_active: true,
-        last_used: chrono::Utc::now().timestamp(),
-        minecraft_access_token: Some("mock_minecraft_token".to_string()),
-        minecraft_expires_at: Some(chrono::Utc::now().timestamp() + 3600),
-        xbox_user_hash: "mock_xbox_hash".to_string(),
-    })
+    Logger::console_log(LogLevel::Info, "🚀 Starting Microsoft OAuth login flow...", None);
+    
+    // Start the real OAuth flow
+    let auth_url = start_microsoft_auth().await?;
+    Logger::console_log(LogLevel::Info, &format!("🌐 OAuth URL generated: {}", &auth_url[..50]), None);
+    
+    // Open the URL in the default browser
+    if let Err(e) = open_url(auth_url).await {
+        Logger::console_log(LogLevel::Error, &format!("❌ Failed to open browser: {}", e), None);
+        return Err(format!("Failed to open browser for OAuth: {}", e));
+    }
+    
+    Logger::console_log(LogLevel::Info, "ℹ️ OAuth flow started - user needs to complete authentication in browser", None);
+    Err("OAuth flow started - use complete_microsoft_auth with the authorization code".to_string())
 }

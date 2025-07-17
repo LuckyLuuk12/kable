@@ -61,11 +61,8 @@ export class DataManager {
     initializationStatus.set('Refreshing data...');
     
     try {
-      // Refresh in dependency order
-      await Promise.all([
-        GameManager.loadInstallations(),
-        MapsManager.loadWorlds()
-      ]);
+      // Refresh non-GameManager data only - GameManager handles its own installations
+      await MapsManager.loadWorlds();
 
       initializationStatus.set('Ready');
       console.log('✅ DataManager: Data refreshed successfully');

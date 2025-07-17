@@ -1,9 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
   import { 
     Icon, InstallationService, ModDetectionService, GameManager, 
     type MinecraftInstallation, type MinecraftVersion, type ModDetectionResult 
   } from '$lib';
+  import { installations as gameInstallations } from '$lib/stores/game';
 
   // State variables
   let installations: MinecraftInstallation[] = [];
@@ -39,9 +41,8 @@
       isLoading = true;
       error = null;
       
-      // Load installations from backend
-      const result = await InstallationService.getInstallations();
-      installations = result || [];
+      // Get installations from GameManager's store (already loaded in layout)
+      installations = get(gameInstallations);
       
       // Run mod detection on each installation
       await analyzeAllInstallations();

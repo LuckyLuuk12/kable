@@ -181,6 +181,13 @@ export interface LauncherSettings {
   shader_quality_preset?: string;
   enable_shader_caching?: boolean;
   
+  // Logging settings
+  show_logs_page_in_nav?: boolean;
+  enable_persistent_logging?: boolean;
+  enable_log_compression?: boolean;
+  log_file_size_limit_mb?: number;
+  log_retention_days?: number;
+  
   // Icon settings
   selected_icon_template?: string;
   icon_settings?: IconSettings;
@@ -361,7 +368,7 @@ export interface GameInstance {
   launchedAt: Date;
   lastActivity: Date;
   completedAt?: Date;
-  status: 'launching' | 'running' | 'crashed' | 'stopped' | 'completed';
+  status: 'launching' | 'running' | 'crashed' | 'stopped' | 'closed';
   exitCode?: number;
   processId?: number;
   restartAttempts?: number;

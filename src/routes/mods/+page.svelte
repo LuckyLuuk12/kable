@@ -23,7 +23,7 @@
   );
 
   onMount(async () => {
-    await SettingsManager.initialize();
+    // SettingsManager is already initialized in the layout
     await loadInstallations();
   });
 
