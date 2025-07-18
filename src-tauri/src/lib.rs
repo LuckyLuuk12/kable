@@ -22,7 +22,15 @@ mod window_state;
 mod logging;
 
 // Re-export public items from modules
-pub use auth::{MicrosoftAccount, start_microsoft_auth, complete_microsoft_auth, start_device_code_auth, poll_device_code_auth, copy_to_clipboard, refresh_minecraft_token, get_oauth_callback_result, read_minecraft_sessions, write_minecraft_session, get_minecraft_session_path, get_minecraft_launch_args, validate_minecraft_token, open_url, check_auth_status, get_access_token, microsoft_login};
+pub use auth::{
+    // Auth utility functions
+    LauncherAccount, MinecraftProfile, LauncherAccountsJson, 
+    read_launcher_accounts, write_launcher_accounts, write_launcher_account, 
+    remove_launcher_account, set_active_launcher_account, get_active_launcher_account, 
+    get_all_launcher_accounts, get_launcher_accounts_path_string, open_url,
+    // Main auth types (only these are needed for lib.rs re-export)
+    AuthMethod, MinecraftAccount
+};
 pub use settings::{LauncherSettings, load_settings, save_settings, get_launcher_dir, get_default_minecraft_directory, validate_minecraft_directory, MinecraftDirectoryInfo};
 pub use maps::{LocalWorld, WorldDownload, get_local_worlds, delete_world, backup_world};
 pub use mods::{ModInstallationConfig, InstalledMod, get_modded_installations, setup_installation_mods, get_installed_mods, toggle_mod_enabled, update_installation_mod_config};
@@ -187,31 +195,29 @@ pub fn run() {
             launch_minecraft,
             check_java_installation,
             get_default_minecraft_dir,
-            // Auth commands - Re-enabled with enhanced OAuth2 integration
-            auth::start_microsoft_auth,
-            auth::complete_microsoft_auth,
-            auth::start_device_code_auth,
-            auth::poll_device_code_auth,
-            auth::copy_to_clipboard,
-            auth::refresh_minecraft_token,
-            auth::get_oauth_callback_result,
-            auth::read_minecraft_sessions,
-            auth::write_minecraft_session,
-            auth::get_minecraft_session_path,
-            auth::get_minecraft_launch_args,
-            auth::validate_minecraft_token,
-            auth::open_url,
-            // Launcher accounts commands
-            auth::read_launcher_accounts,
-            auth::write_launcher_account,
-            auth::remove_launcher_account,
-            auth::set_active_launcher_account,
-            auth::get_active_launcher_account,
-            auth::get_all_launcher_accounts,
-            // Simplified auth commands for testing
-            auth::check_auth_status,
-            auth::get_access_token,
-            auth::microsoft_login,
+            // Main authentication commands
+            auth::get_minecraft_account,
+            auth::get_launch_auth_account,
+            auth::refresh_minecraft_account,
+            // Auth utilities (starting fresh) - using direct module paths
+            auth::auth_util::open_url,
+            auth::auth_util::read_launcher_accounts,
+            auth::auth_util::write_launcher_accounts,
+            auth::auth_util::write_launcher_account,
+            auth::auth_util::remove_launcher_account,
+            auth::auth_util::set_active_launcher_account,
+            auth::auth_util::get_active_launcher_account,
+            auth::auth_util::get_all_launcher_accounts,
+            auth::auth_util::get_launcher_accounts_path_string,
+            auth::auth_util::validate_and_cleanup_accounts,
+            // Microsoft authentication commands - Device Code Flow
+            auth::device_code_flow::start_microsoft_device_auth,
+            auth::device_code_flow::poll_microsoft_device_auth,
+            auth::device_code_flow::complete_minecraft_auth,
+            // Microsoft authentication commands - Authorization Code Flow
+            auth::code_flow::start_microsoft_auth_code,
+            auth::code_flow::complete_minecraft_auth_code,
+            auth::code_flow::poll_microsoft_auth_code,
             // Settings commands
             settings::load_settings,
             settings::save_settings,

@@ -1,17 +1,17 @@
 import { get } from 'svelte/store';
 import { AuthService } from '../services/AuthService';
-import * as authApi from '../api/auth';
 import { 
   currentAccount, 
   isAuthenticated, 
   isAuthenticating, 
   availableAccounts 
 } from '../stores/auth';
-import type { MicrosoftAccount } from '../types';
+import type { LauncherAccount } from '$lib';
 
 /**
  * Authentication Manager
  * Coordinates authentication state between stores, services, and API
+ * Now uses modern Authorization Code Flow with auto-authentication
  */
 
 export class AuthManager {
@@ -20,59 +20,56 @@ export class AuthManager {
   /**
    * Get the current active account
    */
-  static getCurrentAccount(): MicrosoftAccount | null {
+  static getCurrentAccount(): LauncherAccount | null {
     return get(currentAccount);
   }
 
   /**
-   * Initialize authentication - load from storage if available
+   * Initialize authentication with auto-authentication
    */
   static async initialize(): Promise<void> {
     if (this.isInitialized) {
+      console.log('ℹ️ AuthManager: Already initialized, skipping...');
       return;
     }
 
+    console.log('🔐 AuthManager: Initializing with auto-authentication...');
+    this.isInitialized = true;
+
     try {
-      const stored = await authApi.getActiveLauncherAccount();
-      if (stored) {
-        // Try to refresh token if it's close to expiry
-        if (AuthService.needsRefresh(stored)) {
-          try {
-            const refreshed = await this.refreshToken(stored.id);
-            currentAccount.set(refreshed);
-            await this.saveAccountToStorage(refreshed);
-          } catch (error) {
-            console.warn('Failed to refresh token on init:', error);
-            currentAccount.set(stored); // Use stored account anyway
-          }
-        } else {
-          currentAccount.set(stored);
-        }
+      // Initialize the AuthService and try auto-authentication
+      const account = await AuthService.initialize();
+      
+      if (account) {
+        console.log('✅ AuthManager: Auto-authenticated as', account.username);
+        currentAccount.set(account);
+        
+        // Load all available accounts
+        await this.refreshAvailableAccounts();
+      } else {
+        console.log('ℹ️ AuthManager: No valid account found, user needs to sign in');
       }
-      
-      // Load all available accounts
-      await this.refreshAccountsList();
-      
-      this.isInitialized = true;
     } catch (error) {
-      console.error('Auth initialization failed:', error);
+      console.error('❌ AuthManager: Initialization error:', error);
     }
   }
 
   /**
-   * Sign in with Microsoft account
+   * Sign in with Microsoft account using Authorization Code Flow
    */
-  static async signIn(): Promise<MicrosoftAccount> {
+  static async signIn(): Promise<LauncherAccount> {
     try {
       isAuthenticating.set(true);
-      console.log('🔐 Starting Microsoft authentication...');
+      console.log('🔐 Starting Microsoft Authorization Code Flow...');
       
       const account = await AuthService.authenticateWithMicrosoft();
       
-      // Save to storage and update state
-      await this.saveAccountToStorage(account);
-      await authApi.setActiveLauncherAccount(account.id);
+      // Update state
       currentAccount.set(account);
+      
+      
+      // Refresh available accounts list
+      await this.refreshAvailableAccounts();
       
       console.log('✅ Successfully authenticated:', account.username);
       return account;
@@ -85,58 +82,85 @@ export class AuthManager {
   }
 
   /**
-   * Refresh account token
+   * Sign in with Device Code Flow (fallback method)
    */
-  static async refreshToken(accountId?: string): Promise<MicrosoftAccount> {
-    const targetAccountId = accountId || get(currentAccount)?.id;
-    if (!targetAccountId) {
-      throw new Error('No account to refresh');
-    }
-
+  static async signInWithDeviceCode(): Promise<LauncherAccount> {
     try {
-      console.log('🔄 Refreshing token for account:', targetAccountId);
-      const refreshedAccount = await AuthService.refreshAccountToken(targetAccountId);
+      isAuthenticating.set(true);
+      console.log('📱 Starting Device Code Flow...');
       
-      // Update storage and state if this is the current account
-      const current = get(currentAccount);
-      if (current && current.id === targetAccountId) {
-        await this.saveAccountToStorage(refreshedAccount);
-        currentAccount.set(refreshedAccount);
-      }
+      const account = await AuthService.authenticateWithDeviceCode();
       
-      await this.refreshAccountsList();
-      console.log('✅ Token refreshed successfully');
-      return refreshedAccount;
+      // Update state
+      currentAccount.set(account);
+      
+      
+      // Refresh available accounts list
+      await this.refreshAvailableAccounts();
+      
+      console.log('✅ Successfully authenticated with device code:', account.username);
+      return account;
+    } catch (error) {
+      console.error('❌ Device code authentication failed:', error);
+      throw error;
+    } finally {
+      isAuthenticating.set(false);
+    }
+  }
+
+  /**
+   * Refresh current account token
+   */
+  static async refreshCurrentAccount(): Promise<LauncherAccount> {
+    try {
+      const account = await AuthService.refreshCurrentAccount();
+      currentAccount.set(account);
+      console.log('✅ Token refreshed for:', account.username);
+      return account;
     } catch (error) {
       console.error('❌ Token refresh failed:', error);
+      // If refresh fails, clear current account
+      currentAccount.set(null);
+      
       throw error;
     }
   }
 
   /**
-   * Ensure current account has valid token
+   * Switch to a different account
    */
-  static async ensureValidToken(): Promise<MicrosoftAccount | null> {
-    const account = get(currentAccount);
-    if (!account) {
-      return null;
-    }
-
+  static async switchAccount(accountId: string): Promise<LauncherAccount> {
     try {
-      if (AuthService.needsRefresh(account)) {
-        console.log('🔄 Token needs refresh, refreshing...');
-        return await this.refreshToken(account.id);
-      } else if (!AuthService.isTokenValid(account)) {
-        console.warn('⚠️ Token is invalid, signing out...');
-        await this.signOut();
-        return null;
-      }
-      
+      const account = await AuthService.switchAccount(accountId);
+      currentAccount.set(account);
+      console.log('✅ Switched to account:', account.username);
       return account;
     } catch (error) {
-      console.error('❌ Token validation failed:', error);
-      await this.signOut();
-      return null;
+      console.error('❌ Failed to switch account:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove an account
+   */
+  static async removeAccount(accountId: string): Promise<void> {
+    try {
+      await AuthService.removeAccount(accountId);
+      
+      // If we removed the current account, clear it
+      const current = get(currentAccount);
+      if (current && current.local_id === accountId) {
+        currentAccount.set(null);
+      }
+      
+      // Refresh available accounts
+      await this.refreshAvailableAccounts();
+      
+      console.log('✅ Account removed successfully');
+    } catch (error) {
+      console.error('❌ Failed to remove account:', error);
+      throw error;
     }
   }
 
@@ -145,89 +169,67 @@ export class AuthManager {
    */
   static async signOut(): Promise<void> {
     try {
-      const account = get(currentAccount);
-      if (account) {
-        await authApi.removeLauncherAccount(account.id);
-      }
-      
+      await AuthService.signOut();
       currentAccount.set(null);
-      await this.refreshAccountsList();
-      console.log('👋 Signed out successfully');
+      
+      console.log('✅ Signed out successfully');
     } catch (error) {
       console.error('❌ Sign out failed:', error);
-    }
-  }
-
-  /**
-   * Sign out specific account
-   */
-  static async signOutAccount(accountId: string): Promise<void> {
-    try {
-      await authApi.removeLauncherAccount(accountId);
-      
-      // If this was the current account, clear it
-      const current = get(currentAccount);
-      if (current && current.id === accountId) {
-        currentAccount.set(null);
-      }
-      
-      await this.refreshAccountsList();
-      console.log('👋 Account removed:', accountId);
-    } catch (error) {
-      console.error('❌ Account removal failed:', error);
-    }
-  }
-
-  /**
-   * Switch to different account
-   */
-  static async switchToAccount(accountId: string): Promise<void> {
-    try {
-      await authApi.setActiveLauncherAccount(accountId);
-      const account = await authApi.getActiveLauncherAccount();
-      
-      if (account) {
-        // Ensure token is valid
-        if (AuthService.needsRefresh(account)) {
-          const refreshed = await this.refreshToken(account.id);
-          currentAccount.set(refreshed);
-        } else {
-          currentAccount.set(account);
-        }
-      }
-      
-      console.log('🔄 Switched to account:', accountId);
-    } catch (error) {
-      console.error('❌ Account switch failed:', error);
       throw error;
     }
   }
 
   /**
-   * Save account to storage
+   * Check if current account is valid
    */
-  /**
-   * Save account to storage (made public for external use)
-   */
-  static async saveAccountToStorage(account: MicrosoftAccount): Promise<void> {
-    try {
-      await authApi.writeLauncherAccount(account);
-      await this.refreshAccountsList();
-    } catch (error) {
-      console.error('Failed to save account to storage:', error);
-      throw error;
-    }
+  static isCurrentAccountValid(): boolean {
+    return AuthService.isCurrentAccountValid();
   }
 
   /**
-   * Refresh list of available accounts
+   * Get all available accounts
    */
-  private static async refreshAccountsList(): Promise<void> {
+  static async getAllAccounts(): Promise<LauncherAccount[]> {
+    return await AuthService.getAllAccounts();
+  }
+
+  /**
+   * Refresh the available accounts list
+   */
+  static async refreshAvailableAccounts(): Promise<void> {
     try {
-      const accounts = await authApi.getAllLauncherAccounts();
+      const accounts = await this.getAllAccounts();
       availableAccounts.set(accounts);
+      console.log('🔄 Refreshed available accounts list');
     } catch (error) {
-      console.error('Failed to refresh accounts list:', error);
+      console.error('❌ Failed to refresh accounts list:', error);
+      availableAccounts.set([]);
     }
+  }
+
+  /**
+   * Format token expiry for display
+   */
+  static formatTokenExpiry(account: LauncherAccount): string {
+    return AuthService.formatTokenExpiry(account);
+  }
+
+  /**
+   * Get authentication status
+   */
+  static getAuthStatus() {
+    return {
+      isAuthenticated: get(isAuthenticated),
+      isAuthenticating: get(isAuthenticating),
+      currentAccount: get(currentAccount),
+      availableAccounts: get(availableAccounts)
+    };
+  }
+
+  /**
+   * Utility functions
+   */
+  static async copyToClipboard(text: string): Promise<void> {
+    return await AuthService.copyToClipboard(text);
   }
 }

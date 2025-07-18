@@ -77,7 +77,7 @@ export class SkinsManager {
     }
 
     await this.uploadSkinToMinecraft(
-      account.minecraft_access_token,
+      account.access_token,
       skin.file_name,
       skin.is_slim
     );

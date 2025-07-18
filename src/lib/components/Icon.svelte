@@ -5,6 +5,7 @@
   export let name: string;
   export let size: 'sm' | 'md' | 'lg' | 'xl' = 'md';
   export let className: string = '';
+  export let forceType: 'emoji' | 'fontawesome' | 'svg' | 'system' | 'css' | null = null;
 
   let iconData: { icon: string; type: string; fallback: string } = { icon: '❓', type: 'emoji', fallback: '❓' };
 
@@ -59,37 +60,35 @@
   }
 
   // Reactive statements for rendering type
-  $: isEmoji = iconData.type === 'emoji';
-  $: isFontAwesome = iconData.type === 'fontawesome';
-  $: isSvg = iconData.type === 'svg' && isValidSvg(iconData.icon);
-  $: isSystem = iconData.type === 'system' || iconData.type === 'css';
-  $: isCustom = !isEmoji && !isFontAwesome && !isSvg && !isSystem;
+  $: type = forceType || iconData.type;
+  // If forceType is set we have to use one of the default icons and not iconData.type
+  $: icon = forceType ? IconManager.getDefaultIcon(name, forceType) : iconData.icon;
   
   // Log warning if SVG type but invalid content
-  $: if (iconData.type === 'svg' && !isValidSvg(iconData.icon)) {
-    console.warn(`Icon "${name}": Invalid or potentially unsafe SVG content detected, falling back to custom renderer`, iconData.icon.substring(0, 100));
+  $: if (type === 'svg' && !isValidSvg(icon)) {
+    console.warn(`Icon "${name}": Invalid or potentially unsafe SVG content detected, falling back to custom renderer`, icon.substring(0, 100));
   }
 </script>
 
-{#if isEmoji}
+{#if type === 'emoji'}
   <span class="icon icon-emoji {sizeClasses[size]} {className}" role="img" aria-label={name}>
-    {iconData.icon}
+    {icon}
   </span>
-{:else if isFontAwesome}
-  <i class="icon icon-fontawesome {iconData.icon} {sizeClasses[size]} {className}" aria-label={name}></i>
-{:else if isSvg}
+{:else if type === 'fontawesome'}
+  <i class="icon icon-fontawesome {icon} {sizeClasses[size]} {className}" aria-label={name}></i>
+{:else if type === 'svg'}
   <span class="icon icon-svg {sizeClasses[size]} {className}" aria-label={name}>
-    {@html iconData.icon}
+    {@html icon}
   </span>
-{:else if isSystem}
-  <span class="icon icon-system {sizeClasses[size]} {className}" data-icon={iconData.icon} aria-label={name}>
+{:else if type === 'system' || type === 'css'}
+  <span class="icon icon-system {sizeClasses[size]} {className}" data-icon={icon} aria-label={name}>
     <!-- System/CSS icon placeholder - fallback to emoji -->
     {iconData.fallback}
   </span>
 {:else}
   <!-- Custom template type (svg, image, etc.) - render as span -->
   <span class="icon icon-custom {sizeClasses[size]} {className}" role="img" aria-label={name}>
-    {iconData.icon}
+    {icon}
   </span>
 {/if}
 

@@ -747,4 +747,12 @@ export class IconManager {
       throw new Error(`Failed to open icons directory: ${error}`);
     }
   }
+
+  static getDefaultIcon(name: string, type: 'svg' | 'emoji' | 'fontawesome' | 'system' | 'css' | null = 'emoji'): string {
+    const template = this.builtinTemplates.get(type as string) || this.customTemplates.get(type as string);
+    if (template) {
+      return template.icons[name] || template.fallbackIcon;
+    }
+    return type === 'emoji' ? '❓' : '<svg viewBox="0 0 24 24"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle">?</text></svg>';
+  }
 }

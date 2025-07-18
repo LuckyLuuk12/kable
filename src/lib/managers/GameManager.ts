@@ -1,20 +1,8 @@
 import { get } from 'svelte/store';
-import { InstallationService } from '../services/InstallationService';
-import { LaunchService } from '../services/LaunchService';
-import { AuthManager } from './AuthManager';
-import { SettingsManager } from './SettingsManager';
+import { InstallationService, LaunchService, AuthManager, SettingsManager, installations, selectedInstallation, isLoadingInstallations, installationsError, javaStatus, isLaunching, launchError } from '$lib';
 import * as installationsApi from '../api/installations';
 import * as minecraftApi from '../api/minecraft';
-import { 
-  installations, 
-  selectedInstallation, 
-  isLoadingInstallations, 
-  installationsError, 
-  javaStatus,
-  isLaunching,
-  launchError
-} from '../stores/game';
-import type { MinecraftInstallation } from '../types';
+import type { MinecraftInstallation } from '$lib';
 
 /**
  * Game Manager
@@ -247,12 +235,6 @@ export class GameManager {
       throw new Error('Selected installation is not valid');
     }
 
-    // Ensure token is valid
-    const validAccount = await AuthManager.ensureValidToken();
-    if (!validAccount) {
-      throw new Error('Authentication expired. Please sign in again.');
-    }
-
     isLaunching.set(true);
     launchError.set(null);
 
@@ -260,11 +242,7 @@ export class GameManager {
       // Use the installation-specific launch function that handles everything internally
       await installationsApi.launchMinecraftInstallation(installation.id);
       console.log('Launch initiated for installation:', installation.name);
-
-      // Update last played time for the account
-      validAccount.last_used = Math.floor(Date.now() / 1000);
-      await AuthManager.saveAccountToStorage(validAccount);
-
+      // Optionally update last played time for the account here if needed
     } catch (error) {
       console.error('Launch failed:', error);
       launchError.set(`Launch failed: ${error}`);

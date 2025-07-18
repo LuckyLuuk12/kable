@@ -3,14 +3,14 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::fs;
-use crate::auth::MicrosoftAccount;
+use crate::auth::MinecraftAccount;
 use crate::settings::LauncherSettings;
 use crate::AppError;
 use crate::logging::{Logger, LogLevel};
 
 #[derive(Debug, Clone)]
 pub struct LaunchContext {
-    pub account: MicrosoftAccount,
+    pub account: MinecraftAccount,
     pub settings: LauncherSettings,
     pub installation_path: PathBuf,
     pub assets_path: PathBuf,
@@ -254,18 +254,18 @@ pub fn build_variable_map(
     variables.insert("auth_uuid".to_string(), context.account.uuid.clone());
     
     // Check if we have a valid (non-empty) Minecraft access token
-    let has_valid_token = context.account.minecraft_access_token
+    let has_valid_token = context.account.access_token
         .as_ref()
         .map(|token| !token.is_empty())
         .unwrap_or(false);
     
     variables.insert("auth_access_token".to_string(), 
         if has_valid_token {
-            context.account.minecraft_access_token.clone().unwrap()
+            context.account.access_token.clone().unwrap()
         } else {
             "offline".to_string()
         });
-    variables.insert("auth_xuid".to_string(), context.account.xbox_user_hash.clone());
+    variables.insert("auth_xuid".to_string(), context.account.uuid.clone()); // Use UUID as XUID fallback
     variables.insert("user_type".to_string(), 
         if has_valid_token { "microsoft" } else { "offline" }.to_string());
     variables.insert("clientid".to_string(), uuid::Uuid::new_v4().to_string());

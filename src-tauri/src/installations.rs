@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use chrono::Utc;
 use tauri::{AppHandle, Emitter};
 use crate::AppError;
-use crate::auth::{MicrosoftAccount, check_auth_status, get_access_token, get_active_launcher_account};
 use crate::logging::{Logger, LogLevel};
+use crate::auth::get_launch_auth_account;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MinecraftInstallation {
@@ -1064,7 +1064,7 @@ pub async fn launch_minecraft_installation(app: AppHandle, installation_id: Stri
     let account = get_launch_auth_account().await?;
     
     // Log authentication mode
-    if account.minecraft_access_token.is_some() {
+    if account.access_token.is_some() {
         Logger::info(&app, &format!("🌐 Launching in ONLINE mode with account: {}", account.username), Some(&instance_id));
     } else {
         Logger::info(&app, &format!("📴 Launching in OFFLINE mode with account: {}", account.username), Some(&instance_id));
@@ -1445,7 +1445,7 @@ pub async fn quick_launch_minecraft(version_name: String) -> Result<(), String> 
     let account = get_launch_auth_account().await?;
     
     // Log authentication mode for quick launch
-    if account.minecraft_access_token.is_some() {
+    if account.access_token.is_some() {
         Logger::info_global(&format!("🌐 Quick launching {} in ONLINE mode with account: {}", version_name, account.username), None);
     } else {
         Logger::info_global(&format!("📴 Quick launching {} in OFFLINE mode with account: {}", version_name, account.username), None);
@@ -1539,130 +1539,6 @@ pub async fn quick_launch_minecraft(version_name: String) -> Result<(), String> 
     Ok(())
 }
 
-/// Helper function to get mock auth account for testing
-/// Helper function to get properly authenticated account for launching
-async fn get_launch_auth_account() -> Result<MicrosoftAccount, String> {
-    // First, try to get a real authenticated account from storage
-    match get_active_launcher_account().await {
-        Ok(Some(mut account)) => {
-            Logger::info_global(&format!("Found Microsoft account: {}", account.username), None);
-            
-            // Check if we have a Minecraft access token
-            if let Some(minecraft_token) = &account.minecraft_access_token {
-                // Also check that the token is not an empty string
-                if minecraft_token.is_empty() {
-                    Logger::warn_global("Minecraft access token is empty, falling back to offline mode", None);
-                } else {
-                    // Check if the token is still valid
-                    if let Some(expires_at) = account.minecraft_expires_at {
-                        let now = chrono::Utc::now().timestamp();
-                        
-                        if expires_at > now + 300 { // Token valid for at least 5 more minutes
-                            Logger::info_global("Minecraft token is valid, launching with online authentication", None);
-                            return Ok(account);
-                        } else {
-                            Logger::warn_global("Minecraft token expired or expiring soon, attempting to refresh", None);
-                            
-                            // Try to validate the token first
-                            match crate::auth::validate_minecraft_token(minecraft_token.clone()).await {
-                                Ok(true) => {
-                                    Logger::info_global("Token validation successful, using existing token", None);
-                                    return Ok(account);
-                                }
-                                Ok(false) => {
-                                    Logger::warn_global("Token validation failed, needs refresh", None);
-                                }
-                                Err(e) => {
-                                    Logger::warn_global(&format!("Token validation error: {}", e), None);
-                                }
-                            }
-                            
-                            // Attempt to refresh the token (requires existing refresh_token)
-                            match crate::auth::refresh_minecraft_token(account.id.clone()).await {
-                                Ok(refreshed_account) => {
-                                    Logger::info_global("Successfully refreshed Minecraft token", None);
-                                    return Ok(refreshed_account);
-                                }
-                                Err(e) => {
-                                    Logger::warn_global(&format!("Failed to refresh token: {}", e), None);
-                                    Logger::info_global("💡 Token refresh failed - this usually means no refresh_token is available", None);
-                                    Logger::info_global("💡 This is different from getting a new token (which requires full OAuth)", None);
-                                    Logger::info_global("Falling back to offline mode with real account data", None);
-                                    
-                                    // Use real account data but remove expired minecraft token
-                                    account.minecraft_access_token = None;
-                                    account.minecraft_expires_at = None;
-                                    return Ok(account);
-                                }
-                            }
-                        }
-                    } else {
-                        Logger::warn_global("No token expiry information, validating token", None);
-                        
-                        // Validate token if no expiry info
-                        match crate::auth::validate_minecraft_token(minecraft_token.clone()).await {
-                            Ok(true) => {
-                                Logger::info_global("Token validation successful, launching with online authentication", None);
-                                return Ok(account);
-                            }
-                            Ok(false) => {
-                                Logger::warn_global("Token validation failed, removing invalid token", None);
-                                account.minecraft_access_token = None;
-                                account.minecraft_expires_at = None;
-                                return Ok(account);
-                            }
-                            Err(e) => {
-                                Logger::warn_global(&format!("Token validation error: {}, assuming valid", e), None);
-                                return Ok(account);
-                            }
-                        }
-                    }
-                }
-            } else {
-                Logger::warn_global("No Minecraft access token available, will use offline mode", None);
-                // Debug the account data:
-                Logger::debug_global(&format!("Account data: {}", account), None);
-                return Ok(account);
-            }
-        }
-        Ok(None) => {
-            Logger::info_global("No active Microsoft account found", None);
-        }
-        Err(e) => {
-            Logger::warn_global(&format!("Failed to load active account: {}", e), None);
-        }
-    }
-    
-    // Fall back to mock auth for testing when no real account is available
-    Logger::info_global("No real Microsoft account found, using mock authentication", None);
-    Logger::info_global("Note: This will launch Minecraft in offline mode", None);
-    Logger::info_global("To get online authentication, please log in through the UI first", None);
-    
-    // Check if auth is enabled (this will always return true in our mock system)
-    let auth_status = check_auth_status().await?;
-    if !auth_status.authenticated {
-        return Err("No authenticated Microsoft account found. Please log in first.".to_string());
-    }
-    
-    // Get mock access token
-    let access_token = get_access_token().await?;
-    
-    // Return mock account for offline mode
-    Ok(MicrosoftAccount {
-        id: "test-id".to_string(),
-        username: auth_status.username.unwrap_or("TestUser".to_string()),
-        uuid: auth_status.uuid.unwrap_or("test-uuid-1234".to_string()),
-        access_token,
-        refresh_token: "mock_refresh_token".to_string(),
-        expires_at: chrono::Utc::now().timestamp() + 3600,
-        skin_url: None,
-        is_active: true,
-        last_used: chrono::Utc::now().timestamp(),
-        minecraft_access_token: None, // No valid token = offline mode
-        minecraft_expires_at: None,
-        xbox_user_hash: "mock_xbox_hash".to_string(),
-    })
-}
 
 #[tauri::command]
 pub async fn launch_most_recent_installation(app: AppHandle) -> Result<(), String> {

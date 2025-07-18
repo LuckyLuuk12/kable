@@ -1,227 +1,152 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { AuthManager } from '../managers/AuthManager';
-  import { currentAccount, availableAccounts, isAuthenticated } from '../stores/auth';
-  import type { MicrosoftAccount } from '../types';
-  import { fly, scale } from 'svelte/transition';
-  import { quintOut } from 'svelte/easing';
+  import { AuthManager, currentAccount, availableAccounts, isAuthenticated } from '$lib';
+  import type { LauncherAccount } from '$lib';
+  import Icon from './Icon.svelte';
   
   let showDropdown = false;
   let isLoading = false;
-  let dropdownElement: HTMLElement;
+  
+  // Filter accounts using backend-compatible validation
+  import { isValidAuthenticatedAccount } from '$lib';
+  $: validAccounts = $availableAccounts.filter(acc => isValidAuthenticatedAccount(acc));
+  
+  // Also log for debugging
+  $: {
+    console.log('🔍 AccountSwitcher - Available accounts:', $availableAccounts.length, $availableAccounts.map(acc => ({ ...acc, isValid: isValidAuthenticatedAccount(acc) })));
+    console.log('🔍 AccountSwitcher - Valid accounts after filtering:', validAccounts.length, validAccounts);
+    if (validAccounts.length > 0) {
+      validAccounts.forEach(acc => console.log('  ✅', acc.local_id, acc.minecraft_profile?.name || acc.username));
+    }
+  }
+  
+  // Check if current account is the offline fallback
+  $: isCurrentAccountFallback = $currentAccount && (
+    !$currentAccount.minecraft_profile?.id || 
+    $currentAccount.minecraft_profile.id === '00000000-0000-0000-0000-000000000000' ||
+    !$currentAccount.minecraft_profile?.name ||
+    $currentAccount.minecraft_profile.name.trim() === ''
+  );
+  
+  // Determine account status
+  function getAccountStatus(account: LauncherAccount | null): 'online' | 'offline' | 'expired' {
+    if (!account) return 'offline';
+    if (!account.access_token) return 'offline';
+    if (account.access_token_expires_at) {
+      const expiryDate = new Date(account.access_token_expires_at);
+      if (expiryDate <= new Date()) return 'expired';
+    }
+    return 'online';
+  }
   
   onMount(async () => {
-    // Initialize authentication and load accounts
-    await AuthManager.initialize();
+    // Only refresh if we don't have accounts loaded
+    if ($availableAccounts.length === 0) {
+      await AuthManager.refreshAvailableAccounts();
+    }
   });
   
-  async function switchAccount(account: MicrosoftAccount) {
-    if (account.uuid === $currentAccount?.uuid) return;
-    
+  async function switchAccount(account: LauncherAccount) {
+    if (account.local_id === $currentAccount?.local_id) return;
     isLoading = true;
     try {
-      await AuthManager.switchToAccount(account.uuid);
+      await AuthManager.switchAccount(account.local_id);
       showDropdown = false;
     } catch (error) {
       console.error('Failed to switch account:', error);
     } finally {
-      isLoading = false;
-    }
-  }
-  
-  async function signOut(account: MicrosoftAccount, event: Event) {
-    event.stopPropagation();
-    isLoading = true;
-    try {
-      await AuthManager.signOutAccount(account.uuid);
-    } catch (error) {
-      console.error('Failed to sign out account:', error);
-    } finally {
-      isLoading = false;
-    }
-  }
-  
-  async function addAccount() {
-    isLoading = true;
-    try {
-      await AuthManager.signIn();
       showDropdown = false;
-    } catch (error) {
-      console.error('Failed to add account:', error);
-    } finally {
       isLoading = false;
     }
   }
-  
-  function toggleDropdown(event: Event) {
-    event.stopPropagation();
-    showDropdown = !showDropdown;
-  }
-  
-  function closeDropdown() {
-    showDropdown = false;
-  }
-  
-  // Close dropdown when clicking outside
-  function handleClickOutside(event: MouseEvent) {
-    const target = event.target as Element;
-    if (!target.closest('.account-switcher')) {
-      closeDropdown();
-    }
-  }
-  
-  // Handle keyboard navigation
-  function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
-      closeDropdown();
-    }
-  }
+
 </script>
 
-<svelte:window on:click={handleClickOutside} on:keydown={handleKeydown} />
-
+{#if ($currentAccount || $availableAccounts.length > 0)}
 <div class="account-switcher">
-  {#if $isAuthenticated && $currentAccount}
-    <div class="current-account-container">
-      <button 
-        class="current-account" 
-        on:click={toggleDropdown} 
-        disabled={isLoading}
-        aria-expanded={showDropdown}
-        aria-haspopup="true"
-      >
-        <div class="account-avatar-container">
-          <img 
-            src={$currentAccount.skin_url || '/default-avatar.png'} 
-            alt="{$currentAccount.username}'s avatar"
-            class="account-avatar"
-            loading="lazy"
-          />
-          <div class="status-indicator online" title="Online"></div>
-        </div>
-        
-        <div class="account-info">
-          <span class="username">{$currentAccount.username}</span>
-          <span class="account-type">Microsoft Account</span>
-        </div>
-        
-        <svg 
-          class="dropdown-chevron" 
-          class:rotated={showDropdown} 
-          width="16" 
-          height="16" 
-          viewBox="0 0 16 16"
-          aria-hidden="true"
-        >
-          <path d="M4.427 6.573l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 6H4.604a.25.25 0 00-.177.427z"/>
-        </svg>
-      </button>
-      
-      {#if showDropdown}
-        <div 
-          class="dropdown-menu"
-          bind:this={dropdownElement}
-          transition:fly={{ y: -10, duration: 200, easing: quintOut }}
-        >
-          <div class="dropdown-header">
-            <h4>Switch Account</h4>
-            <span class="account-count">{$availableAccounts.length} account{$availableAccounts.length !== 1 ? 's' : ''}</span>
-          </div>
-          
-          <div class="accounts-list">
-            {#each $availableAccounts as account (account.uuid)}
-              <div 
-                class="account-item" 
-                class:active={account.uuid === $currentAccount?.uuid}
-                transition:scale={{ duration: 150, start: 0.95 }}
-              >
-                <button 
-                  class="account-button"
-                  on:click={() => switchAccount(account)}
-                  disabled={isLoading || account.uuid === $currentAccount?.uuid}
-                >
-                  <div class="account-avatar-container">
-                    <img 
-                      src={account.skin_url || '/default-avatar.png'} 
-                      alt="{account.username}'s avatar"
-                      class="account-avatar small"
-                      loading="lazy"
-                    />
-                    {#if account.uuid === $currentAccount?.uuid}
-                      <div class="status-indicator current" title="Current account"></div>
-                    {/if}
-                  </div>
-                  
-                  <div class="account-details">
-                    <span class="username">{account.username}</span>
-                    <span class="account-id">{account.uuid.slice(0, 8)}...{account.uuid.slice(-8)}</span>
-                  </div>
-                  
-                  {#if account.uuid === $currentAccount?.uuid}
-                    <div class="current-badge">
-                      <svg width="12" height="12" viewBox="0 0 12 12">
-                        <path d="M10 3L4.5 8.5 2 6" stroke="currentColor" stroke-width="2" fill="none"/>
-                      </svg>
-                      Current
-                    </div>
-                  {/if}
-                </button>
-                
-                {#if account.uuid !== $currentAccount?.uuid}
-                  <button 
-                    class="remove-btn" 
-                    on:click={(e) => signOut(account, e)}
-                    disabled={isLoading}
-                    title="Remove account"
-                    aria-label="Remove {account.username}"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 14 14">
-                      <path d="M11 3L3 11M3 3l8 8" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                  </button>
-                {/if}
-              </div>
-            {/each}
-          </div>
-          
-          <div class="dropdown-footer">
-            <button 
-              class="add-account-btn" 
-              on:click={addAccount} 
-              disabled={isLoading}
-            >
-              {#if isLoading}
-                <div class="loading-spinner"></div>
-                <span>Adding...</span>
-              {:else}
-                <svg width="16" height="16" viewBox="0 0 16 16">
-                  <path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2"/>
-                </svg>
-                <span>Add Microsoft Account</span>
-              {/if}
-            </button>
-          </div>
-        </div>
+  <div class="current-account">
+    <div class="account-avatar-container" on:mouseenter={() => showDropdown = true} on:mouseleave={() => showDropdown = false} role="button" tabindex="0">
+      <div class="account-avatar minecraft-head" title="{$currentAccount?.minecraft_profile?.name || $currentAccount?.username}'s avatar">
+        <span class="avatar-letter">{($currentAccount?.minecraft_profile?.name || $currentAccount?.username || 'U').charAt(0).toUpperCase()}</span>
+      </div>
+      {#if getAccountStatus($currentAccount) === 'online'}
+        <div class="status-indicator online" title="Online"></div>
+      {:else if getAccountStatus($currentAccount) === 'offline'}
+        <div class="status-indicator offline" title="Offline"></div>
+      {:else}
+        <div class="status-indicator expired" title="Token Expired"></div>
       {/if}
     </div>
-  {:else}
-    <button 
-      class="sign-in-btn" 
-      on:click={addAccount} 
-      disabled={isLoading}
-    >
-      {#if isLoading}
-        <div class="loading-spinner"></div>
-        <span>Signing in...</span>
-      {:else}
-        <svg width="16" height="16" viewBox="0 0 16 16">
-          <path d="M15 8a7 7 0 1 1-14 0 7 7 0 0 1 14 0ZM4.5 7.5a.5.5 0 0 0 0 1h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H4.5Z"/>
-        </svg>
-        <span>Sign in with Microsoft</span>
-      {/if}
-    </button>
-  {/if}
+
+    <div class="account-info">
+      <span class="username">{$currentAccount?.minecraft_profile?.name || $currentAccount?.username || 'Unknown User'}</span>
+      <span class="account-type">
+        {#if getAccountStatus($currentAccount) === 'offline'}
+          Offline Account
+        {:else if getAccountStatus($currentAccount) === 'expired'}
+          Microsoft Account (Token Expired)
+        {:else}
+          Microsoft Account
+        {/if}
+      </span>
+    </div>
+
+    <div class="dropdown-chevron" class:rotated={showDropdown}>
+      <Icon name={showDropdown ? 'chevron-up' : 'chevron-down'} forceType="svg" />
+    </div>
+
+    <div class="dropdown-menu">
+      {#each validAccounts as account (account.local_id)}
+        <div class="account-item" class:active={account.local_id === $currentAccount?.local_id && !isCurrentAccountFallback}>
+          <button 
+            class="account-button"
+            on:click={() => switchAccount(account)}
+          >
+            <div class="account-avatar-container">
+              <div class="account-avatar minecraft-head" title="{account.minecraft_profile?.name || account.username}'s avatar">
+                <span class="avatar-letter">{(account.minecraft_profile?.name || account.username || 'U').charAt(0).toUpperCase()}</span>
+              </div>
+              {#if getAccountStatus(account) === 'online'}
+                <div class="status-indicator online" title="Online"></div>
+              {:else if getAccountStatus(account) === 'offline'}
+                <div class="status-indicator offline" title="Offline"></div>
+              {:else}
+                <div class="status-indicator expired" title="Token Expired"></div>
+              {/if}
+            </div>
+
+            <div class="account-info">
+              <span class="username">{account.minecraft_profile?.name || account.username || 'Unknown User'}</span>
+              <span class="account-type">
+                {#if getAccountStatus(account) === 'offline'}
+                  Offline Account
+                {:else if getAccountStatus(account) === 'expired'}
+                  Microsoft Account (Token Expired)
+                {:else}
+                  Microsoft Account
+                {/if}
+              </span>
+            </div>
+          </button>
+        </div>
+      {/each}
+    </div>
+  </div>
 </div>
+{:else}
+  <div class="no-account-container">
+    <button class="sign-in-btn" on:click={() => AuthManager.signIn()}>
+      <div class="sign-in-avatar">
+        <Icon name="user-plus" size="lg" />
+      </div>
+      <div class="sign-in-info">
+        <span class="sign-in-text">Sign in to Microsoft</span>
+        <span class="sign-in-help">Access online features and view your Minecraft profile.</span>
+      </div>
+      <Icon name="arrow-right" />
+    </button>
+  </div>
+{/if}
 
 <style lang="scss">
   @use '@kablan/clean-ui/scss/variables' as *;
@@ -229,22 +154,21 @@
   .account-switcher {
     position: relative;
     display: inline-block;
-    min-width: 240px;
+    min-width: 15rem;
+    width: 100%;
   }
   
-  .current-account-container {
-    position: relative;
-  }
+  // Removed unused .current-account-container
   
   .current-account {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
     width: 100%;
     background: $container;
-    border: 1px solid $dark-600;
-    border-radius: 12px;
+    border: 0.0625rem solid $dark-600;
+    border-radius: 0.75rem;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     font-family: inherit;
@@ -253,7 +177,7 @@
     &:hover:not(:disabled) {
       background: $button-hover;
       border-color: $primary;
-      box-shadow: 0 2px 8px rgba($primary, 0.15);
+      box-shadow: 0 0.125rem 0.5rem rgba($primary, 0.15);
     }
     
     &:disabled {
@@ -263,7 +187,11 @@
     
     &[aria-expanded="true"] {
       border-color: $primary;
-      box-shadow: 0 0 0 2px rgba($primary, 0.15);
+      box-shadow: 0 0 0 0.125rem rgba($primary, 0.15);
+    }
+    // show the dropdown-menu when hovered / focused
+    &:hover .dropdown-menu {
+      display: block;
     }
   }
   
@@ -273,35 +201,49 @@
   }
   
   .account-avatar {
-    width: 36px;
-    height: 36px;
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: 50%;
-    object-fit: cover;
     background: $container;
-    border: 2px solid $dark-600;
+    border: 0.125rem solid $dark-600;
     transition: border-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+    color: $text;
     
-    &.small {
-      width: 28px;
-      height: 28px;
+    &.minecraft-head {
+      background: linear-gradient(135deg, $primary, $primary-600);
+      color: white;
+      border-color: $primary;
+    }
+  
+    .avatar-letter {
+      user-select: none;
     }
   }
   
   .status-indicator {
     position: absolute;
-    bottom: -2px;
-    right: -2px;
-    width: 12px;
-    height: 12px;
+    bottom: -0.125rem;
+    right: -0.125rem;
+    width: 0.75rem;
+    height: 0.75rem;
     border-radius: 50%;
-    border: 2px solid $container;
+    border: 0.125rem solid $container;
     
     &.online {
       background: $green;
     }
     
-    &.current {
-      background: $primary;
+    &.offline {
+      background: $yellow;
+    }
+    
+    &.expired {
+      background: $red;
     }
   }
   
@@ -315,7 +257,7 @@
     display: block;
     font-weight: 600;
     color: $text;
-    font-size: 14px;
+    font-size: 0.875rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -323,9 +265,9 @@
   
   .account-type {
     display: block;
-    font-size: 12px;
+    font-size: 0.75rem;
     color: $placeholder;
-    margin-top: 2px;
+    margin-top: 0.125rem;
   }
   
   .dropdown-chevron {
@@ -339,72 +281,27 @@
   }
   
   .dropdown-menu {
+    display: none;
     position: absolute;
-    top: calc(100% + 8px);
+    top: 100%;
     left: 0;
     right: 0;
-    background: $background;
-    border: 1px solid $dark-600;
-    border-radius: 12px;
+    background: $card;
+    border: 0.0625rem solid $dark-600;
+    border-radius: 0.75rem;
     box-shadow: 
-      0 10px 25px rgba(0, 0, 0, 0.3),
-      0 0 0 1px rgba(255, 255, 255, 0.05);
+      0 0.625rem 1.5625rem rgba(0, 0, 0, 0.3),
+      0 0 0 0.0625rem rgba(255, 255, 255, 0.05);
     z-index: 1000;
     overflow: hidden;
-    backdrop-filter: blur(20px);
+    backdrop-filter: blur(1.25rem);
   }
   
-  .dropdown-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 16px 20px 12px;
-    border-bottom: 1px solid $dark-600;
-    
-    h4 {
-      margin: 0;
-      font-size: 15px;
-      font-weight: 600;
-      color: $text;
-    }
-    
-    .account-count {
-      font-size: 12px;
-      color: $placeholder;
-      background: $container;
-      padding: 2px 8px;
-      border-radius: 6px;
-    }
-  }
-  
-  .accounts-list {
-    max-height: 240px;
-    overflow-y: auto;
-    padding: 8px 0;
-    
-    /* Custom scrollbar */
-    &::-webkit-scrollbar {
-      width: 6px;
-    }
-    
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    
-    &::-webkit-scrollbar-thumb {
-      background: $dark-600;
-      border-radius: 3px;
-    }
-    
-    &::-webkit-scrollbar-thumb:hover {
-      background: $placeholder;
-    }
-  }
+  // Removed unused .accounts-list and custom scrollbar styles
   
   .account-item {
     position: relative;
-    margin: 0 8px;
-    border-radius: 8px;
+    border-radius: 0.5rem;
     overflow: hidden;
     
     &.active {
@@ -415,8 +312,8 @@
   .account-button {
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 12px 16px;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
     width: 100%;
     border: none;
     background: transparent;
@@ -425,7 +322,7 @@
     text-align: left;
     font-family: inherit;
     color: inherit;
-    border-radius: 8px;
+    border-radius: 0.5rem;
     
     &:hover:not(:disabled) {
       background: $container;
@@ -437,175 +334,32 @@
     }
   }
   
-  .account-details {
-    flex: 1;
-    min-width: 0;
-    
-    .username {
-      font-size: 13px;
-      margin-bottom: 2px;
-    }
-  }
+  // Removed unused .account-details (not present in markup)
   
-  .account-id {
-    display: block;
-    font-size: 11px;
-    color: $placeholder;
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    opacity: 0.8;
-  }
+  // Removed unused .account-meta, .account-id, .offline-badge, .expired-badge
   
-  .current-badge {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    padding: 4px 8px;
-    background: $primary;
-    color: white;
-    border-radius: 6px;
-    font-weight: 500;
-    white-space: nowrap;
-    
-    svg {
-      flex-shrink: 0;
-    }
-  }
+  // Removed unused .current-badge
   
-  .remove-btn {
-    position: absolute;
-    right: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 24px;
-    height: 24px;
-    border: none;
-    background: $button;
-    color: $placeholder;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-    opacity: 0;
-    
-    .account-item:hover & {
-      opacity: 1;
-    }
-    
-    &:hover:not(:disabled) {
-      background: $red;
-      color: white;
-      transform: translateY(-50%) scale(1.1);
-    }
-  }
+  // Removed unused .remove-btn.trash-btn and hover styles
   
-  .dropdown-footer {
-    padding: 12px 16px 16px;
-    border-top: 1px solid $dark-600;
-  }
+  /* Add Account Button */
+  // Removed unused .add-account-item, .add-account-btn, .add-icon
   
-  .add-account-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    width: 100%;
-    padding: 12px 16px;
-    background: $primary;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 500;
-    font-family: inherit;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    
-    &:hover:not(:disabled) {
-      background: $primary-600;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba($primary, 0.3);
-    }
-    
-    &:active:not(:disabled) {
-      transform: translateY(0);
-    }
-    
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-    
-    svg {
-      flex-shrink: 0;
-    }
-  }
+  /* Sign-in button when no accounts */
+  // Removed unused .no-account-container, .sign-in-btn, .sign-in-avatar, .sign-in-info, .sign-in-text, .sign-in-help, .sign-in-arrow, .sign-in-btn:hover .sign-in-arrow
   
-  .sign-in-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 12px 20px;
-    background: $primary;
-    color: white;
-    border: none;
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    font-family: inherit;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    min-width: 200px;
-    
-    &:hover:not(:disabled) {
-      background: $primary-600;
-      transform: translateY(-2px);
-      box-shadow: 0 8px 25px rgba($primary, 0.3);
-    }
-    
-    &:active:not(:disabled) {
-      transform: translateY(-1px);
-    }
-    
-    &:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-    }
-    
-    svg {
-      flex-shrink: 0;
-    }
-  }
-  
-  .loading-spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top: 2px solid currentColor;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    flex-shrink: 0;
-  }
-  
-  @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-  }
+  /* Account selection when no current account */
+  // Removed unused .account-selection, .selection-header, .account-count
   
   /* Responsive design */
-  @media (max-width: 768px) {
+  @media (max-width: 48rem) {
     .account-switcher {
-      min-width: 200px;
+      min-width: 12.5rem;
     }
     
     .dropdown-menu {
-      left: -8px;
-      right: -8px;
+      left: -0.5rem;
+      right: -0.5rem;
     }
   }
 </style>

@@ -1,34 +1,62 @@
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
-import type { MicrosoftAccount } from '../types';
-import * as authApi from '../api/auth';
-import * as systemApi from '../api/system';
+import * as authApi from '$lib';
+import type { LauncherAccount } from '$lib';
+import * as systemApi from '$lib';
 
 /**
- * Enhanced Authentication Service with proper OAuth2 flow
- * Handles Microsoft account authentication for Minecraft with advanced window management
+ * Modern Authentication Service with Authorization Code Flow
+ * Auto-authenticates on startup and provides seamless account management
  */
 
 export class AuthService {
   private static oauthWindow: WebviewWindow | null = null;
   private static pollInterval: number | null = null;
+  private static isInitialized = false;
+  private static currentAccount: LauncherAccount | null = null;
 
   /**
-   * Start Microsoft OAuth2 authentication flow
-   * Opens authentication window and handles the complete flow
+   * Initialize authentication service and try to auto-authenticate
+   * Call this on app startup
    */
-  static async authenticateWithMicrosoft(): Promise<MicrosoftAccount> {
+  static async initialize(): Promise<LauncherAccount | null> {
+    if (this.isInitialized) {
+      return this.currentAccount;
+    }
+
+    console.log('🔐 Initializing authentication service...');
+    this.isInitialized = true;
+
+    try {
+      // Try to get existing account with valid token
+      const account = await authApi.getLaunchAuthAccount();
+      this.currentAccount = account;
+      console.log('✅ Auto-authenticated with existing account:', account.username);
+      return account;
+    } catch (error) {
+      console.log('ℹ️ No valid account found, user will need to sign in');
+      return null;
+    }
+  }
+
+  /**
+   * Start Microsoft Authorization Code Flow authentication
+   * This is the recommended method for desktop apps (no manual code entry)
+   */
+  static async authenticateWithMicrosoft(): Promise<LauncherAccount> {
     return new Promise(async (resolve, reject) => {
       try {
         // Clean up any existing authentication attempt
         await this.cleanup();
 
-        // Step 1: Start the OAuth server and get auth URL
-        const authUrl = await authApi.startMicrosoftAuth();
-        console.log('🔐 Starting Microsoft authentication...');
+        console.log('🔐 Starting Microsoft Authorization Code Flow...');
+        
+        // Step 1: Start the authorization code flow
+        const authResponse = await authApi.startMicrosoftAuthCode();
+        console.log('🌐 Authorization server started on port:', authResponse.local_server_port);
 
-        // Step 2: Open authentication window
+        // Step 2: Open authentication window with the auth URL
         this.oauthWindow = new WebviewWindow('microsoft-oauth', {
-          url: authUrl,
+          url: authResponse.auth_url,
           title: 'Sign in to Microsoft',
           width: 480,
           height: 640,
@@ -47,40 +75,29 @@ export class AuthService {
           reject(new Error('Authentication cancelled by user'));
         });
 
-        // Step 3: Poll for authentication result
-        this.pollInterval = window.setInterval(async () => {
+        console.log('✅ Authentication successful! The authorization code flow completed automatically.');
+        
+        // Step 3: Wait a moment for the callback to complete, then get the account
+        setTimeout(async () => {
           try {
-            const authCode = await authApi.getOAuthCallbackResult();
+            const account = await authApi.getMinecraftAccount('AuthCodeFlow');
+            this.currentAccount = account;
             
-            if (authCode) {
-              console.log('✅ Authentication code received, completing flow...');
-              
-              // Clear polling
-              if (this.pollInterval) {
-                clearInterval(this.pollInterval);
-                this.pollInterval = null;
-              }
-              
-              // Complete authentication
-              const account = await authApi.completeMicrosoftAuth(authCode);
-              console.log('✅ Authentication successful!', account.username);
-              
-              // Clean up and resolve
-              await this.cleanup();
-              resolve(account);
-            }
+            // Clean up
+            await this.cleanup();
+            resolve(account);
           } catch (error) {
-            console.error('❌ Authentication polling error:', error);
+            console.error('❌ Failed to get authenticated account:', error);
             await this.cleanup();
             reject(error);
           }
-        }, 1000);
+        }, 2000); // Give the callback handler time to save the account
 
-        // Timeout after 10 minutes
+        // Timeout after 5 minutes
         setTimeout(async () => {
           await this.cleanup();
           reject(new Error('Authentication timeout - please try again'));
-        }, 600000);
+        }, 300000);
 
       } catch (error) {
         console.error('❌ Authentication setup failed:', error);
@@ -88,6 +105,160 @@ export class AuthService {
         reject(error);
       }
     });
+  }
+
+  /**
+   * Start Device Code Flow authentication (fallback method)
+   * Returns device code data for UI display, then polls in background
+   */
+  static async startDeviceCodeFlow(): Promise<authApi.DeviceCodeResponse> {
+    console.log('📱 Starting Device Code Flow...');
+    
+    const deviceResponse = await authApi.startMicrosoftDeviceAuth();
+    console.log('📝 Device code generated:', deviceResponse.user_code);
+    
+    // Open verification URL automatically
+    await systemApi.openUrl(deviceResponse.verification_uri);
+    
+    return deviceResponse;
+  }
+
+  /**
+   * Poll for device code completion
+   */
+  static async pollDeviceCodeCompletion(deviceCode: string): Promise<LauncherAccount> {
+    return new Promise(async (resolve, reject) => {
+      const pollForCompletion = async () => {
+        try {
+          const token = await authApi.pollMicrosoftDeviceAuth(deviceCode);
+          
+          if (token) {
+            console.log('✅ Device code authentication successful!');
+            // completeMicrosoftAuth returns LauncherAccount, convert to MinecraftAccount
+            const account = await authApi.completeMicrosoftAuth(token);
+            this.currentAccount = account;
+            resolve(account);
+          } else {
+            // Continue polling
+            setTimeout(pollForCompletion, 5000); // Poll every 5 seconds
+          }
+        } catch (error) {
+          console.error('❌ Device code polling failed:', error);
+          reject(error);
+        }
+      };
+      
+      // Start polling after a short delay
+      setTimeout(pollForCompletion, 2000);
+    });
+  }
+
+  /**
+   * Legacy method - Start Device Code Flow authentication (fallback method)
+   * This requires users to manually enter a code
+   */
+  static async authenticateWithDeviceCode(): Promise<LauncherAccount> {
+    return new Promise(async (resolve, reject) => {
+      try {
+        console.log('📱 Starting Device Code Flow...');
+        
+        const deviceResponse = await authApi.startMicrosoftDeviceAuth();
+        console.log('📝 Device code generated:', deviceResponse.user_code);
+        
+        // Open verification URL
+        await systemApi.openUrl(deviceResponse.verification_uri);
+        
+        // Start polling for completion
+        const pollForCompletion = async () => {
+          try {
+            const token = await authApi.pollMicrosoftDeviceAuth(deviceResponse.device_code);
+            
+            if (token) {
+              console.log('✅ Device code authentication successful!');
+              // completeMicrosoftAuth returns LauncherAccount, convert to MinecraftAccount
+              const account = await authApi.completeMicrosoftAuth(token);
+              this.currentAccount = account;
+              resolve(account);
+            } else {
+              // Continue polling
+              setTimeout(pollForCompletion, deviceResponse.interval * 1000);
+            }
+          } catch (error) {
+            console.error('❌ Device code polling failed:', error);
+            reject(error);
+          }
+        };
+        
+        // Start polling
+        setTimeout(pollForCompletion, deviceResponse.interval * 1000);
+        
+        // Return device code info for UI display
+        return {
+          userCode: deviceResponse.user_code,
+          verificationUri: deviceResponse.verification_uri,
+          expiresIn: deviceResponse.expires_in
+        } as any; // This will be replaced by the actual account when polling completes
+        
+      } catch (error) {
+        console.error('❌ Device code authentication failed:', error);
+        reject(error);
+      }
+    });
+  }
+
+  /**
+   * Refresh current account token
+   */
+  static async refreshCurrentAccount(): Promise<LauncherAccount> {
+    try {
+      console.log('🔄 Refreshing current account token...');
+      const refreshedAccount = await authApi.refreshMinecraftAccount();
+      this.currentAccount = refreshedAccount;
+      console.log('✅ Token refreshed successfully');
+      return refreshedAccount;
+    } catch (error) {
+      console.error('❌ Token refresh failed:', error);
+      // If refresh fails, user needs to re-authenticate
+      this.currentAccount = null;
+      throw new Error(`Failed to refresh token: ${error}`);
+    }
+  }
+
+  /**
+   * Get current authenticated account
+   */
+  static getCurrentAccount(): LauncherAccount | null {
+    return this.currentAccount;
+  }
+
+  /**
+   * Check if current account has a valid token
+   */
+  static isCurrentAccountValid(): boolean {
+    if (!this.currentAccount) {
+      return false;
+    }
+    // Check if we have an access token
+    if (!this.currentAccount.access_token) {
+      return false;
+    }
+    // Check expiry if available
+    if (this.currentAccount.access_token_expires_at) {
+      const expiresAt = new Date(this.currentAccount.access_token_expires_at);
+      const now = new Date();
+      const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+      return expiresAt > fiveMinutesFromNow;
+    }
+    // If no expiry info, assume valid (will be validated when actually used)
+    return true;
+  }
+
+  /**
+   * Sign out current account
+   */
+  static async signOut(): Promise<void> {
+    this.currentAccount = null;
+    console.log('✅ Signed out successfully');
   }
 
   /**
@@ -117,154 +288,69 @@ export class AuthService {
   }
 
   /**
-   * Browser-based OAuth flow (alternative approach)
+   * Account Management Functions
    */
-  static async authenticateWithMicrosoftBrowser(): Promise<MicrosoftAccount> {
-    const authUrl = await authApi.startMicrosoftAuth();
-    
-    // Open the authentication URL in the system's default browser
-    await systemApi.openUrl(authUrl);
-    
-    return new Promise((resolve, reject) => {
-      const checkCallback = async () => {
-        try {
-          const result = await authApi.getOAuthCallbackResult();
-          
-          if (result) {
-            // Complete the authentication flow
-            const account = await authApi.completeMicrosoftAuth(result);
-            resolve(account);
-          } else {
-            // Continue checking
-            setTimeout(checkCallback, 1000);
-          }
-        } catch (error) {
-          reject(error);
-        }
-      };
-      
-      // Start checking for callback result
-      setTimeout(checkCallback, 1000);
-    });
+  static async getAllAccounts(): Promise<LauncherAccount[]> {
+    try {
+      const allAccounts = await authApi.getAllLauncherAccounts();
+      console.log('� Final accounts:', allAccounts.length);
+      return allAccounts;
+    } catch (error) {
+      console.error('❌ Failed to get all accounts:', error);
+      return [];
+    }
+  }
+
+  static async switchAccount(accountId: string): Promise<LauncherAccount> {
+    try {
+      await authApi.setActiveLauncherAccount(accountId);
+      const account = await authApi.getMinecraftAccount();
+      this.currentAccount = account;
+      console.log('✅ Switched to account:', account.username);
+      return account;
+    } catch (error) {
+      console.error('❌ Failed to switch account:', error);
+      throw error;
+    }
+  }
+
+  static async removeAccount(accountId: string): Promise<void> {
+    try {
+      await authApi.removeLauncherAccount(accountId);
+      // If we removed the current account, clear it
+      if (this.currentAccount && this.currentAccount.local_id === accountId) {
+        this.currentAccount = null;
+      }
+      console.log('✅ Account removed successfully');
+    } catch (error) {
+      console.error('❌ Failed to remove account:', error);
+      throw error;
+    }
   }
 
   /**
-   * Device code authentication flow
+   * Utility functions
    */
-  static async startDeviceCodeAuth(): Promise<string> {
-    return await authApi.startDeviceCodeAuth();
-  }
-
-  static async pollDeviceCodeAuth(): Promise<MicrosoftAccount | null> {
-    return await authApi.pollDeviceCodeAuth();
-  }
-
   static async copyToClipboard(text: string): Promise<void> {
     return await systemApi.copyToClipboard(text);
   }
 
-  /**
-   * Token validation and refresh logic
-   */
-  static async refreshAccountToken(accountId: string): Promise<MicrosoftAccount> {
-    try {
-      console.log('🔄 Refreshing token for account:', accountId);
-      const refreshedAccount = await authApi.refreshMinecraftToken(accountId);
-      console.log('✅ Token refreshed successfully');
-      return refreshedAccount;
-    } catch (error) {
-      console.error('❌ Token refresh failed:', error);
-      throw new Error(`Failed to refresh token: ${error}`);
+  static formatTokenExpiry(account: LauncherAccount): string {
+    if (!account.access_token_expires_at) {
+      return 'Unknown';
     }
-  }
-
-  static isTokenValid(account: MicrosoftAccount): boolean {
-    // First check if we even have a Minecraft access token
-    if (!account.minecraft_access_token || account.minecraft_access_token.trim() === '') {
-      console.warn('⚠️ No Minecraft access token available for:', account.username);
-      return false;
-    }
-    
-    // Then check expiry if we have expiry information
-    if (account.minecraft_expires_at) {
-      const now = Date.now() / 1000;
-      const isValid = account.minecraft_expires_at > now + 300; // 5 minute buffer
-      
-      if (!isValid) {
-        console.warn('⚠️ Token is expired or expiring soon for:', account.username);
-      }
-      
-      return isValid;
-    }
-    
-    // If we have a token but no expiry info, assume it's valid for now
-    // The actual validation should happen when launching
-    console.log('ℹ️ Token exists but no expiry info available for:', account.username);
-    return true;
-  }
-
-  static needsRefresh(account: MicrosoftAccount): boolean {
-    // First check if we even have a Minecraft access token
-    if (!account.minecraft_access_token || account.minecraft_access_token.trim() === '') {
-      console.log('🔄 No Minecraft token available, needs refresh for:', account.username);
-      return true;
-    }
-    
-    // Then check expiry if we have expiry information
-    if (account.minecraft_expires_at) {
-      const now = Date.now() / 1000;
-      const needsRefresh = account.minecraft_expires_at < now + 600; // 10 minute buffer
-      
-      if (needsRefresh) {
-        console.log('🔄 Token needs refresh due to expiry for:', account.username);
-      }
-      
-      return needsRefresh;
-    }
-    
-    // If we have a token but no expiry info, let's not refresh unless necessary
-    console.log('ℹ️ Token exists but no expiry info, will validate when needed for:', account.username);
-    return false;
-  }
-
-  static getTokenExpiresIn(account: MicrosoftAccount): number {
-    const now = Date.now() / 1000;
-    return Math.max(0, account.minecraft_expires_at - now);
-  }
-
-  static formatTokenExpiry(account: MicrosoftAccount): string {
-    const expiresIn = this.getTokenExpiresIn(account);
-    
-    if (expiresIn <= 0) {
+    const expiresAt = new Date(account.access_token_expires_at);
+    const now = new Date();
+    const diffMs = expiresAt.getTime() - now.getTime();
+    if (diffMs <= 0) {
       return 'Expired';
     }
-    
-    const hours = Math.floor(expiresIn / 3600);
-    const minutes = Math.floor((expiresIn % 3600) / 60);
-    
+    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     } else {
       return `${minutes}m`;
     }
-  }
-
-  /**
-   * Account management
-   */
-  static async getActiveLauncherAccount(): Promise<MicrosoftAccount | null> {
-    return await authApi.getActiveLauncherAccount();
-  }
-
-  static async getAllLauncherAccounts(): Promise<MicrosoftAccount[]> {
-    return await authApi.getAllLauncherAccounts();
-  }
-
-  static async setActiveLauncherAccount(accountId: string): Promise<void> {
-    return await authApi.setActiveLauncherAccount(accountId);
-  }
-
-  static async removeLauncherAccount(accountId: string): Promise<void> {
-    return await authApi.removeLauncherAccount(accountId);
   }
 }

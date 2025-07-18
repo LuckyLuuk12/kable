@@ -1,24 +1,12 @@
-import type { MinecraftInstallation } from '../types';
+import type { MinecraftInstallation, ModDetectionResult } from '../types';
 import { detectInstallationModLoader, getInstalledMods } from '../api/installations';
 import { loadSettings } from '../api/settings';
+
 
 /**
  * Enhanced Mod Detection Service
  * Provides additional mod detection capabilities beyond basic installation scanning
  */
-
-export interface ModDetectionResult {
-  hasActiveMods: boolean;
-  modCount: number;
-  detectedLoaders: string[];
-  modLoaderType: 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge';
-  loaderVersion?: string;
-  modsList?: Array<{
-    name: string;
-    fileName: string;
-    enabled: boolean;
-  }>;
-}
 
 export class ModDetectionService {
   /**

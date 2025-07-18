@@ -39,6 +39,8 @@ sha2 = "0.10"
 zip = "0.6"
 sevenz-rust = "0.5"
 regex = "1.0"
+oauth2 = "4.4"
+minecraft-msa-auth = "0.3"
 
 # Pin problematic dependencies to avoid edition2024 issues
 base64ct = "=1.6.0"  # Pin to avoid 1.8.0 which uses edition2024

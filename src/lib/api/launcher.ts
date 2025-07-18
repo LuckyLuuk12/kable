@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { LauncherSettings, MicrosoftAccount } from '../types';
+import type { LauncherSettings } from '../types';
 
 /**
  * Launcher API

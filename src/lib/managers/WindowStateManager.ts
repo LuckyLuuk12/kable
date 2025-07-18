@@ -1,17 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-
-export interface WindowState {
-  width: number;
-  height: number;
-  x: number;
-  y: number;
-  maximized: boolean;
-  fullscreen: boolean;
-  monitor_name?: string;
-  monitor_position?: [number, number];
-  monitor_size?: [number, number];
-}
+import type { WindowState } from '../types';
 
 export class WindowStateManager {
   private static instance: WindowStateManager;

@@ -73,36 +73,60 @@ export interface MicrosoftAccount {
 
 // Launcher Accounts JSON structure (matches .minecraft/launcher_accounts.json)
 export interface LauncherAccount {
-  accessToken?: string;
-  accessTokenExpiresAt?: string; // ISO date string
-  avatar?: string; // base64 encoded image
-  eligibleForFreeTrials?: boolean;
-  eligibleForMigration?: boolean;
-  franchiseInventoryId?: string;
-  hasMultipleProfiles?: boolean;
-  inForcedMigration?: boolean;
-  legacy?: boolean;
-  licenseProductIds?: string[];
-  localId: string; // Required for identification
-  minecraftProfile?: {
-    id?: string;
-    name?: string;
-    requiresProfileNameChange?: boolean;
-    requiresSkinChange?: boolean;
+  access_token: string;
+  access_token_expires_at: string;
+  avatar: string;
+  eligible_for_free_trials: boolean;
+  eligible_for_migration: boolean;
+  franchise_inventory_id: string;
+  has_multiple_profiles: boolean;
+  in_forced_migration: boolean;
+  legacy: boolean;
+  license_product_ids: string[];
+  local_id: string;
+  minecraft_profile: {
+    id: string;
+    name: string;
+    requires_profile_name_change: boolean;
+    requires_skin_change: boolean;
   };
-  persistent?: boolean;
-  remoteId?: string;
-  type?: string; // Usually "Xbox"
-  // Support both correct and typo versions
-  userProperties?: any[];
-  userProperites?: any[];
-  username?: string;
+  persistent: boolean;
+  remote_id: string;
+  account_type: string; // "Xbox", "Offline", etc.
+  user_properites: any[]; // Note: backend keeps the typo from official launcher
+  username: string;
 }
 
 export interface LauncherAccountsJson {
-  accounts?: Record<string, LauncherAccount>;
-  activeAccountLocalId?: string;
-  mojangClientToken?: string;
+  accounts: Record<string, LauncherAccount>;
+  active_account_local_id: string;
+  mojang_client_token: string;
+}
+// Mod Detection Service Types
+export interface ModDetectionResult {
+  hasActiveMods: boolean;
+  modCount: number;
+  detectedLoaders: string[];
+  modLoaderType: 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge';
+  loaderVersion?: string;
+  modsList?: Array<{
+    name: string;
+    fileName: string;
+    enabled: boolean;
+  }>;
+}
+
+// Window State Manager Types
+export interface WindowState {
+  width: number;
+  height: number;
+  x: number;
+  y: number;
+  maximized: boolean;
+  fullscreen: boolean;
+  monitor_name?: string;
+  monitor_position?: [number, number];
+  monitor_size?: [number, number];
 }
 
 // Minecraft Session Data (launcher_profiles.json)
