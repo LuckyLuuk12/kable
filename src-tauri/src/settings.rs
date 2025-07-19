@@ -122,7 +122,7 @@ impl Default for CategorizedLauncherSettings {
                 enable_experimental_features: false,
                 default_memory: 2048,
                 separate_logs_window: false,
-                auto_save_interval: 10, // in seconds
+                auto_save_interval: 30000, // in milliseconds
             },
             misc: MiscSettings {
                 use_titlebar: true,

@@ -50,8 +50,9 @@
     return snapshot;
   }
 
-  // Save every 10 seconds
   let saveInterval: ReturnType<typeof setInterval> | null = null;
+  let unsubscribeSettings: (() => void) | null = null;
+
   if (typeof window !== 'undefined') {
     // Save settings on page unload
     window.addEventListener('beforeunload', () => {
@@ -60,25 +61,35 @@
     });
   }
 
-  // Reactively manage the interval
-  $: if (typeof window !== 'undefined') {
-    const intervalSetting = get(settings).advanced.auto_save_interval;
-    const isEnabled = typeof intervalSetting === 'number' && intervalSetting > 0;
-    if (isEnabled) {
-      saveInterval = setInterval(async () => {
-        lastSettings = getValidatedSettings();
-        await SettingsManager.save(lastSettings);
-      }, intervalSetting);
-    } else {
-      if (saveInterval) {
-        clearInterval(saveInterval);
-        saveInterval = null;
-      }
-    }
-  }
   let sectionInterval: ReturnType<typeof setInterval> | null = null;
   onMount(() => {
     sectionInterval = setInterval(updateCurrentSection, 1000);
+
+    // Auto-save interval logic
+    if (typeof window !== 'undefined') {
+      let prevIntervalSetting: number | null = null;
+      unsubscribeSettings = settings.subscribe(($settings) => {
+        let intervalSetting = $settings.advanced.auto_save_interval;
+        const isEnabled = typeof intervalSetting === 'number' && intervalSetting > 0;
+        intervalSetting = validateNumber(intervalSetting.toString(), 5000, 3600000) || 30000; // Default to 30 seconds if invalid
+        if (isEnabled) {
+          if (saveInterval) {
+            clearInterval(saveInterval);
+            saveInterval = null;
+          }
+          saveInterval = setInterval(() => {
+            lastSettings = getValidatedSettings();
+            SettingsManager.save(lastSettings);
+          }, intervalSetting);
+          prevIntervalSetting = intervalSetting;
+        } else {
+          if (saveInterval) {
+            clearInterval(saveInterval);
+            saveInterval = null;
+          }
+        }
+      });
+    }
   });
   onDestroy(() => {
     if (saveInterval) {
@@ -89,10 +100,15 @@
       clearInterval(sectionInterval);
       sectionInterval = null;
     }
+    if (unsubscribeSettings) {
+      unsubscribeSettings();
+      unsubscribeSettings = null;
+    }
     window.removeEventListener('beforeunload', () => {
       lastSettings = getValidatedSettings();
       SettingsManager.save(lastSettings);
     });
+    SettingsManager.save(getValidatedSettings());
   });
 </script>
 
@@ -131,7 +147,7 @@
     height: 100%;
     gap: 0.75rem;
     a {
-      color: $secondary;
+      color: $tertiary;
       &.active {
         color: $primary;
       }
@@ -149,7 +165,7 @@
         bottom: 0;
         width: 100%;
         height: 2px;
-        background: $secondary;
+        background: $tertiary;
         border-radius: 2px;
         transform: scaleX(0);
         transform-origin: left;
@@ -158,6 +174,9 @@
       }
       &:hover::before {
         transform: scaleX(1);
+      }
+      &.active::before {
+        background: $primary;
       }
     }
   }

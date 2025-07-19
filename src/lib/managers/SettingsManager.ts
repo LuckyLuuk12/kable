@@ -32,10 +32,28 @@ export class SettingsManager {
     try {
       // Load settings from backend
       let loadedSettings = await SettingsService.getSettings();
-      
-      if (!loadedSettings) {
-        loadedSettings = defaultCategorizedSettings;
+
+      // Deep-merge missing fields from defaults
+      function mergeDefaults<T>(defaults: T, actual: any): T {
+        if (typeof defaults !== 'object' || defaults === null) return actual ?? defaults;
+        const result: any = Array.isArray(defaults) ? [] : {};
+        for (const key in defaults) {
+          if (Object.prototype.hasOwnProperty.call(defaults, key)) {
+            result[key] = mergeDefaults(defaults[key], actual?.[key]);
+          }
+        }
+        // Copy any extra keys from actual
+        if (actual && typeof actual === 'object') {
+          for (const key in actual) {
+            if (!(key in result)) {
+              result[key] = actual[key];
+            }
+          }
+        }
+        return result;
       }
+
+      loadedSettings = mergeDefaults(defaultCategorizedSettings, loadedSettings);
 
       // Auto-detect Minecraft directory if not set
       if (!loadedSettings.general.game_directory) {
@@ -54,10 +72,8 @@ export class SettingsManager {
       settings.set(loadedSettings);
       isSettingsInitialized.set(true);
 
-      // Save updated settings back to backend if we auto-detected the path
-      if (loadedSettings.general.game_directory) {
-        await this.save();
-      }
+      // Save updated settings back to backend if we auto-detected the path or filled missing fields
+      await this.save(loadedSettings);
     } catch (error) {
       console.error('Failed to load settings:', error);
       settingsError.set(`Failed to load settings: ${error}`);

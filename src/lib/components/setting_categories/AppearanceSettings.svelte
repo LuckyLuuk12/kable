@@ -1,7 +1,7 @@
 <script lang="ts">
   let showCustomTemplates = false;
   import { settings } from "$lib/stores";
-  import { IconManager, availableTemplates } from "$lib";
+  import { Icon, IconManager, availableTemplates } from "$lib";
   import { onMount } from "svelte";
 
   let isWideScreen = true;
@@ -101,6 +101,7 @@
   <form>
     <div class="setting-item">
       <div class="setting-info">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>Theme</label>
         <p class="setting-description">Choose your preferred theme</p>
       </div>
@@ -169,6 +170,7 @@
 
     <div class="setting-item">
       <div class="setting-info">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>Icon Template Management</label>
         <p class="setting-description">Upload, remove, or open icon templates folder</p>
       </div>
@@ -185,10 +187,12 @@
     {#if showIconUpload}
       <div class="setting-item">
         <div class="setting-info">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label>Upload Zone</label>
           <p class="setting-description">Drag & drop or click to select a template file (.json, .yml, .yaml)</p>
         </div>
         <div class="setting-control">
+          <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
           <div class="upload-zone {isDragOver ? 'drag-over' : ''} {uploadError ? 'error' : ''}"
             role="form"
             tabindex="-1"
@@ -235,11 +239,9 @@
               {#each $availableTemplates.filter(t => t.type === 'custom') as template}
                 <div class="custom-template-row">
                   <span class="template-name">{template.displayName || template.name}</span>
-                  <button type="button" class="icon-btn btn-danger" title="Remove" on:click={() => removeCustomTemplate(template.name)}>
-                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M6 6L14 14M14 6L6 14" stroke="white" stroke-width="2" stroke-linecap="round"/>
-                    </svg>
-                  </button>
+                      <button type="button" class="icon-btn btn-danger" title="Remove" on:click={() => removeCustomTemplate(template.name)}>
+                        <Icon name="delete" />
+                      </button>
                 </div>
               {/each}
             </div>
@@ -446,8 +448,5 @@ select {
 }
 .custom-template-row .icon-btn:hover {
   background: $red-600;
-}
-.custom-template-row .icon-btn svg {
-  display: block;
 }
 </style>

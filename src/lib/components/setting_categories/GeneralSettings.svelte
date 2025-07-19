@@ -41,18 +41,23 @@
 
     <div class="setting-item">
       <div class="setting-info">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>On Game Close</label>
         <p class="setting-description">What should happen when the game closes?</p>
       </div>
       <div class="setting-control">
         {#if isWideScreen}
           <div class="radio-group">
+            <label><input type="radio" name="on-game-close" value="open_logs" bind:group={$settings.general.on_game_close} /> Open Logs</label>
+            <label><input type="radio" name="on-game-close" value="open_home" bind:group={$settings.general.on_game_close} /> Open Home</label>
             <label><input type="radio" name="on-game-close" value="exit" bind:group={$settings.general.on_game_close} /> Exit Application</label>
             <label><input type="radio" name="on-game-close" value="minimize" bind:group={$settings.general.on_game_close} /> Minimize to Tray</label>
             <label><input type="radio" name="on-game-close" value="ask" bind:group={$settings.general.on_game_close} /> Ask</label>
           </div>
         {:else}
           <select id="on-game-close" bind:value={$settings.general.on_game_close}>
+            <option value="open_logs">Open Logs</option>
+            <option value="open_home">Open Home</option>
             <option value="exit">Exit Application</option>
             <option value="minimize">Minimize to Tray</option>
             <option value="ask">Ask</option>
@@ -63,6 +68,7 @@
 
     <div class="setting-item">
       <div class="setting-info">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>On Game Crash</label>
         <p class="setting-description">What should happen when the game crashes?</p>
       </div>
@@ -85,6 +91,7 @@
 
     <div class="setting-item">
       <div class="setting-info">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>On Game Launch</label>
         <p class="setting-description">What should happen when the game launches?</p>
       </div>
