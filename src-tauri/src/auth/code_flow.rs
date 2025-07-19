@@ -162,8 +162,12 @@ async fn handle_auth_callback(
     let url_part = request_line.split_whitespace().nth(1)
         .ok_or("Invalid HTTP request format")?;
 
-    // Send success response
-    let response = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<html><body><h1>✅ Authentication successful!</h1><p>You can close this window and return to the application.</p><script>window.close();</script></body></html>";
+    // Send success response using callback.html from the SvelteKit app directory
+    use std::fs;
+    let callback_html_path = "src/callback.html"; // SvelteKit's callback.html location
+    let html_content = fs::read_to_string(callback_html_path)
+        .unwrap_or_else(|_| "<html><body><h1>✅ Authentication successful!</h1><p>You can close this window and return to the application.</p><script>window.close();</script></body></html>".to_string());
+    let response = format!("HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n{}", html_content);
     stream.write_all(response.as_bytes()).await
         .map_err(|e| format!("Failed to send response: {}", e))?;
 

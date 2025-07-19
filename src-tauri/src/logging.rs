@@ -6,7 +6,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Write, BufWriter};
 use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
-use crate::settings::LauncherSettings;
+use crate::settings::CategorizedLauncherSettings;
 
 /// Global app handle for logging from anywhere
 static GLOBAL_APP_HANDLE: Mutex<Option<Arc<AppHandle>>> = Mutex::new(None);
@@ -68,11 +68,16 @@ impl LogStorage {
         // Load settings to configure logging
         let settings = tauri::async_runtime::block_on(crate::settings::load_settings()).unwrap_or_default();
         
+        fn value_to_u64(val: &serde_json::Value, default: u64) -> u64 {
+            val.as_u64().or_else(|| val.as_i64().map(|v| v.max(0) as u64)).unwrap_or(default)
+        }
+
+        // Usage:
         let config = LogConfig {
-            enable_persistent_logging: settings.enable_persistent_logging,
-            enable_compression: settings.enable_log_compression,
-            size_limit_mb: settings.log_file_size_limit_mb as u64,
-            retention_days: settings.log_retention_days as u64,
+            enable_persistent_logging: settings.logging.enable_persistent_logging,
+            enable_compression: settings.logging.enable_log_compression,
+            size_limit_mb: value_to_u64(&settings.logging.log_file_size_limit_mb, 10),
+            retention_days: value_to_u64(&settings.logging.log_retention_days, 30),
             logs_dir,
         };
         
@@ -92,11 +97,21 @@ impl LogStorage {
     }
     
     /// Update logging configuration from settings
-    pub fn update_config(&mut self, settings: &LauncherSettings) {
-        self.config.enable_persistent_logging = settings.enable_persistent_logging;
-        self.config.enable_compression = settings.enable_log_compression;
-        self.config.size_limit_mb = settings.log_file_size_limit_mb as u64;
-        self.config.retention_days = settings.log_retention_days as u64;
+    pub fn update_config(&mut self, settings: &CategorizedLauncherSettings) {
+        self.config.enable_persistent_logging = settings.logging.enable_persistent_logging;
+        self.config.enable_compression = settings.logging.enable_log_compression;
+        self.config.size_limit_mb = {
+            fn value_to_u64(val: &serde_json::Value, default: u64) -> u64 {
+                val.as_u64().or_else(|| val.as_i64().map(|v| v.max(0) as u64)).unwrap_or(default)
+            }
+            value_to_u64(&settings.logging.log_file_size_limit_mb, 10)
+        };
+        self.config.retention_days = {
+            fn value_to_u64(val: &serde_json::Value, default: u64) -> u64 {
+                val.as_u64().or_else(|| val.as_i64().map(|v| v.max(0) as u64)).unwrap_or(default)
+            }
+            value_to_u64(&settings.logging.log_retention_days, 30)
+        };
     }
     
     /// Write log message to persistent storage
@@ -335,7 +350,7 @@ impl Logger {
     }
     
     /// Update logging configuration from settings
-    pub fn update_log_config(settings: &LauncherSettings) {
+    pub fn update_log_config(settings: &CategorizedLauncherSettings) {
         if let Ok(mut storage_guard) = LOG_STORAGE.lock() {
             if let Some(storage) = storage_guard.as_mut() {
                 storage.update_config(settings);
@@ -470,7 +485,7 @@ pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
 
 /// Update logging configuration
 #[tauri::command]
-pub async fn update_logging_config(settings: LauncherSettings) -> Result<(), String> {
+pub async fn update_logging_config(settings: CategorizedLauncherSettings) -> Result<(), String> {
     Logger::update_log_config(&settings);
     Logger::info_global("Logging configuration updated", None);
     Ok(())

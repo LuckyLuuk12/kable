@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>%sveltekit.error.message%</title>
+  <link href="https://fonts.googleapis.com/css?family=Inter:400,600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(135deg, #23272f 0%, #2c313a 100%);
+      color: #eaf0fa;
+      font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: #23272f;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+      padding: 2rem 2.5rem;
+      text-align: center;
+      width: 500px;
+      text-wrap: wrap;
+    }
+    .title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .icon {
+      font-size: 2.2rem;
+      color: #4a90e2;
+      margin-bottom: 0;
+      margin-right: 0.2rem;
+      line-height: 1;
+      display: inline-block;
+    }
+    h1 {
+      color: #4a90e2;
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    .error-message {
+      color: #e74c3c;
+      font-size: 1.1rem;
+      margin-bottom: 1.5rem;
+      font-weight: 500;
+    }
+    .soft-note {
+      color: #b0b8c2;
+      font-size: 0.95rem;
+      margin-bottom: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title-row">
+      <span class="icon">❌</span>
+      <h1>Error: %sveltekit.status%</h1>
+    </div>
+    <div class="error-message">%sveltekit.error.message%</div>
+    <p class="soft-note">Try restarting the launcher. If this error persists, please <a href="https://github.com/LuckyLuuk12/kable/issues?q=sort%3Aupdated-desc+is%3Aissue+is%3Aopen" target="_blank" style="color:#4a90e2;text-decoration:underline;">contact the developers</a> with details about the issue.</p>
+  </div>
+</body>
+</html>

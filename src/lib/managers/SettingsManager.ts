@@ -7,9 +7,10 @@ import {
   settingsError, 
   isSettingsInitialized, 
   minecraftDirectoryInfo, 
-  isMinecraftFound 
+  isMinecraftFound, 
+  defaultCategorizedSettings
 } from '../stores/settings';
-import type { LauncherSettings, MinecraftDirectoryInfo } from '../types';
+import type { CategorizedLauncherSettings, LauncherSettings } from '../types';
 
 /**
  * Settings Manager
@@ -30,26 +31,31 @@ export class SettingsManager {
 
     try {
       // Load settings from backend
-      const loadedSettings = await SettingsService.getSettings();
+      let loadedSettings = await SettingsService.getSettings();
       
+      if (!loadedSettings) {
+        loadedSettings = defaultCategorizedSettings;
+      }
+
       // Auto-detect Minecraft directory if not set
-      if (!loadedSettings.minecraft_path) {
+      if (!loadedSettings.general.game_directory) {
+        console.log('🔍 Auto-detecting Minecraft directory...');
         try {
           const defaultMinecraftPath = await minecraftApi.getDefaultMinecraftDir();
-          loadedSettings.minecraft_path = defaultMinecraftPath;
+          loadedSettings.general.game_directory = defaultMinecraftPath;
         } catch (error) {
           console.warn('Could not auto-detect Minecraft directory:', error);
         }
       }
 
       // Validate and update Minecraft directory info
-      await this.updateMinecraftDirectoryInfo(loadedSettings.minecraft_path);
-      
+      await this.updateMinecraftDirectoryInfo(loadedSettings.general.game_directory);
+
       settings.set(loadedSettings);
       isSettingsInitialized.set(true);
 
       // Save updated settings back to backend if we auto-detected the path
-      if (loadedSettings.minecraft_path) {
+      if (loadedSettings.general.game_directory) {
         await this.save();
       }
     } catch (error) {
@@ -64,9 +70,9 @@ export class SettingsManager {
   /**
    * Save current settings to backend
    */
-  static async save(): Promise<void> {
+  static async save(newSettings: CategorizedLauncherSettings | null = null): Promise<void> {
     try {
-      const currentSettings = get(settings);
+      const currentSettings = newSettings || get(settings);
       await SettingsService.saveSettings(currentSettings);
       console.log('✅ Settings saved successfully');
     } catch (error) {
@@ -79,9 +85,9 @@ export class SettingsManager {
   /**
    * Update a specific setting value
    */
-  static async updateSetting<K extends keyof LauncherSettings>(
+  static async updateSetting<K extends keyof CategorizedLauncherSettings>(
     key: K, 
-    value: LauncherSettings[K]
+    value: CategorizedLauncherSettings[K]
   ): Promise<void> {
     try {
       const currentSettings = get(settings);
@@ -94,6 +100,14 @@ export class SettingsManager {
       throw error;
     }
   }
+
+  static async update<K extends keyof CategorizedLauncherSettings>(
+    key: K, 
+    value: CategorizedLauncherSettings[K]
+  ): Promise<void> {
+    await this.updateSetting(key, value);
+  }
+
 
   /**
    * Validate and update Minecraft directory information
@@ -128,33 +142,7 @@ export class SettingsManager {
       // Get default settings by clearing and reloading
       const defaultPath = await minecraftApi.getDefaultMinecraftDir();
       
-      const defaultSettings: LauncherSettings = {
-        theme: 'dark',
-        language: 'en',
-        minecraft_path: defaultPath,
-        default_memory: 2048,
-        max_memory: 8192,
-        java_path: undefined,
-        keep_launcher_open: true,
-        show_logs_on_launch: false,
-        auto_update_launcher: true,
-        close_launcher_on_game_start: false,
-        window_width: 1080,
-        window_height: 720,
-        sidebar_width: 250,
-        card_spacing: 16,
-        animation_speed: 'normal',
-        parallel_downloads: 3,
-        connection_timeout: 30,
-        enable_experimental_features: false,
-        auto_backup_worlds: false,
-        max_world_backups: 5,
-        shader_quality_preset: 'medium',
-        enable_shader_caching: true,
-        custom: {},
-        jvm_args: '',
-        memory: 2048,
-      };
+      const defaultSettings = defaultCategorizedSettings;
       
       settings.set(defaultSettings);
       await this.save();
@@ -182,14 +170,14 @@ export class SettingsManager {
   /**
    * Get current settings (synchronously from store)
    */
-  static getSettings(): LauncherSettings {
+  static getSettings(): CategorizedLauncherSettings {
     return get(settings);
   }
 
   /**
    * Get current settings (async version for compatibility)
    */
-  static async getSettingsAsync(): Promise<LauncherSettings> {
+  static async getSettingsAsync(): Promise<CategorizedLauncherSettings> {
     return get(settings);
   }
 }

@@ -1,16 +1,16 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { LauncherSettings } from '../types';
+import type { CategorizedLauncherSettings, LauncherSettings } from '../types';
 
 /**
  * Settings API
  * Pure Tauri invoke calls for launcher settings management
  */
 
-export async function loadSettings(): Promise<LauncherSettings> {
+export async function loadSettings(): Promise<CategorizedLauncherSettings> {
   return await invoke('load_settings');
 }
 
-export async function saveSettings(settings: LauncherSettings): Promise<void> {
+export async function saveSettings(settings: CategorizedLauncherSettings): Promise<void> {
   return await invoke('save_settings', { settings });
 }
 

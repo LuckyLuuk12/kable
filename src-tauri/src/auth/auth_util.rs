@@ -11,11 +11,11 @@ use std::fs;
 use tauri;
 use crate::AppError;
 use crate::logging::{Logger, LogLevel};
+use crate::auth::secure_token::{encrypt_token, decrypt_token};
 
-// Launcher Account JSON structure (matches .minecraft/launcher_accounts.json)
-// NOTE: We explicitly support both snake_case and camelCase for account deserialization because Minecraft stores accounts in camelCase in the JSON, but our codebase uses snake_case everywhere else.
+
+// ...existing code...
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "snake_case")]
 pub struct LauncherAccount {
     pub access_token: String,
     pub access_token_expires_at: String,
@@ -45,7 +45,7 @@ pub struct MinecraftProfile {
     pub requires_profile_name_change: bool,
     pub requires_skin_change: bool,
 }
-
+// ...existing code...
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub struct LauncherAccountsJson {
@@ -62,147 +62,87 @@ fn get_minecraft_directory() -> Result<PathBuf, AppError> {
             "Could not find home directory"
         )))?;
     
+    // Instead of using the Minecraft directory, use the Kable app directory
     #[cfg(target_os = "windows")]
-    let minecraft_dir = home_dir.join("AppData").join("Roaming").join(".minecraft");
-    
+    let kable_dir = home_dir.join("AppData").join("Roaming").join("kable-launcher");
+
     #[cfg(target_os = "macos")]
-    let minecraft_dir = home_dir.join("Library").join("Application Support").join("minecraft");
-    
+    let kable_dir = home_dir.join("Library").join("Application Support").join("kable-launcher");
+
     #[cfg(target_os = "linux")]
-    let minecraft_dir = home_dir.join(".minecraft");
-    
-    Ok(minecraft_dir)
+    let kable_dir = home_dir.join(".kable-launcher");
+
+    Ok(kable_dir)
 }
 
-/// Get the path to the launcher_accounts.json file
-pub fn get_launcher_accounts_path() -> Result<PathBuf, AppError> {
-    let minecraft_dir = get_minecraft_directory()?;
-    Ok(minecraft_dir.join("launcher_accounts.json"))
+/// Get the path to the kable_accounts.json file
+pub fn get_kable_accounts_path() -> Result<PathBuf, AppError> {
+    let kable_dir = get_minecraft_directory()?;
+    Ok(kable_dir.join("kable_accounts.json"))
 }
 
-/// Utility: Convert all object keys from camelCase to snake_case recursively
-fn camel_to_snake_json(value: &mut serde_json::Value) {
-    if let serde_json::Value::Object(map) = value {
-        let keys: Vec<String> = map.keys().cloned().collect();
-        for key in keys {
-            let snake = to_snake_case(&key);
-            if snake != key {
-                if let Some(v) = map.remove(&key) {
-                    map.insert(snake, v);
-                }
-            }
-        }
-        for v in map.values_mut() {
-            camel_to_snake_json(v);
-        }
-    } else if let serde_json::Value::Array(arr) = value {
-        for v in arr {
-            camel_to_snake_json(v);
-        }
-    }
-}
-
-/// Utility: Convert all object keys from snake_case to camelCase recursively
-fn snake_to_camel_json(value: &mut serde_json::Value) {
-    if let serde_json::Value::Object(map) = value {
-        let keys: Vec<String> = map.keys().cloned().collect();
-        for key in keys {
-            let camel = to_camel_case(&key);
-            if camel != key {
-                if let Some(v) = map.remove(&key) {
-                    map.insert(camel, v);
-                }
-            }
-        }
-        for v in map.values_mut() {
-            snake_to_camel_json(v);
-        }
-    } else if let serde_json::Value::Array(arr) = value {
-        for v in arr {
-            snake_to_camel_json(v);
-        }
-    }
-}
-
-/// Convert snake_case to camelCase
-fn to_camel_case(s: &str) -> String {
-    let mut result = String::new();
-    let mut upper = false;
-    for c in s.chars() {
-        if c == '_' {
-            upper = true;
-        } else if upper {
-            result.push(c.to_ascii_uppercase());
-            upper = false;
-        } else {
-            result.push(c);
-        }
-    }
-    result
-}
-
-/// Convert camelCase to snake_case
-fn to_snake_case(s: &str) -> String {
-    let mut result = String::new();
-    for (i, c) in s.chars().enumerate() {
-        if c.is_uppercase() {
-            if i != 0 {
-                result.push('_');
-            }
-            result.push(c.to_ascii_lowercase());
-        } else {
-            result.push(c);
-        }
-    }
-    result
-}
-
-/// Read all accounts from launcher_accounts.json
+/// Read all accounts from kable_accounts.json
 #[tauri::command]
 pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
-    Logger::console_log(LogLevel::Info, "📖 Reading launcher accounts from file...", None);
-    let accounts_path = get_launcher_accounts_path()
-        .map_err(|e| format!("Failed to get launcher accounts path: {}", e))?;
+    Logger::console_log(LogLevel::Info, "📖 Reading Kable accounts from file...", None);
+    let accounts_path = get_kable_accounts_path()
+        .map_err(|e| format!("Failed to get Kable accounts path: {}", e))?;
     Logger::console_log(LogLevel::Debug, &format!("📁 Accounts file path: {:?}", accounts_path), None);
     if !accounts_path.exists() {
-        Logger::console_log(LogLevel::Warning, "⚠️ launcher_accounts.json not found, returning empty structure", None);
+        Logger::console_log(LogLevel::Warning, "⚠️ kable_accounts.json not found, returning empty structure", None);
         return Ok(LauncherAccountsJson {
             accounts: HashMap::new(),
             active_account_local_id: String::new(),
             mojang_client_token: String::new(),
         });
     }
-    // Read and convert camelCase to snake_case before deserialization
     let content = fs::read_to_string(&accounts_path)
-        .map_err(|e| format!("Failed to read launcher_accounts.json: {}", e))?;
-    let mut json: serde_json::Value = serde_json::from_str(&content)
-        .map_err(|e| format!("Failed to parse launcher_accounts.json: {}", e))?;
-    camel_to_snake_json(&mut json);
-    let accounts: LauncherAccountsJson = serde_json::from_value(json)
-        .map_err(|e| format!("Failed to convert to LauncherAccountsJson: {}", e))?;
+        .map_err(|e| format!("Failed to read kable_accounts.json: {}", e))?;
+    let mut accounts: LauncherAccountsJson = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse kable_accounts.json: {}", e))?;
+    // Decrypt access tokens after reading
+    for account in accounts.accounts.values_mut() {
+        if !account.access_token.is_empty() {
+            match decrypt_token(&account.access_token) {
+                Ok(decrypted) => account.access_token = decrypted,
+                Err(e) => {
+                    Logger::console_log(LogLevel::Warning, &format!("⚠️ Failed to decrypt access token for account {}: {}", account.local_id, e), None);
+                    account.access_token.clear();
+                }
+            }
+        }
+    }
     Logger::console_log(LogLevel::Info, &format!("✅ Successfully read {} accounts", accounts.accounts.len()), None);
     Ok(accounts)
 }
 
 /// Write accounts to launcher_accounts.json
 #[tauri::command]
-pub async fn write_launcher_accounts(accounts: LauncherAccountsJson) -> Result<(), String> {
-    Logger::console_log(LogLevel::Info, "💾 Writing launcher accounts to file...", None);
-    let accounts_path = get_launcher_accounts_path()
-        .map_err(|e| format!("Failed to get launcher accounts path: {}", e))?;
+pub async fn write_launcher_accounts(mut accounts: LauncherAccountsJson) -> Result<(), String> {
+    Logger::console_log(LogLevel::Info, "💾 Writing Kable accounts to file...", None);
+    let accounts_path = get_kable_accounts_path()
+        .map_err(|e| format!("Failed to get Kable accounts path: {}", e))?;
     // Ensure the parent directory exists
     if let Some(parent_dir) = accounts_path.parent() {
         fs::create_dir_all(parent_dir)
-            .map_err(|e| format!("Failed to create minecraft directory: {}", e))?;
+            .map_err(|e| format!("Failed to create Kable directory: {}", e))?;
     }
-    // Convert snake_case to camelCase before writing
-    let mut json = serde_json::to_value(&accounts)
-        .map_err(|e| format!("Failed to serialize launcher accounts: {}", e))?;
-    snake_to_camel_json(&mut json);
-    let content = serde_json::to_string_pretty(&json)
-        .map_err(|e| format!("Failed to serialize launcher accounts: {}", e))?;
+    // Encrypt access tokens before writing
+    for account in accounts.accounts.values_mut() {
+        if !account.access_token.is_empty() {
+            match encrypt_token(&account.access_token) {
+                Ok(encrypted) => account.access_token = encrypted,
+                Err(e) => {
+                    Logger::console_log(LogLevel::Warning, &format!("⚠️ Failed to encrypt access token for account {}: {}", account.local_id, e), None);
+                    // Optionally clear or leave as plaintext if encryption fails
+                }
+            }
+        }
+    }
+    let content = serde_json::to_string_pretty(&accounts)
+        .map_err(|e| format!("Failed to serialize Kable accounts: {}", e))?;
     fs::write(&accounts_path, content)
-        .map_err(|e| format!("Failed to write launcher_accounts.json: {}", e))?;
+        .map_err(|e| format!("Failed to write kable_accounts.json: {}", e))?;
     Logger::console_log(LogLevel::Info, &format!("✅ Successfully wrote {} accounts to file", accounts.accounts.len()), None);
     Ok(())
 }
@@ -347,9 +287,8 @@ pub async fn open_url(url: String) -> Result<(), String> {
 /// Get the path to launcher_accounts.json as a string (useful for debugging)
 #[tauri::command]
 pub async fn get_launcher_accounts_path_string() -> Result<String, String> {
-    let path = get_launcher_accounts_path()
-        .map_err(|e| format!("Failed to get launcher accounts path: {}", e))?;
-    
+    let path = get_kable_accounts_path()
+        .map_err(|e| format!("Failed to get Kable accounts path: {}", e))?;
     Ok(path.to_string_lossy().to_string())
 }
 
@@ -445,5 +384,6 @@ pub async fn validate_and_cleanup_accounts() -> Result<String, String> {
     
     Ok(summary)
 }
+
 
 

@@ -1,12 +1,12 @@
-/**
+/** 
  * Authentication module - public API that provides
  * 1. get_minecraft_account()
  * 2. authenticate()
  */
-
 pub mod auth_util;
 pub mod device_code_flow;
 pub mod code_flow;
+pub mod secure_token;
 
 // Re-export the auth_util functions and types for convenience
 pub use auth_util::{
@@ -154,20 +154,38 @@ async fn get_minecraft_account_auth_code() -> Result<MinecraftAccount, String> {
 /// Get account using offline/mock authentication (for testing)
 async fn get_minecraft_account_offline() -> Result<MinecraftAccount, String> {
     Logger::console_log(LogLevel::Warning, "📴 Using offline authentication mode", None);
-    
-    Ok(MinecraftAccount {
-        username: "OfflinePlayer".to_string(),
-        uuid: "00000000-0000-0000-0000-000000000000".to_string(),
-        access_token: None,
-        expires_at: None,
-        account_type: "Offline".to_string(),
-        profile: MinecraftProfile {
-            id: "00000000-0000-0000-0000-000000000000".to_string(),
-            name: "OfflinePlayer".to_string(),
-            requires_profile_name_change: false,
-            requires_skin_change: false,
-        },
-    })
+    // Try to get the active launcher account from launcher_accounts.json
+    match get_active_launcher_account().await? {
+        Some(launcher_account) => {
+            Logger::console_log(
+                LogLevel::Info,
+                &format!("✅ Found active account (offline mode): {:?}", launcher_account),
+                None
+            );
+            // Return the account, even if it has no access token
+            Ok(launcher_account.into())
+        }
+        None => {
+            Logger::console_log(
+                LogLevel::Warning,
+                "❌ No active account found, returning fallback offline account",
+                None
+            );
+            Ok(MinecraftAccount {
+                username: "OfflinePlayer".to_string(),
+                uuid: "00000000-0000-0000-0000-000000000000".to_string(),
+                access_token: None,
+                expires_at: None,
+                account_type: "Offline".to_string(),
+                profile: MinecraftProfile {
+                    id: "00000000-0000-0000-0000-000000000000".to_string(),
+                    name: "OfflinePlayer".to_string(),
+                    requires_profile_name_change: false,
+                    requires_skin_change: false,
+                },
+            })
+        }
+    }
 }
 
 /// Check if an access token is still valid (not expired)

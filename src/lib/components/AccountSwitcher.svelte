@@ -1,33 +1,24 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { AuthManager, currentAccount, availableAccounts, isAuthenticated } from '$lib';
+  import { AuthManager, currentAccount, availableAccounts } from '$lib';
   import type { LauncherAccount } from '$lib';
   import Icon from './Icon.svelte';
-  
+
   let showDropdown = false;
   let isLoading = false;
-  
-  // Filter accounts using backend-compatible validation
-  import { isValidAuthenticatedAccount } from '$lib';
-  $: validAccounts = $availableAccounts.filter(acc => isValidAuthenticatedAccount(acc));
-  
+
+  // Show all available accounts, including offline
+  $: validAccounts = $availableAccounts.filter(acc => acc?.username !== $currentAccount?.username);
+
   // Also log for debugging
   $: {
-    console.log('🔍 AccountSwitcher - Available accounts:', $availableAccounts.length, $availableAccounts.map(acc => ({ ...acc, isValid: isValidAuthenticatedAccount(acc) })));
+    console.log('🔍 AccountSwitcher - Available accounts:', $availableAccounts.length, $availableAccounts.map(acc => ({ ...acc })));
     console.log('🔍 AccountSwitcher - Valid accounts after filtering:', validAccounts.length, validAccounts);
     if (validAccounts.length > 0) {
       validAccounts.forEach(acc => console.log('  ✅', acc.local_id, acc.minecraft_profile?.name || acc.username));
     }
   }
-  
-  // Check if current account is the offline fallback
-  $: isCurrentAccountFallback = $currentAccount && (
-    !$currentAccount.minecraft_profile?.id || 
-    $currentAccount.minecraft_profile.id === '00000000-0000-0000-0000-000000000000' ||
-    !$currentAccount.minecraft_profile?.name ||
-    $currentAccount.minecraft_profile.name.trim() === ''
-  );
-  
+
   // Determine account status
   function getAccountStatus(account: LauncherAccount | null): 'online' | 'offline' | 'expired' {
     if (!account) return 'offline';
@@ -38,14 +29,13 @@
     }
     return 'online';
   }
-  
+
   onMount(async () => {
-    // Only refresh if we don't have accounts loaded
     if ($availableAccounts.length === 0) {
       await AuthManager.refreshAvailableAccounts();
     }
   });
-  
+
   async function switchAccount(account: LauncherAccount) {
     if (account.local_id === $currentAccount?.local_id) return;
     isLoading = true;
@@ -60,6 +50,9 @@
     }
   }
 
+  $: {
+    console.log('🔍 AccountSwitcher - Current account:', $currentAccount);
+  }
 </script>
 
 {#if ($currentAccount || $availableAccounts.length > 0)}
@@ -97,7 +90,7 @@
 
     <div class="dropdown-menu">
       {#each validAccounts as account (account.local_id)}
-        <div class="account-item" class:active={account.local_id === $currentAccount?.local_id && !isCurrentAccountFallback}>
+        <div class="account-item" class:active={account.local_id === $currentAccount?.local_id}>
           <button 
             class="account-button"
             on:click={() => switchAccount(account)}
@@ -184,11 +177,7 @@
       opacity: 0.6;
       cursor: not-allowed;
     }
-    
-    &[aria-expanded="true"] {
-      border-color: $primary;
-      box-shadow: 0 0 0 0.125rem rgba($primary, 0.15);
-    }
+  
     // show the dropdown-menu when hovered / focused
     &:hover .dropdown-menu {
       display: block;

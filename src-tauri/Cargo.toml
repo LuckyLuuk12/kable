@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "A Minecraft Launcher"
 authors = ["Luuk Kablan"]
 license = ""
-repository = ""
+repository = "https://github.com/LuckyLuuk12/kable"
 edition = "2021"
 rust-version = "1.77.2"
 
@@ -41,6 +41,8 @@ sevenz-rust = "0.5"
 regex = "1.0"
 oauth2 = "4.4"
 minecraft-msa-auth = "0.3"
+rand = "0.8"
+aes-gcm = "0.10"
 
 # Pin problematic dependencies to avoid edition2024 issues
 base64ct = "=1.6.0"  # Pin to avoid 1.8.0 which uses edition2024

@@ -4,14 +4,14 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::fs;
 use crate::auth::MinecraftAccount;
-use crate::settings::LauncherSettings;
+use crate::settings::CategorizedLauncherSettings;
 use crate::AppError;
 use crate::logging::{Logger, LogLevel};
 
 #[derive(Debug, Clone)]
 pub struct LaunchContext {
     pub account: MinecraftAccount,
-    pub settings: LauncherSettings,
+    pub settings: CategorizedLauncherSettings,
     pub installation_path: PathBuf,
     pub assets_path: PathBuf,
     pub natives_path: PathBuf,
@@ -284,9 +284,9 @@ pub fn build_variable_map(
     variables.insert("classpath".to_string(), classpath.to_string());
     
     // Resolution (from settings)
-    variables.insert("resolution_width".to_string(), context.settings.window_width.to_string());
-    variables.insert("resolution_height".to_string(), context.settings.window_height.to_string());
-    
+    variables.insert("resolution_width".to_string(), "1024".to_string());
+    variables.insert("resolution_height".to_string(), "768".to_string());
+
     Ok(variables)
 }
 
@@ -634,16 +634,16 @@ pub fn get_java_path(java_path: Option<String>) -> Result<String, String> {
 }
 
 /// Build memory arguments
-pub fn build_memory_arguments(settings: &LauncherSettings) -> Vec<String> {
+pub fn build_memory_arguments(settings: &CategorizedLauncherSettings) -> Vec<String> {
     build_memory_arguments_with_override(settings, None)
 }
 
 /// Build memory arguments with optional memory override for per-installation settings
-pub fn build_memory_arguments_with_override(settings: &LauncherSettings, memory_override: Option<u32>) -> Vec<String> {
+pub fn build_memory_arguments_with_override(settings: &CategorizedLauncherSettings, memory_override: Option<u32>) -> Vec<String> {
     let mut args = Vec::new();
     
     // Use installation-specific memory if provided, otherwise use global default
-    let memory = memory_override.unwrap_or(settings.default_memory);
+    let memory = memory_override.unwrap_or(settings.advanced.default_memory);
     args.push(format!("-Xmx{}M", memory));
     
     // Add other common JVM arguments for better performance
@@ -660,12 +660,12 @@ pub fn build_memory_arguments_with_override(settings: &LauncherSettings, memory_
 }
 
 /// Build JVM arguments including natives path
-pub fn build_jvm_arguments(settings: &LauncherSettings, natives_path: &Path) -> Vec<String> {
+pub fn build_jvm_arguments(settings: &CategorizedLauncherSettings, natives_path: &Path) -> Vec<String> {
     build_jvm_arguments_with_memory(settings, natives_path, None)
 }
 
 /// Build JVM arguments including natives path with optional memory override
-pub fn build_jvm_arguments_with_memory(settings: &LauncherSettings, natives_path: &Path, memory_override: Option<u32>) -> Vec<String> {
+pub fn build_jvm_arguments_with_memory(settings: &CategorizedLauncherSettings, natives_path: &Path, memory_override: Option<u32>) -> Vec<String> {
     let mut args = build_memory_arguments_with_override(settings, memory_override);
     
     // Add the crucial java.library.path for native libraries (LWJGL)

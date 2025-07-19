@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { SettingsManager, Icon } from '$lib';
+  import { Icon } from '$lib';
   import { installations, isLoadingInstallations, installationsError } from '$lib/stores/game';
   import { GameManager } from '$lib/managers/GameManager';
   import { LaunchService } from '$lib/services/LaunchService';
@@ -109,7 +109,7 @@
         result = await launchService.launchLatest();
       }
       
-      if (result.success) {
+      if (result.success) {         
         launchStatus = 'Launched Minecraft!';
         // Refresh installations to update last played
         setTimeout(() => {
@@ -184,7 +184,7 @@
   <!-- Play Button Section - Fixed -->
   <div class="play-section">
     <button class="play-button" on:click={handlePlay} disabled={isLaunching || lastPlayedInstallations.length === 0}>
-      <Icon name={isLaunching ? "refresh" : "play"} size="lg" />
+      <Icon name={isLaunching ? "refresh" : "play"} size="md" forceType="svg" />
       <span>{isLaunching ? 'Launching...' : 'Play Minecraft'}</span>
     </button>
     {#if lastPlayedInstallations.length === 0}
@@ -246,7 +246,7 @@
                 {/if}
                 <div class="installation-actions">
                   <button class="action-btn" title="Launch this installation" on:click={() => handleInstallationLaunch(installation)}>
-                    <Icon name="play" size="sm" />
+                    <Icon name="play" size="sm" forceType="svg" />
                   </button>
                   <div class="dropdown-container">
                     <button 
@@ -303,6 +303,7 @@
     height: 100vh;
     background: $container;
     overflow: hidden;
+    border-radius: $border-radius;
   }
 
   .header {

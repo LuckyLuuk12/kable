@@ -376,16 +376,16 @@ pub async fn complete_minecraft_auth(microsoft_token: MicrosoftToken) -> Result<
         None
     );
     
-    // Get the UUID from the minecraft auth response
-    let profile_uuid = mc_token.username().clone();
+    // Get the UUID from the minecraft auth response (XUID, not MC UUID)
+    let xuid = mc_token.username().clone();
     let access_token = mc_token.access_token().as_ref().to_string();
-    
-    Logger::console_log(LogLevel::Debug, &format!("🆔 Profile UUID: {}", profile_uuid), None);
-    
+
+    Logger::console_log(LogLevel::Debug, &format!("🆔 XUID: {}", xuid), None);
+
     // Make API call to get the actual Minecraft profile information
     Logger::console_log(LogLevel::Debug, "🌐 Fetching Minecraft profile from API...", None);
     let profile_url = "https://api.minecraftservices.com/minecraft/profile";
-    
+
     let profile_response = reqwest::Client::new()
         .get(profile_url)
         .header("Authorization", format!("Bearer {}", access_token))
@@ -395,37 +395,37 @@ pub async fn complete_minecraft_auth(microsoft_token: MicrosoftToken) -> Result<
             Logger::console_log(LogLevel::Error, &format!("❌ Failed to fetch Minecraft profile: {}", e), None);
             format!("Failed to fetch Minecraft profile: {}", e)
         })?;
-    
+
     Logger::console_log(LogLevel::Debug, &format!("📡 Profile API response status: {}", profile_response.status()), None);
-    
+
     if !profile_response.status().is_success() {
         let status = profile_response.status();
         let error_text = profile_response.text().await.unwrap_or_default();
         Logger::console_log(LogLevel::Error, &format!("❌ Profile API error {}: {}", status, error_text), None);
         return Err(format!("Profile API error {}: {}", status, error_text));
     }
-    
+
     let profile_json: serde_json::Value = profile_response.json().await
         .map_err(|e| {
             Logger::console_log(LogLevel::Error, &format!("❌ Failed to parse profile JSON: {}", e), None);
             format!("Failed to parse profile JSON: {}", e)
         })?;
-    
+
     Logger::console_log(LogLevel::Debug, &format!("📋 Profile JSON: {}", profile_json), None);
-    
+
     // Extract the actual username and UUID from the profile response
     let actual_username = profile_json["name"].as_str()
-        .unwrap_or(&profile_uuid)
+        .unwrap_or("")
         .to_string();
     let final_uuid = profile_json["id"].as_str()
-        .unwrap_or(&profile_uuid)
+        .unwrap_or("")
         .to_string();
-    
+
     Logger::console_log(LogLevel::Info, &format!("✅ Got Minecraft profile - Username: {}, UUID: {}", actual_username, final_uuid), None);
 
     Logger::console_log(
-        LogLevel::Info, 
-        &format!("✅ Minecraft authentication successful - User: '{}', UUID: '{}'", actual_username, final_uuid), 
+        LogLevel::Info,
+        &format!("✅ Minecraft authentication successful - User: '{}', UUID: '{}'", actual_username, final_uuid),
         None
     );
 
@@ -441,18 +441,18 @@ pub async fn complete_minecraft_auth(microsoft_token: MicrosoftToken) -> Result<
         in_forced_migration: false,
         legacy: false,
         license_product_ids: vec![],
-        local_id: final_uuid.clone(),
+        local_id: final_uuid.clone(), // MC UUID
         minecraft_profile: MinecraftProfile {
-            id: final_uuid.clone(),
-            name: actual_username.clone(),
+            id: final_uuid.clone(), // MC UUID
+            name: actual_username.clone(), // MC username
             requires_profile_name_change: false,
             requires_skin_change: false,
         },
         persistent: true,
-        remote_id: final_uuid.clone(),
+        remote_id: xuid.clone(), // XUID from Microsoft token
         account_type: "Xbox".to_string(),
         user_properties: vec![],
-        username: actual_username.clone(),
+        username: actual_username.clone(), // MC username
     };
 
     // Debug: Log the account structure before saving

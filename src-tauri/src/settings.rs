@@ -5,162 +5,129 @@ use serde::{Deserialize, Serialize};
 use crate::AppError;
 use crate::logging::{Logger, LogLevel};
 
-// Default functions for new settings fields
-fn default_max_world_backups() -> u32 {
-    5
-}
-
-fn default_shader_quality_preset() -> String {
-    "medium".to_string()
-}
-
-fn default_enable_shader_caching() -> bool {
-    true
-}
-
-fn default_selected_icon_template() -> String {
-    "emoji".to_string()
-}
-
-fn default_sidebar_width() -> u32 {
-    250
-}
-
-fn default_card_spacing() -> u32 {
-    16
-}
-
-fn default_animation_speed() -> String {
-    "normal".to_string()
-}
-
-fn default_parallel_downloads() -> u32 {
-    3
-}
-
-fn default_connection_timeout() -> u32 {
-    30
-}
-
-fn default_custom_settings() -> serde_json::Value {
-    serde_json::Value::Object(serde_json::Map::new())
-}
-
-// Default functions for logging system settings
-fn default_show_logs_page_in_nav() -> bool {
-    true
-}
-
-fn default_enable_persistent_logging() -> bool {
-    false
-}
-
-fn default_enable_log_compression() -> bool {
-    true
-}
-
-fn default_log_file_size_limit_mb() -> u32 {
-    10
-}
-
-fn default_log_retention_days() -> u32 {
-    30
-}
-
-// Launcher settings
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct LauncherSettings {
-    pub theme: String,
-    pub language: String,
-    pub minecraft_path: Option<String>,
-    pub default_memory: u32,
-    pub max_memory: u32,
-    pub java_path: Option<String>,
-    pub keep_launcher_open: bool,
-    pub show_logs_on_launch: bool,
-    pub auto_update_launcher: bool,
-    pub close_launcher_on_game_start: bool,
-    pub window_width: u32,
-    pub window_height: u32,
-    // UI/UX settings - use default values if missing from file
-    #[serde(default = "default_sidebar_width")]
-    pub sidebar_width: u32,
-    #[serde(default = "default_card_spacing")]
-    pub card_spacing: u32,
-    #[serde(default = "default_animation_speed")]
-    pub animation_speed: String,
-    // Advanced settings - use default values if missing from file
-    #[serde(default = "default_parallel_downloads")]
-    pub parallel_downloads: u32,
-    #[serde(default = "default_connection_timeout")]
-    pub connection_timeout: u32,
-    #[serde(default)]
-    pub enable_experimental_features: bool,
-    // Accounts temporarily disabled - focus on content management
-    // pub accounts: Vec<MicrosoftAccount>,
-    // pub active_account_id: Option<String>,
-    // New settings for content management - use default values if missing from file
-    #[serde(default)]
-    pub auto_backup_worlds: bool,
-    #[serde(default = "default_max_world_backups")]
-    pub max_world_backups: u32,
-    #[serde(default = "default_shader_quality_preset")]
-    pub shader_quality_preset: String,
-    #[serde(default = "default_enable_shader_caching")]
-    pub enable_shader_caching: bool,
-    // Icon template settings
-    #[serde(default = "default_selected_icon_template")]
-    pub selected_icon_template: String,
-    // Custom settings for extensibility - use default values if missing from file
-    #[serde(default = "default_custom_settings")]
-    pub custom: serde_json::Value,
-    // Logging system settings - use default values if missing from file
-    #[serde(default = "default_show_logs_page_in_nav")]
-    pub show_logs_page_in_nav: bool,
-    #[serde(default = "default_enable_persistent_logging")]
-    pub enable_persistent_logging: bool,
-    #[serde(default = "default_enable_log_compression")]
-    pub enable_log_compression: bool,
-    #[serde(default = "default_log_file_size_limit_mb")]
-    pub log_file_size_limit_mb: u32,
-    #[serde(default = "default_log_retention_days")]
-    pub log_retention_days: u32,
+pub struct CategorizedLauncherSettings {
+    pub general: GeneralSettings,
+    pub appearance: AppearanceSettings,
+    pub logging: LoggingSettings,
+    pub network: NetworkSettings,
+    pub content: ContentSettings,
+    pub advanced: AdvancedSettings,
+    pub misc: MiscSettings,
 }
 
-impl Default for LauncherSettings {
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct GeneralSettings {
+    pub java_path: Option<String>,
+    pub game_directory: Option<String>,
+    pub on_game_close: String, // 'exit' | 'minimize' | 'ask'
+    pub on_game_crash: String, // 'restart' | 'close' | 'ask'
+    pub on_game_launch: String, // 'keep_open' | 'close_launcher' | 'open_logs' | 'ask'
+    pub auto_update_launcher: bool,
+    pub show_ads: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AppearanceSettings {
+    pub theme: String, // 'light' | 'dark' | 'system'
+    pub language: String,
+    pub extra_spacing: u32,
+    pub sidebar_width: u32,
+    pub selected_icon_template: String,
+    // For simplicity, icon_settings as raw JSON
+    pub icon_settings: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LoggingSettings {
+    pub show_logs_page_in_nav: bool,
+    pub enable_persistent_logging: bool,
+    pub enable_log_compression: bool,
+    pub log_file_size_limit_mb: serde_json::Value, // number or "disabled"
+    pub log_retention_days: serde_json::Value, // number or "disabled"
+    pub merge_log_tabs: bool,
+    pub default_log_levels: Vec<String>, // 'debug' | 'info' | 'warn' | 'error'
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NetworkSettings {
+    pub parallel_downloads: u32,
+    pub connection_timeout: u32,
+    pub download_speed_limit: serde_json::Value, // number or "unlimited"
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ContentSettings {
+    pub max_world_backups: serde_json::Value, // number or "disabled"
+    pub auto_backup_worlds: bool,
+    pub use_per_installation_mods_folder: bool,
+    pub use_per_installation_resource_packs: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AdvancedSettings {
+    pub enable_experimental_features: bool,
+    pub default_memory: u32,
+    pub separate_logs_window: bool,
+    pub auto_save_interval: u32, // in seconds, 0 means no auto save
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MiscSettings {
+    pub use_titlebar: bool,
+    pub auth_preference: String, // 'code' | 'device_code'
+}
+
+impl Default for CategorizedLauncherSettings {
     fn default() -> Self {
         Self {
-            theme: "dark".to_string(),
-            language: "en".to_string(),
-            minecraft_path: None,
-            default_memory: 2048,
-            max_memory: 8192,
-            java_path: None,
-            keep_launcher_open: true,
-            show_logs_on_launch: false,
-            auto_update_launcher: true,
-            close_launcher_on_game_start: false,
-            window_width: 1080,
-            window_height: 720,
-            sidebar_width: 250,
-            card_spacing: 16,
-            animation_speed: "normal".to_string(),
-            parallel_downloads: 3,
-            connection_timeout: 30,
-            enable_experimental_features: false,
-            // accounts: Vec::new(), // Disabled for now
-            // active_account_id: None, // Disabled for now
-            auto_backup_worlds: false,
-            max_world_backups: 5,
-            shader_quality_preset: "medium".to_string(),
-            enable_shader_caching: true,
-            selected_icon_template: "emoji".to_string(),
-            custom: serde_json::Value::Object(serde_json::Map::new()),
-            show_logs_page_in_nav: true,
-            enable_persistent_logging: false,
-            enable_log_compression: true,
-            log_file_size_limit_mb: 10,
-            log_retention_days: 30,
+            general: GeneralSettings {
+                java_path: None,
+                game_directory: None,
+                on_game_close: "exit".to_string(),
+                on_game_crash: "restart".to_string(),
+                on_game_launch: "keep_open".to_string(),
+                auto_update_launcher: true,
+                show_ads: false,
+            },
+            appearance: AppearanceSettings {
+                theme: "dark".to_string(),
+                language: "en".to_string(),
+                extra_spacing: 0,
+                sidebar_width: 250,
+                selected_icon_template: "emoji".to_string(),
+                icon_settings: serde_json::Value::Object(serde_json::Map::new()),
+            },
+            logging: LoggingSettings {
+                show_logs_page_in_nav: true,
+                enable_persistent_logging: false,
+                enable_log_compression: true,
+                log_file_size_limit_mb: serde_json::json!(10),
+                log_retention_days: serde_json::json!(30),
+                merge_log_tabs: false,
+                default_log_levels: vec!["info".to_string(), "warn".to_string(), "error".to_string()],
+            },
+            network: NetworkSettings {
+                parallel_downloads: 3,
+                connection_timeout: 30,
+                download_speed_limit: serde_json::json!("unlimited"),
+            },
+            content: ContentSettings {
+                max_world_backups: serde_json::json!(5),
+                auto_backup_worlds: false,
+                use_per_installation_mods_folder: false,
+                use_per_installation_resource_packs: false,
+            },
+            advanced: AdvancedSettings {
+                enable_experimental_features: false,
+                default_memory: 2048,
+                separate_logs_window: false,
+                auto_save_interval: 10, // in seconds
+            },
+            misc: MiscSettings {
+                use_titlebar: true,
+                auth_preference: "code".to_string(),
+            },
         }
     }
 }
@@ -191,22 +158,22 @@ fn get_settings_path() -> Result<PathBuf, AppError> {
 
 // Settings management
 #[tauri::command]
-pub async fn load_settings() -> Result<LauncherSettings, String> {
+pub async fn load_settings() -> Result<CategorizedLauncherSettings, String> {
     let settings_path = get_settings_path().map_err(|e| e.to_string())?;
     
     if settings_path.exists() {
         let contents = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
-        let settings: LauncherSettings = serde_json::from_str(&contents).map_err(|e| e.to_string())?;
+        let settings: CategorizedLauncherSettings = serde_json::from_str(&contents).map_err(|e| e.to_string())?;
         Ok(settings)
     } else {
-        let default_settings = LauncherSettings::default();
+        let default_settings = CategorizedLauncherSettings::default();
         save_settings(default_settings.clone()).await?;
         Ok(default_settings)
     }
 }
 
 #[tauri::command]
-pub async fn save_settings(settings: LauncherSettings) -> Result<(), String> {
+pub async fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), String> {
     let settings_path = get_settings_path().map_err(|e| e.to_string())?;
     let contents = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     fs::write(&settings_path, contents).map_err(|e| e.to_string())?;

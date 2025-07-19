@@ -1041,7 +1041,7 @@ pub async fn launch_minecraft_installation(app: AppHandle, installation_id: Stri
         })?;
     
     // Get minecraft directory
-    let minecraft_dir = PathBuf::from(settings.minecraft_path.as_ref()
+    let minecraft_dir = PathBuf::from(settings.general.game_directory.as_ref()
         .ok_or("Minecraft path not set in settings")?);
     
     // Load launcher profiles  
@@ -1077,7 +1077,7 @@ pub async fn launch_minecraft_installation(app: AppHandle, installation_id: Stri
             launcher_profiles.profiles.keys().collect::<Vec<_>>()))?;
     
     // Get minecraft directory and paths
-    let minecraft_dir = PathBuf::from(settings.minecraft_path.as_ref()
+    let minecraft_dir = PathBuf::from(settings.general.game_directory.as_ref()
         .ok_or("Minecraft path not set in settings")?);
     let (assets_path, libraries_path, versions_path, natives_path) = get_minecraft_paths(&minecraft_dir)?;
     
@@ -1109,7 +1109,7 @@ pub async fn launch_minecraft_installation(app: AppHandle, installation_id: Stri
     let variables = build_variable_map(&launch_context, &installation.last_version_id, &classpath)?;
     
     // Find Java executable
-    let java_executable = find_java_executable(settings.java_path.as_ref())?;
+    let java_executable = find_java_executable(settings.general.java_path.as_ref())?;
     
     // Build command arguments
     let mut command_args = Vec::new();
@@ -1305,15 +1305,27 @@ pub async fn launch_minecraft_installation(app: AppHandle, installation_id: Stri
                 Logger::error_global(&format!("Failed to emit launcher-log event: {}", e), Some(&instance_id));
             }
             
-            // Check if we should show logs on launch
-            if settings.show_logs_on_launch {
-                Logger::info(&app, "Show logs on launch enabled - emitting navigation event", Some(&instance_id));
-                if let Err(e) = app.emit_to("main", "show-logs-page", json!({
-                    "instanceId": instance_id,
-                    "installationId": installation_id,
-                    "reason": "launch"
-                })) {
-                    Logger::error(&app, &format!("Failed to emit show-logs-page event: {}", e), Some(&instance_id));
+            match settings.general.on_game_launch.as_str() {
+                "show_logs" => {
+                    Logger::info(&app, "Show logs on launch enabled - emitting navigation event", Some(&instance_id));
+                    if let Err(e) = app.emit_to("main", "show-logs-page", json!({
+                        "instanceId": instance_id,
+                        "installationId": installation_id,
+                        "reason": "launch"
+                    })) {
+                        Logger::error(&app, &format!("Failed to emit show-logs-page event: {}", e), Some(&instance_id));
+                    }
+                },
+                // TODO: Implement proper handling for other launch options
+                "close_launcher" => {
+                    Logger::info(&app, "Close on launch enabled - no navigation event emitted", Some(&instance_id));
+                },
+                "ask" => {
+                    Logger::info(&app, "Ask on launch enabled - no navigation event emitted", Some(&instance_id));
+                    // Here you might want to show a dialog or notification asking the user what to do
+                },
+                _ => {
+                    Logger::warn(&app, &format!("Unknown on_game_launch setting: {}", settings.general.on_game_launch), Some(&instance_id));
                 }
             }
     
@@ -1452,7 +1464,7 @@ pub async fn quick_launch_minecraft(version_name: String) -> Result<(), String> 
     }
     
     // Get minecraft directory and paths
-    let minecraft_dir = PathBuf::from(settings.minecraft_path.as_ref()
+    let minecraft_dir = PathBuf::from(settings.general.game_directory.as_ref()
         .ok_or("Minecraft path not set in settings")?);
     let (assets_path, libraries_path, versions_path, natives_path) = get_minecraft_paths(&minecraft_dir)?;
     
@@ -1487,8 +1499,8 @@ pub async fn quick_launch_minecraft(version_name: String) -> Result<(), String> 
     let variables = build_variable_map(&launch_context, &version_name, &classpath)?;
     
     // Find Java executable
-    let java_executable = find_java_executable(settings.java_path.as_ref())?;
-    
+    let java_executable = find_java_executable(settings.general.java_path.as_ref())?;
+
     // Build command arguments
     let mut command_args = Vec::new();
     
@@ -1548,7 +1560,7 @@ pub async fn launch_most_recent_installation(app: AppHandle) -> Result<(), Strin
     let settings = load_settings().await
         .map_err(|e| format!("Failed to load settings: {}", e))?;
     
-    let minecraft_dir = PathBuf::from(settings.minecraft_path.as_ref()
+    let minecraft_dir = PathBuf::from(settings.general.game_directory.as_ref()
         .ok_or("Minecraft path not set in settings")?);
     
     // Read launcher profiles to find most recent installation
@@ -1628,8 +1640,8 @@ pub async fn detect_installation_mod_loader(installation_id: String) -> Result<M
     // If it's not a kable installation or is vanilla, scan the actual Minecraft installation
     let settings = crate::settings::load_settings().await
         .map_err(|e| format!("Failed to load settings: {}", e))?;
-    
-    let minecraft_installations = get_minecraft_installations(settings.minecraft_path)
+
+    let minecraft_installations = get_minecraft_installations(settings.general.game_directory)
         .await
         .map_err(|e| format!("Failed to get minecraft installations: {}", e))?;
     

@@ -15,12 +15,14 @@
         "title": "Kable - Minecraft Launcher",
         "width": 1080,
         "height": 720,
+        "minWidth": 600,
+        "minHeight": 350,
         "resizable": true,
         "fullscreen": false,
         "center": true,
         "visible": false,
         "backgroundColor": "#000000",
-        "titleBarStyle": "Visible"
+        "decorations": false
       }
     ],
     "security": {

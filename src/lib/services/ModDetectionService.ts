@@ -35,7 +35,7 @@ export class ModDetectionService {
       // 2. Try to get actual mod count
       try {
         const settings = await loadSettings();
-        const minecraftPath = settings.minecraft_path || settings.game_directory || '';
+        const minecraftPath = settings.general.game_directory || '';
         if (minecraftPath) {
           const modsResult = await getInstalledMods(minecraftPath, installation.id);
           result.modCount = modsResult?.length || 0;

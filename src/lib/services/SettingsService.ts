@@ -1,4 +1,4 @@
-import type { LauncherSettings } from '../types';
+import type { CategorizedLauncherSettings, LauncherSettings } from '../types';
 import * as settingsApi from '../api/settings';
 
 /**
@@ -7,11 +7,11 @@ import * as settingsApi from '../api/settings';
  */
 
 export class SettingsService {
-  static async getSettings(): Promise<LauncherSettings> {
+  static async getSettings(): Promise<CategorizedLauncherSettings> {
     return await settingsApi.loadSettings();
   }
 
-  static async saveSettings(settings: LauncherSettings): Promise<void> {
+  static async saveSettings(settings: CategorizedLauncherSettings): Promise<void> {
     return await settingsApi.saveSettings(settings);
   }
 

@@ -175,49 +175,7 @@ export interface MinecraftVersion {
   releaseTime: string;
 }
 
-export interface LauncherSettings {
-  java_path?: string;
-  jvm_args: string;
-  memory: number;
-  game_directory?: string;
-  keep_launcher_open: boolean;
-  window_width?: number;
-  window_height?: number;
-  fullscreen?: boolean;
-  
-  // Additional properties used in settings
-  theme?: string;
-  language?: string;
-  minecraft_path?: string;
-  default_memory?: number;
-  max_memory?: number;
-  close_launcher_on_game_start?: boolean;
-  auto_update_launcher?: boolean;
-  show_logs_on_launch?: boolean;
-  enable_experimental_features?: boolean;
-  parallel_downloads?: number;
-  connection_timeout?: number;
-  animation_speed?: string;
-  card_spacing?: number;
-  sidebar_width?: number;
-  auto_backup_worlds?: boolean;
-  max_world_backups?: number;
-  shader_quality_preset?: string;
-  enable_shader_caching?: boolean;
-  
-  // Logging settings
-  show_logs_page_in_nav?: boolean;
-  enable_persistent_logging?: boolean;
-  enable_log_compression?: boolean;
-  log_file_size_limit_mb?: number;
-  log_retention_days?: number;
-  
-  // Icon settings
-  selected_icon_template?: string;
-  icon_settings?: IconSettings;
-  
-  custom?: any; // For custom user settings
-}
+
 
 export interface MinecraftDirectoryInfo {
   path: string;
@@ -375,11 +333,6 @@ export interface CustomIconTemplate {
   baseUrl?: string; // For image-based icons
 }
 
-export interface IconSettings {
-  selectedTemplate: string; // The currently selected template name
-  customTemplates: CustomIconTemplate[]; // User-uploaded templates
-  builtinTemplates: string[]; // Available built-in templates (emoji, fontawesome)
-}
 
 // Log system types
 export interface GameInstance {
@@ -411,4 +364,252 @@ export interface GameInstanceLogs {
   instanceId: string;
   launcherLogs: LogEntry[];
   gameLogs: LogEntry[];
+}
+
+/** Icon Settings for the launcher
+ * ```ts
+ * export interface IconSettings {
+ *    selectedTemplate: string;
+ *    customTemplates: CustomIconTemplate[];
+ *    builtinTemplates: string[];
+ * }
+ * ```
+ */
+export interface IconSettings {
+  /** The currently selected template name */
+  selected_template: string;
+  /** User-uploaded templates */
+  custom_templates: CustomIconTemplate[];
+  /** Available built-in templates (emoji, fontawesome) */
+  builtin_templates: string[];
+}
+
+/** Categorized Launcher Settings
+ * ```ts
+ * export interface CategorizedLauncherSettings {
+ *   general: GeneralSettings;
+ *   appearance: AppearanceSettings;
+ *   logging: LoggingSettings;
+ *   network: NetworkSettings;
+ *   content: ContentSettings;
+ *   advanced: AdvancedSettings;
+ *   misc: MiscSettings;
+ * }
+ * ```
+ */
+export interface CategorizedLauncherSettings {
+  general: GeneralSettings;
+  appearance: AppearanceSettings;
+  logging: LoggingSettings;
+  network: NetworkSettings;
+  content: ContentSettings;
+  advanced: AdvancedSettings;
+  misc: MiscSettings;
+}
+
+/** General Settings for the launcher
+ * ```ts
+ * export interface GeneralSettings {
+ *  javaPath?: string;
+ *  gameDirectory?: string;
+ *  onGameClose: 'exit' | 'minimize' | 'ask'; 
+ *  onGameCrash: 'restart' | 'close' | 'ask'; 
+ *  onGameLaunch: 'keep_open' | 'close_launcher' | 'open_logs' | 'ask'; 
+ *  autoUpdateLauncher: boolean; 
+ *  showAds: boolean; 
+ * }
+ * ```
+ */
+export interface GeneralSettings {
+  /** Optional different Java path for launching Minecraft */
+  java_path?: string;
+  /** The path to the .minecraft directory */
+  game_directory?: string;
+  /** What to do when the game is being closed (quit game / close window) */
+  on_game_close: 'open_logs' | 'open_home' | 'exit' | 'minimize' | 'ask';
+  /** What to do when the game crashes */
+  on_game_crash: 'restart' | 'close' | 'ask';
+  /** Whether to keep the launcher open after launching the game */
+  on_game_launch: 'keep_open' | 'close_launcher' | 'open_logs' | 'ask';
+  /** Whether to automatically check for updates on startup */
+  auto_update_launcher: boolean;
+  /** Whether to show ads; I am a nice guy, no paid subscription needed to disable ads */
+  show_ads: boolean;
+}
+
+/** Appearance Settings for the launcher
+ * ```ts
+ * export interface AppearanceSettings {
+ *   theme: 'light' | 'dark' | 'system';
+ *   language: string;
+ *   extraSpacing: number;
+ *   sidebarWidth: number;
+ *   selectedIconTemplate: string;
+ *   iconSettings: IconSettings;
+ * }
+ * ```
+ */
+export interface AppearanceSettings {
+  /** The theme to use for the launcher */
+  theme: 'light' | 'dark' | 'system';
+  /** The language to use for the launcher */
+  language: string;
+  /** The amount of pixels to add in spacing containers and cards */
+  extra_spacing: number;
+  /** The width of the sidebar in pixels when the sidebar is open */
+  sidebar_width: number;
+  /** The icon template to use */
+  selected_icon_template: string;
+  /** Icon settings to allow user customization */
+  icon_settings: IconSettings;
+}
+
+/** Logging Settings for the launcher
+ * ```ts
+ * export interface LoggingSettings {
+ *   showLogsPageInNav: boolean;
+ *   enablePersistentLogging: boolean;
+ *   enableLogCompression: boolean;
+ *   logFileSizeLimitMb: number | 'disabled';
+ *   logRetentionDays: number | 'disabled';
+ *   mergeLogTabs: boolean;
+ *   defaultLogLevels: ('debug' | 'info' | 'warn' | 'error')[];
+ * }
+ * ```
+ */
+export interface LoggingSettings {
+  /** Whether to show the logs page in the navigation */
+  show_logs_page_in_nav: boolean;
+  /** Whether to enable persistent logging: logs are saved to files */
+  enable_persistent_logging: boolean;
+  /** Whether to compress log files: only applies if persistent logging is enabled */
+  enable_log_compression: boolean;
+  /** The maximum size of a log file in MB before it is added to the zip */
+  log_file_size_limit_mb: number | 'disabled';
+  /** The number of days to keep log files */
+  log_retention_days: number | 'disabled';
+  /** Whether to try to "merge" log tabs into one tab if they are from the same game instance (but a different launch) */
+  merge_log_tabs: boolean;
+  /** Which log levels are shown by default */
+  default_log_levels: ('debug' | 'info' | 'warn' | 'error')[];
+}
+
+/** Network Settings for the launcher
+ * ```ts
+ * export interface NetworkSettings {
+ *   parallelDownloads: number;
+ *   connectionTimeout: number;
+ *   downloadSpeedLimit: number | 'unlimited';
+ * }
+ * ```
+ */
+export interface NetworkSettings {
+  /** The number of parallel downloads to use for downloading mods and shader packs */
+  parallel_downloads: number;
+  /** The connection timeout in seconds for network requests */
+  connection_timeout: number;
+  /** How much to throttle the download speed for parallel downloads */
+  download_speed_limit: number | 'unlimited';
+}
+
+/** Content Settings for the launcher
+ * ```ts
+ * export interface ContentSettings {
+ *   maxWorldBackups: number | 'disabled';
+ *   autoBackupWorlds: boolean;
+ *   usePerInstallationModsFolder: boolean;
+ *   usePerInstallationResourcePacks: boolean;
+ * }
+ * ```
+ */
+export interface ContentSettings {
+  /** The maximum number of backups to keep for each world */
+  max_world_backups: number | 'disabled';
+  /** Whether to zip all worlds at least once on startup (not if >= maxWorldBackups) */
+  auto_backup_worlds: boolean;
+  /** Whether to modify existing mod installations to use a per-installation mods folder in the kable directory */
+  use_per_installation_mods_folder: boolean;
+  /** Whether to have per-installation resource packs in the kable directory (this zips, copies and moves resource packs and is quite HEAVY) */
+  use_per_installation_resource_packs: boolean;
+}
+
+/** Advanced Settings for the launcher
+ * ```ts
+ * export interface AdvancedSettings {
+ *   enableExperimentalFeatures: boolean;
+ *   defaultMemory: number;
+ *   separateLogsWindow: boolean;
+ * }
+ * ```
+ */
+export interface AdvancedSettings {
+  /** Whether to enable experimental features */
+  enable_experimental_features: boolean;
+  /** The amount of memory to allocate to the game by default, only used on newly created installation as default */
+  default_memory: number; // in MB
+  /** Whether to have the logs page on another window (experimental) */
+  separate_logs_window: boolean;
+  /** How frequently to auto save the settings */
+  auto_save_interval: number | 'disabled'; // in seconds, 'disabled' means no auto save
+}
+
+/** Miscellaneous Settings for the launcher
+ * ```ts
+ * export interface MiscSettings {
+ *   useTitlebar: boolean;
+ *   authPreference: 'code' | 'device_code';
+ * }
+ * ```
+ */
+export interface MiscSettings {
+  /** Whether a titlebar should be used (not handy for closing the app) */
+  use_titlebar: boolean;
+  /** Authentication preference (code flow is recommended) */
+  auth_preference: 'code' | 'device_code';
+}
+
+
+/** @deprecated */
+export interface LauncherSettings {
+  java_path?: string;
+  jvm_args: string;
+  memory: number;
+  game_directory?: string;
+  keep_launcher_open: boolean;
+  window_width?: number;
+  window_height?: number;
+  fullscreen?: boolean;
+  
+  // Additional properties used in settings
+  theme?: string;
+  language?: string;
+  minecraft_path?: string;
+  default_memory?: number;
+  max_memory?: number;
+  close_launcher_on_game_start?: boolean;
+  auto_update_launcher?: boolean;
+  show_logs_on_launch?: boolean;
+  enable_experimental_features?: boolean;
+  parallel_downloads?: number;
+  connection_timeout?: number;
+  animation_speed?: string;
+  card_spacing?: number;
+  sidebar_width?: number;
+  auto_backup_worlds?: boolean;
+  max_world_backups?: number;
+  shader_quality_preset?: string;
+  enable_shader_caching?: boolean;
+  
+  // Logging settings
+  show_logs_page_in_nav?: boolean;
+  enable_persistent_logging?: boolean;
+  enable_log_compression?: boolean;
+  log_file_size_limit_mb?: number;
+  log_retention_days?: number;
+  
+  // Icon settings
+  selected_icon_template?: string;
+  icon_settings?: IconSettings;
+  
+  custom?: any; // For custom user settings
 }
