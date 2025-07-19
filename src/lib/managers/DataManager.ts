@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import { SettingsManager } from './SettingsManager';
-import { GameManager } from './GameManager';
+import { InstallationManager } from './InstallationManager';
 import { MapsManager } from './MapsManager';
 
 // Global initialization state
@@ -27,12 +27,7 @@ export class DataManager {
       await SettingsManager.initialize();
       initializationStatus.set('Settings loaded');
 
-      // Step 2: Initialize game data (installations, Java check)
-      initializationStatus.set('Loading Minecraft installations...');
-      await GameManager.initialize();
-      initializationStatus.set('Installations loaded');
-
-      // Step 3: Load maps/worlds data
+      // Step 2: Load maps/worlds data
       initializationStatus.set('Loading worlds data...');
       await MapsManager.loadWorlds();
       initializationStatus.set('Worlds loaded');

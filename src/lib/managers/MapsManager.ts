@@ -15,7 +15,7 @@ export class MapsManager {
    * Get all local worlds from the Minecraft saves directory
    */
   static async getLocalWorlds(): Promise<LocalWorld[]> {
-    const minecraftPath = get(settings).minecraft_path;
+    const minecraftPath = get(settings).general.game_directory;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -26,7 +26,7 @@ export class MapsManager {
    * Delete a world from the saves directory
    */
   static async deleteWorld(worldFolder: string): Promise<void> {
-    const minecraftPath = get(settings).minecraft_path;
+    const minecraftPath = get(settings).general.game_directory;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -37,7 +37,7 @@ export class MapsManager {
    * Create a backup of a world
    */
   static async backupWorld(worldFolder: string): Promise<string> {
-    const minecraftPath = get(settings).minecraft_path;
+    const minecraftPath = get(settings).general.game_directory;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }

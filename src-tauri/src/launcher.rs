@@ -633,11 +633,6 @@ pub fn get_java_path(java_path: Option<String>) -> Result<String, String> {
     find_java_executable(java_path.as_ref())
 }
 
-/// Build memory arguments
-pub fn build_memory_arguments(settings: &CategorizedLauncherSettings) -> Vec<String> {
-    build_memory_arguments_with_override(settings, None)
-}
-
 /// Build memory arguments with optional memory override for per-installation settings
 pub fn build_memory_arguments_with_override(settings: &CategorizedLauncherSettings, memory_override: Option<u32>) -> Vec<String> {
     let mut args = Vec::new();

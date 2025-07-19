@@ -1,10 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Icon } from '$lib';
-  import { installations, isLoadingInstallations, installationsError } from '$lib/stores/game';
-  import { GameManager } from '$lib/managers/GameManager';
-  import { LaunchService } from '$lib/services/LaunchService';
-  import type { MinecraftInstallation } from '$lib/types';
+  import { Icon, installations, isLoadingInstallations, installationsError, type MinecraftInstallation, LaunchService, InstallationManager } from '$lib';
+
 
   // State variables
   let lastPlayedInstallations: MinecraftInstallation[] = [];
@@ -84,7 +81,7 @@
     
     try {
       // Check if we're ready to launch
-      const { canLaunch, reason } = GameManager.canLaunch();
+      const { canLaunch, reason } = await InstallationManager.canLaunch(lastPlayedInstallations[0]);
       if (!canLaunch) {
         launchStatus = reason || 'Cannot launch';
         setTimeout(() => {
@@ -99,8 +96,8 @@
         console.log('Launching installation:', lastPlayedInstallations[0]);
         launchStatus = `Launching ${lastPlayedInstallations[0].name}...`;
         // Select the installation and launch with GameManager
-        GameManager.selectInstallation(lastPlayedInstallations[0]);
-        await GameManager.launchGame();
+        InstallationManager.selectInstallation(lastPlayedInstallations[0]);
+        await InstallationManager.launchGame();
         result = { success: true };
       } else {
         launchStatus = 'Launching default Minecraft...';
@@ -113,7 +110,7 @@
         launchStatus = 'Launched Minecraft!';
         // Refresh installations to update last played
         setTimeout(() => {
-          GameManager.loadInstallations();
+          InstallationManager.loadInstallations();
         }, 1000);
       } else {
         launchStatus = `Launch failed: ${result.error || 'Unknown error'}`;
@@ -142,21 +139,21 @@
     
     try {
       // Select the installation and check if we can launch
-      GameManager.selectInstallation(installation);
-      const { canLaunch, reason } = GameManager.canLaunch();
+      InstallationManager.selectInstallation(installation);
+      const { canLaunch, reason } = await InstallationManager.canLaunch();
       if (!canLaunch) {
         alert(reason || 'Cannot launch');
         return;
       }
       
-      await GameManager.launchGame();
+      await InstallationManager.launchGame();
       
       if (launchButton) {
         launchButton.textContent = 'Launched!';
       }
       // Refresh installations to update last played
       setTimeout(() => {
-        GameManager.loadInstallations();
+        InstallationManager.loadInstallations();
       }, 1000);
     } catch (err) {
       console.error('Installation launch error:', err);

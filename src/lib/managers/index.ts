@@ -1,9 +1,9 @@
 // Manager exports for centralized access
 export * from './AuthManager';
 export * from './DataManager';
-export * from './GameManager';
 export * from './IconManager';
 
+export * from './InstallationManager';
 export * from './MapsManager';
 export * from './ModsManager';
 export * from './SettingsManager';

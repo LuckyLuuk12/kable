@@ -2,10 +2,9 @@
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
   import { 
-    Icon, InstallationService, ModDetectionService, GameManager, 
+    Icon, ModDetectionService, InstallationManager, type InstallationForm, InstallationsList,
     type MinecraftInstallation, type MinecraftVersion, type ModDetectionResult 
   } from '$lib';
-  import { installations as gameInstallations } from '$lib/stores/game';
 
   // State variables
   let installations: MinecraftInstallation[] = [];
@@ -20,16 +19,7 @@
   let modDetectionResults: Map<string, ModDetectionResult> = new Map();
   
   // New installation form
-  let newInstallation = {
-    name: '',
-    version: '',
-    mod_loader: 'vanilla' as 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge',
-    game_directory: '',
-    java_path: '',
-    jvm_args: '-Xmx2G',
-    memory: 2048, // Memory in MB
-    description: ''
-  };
+  let newInstallation: InstallationForm = InstallationManager.getEmptyInstallationForm();
 
   onMount(async () => {
     await loadInstallations();
@@ -40,13 +30,8 @@
     try {
       isLoading = true;
       error = null;
-      
-      // Get installations from GameManager's store (already loaded in layout)
-      installations = get(gameInstallations);
-      
-      // Run mod detection on each installation
+      installations = await InstallationManager.getInstallations();
       await analyzeAllInstallations();
-      
     } catch (err) {
       console.error('Failed to load installations:', err);
       error = `Failed to load installations: ${err}`;
@@ -58,37 +43,22 @@
   async function analyzeAllInstallations() {
     const detectionPromises = installations.map(async (installation) => {
       try {
-        const detection = await ModDetectionService.analyzeInstallation(installation);
+        const detection = await InstallationManager.analyzeInstallation(installation);
         modDetectionResults.set(installation.id, detection);
       } catch (err) {
         console.error(`Failed to analyze installation ${installation.name}:`, err);
       }
     });
-    
     await Promise.all(detectionPromises);
-    // Force reactivity update
     modDetectionResults = new Map(modDetectionResults);
   }
 
   async function loadAvailableVersions() {
     try {
-      // Load available Minecraft versions from Mojang API
-      const result = await InstallationService.getMinecraftVersions();
-      availableVersions = result || [];
-      
+      availableVersions = await InstallationManager.getMinecraftVersions();
     } catch (err) {
       console.error('Failed to load Minecraft versions:', err);
-      // Fallback to some common versions
-      availableVersions = [
-        { id: '1.21.3', type: 'release', releaseTime: '2024-10-23T12:00:00Z', url: '', time: '2024-10-23T12:00:00Z' },
-        { id: '1.21.2', type: 'release', releaseTime: '2024-10-22T12:00:00Z', url: '', time: '2024-10-22T12:00:00Z' },
-        { id: '1.21.1', type: 'release', releaseTime: '2024-08-08T12:00:00Z', url: '', time: '2024-08-08T12:00:00Z' },
-        { id: '1.21', type: 'release', releaseTime: '2024-06-13T12:00:00Z', url: '', time: '2024-06-13T12:00:00Z' },
-        { id: '1.20.6', type: 'release', releaseTime: '2024-04-29T12:00:00Z', url: '', time: '2024-04-29T12:00:00Z' },
-        { id: '1.20.4', type: 'release', releaseTime: '2023-12-07T12:00:00Z', url: '', time: '2023-12-07T12:00:00Z' },
-        { id: '1.19.4', type: 'release', releaseTime: '2023-03-14T12:00:00Z', url: '', time: '2023-03-14T12:00:00Z' },
-        { id: '1.18.2', type: 'release', releaseTime: '2022-02-28T12:00:00Z', url: '', time: '2022-02-28T12:00:00Z' },
-      ];
+      availableVersions = InstallationManager.getFallbackVersions();
     }
   }
 
@@ -96,43 +66,17 @@
     try {
       isLoading = true;
       error = null;
-      
-      const installation = await InstallationService.createInstallation(
-        newInstallation.name,
-        newInstallation.version,
-        newInstallation.mod_loader,
-        newInstallation.game_directory,
-        newInstallation.java_path,
-        newInstallation.jvm_args,
-        newInstallation.memory,
-        newInstallation.description
-      );
-      
+      const installation = await InstallationManager.createInstallation(newInstallation);
       installations = [...installations, installation];
-      
-      // Analyze the new installation for mod detection
       try {
-        const detection = await ModDetectionService.analyzeInstallation(installation);
+        const detection = await InstallationManager.analyzeInstallation(installation);
         modDetectionResults.set(installation.id, detection);
         modDetectionResults = new Map(modDetectionResults);
       } catch (err) {
         console.error('Failed to analyze new installation:', err);
       }
-      
       showCreateModal = false;
-      
-      // Reset form
-      newInstallation = {
-        name: '',
-        version: '',
-        mod_loader: 'vanilla',
-        game_directory: '',
-        java_path: '',
-        jvm_args: '-Xmx2G',
-        memory: 2048,
-        description: ''
-      };
-      
+      newInstallation = InstallationManager.getEmptyInstallationForm();
     } catch (err) {
       console.error('Failed to create installation:', err);
       error = `Failed to create installation: ${err}`;
@@ -145,9 +89,8 @@
     if (!confirm('Are you sure you want to delete this installation? This action cannot be undone.')) {
       return;
     }
-    
     try {
-      await InstallationService.deleteInstallation(installationId);
+      await InstallationManager.deleteInstallation(installationId);
       installations = installations.filter(inst => inst.id !== installationId);
     } catch (err) {
       console.error('Failed to delete installation:', err);
@@ -159,23 +102,15 @@
     try {
       isLoading = true;
       error = null;
-      
-      // Select the installation and check if we can launch
-      GameManager.selectInstallation(installation);
-      const { canLaunch, reason } = GameManager.canLaunch();
-      if (!canLaunch) {
-        error = reason || 'Cannot launch';
+      const canLaunch = await InstallationManager.canLaunch(installation);
+      if (!canLaunch.canLaunch) {
+        error = canLaunch.reason || 'Cannot launch';
         return;
       }
-      
-      // Launch using GameManager for better integration
-      await GameManager.launchGame();
-      
-      // Refresh installations to update last played
+      await InstallationManager.launchInstallation(installation);
       setTimeout(() => {
         loadInstallations();
       }, 1000);
-      
     } catch (err) {
       console.error('Failed to launch Minecraft:', err);
       error = `Failed to launch Minecraft: ${err}`;
@@ -186,7 +121,7 @@
 
   async function openInstallationFolder(installation: MinecraftInstallation) {
     try {
-      await InstallationService.openInstallationFolder(installation.id);
+      await InstallationManager.openInstallationFolder(installation.id);
     } catch (err) {
       console.error('Failed to open installation folder:', err);
       error = `Failed to open installation folder: ${err}`;
@@ -255,29 +190,13 @@
 
   async function updateInstallation() {
     if (!editingInstallation) return;
-    
     try {
       isLoading = true;
       error = null;
-      
-      const updatedInstallation = await InstallationService.updateInstallation(
-        editingInstallation.id,
-        newInstallation.name,
-        newInstallation.version,
-        newInstallation.mod_loader,
-        newInstallation.game_directory,
-        newInstallation.java_path,
-        newInstallation.jvm_args,
-        newInstallation.memory,
-        newInstallation.description
-      );
-      
-      // Update the installation in the list
+      const updatedInstallation = await InstallationManager.updateInstallation(editingInstallation.id, newInstallation);
       installations = installations.map(inst => 
         inst.id === editingInstallation?.id ? updatedInstallation : inst
       );
-      
-      // Re-analyze the updated installation
       try {
         const detection = await ModDetectionService.analyzeInstallation(updatedInstallation);
         modDetectionResults.set(updatedInstallation.id, detection);
@@ -285,22 +204,9 @@
       } catch (err) {
         console.error('Failed to analyze updated installation:', err);
       }
-      
       showEditModal = false;
       editingInstallation = null;
-      
-      // Reset form
-      newInstallation = {
-        name: '',
-        version: '',
-        mod_loader: 'vanilla',
-        game_directory: '',
-        java_path: '',
-        jvm_args: '-Xmx2G',
-        memory: 2048,
-        description: ''
-      };
-      
+      newInstallation = InstallationManager.getEmptyInstallationForm();
     } catch (err) {
       console.error('Failed to update installation:', err);
       error = `Failed to update installation: ${err}`;
@@ -354,7 +260,7 @@
     </div>
   {/if}
 
-  {#if isLoading && installations.length === 0}
+  <!-- {#if isLoading && installations.length === 0}
     <div class="loading-state">
       <Icon name="refresh" size="md" />
       <span>Loading installations...</span>
@@ -450,7 +356,21 @@
         </div>
       {/each}
     </div>
-  {/if}
+  {/if} -->
+  <InstallationsList 
+    {installations} 
+    {modDetectionResults} 
+    {isLoading} 
+    {error} 
+    onPlay={launchInstallation} 
+    onOpenFolder={openInstallationFolder} 
+    onEdit={editInstallation}
+    onDelete={deleteInstallation} 
+    onDuplicate={() => {}}
+    getModLoaderColor={getModLoaderColor}
+    getModLoaderIcon={getModLoaderIcon}
+    getModLoaderDisplay={getModLoaderDisplay}
+    />
 </div>
 
 <!-- Create Installation Modal -->
@@ -565,7 +485,7 @@
                 class="memory-text-input"
               />
               <span class="memory-unit">MB</span>
-              <span class="memory-gb">({Math.round(newInstallation.memory / 1024 * 10) / 10}GB)</span>
+              <span class="memory-gb">({Math.round((newInstallation?.memory || 0) / 1024 * 10) / 10}GB)</span>
             </div>
           </div>
           <small>RAM allocated to this installation (overrides global memory setting)</small>
@@ -692,7 +612,7 @@
               class="memory-text-input"
             />
             <span class="memory-unit">MB</span>
-            <span class="memory-gb">({Math.round(newInstallation.memory / 1024 * 10) / 10}GB)</span>
+            <span class="memory-gb">({Math.round((newInstallation.memory || 0) / 1024 * 10) / 10}GB)</span>
           </div>
         </div>
         <small>RAM allocated to this installation (overrides global memory setting)</small>

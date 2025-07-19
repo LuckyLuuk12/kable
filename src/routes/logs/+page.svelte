@@ -7,7 +7,9 @@
     gameInstances, 
     currentLogs, 
     selectedInstanceId, 
-    type GameInstance 
+    type GameInstance, 
+    settings
+
   } from '$lib';
 
   let selectedLogType: 'launcher' | 'game' = 'launcher';
@@ -16,12 +18,12 @@
   let searchTerm = '';
   let searchMode: 'normal' | 'regex' | 'fuzzy' = 'fuzzy';
   
-  // Log level filters (all enabled by default except debug)
-  let logLevelFilters = {
-    error: true,
-    warn: true,
-    info: true,
-    debug: false
+  // Log level filters
+  $: logLevelFilters = {
+    error: $settings.logging.default_log_levels.indexOf('error') !== -1,
+    warn: $settings.logging.default_log_levels.indexOf('warn') !== -1,
+    info: $settings.logging.default_log_levels.indexOf('info') !== -1,
+    debug: $settings.logging.default_log_levels.indexOf('debug') !== -1,
   };
   
   let showLogLevelDropdown = false;

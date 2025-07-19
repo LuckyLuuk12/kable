@@ -1306,7 +1306,7 @@ pub async fn launch_minecraft_installation(app: AppHandle, installation_id: Stri
             }
             
             match settings.general.on_game_launch.as_str() {
-                "show_logs" => {
+                "open_logs" => {
                     Logger::info(&app, "Show logs on launch enabled - emitting navigation event", Some(&instance_id));
                     if let Err(e) = app.emit_to("main", "show-logs-page", json!({
                         "instanceId": instance_id,
@@ -1423,6 +1423,28 @@ pub async fn launch_minecraft_installation(app: AppHandle, installation_id: Stri
                         "data": { "code": exit_code }
                     })) {
                         Logger::error_global(&format!("Failed to emit exit event: {}", e), Some(&instance_id_clone));
+                    }
+                    // TODO: probably make this if-else a match-case,..
+                    if settings.general.on_game_close == "open_logs" {
+                        Logger::info(&app_clone, "Show logs on exit enabled - emitting navigation event", Some(&instance_id_clone));
+                        if let Err(e) = app_clone.emit_to("main", "show-logs-page", json!({
+                            "instanceId": instance_id_clone,
+                            "installationId": installation_id,
+                            "reason": "exit"
+                        })) {
+                            Logger::error(&app_clone, &format!("Failed to emit show-logs-page event: {}", e), Some(&instance_id_clone));
+                        }
+                    } else if settings.general.on_game_close == "open_home" {
+                        Logger::info(&app_clone, "Open home on exit enabled - emitting navigation event", Some(&instance_id_clone));
+                        if let Err(e) = app_clone.emit_to("main", "navigate-home", json!({
+                            "instanceId": instance_id_clone
+                        })) {
+                            Logger::error(&app_clone, &format!("Failed to emit navigate-home event: {}", e), Some(&instance_id_clone));
+                        }
+                    } else if settings.general.on_game_close == "close_launcher" {
+                        Logger::info(&app_clone, "Close launcher on exit enabled - no navigation event emitted", Some(&instance_id_clone));
+                    } else {
+                        Logger::info(&app_clone, "Unknown action on exit - no navigation event emitted", Some(&instance_id_clone));
                     }
                 }
             });

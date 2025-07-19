@@ -4,7 +4,7 @@
  */
 
 export * from './auth';
-export * from './game';
+export * from './installation';
 
 export * from './logs';
 export * from './settings';

@@ -8,7 +8,7 @@ export class ShadersManager {
    * Get all installed shader packs
    */
   static async getInstalledShaders(): Promise<ShaderPack[]> {
-    const minecraftPath = get(settings).minecraft_path;
+    const minecraftPath = get(settings).general.game_directory;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -19,7 +19,7 @@ export class ShadersManager {
    * Toggle shader pack enabled/disabled state
    */
   static async toggleShader(shaderFile: string, enabled: boolean): Promise<void> {
-    const minecraftPath = get(settings).minecraft_path;
+    const minecraftPath = get(settings).general.game_directory;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -30,7 +30,7 @@ export class ShadersManager {
    * Delete a shader pack
    */
   static async deleteShader(shaderFile: string): Promise<void> {
-    const minecraftPath = get(settings).minecraft_path;
+    const minecraftPath = get(settings).general.game_directory;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -41,7 +41,7 @@ export class ShadersManager {
    * Install shader pack from file
    */
   static async installShaderPack(shaderFilePath: string): Promise<string> {
-    const minecraftPath = get(settings).minecraft_path;
+    const minecraftPath = get(settings).general.game_directory;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }
@@ -52,7 +52,7 @@ export class ShadersManager {
    * Get detailed info about a shader pack
    */
   static async getShaderInfo(shaderFile: string): Promise<ShaderPack> {
-    const minecraftPath = get(settings).minecraft_path;
+    const minecraftPath = get(settings).general.game_directory;
     if (!minecraftPath) {
       throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
     }

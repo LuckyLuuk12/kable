@@ -32,7 +32,7 @@
     error = null;
     try {
       const settings = await SettingsManager.getSettingsAsync();
-      installations = await ModsManager.getModdedInstallations(settings.minecraft_path || '');
+      installations = await ModsManager.getModdedInstallations(settings.general.game_directory || '');
       if (installations.length > 0 && selectedInstallation === 'global') {
         // Keep global selected by default
       }
@@ -55,10 +55,10 @@
       
       if (selectedInstallation === 'global') {
         // For global, we need to set up the global mods folder first
-        await ModsManager.setupInstallationMods(settings.minecraft_path || '', 'kable-global', true);
-        installedMods = await ModsManager.getInstalledMods(settings.minecraft_path || '', 'kable-global');
+        await ModsManager.setupInstallationMods(settings.general.game_directory || '', 'kable-global', true);
+        installedMods = await ModsManager.getInstalledMods(settings.general.game_directory || '', 'kable-global');
       } else {
-        installedMods = await ModsManager.getInstalledMods(settings.minecraft_path || '', selectedInstallation);
+        installedMods = await ModsManager.getInstalledMods(settings.general.game_directory || '', selectedInstallation);
       }
     } catch (err) {
       console.error('Failed to load mods:', err);
@@ -102,7 +102,7 @@
     try {
       const settings = await SettingsManager.getSettingsAsync();
       await ModsManager.updateInstallationModConfig(
-        settings.minecraft_path || '',
+        settings.general.game_directory || '',
         selectedInstallation,
         useGlobalMods
       );

@@ -613,3 +613,17 @@ export interface LauncherSettings {
   
   custom?: any; // For custom user settings
 }
+
+
+
+
+export interface InstallationForm {
+  name: string;
+  version: string;
+  mod_loader: 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge';
+  game_directory?: string;
+  java_path?: string;
+  jvm_args?: string;
+  memory?: number;
+  description?: string;
+}

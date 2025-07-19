@@ -2,7 +2,7 @@
   import '$lib/styles/global.scss';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { currentAccount, AuthManager, SettingsManager, GameManager, Icon, logsService, LogsManager, IconManager, WindowStateManager, settings, TitleBar } from '$lib';
+  import { currentAccount, AuthManager, SettingsManager, InstallationManager, Icon, logsService, LogsManager, IconManager, WindowStateManager, settings, TitleBar } from '$lib';
   
   let isTauriReady = false;
   let initializationStatus = 'Initializing...';
@@ -16,7 +16,7 @@
     
     try {
       // Test if Tauri is ready by making a simple call
-      await GameManager.getDefaultMinecraftDirectory();
+      await InstallationManager.getDefaultMinecraftDirectory();
       isTauriReady = true;
       
       // Initialize logs service first
@@ -30,7 +30,6 @@
         WindowStateManager.initialize(), // Initialize window state first
         AuthManager.initialize(),
         SettingsManager.initialize(),
-        GameManager.initialize(),
         IconManager.initialize()
       ]);
       
