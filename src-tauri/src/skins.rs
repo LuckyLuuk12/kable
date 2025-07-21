@@ -48,7 +48,7 @@ pub enum SkinDownloadSource {
 // Get all local skins from the launcher directory
 #[tauri::command]
 pub async fn get_local_skins() -> Result<Vec<MinecraftSkin>, String> {
-    let launcher_dir = crate::settings::get_launcher_data_dir().map_err(|e| e.to_string())?;
+    let launcher_dir = crate::get_kable_launcher_dir().map_err(|e| e.to_string())?;
     let skins_dir = launcher_dir.join("skins");
     
     if !skins_dir.exists() {
@@ -160,7 +160,7 @@ fn detect_slim_model(skin_path: &std::path::Path) -> Result<bool, AppError> {
 // Save skin to local storage
 #[tauri::command]
 pub async fn save_skin(skin_data: Vec<u8>, skin_name: String, is_slim: bool) -> Result<String, String> {
-    let launcher_dir = crate::settings::get_launcher_data_dir().map_err(|e| e.to_string())?;
+    let launcher_dir = crate::get_kable_launcher_dir().map_err(|e| e.to_string())?;
     let skins_dir = launcher_dir.join("skins");
     
     // Create skins directory if it doesn't exist
@@ -182,7 +182,7 @@ pub async fn save_skin(skin_data: Vec<u8>, skin_name: String, is_slim: bool) -> 
 // Delete skin from local storage
 #[tauri::command]
 pub async fn delete_skin(skin_file: String) -> Result<(), String> {
-    let launcher_dir = crate::settings::get_launcher_data_dir().map_err(|e| e.to_string())?;
+    let launcher_dir = crate::get_kable_launcher_dir().map_err(|e| e.to_string())?;
     let skin_path = launcher_dir.join("skins").join(skin_file);
     
     if !skin_path.exists() {
@@ -232,7 +232,7 @@ pub async fn install_skin(skin_file_path: String, skin_name: Option<String>) -> 
 // Get skin file data for preview/use
 #[tauri::command]
 pub async fn get_skin_data(skin_file: String) -> Result<Vec<u8>, String> {
-    let launcher_dir = crate::settings::get_launcher_data_dir().map_err(|e| e.to_string())?;
+    let launcher_dir = crate::get_kable_launcher_dir().map_err(|e| e.to_string())?;
     let skin_path = launcher_dir.join("skins").join(skin_file);
     
     if !skin_path.exists() {

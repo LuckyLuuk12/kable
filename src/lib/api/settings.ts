@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { CategorizedLauncherSettings, LauncherSettings } from '../types';
+import type { CategorizedLauncherSettings } from '../types';
 
 /**
  * Settings API

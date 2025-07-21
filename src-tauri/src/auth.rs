@@ -100,9 +100,12 @@ async fn get_minecraft_account_device_code() -> Result<MinecraftAccount, String>
     // Try to get the active launcher account
     match get_active_launcher_account().await? {
         Some(launcher_account) => {
+            // Sanitize access token before logging
+            let mut sanitized_account = launcher_account.clone();
+            sanitized_account.access_token = String::new();
             Logger::console_log(
-                LogLevel::Info, 
-                &format!("✅ Found active account: {:?}", launcher_account), 
+                LogLevel::Info,
+                &format!("✅ Found active account: {:?}", sanitized_account),
                 None
             );
             
@@ -129,9 +132,12 @@ async fn get_minecraft_account_auth_code() -> Result<MinecraftAccount, String> {
     // Try to get the active launcher account
     match get_active_launcher_account().await? {
         Some(launcher_account) => {
+            // Sanitize access token before logging
+            let mut sanitized_account = launcher_account.clone();
+            sanitized_account.access_token = String::new();
             Logger::console_log(
-                LogLevel::Info, 
-                &format!("✅ Found active account: {:?}", launcher_account), 
+                LogLevel::Info,
+                &format!("✅ Found active account: {:?}", sanitized_account),
                 None
             );
             
@@ -157,9 +163,12 @@ async fn get_minecraft_account_offline() -> Result<MinecraftAccount, String> {
     // Try to get the active launcher account from launcher_accounts.json
     match get_active_launcher_account().await? {
         Some(launcher_account) => {
+            // Sanitize access token before logging
+            let mut sanitized_account = launcher_account.clone();
+            sanitized_account.access_token = String::new();
             Logger::console_log(
                 LogLevel::Info,
-                &format!("✅ Found active account (offline mode): {:?}", launcher_account),
+                &format!("✅ Found active account (offline mode): {:?}", sanitized_account),
                 None
             );
             // Return the account, even if it has no access token

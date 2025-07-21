@@ -319,19 +319,7 @@ export interface ModFile {
   primary: boolean;
 }
 
-// Icon template definitions
-export interface CustomIconTemplate {
-  name: string;
-  displayName: string;
-  version: string;
-  author?: string;
-  description?: string;
-  iconType: 'emoji' | 'fontawesome' | 'css' | 'svg' | 'image';
-  fallbackIcon: string;
-  icons: Record<string, string>;
-  cssClasses?: Record<string, string>; // For CSS-based icons
-  baseUrl?: string; // For image-based icons
-}
+
 
 
 // Log system types
@@ -366,23 +354,11 @@ export interface GameInstanceLogs {
   gameLogs: LogEntry[];
 }
 
-/** Icon Settings for the launcher
- * ```ts
- * export interface IconSettings {
- *    selectedTemplate: string;
- *    customTemplates: CustomIconTemplate[];
- *    builtinTemplates: string[];
- * }
- * ```
- */
-export interface IconSettings {
-  /** The currently selected template name */
-  selected_template: string;
-  /** User-uploaded templates */
-  custom_templates: CustomIconTemplate[];
-  /** Available built-in templates (emoji, fontawesome) */
-  builtin_templates: string[];
-}
+// _____________________________________________________________________________
+//|                                                                             |
+//|                              Settings Types                                 |
+//|_____________________________________________________________________________|
+
 
 /** Categorized Launcher Settings
  * ```ts
@@ -435,6 +411,53 @@ export interface GeneralSettings {
   auto_update_launcher: boolean;
   /** Whether to show ads; I am a nice guy, no paid subscription needed to disable ads */
   show_ads: boolean;
+}
+
+/** Custom Icon Template for the launcher
+ * ```ts
+ * export interface CustomIconTemplate {
+ *   name: string;
+ *   displayName: string;
+ *   version: string;
+ *   author?: string;
+ *   description?: string;
+ *   iconType: 'emoji' | 'fontawesome' | 'css' | 'svg' | 'image';
+ *   fallbackIcon: string;
+ *   icons: Record<string, string>;
+ *   cssClasses?: Record<string, string>; // For CSS-based icons
+ *   baseUrl?: string; // For image-based icons
+ * }
+ * ```
+ */
+export interface CustomIconTemplate {
+  name: string;
+  displayName: string;
+  version: string;
+  author?: string;
+  description?: string;
+  iconType: 'emoji' | 'fontawesome' | 'css' | 'svg' | 'image';
+  fallbackIcon: string;
+  icons: Record<string, string>;
+  cssClasses?: Record<string, string>; // For CSS-based icons
+  baseUrl?: string; // For image-based icons
+}
+
+/** Icon Settings for the launcher
+ * ```ts
+ * export interface IconSettings {
+ *    selectedTemplate: string;
+ *    customTemplates: CustomIconTemplate[];
+ *    builtinTemplates: string[];
+ * }
+ * ```
+ */
+export interface IconSettings {
+  /** The currently selected template name */
+  selected_template: string;
+  /** User-uploaded templates */
+  custom_templates: CustomIconTemplate[];
+  /** Available built-in templates (emoji, fontawesome) */
+  builtin_templates: string[];
 }
 
 /** Appearance Settings for the launcher
@@ -568,55 +591,110 @@ export interface MiscSettings {
   auth_preference: 'code' | 'device_code';
 }
 
+// _____________________________________________________________________________
+//|                                                                             |
+//|                            Installation Types                               |
+//|_____________________________________________________________________________|
 
-/** @deprecated */
-export interface LauncherSettings {
-  java_path?: string;
-  jvm_args: string;
-  memory: number;
-  game_directory?: string;
-  keep_launcher_open: boolean;
-  window_width?: number;
-  window_height?: number;
-  fullscreen?: boolean;
-  
-  // Additional properties used in settings
-  theme?: string;
-  language?: string;
-  minecraft_path?: string;
-  default_memory?: number;
-  max_memory?: number;
-  close_launcher_on_game_start?: boolean;
-  auto_update_launcher?: boolean;
-  show_logs_on_launch?: boolean;
-  enable_experimental_features?: boolean;
-  parallel_downloads?: number;
-  connection_timeout?: number;
-  animation_speed?: string;
-  card_spacing?: number;
-  sidebar_width?: number;
-  auto_backup_worlds?: boolean;
-  max_world_backups?: number;
-  shader_quality_preset?: string;
-  enable_shader_caching?: boolean;
-  
-  // Logging settings
-  show_logs_page_in_nav?: boolean;
-  enable_persistent_logging?: boolean;
-  enable_log_compression?: boolean;
-  log_file_size_limit_mb?: number;
-  log_retention_days?: number;
-  
-  // Icon settings
-  selected_icon_template?: string;
-  icon_settings?: IconSettings;
-  
-  custom?: any; // For custom user settings
+/** Enum for different Minecraft loaders
+ * ```ts
+ * export enum Loader {
+ *  Vanilla = "vanilla",
+ *  Fabric = "fabric",
+ *  Forge = "forge",
+ *  Quilt = "quilt",
+ *  NeoForge = "neoforge"
+ * }
+ * ```
+ */
+export enum Loader {
+  Vanilla = "vanilla",
+  Fabric = "fabric",
+  Forge = "forge",
+  Quilt = "quilt",
+  NeoForge = "neoforge"
 }
 
+/** VersionData struct
+ * ```ts
+ * export interface VersionData {
+ *   id: string;
+ *   loader: Loader;
+ *   stable: boolean;
+ * }
+ * ```
+ */
+export interface VersionData {
+  id: string;
+  loader: Loader;
+  stable: boolean;
+}
 
+/** KableInstallation struct
+ * ```ts
+ * export interface KableInstallation {
+ *   id: string;
+ *   name: string;
+ *   icon: string;
+ *   version: VersionData;
+ *   created: string;
+ *   last_used: string;
+ *   java_args: string[];
+ *   dedicated_resource_pack_folder?: string | null;
+ *   dedicated_shaders_folder?: string | null;
+ * }
+ * ```
+ */
+export interface KableInstallation {
+  id: string;
+  name: string;
+  icon: string;
+  version: VersionData;
+  created: string;
+  last_used: string;
+  java_args: string[];
+  dedicated_resource_pack_folder?: string | null;
+  dedicated_shaders_folder?: string | null;
+}
 
+/** LauncherProfile struct
+ * ```ts
+ * export interface LauncherProfile {
+ *   created: string;
+ *   icon: string;
+ *   java_args: string;
+ *   last_used: string;
+ *   last_version_id: string;
+ *   name: string;
+ *   profile_type: string;
+ * }
+ * ```
+ */
+export interface LauncherProfile {
+  created: string;
+  icon: string;
+  java_args: string;
+  last_used: string;
+  last_version_id: string;
+  name: string;
+  profile_type: string;
+}
 
+/** InstallationForm struct
+ * ```ts
+ * export interface InstallationForm {
+ *   name: string;
+ *   version: string;
+ *   mod_loader: Loader;
+ *   game_directory?: string;
+ *   java_path?: string;
+ *   jvm_args?: string;
+ *   memory?: number;
+ *   description?: string;
+ * }
+ * ```
+ */
+@deprecated("New type is WIP")
 export interface InstallationForm {
   name: string;
   version: string;

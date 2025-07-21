@@ -4,7 +4,7 @@ import { InstallationService, ModDetectionService, installations, isLoadingInsta
 import { LaunchService } from '$lib';
 import * as minecraftApi from '../api/minecraft';
 import { get } from 'svelte/store';
-import { AuthManager, SettingsManager } from '$lib';
+import { AuthManager } from '$lib';
 import * as installationsApi from '../api/installations';
 
 export class InstallationManager {
@@ -13,6 +13,7 @@ export class InstallationManager {
   }
 
   static async createInstallation(form: any): Promise<MinecraftInstallation> {
+    installations.set(get(installations).concat([form]));
     return await InstallationService.createInstallation(
       form.name,
       form.version,
@@ -26,10 +27,12 @@ export class InstallationManager {
   }
 
   static async deleteInstallation(installationId: string): Promise<void> {
+    installations.set(get(installations).filter(inst => inst.id !== installationId));
     return await InstallationService.deleteInstallation(installationId);
   }
 
   static async updateInstallation(installationId: string, form: any): Promise<MinecraftInstallation> {
+    installations.set(get(installations).map(inst => inst.id === installationId ? { ...inst, ...form } : inst));
     return await InstallationService.updateInstallation(
       installationId,
       form.name,
@@ -111,31 +114,32 @@ export class InstallationManager {
     return { canLaunch: true };
   }
 
-  /**
-   * Launch Minecraft with current settings and authentication
-   */
-  static async launchGame(): Promise<void> {
-    const account = AuthManager.getCurrentAccount?.() ?? null;
-    const installation = get(selectedInstallation);
-    const settings = await SettingsManager.getSettingsAsync?.();
+  // /**
+  //  * Launch Minecraft with current settings and authentication
+  //  */
+  // static async launchGame(): Promise<void> {
+  //   const account = AuthManager.getCurrentAccount?.() ?? null;
+  //   const installation = get(selectedInstallation);
 
-    if (!account) {
-      throw new Error('Please sign in first');
-    }
-    if (!installation) {
-      throw new Error('Please select a Minecraft installation');
-    }
-    if (!installation.is_valid) {
-      throw new Error('Selected installation is not valid');
-    }
+  //   if (!account) {
+  //     throw new Error('Please sign in first');
+  //   }
+  //   if (!installation) {
+  //     throw new Error('Please select a Minecraft installation');
+  //   }
+  //   if (!installation.is_valid) {
+  //     throw new Error('Selected installation is not valid');
+  //   }
 
-    try {
-      await installationsApi.launchMinecraftInstallation(installation.id);
-      // Optionally update last played time for the account here if needed
-    } catch (error) {
-      throw error;
-    }
-  }
+  //   try {
+  //     // TODO: Finish launcher.rs and the corresponding API
+  //     // await minecraftApi.launchMinecraft(installation.id, account.access_token);
+  //     // await installationsApi.launchMinecraftInstallation(installation.id);
+  //     // Optionally update last played time for the account here if needed
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // }
 
   /**
    * Load Minecraft installations and update stores

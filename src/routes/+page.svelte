@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { Icon, installations, isLoadingInstallations, installationsError, type MinecraftInstallation, LaunchService, InstallationManager } from '$lib';
+    import InstallationsList from '$lib/components/InstallationsList.svelte';
 
 
   // State variables
@@ -195,7 +196,7 @@
   </div>
 
   <!-- Last Played Section - Scrollable -->
-  <div class="installations-section">
+  <!-- <div class="installations-section">
     {#if error}
       <div class="error-state">
         <Icon name="warning" size="md" />
@@ -289,7 +290,15 @@
         <button class="btn btn-primary">Add Installation</button>
       </div>
     {/if}
+  </div> -->
+  
+  <div class="section-header">
+    <h2>Last Played Installations</h2>
+    <button class="view-toggle" on:click={toggleViewMode} title="Toggle view mode">
+      <Icon name={viewMode === 'grid' ? 'list' : 'grid'} size="sm" />
+    </button>
   </div>
+  <InstallationsList isGrid={viewMode === 'grid'} isSmall limit={12}/>
 </div>
 
 <style lang="scss">
@@ -384,230 +393,31 @@
     }
   }
 
-  .installations-section {
-    flex: 1;
+  .section-header {
     display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    padding: 0 2rem 2rem;
-
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1.5rem 0 1rem;
-      flex-shrink: 0;
-
-      h2 {
-        margin: 0;
-        font-size: 1.5rem;
-        font-weight: 600;
-      }
-
-      .view-toggle {
-        padding: 0.5rem;
-        background: $dark-600;
-        border: none;
-        border-radius: 6px;
-        color: $text;
-        cursor: pointer;
-        transition: background 0.2s ease;
-
-        &:hover {
-          background: $dark-500;
-        }
-      }
-    }
-
-    .installations-container {
-      flex: 1;
-      overflow-y: auto;
-      padding-right: 0.5rem;
-    }
-
-    .installations-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1rem;
-    }
-
-    .installations-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .installation-card {
-      background: $dark-700;
-      border: 1px solid $dark-600;
-      border-radius: 12px;
-      padding: 1.5rem;
-      transition: all 0.2s ease;
-      cursor: pointer;
-
-      &:hover {
-        border-color: $primary;
-        transform: translateY(-2px);
-      }
-
-      &.selected {
-        border-color: $primary;
-        background: rgba($primary, 0.05);
-      }
-
-      .installation-header {
-        display: flex;
-        align-items: flex-start;
-        gap: 1rem;
-        margin-bottom: 1rem;
-
-        .installation-icon {
-          flex-shrink: 0;
-          width: 40px;
-          height: 40px;
-          background: $primary;
-          border-radius: 8px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-        }
-
-        .installation-info {
-          flex: 1;
-          min-width: 0;
-
-          h3 {
-            margin: 0 0 0.25rem 0;
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: $text;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-
-          .installation-details {
-            margin: 0;
-            font-size: 0.875rem;
-            color: $placeholder;
-          }
-        }
-      }
-
-      .installation-meta {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-
-        .last-played {
-          font-size: 0.75rem;
-          color: $placeholder;
-        }
-
-        .installation-actions {
-          display: flex;
-          gap: 0.5rem;
-
-          .action-btn {
-            padding: 0.5rem;
-            background: $dark-600;
-            border: none;
-            border-radius: 6px;
-            color: $text;
-            cursor: pointer;
-            transition: all 0.2s ease;
-
-            &:hover {
-              background: $primary;
-              color: white;
-            }
-          }
-
-          .dropdown-container {
-            position: relative;
-
-            .dropdown-menu {
-              position: absolute;
-              right: 0;
-              top: calc(100% + 0.5rem);
-              background: $dark-800;
-              border: 1px solid $dark-600;
-              border-radius: 8px;
-              box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-              z-index: 100;
-              min-width: 140px;
-              padding: 0.5rem 0;
-              animation: dropdownSlide 0.2s ease-out;
-
-              .dropdown-item {
-                display: flex;
-                align-items: center;
-                gap: 0.5rem;
-                width: 100%;
-                padding: 0.75rem 1rem;
-                background: none;
-                border: none;
-                color: $text;
-                font-size: 0.875rem;
-                cursor: pointer;
-                transition: background 0.15s ease;
-                text-align: left;
-
-                &:hover {
-                  background: $dark-700;
-                }
-
-                &.danger {
-                  color: $red;
-
-                  &:hover {
-                    background: rgba($red, 0.1);
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  .error-state,
-  .loading-state,
-  .empty-state {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
-    text-align: center;
-    color: $placeholder;
-    gap: 1rem;
+    padding: 1.5rem 2rem 0 2rem;
+    flex-shrink: 0;
 
-    p {
-      margin: 0;
-    }
-  }
-
-  .empty-state {
     h2 {
       margin: 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .view-toggle {
+      padding: 0.5rem;
+      background: $dark-600;
+      border: none;
+      border-radius: 6px;
       color: $text;
-    }
+      cursor: pointer;
+      transition: background 0.2s ease;
 
-    .btn {
-      margin-top: 1rem;
-    }
-  }
-
-  .error-state {
-    color: $red;
-  }
-
-  .loading-state {
-    :global(.icon) {
-      animation: spin 1s linear infinite;
+      &:hover {
+        background: $dark-500;
+      }
     }
   }
 
@@ -630,14 +440,9 @@
   // Responsive design
   @media (max-width: 768px) {
     .header,
-    .play-section,
-    .installations-section {
+    .play-section {
       padding-left: 1rem;
       padding-right: 1rem;
-    }
-
-    .installations-grid {
-      grid-template-columns: 1fr;
     }
 
     .play-button {

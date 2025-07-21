@@ -1,11 +1,10 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { LauncherSettings } from '../types';
 
 /**
  * Launcher API
  * Pure Tauri invoke calls for Minecraft launching operations
  */
-
+// TODO: Move all types to types.d.ts
 export interface ExtendedLaunchOptions {
     version?: string;
     installationId?: string;

@@ -36,7 +36,7 @@ impl Default for WindowState {
 }
 
 fn get_window_state_path() -> Result<PathBuf, String> {
-    let launcher_dir = crate::settings::get_launcher_data_dir().map_err(|e| e.to_string())?;
+    let launcher_dir = crate::get_kable_launcher_dir().map_err(|e| e.to_string())?;
     Ok(launcher_dir.join("window_state.json"))
 }
 

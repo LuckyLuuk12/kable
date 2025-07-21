@@ -133,27 +133,35 @@ impl Default for CategorizedLauncherSettings {
 }
 
 // Helper functions
-pub fn get_launcher_data_dir() -> Result<PathBuf, AppError> {
-    let base_dir = if let Some(appdata) = dirs::data_dir() {
-        appdata
-    } else {
-        return Err(AppError::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "Could not find data directory"
-        )));
-    };
+// pub fn get_kable_launcher_dir() -> Result<PathBuf, AppError> {
+//     let base_dir = if let Some(appdata) = dirs::data_dir() {
+//         appdata
+//     } else {
+//         return Err(AppError::Io(std::io::Error::new(
+//             std::io::ErrorKind::NotFound,
+//             "Could not find data directory"
+//         )));
+//     };
     
-    let launcher_dir = base_dir.join("kable-launcher");
+//     let launcher_dir = base_dir.join("kable-launcher");
     
-    if !launcher_dir.exists() {
-        fs::create_dir_all(&launcher_dir)?;
-    }
+//     if !launcher_dir.exists() {
+//         fs::create_dir_all(&launcher_dir)?;
+//     }
     
-    Ok(launcher_dir)
-}
+//     Ok(launcher_dir)
+// }
 
-fn get_settings_path() -> Result<PathBuf, AppError> {
-    Ok(get_launcher_data_dir()?.join("settings.json"))
+fn get_settings_path() -> Result<PathBuf, String> {
+    // Ok(crate::get_kable_launcher_dir()?.join("settings.json"))
+    let kable_dir = crate::get_kable_launcher_dir().map_err(|e| e.to_string())?;
+    // ensure the file exists
+    let settings_path = kable_dir.join("settings.json");
+    if !settings_path.exists() {
+        fs::create_dir_all(&kable_dir).map_err(|e| e.to_string())?;
+        fs::write(&settings_path, serde_json::to_string_pretty(&CategorizedLauncherSettings::default()).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    }
+    Ok(settings_path)
 }
 
 // Settings management
@@ -167,13 +175,13 @@ pub async fn load_settings() -> Result<CategorizedLauncherSettings, String> {
         Ok(settings)
     } else {
         let default_settings = CategorizedLauncherSettings::default();
-        save_settings(default_settings.clone()).await?;
+        save_settings(default_settings.clone())?;
         Ok(default_settings)
     }
 }
 
 #[tauri::command]
-pub async fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), String> {
+pub fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), String> {
     let settings_path = get_settings_path().map_err(|e| e.to_string())?;
     let contents = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     fs::write(&settings_path, contents).map_err(|e| e.to_string())?;
@@ -182,39 +190,38 @@ pub async fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), 
 }
 
 // Get launcher data directory
-#[tauri::command]
-pub async fn get_launcher_dir() -> Result<String, String> {
-    let launcher_dir = get_launcher_data_dir().map_err(|e| e.to_string())?;
-    Ok(launcher_dir.to_string_lossy().to_string())
-}
+// #[tauri::command]
+// pub async fn get_launcher_directory() -> Result<String, String> {
+//     let launcher_dir = get_kable_launcher_dir().map_err(|e| e.to_string())?;
+//     Ok(launcher_dir.to_string_lossy().to_string())
+// }
 
 // Get default Minecraft directory
-#[tauri::command]
-pub async fn get_default_minecraft_directory() -> Result<String, String> {
-    let minecraft_dir = if cfg!(target_os = "windows") {
-        if let Some(appdata) = dirs::data_dir() {
-            appdata.join(".minecraft")
-        } else {
-            return Err("Could not find AppData directory".to_string());
-        }
-    } else if cfg!(target_os = "macos") {
-        if let Some(home) = dirs::home_dir() {
-            home.join("Library").join("Application Support").join("minecraft")
-        } else {
-            return Err("Could not find home directory".to_string());
-        }
-    } else {
-        // Linux
-        if let Some(home) = dirs::home_dir() {
-            home.join(".minecraft")
-        } else {
-            return Err("Could not find home directory".to_string());
-        }
-    };
+// pub async fn get_default_minecraft_directory() -> Result<String, String> {
+//     let minecraft_dir = if cfg!(target_os = "windows") {
+//         if let Some(appdata) = dirs::data_dir() {
+//             appdata.join(".minecraft")
+//         } else {
+//             return Err("Could not find AppData directory".to_string());
+//         }
+//     } else if cfg!(target_os = "macos") {
+//         if let Some(home) = dirs::home_dir() {
+//             home.join("Library").join("Application Support").join("minecraft")
+//         } else {
+//             return Err("Could not find home directory".to_string());
+//         }
+//     } else {
+//         // Linux
+//         if let Some(home) = dirs::home_dir() {
+//             home.join(".minecraft")
+//         } else {
+//             return Err("Could not find home directory".to_string());
+//         }
+//     };
     
-    Ok(minecraft_dir.to_string_lossy().to_string())
-}
-
+//     Ok(minecraft_dir.to_string_lossy().to_string())
+// }
+/* 
 // Validate Minecraft directory
 #[tauri::command]
 pub async fn validate_minecraft_directory(path: String) -> Result<MinecraftDirectoryInfo, String> {
@@ -270,7 +277,7 @@ pub async fn validate_minecraft_directory(path: String) -> Result<MinecraftDirec
         size_mb,
     })
 }
-
+*/
 // Helper function to count directories
 fn count_directories(path: &PathBuf) -> Result<u32, std::io::Error> {
     let mut count = 0;

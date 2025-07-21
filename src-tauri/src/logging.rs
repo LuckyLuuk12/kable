@@ -3,7 +3,7 @@ use serde_json::json;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 use std::fs::{self, File, OpenOptions};
-use std::io::{Write, BufWriter};
+use std::io::{Write};
 use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 use crate::settings::CategorizedLauncherSettings;
@@ -50,8 +50,7 @@ impl Default for LogConfig {
 
 /// Log storage management
 pub struct LogStorage {
-    config: LogConfig,
-    current_files: Arc<Mutex<std::collections::HashMap<String, BufWriter<File>>>>,
+    config: LogConfig
 }
 
 impl LogStorage {
@@ -82,8 +81,7 @@ impl LogStorage {
         };
         
         Ok(Self {
-            config,
-            current_files: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            config
         })
     }
     
@@ -208,7 +206,7 @@ impl LogStorage {
         
         Ok(())
     }
-    
+    #[allow(clippy::only_used_in_recursion)]
     fn cleanup_directory(&self, dir: &Path, cutoff_date: &DateTime<Utc>) -> Result<(), Box<dyn std::error::Error>> {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;

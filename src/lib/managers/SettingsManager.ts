@@ -10,7 +10,7 @@ import {
   isMinecraftFound, 
   defaultCategorizedSettings
 } from '../stores/settings';
-import type { CategorizedLauncherSettings, LauncherSettings } from '../types';
+import type { CategorizedLauncherSettings } from '../types';
 
 /**
  * Settings Manager

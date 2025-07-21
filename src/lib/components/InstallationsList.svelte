@@ -1,138 +1,161 @@
 <script lang="ts">
-  import { Icon } from '$lib';
-  import type { MinecraftInstallation, ModDetectionResult } from '$lib';
+  import { Icon, InstallationManager, type MinecraftInstallation, ModDetectionService  } from '$lib';
+  import { onMount } from 'svelte';
 
-  export let installations: MinecraftInstallation[] = [];
-  export let modDetectionResults: Map<string, ModDetectionResult> = new Map();
+  export let isGrid: boolean = false;
+  export let isSmall: boolean = false;
   export let isLoading: boolean = false;
   export let error: string | null = null;
-  export let isGrid: boolean = false;
-  export let small: boolean = false;
-  export let onPlay: (installation: MinecraftInstallation) => void;
-  export let onOpenFolder: (installation: MinecraftInstallation) => void;
-  export let onEdit: (installation: MinecraftInstallation) => void;
-  export let onDelete: (installationId: string) => void;
-  export let onDuplicate: (installation: MinecraftInstallation) => void;
-  export let getModLoaderIcon: (installation: MinecraftInstallation) => string;
-  export let getModLoaderDisplay: (installation: MinecraftInstallation) => string;
-  export let getModLoaderColor: (installation: MinecraftInstallation) => string;
+  export let limit: number | null = null;
+
+  let installations: MinecraftInstallation[] = [];
+  let modLoaderIcons: Record<string, string> = {};
+  let modLoaderColors: Record<string, string> = {};
+  let modLoaderDisplays: Record<string, string> = {};
+
+  onMount(async () => {
+    installations = await InstallationManager.getInstallations();
+    for (const installation of installations) {
+      const detection = await InstallationManager.analyzeInstallation(installation);
+      modLoaderIcons[installation.id] = detection
+        ? ModDetectionService.getModLoaderIcon(detection.modLoaderType)
+        : ModDetectionService.getModLoaderIcon(installation.mod_loader);
+      modLoaderColors[installation.id] = detection
+        ? ModDetectionService.getModLoaderColor(detection.modLoaderType)
+        : ModDetectionService.getModLoaderColor(installation.mod_loader);
+      modLoaderDisplays[installation.id] = detection
+        ? ModDetectionService.getModdingStatusDescription(detection)
+        : (installation.mod_loader === 'vanilla'
+            ? 'Vanilla Minecraft'
+            : installation.mod_loader.charAt(0).toUpperCase() + installation.mod_loader.slice(1) + (installation.loader_version ? ` ${installation.loader_version}` : '')
+          );
+    }
+  });
 
   function getLastPlayed(installation: MinecraftInstallation) {
     return installation.last_played ? new Date(installation.last_played).toLocaleDateString() : 'Never';
   }
 </script>
 
-{#if error}
-  <div class="error-message">
-    <Icon name="alert" size="sm" />
-    {error}
-  </div>
-{/if}
-
-{#if isLoading && installations.length === 0}
-  <div class="loading-state">
-    <Icon name="refresh" size="md" />
-    <span>Loading installations...</span>
-  </div>
-{:else if installations.length === 0}
-  <div class="empty-state">
-    <div class="empty-icon">
-      <Icon name="cube" size="xl" />
+<div class=installations-list>
+  {#if error}
+    <div class="error-message">
+      <Icon name="alert" size="sm" />
+      {error}
     </div>
-    <h3>No installations found</h3>
-    <p>Create your first Minecraft installation to get started</p>
-  </div>
-{:else}
-  <div class={isGrid ? 'installations-grid' : 'installations-flex'}>
-    {#each installations as installation}
-      <div class={small ? 'installation-card small' : 'installation-card'}>
-        <div class="installation-header">
-          <div class="installation-icon" style="background-color: {getModLoaderColor(installation)}20; color: {getModLoaderColor(installation)};">
-            <Icon name={getModLoaderIcon(installation)} size="lg" />
-          </div>
-          <div class="installation-info">
-            <h3>{installation.name}</h3>
-            {#if !small}
-              <div class="installation-details">
-                <span class="version">{installation.version}</span>
-                <span class="mod-loader" style="color: {getModLoaderColor(installation)};">{getModLoaderDisplay(installation)}</span>
-              </div>
-              {#if installation.description}
-                <p class="description">{installation.description}</p>
-              {/if}
-            {/if}
-          </div>
-        </div>
+  {/if}
 
-        {#if !small}
-          <div class="installation-stats">
-            <div class="stat">
-              <Icon name="clock" size="sm" />
-              <span>Last played: {getLastPlayed(installation)}</span>
-            </div>
-            <div class="stat">
-              <Icon name="folder" size="sm" />
-              <span>Game directory: {installation.game_directory || 'Default'}</span>
-            </div>
-          </div>
-        {/if}
-
-        <div class="installation-actions">
-          <button 
-            class="btn btn-primary" 
-            on:click={() => onPlay(installation)}
-            disabled={isLoading}
-          >
-            <Icon name="play" size="sm" />
-            Play
-          </button>
-          <button 
-            class="btn btn-secondary" 
-            on:click={() => onOpenFolder(installation)}
-          >
-            <Icon name="folder-open" size="sm" />
-            Open Folder
-          </button>
-          <div class="dropdown">
-            <button class="btn btn-secondary dropdown-toggle">
-              <Icon name="more-horizontal" size="sm" />
-            </button>
-            <div class="dropdown-menu">
-              <button on:click={() => onEdit(installation)}>
-                <Icon name="edit" size="sm" />
-                Edit
-              </button>
-              <button on:click={() => onDuplicate(installation)}>
-                <Icon name="duplicate" size="sm" />
-                Duplicate
-              </button>
-              <div class="dropdown-separator"></div>
-              <button 
-                class="danger" 
-                on:click={() => onDelete(installation.id)}
-              >
-                <Icon name="trash" size="sm" />
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
+  {#if isLoading && installations.length === 0}
+    <div class="loading-state">
+      <Icon name="refresh" size="md" />
+      <span>Loading installations...</span>
+    </div>
+  {:else if installations.length === 0}
+    <div class="empty-state">
+      <div class="empty-icon">
+        <Icon name="cube" size="xl" />
       </div>
-    {/each}
-  </div>
-{/if}
+      <h3>No installations found</h3>
+      <p>Create your first Minecraft installation to get started</p>
+    </div>
+  {:else}
+    <div class={isGrid ? 'installations-grid' : 'installations-flex'}>
+      {#each installations.slice(0, limit || installations.length) as installation}
+        <div class={isSmall ? 'installation-card small' : 'installation-card'}>
+          <div class="installation-header">
+            <div class="installation-icon" style="background-color: {modLoaderColors[installation.id]}20; color: {modLoaderColors[installation.id]};">
+              <Icon name={modLoaderIcons[installation.id]} size="lg" />
+            </div>
+            <div class="installation-info">
+              <h3>{installation.name}</h3>
+              {#if !isSmall}
+                <div class="installation-details">
+                  <span class="version">{installation.version}</span>
+                  <span class="mod-loader" style="color: {modLoaderColors[installation.id]};">{modLoaderDisplays[installation.id]}</span>
+                </div>
+                {#if installation.description}
+                  <p class="description">{installation.description}</p>
+                {/if}
+              {/if}
+            </div>
+          </div>
+
+          {#if !isSmall}
+            <div class="installation-stats">
+              <div class="stat">
+                <Icon name="clock" size="sm" />
+                <span>Last played: {getLastPlayed(installation)}</span>
+              </div>
+              <div class="stat">
+                <Icon name="folder" size="sm" />
+                <span>Game directory: {installation.game_directory || 'Default'}</span>
+              </div>
+            </div>
+          {/if}
+
+          <div class="installation-actions">
+            <button 
+              class="btn btn-primary" 
+              on:click={async () => await InstallationManager.launchInstallation(installation)}
+              disabled={isLoading}
+            >
+              <Icon name="play" size="sm" />
+              Play
+            </button>
+            <button 
+              class="btn btn-secondary" 
+              on:click={async () => await InstallationManager.openInstallationFolder(installation.id)}
+            >
+              <Icon name="folder-open" size="sm" />
+              Open Folder
+            </button>
+            <div class="dropdown">
+              <button class="btn btn-secondary dropdown-toggle">
+                <Icon name="more-horizontal" size="sm" />
+              </button>
+              <div class="dropdown-menu">
+                <button on:click={async () => await InstallationManager.updateInstallation(installation.id, installation)}>
+                  <Icon name="edit" size="sm" />
+                  Edit
+                </button>
+                <button on:click={async () => await InstallationManager.createInstallation(installation)}>
+                  <Icon name="duplicate" size="sm" />
+                  Duplicate
+                </button>
+                <div class="dropdown-separator"></div>
+                <button 
+                  class="danger" 
+                  on:click={async () => await InstallationManager.deleteInstallation(installation.id)}
+                >
+                  <Icon name="trash" size="sm" />
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      {/each}
+    </div>
+  {/if}
+</div>
 
 <style lang="scss">
   @use "@kablan/clean-ui/scss/_variables.scss" as *;
+  .installations-list {
+    padding: 2rem;
+    border-radius: $border-radius;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: scroll;
+  }
   .installations-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
   }
   .installations-flex {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
   }
   .installation-card {
     background: $container;

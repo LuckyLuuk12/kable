@@ -1,4 +1,4 @@
-import type { CategorizedLauncherSettings, LauncherSettings } from '../types';
+import type { CategorizedLauncherSettings } from '../types';
 import * as settingsApi from '../api/settings';
 
 /**

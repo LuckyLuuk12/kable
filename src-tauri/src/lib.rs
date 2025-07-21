@@ -13,6 +13,7 @@ mod maps;
 mod mods;
 mod shaders;
 mod skins;
+mod installations_new;
 mod installations;
 mod launcher;
 mod icons;
@@ -31,13 +32,14 @@ pub use auth::{
     // Main auth types (only these are needed for lib.rs re-export)
     AuthMethod, MinecraftAccount
 };
-pub use settings::{CategorizedLauncherSettings, load_settings, save_settings, get_launcher_dir, get_default_minecraft_directory, validate_minecraft_directory, MinecraftDirectoryInfo};
+pub use settings::{CategorizedLauncherSettings, load_settings, save_settings, MinecraftDirectoryInfo};
 pub use maps::{LocalWorld, WorldDownload, get_local_worlds, delete_world, backup_world};
 pub use mods::{ModInstallationConfig, InstalledMod, get_modded_installations, setup_installation_mods, get_installed_mods, toggle_mod_enabled, update_installation_mod_config};
 pub use shaders::{ShaderPack, get_installed_shaders, toggle_shader, delete_shader, install_shader_pack, get_shader_info};
 pub use skins::{MinecraftSkin, get_local_skins, save_skin, delete_skin, install_skin, get_skin_data, get_current_minecraft_skin, upload_skin_to_minecraft};
+pub use installations_new::*;
 pub use installations::{MinecraftInstallation, get_minecraft_installations, refresh_installation, update_installation_last_played, 
-    KableInstallation, get_installations, create_installation, update_installation, delete_installation, get_minecraft_versions, 
+    KableInstallation, get_installations_old, create_installation_old, update_installation, delete_installation_old, get_minecraft_versions, 
     open_installation_folder, launch_minecraft_installation, quick_launch_minecraft, launch_most_recent_installation, 
     detect_installation_mod_loader, ModLoaderDetectionResult};
 pub use launcher::{LaunchContext, VersionManifest, load_version_manifest, get_minecraft_paths, get_java_path};
@@ -157,36 +159,10 @@ async fn check_java_installation() -> Result<String, String> {
     }
 }
 
-// Get the default Minecraft directory
-#[tauri::command]
-async fn get_default_minecraft_dir() -> Result<String, String> {
-    let possible_paths = vec![
-        // Windows
-        dirs::data_dir().map(|p| p.join(".minecraft")),
-        dirs::home_dir().map(|p| p.join("AppData").join("Roaming").join(".minecraft")),
-        // macOS
-        dirs::home_dir().map(|p| p.join("Library").join("Application Support").join("minecraft")),
-        // Linux
-        dirs::home_dir().map(|p| p.join(".minecraft")),
-    ];
-    
-    for path in possible_paths.into_iter().flatten() {
-        if path.exists() {
-            return Ok(path.to_string_lossy().to_string());
-        }
-    }
-    
-    // If no existing installation found, return the default path
-    if let Some(appdata) = dirs::data_dir() {
-        let minecraft_dir = appdata.join(".minecraft");
-        Ok(minecraft_dir.to_string_lossy().to_string())
-    } else {
-        Err("Could not determine default Minecraft directory".to_string())
-    }
-}
 
 
 
+/// This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -195,6 +171,8 @@ pub fn run() {
             launch_minecraft,
             check_java_installation,
             get_default_minecraft_dir,
+            get_minecraft_kable_dir,
+            get_kable_launcher_dir,
             // Main authentication commands
             auth::get_minecraft_account,
             auth::get_launch_auth_account,
@@ -221,18 +199,15 @@ pub fn run() {
             // Settings commands
             settings::load_settings,
             settings::save_settings,
-            settings::get_launcher_dir,
-            settings::get_default_minecraft_directory,
-            settings::validate_minecraft_directory,
             // Installation commands
             installations::get_minecraft_installations,
             installations::refresh_installation,
             installations::update_installation_last_played,
             // Kable installation management
-            installations::get_installations,
-            installations::create_installation,
+            installations::get_installations_old,
+            installations::create_installation_old,
             installations::update_installation,
-            installations::delete_installation,
+            installations::delete_installation_old,
             installations::get_minecraft_versions,
             installations::open_installation_folder,
             installations::launch_minecraft_installation,
@@ -312,4 +287,54 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+/// Get the default Minecraft directory
+#[tauri::command]
+fn get_default_minecraft_dir() -> Result<PathBuf, String> {
+    let possible_paths = vec![
+        // Windows
+        dirs::data_dir().map(|p| p.join(".minecraft")),
+        dirs::home_dir().map(|p| p.join("AppData").join("Roaming").join(".minecraft")),
+        // macOS
+        dirs::home_dir().map(|p| p.join("Library").join("Application Support").join("minecraft")),
+        // Linux
+        dirs::home_dir().map(|p| p.join(".minecraft")),
+    ];
+    
+    for path in possible_paths.into_iter().flatten() {
+        if path.exists() {
+            return Ok(path);
+        }
+    }
+    
+    // If no existing installation found, return the default path
+    if let Some(appdata) = dirs::data_dir() {
+        let minecraft_dir = appdata.join(".minecraft");
+        Ok(minecraft_dir)
+    } else {
+        Err("Could not determine default Minecraft directory".to_string())
+    }
+}
+
+/// Gets the kable dir inside the .minecraft folder
+#[tauri::command]
+fn get_minecraft_kable_dir() -> Result<PathBuf, String> {
+    let default_dir = get_default_minecraft_dir()?;
+    let kable_dir = default_dir.join("kable");
+    if !kable_dir.exists() {
+        fs::create_dir_all(&kable_dir).map_err(|e| e.to_string())?;
+    }
+    Ok(kable_dir)
+}
+
+/// Gets the kable-launcher folder, on windows this is inside Roaming/kable-launcher
+#[tauri::command]
+fn get_kable_launcher_dir() -> Result<PathBuf, String> {
+    let kable_dir = get_minecraft_kable_dir()?;
+    let launcher_dir = kable_dir.join("launcher");
+    if !launcher_dir.exists() {
+        fs::create_dir_all(&launcher_dir).map_err(|e| e.to_string())?;
+    }
+    Ok(launcher_dir)
 }

@@ -357,20 +357,7 @@
       {/each}
     </div>
   {/if} -->
-  <InstallationsList 
-    {installations} 
-    {modDetectionResults} 
-    {isLoading} 
-    {error} 
-    onPlay={launchInstallation} 
-    onOpenFolder={openInstallationFolder} 
-    onEdit={editInstallation}
-    onDelete={deleteInstallation} 
-    onDuplicate={() => {}}
-    getModLoaderColor={getModLoaderColor}
-    getModLoaderIcon={getModLoaderIcon}
-    getModLoaderDisplay={getModLoaderDisplay}
-    />
+  <InstallationsList />
 </div>
 
 <!-- Create Installation Modal -->
@@ -667,213 +654,6 @@
         color: $placeholder;
         font-size: 1rem;
       }
-    }
-  }
-
-  .installations-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-    gap: 1.5rem;
-  }
-
-  .installation-card {
-    background: $container;
-    border: 1px solid $dark-600;
-    border-radius: $border-radius;
-    padding: 1.5rem;
-    transition: all 0.2s ease;
-
-    &:hover {
-      border-color: $primary;
-      transform: translateY(-2px);
-    }
-
-    .installation-header {
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 1rem;
-
-      .installation-icon {
-        width: 60px;
-        height: 60px;
-        border-radius: $border-radius;
-        background: rgba($primary, 0.1);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: $primary;
-        flex-shrink: 0;
-      }
-
-      .installation-info {
-        flex: 1;
-
-        h3 {
-          margin: 0 0 0.5rem;
-          font-size: 1.25rem;
-          font-weight: 600;
-          color: $text;
-        }
-
-        .installation-details {
-          display: flex;
-          gap: 1rem;
-          margin-bottom: 0.5rem;
-
-          .version {
-            font-weight: 500;
-            color: $green;
-            font-family: monospace;
-          }
-
-          .mod-loader {
-            font-size: 0.875rem;
-            color: $placeholder;
-            text-transform: capitalize;
-          }
-        }
-
-        .description {
-          margin: 0;
-          font-size: 0.875rem;
-          color: $placeholder;
-          line-height: 1.4;
-        }
-      }
-    }
-
-    .installation-stats {
-      margin-bottom: 1rem;
-      padding: 1rem 0;
-      border-top: 1px solid $dark-600;
-      border-bottom: 1px solid $dark-600;
-
-      .stat {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 0.5rem;
-        font-size: 0.875rem;
-        color: $placeholder;
-
-        &:last-child {
-          margin-bottom: 0;
-        }
-      }
-    }
-
-    .installation-actions {
-      display: flex;
-      gap: 0.75rem;
-      align-items: center;        .dropdown {
-          position: relative;
-          margin-left: auto;
-
-          .dropdown-toggle {
-            padding: 0.5rem;
-          }
-
-          .dropdown-menu {
-            position: absolute;
-            top: 100%;
-            right: 0;
-            margin-top: 0.25rem;
-            background: $container;
-            border: 1px solid $dark-600;
-            border-radius: $border-radius;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            min-width: 150px;
-            z-index: 10;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: opacity 0.2s ease, visibility 0.2s ease, transform 0.2s ease;
-            transition-delay: 0s;
-
-            button {
-              display: flex;
-              align-items: center;
-              gap: 0.5rem;
-              width: 100%;
-              padding: 0.75rem 1rem;
-              border: none;
-              background: none;
-              color: $text;
-              font-size: 0.875rem;
-              cursor: pointer;
-              transition: background-color 0.2s ease;
-
-              &:hover {
-                background: rgba($primary, 0.1);
-              }
-
-              &.danger {
-                color: $red;
-              }
-            }
-
-            .dropdown-separator {
-              height: 1px;
-              background: $dark-600;
-              margin: 0.5rem 0;
-            }
-          }
-
-          &:hover .dropdown-menu {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-            transition-delay: 0.1s;
-          }
-
-          // Add a small invisible bridge to help with mouse navigation
-          &::before {
-            content: '';
-            position: absolute;
-            top: 100%;
-            right: 0;
-            width: 100%;
-            height: 0.25rem;
-            background: transparent;
-            z-index: 9;
-          }
-        }
-    }
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: 4rem 2rem;
-
-    .empty-icon {
-      margin-bottom: 1.5rem;
-      color: $placeholder;
-    }
-
-    h3 {
-      margin: 0 0 1rem;
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: $text;
-    }
-
-    p {
-      margin: 0 0 2rem;
-      color: $placeholder;
-      font-size: 1rem;
-    }
-  }
-
-  .loading-state {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 4rem 2rem;
-    color: $placeholder;
-
-    :global(.icon) {
-      animation: spin 1s linear infinite;
     }
   }
 
@@ -1211,20 +991,10 @@
   }
 
   @media (max-width: 768px) {
-    .installations-grid {
-      grid-template-columns: 1fr;
-    }
-
     .page-header {
       flex-direction: column;
       gap: 1rem;
       align-items: stretch;
-    }
-
-    .installation-card {
-      .installation-actions {
-        flex-wrap: wrap;
-      }
     }
 
     .modal {

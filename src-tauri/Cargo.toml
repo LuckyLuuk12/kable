@@ -43,6 +43,7 @@ oauth2 = "4.4"
 minecraft-msa-auth = "0.3"
 rand = "0.8"
 aes-gcm = "0.10"
+lazy_static = "1.4"
 
 # Pin problematic dependencies to avoid edition2024 issues
 base64ct = "=1.6.0"  # Pin to avoid 1.8.0 which uses edition2024

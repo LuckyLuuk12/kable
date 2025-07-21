@@ -30,8 +30,8 @@ pub struct IconSettings {
 
 /// Get the icons configuration directory
 async fn get_icons_dir() -> Result<PathBuf, String> {
-    let launcher_dir = crate::get_launcher_dir().await?;
-    Ok(PathBuf::from(launcher_dir).join("config").join("icons"))
+    let launcher_dir = crate::get_kable_launcher_dir()?;
+    Ok(launcher_dir.join("config").join("icons"))
 }
 
 /// Ensure the icons directory exists
