@@ -592,6 +592,8 @@ fn try_find_library_manually(library_name: &str, libraries_path: &Path) -> Optio
     None
 }
 
+
+
 /// Find Java executable
 pub fn find_java_executable(java_path: Option<&String>) -> Result<String, String> {
     if let Some(path) = java_path {
@@ -633,6 +635,7 @@ pub fn get_java_path(java_path: Option<String>) -> Result<String, String> {
     find_java_executable(java_path.as_ref())
 }
 
+/* 
 /// Build memory arguments with optional memory override for per-installation settings
 pub fn build_memory_arguments_with_override(settings: &CategorizedLauncherSettings, memory_override: Option<u32>) -> Vec<String> {
     let mut args = Vec::new();
@@ -753,6 +756,7 @@ fn extract_jar(jar_path: &PathBuf, extract_to: &Path) -> Result<(), String> {
     
     Ok(())
 }
+*/
 
 /// Deduplicate libraries by name, keeping the last (newer) version
 /// Special handling for native libraries - keep both core and native versions

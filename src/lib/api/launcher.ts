@@ -5,6 +5,7 @@ import { invoke } from '@tauri-apps/api/core';
  * Pure Tauri invoke calls for Minecraft launching operations
  */
 // TODO: Move all types to types.d.ts
+// @deprecated("...")
 export interface ExtendedLaunchOptions {
     version?: string;
     installationId?: string;
@@ -14,7 +15,7 @@ export interface ExtendedLaunchOptions {
     windowWidth?: number;
     windowHeight?: number;
 }
-
+// @deprecated("...")
 export interface LaunchResult {
     success: boolean;
     error?: string;

@@ -14,6 +14,3 @@ export async function saveSettings(settings: CategorizedLauncherSettings): Promi
   return await invoke('save_settings', { settings });
 }
 
-export async function getLauncherDir(): Promise<string> {
-  return await invoke('get_launcher_dir');
-}

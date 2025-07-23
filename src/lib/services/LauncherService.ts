@@ -1,3 +1,4 @@
+import type { KableInstallation } from '$lib/types';
 import type { ExtendedLaunchOptions, LaunchResult } from '../api/launcher';
 import * as launcherApi from '../api/launcher';
 
@@ -68,7 +69,7 @@ export class LaunchService {
     /**
      * Launch specific installation
      */
-    async launchInstallation(installationId: string): Promise<LaunchResult> {
+    async launchInstallationById(installationId: string): Promise<LaunchResult> {
         try {
             await launcherApi.launchInstallation(installationId);
             return { success: true };
@@ -79,6 +80,9 @@ export class LaunchService {
                 error: error instanceof Error ? error.message : String(error)
             };
         }
+    }
+    async launchInstallation(installation: KableInstallation): Promise<LaunchResult> {
+        return this.launchInstallationById(installation.id);
     }
     
     /**

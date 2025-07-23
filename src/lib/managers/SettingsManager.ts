@@ -172,18 +172,6 @@ export class SettingsManager {
   }
 
   /**
-   * Get launcher directory path
-   */
-  static async getLauncherDirectory(): Promise<string> {
-    try {
-      return await SettingsService.getLauncherDir();
-    } catch (error) {
-      console.error('Failed to get launcher directory:', error);
-      throw error;
-    }
-  }
-
-  /**
    * Get current settings (synchronously from store)
    */
   static getSettings(): CategorizedLauncherSettings {

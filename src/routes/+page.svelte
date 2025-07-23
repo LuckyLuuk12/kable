@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Icon, installations, isLoadingInstallations, installationsError, type MinecraftInstallation, LaunchService, InstallationManager } from '$lib';
+  import { Icon, installations, isLoadingInstallations, installationsError, type KableInstallation, LaunchService, InstallationManager } from '$lib';
     import InstallationsList from '$lib/components/InstallationsList.svelte';
 
 
   // State variables
-  let lastPlayedInstallations: MinecraftInstallation[] = [];
+  let lastPlayedInstallations: KableInstallation[] = [];
   let error: string | null = null;
   let viewMode: 'grid' | 'list' = 'grid';
   let isLaunching = false;
@@ -15,13 +15,11 @@
   // Subscribe to the installations store
   $: {
     console.log('Total installations:', $installations.length);
-    console.log('Valid installations:', $installations.filter(i => i.is_valid).length);
     
     lastPlayedInstallations = $installations
-      .filter((installation: MinecraftInstallation) => installation.is_valid)
-      .sort((a: MinecraftInstallation, b: MinecraftInstallation) => {
-        const aTime = new Date(a.last_played || 0).getTime();
-        const bTime = new Date(b.last_played || 0).getTime();
+      .sort((a: KableInstallation, b: KableInstallation) => {
+        const aTime = new Date(a.last_used || 0).getTime();
+        const bTime = new Date(b.last_used || 0).getTime();
         return bTime - aTime;
       })
       .slice(0, 8); // Show up to 8 installations
@@ -82,15 +80,15 @@
     
     try {
       // Check if we're ready to launch
-      const { canLaunch, reason } = await InstallationManager.canLaunch(lastPlayedInstallations[0]);
-      if (!canLaunch) {
-        launchStatus = reason || 'Cannot launch';
-        setTimeout(() => {
-          launchStatus = '';
-          isLaunching = false;
-        }, 10000);
-        return;
-      }
+      // const { canLaunch, reason } = await InstallationManager.canLaunch(lastPlayedInstallations[0]);
+      // if (!canLaunch) {
+      //   launchStatus = reason || 'Cannot launch';
+      //   setTimeout(() => {
+      //     launchStatus = '';
+      //     isLaunching = false;
+      //   }, 10000);
+      //   return;
+      // }
       
       // Try to launch the most recent installation
       if (lastPlayedInstallations.length > 0) {
@@ -98,7 +96,7 @@
         launchStatus = `Launching ${lastPlayedInstallations[0].name}...`;
         // Select the installation and launch with GameManager
         InstallationManager.selectInstallation(lastPlayedInstallations[0]);
-        await InstallationManager.launchGame();
+        // await InstallationManager.launchGame();
         result = { success: true };
       } else {
         launchStatus = 'Launching default Minecraft...';
@@ -129,7 +127,7 @@
     }
   }
 
-  async function handleInstallationLaunch(installation: MinecraftInstallation) {
+  async function handleInstallationLaunch(installation: KableInstallation) {
     const launchButton = event?.target as HTMLButtonElement;
     const originalText = launchButton?.textContent || '';
     
@@ -141,13 +139,13 @@
     try {
       // Select the installation and check if we can launch
       InstallationManager.selectInstallation(installation);
-      const { canLaunch, reason } = await InstallationManager.canLaunch();
-      if (!canLaunch) {
-        alert(reason || 'Cannot launch');
-        return;
-      }
-      
-      await InstallationManager.launchGame();
+      // const { canLaunch, reason } = await InstallationManager.canLaunch();
+      // if (!canLaunch) {
+      //   alert(reason || 'Cannot launch');
+      //   return;
+      // }
+      // TODO: make launchService work with selected installation
+      // await InstallationManager.launchGame();
       
       if (launchButton) {
         launchButton.textContent = 'Launched!';

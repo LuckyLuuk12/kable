@@ -16,7 +16,7 @@
     
     try {
       // Test if Tauri is ready by making a simple call
-      await InstallationManager.getDefaultMinecraftDirectory();
+      await InstallationManager.loadInstallations();
       isTauriReady = true;
       
       // Initialize logs service first

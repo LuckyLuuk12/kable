@@ -53,7 +53,7 @@ export async function delete_installation(id: string): Promise<void> {
   return await invoke('delete_installation', { id });
 }
 
-export async function create_installation(version_id: string): Promise<void> {
+export async function create_installation(version_id: string): Promise<KableInstallation> {
   return await invoke('create_installation', { version_id });
 }
 

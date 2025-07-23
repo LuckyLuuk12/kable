@@ -1,8 +1,6 @@
 use std::fs;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
-// use crate::auth::MicrosoftAccount; // Skipped for now
-use crate::AppError;
 use crate::logging::{Logger, LogLevel};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -221,7 +219,7 @@ pub fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), String
     
 //     Ok(minecraft_dir.to_string_lossy().to_string())
 // }
-/* 
+
 // Validate Minecraft directory
 #[tauri::command]
 pub async fn validate_minecraft_directory(path: String) -> Result<MinecraftDirectoryInfo, String> {
@@ -277,8 +275,9 @@ pub async fn validate_minecraft_directory(path: String) -> Result<MinecraftDirec
         size_mb,
     })
 }
-*/
-// Helper function to count directories
+
+
+// // Helper function to count directories
 fn count_directories(path: &PathBuf) -> Result<u32, std::io::Error> {
     let mut count = 0;
     for entry in fs::read_dir(path)? {
@@ -290,7 +289,7 @@ fn count_directories(path: &PathBuf) -> Result<u32, std::io::Error> {
     Ok(count)
 }
 
-// Helper function to count files with specific extensions
+// // Helper function to count files with specific extensions
 fn count_files_with_extensions(path: &PathBuf, extensions: &[&str]) -> Result<u32, std::io::Error> {
     let mut count = 0;
     for entry in fs::read_dir(path)? {
@@ -309,7 +308,7 @@ fn count_files_with_extensions(path: &PathBuf, extensions: &[&str]) -> Result<u3
     Ok(count)
 }
 
-// Helper function to calculate directory size
+// // Helper function to calculate directory size
 fn calculate_directory_size(path: &PathBuf) -> Result<u64, std::io::Error> {
     let mut size = 0;
     if path.is_dir() {
@@ -325,6 +324,7 @@ fn calculate_directory_size(path: &PathBuf) -> Result<u64, std::io::Error> {
     }
     Ok(size)
 }
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MinecraftDirectoryInfo {

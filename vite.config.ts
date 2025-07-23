@@ -6,6 +6,7 @@ export default defineConfig({
   css: {
     preprocessorOptions: {
       scss: {
+        api: 'modern',
         includePaths: [
           'src/lib/styles',
           'node_modules',

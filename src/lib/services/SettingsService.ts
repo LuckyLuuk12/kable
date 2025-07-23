@@ -14,8 +14,4 @@ export class SettingsService {
   static async saveSettings(settings: CategorizedLauncherSettings): Promise<void> {
     return await settingsApi.saveSettings(settings);
   }
-
-  static async getLauncherDir(): Promise<string> {
-    return await settingsApi.getLauncherDir();
-  }
 }

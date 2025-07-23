@@ -1,301 +1,150 @@
-import type { InstallationForm, MinecraftInstallation } from '$lib';
-import type { MinecraftVersion, ModDetectionResult } from '$lib';
-import { InstallationService, ModDetectionService, installations, isLoadingInstallations, installationsError, isLaunching, launchError, selectedInstallation } from '$lib';
-import { LaunchService } from '$lib';
-import * as minecraftApi from '../api/minecraft';
-import { get } from 'svelte/store';
-import { AuthManager } from '$lib';
+import { Loader, type InstallationForm, type KableInstallation, type VersionData, installations, selectedInstallation, isLoadingInstallations, installationsError } from '$lib';
 import * as installationsApi from '../api/installations';
+import { get } from 'svelte/store';
 
 export class InstallationManager {
-  static async getInstallations(): Promise<MinecraftInstallation[]> {
-    return await InstallationService.getInstallations();
+  /**
+   * Load all installations and update the store. 
+   * @returns A snapshot of the loaded installations.
+   */
+  static async loadInstallations(): Promise<KableInstallation[]> {
+    try {
+      isLoadingInstallations.set(true);
+      installationsError.set(null);
+      const foundInstallations = await installationsApi.get_installations();
+      installations.set(foundInstallations);
+      // Optionally select the first installation
+      selectedInstallation.set(foundInstallations[0] || null);
+    } catch (error) {
+      installationsError.set(`Failed to load installations: ${error}`);
+      installations.set([]);
+      selectedInstallation.set(null);
+    } finally {
+      isLoadingInstallations.set(false);
+    }
+    return get(installations);
   }
 
-  static async createInstallation(form: any): Promise<MinecraftInstallation> {
-    installations.set(get(installations).concat([form]));
-    return await InstallationService.createInstallation(
-      form.name,
-      form.version,
-      form.mod_loader,
-      form.game_directory,
-      form.java_path,
-      form.jvm_args,
-      form.memory,
-      form.description
-    );
+  /**
+   * Create a new installation and update the store.
+   * @param version_id The ID of the version to create the installation for.
+   */
+  static async createInstallation(version_id: string): Promise<KableInstallation> {
+    let installation = await installationsApi.create_installation(version_id);
+    await this.loadInstallations();
+    return installation;
   }
 
-  static async deleteInstallation(installationId: string): Promise<void> {
-    installations.set(get(installations).filter(inst => inst.id !== installationId));
-    return await InstallationService.deleteInstallation(installationId);
+  /**
+   * Update an existing installation.
+   */
+  static async updateInstallation(id: string, newInstallation: KableInstallation): Promise<void> {
+    await installationsApi.modify_kable_installation(id, newInstallation);
+    await this.loadInstallations();
   }
 
-  static async updateInstallation(installationId: string, form: any): Promise<MinecraftInstallation> {
-    installations.set(get(installations).map(inst => inst.id === installationId ? { ...inst, ...form } : inst));
-    return await InstallationService.updateInstallation(
-      installationId,
-      form.name,
-      form.version,
-      form.mod_loader,
-      form.game_directory,
-      form.java_path,
-      form.jvm_args,
-      form.memory,
-      form.description
-    );
+  /**
+   * Delete an installation by ID.
+   */
+  static async deleteInstallation(id: string): Promise<void> {
+    await installationsApi.delete_installation(id);
+    await this.loadInstallations();
   }
 
-  static async launchInstallation(installation: MinecraftInstallation): Promise<void> {
-    // Optionally add validation here
-    await InstallationService.launchInstallation(installation.id);
+  /**
+   * Select an installation.
+   */
+  static selectInstallation(installation: KableInstallation | null): void {
+    selectedInstallation.set(installation);
   }
 
-  static async openInstallationFolder(installationId: string): Promise<void> {
-    return await InstallationService.openInstallationFolder(installationId);
+  /**
+   * Get current installations from store.
+   * @return A snapshot of the currently loaded installations.
+   */
+  static getInstallations(): KableInstallation[] {
+    return get(installations);
   }
 
-  static async analyzeInstallation(installation: MinecraftInstallation): Promise<ModDetectionResult> {
-    return await ModDetectionService.analyzeInstallation(installation);
-  }
-
-  static async getMinecraftVersions(): Promise<MinecraftVersion[]> {
-    return await InstallationService.getMinecraftVersions();
-  }
-
-  static getFallbackVersions(): MinecraftVersion[] {
-    return [
-      { id: '1.21.3', type: 'release', releaseTime: '2024-10-23T12:00:00Z', url: '', time: '2024-10-23T12:00:00Z' },
-      { id: '1.21.2', type: 'release', releaseTime: '2024-10-22T12:00:00Z', url: '', time: '2024-10-22T12:00:00Z' },
-      { id: '1.21.1', type: 'release', releaseTime: '2024-08-08T12:00:00Z', url: '', time: '2024-08-08T12:00:00Z' },
-      { id: '1.21', type: 'release', releaseTime: '2024-06-13T12:00:00Z', url: '', time: '2024-06-13T12:00:00Z' },
-      { id: '1.20.6', type: 'release', releaseTime: '2024-04-29T12:00:00Z', url: '', time: '2024-04-29T12:00:00Z' },
-      { id: '1.20.4', type: 'release', releaseTime: '2023-12-07T12:00:00Z', url: '', time: '2023-12-07T12:00:00Z' },
-      { id: '1.19.4', type: 'release', releaseTime: '2023-03-14T12:00:00Z', url: '', time: '2023-03-14T12:00:00Z' },
-      { id: '1.18.2', type: 'release', releaseTime: '2022-02-28T12:00:00Z', url: '', time: '2022-02-28T12:00:00Z' },
-    ];
+  /**
+   * Get currently selected installation from store.
+   * @return The currently selected installation, or null if none is selected.
+   */
+  static getSelectedInstallation(): KableInstallation | null {
+    return get(selectedInstallation);
   }
 
   static getEmptyInstallationForm(): InstallationForm {
     return {
       name: '',
-      version: '',
-      mod_loader: 'vanilla',
-      game_directory: '',
-      java_path: '',
-      jvm_args: '-Xmx2G',
-      memory: 2048,
-      description: ''
+      icon: '',
+      version: {
+        id: '',
+        loader: Loader.Vanilla,
+        stable: true,
+      },
+      java_args: [
+        "-Xmx2048M",
+      ],
+      dedicated_resource_pack_folder: null,
+      dedicated_shaders_folder: null,
     };
   }
 
-  /**
-   * Select installation (sets the selectedInstallation store)
-   */
-  static selectInstallation(installation: MinecraftInstallation | null): void {
-    selectedInstallation.set(installation);
+  static fromInstallationForm(form: InstallationForm): KableInstallation {
+    return {
+      id: crypto.randomUUID(),
+      name: form.name,
+      icon: form.icon,
+      version: form.version,
+      created: new Date().toISOString(),
+      last_used: new Date().toISOString(),
+      java_args: form.java_args || [],
+      dedicated_resource_pack_folder: form.dedicated_resource_pack_folder || null,
+      dedicated_shaders_folder: form.dedicated_shaders_folder || null,
+    };
   }
 
-  /**
-   * Can launch (overload: uses selectedInstallation if not provided)
-   */
-  static async canLaunch(installation?: MinecraftInstallation): Promise<{ canLaunch: boolean; reason?: string }> {
-    const inst = installation ?? get(selectedInstallation);
-    const account = AuthManager.getCurrentAccount?.() ?? null;
-    if (!account) {
-      return { canLaunch: false, reason: 'Not authenticated' };
-    }
-    if (!inst) {
-      return { canLaunch: false, reason: 'No installation selected' };
-    }
-    if (!inst.is_valid) {
-      return { canLaunch: false, reason: 'Invalid installation' };
-    }
-    return { canLaunch: true };
+  static getFallbackVersions(): VersionData[] {
+    return [
+      {
+        id: '1.21.8',
+        loader: Loader.Vanilla,
+        stable: true,
+      },
+      {
+        id: '1.19.4',
+        loader: Loader.Vanilla,
+        stable: true,
+      },
+      {
+        id: '1.8.9',
+        loader: Loader.Vanilla,
+        stable: true,
+      },
+    ];
   }
 
-  // /**
-  //  * Launch Minecraft with current settings and authentication
-  //  */
-  // static async launchGame(): Promise<void> {
-  //   const account = AuthManager.getCurrentAccount?.() ?? null;
-  //   const installation = get(selectedInstallation);
-
-  //   if (!account) {
-  //     throw new Error('Please sign in first');
-  //   }
-  //   if (!installation) {
-  //     throw new Error('Please select a Minecraft installation');
-  //   }
-  //   if (!installation.is_valid) {
-  //     throw new Error('Selected installation is not valid');
-  //   }
-
-  //   try {
-  //     // TODO: Finish launcher.rs and the corresponding API
-  //     // await minecraftApi.launchMinecraft(installation.id, account.access_token);
-  //     // await installationsApi.launchMinecraftInstallation(installation.id);
-  //     // Optionally update last played time for the account here if needed
-  //   } catch (error) {
-  //     throw error;
-  //   }
-  // }
-
-  /**
-   * Load Minecraft installations and update stores
-   */
-  static async loadInstallations(): Promise<void> {
-    try {
-      if (typeof installations !== 'undefined' && typeof selectedInstallation !== 'undefined') {
-        isLoadingInstallations?.set?.(true);
-        installationsError?.set?.(null);
-        const foundInstallations = await InstallationService.getInstallations();
-        installations.set(foundInstallations);
-        const validInstallation = foundInstallations.find((i: MinecraftInstallation) => i.is_valid);
-        const toSelect = validInstallation || foundInstallations[0] || null;
-        const current = get(selectedInstallation);
-        if (!current || !foundInstallations.find(i => i.id === current.id)) {
-          selectedInstallation.set(toSelect);
-        }
-      }
-    } catch (error) {
-      installationsError?.set?.(`Failed to load installations: ${error}`);
-      installations?.set?.([]);
-      selectedInstallation?.set?.(null);
-    } finally {
-      isLoadingInstallations?.set?.(false);
+  static getLoaderIcon(loader: Loader): string {
+    switch (loader) {
+      case Loader.Vanilla:    return 'cube';
+      case Loader.Fabric:     return 'fabric';
+      case Loader.Forge:      return 'forge';
+      case Loader.Quilt:      return 'quilt';
+      case Loader.NeoForge:   return 'neoforge';
+      case Loader.IrisFabric: return 'iris';
+      default:                return 'question-mark';
     }
   }
-
-  /**
-   * Get current installations from store
-   */
-  static getInstallationsFromStore(): MinecraftInstallation[] {
-    return typeof installations !== 'undefined' ? get(installations) : [];
-  }
-
-  /**
-   * Get currently selected installation from store
-   */
-  static getSelectedInstallation(): MinecraftInstallation | null {
-    return typeof selectedInstallation !== 'undefined' ? get(selectedInstallation) : null;
-  }
-
-  /**
-   * Synchronous canLaunch (uses selectedInstallation)
-   */
-  static canLaunchSync(): { canLaunch: boolean; reason?: string } {
-    const account = AuthManager.getCurrentAccount?.() ?? null;
-    const installation = typeof selectedInstallation !== 'undefined' ? get(selectedInstallation) : null;
-    if (!account) {
-      return { canLaunch: false, reason: 'Not authenticated' };
-    }
-    if (!installation) {
-      return { canLaunch: false, reason: 'No installation selected' };
-    }
-    if (!installation.is_valid) {
-      return { canLaunch: false, reason: 'Invalid installation' };
-    }
-    return { canLaunch: true };
-  }
-
-  /**
-   * Get launch status message
-   */
-  static getLaunchStatus(): string {
-    const { canLaunch, reason } = this.canLaunchSync();
-    if (!canLaunch) {
-      return reason || 'Cannot launch';
-    }
-    if (typeof isLaunching !== 'undefined' && get(isLaunching)) {
-      return 'Launching...';
-    }
-    if (typeof launchError !== 'undefined') {
-      const error = get(launchError);
-      if (error) {
-        return error;
-      }
-    }
-    return 'Ready to launch';
-  }
-
-  /**
-   * Check if Minecraft is currently running
-   */
-  static async isMinecraftRunning(): Promise<boolean> {
-    try {
-      const launchService = LaunchService.getInstance?.();
-      return await launchService?.isMinecraftRunning?.();
-    } catch (error) {
-      console.error('Failed to check Minecraft status:', error);
-      return false;
-    }
-  }
-
-  /**
-   * Launch selected installation
-   */
-  static async launchSelected(): Promise<void> {
-    const installation = typeof selectedInstallation !== 'undefined' ? get(selectedInstallation) : null;
-    if (!installation) {
-      throw new Error('No installation selected');
-    }
-    await this.launch(installation.id);
-  }
-
-  /**
-   * Launch specific installation by id
-   */
-  static async launch(installationId: string): Promise<void> {
-    try {
-      isLaunching?.set?.(true);
-      launchError?.set?.(null);
-      const launchService = LaunchService.getInstance?.();
-      const result = await launchService?.launchInstallation?.(installationId);
-      if (!result?.success) {
-        throw new Error(result?.error || 'Launch failed');
-      }
-      console.log('✅ Minecraft launched successfully');
-    } catch (error) {
-      console.error('❌ Launch failed:', error);
-      launchError?.set?.(error instanceof Error ? error.message : String(error));
-      throw error;
-    } finally {
-      isLaunching?.set?.(false);
-    }
-  }
-
-  /**
-   * Quick launch by version name
-   */
-  static async quickLaunch(versionName: string): Promise<void> {
-    try {
-      isLaunching?.set?.(true);
-      launchError?.set?.(null);
-      const launchService = LaunchService.getInstance?.();
-      const result = await launchService?.quickLaunch?.(versionName);
-      if (!result?.success) {
-        throw new Error(result?.error || 'Quick launch failed');
-      }
-      console.log('✅ Minecraft quick launched successfully');
-    } catch (error) {
-      console.error('❌ Quick launch failed:', error);
-      launchError?.set?.(error instanceof Error ? error.message : String(error));
-      throw error;
-    } finally {
-      isLaunching?.set?.(false);
-    }
-  }
-
-  /**
-   * Get default Minecraft directory
-   */
-  static async getDefaultMinecraftDirectory(): Promise<string> {
-    try {
-      return await minecraftApi.getDefaultMinecraftDir?.();
-    } catch (error) {
-      console.error('Failed to get default Minecraft directory:', error);
-      throw error;
+  static getLoaderColor(loader: Loader): string {
+    switch (loader) {
+      case Loader.Vanilla:    return '#11833cff'; // Vanilla's green/grass color
+      case Loader.Fabric:     return '#dbb866'; // Fabric's golden color
+      case Loader.Forge:      return '#1e2328'; // Forge's dark color
+      case Loader.Quilt:      return '#9c5aa0'; // Quilt's purple color
+      case Loader.NeoForge:   return '#f16436'; // NeoForge's orange color
+      case Loader.IrisFabric: return '#4c8cff'; // Iris Fabric's blue color
+      default:                return '#cccccc'; // Default gray for unknown loaders
     }
   }
 }

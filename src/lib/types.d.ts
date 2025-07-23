@@ -596,24 +596,6 @@ export interface MiscSettings {
 //|                            Installation Types                               |
 //|_____________________________________________________________________________|
 
-/** Enum for different Minecraft loaders
- * ```ts
- * export enum Loader {
- *  Vanilla = "vanilla",
- *  Fabric = "fabric",
- *  Forge = "forge",
- *  Quilt = "quilt",
- *  NeoForge = "neoforge"
- * }
- * ```
- */
-export enum Loader {
-  Vanilla = "vanilla",
-  Fabric = "fabric",
-  Forge = "forge",
-  Quilt = "quilt",
-  NeoForge = "neoforge"
-}
 
 /** VersionData struct
  * ```ts
@@ -680,28 +662,18 @@ export interface LauncherProfile {
   profile_type: string;
 }
 
-/** InstallationForm struct
+/** InstallationForm struct - very similar to KableInstallation but leaves out some fields like the `id` and `created` fields
  * ```ts
  * export interface InstallationForm {
- *   name: string;
- *   version: string;
- *   mod_loader: Loader;
- *   game_directory?: string;
- *   java_path?: string;
- *   jvm_args?: string;
- *   memory?: number;
- *   description?: string;
  * }
  * ```
  */
-@deprecated("New type is WIP")
+
 export interface InstallationForm {
   name: string;
-  version: string;
-  mod_loader: 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge';
-  game_directory?: string;
-  java_path?: string;
-  jvm_args?: string;
-  memory?: number;
-  description?: string;
+  icon: string;
+  java_args?: string[];
+  version: VersionData;
+  dedicated_resource_pack_folder?: string | null;
+  dedicated_shaders_folder?: string | null;
 }

@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use crate::installations::MinecraftInstallation;
+
+use crate::{get_minecraft_kable_dir, KableInstallation};
+// use crate::installations::MinecraftInstallation;
 
 // Mod management structures
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -104,20 +106,19 @@ pub struct ModInstallationConfig {
 /// Get all modded installations (excludes vanilla)
 #[tauri::command]
 pub async fn get_modded_installations(minecraft_path: String) -> Result<Vec<ModInstallationConfig>, String> {
-    let installations = crate::installations::get_minecraft_installations(Some(minecraft_path.clone()))
-        .await
+    let installations = crate::installations_new::get_installations()
         .map_err(|e| format!("Failed to get installations: {}", e))?;
     
     let modded_installations: Vec<ModInstallationConfig> = installations
         .into_iter()
-        .filter(|installation| installation.installation_type != "vanilla")
+        .filter(|installation| installation.version.loader != crate::Loader::Vanilla)
         .map(|installation| {
             let mods_folder_path = get_mods_folder_path(&minecraft_path, &installation);
             ModInstallationConfig {
                 id: installation.id,
                 name: installation.name,
-                installation_type: installation.installation_type,
-                use_global_mods: installation.use_global_mods,
+                installation_type: installation.version.loader.to_string(),
+                use_global_mods: false,
                 mods_folder_path,
             }
         })
@@ -159,17 +160,13 @@ pub async fn setup_installation_mods(
 }
 
 /// Get the mods folder path for an installation
-fn get_mods_folder_path(minecraft_path: &str, installation: &MinecraftInstallation) -> String {
-    let minecraft_dir = PathBuf::from(minecraft_path);
-    let mods_base_dir = minecraft_dir.join("kable").join("mods");
-    
-    let mods_folder = if installation.use_global_mods {
-        mods_base_dir.join("kable-global")
-    } else {
-        mods_base_dir.join(&installation.id)
-    };
-    
-    mods_folder.to_string_lossy().to_string()
+fn get_mods_folder_path(minecraft_path: &str, installation: &KableInstallation) -> String {
+    let kable_dir = get_minecraft_kable_dir();
+    if let Ok(kable_dir) = kable_dir {
+        return kable_dir.join("mods").join(&installation.id).to_string_lossy().to_string();
+    }
+    dirs::data_dir().map(|p| p.join(".minecraft").join("kable").join("mods").join(&installation.id).to_string_lossy().to_string())
+        .unwrap_or_else(|| format!("{}/.minecraft/kable/mods/{}", minecraft_path, installation.id))
 }
 
 /// Get installed mods for a specific installation
@@ -178,8 +175,7 @@ pub async fn get_installed_mods(
     minecraft_path: String,
     installation_id: String,
 ) -> Result<Vec<InstalledMod>, String> {
-    let installations = crate::installations::get_minecraft_installations(Some(minecraft_path.clone()))
-        .await
+    let installations = crate::installations_new::get_installations()
         .map_err(|e| format!("Failed to get installations: {}", e))?;
     
     let installation = installations
@@ -211,11 +207,11 @@ pub async fn get_installed_mods(
                         source_id: "".to_string(),
                         file_path: entry.path().to_string_lossy().to_string(),
                         minecraft_version: "Unknown".to_string(),
-                        mod_loader: match installation.installation_type.as_str() {
-                            "fabric" => ModLoader::Fabric,
-                            "forge" => ModLoader::Forge,
-                            "quilt" => ModLoader::Quilt,
-                            "neoforge" => ModLoader::NeoForge,
+                        mod_loader: match installation.version.loader {
+                            crate::Loader::Fabric => ModLoader::Fabric,
+                            crate::Loader::Forge => ModLoader::Forge,
+                            crate::Loader::Quilt => ModLoader::Quilt,
+                            crate::Loader::NeoForge => ModLoader::NeoForge,
                             _ => ModLoader::Fabric, // Default fallback
                         },
                         enabled: !file_name.ends_with(".disabled"),

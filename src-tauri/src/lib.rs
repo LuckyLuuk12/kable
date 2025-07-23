@@ -6,7 +6,7 @@ use thiserror::Error;
 use tauri::Manager;
 
 // Module declarations
-mod auth; // Re-enabled for OAuth2 integration
+mod auth;
 mod settings;
 mod profile;
 mod maps;
@@ -14,7 +14,6 @@ mod mods;
 mod shaders;
 mod skins;
 mod installations_new;
-mod installations;
 mod launcher;
 mod icons;
 mod window_state;
@@ -38,10 +37,6 @@ pub use mods::{ModInstallationConfig, InstalledMod, get_modded_installations, se
 pub use shaders::{ShaderPack, get_installed_shaders, toggle_shader, delete_shader, install_shader_pack, get_shader_info};
 pub use skins::{MinecraftSkin, get_local_skins, save_skin, delete_skin, install_skin, get_skin_data, get_current_minecraft_skin, upload_skin_to_minecraft};
 pub use installations_new::*;
-pub use installations::{MinecraftInstallation, get_minecraft_installations, refresh_installation, update_installation_last_played, 
-    KableInstallation, get_installations_old, create_installation_old, update_installation, delete_installation_old, get_minecraft_versions, 
-    open_installation_folder, launch_minecraft_installation, quick_launch_minecraft, launch_most_recent_installation, 
-    detect_installation_mod_loader, ModLoaderDetectionResult};
 pub use launcher::{LaunchContext, VersionManifest, load_version_manifest, get_minecraft_paths, get_java_path};
 pub use icons::{CustomIconTemplate, IconSettings, get_custom_icon_templates, save_custom_icon_template, delete_custom_icon_template, validate_icon_template, get_icons_directory_path, open_icons_directory};
 pub use window_state::{WindowState, load_window_state, save_window_state, get_current_window_state, apply_window_state, setup_window_state_handlers, get_monitor_info, show_main_window};
@@ -199,21 +194,36 @@ pub fn run() {
             // Settings commands
             settings::load_settings,
             settings::save_settings,
+            settings::validate_minecraft_directory,
             // Installation commands
-            installations::get_minecraft_installations,
-            installations::refresh_installation,
-            installations::update_installation_last_played,
-            // Kable installation management
-            installations::get_installations_old,
-            installations::create_installation_old,
-            installations::update_installation,
-            installations::delete_installation_old,
-            installations::get_minecraft_versions,
-            installations::open_installation_folder,
-            installations::launch_minecraft_installation,
-            installations::quick_launch_minecraft,
-            installations::launch_most_recent_installation,
-            installations::detect_installation_mod_loader,
+            installations_new::get_launcher_profiles,
+            installations_new::get_all_versions,
+            installations_new::get_version_data_for_profile,
+            installations_new::get_kable_installations,
+            installations_new::convert_launcher_profiles_to_kable_installations,
+            installations_new::convert_kable_installations_to_launcher_profiles,
+            installations_new::get_installations,
+            installations_new::get_installation,
+            installations_new::modify_kable_installation,
+            installations_new::get_last_played_installation,
+            installations_new::modify_last_played_installation,
+            installations_new::modify_all_installations,
+            installations_new::delete_installation,
+            installations_new::create_installation,
+            // installations::get_minecraft_installations,
+            // installations::refresh_installation,
+            // installations::update_installation_last_played,
+            // // Kable installation management
+            // installations::get_installations_old,
+            // installations::create_installation_old,
+            // installations::update_installation,
+            // installations::delete_installation_old,
+            // installations::get_minecraft_versions,
+            // installations::open_installation_folder,
+            // installations::launch_minecraft_installation,
+            // installations::quick_launch_minecraft,
+            // installations::launch_most_recent_installation,
+            // installations::detect_installation_mod_loader,
             // Launcher commands
             launcher::get_java_path,
             // Maps/Worlds commands
@@ -278,6 +288,8 @@ pub fn run() {
                         if let Err(e) = apply_window_state(window.clone(), state).await {
                             Logger::console_log(LogLevel::Warning, &format!("Failed to apply window state: {}", e), None);
                         }
+                    } else {
+                        Logger::console_log(LogLevel::Warning, "No saved window state found, using default settings", None);
                     }
                     // Window will be shown by frontend after initialization
                 });
