@@ -39,7 +39,7 @@ export class InstallationManager {
    * Update an existing installation.
    */
   static async updateInstallation(id: string, newInstallation: KableInstallation): Promise<void> {
-    await installationsApi.modify_kable_installation(id, newInstallation);
+    await installationsApi.modify_installation(id, newInstallation);
     await this.loadInstallations();
   }
 

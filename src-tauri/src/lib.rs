@@ -13,7 +13,7 @@ mod maps;
 mod mods;
 mod shaders;
 mod skins;
-mod installations_new;
+mod installations;
 mod launcher;
 mod icons;
 mod window_state;
@@ -36,7 +36,7 @@ pub use maps::{LocalWorld, WorldDownload, get_local_worlds, delete_world, backup
 pub use mods::{ModInstallationConfig, InstalledMod, get_modded_installations, setup_installation_mods, get_installed_mods, toggle_mod_enabled, update_installation_mod_config};
 pub use shaders::{ShaderPack, get_installed_shaders, toggle_shader, delete_shader, install_shader_pack, get_shader_info};
 pub use skins::{MinecraftSkin, get_local_skins, save_skin, delete_skin, install_skin, get_skin_data, get_current_minecraft_skin, upload_skin_to_minecraft};
-pub use installations_new::*;
+pub use installations::*;
 pub use launcher::{LaunchContext, VersionManifest, load_version_manifest, get_minecraft_paths, get_java_path};
 pub use icons::{CustomIconTemplate, IconSettings, get_custom_icon_templates, save_custom_icon_template, delete_custom_icon_template, validate_icon_template, get_icons_directory_path, open_icons_directory};
 pub use window_state::{WindowState, load_window_state, save_window_state, get_current_window_state, apply_window_state, setup_window_state_handlers, get_monitor_info, show_main_window};
@@ -196,34 +196,13 @@ pub fn run() {
             settings::save_settings,
             settings::validate_minecraft_directory,
             // Installation commands
-            installations_new::get_launcher_profiles,
-            installations_new::get_all_versions,
-            installations_new::get_version_data_for_profile,
-            installations_new::get_kable_installations,
-            installations_new::convert_launcher_profiles_to_kable_installations,
-            installations_new::convert_kable_installations_to_launcher_profiles,
-            installations_new::get_installations,
-            installations_new::get_installation,
-            installations_new::modify_kable_installation,
-            installations_new::get_last_played_installation,
-            installations_new::modify_last_played_installation,
-            installations_new::modify_all_installations,
-            installations_new::delete_installation,
-            installations_new::create_installation,
-            // installations::get_minecraft_installations,
-            // installations::refresh_installation,
-            // installations::update_installation_last_played,
-            // // Kable installation management
-            // installations::get_installations_old,
-            // installations::create_installation_old,
-            // installations::update_installation,
-            // installations::delete_installation_old,
-            // installations::get_minecraft_versions,
-            // installations::open_installation_folder,
-            // installations::launch_minecraft_installation,
-            // installations::quick_launch_minecraft,
-            // installations::launch_most_recent_installation,
-            // installations::detect_installation_mod_loader,
+            installations::get_versions,
+            installations::get_all_versions,
+            installations::get_installations,
+            installations::get_installation,
+            installations::modify_installation,
+            installations::delete_installation,
+            installations::create_installation,
             // Launcher commands
             launcher::get_java_path,
             // Maps/Worlds commands

@@ -157,7 +157,6 @@
     } catch (err) {
       console.error('Installation launch error:', err);
       alert(`Launch failed: ${err}`);
-      alert(`Launch failed: ${err}`);
     } finally {
       // Reset button state after a short delay
       setTimeout(() => {
