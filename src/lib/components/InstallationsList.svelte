@@ -401,9 +401,6 @@ $: limitedInstallations = $installations
         background: none;
         outline: none;
       }
-      svg {
-        pointer-events: none;
-      }
     }
     background: $card;
     border-radius: $border-radius;
@@ -471,9 +468,6 @@ $: limitedInstallations = $installations
       &.btn-danger, &.btn.btn-danger, &.btn-danger:focus, &.btn-danger:hover {
         color: $red-700;
       }
-    }
-    .btn-primary, .btn.btn-primary {
-      color: $primary;
     }
     .btn-danger, .btn.btn-danger {
       color: $red-700;
@@ -633,10 +627,6 @@ $: limitedInstallations = $installations
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      &.mod-loader {
-        text-transform: capitalize;
-        font-weight: 500;
-      }
     }
     .meta-cell:nth-child(2n) .meta-value {
       justify-content: flex-end;
@@ -700,21 +690,6 @@ $: limitedInstallations = $installations
     gap: 0.5rem;
   }
   /* Reserve space for play button */
-  .installation-actions .play-placeholder {
-    width: 6.875rem; // 110px
-    height: 2.25rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: $border-radius;
-    background: rgba($primary, 0.07);
-    color: $primary;
-    font-weight: 500;
-    font-size: 1rem;
-    opacity: 0.5;
-    pointer-events: none;
-    border: 0.0625rem dashed $primary; // 1px
-  }
     .dropdown {
       position: relative;
       .dropdown-toggle {
@@ -838,9 +813,6 @@ $: limitedInstallations = $installations
     }
     .installation-card {
       padding: 1rem 0.5rem 1rem 0.5rem;
-    }
-    .installation-header {
-      gap: 0.5rem;
     }
     .installation-icon {
       width: 2.5rem;

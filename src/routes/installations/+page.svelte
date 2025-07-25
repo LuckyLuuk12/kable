@@ -111,9 +111,6 @@
       border: 1.5px solid $primary;
       font-weight: 600;
       transition: color 0.13s, background 0.13s, border 0.13s;
-      .icon-left {
-        margin-right: 0.5em;
-      }
       &:hover, &:focus {
         background: rgba($primary, 0.10);
         color: $primary-900;

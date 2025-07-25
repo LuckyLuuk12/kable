@@ -400,20 +400,6 @@
       font-size: 1.5rem;
       font-weight: 600;
     }
-
-    .view-toggle {
-      padding: 0.5rem;
-      background: $dark-600;
-      border: none;
-      border-radius: 6px;
-      color: $text;
-      cursor: pointer;
-      transition: background 0.2s ease;
-
-      &:hover {
-        background: $dark-500;
-      }
-    }
   }
 
   @keyframes spin {
