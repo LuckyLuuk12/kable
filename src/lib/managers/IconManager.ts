@@ -141,8 +141,10 @@ export class IconManager {
         world: '🌍',
         skull: '💀',
         fabric: '🧵',
+        irisfabric: '<svg viewBox="0 0 24 24" fill="none" stroke="#8e24aa" stroke-width="2" preserveAspectRatio="xMidYMid meet"><path d="M 12 3 L 13.53 5.12 L 15.85 4.62 L 15.38 7.09 L 17.39 8.09 L 15.85 10.15 L 17.39 12 L 15.85 13.85 L 17.39 15.91 L 15.38 16.91 L 15.85 19.38 L 13.53 18.88 L 12 21 L 10.47 18.88 L 8.15 19.38 L 8.62 16.91 L 6.61 15.91 L 8.15 13.85 L 6.61 12 L 8.15 10.15 L 6.61 8.09 L 8.62 7.09 L 8.15 4.62 L 10.47 5.12 Z" fill="none"/></svg>', // Purple circle for Iris Fabric
         hammer: '🔨',
         cube: '🧊',
+        iris: '🧶',
         
         // Players & Social
         player: '👤',
@@ -312,6 +314,7 @@ export class IconManager {
         world: 'fas fa-globe',
         skull: 'fas fa-skull',
         fabric: 'fas fa-thread',
+        iris: 'fas fa-eye', // Use eye icon for Iris Fabric
         hammer: 'fas fa-hammer',
         cube: 'fas fa-cube',
         
@@ -384,7 +387,7 @@ export class IconManager {
       icons: {
         // Navigation & UI
         home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>',
-        settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1m15.5-7.5L19 7l-1.5 1.5m-11 11L5 17l1.5-1.5m11 0L19 17l-1.5-1.5M6.5 6.5 5 7l1.5 1.5"/></svg>',
+        settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m11-7h-6m-6 0H1m15.5-7.5L19 7l-1.5 1.5m-11 11L5 17l1.5-1.5M6.5 6.5 5 7l1.5 1.5"/></svg>',
         profile: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
         mods: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6.5m0 7V22M8 8l4-4 4 4m-8 8l4 4 4-4"/></svg>',
         shaders: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12,2 22,8.5 22,15.5 12,22 2,15.5 2,8.5"/><path d="M12 8.5v7"/></svg>',
@@ -397,7 +400,7 @@ export class IconManager {
         upload: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17,8 12,3 7,8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>',
         install: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 16h2a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/><polyline points="8,12 12,16 16,12"/><line x1="12" y1="16" x2="12" y2="8"/></svg>',
         uninstall: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>',
-        edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+        edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
         duplicate: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
         delete: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
         trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3,6 5,6 21,6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
@@ -447,7 +450,7 @@ export class IconManager {
         memory: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>',
         java: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2v6h4V2"/><path d="M6 8v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8"/><circle cx="12" cy="12" r="2"/></svg>',
         terminal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>',
-        bug: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M21 9.5c0 .28-.22.5-.5.5H20v6c0 2.76-2.24 5-5 5h-6c-2.76 0-5-2.24-5-5v-6H3.5c-.28 0-.5-.22-.5-.5S3.22 9 3.5 9H4V7c0-1.1.9-2 2-2h12c1.1 0 2 .9 2 2v2h.5c.28 0 .5.22.5.5Z"/><line x1="8" y1="6" x2="16" y2="6"/></svg>',
+        bug: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4"/><path d="M16 2v4"/><path d="M21 9.5c0 .28-.22.5-.5.5H20v6c0 2.76-2.24 5-5 5h-6c-2.76 0-5-2.24-5-5v-6H3.5c-.28 0-.5-.22-.5-.5S3.22 9 3.5 9H4V7c0-1.1.9-2 2-2h12c1.1 0 2 .9 2 2v2h.5c.09.37.13.73.13 1.1h0c.09.37.24.72.44 1.03l.15.24c.13.21.28.4.45.57l.05.04c.18.17.38.31.6.42l.3.14c.28.12.49.3.49.52C21.5 6.5 18.09 4 14 4s-7.5 2.5-7.5 6c0 .22.21.4.49.52l.3.14c.22.11.42.25.6.42l.05.04c.17.17.32.36.45.57l.15.24c.2.31.35.66.44 1.03h0c.09.37.13.75.13 1.1Z"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/></svg>',
         analytics: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>',
         debug: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
         coffee: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>',
@@ -470,6 +473,8 @@ export class IconManager {
         world: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
         skull: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 14v.5c0 .75.25 1.46.7 2.05l.54.67c.07.09.15.18.24.24l.07.05c.12.08.25.14.38.17l2.81.9c.36.1.75.17 1.14.14.39-.03.76-.14 1.08-.33l.04-.02c.24-.13.44-.31.57-.52l.67-.84c.45-.59.7-1.3.7-2.05v-.06c0-.39.04-.77.13-1.14h0c.09-.37.24-.72.44-1.03l.15-.24c.13-.21.28-.4.45-.57l.05-.04c.18-.17.38-.31.6-.42l.3-.14c.28-.12.49-.3.49-.52C21.5 6.5 18.09 4 14 4s-7.5 2.5-7.5 6c0 .22.21.4.49.52l.3.14c.22.11.42.25.6.42l.05.04c.17.17.32.36.45.57l.15.24c.2.31.35.66.44 1.03h0c.09.37.13.75.13 1.14Z"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/></svg>',
         fabric: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7v10l10 5 10-5V7z"/><polyline points="2,7 12,12 22,7"/><polyline points="12,22 12,12"/></svg>',
+        // Hollow circle with zigzag/accordion-bellows-like edges for Iris Fabric
+        iris: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="12" cy="12" rx="10" ry="10"/><ellipse cx="12" cy="12" rx="5" ry="5"/><ellipse cx="12" cy="12" rx="2" ry="2"/></svg>',
         hammer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12l-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0-.83-.83-.83-2.17 0-3L12 9"/><path d="M17.64 15L22 10.64"/><path d="M20.05 11.38L12.67 4l-2.05 2.05 7.38 7.38z"/></svg>',
         cube: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="7.5,4.21 12,6.81 16.5,4.21"/><polyline points="7.5,19.79 7.5,14.6 3,12"/><polyline points="21,12 16.5,14.6 16.5,19.79"/><polyline points="3.27,6.96 12,12.01 20.73,6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
         
@@ -523,7 +528,7 @@ export class IconManager {
         online: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>',
         offline: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>',
         sync: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>',
-        cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>',
+        cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 10h1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>',
         server: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>',
         microsoft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8"/><rect x="13" y="3" width="8" height="8"/><rect x="3" y="13" width="8" height="8"/><rect x="13" y="13" width="8" height="8"/></svg>',
         

@@ -292,11 +292,8 @@
   
   <div class="section-header">
     <h2>Last Played Installations</h2>
-    <button class="view-toggle" on:click={toggleViewMode} title="Toggle view mode">
-      <Icon name={viewMode === 'grid' ? 'list' : 'grid'} size="sm" />
-    </button>
   </div>
-  <InstallationsList isGrid={viewMode === 'grid'} isSmall limit={12}/>
+  <InstallationsList isGrid isSmall limit={12}/>
 </div>
 
 <style lang="scss">

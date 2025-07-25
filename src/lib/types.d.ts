@@ -637,6 +637,8 @@ export interface KableInstallation {
   java_args: string[];
   dedicated_resource_pack_folder?: string | null;
   dedicated_shaders_folder?: string | null;
+  favorite?: boolean;
+  total_time_played_ms?: number;
 }
 
 /** LauncherProfile struct

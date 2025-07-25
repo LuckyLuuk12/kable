@@ -138,7 +138,7 @@ export class InstallationManager {
   }
   static getLoaderColor(loader: Loader): string {
     switch (loader) {
-      case Loader.Vanilla:    return '#11833cff'; // Vanilla's green/grass color
+      case Loader.Vanilla:    return '#11833c'; // Vanilla's green/grass color
       case Loader.Fabric:     return '#dbb866'; // Fabric's golden color
       case Loader.Forge:      return '#1e2328'; // Forge's dark color
       case Loader.Quilt:      return '#9c5aa0'; // Quilt's purple color
@@ -146,5 +146,10 @@ export class InstallationManager {
       case Loader.IrisFabric: return '#4c8cff'; // Iris Fabric's blue color
       default:                return '#cccccc'; // Default gray for unknown loaders
     }
+  }
+
+  static toggleFavorite(installation: KableInstallation): void {
+    const updatedInstallation = { ...installation, favorite: !installation.favorite };
+    this.updateInstallation(installation.id, updatedInstallation);
   }
 }

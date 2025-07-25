@@ -71,6 +71,10 @@ pub struct KableInstallation {
     pub java_args: Vec<String>,
     pub dedicated_resource_pack_folder: Option<String>,
     pub dedicated_shaders_folder: Option<String>,
+    #[serde(default)]
+    pub favorite: bool,
+    #[serde(default)]
+    pub total_time_played_ms: u64,
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")] // The JSON keys are in camelCase in the .minecraft/launcher_profiles.json
@@ -160,69 +164,127 @@ pub fn get_launcher_profiles() -> Result<Vec<LauncherProfile>, String> {
 // Use the Loader -> manifest url map to get all VersionData objects
 #[tauri::command]
 pub fn get_all_versions() -> Result<Vec<VersionData>, String> {
-    let mut all_versions = Vec::new();
+    // 1. Fetch Vanilla versions first
+    let vanilla_url = LOADER_MANIFEST_URLS.get(&Loader::Vanilla).unwrap();
+    Logger::console_log(LogLevel::Info, &format!("Fetching version data for Vanilla from {}", vanilla_url), None);
+    let vanilla_response = match reqwest::blocking::get(*vanilla_url) {
+        Ok(resp) => resp,
+        Err(e) => {
+            Logger::console_log(LogLevel::Error, &format!("Failed to fetch version data from {}: {}", vanilla_url, e), None);
+            return Ok(Vec::new());
+        }
+    };
+    let vanilla_json: serde_json::Value = match vanilla_response.json() {
+        Ok(j) => j,
+        Err(e) => {
+            Logger::console_log(LogLevel::Error, &format!("Failed to parse JSON from {}: {}", vanilla_url, e), None);
+            return Ok(Vec::new());
+        }
+    };
+    let vanilla_versions: Vec<String> = match vanilla_json["versions"].as_array() {
+        Some(arr) => arr.iter().filter_map(|v| v["id"].as_str().map(|s| s.to_string())).collect(),
+        None => {
+            Logger::console_log(LogLevel::Error, "Expected 'versions' to be an array for Vanilla", None);
+            Vec::new()
+        }
+    };
+    let mut all_versions: Vec<VersionData> = match vanilla_json["versions"].as_array() {
+        Some(arr) => arr.iter().map(|v| VersionData {
+            id: v["id"].as_str().unwrap_or_default().to_string(),
+            loader: Loader::Vanilla,
+            stable: v["type"].as_str() == Some("release"),
+        }).collect(),
+        None => Vec::new(),
+    };
+
+    // 2. Fetch and process all other loaders
     for (loader, url) in LOADER_MANIFEST_URLS.iter() {
+        if *loader == Loader::Vanilla {
+            continue;
+        }
         Logger::console_log(LogLevel::Info, &format!("Fetching version data for loader {:?} from {}", loader, url), None);
-        let loader_versions = (|| {
-            let response = match reqwest::blocking::get(*url) {
-                Ok(resp) => resp,
-                Err(e) => {
-                    Logger::console_log(LogLevel::Error, &format!("Failed to fetch version data from {}: {}", url, e), None);
-                    return Ok::<Vec<VersionData>, String>(Vec::new());
-                }
-            };
-            let json: serde_json::Value = match response.json() {
-                Ok(j) => j,
-                Err(e) => {
-                    Logger::console_log(LogLevel::Error, &format!("Failed to parse JSON from {}: {}", url, e), None);
-                    return Ok::<Vec<VersionData>, String>(Vec::new());
-                }
-            };
-            let versions = match loader {
-                Loader::Vanilla => {
-                    let versions = match json["versions"].as_array() {
-                        Some(arr) => arr,
-                        None => {
-                            Logger::console_log(LogLevel::Error, "Expected 'versions' to be an array for Vanilla", None);
-                            return Ok::<Vec<VersionData>, String>(Vec::new());
-                        }
-                    };
-                    versions.iter().map(|v| VersionData {
-                        id: v["id"].as_str().unwrap_or_default().to_string(),
-                        loader: Loader::Vanilla,
-                        stable: v["type"].as_str() == Some("release"),
-                    }).collect()
-                },
-                Loader::Fabric => {
-                    let versions = match json.as_array() {
-                        Some(arr) => arr,
-                        None => {
-                            Logger::console_log(LogLevel::Error, "Expected JSON to be an array for Fabric", None);
-                            return Ok::<Vec<VersionData>, String>(Vec::new());
-                        }
-                    };
-                    versions.iter().filter_map(|v| {
-                        let loader_version = v["loader"].as_str().unwrap_or_else(|| v["version"].as_str().unwrap_or(""));
-                        let mc_version = v["gameVersion"].as_str().unwrap_or("");
-                        if loader_version.is_empty() || mc_version.is_empty() {
-                            // Silently skip if missing loader or gameVersion
-                            return None;
-                        }
-                        Some(VersionData {
+        let response = match reqwest::blocking::get(*url) {
+            Ok(resp) => resp,
+            Err(e) => {
+                Logger::console_log(LogLevel::Error, &format!("Failed to fetch version data from {}: {}", url, e), None);
+                continue;
+            }
+        };
+        let json: serde_json::Value = match response.json() {
+            Ok(j) => j,
+            Err(e) => {
+                Logger::console_log(LogLevel::Error, &format!("Failed to parse JSON from {}: {}", url, e), None);
+                continue;
+            }
+        };
+        let mut versions: Vec<VersionData> = Vec::new();
+        match loader {
+            Loader::Fabric => {
+                let arr = match json.as_array() {
+                    Some(a) => a,
+                    None => {
+                        Logger::console_log(LogLevel::Error, "Expected JSON to be an array for Fabric", None);
+                        continue;
+                    }
+                };
+                for v in arr {
+                    let loader_version = v["loader"].as_str().unwrap_or_else(|| v["version"].as_str().unwrap_or(""));
+                    let mc_version = v["gameVersion"].as_str().unwrap_or("");
+                    let stable = v["stable"].as_bool().unwrap_or(false);
+                    if !loader_version.is_empty() && !mc_version.is_empty() {
+                        versions.push(VersionData {
                             id: format!("fabric-loader-{}-{}", loader_version, mc_version),
                             loader: Loader::Fabric,
-                            stable: v["stable"].as_bool().unwrap_or(false),
-                        })
-                    }).collect()
-                },
-                Loader::Forge => {
-                    let mut result = Vec::new();
-                    if let Some(obj) = json.as_object() {
-                        for (mc_version, forge_versions) in obj.iter() {
-                            if let Some(arr) = forge_versions.as_array() {
-                                for forge_version in arr {
-                                    let forge_version_str = forge_version.as_str().unwrap_or_default();
-                                    result.push(VersionData {
+                            stable,
+                        });
+                    } else if !loader_version.is_empty() {
+                        for vanilla in &vanilla_versions {
+                            versions.push(VersionData {
+                                id: format!("fabric-loader-{}-{}", loader_version, vanilla),
+                                loader: Loader::Fabric,
+                                stable,
+                            });
+                        }
+                    }
+                }
+            },
+            Loader::IrisFabric => {
+                let arr = match json.as_array() {
+                    Some(a) => a,
+                    None => {
+                        Logger::console_log(LogLevel::Error, "Expected JSON to be an array for IrisFabric (using Fabric manifest)", None);
+                        continue;
+                    }
+                };
+                for v in arr {
+                    let loader_version = v["version"].as_str().unwrap_or("");
+                    let mc_version = v["gameVersion"].as_str().unwrap_or("");
+                    let stable = v["stable"].as_bool().unwrap_or(false);
+                    if !loader_version.is_empty() && !mc_version.is_empty() {
+                        versions.push(VersionData {
+                            id: format!("iris-fabric-loader-{}-{}", loader_version, mc_version),
+                            loader: Loader::IrisFabric,
+                            stable,
+                        });
+                    } else if !loader_version.is_empty() {
+                        for vanilla in &vanilla_versions {
+                            versions.push(VersionData {
+                                id: format!("iris-fabric-loader-{}-{}", loader_version, vanilla),
+                                loader: Loader::IrisFabric,
+                                stable,
+                            });
+                        }
+                    }
+                }
+            },
+            Loader::Forge => {
+                if let Some(obj) = json.as_object() {
+                    for (mc_version, forge_versions) in obj.iter() {
+                        if let Some(arr) = forge_versions.as_array() {
+                            for forge_version in arr {
+                                let forge_version_str = forge_version.as_str().unwrap_or("");
+                                if !mc_version.is_empty() && !forge_version_str.is_empty() {
+                                    versions.push(VersionData {
                                         id: format!("{}-forge-{}", mc_version, forge_version_str),
                                         loader: Loader::Forge,
                                         stable: true,
@@ -231,73 +293,71 @@ pub fn get_all_versions() -> Result<Vec<VersionData>, String> {
                             }
                         }
                     }
-                    result
-                },
-                Loader::Quilt => {
-                    let versions = match json.as_array() {
-                        Some(arr) => arr,
-                        None => {
-                            Logger::console_log(LogLevel::Error, "Expected JSON to be an array for Quilt", None);
-                            return Ok::<Vec<VersionData>, String>(Vec::new());
+                }
+            },
+            Loader::NeoForge => {
+                let arr = match json["versions"].as_array() {
+                    Some(a) => a,
+                    None => {
+                        Logger::console_log(LogLevel::Error, "Expected 'versions' to be an array for NeoForge", None);
+                        continue;
+                    }
+                };
+                for v in arr {
+                    let version_id = v["version"].as_str().unwrap_or("");
+                    let mc_version = v["mcversion"].as_str().unwrap_or("");
+                    let stable = v["stable"].as_bool().unwrap_or(false);
+                    // Try to match Forge's convention: <mcversion>-neoforge-<neoforgeversion>
+                    if !version_id.is_empty() && !mc_version.is_empty() {
+                        versions.push(VersionData {
+                            id: format!("{}-neoforge-{}", mc_version, version_id),
+                            loader: Loader::NeoForge,
+                            stable,
+                        });
+                    } else if !version_id.is_empty() {
+                        for vanilla in &vanilla_versions {
+                            versions.push(VersionData {
+                                id: format!("{}-neoforge-{}", vanilla, version_id),
+                                loader: Loader::NeoForge,
+                                stable,
+                            });
                         }
-                    };
-                    versions.iter().map(|v| {
-                        let loader_version = v["version"].as_str().unwrap_or_default();
-                        let mc_version = v["gameVersion"].as_str().unwrap_or_default();
-                        VersionData {
+                    }
+                }
+            },
+            Loader::Quilt => {
+                let arr = match json.as_array() {
+                    Some(a) => a,
+                    None => {
+                        Logger::console_log(LogLevel::Error, "Expected JSON to be an array for Quilt", None);
+                        continue;
+                    }
+                };
+                for v in arr {
+                    let loader_version = v["version"].as_str().unwrap_or("");
+                    let mc_version = v["gameVersion"].as_str().unwrap_or("");
+                    let stable = v["stable"].as_bool().unwrap_or(false);
+                    if !loader_version.is_empty() && !mc_version.is_empty() {
+                        versions.push(VersionData {
                             id: format!("quilt-loader-{}-{}", loader_version, mc_version),
                             loader: Loader::Quilt,
-                            stable: v["stable"].as_bool().unwrap_or(false),
+                            stable,
+                        });
+                    } else if !loader_version.is_empty() {
+                        for vanilla in &vanilla_versions {
+                            versions.push(VersionData {
+                                id: format!("quilt-loader-{}-{}", loader_version, vanilla),
+                                loader: Loader::Quilt,
+                                stable,
+                            });
                         }
-                    }).collect()
-                },
-                Loader::NeoForge => {
-                    let versions = match json["versions"].as_array() {
-                        Some(arr) => arr,
-                        None => {
-                            Logger::console_log(LogLevel::Error, "Expected 'versions' to be an array for NeoForge", None);
-                            return Ok::<Vec<VersionData>, String>(Vec::new());
-                        }
-                    };
-                    versions.iter().map(|v| {
-                        let version_id = v["version"].as_str().unwrap_or_default();
-                        VersionData {
-                            id: version_id.to_string(),
-                            loader: Loader::NeoForge,
-                            stable: v["stable"].as_bool().unwrap_or(false),
-                        }
-                    }).collect()
-                },
-                Loader::IrisFabric => {
-                    let versions = match json.as_array() {
-                        Some(arr) => arr,
-                        None => {
-                            Logger::console_log(LogLevel::Error, "Expected JSON to be an array for IrisFabric (using Fabric manifest)", None);
-                            return Ok::<Vec<VersionData>, String>(Vec::new());
-                        }
-                    };
-                    versions.iter().map(|v| {
-                        let loader_version = v["version"].as_str().unwrap_or_default();
-                        let mc_version = v["gameVersion"].as_str().unwrap_or_default();
-                        VersionData {
-                            id: format!("iris-fabric-loader-{}-{}", loader_version, mc_version),
-                            loader: Loader::IrisFabric,
-                            stable: v["stable"].as_bool().unwrap_or(false),
-                        }
-                    }).collect()
+                    }
                 }
-            };
-            Ok::<Vec<VersionData>, String>(versions)
-        })();
-        match loader_versions {
-            Ok(versions) => {
-                Logger::console_log(LogLevel::Debug, &format!("Found the following versions for loader {:?}: {:?}", loader, &versions[..5.min(versions.len())]), None);
-                all_versions.extend(versions);
-            }
-            Err(e) => {
-                Logger::console_log(LogLevel::Error, &format!("Error retrieving versions for loader {:?}: {}", loader, e), None);
-            }
+            },
+            _ => {}
         }
+        Logger::console_log(LogLevel::Debug, &format!("Found the following versions for loader {:?}: {:?}", loader, &versions[..5.min(versions.len())]), None);
+        all_versions.extend(versions);
     }
     Ok(all_versions)
 }
@@ -446,6 +506,8 @@ pub fn convert_launcher_profiles_to_kable_installations() -> Result<(), String> 
                                 java_args,
                                 dedicated_resource_pack_folder: None,
                                 dedicated_shaders_folder: None,
+                                favorite: false,
+                                total_time_played_ms: 0,
                             })
                         },
                         None => {
@@ -718,6 +780,8 @@ pub async fn create_installation(version_id: &str) -> Result<KableInstallation, 
         ],
         dedicated_resource_pack_folder: None,
         dedicated_shaders_folder: None,
+        favorite: false,
+        total_time_played_ms: 0,
     };
     installations.push(new_installation.clone());
     modify_all_installations(installations)?;
@@ -814,6 +878,8 @@ impl KableInstallation {
             java_args: Vec::new(), // TODO: Use settings to get default Java args
             dedicated_resource_pack_folder: None,
             dedicated_shaders_folder: None,
+            favorite: false,
+            total_time_played_ms: 0,
         }
     }
 }

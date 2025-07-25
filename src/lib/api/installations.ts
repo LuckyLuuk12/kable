@@ -33,8 +33,8 @@ export async function get_installation(id: string): Promise<KableInstallation | 
   return await invoke('get_installation', { id });
 }
 
-export async function modify_kable_installation(id: string, new_installation: KableInstallation): Promise<void> {
-  return await invoke('modify_kable_installation', { id, new_installation });
+export async function modify_kable_installation(id: string, newInstallation: KableInstallation): Promise<void> {
+  return await invoke('modify_kable_installation', { id, newInstallation });
 }
 
 export async function get_last_played_installation(): Promise<KableInstallation> {
