@@ -113,71 +113,82 @@
 </script>
 
 <!-- a small fixed nav on the left side with links to specific tabs -->
-<div class="mini-nav">
-  {#each sections as section}
-    <a href={`#${section}`} class:active={$currentSection === section} on:click={() => currentSection.set(section)}>{section.charAt(0).toUpperCase() + section.slice(1)}</a>
-  {/each}
+<div class="settings-content">
+  <div class="mini-nav">
+    {#each sections as section}
+      <a href={`#${section}`} class:active={$currentSection === section} on:click={() => currentSection.set(section)}>{section.charAt(0).toUpperCase() + section.slice(1)}</a>
+    {/each}
+  </div>
+  <div class="settings">
+    <div id="general"><GeneralSettings /></div>
+    <div id="appearance"><AppearanceSettings /></div>
+    <div id="logging"><LoggingSettings /></div>
+    <div id="content"><ContentSettings /></div>
+    <div id="network"><NetworkSettings /></div>
+    <div id="advanced"><AdvancedSettings /></div>
+    <div id="misc"><MiscSettings /></div>
+  </div>
 </div>
-<div class="settings">
-  <div id="general"><GeneralSettings /></div>
-  <div id="appearance"><AppearanceSettings /></div>
-  <div id="logging"><LoggingSettings /></div>
-  <div id="content"><ContentSettings /></div>
-  <div id="network"><NetworkSettings /></div>
-  <div id="advanced"><AdvancedSettings /></div>
-  <div id="misc"><MiscSettings /></div>
-</div>
-
 <style lang="scss">
 @use "@kablan/clean-ui/scss/_variables.scss" as *;
 
+  .settings-content {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 2rem;
+    width: 100%;
+    max-height: 80vh;
+    min-height: 0;
+  }
+  .mini-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    flex: 0 0 auto;
+    min-width: 120px;
+    align-self: center;
+  }
+  .mini-nav a {
+    color: $tertiary;
+    &.active {
+      color: $primary;
+    }
+    text-decoration: none;
+    position: relative;
+    padding-bottom: 2px;
+    transition: all 0.4s ease;
+    &:hover {
+      transform: scale(1.15) translateY(-0.15rem) translateX(0.15rem);
+    }
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 2px;
+      background: $tertiary;
+      border-radius: 2px;
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
+      z-index: 1;
+    }
+    &:hover::before {
+      transform: scaleX(1);
+    }
+    &.active::before {
+      background: $primary;
+    }
+  }
   .settings {
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    width: 100%;
-  }
-  .mini-nav {
-    position: fixed;
-    top: 1rem;
-    left: 15%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    height: 100%;
-    gap: 0.75rem;
-    a {
-      color: $tertiary;
-      &.active {
-        color: $primary;
-      }
-      text-decoration: none;
-      position: relative;
-      padding-bottom: 2px;
-      transition: all 0.4s ease;
-      &:hover {
-        transform: scale(1.25) translateY(-0.25rem) translateX(0.25rem);
-      }
-      &::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        height: 2px;
-        background: $tertiary;
-        border-radius: 2px;
-        transform: scaleX(0);
-        transform-origin: left;
-        transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
-        z-index: 1;
-      }
-      &:hover::before {
-        transform: scaleX(1);
-      }
-      &.active::before {
-        background: $primary;
-      }
-    }
+    flex: 1 1 0;
+    min-width: 0;
+    max-height: 80vh;
+    overflow-y: auto;
   }
 </style>

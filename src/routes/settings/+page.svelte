@@ -201,7 +201,7 @@
   @use '@kablan/clean-ui/scss/variables' as *;
 
   .settings-page {
-    max-width: 800px;
+    max-width: 100%;
     margin: 0 auto;
   }
 

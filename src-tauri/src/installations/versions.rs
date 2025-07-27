@@ -1,351 +1,326 @@
-use indexmap::IndexMap;
 use serde::{Serialize, Deserialize};
-use std::collections::HashMap;
-use std::hash::Hash;
-use strum::{IntoEnumIterator, EnumDiscriminants};
-use once_cell::sync::OnceCell;
+use strum::{EnumIter, IntoEnumIterator};
+use serde_json::json;
+use anyhow::Result;
 
-//*
-//* Private API:
-//*
-
-// #region Loader Manifests
-lazy_static::lazy_static! {
-    static ref LOADER_MANIFEST_URLS: HashMap<ManifestKindDiscriminants, &'static str> = {
-        let mut m = HashMap::new();
-        m.insert(ManifestKindDiscriminants::Vanilla, "https://launchermeta.mojang.com/mc/game/version_manifest.json");
-        m.insert(ManifestKindDiscriminants::Fabric, "https://meta.fabricmc.net/v2/versions/loader");
-        m.insert(ManifestKindDiscriminants::IrisFabric, "https://meta.fabricmc.net/v2/versions/loader"); // Iris uses Fabric manifest
-        m.insert(ManifestKindDiscriminants::Forge, "https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.json");
-        m.insert(ManifestKindDiscriminants::NeoForge, "https://maven.neoforged.net/api/maven/versions/releases/net%2Fneoforged%2Fneoforge");
-        m.insert(ManifestKindDiscriminants::Quilt, "https://meta.quiltmc.org/v3/versions/loader");
-        m
-    };
-}
-// #endregion
-
-// #region - Vanilla Manifest
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub struct VanillaLatest {
-    release: String,
-    snapshot: String,
-}
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-enum VanillaType {
-    Release,
-    Snapshot,
-    OldBeta,
-    OldAlpha,
-}
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub struct VanillaVersion {
-    id: String,
-    type_: VanillaType,
-    url: String,
-    time: String,
-    release_time: String,
-    sha1: String,
-    compliance_level: Option<u32>,
-}
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-pub struct VanillaManifest {
-  latest: VanillaLatest,
-  versions: Vec<VanillaVersion>,
-}
-// #endregion
-
-// #region Fabric Manifest
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-struct FabricVersion {
-    separator: String,
-    build: u32,
-    maven: String,
-    version: String,
-    stable: bool,
-}
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-struct FabricManifest {
-    versions: Vec<FabricVersion>,
-}
-// #endregion
-
-// #region Iris Fabric Manifest - does not have its own manifest, uses Fabric
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-struct IrisFabricVersion {
-    separator: String,
-    build: u32,
-    maven: String,
-    version: String,
-    stable: bool,
-}
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-struct IrisFabricManifest {
-    versions: Vec<IrisFabricVersion>,
-}
-// #endregion
-
-// #region Forge Manifest
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-struct ForgeManifest(IndexMap<String, Vec<String>>);
-// #endregion
-
-// #region NeoForge Manifest
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "camelCase")]
-struct NeoForgeManifest {
-    is_snapshot: bool,
-    versions: Vec<String>,
-}
-// #endregion
-
-// #region Quilt Manifest
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-struct QuiltVersion {
-    separator: String,
-    build: u32,
-    maven: String,
-    version: String,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, Serialize, Deserialize)]
+pub enum LoaderKind {
+    Vanilla,
+    Fabric,
+    IrisFabric,
+    Forge,
+    NeoForge,
+    Quilt,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, Hash)]
-#[serde(rename_all = "snake_case")]
-struct QuiltManifest {
-    versions: Vec<QuiltVersion>,
-}
-// #endregion
-
-// #region Combined Manifest types
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct VersionData {
-    /// Unique identifier for this version entry (for internal use, e.g. `.minecraft/versions` directory)
     pub version_id: String,
-    /// The id field from the manifest, if present (e.g. Vanilla)
-    pub id: Option<String>,
-    // Common fields
-    pub loader: ManifestKindDiscriminants, // Use the discriminant to identify the loader type
-    pub stable: Option<bool>,
-    // Vanilla
-    #[serde(rename = "type")]
-    pub type_: Option<VanillaType>,
-    pub url: Option<String>,
-    pub time: Option<String>,
-    pub release_time: Option<String>,
-    pub sha1: Option<String>,
-    pub compliance_level: Option<u32>,
-    // Fabric/Iris/Quilt
-    pub separator: Option<String>,
-    pub build: Option<u32>,
-    pub maven: Option<String>,
-    pub version: Option<String>,
-    // NeoForge
-    pub is_snapshot: Option<bool>,
+    pub loader: LoaderKind,
+    pub display_name: String,
+    pub is_stable: bool,
+    pub extra: serde_json::Value,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Versions(pub Vec<VersionData>);
-impl Versions {
-    pub fn new() -> Self {
-        Versions(Vec::new())
-    }
 
+impl Versions {
     pub fn get_version(&self, version_id: &str) -> Option<&VersionData> {
         self.0.iter().find(|v| v.version_id == version_id)
     }
-
     pub fn extend<I: IntoIterator<Item = VersionData>>(&mut self, iter: I) {
         self.0.extend(iter);
     }
-
     pub fn iter(&self) -> impl Iterator<Item = &VersionData> {
         self.0.iter()
     }
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
-/// Default implementation for VersionData used in the `From` implementations with None defaults
-impl Default for VersionData {
-    fn default() -> Self {
-        VersionData {
-            version_id: String::new(),
-            id: None,
-            loader: ManifestKindDiscriminants::Vanilla, // Default to Vanilla
-            stable: None,
-            type_: None,
-            url: None,
-            time: None,
-            release_time: None,
-            sha1: None,
-            compliance_level: None,
-            separator: None,
-            build: None,
-            maven: None,
-            version: None,
-            is_snapshot: None,
-        }
+impl IntoIterator for Versions {
+    type Item = VersionData;
+    type IntoIter = std::vec::IntoIter<VersionData>;
+    fn into_iter(self) -> Self::IntoIter { self.0.into_iter() }
+}
+impl<'a> IntoIterator for &'a Versions {
+    type Item = &'a VersionData;
+    type IntoIter = std::slice::Iter<'a, VersionData>;
+    fn into_iter(self) -> Self::IntoIter { self.0.iter() }
+}
+impl<'a> IntoIterator for &'a mut Versions {
+    type Item = &'a mut VersionData;
+    type IntoIter = std::slice::IterMut<'a, VersionData>;
+    fn into_iter(self) -> Self::IntoIter { self.0.iter_mut() }
+}
+impl std::iter::FromIterator<VersionData> for Versions {
+    fn from_iter<I: IntoIterator<Item = VersionData>>(iter: I) -> Self {
+        Versions(iter.into_iter().collect())
     }
 }
-// #endregion
 
-// #region Convertion traits
-#[derive(EnumDiscriminants, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[strum_discriminants(derive(Hash, Serialize, Deserialize))]
-enum ManifestKind {
-    Vanilla(VanillaManifest),
-    Fabric(FabricManifest),
-    IrisFabric(IrisFabricManifest),
-    Forge(ForgeManifest),
-    NeoForge(NeoForgeManifest),
-    Quilt(QuiltManifest),
+pub trait Loader: Send + Sync {
+    fn kind(&self) -> LoaderKind;
+    /// If the loader needs vanilla versions, they are provided as Some(&[VersionData]), otherwise None.
+    fn get_versions<'a>(&'a self, vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>>;
+    fn download<'a>(&'a self, version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>>;
 }
-/// Discriminants for ManifestKind, used for matching and serialization
-impl ManifestKind {
-    /// Uses strum to cast to corresponding Discriminant and get the manifest URL from the static map
-    fn manifest_url(&self) -> Result<&'static str, &'static str> {
-        LOADER_MANIFEST_URLS.get(self.into())
-            .cloned()
-            .ok_or("Manifest URL not found")
-    }
-    /// Uses the manifest URL and serde to deserialize the manifest into the corresponding struct
-    fn load_manifest(&self) -> Result<ManifestKind, &'static str> {
-        let url = self.manifest_url()?;
-        let response = reqwest::blocking::get(url).map_err(|_| "Failed to fetch manifest")?;
-        // #!?$ DRY I guess... :(
-        let manifest = match self.into() {
-            ManifestKindDiscriminants::Vanilla => response.json::<VanillaManifest>().map(ManifestKind::Vanilla),
-            ManifestKindDiscriminants::Fabric => response.json::<FabricManifest>().map(ManifestKind::Fabric),
-            ManifestKindDiscriminants::IrisFabric => response.json::<IrisFabricManifest>().map(ManifestKind::IrisFabric),
-            ManifestKindDiscriminants::Forge => response.json::<ForgeManifest>().map(ManifestKind::Forge),
-            ManifestKindDiscriminants::NeoForge => response.json::<NeoForgeManifest>().map(ManifestKind::NeoForge),
-            ManifestKindDiscriminants::Quilt => response.json::<QuiltManifest>().map(ManifestKind::Quilt),
-            //! NOTE: because of Reflection and macro lacks we cannot dynamically deserialize into the enum variant 
-        };
-        manifest.map_err(|_| "Failed to deserialize manifest")
-    }
 
-    fn to_versions(&self, vanilla: &VanillaManifest) -> Versions {
-        match self {
-            ManifestKind::Vanilla(manifest) => {
-                manifest.versions().into()
-            },
-            ManifestKind::Fabric(manifest) | ManifestKind::IrisFabric(manifest) | ManifestKind::Forge(manifest) | ManifestKind::NeoForge(manifest) | ManifestKind::Quilt(manifest) => {
-                manifest.into_version(vanilla)
-            }
-        }
-    }
-}
-/// Trait to convert a manifest into a Versions collection
-trait FromManifest {
-    fn into_version(&self, vanilla: &VanillaManifest) -> Versions;
-}
-/// Takes all available keys from the FabricManifest, loops over vanilla versions and creates fabric-loader-<fabric_version>-<vanilla_version> entries
-impl FromManifest for FabricManifest {
-    fn into_version(&self, vanilla: &VanillaManifest) -> Versions {
-        self.versions.iter().flat_map(|v| {
-            vanilla.versions().iter().map(move |vv| VersionData {
-                version_id: format!("fabric-loader-{}-{}", v.version, vv.version),
-                id: None,
-                loader: self.into(),
-                stable: Some(v.stable),
-                separator: Some(v.separator.clone()),
-                build: Some(v.build),
-                maven: Some(v.maven.clone()),
-                version: Some(v.version.clone()),
-                ..Default::default()
-            })
-        }).collect()
-    }
-}
-/// Takes all available keys from the IrisFabricManifest, loops over vanilla versions and creates iris-loader-<iris_version>-<vanilla_version> entries
-impl FromManifest for IrisFabricManifest {
-    fn into_version(&self, vanilla: &VanillaManifest) -> Versions {
-        self.versions.iter().flat_map(|v| {
-            vanilla.versions().iter().map(move |vv| VersionData {
-                version_id: format!("iris-loader-{}-{}", v.version, vv.version),
-                loader: self.into(),
-                stable: Some(v.stable),
-                separator: Some(v.separator.clone()),
-                build: Some(v.build),
-                maven: Some(v.maven.clone()),
-                version: Some(v.version.clone()),
-                ..Default::default()
-            })
-        }).collect()
-    }
-}
-/// Takes the forge manifest in which a list of minecraft versions has a list of forge versions, then version_id = <minecraft_version>-forge-<forge_version>
-impl FromManifest for ForgeManifest {
-    fn into_version(&self, vanilla: &VanillaManifest) -> Versions {
-        self.0.iter().flat_map(|(minecraft_version, forge_versions)| {
-            vanilla.versions().iter().filter_map(move |vv| {
-                if vv.id == *minecraft_version {
-                    forge_versions.iter().map(move |forge_version| VersionData {
-                        version_id: format!("{}-forge-{}", minecraft_version, forge_version),
-                        loader: self.into(),
-                        ..Default::default()
-                    }).collect::<Vec<_>>()
-                } else {
-                    vec![]
+// --- Loader Implementations ---
+
+// Vanilla Loader
+pub struct VanillaLoader;
+impl Loader for VanillaLoader {
+    fn kind(&self) -> LoaderKind { LoaderKind::Vanilla }
+    fn get_versions<'a>(&'a self, _vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>> {
+        Box::pin(async move {
+            let url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+            let resp = reqwest::get(url).await?.json::<serde_json::Value>().await?;
+            let versions_val = &resp["versions"];
+            let versions: &[serde_json::Value] = match versions_val.as_array() {
+                Some(arr) => arr,
+                None => &[],
+            };
+            let out = versions.iter().map(|v| {
+                let id_val = &v["id"];
+                let id = id_val.as_str().unwrap_or("");
+                let typ_val = &v["type"];
+                let typ = typ_val.as_str().unwrap_or("");
+                let is_stable = typ == "release";
+                VersionData {
+                    version_id: id.to_string(),
+                    loader: LoaderKind::Vanilla,
+                    display_name: id.to_string(),
+                    is_stable,
+                    extra: v.clone(),
                 }
-            })
-        }).collect()
+            }).collect();
+            Ok(out)
+        })
+    }
+    fn download<'a>(&'a self, _version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+        Box::pin(async move { Ok(()) })
     }
 }
-/// Takes the NeoForge manifest and creates version_id = <minecraft_version>-neoforge-<neoforge_version>
-impl FromManifest for NeoForgeManifest {
-    fn into_version(&self, vanilla: &VanillaManifest) -> Versions {
-        self.versions.iter().flat_map(|neoforge_version| {
-            vanilla.versions().iter().map(move |vv| VersionData {
-                version_id: format!("{}-neoforge-{}", vv.id, neoforge_version),
-                loader: self.into(),
-                is_snapshot: Some(self.is_snapshot),
-                version: Some(neoforge_version.clone()),
-                ..Default::default()
-            })
-        }).collect()
-    }
-}
-/// Takes all available keys from the QuiltManifest, loops over vanilla versions and creates quilt-loader-<quilt_version>-<vanilla_version> entries
-impl FromManifest for QuiltManifest {
-    fn into_version(&self, vanilla: &VanillaManifest) -> Versions {
-        self.versions.iter().flat_map(|quilt_version| {
-            vanilla.versions().iter().map(move |vv| VersionData {
-                version_id: format!("{}-quilt-{}", vv.id, quilt_version.version),
-                loader: self.into(),
-                separator: Some(quilt_version.separator.clone()),
-                build: Some(quilt_version.build),
-                maven: Some(quilt_version.maven.clone()),
-                version: Some(quilt_version.version.clone()),
-                ..Default::default()
-            })
-        }).collect()
-    }
-}
-// #endregion
 
-// #region Build versions
-macro_rules! add_versions {
-    ($manifest:ty, $vanilla:ident, $versions:ident) => {
-        $versions.extend(<$manifest>::default().into_version(&$vanilla));
-    };
+// Fabric Loader
+pub struct FabricLoader;
+impl Loader for FabricLoader {
+    fn kind(&self) -> LoaderKind { LoaderKind::Fabric }
+    fn get_versions<'a>(&'a self, vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>> {
+        Box::pin(async move {
+            let url = "https://meta.fabricmc.net/v2/versions/loader";
+            let resp = reqwest::get(url).await?.json::<serde_json::Value>().await?;
+            let arr_val = &resp;
+            let arr: &[serde_json::Value] = match arr_val.as_array() {
+                Some(a) => a,
+                None => &[],
+            };
+            let mut out = Vec::new();
+            if let Some(vanilla) = vanilla_versions {
+                for v in arr {
+                    let fabricv = v.get("version").and_then(|x| x.as_str()).unwrap_or("");
+                    let stable = v.get("stable").and_then(|x| x.as_bool()).unwrap_or(false);
+                    for mcv in vanilla {
+                        out.push(VersionData {
+                            version_id: format!("fabric-loader-{}-{}", fabricv, mcv.version_id),
+                            loader: LoaderKind::Fabric,
+                            display_name: format!("Fabric {} for MC {}", fabricv, mcv.version_id),
+                            is_stable: stable,
+                            extra: v.clone(),
+                        });
+                    }
+                }
+            }
+            Ok(out)
+        })
+    }
+    fn download<'a>(&'a self, _version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+        Box::pin(async move { Ok(()) })
+    }
 }
-static VERSIONS_CACHE: OnceCell<Versions> = OnceCell::new();
-pub fn build_versions() -> Versions {
-    let vanilla = VanillaManifest::default();
-    let mut versions = Versions::new();
-    add_versions!(FabricManifest, vanilla, versions);
-    add_versions!(IrisFabricManifest, vanilla, versions);
-    add_versions!(ForgeManifest, vanilla, versions);
-    add_versions!(NeoForgeManifest, vanilla, versions);
-    add_versions!(QuiltManifest, vanilla, versions);
+
+// IrisFabric Loader (uses Fabric manifest)
+pub struct IrisFabricLoader;
+impl Loader for IrisFabricLoader {
+    fn kind(&self) -> LoaderKind { LoaderKind::IrisFabric }
+    fn get_versions<'a>(&'a self, vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>> {
+        Box::pin(async move {
+            let url = "https://meta.fabricmc.net/v2/versions/loader";
+            let resp = reqwest::get(url).await?.json::<serde_json::Value>().await?;
+            let arr_val = &resp;
+            let arr: &[serde_json::Value] = match arr_val.as_array() {
+                Some(a) => a,
+                None => &[],
+            };
+            let mut out = Vec::new();
+            if let Some(vanilla) = vanilla_versions {
+                for v in arr {
+                    let fabricv = v.get("version").and_then(|x| x.as_str()).unwrap_or("");
+                    let stable = v.get("stable").and_then(|x| x.as_bool()).unwrap_or(false);
+                    for mcv in vanilla {
+                        out.push(VersionData {
+                            version_id: format!("iris-fabric-loader-{}-{}", fabricv, mcv.version_id),
+                            loader: LoaderKind::IrisFabric,
+                            display_name: format!("Iris Fabric {} for MC {}", fabricv, mcv.version_id),
+                            is_stable: stable,
+                            extra: v.clone(),
+                        });
+                    }
+                }
+            }
+            Ok(out)
+        })
+    }
+    fn download<'a>(&'a self, _version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+        Box::pin(async move { Ok(()) })
+    }
+}
+
+// Forge Loader
+pub struct ForgeLoader;
+impl Loader for ForgeLoader {
+    fn kind(&self) -> LoaderKind { LoaderKind::Forge }
+    fn get_versions<'a>(&'a self, _vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>> {
+        Box::pin(async move {
+            let url = "https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.json";
+            let resp = reqwest::get(url).await?.json::<serde_json::Value>().await?;
+            let binding = serde_json::Map::new();
+            let obj = resp.as_object().unwrap_or(&binding);
+            let mut out = Vec::new();
+            for (mc_version, forge_versions) in obj {
+                if let Some(forge_arr) = forge_versions.as_array() {
+                    for forge_version in forge_arr {
+                        let forge_version_str = forge_version.as_str().unwrap_or("");
+                        // Extract the part after the first dash for display purposes
+                        let forge_version_display = match forge_version_str.find('-') {
+                            Some(idx) if idx + 1 < forge_version_str.len() => &forge_version_str[idx + 1..],
+                            _ => forge_version_str,
+                        };
+                        // Forge version_id format: forge-{mc_version}-{forge_version}
+                        let version_id = format!("{}-forge-{}", mc_version, forge_version_display);
+                        let display_name = format!("Forge {} for MC {}", forge_version_display, mc_version);
+                        out.push(VersionData {
+                            version_id,
+                            loader: LoaderKind::Forge,
+                            display_name,
+                            is_stable: true,
+                            extra: json!({ "forge_version": forge_version_display, "minecraft_version": mc_version }),
+                        });
+                    }
+                }
+            }
+            Ok(out)
+        })
+    }
+    fn download<'a>(&'a self, _version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+        Box::pin(async move { Ok(()) })
+    }
+}
+
+// NeoForge Loader
+pub struct NeoForgeLoader;
+impl Loader for NeoForgeLoader {
+    fn kind(&self) -> LoaderKind { LoaderKind::NeoForge }
+    fn get_versions<'a>(&'a self, _vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>> {
+        Box::pin(async move {
+            let url = "https://maven.neoforged.net/api/maven/versions/releases/net%2Fneoforged%2Fneoforge";
+            let resp = reqwest::get(url).await?.json::<serde_json::Value>().await?;
+            let arr_val = &resp["versions"];
+            let arr: &[serde_json::Value] = match arr_val.as_array() {
+                Some(a) => a,
+                None => &[],
+            };
+            let is_snapshot = resp["is_snapshot"].as_bool().unwrap_or(false);
+            let mut out = Vec::new();
+            for v in arr {
+                let neoforge_ver = v.as_str().unwrap_or("");
+                out.push(VersionData {
+                    version_id: format!("neoforge-{}", neoforge_ver),
+                    loader: LoaderKind::NeoForge,
+                    display_name: format!("NeoForge {}", neoforge_ver),
+                    is_stable: !is_snapshot,
+                    extra: json!({ "neoforge_version": neoforge_ver, "is_snapshot": is_snapshot }),
+                });
+            }
+            Ok(out)
+        })
+    }
+    fn download<'a>(&'a self, _version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+        Box::pin(async move { Ok(()) })
+    }
+}
+
+// Quilt Loader
+pub struct QuiltLoader;
+impl Loader for QuiltLoader {
+    fn kind(&self) -> LoaderKind { LoaderKind::Quilt }
+    fn get_versions<'a>(&'a self, vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>> {
+        Box::pin(async move {
+            let url = "https://meta.quiltmc.org/v3/versions/loader";
+            let resp = reqwest::get(url).await?.json::<serde_json::Value>().await?;
+            let arr_val = &resp;
+            let arr: &[serde_json::Value] = match arr_val.as_array() {
+                Some(a) => a,
+                None => &[],
+            };
+            let mut out = Vec::new();
+            if let Some(vanilla) = vanilla_versions {
+                for v in arr {
+                    let quilt_ver = v["version"].as_str().unwrap_or("");
+                    let stable = v["stable"].as_bool().unwrap_or(false);
+                    for mcv in vanilla {
+                        out.push(VersionData {
+                            version_id: format!("quilt-loader-{}-{}", quilt_ver, mcv.version_id),
+                            loader: LoaderKind::Quilt,
+                            display_name: format!("Quilt {} for MC {}", quilt_ver, mcv.version_id),
+                            is_stable: stable,
+                            extra: json!({ "quilt_version": quilt_ver, "minecraft_version": mcv.version_id, "stable": stable }),
+                        });
+                    }
+                }
+            }
+            Ok(out)
+        })
+    }
+    fn download<'a>(&'a self, _version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+        Box::pin(async move { Ok(()) })
+    }
+}
+
+// Loader factory
+pub fn loader_for_kind(kind: LoaderKind) -> Box<dyn Loader> {
+    match kind {
+        LoaderKind::Vanilla => Box::new(VanillaLoader),
+        LoaderKind::Fabric => Box::new(FabricLoader),
+        LoaderKind::IrisFabric => Box::new(IrisFabricLoader),
+        LoaderKind::Forge => Box::new(ForgeLoader),
+        LoaderKind::NeoForge => Box::new(NeoForgeLoader),
+        LoaderKind::Quilt => Box::new(QuiltLoader),
+    }
+}
+
+// Build all versions for all loaders (async)
+pub async fn build_versions() -> Versions {
+    let mut versions = Versions::default();
+    // First, get vanilla versions (needed for some loaders)
+    let vanilla_loader = VanillaLoader;
+    let vanilla_versions = vanilla_loader.get_versions(None).await.unwrap_or_default();
+    for kind in LoaderKind::iter() {
+        let loader = loader_for_kind(kind);
+        let vers = if kind == LoaderKind::Vanilla {
+            loader.get_versions(None).await
+        } else {
+            loader.get_versions(Some(&vanilla_versions)).await
+        };
+        if let Ok(vers) = vers {
+            versions.extend(vers);
+        }
+    }
     versions
 }
-// #endregion

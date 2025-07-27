@@ -2068,8 +2068,7 @@ dependencies = [
 [[package]]
 name = "indexmap"
 version = "2.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe4cd85333e22411419a0bcae1297d25e58c9443848b11dc6a86fefe8c78a661"
+source = "git+https://github.com/indexmap-rs/indexmap.git?branch=main#91dbcc55d2b6be52b7f99929aebb7204a6576189"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.4",
@@ -2219,6 +2218,7 @@ name = "kable"
 version = "0.1.0"
 dependencies = [
  "aes-gcm",
+ "anyhow",
  "base64 0.21.7",
  "base64ct",
  "chrono",

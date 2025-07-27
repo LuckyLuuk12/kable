@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { KableInstallation } from '../types';
+import type { KableInstallation, VersionData } from '../types';
 
 /**
  * Game Stores
@@ -12,3 +12,6 @@ export const selectedInstallation = writable<KableInstallation | null>(null);
 export const isLoadingInstallations = writable(false);
 export const installationsError = writable<string | null>(null);
 
+export const versions = writable<VersionData[]>([]);
+export const isLoadingVersions = writable(false);
+export const versionsError = writable<string | null>(null);

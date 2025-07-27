@@ -46,9 +46,10 @@ aes-gcm = "0.10"
 lazy_static = "1.4"
 strum = { version = "0.27", features = ["derive"] }
 indexmap = { version = "2.10.0", features = ["serde"] }
+anyhow = "1.0"
 
 # Pin problematic dependencies to avoid edition2024 issues
 base64ct = "=1.6.0"  # Pin to avoid 1.8.0 which uses edition2024
 
 [patch.crates-io]
-indexmap = "2.10.0"
+indexmap = { git = "https://github.com/indexmap-rs/indexmap.git", branch = "main" }

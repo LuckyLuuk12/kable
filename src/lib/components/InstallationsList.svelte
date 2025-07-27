@@ -1,83 +1,40 @@
 <script lang="ts">
-  import { Icon, InstallationManager, installations } from '$lib';
-  import { afterUpdate, onMount } from 'svelte';
+  import { Icon, InstallationManager, installations, isLoadingInstallations, isLoadingVersions } from '$lib';
   
-  let forceSingleColumn: boolean[] = [];
   export let isGrid: boolean = false;
   export let isSmall: boolean = false;
-  export let isLoading: boolean = false;
+  
   export let error: string | null = null;
   export let limit: number | null = null;
 
-$: limitedInstallations = $installations
-  .slice()
-  .sort((a, b) => {
-    // Favorites first
-    if ((a.favorite ? 1 : 0) !== (b.favorite ? 1 : 0)) {
-      return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
-    }
-    // Then by last_used (most recent first)
-    const aTime = a.last_used ? new Date(a.last_used).getTime() : 0;
-    const bTime = b.last_used ? new Date(b.last_used).getTime() : 0;
-    return bTime - aTime;
-  })
-  .slice(0, limit || $installations.length);
+  $: isLoading = $isLoadingInstallations || $isLoadingVersions
+
+  $: limitedInstallations = $installations
+    .slice()
+    .sort((a, b) => {
+      // Favorites first
+      if ((a.favorite ? 1 : 0) !== (b.favorite ? 1 : 0)) {
+        return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+      }
+      // Then by last_used (most recent first)
+      const aTime = a.last_used ? new Date(a.last_used).getTime() : 0;
+      const bTime = b.last_used ? new Date(b.last_used).getTime() : 0;
+      return bTime - aTime;
+    })
+    .slice(0, limit || $installations.length);
   $: loaderIcons = Object.fromEntries(
     $installations.map(installation => [
       installation.id,
-      InstallationManager.getLoaderIcon(installation.version.loader)
+      InstallationManager.getLoaderIcon(InstallationManager.getVersionData(installation).loader)
     ])
   );
   $: loaderColors = Object.fromEntries(
     $installations.map(installation => [
       installation.id,
-      InstallationManager.getLoaderColor(installation.version.loader)
+      InstallationManager.getLoaderColor(InstallationManager.getVersionData(installation).loader)
     ])
   );
-  let metaGridRefs: (HTMLElement | null)[] = [];
 
-  function handleMetaDataDisplay() {
-    forceSingleColumn = Array(limitedInstallations.length).fill(false);
-    // set visibility of all meta-grid elements to false initially
-    metaGridRefs.forEach((el) => {
-      if (!el) return;
-      el.style.visibility = 'hidden';
-    });
-
-    setTimeout(() => {
-      // Always reset forceSingleColumn to false before running the check
-      // Only run this when layout-affecting variables change
-      if (metaGridRefs.length && (isSmall !== undefined || isGrid !== undefined || limitedInstallations.length)) {
-        metaGridRefs.forEach((el, i) => {
-          if (!el) return;
-          const parent = el.closest('.installation-card') as HTMLElement | null;
-          if (!parent) return;
-          const cardRect = parent.getBoundingClientRect();
-          // Find all .meta-value children and check if any overflow the card
-          const valueEls = el.querySelectorAll('.meta-value');
-          let overflow = false;
-          valueEls.forEach((valueEl) => {
-            const valueRect = valueEl.getBoundingClientRect();
-            if (valueRect.right > cardRect.right - 16) { // 0.5px fudge for rounding
-              overflow = true;
-            }
-          });
-          forceSingleColumn[i] = overflow;
-        });
-      }
-      // Set visibility of all meta-grid elements to visible after the check
-      metaGridRefs.forEach((el) => {
-        if (!el) return;
-        el.style.visibility = 'visible';
-      });
-    }, 2); // 2ms delay to allow layout to settle
-  }
-
-  onMount(() => {
-    // Register window resize listeners to handle metadata display
-    window.addEventListener('resize', handleMetaDataDisplay);
-    handleMetaDataDisplay();
-  });
 </script>
 
 <div class=installations-list>
@@ -119,7 +76,7 @@ $: limitedInstallations = $installations
                     <Icon name="edit" size="sm" />
                     Edit
                   </button>
-                  <button on:click={async () => await InstallationManager.createInstallation(installation.version.id)}>
+                  <button on:click={async () => await InstallationManager.createInstallation(installation.version_id)}>
                     <Icon name="duplicate" size="sm" />
                     Duplicate
                   </button>
@@ -143,7 +100,7 @@ $: limitedInstallations = $installations
             <div class="installation-icon-column">
               <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColors[installation.id]}; background: rgba(0,0,0,0.0);">
                 <Icon name={loaderIcons[installation.id]} size="lg" />
-                <span class="icon-tooltip">{installation.version.loader}</span>
+                <span class="icon-tooltip">{InstallationManager.getVersionData(installation).loader}</span>
               </div>
               <button 
                 class="btn btn-primary play-below-icon" 
@@ -156,22 +113,22 @@ $: limitedInstallations = $installations
             </div>
             <div class="installation-meta">
               <div class="installation-title-row">
-                <h3>{installation.name}</h3>
+                <h3>{installation.name || installation.version_id}</h3>
               </div>
-              {#if installation.version.id}
+              {#if installation.version_id}
                 <div class="loader-version-row">
-                  <span class="loader-version" style="color: {loaderColors[installation.id]};">{installation.version.id}</span>
+                  <span class="loader-version" style="color: {loaderColors[installation.id]};">{installation.version_id}</span>
                 </div>
               {/if}
               {#if isSmall}
-                <div class="installation-meta-grid small-meta-grid {forceSingleColumn[i] ? 'force-single-column' : ''}" bind:this={metaGridRefs[i]}>
+                <div class="installation-meta-grid small-meta-grid">
                   <div class="meta-cell small-meta-cell">
                     <span class="meta-key">Total time:</span>
                     <span class="meta-value last-played small-meta-value"><Icon name="clock" size="sm" /> {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : 'Unknown'}</span>
                   </div>
                 </div>
               {:else}
-                <div class="installation-meta-grid {forceSingleColumn[i] ? 'force-single-column' : ''}" bind:this={metaGridRefs[i]}>
+                <div class="installation-meta-grid">
                   <div class="meta-cell">
                     <span class="meta-key">Created:</span>
                     <span class="meta-value created-date"><Icon name="calendar" size="sm" /> {installation.created ? new Date(installation.created).toLocaleDateString() : 'Unknown'}</span>
@@ -182,7 +139,7 @@ $: limitedInstallations = $installations
                   </div>
                   <div class="meta-cell">
                     <span class="meta-key">Total time:</span>
-                    <span class="meta-value total-time"><Icon name="clock" size="sm" /> {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : 'Never'}</span>
+                    <span class="meta-value total-time"><Icon name="clock" size="sm" /> {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : '---'}</span>
                   </div>
                 </div>
               {/if}
@@ -195,7 +152,7 @@ $: limitedInstallations = $installations
                 <Icon name="edit" size="sm" />
                 Edit
               </button>
-              <button class="btn btn-secondary" on:click={async () => await InstallationManager.createInstallation(installation.version.id)}>
+              <button class="btn btn-secondary" on:click={async () => await InstallationManager.createInstallation(installation.version_id)}>
                 <Icon name="duplicate" size="sm" />
                 Duplicate
               </button>
@@ -234,8 +191,8 @@ $: limitedInstallations = $installations
       radial-gradient(circle at var(--dot10-x, 75%) var(--dot10-y, 15%), rgba($primary, 0.03) 0%, transparent 10%),
       linear-gradient(120deg, rgba($container, 0.98) 60%, rgba($primary, 0.04) 100%);
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08); // 2px 4px
-    overflow: visible;
-    animation: move-dots 32s linear infinite alternate;
+    overflow: scroll;
+    animation: move-dots 32s ease infinite alternate;
   }
 
   @keyframes move-dots {
@@ -578,29 +535,24 @@ $: limitedInstallations = $installations
       justify-content: flex-start;
     }
   .installation-meta-grid {
-    display: grid;
+    display: flex;
+    flex-wrap: wrap;
     grid-template-columns: 1fr 1fr;
-    font-size: 0.9rem;
+    font-size: 0.65rem;
     margin-top: 0.35rem;
     .meta-cell {
       display: flex;
-      align-items: baseline;
-      gap: 0.05rem;
+      align-items: center;
       min-width: 0;
       flex-wrap: nowrap;
       overflow: hidden;
+      justify-content: space-between;
       text-overflow: ellipsis;
       white-space: nowrap;
     }
   }
-  .installation-meta-grid.force-single-column {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 0.18rem 0 !important;
-  }
     .meta-key {
       color: $text;
-      font-size: 0.75rem;
       font-weight: 500;
       opacity: 0.8;
       text-align: left;
@@ -623,7 +575,6 @@ $: limitedInstallations = $installations
       gap: 0.3em;
       min-width: fit-content;
       flex-wrap: nowrap;
-      font-size: 0.7rem;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;

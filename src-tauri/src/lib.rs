@@ -33,7 +33,7 @@ pub use auth::{
 };
 pub use settings::{CategorizedLauncherSettings, load_settings, save_settings, MinecraftDirectoryInfo};
 pub use maps::{LocalWorld, WorldDownload, get_local_worlds, delete_world, backup_world};
-pub use mods::{ModInstallationConfig, InstalledMod, get_modded_installations, setup_installation_mods, get_installed_mods, toggle_mod_enabled, update_installation_mod_config};
+pub use mods::{ModInstallationConfig, InstalledMod, setup_installation_mods, toggle_mod_enabled, update_installation_mod_config};
 pub use shaders::{ShaderPack, get_installed_shaders, toggle_shader, delete_shader, install_shader_pack, get_shader_info};
 pub use skins::{MinecraftSkin, get_local_skins, save_skin, delete_skin, install_skin, get_skin_data, get_current_minecraft_skin, upload_skin_to_minecraft};
 pub use installations::*;
@@ -210,9 +210,9 @@ pub fn run() {
             maps::delete_world,
             maps::backup_world,
             // Mods commands
-            mods::get_modded_installations,
+            // mods::get_modded_installations,
             mods::setup_installation_mods,
-            mods::get_installed_mods,
+            // mods::get_installed_mods,
             mods::toggle_mod_enabled,
             mods::update_installation_mod_config,
             // Shaders commands

@@ -562,6 +562,8 @@ export interface ContentSettings {
  *   enableExperimentalFeatures: boolean;
  *   defaultMemory: number;
  *   separateLogsWindow: boolean;
+ *   autoSaveInterval: number | 'disabled';
+ *   extra: Record<string, any>;
  * }
  * ```
  */
@@ -574,6 +576,8 @@ export interface AdvancedSettings {
   separate_logs_window: boolean;
   /** How frequently to auto save the settings */
   auto_save_interval: number | 'disabled'; // in seconds, 'disabled' means no auto save
+  /** A map with string keys and any type of values for really advanced stuff */
+  extra?: Record<string, any>;
 }
 
 /** Miscellaneous Settings for the launcher
@@ -597,19 +601,32 @@ export interface MiscSettings {
 //|_____________________________________________________________________________|
 
 
+/** LoaderKind enum (matches backend LoaderKind) */
+export type LoaderKind =
+  | 'Vanilla'
+  | 'Fabric'
+  | 'IrisFabric'
+  | 'Forge'
+  | 'NeoForge'
+  | 'Quilt';
+
 /** VersionData struct
  * ```ts
  * export interface VersionData {
- *   id: string;
- *   loader: Loader;
- *   stable: boolean;
+ *   version_id: string;
+ *   loader: LoaderKind;
+ *   display_name: string;
+ *   is_stable: boolean;
+ *   extra: any;
  * }
  * ```
  */
 export interface VersionData {
-  id: string;
-  loader: Loader;
-  stable: boolean;
+  version_id: string;
+  loader: LoaderKind;
+  display_name: string;
+  is_stable: boolean;
+  extra: any;
 }
 
 /** KableInstallation struct
@@ -617,28 +634,36 @@ export interface VersionData {
  * export interface KableInstallation {
  *   id: string;
  *   name: string;
- *   icon: string;
- *   version: VersionData;
+ *   icon?: string | null;
+ *   version_id: string;
  *   created: string;
  *   last_used: string;
  *   java_args: string[];
  *   dedicated_resource_pack_folder?: string | null;
  *   dedicated_shaders_folder?: string | null;
+ *   favorite: boolean;
+ *   total_time_played_ms: number;
+ *   parameters_map: Record<string, string>;
+ *   description?: string | null;
+ *   times_launched: number;
  * }
  * ```
  */
 export interface KableInstallation {
   id: string;
   name: string;
-  icon: string;
-  version: VersionData;
+  icon?: string | null;
+  version_id: string;
   created: string;
   last_used: string;
   java_args: string[];
   dedicated_resource_pack_folder?: string | null;
   dedicated_shaders_folder?: string | null;
-  favorite?: boolean;
-  total_time_played_ms?: number;
+  favorite: boolean;
+  total_time_played_ms: number;
+  parameters_map: Record<string, string>;
+  description?: string | null;
+  times_launched: number;
 }
 
 /** LauncherProfile struct
@@ -664,18 +689,25 @@ export interface LauncherProfile {
   profile_type: string;
 }
 
-/** InstallationForm struct - very similar to KableInstallation but leaves out some fields like the `id` and `created` fields
+/** InstallationForm struct - for creating/editing installations
  * ```ts
  * export interface InstallationForm {
+ *   name: string;
+ *   icon?: string | null;
+ *   java_args?: string[];
+ *   version_id: string;
+ *   dedicated_resource_pack_folder?: string | null;
+ *   dedicated_shaders_folder?: string | null;
+ *   description?: string | null;
  * }
  * ```
  */
-
 export interface InstallationForm {
   name: string;
-  icon: string;
+  icon?: string | null;
   java_args?: string[];
-  version: VersionData;
+  version_id: string;
   dedicated_resource_pack_folder?: string | null;
   dedicated_shaders_folder?: string | null;
+  description?: string | null;
 }

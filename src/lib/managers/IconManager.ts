@@ -143,6 +143,8 @@ export class IconManager {
         fabric: '🧵',
         irisfabric: '<svg viewBox="0 0 24 24" fill="none" stroke="#8e24aa" stroke-width="2" preserveAspectRatio="xMidYMid meet"><path d="M 12 3 L 13.53 5.12 L 15.85 4.62 L 15.38 7.09 L 17.39 8.09 L 15.85 10.15 L 17.39 12 L 15.85 13.85 L 17.39 15.91 L 15.38 16.91 L 15.85 19.38 L 13.53 18.88 L 12 21 L 10.47 18.88 L 8.15 19.38 L 8.62 16.91 L 6.61 15.91 L 8.15 13.85 L 6.61 12 L 8.15 10.15 L 6.61 8.09 L 8.62 7.09 L 8.15 4.62 L 10.47 5.12 Z" fill="none"/></svg>', // Purple circle for Iris Fabric
         hammer: '🔨',
+        forge: '⚒️', // Forge/Anvil emoji
+        neoforge: '🦊', // NeoForge, fox emoji
         cube: '🧊',
         iris: '🧶',
         
@@ -314,6 +316,8 @@ export class IconManager {
         world: 'fas fa-globe',
         skull: 'fas fa-skull',
         fabric: 'fas fa-thread',
+        forge: 'fas fa-anvil', // Forge/Anvil icon (FontAwesome 6+), fallback to hammer if not available
+        neoforge: 'fas fa-fox', // NeoForge, fox icon (FontAwesome 6+), fallback to something similar if not available
         iris: 'fas fa-eye', // Use eye icon for Iris Fabric
         hammer: 'fas fa-hammer',
         cube: 'fas fa-cube',
@@ -477,7 +481,9 @@ export class IconManager {
         iris: '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><ellipse cx="12" cy="12" rx="10" ry="10"/><ellipse cx="12" cy="12" rx="5" ry="5"/><ellipse cx="12" cy="12" rx="2" ry="2"/></svg>',
         hammer: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 12l-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0-.83-.83-.83-2.17 0-3L12 9"/><path d="M17.64 15L22 10.64"/><path d="M20.05 11.38L12.67 4l-2.05 2.05 7.38 7.38z"/></svg>',
         cube: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="7.5,4.21 12,6.81 16.5,4.21"/><polyline points="7.5,19.79 7.5,14.6 3,12"/><polyline points="21,12 16.5,14.6 16.5,19.79"/><polyline points="3.27,6.96 12,12.01 20.73,6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>',
-        
+        forge: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="17" width="18" height="4" rx="1"/><rect x="7" y="13" width="10" height="4" rx="1"/><rect x="10" y="9" width="4" height="4" rx="1"/></svg>', // Anvil SVG
+        neoforge: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20c0-4 4-8 8-8s8 4 8 8"/><path d="M8 20c0-2 2-4 4-4s4 2 4 4"/><path d="M12 12c-2-2-2-6 0-8 2 2 2 6 0 8z"/><path d="M12 12c2-2 2-6 0-8"/><circle cx="12" cy="16" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg>', // Fox SVG
+
         // Players & Social
         player: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
         players: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
