@@ -13,6 +13,8 @@ pub struct KableInstallation {
     pub created: String,
     pub last_used: String,
     pub java_args: Vec<String>,
+    // optional folders to temporarily use assets from
+    pub dedicated_mods_folder: Option<String>,
     pub dedicated_resource_pack_folder: Option<String>,
     pub dedicated_shaders_folder: Option<String>,
     pub favorite: bool,
@@ -43,6 +45,7 @@ impl Default for KableInstallation {
                 "-XX:MaxGCPauseMillis=50".to_string(),
                 "-XX:G1HeapRegionSize=32M".to_string(),
             ],
+            dedicated_mods_folder: None,
             dedicated_resource_pack_folder: None,
             dedicated_shaders_folder: None,
             favorite: false,
@@ -60,7 +63,7 @@ impl From<LauncherProfile> for KableInstallation {
             id: uuid::Uuid::new_v4().to_string(),
             name: profile.name,
             icon: profile.icon,
-            version_id: profile.last_version_id,
+            version_id: profile.last_version_id.clone(),
             created: profile.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
             last_used: profile.last_used.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
             java_args: match profile.java_args {
@@ -75,6 +78,7 @@ impl From<LauncherProfile> for KableInstallation {
                     "-XX:G1HeapRegionSize=32M".to_string(),
                 ],
             },
+            dedicated_mods_folder: Some(profile.last_version_id),
             dedicated_resource_pack_folder: None,
             dedicated_shaders_folder: None,
             favorite: false,

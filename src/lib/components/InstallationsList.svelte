@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Icon, InstallationManager, installations, isLoadingInstallations, isLoadingVersions } from '$lib';
+  import { Icon, InstallationManager, installations, isLoadingInstallations, isLoadingVersions, Launcher } from '$lib';
   
   export let isGrid: boolean = false;
   export let isSmall: boolean = false;
@@ -105,7 +105,7 @@
               <button 
                 class="btn btn-primary play-below-icon" 
                 style="background: linear-gradient(90deg, {loaderColors[installation.id] || '#3a7bd5'} 60%, {loaderColors[installation.id] ? `${loaderColors[installation.id]}cc` : '#00b09b'} 100%); color: #fff !important;"
-                on:click={async () => {}}
+                on:click={async () => { await Launcher.launchInstallation(installation); }}
                 disabled={isLoading}
               >
                 Play

@@ -94,8 +94,8 @@ export const LogsManager = {
     const messageKey = instanceId ? `${instanceId}:${level}:${message}` : `global:${level}:${message}`;
     const lastSeen = recentLauncherMessages.get(messageKey);
     
-    if (lastSeen && (now - lastSeen) < 5 * 60 * 1000) {
-      // Skip duplicate message within 5 minutes
+    if (lastSeen && (now - lastSeen) < 10 * 1000) {
+      // Skip duplicate message within 10 seconds
       return;
     }
     
@@ -123,8 +123,9 @@ export const LogsManager = {
         const newLogs = new Map(logs);
         const instanceLogs = newLogs.get(instanceId);
         if (instanceLogs) {
-          instanceLogs.launcherLogs.push(logEntry);
-          newLogs.set(instanceId, instanceLogs);
+          // Use immutable update for Svelte reactivity
+          instanceLogs.launcherLogs = [...instanceLogs.launcherLogs, logEntry];
+          newLogs.set(instanceId, { ...instanceLogs });
         }
         return newLogs;
       });
@@ -147,8 +148,9 @@ export const LogsManager = {
       const newLogs = new Map(logs);
       const instanceLogs = newLogs.get(instanceId);
       if (instanceLogs) {
-        instanceLogs.gameLogs.push(logEntry);
-        newLogs.set(instanceId, instanceLogs);
+        // Use immutable update for Svelte reactivity
+        instanceLogs.gameLogs = [...instanceLogs.gameLogs, logEntry];
+        newLogs.set(instanceId, { ...instanceLogs });
       }
       return newLogs;
     });

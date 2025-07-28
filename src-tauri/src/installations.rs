@@ -1,12 +1,36 @@
+/// Ensures that a modded installation has a dedicated mods folder set and created.
+/// Returns true if the folder was set/created, false otherwise.
+async fn ensure_dedicated_mods_folder(installation: &mut KableInstallation) -> Result<bool, String> {
+    use crate::installations::get_version;
+    let version_id = &installation.version_id;
+    let version_data = get_version(version_id.clone()).await;
+    let is_modded = match &version_data {
+        Some(v) => {
+            v.loader != LoaderKind::Vanilla
+        },
+        None => false
+    };
+    if is_modded && installation.dedicated_mods_folder.is_none() {
+        // Set mods_folder to installation id
+        installation.dedicated_mods_folder = Some(installation.id.clone());
+        // Create .minecraft/kable/mods/<id> if not exists
+        let minecraft_dir = crate::get_default_minecraft_dir().map_err(|e| format!("Failed to get default Minecraft dir: {e}"))?;
+        let mods_dir = minecraft_dir.join("kable").join("mods").join(&installation.id);
+        if !mods_dir.exists() {
+            std::fs::create_dir_all(&mods_dir).map_err(|e| format!("Failed to create mods dir: {e}"))?;
+        }
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
 pub mod kable_profiles;
 pub mod profiles;
 pub mod versions;
 
 use crate::installations::kable_profiles::*;
-use crate::installations::profiles::*;
 use crate::installations::versions::*;
 use tokio::sync::OnceCell;
-use tokio::task;
 use crate::logging::{Logger, LogLevel};
 
 // Internal cache for installations
@@ -112,10 +136,12 @@ pub async fn delete_installation(id: &str) -> Result<(), String> {
 
 /// Modifies an existing KableInstallation by ID in kable_profiles.json and invalidates cache
 #[tauri::command]
-pub async fn modify_installation(id: &str, new_installation: KableInstallation) -> Result<(), String> {
+pub async fn modify_installation(id: &str, mut new_installation: KableInstallation) -> Result<(), String> {
     let mut installations = kable_profiles::read_kable_profiles_async().await?;
     let index = installations.iter().position(|i| i.id == id);
     if let Some(index) = index {
+        // Ensure dedicated mods folder if needed
+        let _ = ensure_dedicated_mods_folder(&mut new_installation).await?;
         installations[index] = new_installation;
         let result = kable_profiles::write_kable_profiles_async(&installations).await;
         INSTALLATIONS_CACHE.set(installations.clone()).ok();
@@ -145,12 +171,13 @@ pub async fn create_installation(version_id: &str) -> Result<KableInstallation, 
     let versions = get_versions().await;
     let version_data = versions.get_version(version_id).cloned().ok_or_else(|| format!("No version found for id: {}", version_id))?;
     Logger::console_log(LogLevel::Info, &format!("Creating new installation: name='{}', version_id='{}'", name, version_data.version_id), None);
-    let new_installation = KableInstallation {
+    let mut new_installation = KableInstallation {
         name,
         version_id: version_data.version_id.clone(),
         ..Default::default()
     };
-    // Optionally set other fields if needed
+    // Ensure dedicated mods folder if needed
+    let _ = ensure_dedicated_mods_folder(&mut new_installation).await?;
     installations.push(new_installation.clone());
     let result = kable_profiles::write_kable_profiles_async(&installations).await;
     INSTALLATIONS_CACHE.set(installations.clone()).ok();

@@ -31,16 +31,16 @@ pub use auth::{
     // Main auth types (only these are needed for lib.rs re-export)
     AuthMethod, MinecraftAccount
 };
-pub use settings::{CategorizedLauncherSettings, load_settings, save_settings, MinecraftDirectoryInfo};
-pub use maps::{LocalWorld, WorldDownload, get_local_worlds, delete_world, backup_world};
-pub use mods::{ModInstallationConfig, InstalledMod, setup_installation_mods, toggle_mod_enabled, update_installation_mod_config};
-pub use shaders::{ShaderPack, get_installed_shaders, toggle_shader, delete_shader, install_shader_pack, get_shader_info};
-pub use skins::{MinecraftSkin, get_local_skins, save_skin, delete_skin, install_skin, get_skin_data, get_current_minecraft_skin, upload_skin_to_minecraft};
+pub use settings::*;
+pub use maps::*;
+pub use mods::*;
+pub use shaders::*;
+pub use skins::*;
 pub use installations::*;
-pub use launcher::{LaunchContext, VersionManifest, load_version_manifest, get_minecraft_paths, get_java_path};
-pub use icons::{CustomIconTemplate, IconSettings, get_custom_icon_templates, save_custom_icon_template, delete_custom_icon_template, validate_icon_template, get_icons_directory_path, open_icons_directory};
-pub use window_state::{WindowState, load_window_state, save_window_state, get_current_window_state, apply_window_state, setup_window_state_handlers, get_monitor_info, show_main_window};
-pub use logging::{Logger, LogLevel};
+pub use launcher::*;
+pub use icons::*;
+pub use window_state::*;
+pub use logging::*;
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -204,7 +204,11 @@ pub fn run() {
             installations::delete_installation,
             installations::create_installation,
             // Launcher commands
-            launcher::get_java_path,
+            launcher::launch_installation,
+            launcher::kill_minecraft_process,
+            launcher::get_running_minecraft_processes,
+            launcher::is_minecraft_running,
+            launcher::wait_for_minecraft_exit,
             // Maps/Worlds commands
             maps::get_local_worlds,
             maps::delete_world,

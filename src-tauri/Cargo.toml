@@ -50,6 +50,9 @@ anyhow = "1.0"
 
 # Pin problematic dependencies to avoid edition2024 issues
 base64ct = "=1.6.0"  # Pin to avoid 1.8.0 which uses edition2024
+async-trait = "0.1.88"
+sysinfo = "0.36.1"
+windows-sys = { version = "0.60.2", features = ["Win32_System_Threading"] }
 
 [patch.crates-io]
 indexmap = { git = "https://github.com/indexmap-rs/indexmap.git", branch = "main" }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Icon, installations, isLoadingInstallations, installationsError, type KableInstallation, LaunchService, InstallationManager } from '$lib';
+  import { Icon, installations, isLoadingInstallations, installationsError, type KableInstallation, Launcher, InstallationManager } from '$lib';
     import InstallationsList from '$lib/components/InstallationsList.svelte';
 
 
@@ -78,18 +78,7 @@
     launchStatus = 'Preparing to launch...';
     let result;
     
-    try {
-      // Check if we're ready to launch
-      // const { canLaunch, reason } = await InstallationManager.canLaunch(lastPlayedInstallations[0]);
-      // if (!canLaunch) {
-      //   launchStatus = reason || 'Cannot launch';
-      //   setTimeout(() => {
-      //     launchStatus = '';
-      //     isLaunching = false;
-      //   }, 10000);
-      //   return;
-      // }
-      
+    try {      
       // Try to launch the most recent installation
       if (lastPlayedInstallations.length > 0) {
         console.log('Launching installation:', lastPlayedInstallations[0]);
@@ -100,9 +89,8 @@
         result = { success: true };
       } else {
         launchStatus = 'Launching default Minecraft...';
-        // Use LaunchService for quick launch fallback
-        const launchService = LaunchService.getInstance();
-        result = await launchService.launchLatest();
+        // Use Launcher for quick launch fallback
+        result = await Launcher.launchLatest();
       }
       
       if (result.success) {         

@@ -711,3 +711,23 @@ export interface InstallationForm {
   dedicated_shaders_folder?: string | null;
   description?: string | null;
 }
+
+// _____________________________________________________________________________
+//|                                                                             |
+//|                              Launcher Types                                 |
+//|_____________________________________________________________________________|
+
+/** Result of launching a game instance
+ * ```ts
+ * export interface LaunchResult {
+ *   pid: number;
+ *   command: string;
+ * }
+ * ```
+ */
+export interface LaunchResult {
+  pid: number;
+  command: string;
+}
+
+

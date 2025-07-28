@@ -1,58 +1,52 @@
+import type { KableInstallation, CategorizedLauncherSettings, LauncherAccount } from '$lib';
 import { invoke } from '@tauri-apps/api/core';
 
-/**
- * Launcher API
- * Pure Tauri invoke calls for Minecraft launching operations
- */
-// TODO: Move all types to types.d.ts
-// @deprecated("...")
-export interface ExtendedLaunchOptions {
-    version?: string;
-    installationId?: string;
-    customGameDir?: string;
-    javaPath?: string;
-    jvmArgs?: string[];
-    windowWidth?: number;
-    windowHeight?: number;
-}
-// @deprecated("...")
+// Types matching backend LaunchResult
 export interface LaunchResult {
-    success: boolean;
-    error?: string;
-    processId?: number;
+  pid: number;
+  success: boolean;
+  error?: string;
 }
 
-// Quick launch functions
-export async function quickLaunchMinecraft(versionName: string): Promise<void> {
-    return await invoke('quick_launch_minecraft', { versionName });
+/**
+ * Launch a Minecraft installation (matches tauri::command launch_installation)
+ */
+export async function launchInstallation(
+  installation: KableInstallation,
+  settings: CategorizedLauncherSettings,
+  account: LauncherAccount
+): Promise<LaunchResult> {
+  return await invoke<LaunchResult>('launch_installation', {
+    installation,
+    settings,
+    account
+  });
 }
 
-export async function launchWithOptions(options: ExtendedLaunchOptions): Promise<void> {
-    return await invoke('launch_with_options', { options });
-}
-
-export async function launchLatestVersion(): Promise<void> {
-    return await invoke('launch_latest_version');
-}
-
-export async function launchInstallation(installationId: string): Promise<void> {
-    return await invoke('launch_installation', { installationId });
-}
-
-// Process management
+/**
+ * Kill a Minecraft process by PID (matches tauri::command kill_minecraft_process)
+ */
 export async function killMinecraftProcess(processId: number): Promise<void> {
-    return await invoke('kill_minecraft_process', { processId });
+  return await invoke('kill_minecraft_process', { processId });
 }
 
+/**
+ * Get all running Minecraft process IDs (matches tauri::command get_running_minecraft_processes)
+ */
 export async function getRunningMinecraftProcesses(): Promise<number[]> {
-    return await invoke('get_running_minecraft_processes');
+  return await invoke<number[]>('get_running_minecraft_processes');
 }
 
-// Launch monitoring
+/**
+ * Check if any Minecraft process is running (matches tauri::command is_minecraft_running)
+ */
 export async function isMinecraftRunning(): Promise<boolean> {
-    return await invoke('is_minecraft_running');
+  return await invoke<boolean>('is_minecraft_running');
 }
 
+/**
+ * Wait for a Minecraft process to exit (matches tauri::command wait_for_minecraft_exit)
+ */
 export async function waitForMinecraftExit(processId: number): Promise<void> {
-    return await invoke('wait_for_minecraft_exit', { processId });
+  return await invoke('wait_for_minecraft_exit', { processId });
 }

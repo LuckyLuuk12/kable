@@ -8,8 +8,9 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 use crate::settings::CategorizedLauncherSettings;
 
-/// Global app handle for logging from anywhere
-static GLOBAL_APP_HANDLE: Mutex<Option<Arc<AppHandle>>> = Mutex::new(None);
+// Global app handle for logging from anywhere 
+/// !NOTE: it should be initialized in the main function of your Tauri app at startup and accessed via the mutex
+pub static GLOBAL_APP_HANDLE: Mutex<Option<Arc<AppHandle>>> = Mutex::new(None);
 
 /// Global log storage system
 static LOG_STORAGE: Mutex<Option<LogStorage>> = Mutex::new(None);
