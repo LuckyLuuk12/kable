@@ -25,8 +25,8 @@ fn get_pid_set() -> &'static Mutex<HashSet<u32>> {
 fn get_launchable_for_installation(context: &LaunchContext) -> Result<Box<dyn Launchable>, String> {
     // Detect loader type from context.installation or context.manifest
     match context.detect_loader_type()? {
-        LoaderType::Vanilla => Ok(Box::new(VanillaLaunchable::new())),
-        LoaderType::Fabric => Ok(Box::new(FabricLaunchable::new())),
+        LoaderType::Vanilla => Ok(Box::new(VanillaLaunchable)),
+        LoaderType::Fabric => Ok(Box::new(FabricLaunchable)),
         // Add more as needed
         _ => Err("Unsupported loader type".to_string()),
     }
@@ -45,7 +45,7 @@ pub async fn launch_installation(
     // Use version_id for log grouping
     let version_id = installation.version_id.as_str();
     let instance_id = Some(version_id);
-    Logger::info(&app, &format!("Launching installation: {}", installation.name), instance_id);
+    Logger::info_global(&format!("Launching installation: {}", installation.name), None);
     // Validate installation
     let minecraft_dir = match get_default_minecraft_dir() {
         Ok(dir) => dir.to_string_lossy().to_string(),
@@ -66,7 +66,7 @@ pub async fn launch_installation(
     let launchable = match get_launchable_for_installation(&context) {
         Ok(l) => l,
         Err(e) => {
-            Logger::error(&app, &format!("Failed to detect loader: {}", e), instance_id);
+            Logger::error_global(&format!("Failed to detect loader: {}", e), instance_id);
             return Err(format!("Failed to detect loader: {}", e));
         }
     };
@@ -78,11 +78,11 @@ pub async fn launch_installation(
     // Build and run the launch command
     let result = match launchable.launch(&context).await {
         Ok(res) => {
-            Logger::info(&app, &format!("Minecraft launched successfully (PID: {})", res.pid), instance_id);
+            Logger::info(&app, &format!("Minecraft launched successfully (PID: {})", res.pid), None);
             res
         },
         Err(e) => {
-            Logger::error(&app, &format!("Failed to launch Minecraft: {}", e), instance_id);
+            Logger::error(&app, &format!("Failed to launch Minecraft: {}", e), None);
             return Err(format!("Failed to launch Minecraft: {}", e));
         }
     };

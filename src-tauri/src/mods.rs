@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
-use crate::{get_minecraft_kable_dir};
 // use crate::installations::MinecraftInstallation;
 
 // Mod management structures

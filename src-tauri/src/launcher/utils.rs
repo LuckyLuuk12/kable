@@ -1,15 +1,201 @@
-use std::collections::HashMap;
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
 use serde_json::Value;
-use tauri::{AppHandle, Emitter};
+use std::collections::HashMap;
+use std::process::Command;
+use tauri::Emitter;
 use crate::launchables::LaunchContext;
-use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::process::Command as TokioCommand;
-use crate::logging::Logger;
-
-// --- Minecraft Library and Manifest Types (self-contained, from launcher_old.rs) ---
+use tokio::io::{BufReader};
 use serde::{Deserialize, Serialize};
+use crate::logging::{Logger, LogLevel};
+
+
+/// Loads a Minecraft version manifest, recursively merging inherited manifests if needed.
+/// Returns the fully merged manifest as serde_json::Value.
+pub fn load_and_merge_manifest_with_instance(minecraft_dir: &str, version_id: &str, instance_id: Option<&str>) -> Result<Value, String> {
+    if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+        if let Some(app_handle) = handle_guard.as_ref() {
+            Logger::log(app_handle, LogLevel::Info, &format!("Loading manifest for version_id: {}", version_id), instance_id);
+        } else {
+            Logger::console_log(LogLevel::Info, &format!("Loading manifest for version_id: {}", version_id), instance_id);
+        }
+    } else {
+        Logger::console_log(LogLevel::Info, &format!("Loading manifest for version_id: {}", version_id), instance_id);
+    }
+    let manifest_path = PathBuf::from(minecraft_dir)
+        .join("versions").join(version_id).join(format!("{}.json", version_id));
+    let manifest_str = match fs::read_to_string(&manifest_path) {
+        Ok(s) => s,
+        Err(e) => {
+            if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+                if let Some(app_handle) = handle_guard.as_ref() {
+                    Logger::log(app_handle, LogLevel::Error, &format!("Failed to read manifest for {}: {}", version_id, e), instance_id);
+                } else {
+                    Logger::console_log(LogLevel::Error, &format!("Failed to read manifest for {}: {}", version_id, e), instance_id);
+                }
+            } else {
+                Logger::console_log(LogLevel::Error, &format!("Failed to read manifest for {}: {}", version_id, e), instance_id);
+            }
+            return Err(format!("Failed to read manifest: {}", e));
+        }
+    };
+    let mut manifest: Value = match serde_json::from_str(&manifest_str) {
+        Ok(m) => m,
+        Err(e) => {
+            if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+                if let Some(app_handle) = handle_guard.as_ref() {
+                    Logger::log(app_handle, LogLevel::Error, &format!("Failed to parse manifest for {}: {}", version_id, e), instance_id);
+                } else {
+                    Logger::console_log(LogLevel::Error, &format!("Failed to parse manifest for {}: {}", version_id, e), instance_id);
+                }
+            } else {
+                Logger::console_log(LogLevel::Error, &format!("Failed to parse manifest for {}: {}", version_id, e), instance_id);
+            }
+            return Err(format!("Failed to parse manifest: {}", e));
+        }
+    };
+    // If inheritsFrom, recursively merge
+    if let Some(parent_id) = manifest.get("inheritsFrom").and_then(|v| v.as_str()) {
+        if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+            if let Some(app_handle) = handle_guard.as_ref() {
+                Logger::log(app_handle, LogLevel::Info, &format!("Manifest {} inherits from {}. Recursively merging...", version_id, parent_id), instance_id);
+            } else {
+                Logger::console_log(LogLevel::Info, &format!("Manifest {} inherits from {}. Recursively merging...", version_id, parent_id), instance_id);
+            }
+        } else {
+            Logger::console_log(LogLevel::Info, &format!("Manifest {} inherits from {}. Recursively merging...", version_id, parent_id), instance_id);
+        }
+        let parent = load_and_merge_manifest_with_instance(minecraft_dir, parent_id, instance_id)?;
+        manifest = merge_manifests_with_instance(parent, manifest, instance_id);
+    }
+    if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+        if let Some(app_handle) = handle_guard.as_ref() {
+            Logger::log(app_handle, LogLevel::Info, &format!("Loaded and merged manifest for version_id: {}", version_id), instance_id);
+        } else {
+            Logger::console_log(LogLevel::Info, &format!("Loaded and merged manifest for version_id: {}", version_id), instance_id);
+        }
+    } else {
+        Logger::console_log(LogLevel::Info, &format!("Loaded and merged manifest for version_id: {}", version_id), instance_id);
+    }
+    Ok(manifest)
+}
+
+// Backwards compatible version for callers that don't have instance_id
+pub fn load_and_merge_manifest(minecraft_dir: &str, version_id: &str) -> Result<Value, String> {
+    load_and_merge_manifest_with_instance(minecraft_dir, version_id, None)
+}
+
+/// Merges two manifests (parent, child), with child values taking precedence.
+pub fn merge_manifests_with_instance(parent: Value, child: Value, instance_id: Option<&str>) -> Value {
+    if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+        if let Some(app_handle) = handle_guard.as_ref() {
+            Logger::log(app_handle, LogLevel::Debug, "Merging manifests (child overrides parent)", instance_id);
+        } else {
+            Logger::console_log(LogLevel::Debug, "Merging manifests (child overrides parent)", instance_id);
+        }
+    } else {
+        Logger::console_log(LogLevel::Debug, "Merging manifests (child overrides parent)", instance_id);
+    }
+    match (parent, child) {
+        (Value::Object(mut p), Value::Object(c)) => {
+            for (k, v) in c {
+                let key = k.clone();
+                let old_value = p.remove(&key).unwrap_or(Value::Null);
+                p.insert(k, merge_manifests_with_instance(old_value, v, instance_id));
+            }
+            Value::Object(p)
+        }
+        (_, v) => v,
+    }
+}
+
+pub fn merge_manifests(parent: Value, child: Value) -> Value {
+    merge_manifests_with_instance(parent, child, None)
+}
+
+/// Builds the Java classpath string from a merged manifest, libraries path, and version jar path.
+/// This is the single source of classpath logic for all loaders (vanilla, fabric, etc).
+/// It includes all libraries (with rules applied) and the version JAR as the last entry.
+/// No loader JAR filtering or prepending is needed; for Fabric, the version JAR is the loader JAR.
+pub fn build_classpath_from_manifest_with_instance(manifest: &Value, libraries_path: &Path, version_jar_path: &Path, instance_id: Option<&str>) -> String {
+    if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+        if let Some(app_handle) = handle_guard.as_ref() {
+            Logger::log(app_handle, LogLevel::Info, "Building classpath from manifest", instance_id);
+        } else {
+            Logger::console_log(LogLevel::Info, "Building classpath from manifest", instance_id);
+        }
+    } else {
+        Logger::console_log(LogLevel::Info, "Building classpath from manifest", instance_id);
+    }
+    let mut entries = Vec::new();
+    if let Some(libs) = manifest.get("libraries").and_then(|v| v.as_array()) {
+        for lib in libs {
+            if let Some(obj) = lib.as_object() {
+                if let Some(downloads) = obj.get("downloads") {
+                    if let Some(artifact) = downloads.get("artifact") {
+                        if let Some(path) = artifact.get("path").and_then(|v| v.as_str()) {
+                            let jar_path = libraries_path.join(path);
+                            entries.push(jar_path.to_string_lossy().to_string());
+                        }
+                    }
+                }
+            }
+        }
+    }
+    entries.push(version_jar_path.to_string_lossy().to_string());
+    let sep = if cfg!(windows) { ";" } else { ":" };
+    let classpath = entries.join(sep);
+    if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+        if let Some(app_handle) = handle_guard.as_ref() {
+            Logger::log(app_handle, LogLevel::Info, &format!("Classpath built: {} entries", entries.len()), instance_id);
+        } else {
+            Logger::console_log(LogLevel::Info, &format!("Classpath built: {} entries", entries.len()), instance_id);
+        }
+    } else {
+        Logger::console_log(LogLevel::Info, &format!("Classpath built: {} entries", entries.len()), instance_id);
+    }
+    classpath
+}
+
+pub fn build_classpath_from_manifest(manifest: &Value, libraries_path: &Path, version_jar_path: &Path) -> String {
+    build_classpath_from_manifest_with_instance(manifest, libraries_path, version_jar_path, None)
+}
+
+/// Builds JVM and game arguments from a merged manifest and variable map.
+pub fn build_jvm_and_game_args_with_instance(manifest: &Value, variables: &std::collections::HashMap<String, String>, instance_id: Option<&str>) -> (Vec<String>, Vec<String>) {
+    if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+        if let Some(app_handle) = handle_guard.as_ref() {
+            Logger::log(app_handle, LogLevel::Info, "Building JVM and game arguments from manifest", instance_id);
+        } else {
+            Logger::console_log(LogLevel::Info, "Building JVM and game arguments from manifest", instance_id);
+        }
+    } else {
+        Logger::console_log(LogLevel::Info, "Building JVM and game arguments from manifest", instance_id);
+    }
+    let arguments = manifest.get("arguments").and_then(|v| v.as_object()).expect("No arguments in manifest");
+    let empty_vec = Vec::new();
+    let jvm_args = arguments.get("jvm").and_then(|v| v.as_array()).unwrap_or(&empty_vec);
+    let game_args = arguments.get("game").and_then(|v| v.as_array()).unwrap_or(&empty_vec);
+    let jvm_args_vec = process_arguments(jvm_args, variables);
+    let game_args_vec = process_arguments(game_args, variables);
+    if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+        if let Some(app_handle) = handle_guard.as_ref() {
+            Logger::log(app_handle, LogLevel::Info, &format!("JVM args: {:?}", jvm_args_vec), instance_id);
+            Logger::log(app_handle, LogLevel::Info, &format!("Game args: {:?}", game_args_vec), instance_id);
+        } else {
+            Logger::console_log(LogLevel::Info, &format!("JVM args: {:?}", jvm_args_vec), instance_id);
+            Logger::console_log(LogLevel::Info, &format!("Game args: {:?}", game_args_vec), instance_id);
+        }
+    } else {
+        Logger::console_log(LogLevel::Info, &format!("JVM args: {:?}", jvm_args_vec), instance_id);
+        Logger::console_log(LogLevel::Info, &format!("Game args: {:?}", game_args_vec), instance_id);
+    }
+    (jvm_args_vec, game_args_vec)
+}
+
+pub fn build_jvm_and_game_args(manifest: &Value, variables: &std::collections::HashMap<String, String>) -> (Vec<String>, Vec<String>) {
+    build_jvm_and_game_args_with_instance(manifest, variables, None)
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Library {
@@ -547,7 +733,23 @@ pub async fn spawn_and_log_process(
         }
     }
 
-    // Convert std::process::Command to tokio::process::Command
+    // --- Emit game-launched event FIRST (before any instance-aware utils are called) ---
+    let app = get_app_handle();
+    let mut patched_profile = profile.clone();
+    if let Some(install_name) = installation.get("name") {
+        patched_profile["name"] = install_name.clone();
+    } else if let Some(id) = profile.get("id") {
+        patched_profile["name"] = id.clone();
+    }
+    if let Some(ref app) = app {
+        let _ = app.emit_to("main", "game-launched", json!({
+            "instanceId": instance_id,
+            "profile": patched_profile,
+            "installation": installation
+        }));
+    }
+
+    // Now spawn the process
     let mut tokio_cmd = TokioCommand::new(cmd.get_program());
     tokio_cmd.args(cmd.get_args());
     tokio_cmd.current_dir(working_dir);
@@ -555,17 +757,6 @@ pub async fn spawn_and_log_process(
     tokio_cmd.stderr(Stdio::piped());
     let mut child = tokio_cmd.spawn().map_err(|e| format!("Failed to launch: {e}"))?;
     let pid = child.id().unwrap_or(0);
-
-    let app = get_app_handle();
-
-    // --- Emit game-launched event FIRST ---
-    if let Some(ref app) = app {
-        let _ = app.emit_to("main", "game-launched", json!({
-            "instanceId": instance_id,
-            "profile": profile,
-            "installation": installation
-        }));
-    }
 
     // Emit process started event
     if let Some(ref app) = app {
@@ -613,9 +804,6 @@ pub async fn spawn_and_log_process(
                         "type": "output",
                         "data": { "line": &line }
                     }));
-                    Logger::info(app, &line, Some(&instance_id));
-                } else {
-                    Logger::info_global(&line, Some(&instance_id));
                 }
             }
         });
@@ -642,9 +830,6 @@ pub async fn spawn_and_log_process(
                         "type": "error",
                         "data": { "line": &line }
                     }));
-                    Logger::error(app, &line, Some(&instance_id));
-                } else {
-                    Logger::error_global(&line, Some(&instance_id));
                 }
             }
         });
@@ -690,6 +875,7 @@ pub async fn spawn_and_log_process(
     let status = child.wait().await.map_err(|e| format!("Process wait failed: {e}"))?;
     let exit_code = status.code().unwrap_or(-1);
     Logger::info_global(&format!("Minecraft process exited with status: {}", exit_code), Some(&instance_id_str));
+    eprintln!("Command:\n{:?}\nInstallation:\n{:?}", cmd, installation);
     if let Some(app) = get_app_handle() {
         let _ = app.emit_to("main", "game-process-event", json!({
             "instanceId": &instance_id_str,

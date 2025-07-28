@@ -1,26 +1,72 @@
+/// Loads and merges a Fabric manifest, recursively resolving `inheritsFrom` and merging libraries and arguments.
+/// Returns the fully merged manifest as serde_json::Value.
+use serde_json::Value;
+use std::fs::File;
+use std::io::Read;
+
+/// Loads a manifest from disk given a version id and minecraft_dir.
+fn load_manifest(minecraft_dir: &str, version_id: &str) -> Result<Value, String> {
+    let manifest_path = PathBuf::from(minecraft_dir)
+        .join("versions").join(version_id).join(format!("{}.json", version_id));
+    let mut file = File::open(&manifest_path)
+        .map_err(|e| format!("Failed to open manifest {}: {}", manifest_path.display(), e))?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)
+        .map_err(|e| format!("Failed to read manifest {}: {}", manifest_path.display(), e))?;
+    serde_json::from_str(&contents).map_err(|e| format!("Failed to parse manifest JSON: {}", e))
+}
+
+/// Recursively merges manifests for Fabric, handling `inheritsFrom`.
+fn load_and_merge_fabric_manifest(minecraft_dir: &str, version_id: &str) -> Result<Value, String> {
+    let mut manifest = load_manifest(minecraft_dir, version_id)?;
+    // If inheritsFrom, merge parent manifest
+    if let Some(parent_id) = manifest.get("inheritsFrom").and_then(|v| v.as_str()) {
+        let parent = load_and_merge_fabric_manifest(minecraft_dir, parent_id)?;
+        // Merge libraries: parent first, then child (child can override)
+        let mut merged_libraries = vec![];
+        if let Some(parent_libs) = parent.get("libraries").and_then(|v| v.as_array()) {
+            merged_libraries.extend(parent_libs.clone());
+        }
+        if let Some(child_libs) = manifest.get("libraries").and_then(|v| v.as_array()) {
+            merged_libraries.extend(child_libs.clone());
+        }
+        manifest["libraries"] = Value::Array(merged_libraries);
+        // Merge arguments: parent first, then child (child can override/add)
+        if let Some(parent_args) = parent.get("arguments").and_then(|v| v.as_object()) {
+            let mut merged_args = parent_args.clone();
+            if let Some(child_args) = manifest.get("arguments").and_then(|v| v.as_object()) {
+                for (k, v) in child_args {
+                    merged_args.insert(k.clone(), v.clone());
+                }
+            }
+            manifest["arguments"] = Value::Object(merged_args);
+        }
+        // Merge other fields (mainClass, etc.) if not present in child
+        for key in ["mainClass", "assetIndex", "assets", "downloads", "logging", "javaVersion", "type"] {
+            if manifest.get(key).is_none() {
+                if let Some(val) = parent.get(key) {
+                    manifest[key] = val.clone();
+                }
+            }
+        }
+    }
+    Ok(manifest)
+}
 // launcher/vanilla.rs
 
 use super::{Launchable, LaunchContext, LaunchResult};
 use async_trait::async_trait;
 use std::process::Command;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use reqwest::Client;
 use tokio::io::AsyncWriteExt;
+use crate::{launcher::utils::{
+    build_classpath_from_manifest_with_instance, build_jvm_and_game_args_with_instance, build_variable_map, load_and_merge_manifest_with_instance
+}, Logger};
 
+#[derive(Default)]
 pub struct FabricLaunchable;
-
-impl FabricLaunchable {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
-impl Default for FabricLaunchable {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 #[async_trait]
 impl Launchable for FabricLaunchable {
@@ -93,47 +139,22 @@ impl Launchable for FabricLaunchable {
     }
 
     async fn launch(&self, context: &LaunchContext) -> Result<LaunchResult, String> {
-        use crate::launcher::utils::{substitute_variables, process_arguments, build_variable_map};
-        use std::fs;
-        use serde_json::Value;
-        use std::path::PathBuf;
-
-        // 1. Load manifest
+        // 1. Load merged manifest (with inheritance, Fabric-aware)
         let version_id = &context.installation.version_id;
-        let manifest_path = PathBuf::from(&context.minecraft_dir)
-            .join("versions").join(version_id).join(format!("{}.json", version_id));
-        let manifest_str = fs::read_to_string(&manifest_path)
-            .map_err(|e| format!("Failed to read manifest: {}", e))?;
-        let manifest: Value = serde_json::from_str(&manifest_str)
-            .map_err(|e| format!("Failed to parse manifest: {}", e))?;
+        let manifest = load_and_merge_fabric_manifest(
+            &context.minecraft_dir,
+            version_id
+        )?;
 
-        // 2. Build classpath
+        // 2. Build classpath (all libraries + version JAR)
         let libraries_path = PathBuf::from(&context.minecraft_dir).join("libraries");
         let version_jar_path = PathBuf::from(&context.minecraft_dir)
             .join("versions").join(version_id).join(format!("{}.jar", version_id));
-        // Use vanilla's build_classpath helper
-        fn build_classpath(libraries: &[Value], libraries_path: &std::path::Path, version_jar_path: &std::path::Path) -> String {
-            let mut entries = Vec::new();
-            for lib in libraries {
-                if let Some(obj) = lib.as_object() {
-                    if let Some(downloads) = obj.get("downloads") {
-                        if let Some(artifact) = downloads.get("artifact") {
-                            if let Some(path) = artifact.get("path").and_then(|v| v.as_str()) {
-                                let jar_path = libraries_path.join(path);
-                                entries.push(jar_path.to_string_lossy().to_string());
-                            }
-                        }
-                    }
-                }
-            }
-            entries.push(version_jar_path.to_string_lossy().to_string());
-            let sep = if cfg!(windows) { ";" } else { ":" };
-            entries.join(sep)
-        }
-        let classpath = build_classpath(
-            manifest.get("libraries").and_then(|v| v.as_array()).unwrap_or(&vec![]),
+        let classpath = crate::launcher::utils::build_classpath_from_manifest_with_instance(
+            &manifest,
             &libraries_path,
             &version_jar_path,
+            Some(&context.installation.id)
         );
 
         // 3. Build variable map
@@ -145,14 +166,18 @@ impl Launchable for FabricLaunchable {
         );
 
         // 4. Build JVM and game arguments
-        let arguments = manifest.get("arguments").and_then(|v| v.as_object()).ok_or("No arguments in manifest")?;
-        let empty_vec = Vec::new();
-        let jvm_args = arguments.get("jvm").and_then(|v| v.as_array()).unwrap_or(&empty_vec);
-        let game_args = arguments.get("game").and_then(|v| v.as_array()).unwrap_or(&empty_vec);
-        let mut jvm_args_vec = process_arguments(jvm_args, &variables);
-        let mut game_args_vec = process_arguments(game_args, &variables);
+        let (mut jvm_args_vec, game_args_vec) = crate::launcher::utils::build_jvm_and_game_args_with_instance(
+            &manifest,
+            &variables,
+            Some(&context.installation.id)
+        );
 
-        // 5. Add/overwrite with parameters_map (for --key style)
+        // 5. Prepend installation-specific JVM args (Vec<String>) if present
+        if !context.installation.java_args.is_empty() {
+            jvm_args_vec.splice(0..0, context.installation.java_args.clone());
+        }
+
+        // 6. Add/overwrite with parameters_map (for --key style)
         for (k, v) in &context.installation.parameters_map {
             if k.starts_with("--") {
                 jvm_args_vec.push(k.clone());
@@ -162,11 +187,9 @@ impl Launchable for FabricLaunchable {
             }
         }
 
-        // 6. Handle mods folder override for Fabric
+        // 7. Handle mods folder override for Fabric (optional, only if needed)
+        let mut final_game_args_vec = game_args_vec.clone();
         if let Some(mods_folder) = &context.installation.dedicated_mods_folder {
-            // Fabric uses --gameDir or --fabric.modDir (see https://fabricmc.net/wiki/documentation:fabric_loader_arguments)
-            // We'll use --fabric.modDir if present, else fallback to --gameDir
-            // If mods_folder is relative, resolve from .minecraft/kable/mods/
             let mods_path = {
                 let p = PathBuf::from(mods_folder);
                 if p.is_absolute() {
@@ -175,20 +198,20 @@ impl Launchable for FabricLaunchable {
                     PathBuf::from(&context.minecraft_dir).join("kable").join("mods").join(p)
                 }
             };
-            // Remove any previous --fabric.modDir or --gameDir from game_args_vec
-            game_args_vec.retain(|arg| arg != "--fabric.modDir" && arg != "--gameDir");
-            // Insert the override
-            game_args_vec.push("--fabric.modDir".to_string());
-            game_args_vec.push(mods_path.to_string_lossy().to_string());
+            final_game_args_vec.retain(|arg| arg != "--fabric.modDir");
+            final_game_args_vec.push("--fabric.modDir".to_string());
+            final_game_args_vec.push(mods_path.to_string_lossy().to_string());
         }
 
-        // 7. Build command
+        // 8. Build command: exactly like vanilla (single -cp, correct order)
         let java_path = context.settings.general.java_path.clone().unwrap_or_else(|| "java".to_string());
         let main_class = manifest.get("mainClass").and_then(|v| v.as_str()).unwrap_or("net.fabricmc.loader.impl.launch.knot.KnotClient");
         let mut cmd = Command::new(&java_path);
         cmd.args(&jvm_args_vec);
+        cmd.arg("-cp");
+        cmd.arg(&classpath);
         cmd.arg(main_class);
-        cmd.args(&game_args_vec);
+        cmd.args(&final_game_args_vec);
         cmd.current_dir(&context.minecraft_dir);
 
         // Use spawn_and_log_process utility
