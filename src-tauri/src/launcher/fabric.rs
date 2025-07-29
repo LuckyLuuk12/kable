@@ -4,8 +4,15 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::fs::File;
 use std::io::Read;
+use super::{Launchable, LaunchContext, LaunchResult};
+use async_trait::async_trait;
+use std::process::Command;
+use std::fs;
+use std::path::PathBuf;
+use reqwest::Client;
+use tokio::io::AsyncWriteExt;
+use crate::{launcher::utils::build_variable_map};
 
-/// --- Custom structs for Fabric manifest ---
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct FabricManifest {
     #[serde(default, rename = "inheritsFrom")]
@@ -133,22 +140,13 @@ impl From<FabricManifest> for Value {
         Value::Object(map)
     }
 }
-// launcher/vanilla.rs
-
-use super::{Launchable, LaunchContext, LaunchResult};
-use async_trait::async_trait;
-use std::process::Command;
-use std::fs;
-use std::path::PathBuf;
-use reqwest::Client;
-use tokio::io::AsyncWriteExt;
-use crate::{launcher::utils::build_variable_map};
 
 #[derive(Default)]
 pub struct FabricLaunchable;
 
 #[async_trait]
 impl Launchable for FabricLaunchable {
+    // TODO: Implement proper prepare logic... This is untested and may need adjustments
     async fn prepare(&self, context: &LaunchContext) -> Result<(), String> {
         // 1. Check if manifest and jar already exist; if so, skip installer
         let version_id = &context.installation.version_id;

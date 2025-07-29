@@ -19,6 +19,7 @@ impl LaunchContext {
 
 #[async_trait]
 impl Launchable for VanillaLaunchable {
+    // TODO: Implement proper prepare logic... This is untested and may need adjustments
     async fn prepare(&self, _context: &LaunchContext) -> Result<(), String> {
         // TODO: Download manifest, libraries, assets, natives, etc.
         Ok(())

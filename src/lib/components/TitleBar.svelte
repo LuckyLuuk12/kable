@@ -83,13 +83,13 @@
     color: $text;
     -webkit-app-region: drag;
     user-select: none;
-    padding: 0 0 0 0.85rem;
+    padding: 0 0 0 1rem;
     border-bottom: 1px solid rgba($dark-700, 0.5);
   }
   .titlebar-left {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 1rem;
     .app-icon {
       width: 24px;
       height: 24px;
@@ -99,7 +99,7 @@
     .app-title {
       font-size: 1.1rem;
       font-weight: 600;
-      color: $primary;
+      color: $text;
       letter-spacing: 0.02em;
       margin-left: 0.25rem;
     }

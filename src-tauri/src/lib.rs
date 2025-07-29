@@ -29,7 +29,7 @@ pub use auth::{
     remove_launcher_account, set_active_launcher_account, get_active_launcher_account, 
     get_all_launcher_accounts, get_launcher_accounts_path_string, open_url,
     // Main auth types (only these are needed for lib.rs re-export)
-    AuthMethod, MinecraftAccount
+    AuthMethod
 };
 pub use settings::*;
 pub use maps::*;

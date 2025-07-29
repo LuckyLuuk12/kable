@@ -220,6 +220,16 @@
         justify-content: center;
         color: white;
         flex-shrink: 0;
+        overflow: hidden;
+        position: relative;
+      }
+      .user-avatar .avatar-image {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
+        display: block;
+        background: rgba($primary, 0.1);
       }
       
       .header-content {

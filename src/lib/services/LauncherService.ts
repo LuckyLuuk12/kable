@@ -33,7 +33,7 @@ export class Launcher {
             if (!account) throw new Error('No account selected');
             return await launcherApi.launchInstallation(installation, get(settings), account);
         } catch (error) {
-            console.error('Launch installation failed:', error);
+            console.error('Launching ' + installation.name + ' failed with account ' + JSON.stringify(get(currentAccount)), error);
             return {
                 pid: -1,
                 success: false,

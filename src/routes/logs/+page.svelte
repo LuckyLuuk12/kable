@@ -464,6 +464,7 @@
                 />
                 <Icon name={getLogLevelIcon(level)} size="sm" />
                 <span>{getLogLevelDisplayName(level)}</span>
+                <span class="log-level-count">({(activeLogEntries || []).filter(log => (log.level || 'info').toLowerCase() === level).length})</span>
               </label>
             {/each}
           </div>
@@ -610,12 +611,20 @@
     <div class="status-left">
       <span class="status-text">
         {#if $selectedInstanceId === 'global'}
-          Global logs: {(currentLogsData.launcherLogs || []).length} entries
+          {#if (filteredLogs || []).length === (currentLogsData.launcherLogs || []).length}
+            Global logs: {(currentLogsData.launcherLogs || []).length} entries
+          {:else}
+            Global logs: {(filteredLogs || []).length} / {(currentLogsData.launcherLogs || []).length} entries
+          {/if}
         {:else}
-          {selectedLogType === 'launcher' ? 'Launcher' : 'Game'} logs: {(activeLogEntries || []).length} entries
+          {#if (filteredLogs || []).length === (activeLogEntries || []).length}
+            {selectedLogType === 'launcher' ? 'Launcher' : 'Game'} logs: {(activeLogEntries || []).length} entries
+          {:else}
+            {selectedLogType === 'launcher' ? 'Launcher' : 'Game'} logs: {(filteredLogs || []).length} / {(activeLogEntries || []).length} entries
+          {/if}
         {/if}
-        {#if hasActiveFilters}
-          (filtered: {(filteredLogs || []).length}{#if searchTerm && searchMode !== 'normal'} • {searchMode}{/if})
+        {#if searchTerm && searchMode !== 'normal'}
+          • {searchMode}
         {/if}
       </span>
       {#if !autoScroll}
@@ -837,6 +846,18 @@
             
             input[type="checkbox"] {
               accent-color: $primary;
+            }
+            .log-level-count {
+              margin-left: auto;
+              color: $placeholder;
+              font-size: 0.85em;
+              font-weight: 500;
+              letter-spacing: 0.02em;
+              text-align: right;
+              min-width: 2.5em;
+              display: flex;
+              align-items: center;
+              justify-content: flex-end;
             }
           }
         }

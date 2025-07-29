@@ -114,8 +114,8 @@
   @use '@kablan/clean-ui/scss/variables' as *;
 
   .profile-page {
-    max-width: 1200px;
-    margin: 0 auto;
+    width: 100%;
+    padding: 0 2rem;
     word-wrap: break-word;
     overflow-wrap: break-word;
   }

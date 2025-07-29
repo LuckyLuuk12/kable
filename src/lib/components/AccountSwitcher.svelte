@@ -123,6 +123,19 @@
           </button>
         </div>
       {/each}
+      <div class="account-item add-account-item">
+        <button class="account-button add-account-btn" on:click={() => AuthManager.signIn()}>
+          <div class="account-avatar-container">
+            <div class="account-avatar minecraft-head" title="Add Account">
+              <span class="avatar-letter">+</span>
+            </div>
+          </div>
+          <div class="account-info">
+            <span class="username">Add Account</span>
+            <span class="account-type">Sign in with another Microsoft account</span>
+          </div>
+        </button>
+      </div>
     </div>
   </div>
 </div>

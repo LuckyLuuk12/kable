@@ -708,10 +708,10 @@ pub fn build_variable_map(
     let mut variables = HashMap::new();
     // Authentication
     variables.insert("auth_player_name".to_string(), context.account.username.clone());
-    variables.insert("auth_uuid".to_string(), context.account.uuid.clone());
-    let has_valid_token = context.account.access_token.as_ref().map(|t| !t.is_empty()).unwrap_or(false);
-    variables.insert("auth_access_token".to_string(), if has_valid_token { context.account.access_token.clone().unwrap() } else { "offline".to_string() });
-    variables.insert("auth_xuid".to_string(), context.account.uuid.clone());
+    variables.insert("auth_uuid".to_string(), context.account.minecraft_profile.id.clone());
+    let has_valid_token = !context.account.access_token.is_empty();
+    variables.insert("auth_access_token".to_string(), if has_valid_token { context.account.access_token.clone() } else { "offline".to_string() });
+    variables.insert("auth_xuid".to_string(), context.account.minecraft_profile.id.clone());
     variables.insert("user_type".to_string(), if has_valid_token { "microsoft" } else { "offline" }.to_string());
     variables.insert("clientid".to_string(), uuid::Uuid::new_v4().to_string());
     // Version info

@@ -5,14 +5,14 @@ use serde::{Deserialize, Serialize};
 use crate::get_version;
 use crate::installations::kable_profiles::KableInstallation;
 use crate::settings::CategorizedLauncherSettings;
-use crate::auth::MinecraftAccount;
+use crate::auth::LauncherAccount;
 use crate::versions::LoaderKind;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LaunchContext {
     pub installation: KableInstallation,
     pub settings: CategorizedLauncherSettings,
-    pub account: MinecraftAccount,
+    pub account: LauncherAccount,
     pub minecraft_dir: String,
     // Add more as needed (manifest, paths, etc.)
 }
@@ -21,7 +21,7 @@ impl LaunchContext {
     pub fn new(
         installation: KableInstallation,
         settings: CategorizedLauncherSettings,
-        account: MinecraftAccount,
+        account: LauncherAccount,
         minecraft_dir: String,
     ) -> Result<Self, String> {
         Ok(Self {
@@ -37,7 +37,7 @@ impl LaunchContext {
             match version.loader {
                 LoaderKind::Vanilla => Ok(LoaderType::Vanilla),
                 LoaderKind::Fabric => Ok(LoaderType::Fabric),
-                LoaderKind::IrisFabric => Ok(LoaderType::IrisFabric),
+                LoaderKind::IrisFabric => Ok(LoaderType::Fabric), // Iris is a Fabric mod but has its own loader which is identical to Fabric
                 LoaderKind::Quilt => Ok(LoaderType::Quilt),
                 LoaderKind::Forge => Ok(LoaderType::Forge),
                 LoaderKind::NeoForge => Ok(LoaderType::NeoForge)

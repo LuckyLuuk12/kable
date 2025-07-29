@@ -7,7 +7,9 @@ pub use launchables::{Launchable, LaunchContext, LaunchResult, LoaderType};
 pub use vanilla::VanillaLaunchable;
 pub use fabric::FabricLaunchable;
 
-use crate::{kable_profiles::KableInstallation, CategorizedLauncherSettings, MinecraftAccount, get_default_minecraft_dir};
+use crate::logging::Logger;
+use crate::LauncherAccount;
+use crate::{kable_profiles::KableInstallation, CategorizedLauncherSettings, get_default_minecraft_dir};
 
 use std::process::Command;
 use std::sync::Mutex;
@@ -32,15 +34,12 @@ async fn get_launchable_for_installation(context: &LaunchContext) -> Result<Box<
     }
 }
 
-use crate::logging::Logger;
-use tauri::AppHandle;
 
 #[tauri::command]
 pub async fn launch_installation(
-    app: AppHandle,
     installation: KableInstallation,
     settings: CategorizedLauncherSettings,
-    account: MinecraftAccount,
+    account: LauncherAccount,
 ) -> Result<LaunchResult, String> {
     // Use version_id for log grouping
     let version_id = installation.version_id.as_str();
@@ -50,7 +49,7 @@ pub async fn launch_installation(
     let minecraft_dir = match get_default_minecraft_dir() {
         Ok(dir) => dir.to_string_lossy().to_string(),
         Err(e) => {
-            Logger::error(&app, &format!("Failed to get default Minecraft dir: {}", e), instance_id);
+            Logger::error_global(&format!("Failed to get default Minecraft dir: {}", e), instance_id);
             return Err(format!("Failed to get default Minecraft dir: {}", e));
         }
     };
@@ -58,7 +57,7 @@ pub async fn launch_installation(
     let context = match LaunchContext::new(installation.clone(), settings, account, minecraft_dir) {
         Ok(ctx) => ctx,
         Err(e) => {
-            Logger::error(&app, &format!("Failed to build launch context: {}", e), instance_id);
+            Logger::error_global(&format!("Failed to build launch context: {}", e), instance_id);
             return Err(format!("Failed to build launch context: {}", e));
         }
     };
