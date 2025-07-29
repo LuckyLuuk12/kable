@@ -22,9 +22,9 @@ fn get_pid_set() -> &'static Mutex<HashSet<u32>> {
     MINECRAFT_PIDS.get_or_init(|| Mutex::new(HashSet::new()))
 }
 
-fn get_launchable_for_installation(context: &LaunchContext) -> Result<Box<dyn Launchable>, String> {
+async fn get_launchable_for_installation(context: &LaunchContext) -> Result<Box<dyn Launchable>, String> {
     // Detect loader type from context.installation or context.manifest
-    match context.detect_loader_type()? {
+    match context.detect_loader_type().await? {
         LoaderType::Vanilla => Ok(Box::new(VanillaLaunchable)),
         LoaderType::Fabric => Ok(Box::new(FabricLaunchable)),
         // Add more as needed
@@ -63,7 +63,7 @@ pub async fn launch_installation(
         }
     };
     // Detect loader and get Launchable
-    let launchable = match get_launchable_for_installation(&context) {
+    let launchable = match get_launchable_for_installation(&context).await {
         Ok(l) => l,
         Err(e) => {
             Logger::error_global(&format!("Failed to detect loader: {}", e), instance_id);
@@ -72,17 +72,17 @@ pub async fn launch_installation(
     };
     // Prepare (download, patch, etc.)
     if let Err(e) = launchable.prepare(&context).await {
-        Logger::error(&app, &format!("Failed to prepare launch: {}", e), instance_id);
+        Logger::error_global(&format!("Failed to prepare launch: {}", e), instance_id);
         return Err(format!("Failed to prepare launch: {}", e));
     }
     // Build and run the launch command
     let result = match launchable.launch(&context).await {
         Ok(res) => {
-            Logger::info(&app, &format!("Minecraft launched successfully (PID: {})", res.pid), None);
+            Logger::info_global(&format!("Minecraft launched successfully (PID: {})", res.pid), None);
             res
         },
         Err(e) => {
-            Logger::error(&app, &format!("Failed to launch Minecraft: {}", e), None);
+            Logger::error_global(&format!("Failed to launch Minecraft: {}", e), None);
             return Err(format!("Failed to launch Minecraft: {}", e));
         }
     };

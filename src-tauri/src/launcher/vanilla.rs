@@ -25,6 +25,7 @@ impl Launchable for VanillaLaunchable {
     }
 
     async fn launch(&self, context: &LaunchContext) -> Result<LaunchResult, String> {
+        println!("VANILLA::launch() -> {}", context.installation.name);
         // 1. Load merged manifest (with inheritance)
         let version_id = &context.installation.version_id;
         let manifest = crate::launcher::utils::load_and_merge_manifest_with_instance(
