@@ -21,7 +21,18 @@ impl LaunchContext {
 impl Launchable for VanillaLaunchable {
     // TODO: Implement proper prepare logic... This is untested and may need adjustments
     async fn prepare(&self, _context: &LaunchContext) -> Result<(), String> {
-        // TODO: Download manifest, libraries, assets, natives, etc.
+        // Download manifest and jar, and libraries
+        let version_id = &_context.installation.version_id;
+        let minecraft_dir = &_context.minecraft_dir;
+        crate::launcher::utils::ensure_version_manifest_and_jar(version_id, minecraft_dir).await?;
+        // Load manifest
+        let manifest = crate::launcher::utils::load_and_merge_manifest_with_instance(
+            minecraft_dir,
+            version_id,
+            Some(&_context.installation.id)
+        )?;
+        let libraries_path = std::path::PathBuf::from(minecraft_dir).join("libraries");
+        crate::launcher::utils::ensure_libraries(&manifest, &libraries_path).await?;
         Ok(())
     }
 

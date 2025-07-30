@@ -1,11 +1,13 @@
 pub mod launchables;
 pub mod vanilla;
 pub mod fabric;
+pub mod forge;
 pub mod utils;
 
 pub use launchables::{Launchable, LaunchContext, LaunchResult, LoaderType};
 pub use vanilla::VanillaLaunchable;
 pub use fabric::FabricLaunchable;
+pub use forge::ForgeLaunchable;
 
 use crate::logging::Logger;
 use crate::LauncherAccount;
@@ -29,6 +31,10 @@ async fn get_launchable_for_installation(context: &LaunchContext) -> Result<Box<
     match context.detect_loader_type().await? {
         LoaderType::Vanilla => Ok(Box::new(VanillaLaunchable)),
         LoaderType::Fabric => Ok(Box::new(FabricLaunchable)),
+        LoaderType::IrisFabric => Ok(Box::new(FabricLaunchable)), // Iris is a Fabric mod but has its own loader which is identical to Fabric
+        LoaderType::Quilt => Ok(Box::new(FabricLaunchable)), // Quilt is a fork of Fabric
+        LoaderType::Forge => Ok(Box::new(ForgeLaunchable)), // Forge can be
+        LoaderType::NeoForge => Ok(Box::new(ForgeLaunchable)), // Forge can be
         // Add more as needed
         _ => Err("Unsupported loader type".to_string()),
     }

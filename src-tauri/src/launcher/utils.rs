@@ -540,6 +540,79 @@ pub fn deduplicate_libraries(libraries: Vec<Library>) -> Vec<Library> {
 }
 
 // --- Java and JVM utilities ---
+/// Ensures the version manifest JSON and JAR exist for the given version_id in minecraft_dir.
+/// Downloads them from Mojang if missing.
+pub async fn ensure_version_manifest_and_jar(version_id: &str, minecraft_dir: &str) -> Result<(), String> {
+    use reqwest::Client;
+    use std::fs;
+    use std::path::PathBuf;
+    let versions_dir = PathBuf::from(minecraft_dir).join("versions").join(version_id);
+    fs::create_dir_all(&versions_dir).map_err(|e| format!("Failed to create versions dir: {e}"))?;
+    let manifest_path = versions_dir.join(format!("{}.json", version_id));
+    let jar_path = versions_dir.join(format!("{}.jar", version_id));
+    // Download manifest JSON if missing
+    if !manifest_path.exists() {
+        let manifest_url = format!("https://launchermeta.mojang.com/v1/packages/{}/{}.json", version_id, version_id);
+        // Fallback: Use version list to get URL
+        let version_list_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+        let client = Client::new();
+        let resp = client.get(version_list_url).send().await.map_err(|e| format!("Failed to fetch version list: {e}"))?;
+        let manifest: serde_json::Value = resp.json().await.map_err(|e| format!("Failed to parse version list: {e}"))?;
+        let versions = manifest.get("versions").and_then(|v| v.as_array()).ok_or("No versions array")?;
+        let version_obj = versions.iter().find(|v| v.get("id").and_then(|id| id.as_str()) == Some(version_id)).ok_or("Version not found")?;
+        let url = version_obj.get("url").and_then(|v| v.as_str()).ok_or("No url for version")?;
+        let resp = client.get(url).send().await.map_err(|e| format!("Failed to fetch manifest: {e}"))?;
+        let manifest_str = resp.text().await.map_err(|e| format!("Failed to get manifest text: {e}"))?;
+        fs::write(&manifest_path, manifest_str).map_err(|e| format!("Failed to write manifest: {e}"))?;
+    }
+    // Download JAR if missing
+    if !jar_path.exists() {
+        let manifest_str = fs::read_to_string(&manifest_path).map_err(|e| format!("Failed to read manifest: {e}"))?;
+        let manifest: serde_json::Value = serde_json::from_str(&manifest_str).map_err(|e| format!("Failed to parse manifest: {e}"))?;
+        let downloads = manifest.get("downloads").and_then(|v| v.as_object()).ok_or("No downloads object")?;
+        let client = Client::new();
+        if let Some(client_obj) = downloads.get("client").and_then(|v| v.as_object()) {
+            let url = client_obj.get("url").and_then(|v| v.as_str()).ok_or("No client jar url")?;
+            let resp = client.get(url).send().await.map_err(|e| format!("Failed to fetch jar: {e}"))?;
+            let bytes = resp.bytes().await.map_err(|e| format!("Failed to get jar bytes: {e}"))?;
+            fs::write(&jar_path, &bytes).map_err(|e| format!("Failed to write jar: {e}"))?;
+        } else {
+            return Err("No client jar info in manifest".to_string());
+        }
+    }
+    Ok(())
+}
+
+/// Ensures all libraries listed in the manifest exist in libraries_path. Downloads any missing ones.
+pub async fn ensure_libraries(manifest: &serde_json::Value, libraries_path: &std::path::Path) -> Result<(), String> {
+    use reqwest::Client;
+    use std::fs;
+    let client = Client::new();
+    if let Some(libs) = manifest.get("libraries").and_then(|v| v.as_array()) {
+        for lib in libs {
+            if let Some(obj) = lib.as_object() {
+                let name = obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                let downloads = obj.get("downloads").and_then(|v| v.as_object());
+                if let Some(downloads) = downloads {
+                    if let Some(artifact) = downloads.get("artifact").and_then(|v| v.as_object()) {
+                        let path = artifact.get("path").and_then(|v| v.as_str()).unwrap_or("");
+                        let url = artifact.get("url").and_then(|v| v.as_str()).unwrap_or("");
+                        let jar_path = libraries_path.join(path);
+                        if !jar_path.exists() {
+                            if !jar_path.parent().unwrap().exists() {
+                                fs::create_dir_all(jar_path.parent().unwrap()).map_err(|e| format!("Failed to create lib dir: {e}"))?;
+                            }
+                            let resp = client.get(url).send().await.map_err(|e| format!("Failed to fetch lib: {e}"))?;
+                            let bytes = resp.bytes().await.map_err(|e| format!("Failed to get lib bytes: {e}"))?;
+                            fs::write(&jar_path, &bytes).map_err(|e| format!("Failed to write lib: {e}"))?;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
 /// Attempts to find a working Java executable, either from the provided path or common install locations.
 ///
 /// Used by all loader modules to locate Java for launching Minecraft.

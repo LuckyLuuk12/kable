@@ -37,8 +37,8 @@ impl LaunchContext {
             match version.loader {
                 LoaderKind::Vanilla => Ok(LoaderType::Vanilla),
                 LoaderKind::Fabric => Ok(LoaderType::Fabric),
-                LoaderKind::IrisFabric => Ok(LoaderType::Fabric), // Iris is a Fabric mod but has its own loader which is identical to Fabric
-                LoaderKind::Quilt => Ok(LoaderType::Quilt),
+                LoaderKind::IrisFabric => Ok(LoaderType::IrisFabric), // Iris is a Fabric mod but has its own loader which is identical to Fabric
+                LoaderKind::Quilt => Ok(LoaderType::Quilt), // Quilt is a fork of Fabric
                 LoaderKind::Forge => Ok(LoaderType::Forge),
                 LoaderKind::NeoForge => Ok(LoaderType::NeoForge)
             }   
