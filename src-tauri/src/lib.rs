@@ -215,10 +215,10 @@ pub fn run() {
             maps::backup_world,
             // Mods commands
             // mods::get_modded_installations,
-            mods::setup_installation_mods,
+            // mods::setup_installation_mods,
             // mods::get_installed_mods,
-            mods::toggle_mod_enabled,
-            mods::update_installation_mod_config,
+            // mods::toggle_mod_enabled,
+            // mods::update_installation_mod_config,
             // Shaders commands
             shaders::get_installed_shaders,
             shaders::toggle_shader,

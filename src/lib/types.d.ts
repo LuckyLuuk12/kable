@@ -359,7 +359,6 @@ export interface GameInstanceLogs {
 //|                              Settings Types                                 |
 //|_____________________________________________________________________________|
 
-
 /** Categorized Launcher Settings
  * ```ts
  * export interface CategorizedLauncherSettings {
@@ -730,4 +729,249 @@ export interface LaunchResult {
   command: string;
 }
 
+// _____________________________________________________________________________
+//|                                                                             |
+//|                                Mods Types                                   |
+//|_____________________________________________________________________________|
 
+
+/** Enum of supported mod providers.
+ * ```ts
+ * export enum ProviderKind {
+ *   Modrinth = 'Modrinth',
+ *   // CurseForge = 'CurseForge',
+ * }
+ * ```
+ */
+export enum ProviderKind {
+  Modrinth = 'Modrinth',
+  // CurseForge = 'CurseForge',
+}
+
+
+/** Discriminated union for mod info returned by different providers.
+ * ```ts
+ * export type ModInfoKind =
+ *   | { kind: 'Modrinth'; data: ModrinthInfo };
+ *   // | { kind: 'CurseForge'; data: CurseForgeInfo };
+ * ```
+ */
+export type ModInfoKind =
+  | { kind: 'Modrinth'; data: ModrinthInfo };
+  // | { kind: 'CurseForge'; data: CurseForgeInfo };
+
+
+/** Discriminated union for mod filters for each provider.
+ * ```ts
+ * export type ModFilter =
+ *   | { kind: 'Modrinth'; facets: FilterFacets };
+ *   // | { kind: 'CurseForge'; facets: CurseForgeFilter };
+ * ```
+ */
+export type ModFilter =
+  | { kind: 'Modrinth'; facets: FilterFacets };
+  // | { kind: 'CurseForge'; facets: CurseForgeFilter };
+
+
+/** Modrinth filter facets for searching mods.
+ * ```ts
+ * export interface FilterFacets {
+ *   query?: string;
+ *   categories?: [string, string][];
+ *   client_side?: [string, string];
+ *   server_side?: [string, string];
+ *   index?: string;
+ *   open_source?: boolean;
+ *   license?: [string, string];
+ *   downloads?: [string, number];
+ * }
+ * ```
+ */
+export interface FilterFacets {
+  /** Free-text search query */
+  query?: string;
+  /** Array of [facet, value] pairs for categories */
+  categories?: [string, string][];
+  /** Client-side requirement filter */
+  client_side?: [string, string];
+  /** Server-side requirement filter */
+  server_side?: [string, string];
+  /** Index for sorting/filtering */
+  index?: string;
+  /** Whether to filter for open source mods */
+  open_source?: boolean;
+  /** License filter as [facet, value] */
+  license?: [string, string];
+  /** Downloads filter as [facet, minDownloads] */
+  downloads?: [string, number];
+}
+
+
+/** Modrinth mod project info.
+ * ```ts
+ * export interface ModrinthInfo {
+ *   id: string;
+ *   slug: string;
+ *   project_type: string;
+ *   title: string;
+ *   description: string;
+ *   body?: string;
+ *   additional_categories?: string[];
+ *   categories: string[];
+ *   client_side?: string;
+ *   server_side?: string;
+ *   downloads: number;
+ *   icon_url?: string;
+ *   issues_url?: string;
+ *   source_url?: string;
+ *   wiki_url?: string;
+ *   discord_url?: string;
+ *   donation_urls?: DonationUrl[];
+ *   published?: string;
+ *   updated?: string;
+ *   approved?: string;
+ *   followers?: number;
+ *   owner: string;
+ *   team?: string;
+ *   host?: string;
+ *   license?: ModrinthLicense;
+ *   gallery?: string[];
+ *   versions?: ModrinthVersion[];
+ *   game_versions?: string[];
+ *   loaders?: string[];
+ *   featured?: boolean;
+ *   project_id?: string;
+ *   published_by?: string;
+ *   approved_by?: string;
+ *   moderation_message?: ModerationMessage;
+ *   moderation_message_type?: string;
+ * }
+ * ```
+ */
+export interface ModrinthInfo {
+  id: string;
+  slug: string;
+  project_type: string;
+  title: string;
+  description: string;
+  body?: string;
+  additional_categories?: string[];
+  categories: string[];
+  client_side?: string;
+  server_side?: string;
+  downloads: number;
+  icon_url?: string;
+  issues_url?: string;
+  source_url?: string;
+  wiki_url?: string;
+  discord_url?: string;
+  donation_urls?: DonationUrl[];
+  published?: string;
+  updated?: string;
+  approved?: string;
+  followers?: number;
+  owner: string;
+  team?: string;
+  host?: string;
+  license?: ModrinthLicense;
+  gallery?: string[];
+  versions?: ModrinthVersion[];
+  game_versions?: string[];
+  loaders?: string[];
+  featured?: boolean;
+  project_id?: string;
+  published_by?: string;
+  approved_by?: string;
+  moderation_message?: ModerationMessage;
+  moderation_message_type?: string;
+}
+
+
+/** Modrinth mod version info.
+ * ```ts
+ * export interface ModrinthVersion {
+ *   id: string;
+ *   name: string;
+ *   version_number: string;
+ *   changelog?: string;
+ *   files: ModrinthFile[];
+ *   game_versions: string[];
+ *   loaders: string[];
+ * }
+ * ```
+ */
+export interface ModrinthVersion {
+  id: string;
+  name: string;
+  version_number: string;
+  changelog?: string;
+  files: ModrinthFile[];
+  game_versions: string[];
+  loaders: string[];
+}
+
+
+/** File info for a Modrinth mod version.
+ * ```ts
+ * export interface ModrinthFile {
+ *   url: string;
+ *   filename: string;
+ *   primary: boolean;
+ *   hashes: Record<string, string>;
+ *   size: number;
+ * }
+ * ```
+ */
+export interface ModrinthFile {
+  url: string;
+  filename: string;
+  primary: boolean;
+  hashes: Record<string, string>;
+  size: number;
+}
+
+
+/** Donation URL for a Modrinth project.
+ * ```ts
+ * export interface DonationUrl {
+ *   id: string;
+ *   platform: string;
+ *   url: string;
+ * }
+ * ```
+ */
+export interface DonationUrl {
+  id: string;
+  platform: string;
+  url: string;
+}
+
+
+/** License info for a Modrinth project.
+ * ```ts
+ * export interface ModrinthLicense {
+ *   id: string;
+ *   name: string;
+ *   url?: string;
+ * }
+ * ```
+ */
+export interface ModrinthLicense {
+  id: string;
+  name: string;
+  url?: string;
+}
+
+
+/** Moderation message for a Modrinth project.
+ * ```ts
+ * export interface ModerationMessage {
+ *   message: string;
+ *   body?: string;
+ * }
+ * ```
+ */
+export interface ModerationMessage {
+  message: string;
+  body?: string;
+}

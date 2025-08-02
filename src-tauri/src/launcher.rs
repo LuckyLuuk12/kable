@@ -34,9 +34,8 @@ async fn get_launchable_for_installation(context: &LaunchContext) -> Result<Box<
         LoaderType::IrisFabric => Ok(Box::new(FabricLaunchable)), // Iris is a Fabric mod but has its own loader which is identical to Fabric
         LoaderType::Quilt => Ok(Box::new(FabricLaunchable)), // Quilt is a fork of Fabric
         LoaderType::Forge => Ok(Box::new(ForgeLaunchable)), // Forge can be
-        LoaderType::NeoForge => Ok(Box::new(ForgeLaunchable)), // Forge can be
+        LoaderType::NeoForge => Ok(Box::new(ForgeLaunchable)), // NeoForge is a fork of Forge
         // Add more as needed
-        _ => Err("Unsupported loader type".to_string()),
     }
 }
 
