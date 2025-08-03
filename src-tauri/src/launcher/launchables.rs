@@ -1,7 +1,7 @@
 // launcher/trait.rs
 
 use crate::auth::LauncherAccount;
-use crate::get_version;
+use crate::installations::get_version;
 use crate::installations::kable_profiles::KableInstallation;
 use crate::settings::CategorizedLauncherSettings;
 use crate::versions::LoaderKind;

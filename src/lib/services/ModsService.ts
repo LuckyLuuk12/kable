@@ -1,70 +1,122 @@
-import { invoke } from '@tauri-apps/api/core';
-import type { ModInstallationConfig, InstalledMod } from '../types';
+import * as modsApi from '../api/mods';
+import { get } from 'svelte/store';
+import { modsByProvider, modsLoading, modsError, modsLimit, modsOffset, modsFilter, modsInstallation, modsProvider } from '$lib';
+import type { ProviderKind, ModInfoKind, KableInstallation, ModFilter } from '$lib';
 
-/**
- * Mods Service
- * Handles modded installations and mod management.
- */
 export class ModsService {
-    /**
-     * Get all modded installations (excludes vanilla)
-     */
-    static async getModdedInstallations(minecraftPath: string): Promise<ModInstallationConfig[]> {
-        return await invoke('get_modded_installations', { minecraftPath });
-    }
+  initialized = false;
 
-    /**
-     * Set up mod folder for an installation
-     */
-    static async setupInstallationMods(
-        minecraftPath: string,
-        installationId: string,
-        useGlobal: boolean
-    ): Promise<string> {
-        return await invoke('setup_installation_mods', {
-            minecraftPath,
-            installationId,
-            useGlobal
-        });
-    }
+  constructor(provider: ProviderKind) {
+    modsProvider.set(provider);
+  }
 
-    /**
-     * Get installed mods for a specific installation
-     */
-    static async getInstalledMods(
-        minecraftPath: string,
-        installationId: string
-    ): Promise<InstalledMod[]> {
-        return await invoke('get_installed_mods', {
-            minecraftPath,
-            installationId
-        });
-    }
+  async initialize() {
+    if (this.initialized) return;
+    await this.loadMods();
+    this.initialized = true;
+  }
 
-    /**
-     * Toggle mod enabled/disabled state
-     */
-    static async toggleModEnabled(modFilePath: string, enabled: boolean): Promise<void> {
-        return await invoke('toggle_mod_enabled', {
-            modFilePath,
-            enabled
-        });
+  async loadMods() {
+    modsLoading.set(true);
+    modsError.set(null);
+    const provider = get(modsProvider);
+    const offset = get(modsOffset);
+    if (!provider) {
+      modsError.set('No provider selected');
+      modsLoading.set(false);
+      return;
     }
+    try {
+      const mods = await modsApi.getMods(provider, offset);
+      modsByProvider.update(map => ({ ...map, [provider]: mods }));
+    } catch (e: any) {
+      modsError.set(e.message || 'Failed to load mods');
+    } finally {
+      modsLoading.set(false);
+    }
+  }
 
-    /**
-     * Update installation mod configuration
-     */
-    static async updateInstallationModConfig(
-        minecraftPath: string,
-        installationId: string,
-        useGlobalMods: boolean,
-        customModsPath?: string
-    ): Promise<void> {
-        return await invoke('update_installation_mod_config', {
-            minecraftPath,
-            installationId,
-            useGlobalMods,
-            customModsPath
-        });
+  async setLimit(limit: number) {
+    modsLimit.set(limit);
+    const provider = get(modsProvider);
+    if (!provider) {
+      modsError.set('No provider selected');
+      return;
     }
+    await modsApi.setProviderLimit(provider, limit);
+    await this.loadMods();
+  }
+
+  async setFilter(filter: ModFilter | null, installation: KableInstallation | null) {
+    modsFilter.set(filter);
+    modsInstallation.set(installation);
+    const provider = get(modsProvider);
+    if (!provider) {
+      modsError.set('No provider selected');
+      return;
+    }
+    await modsApi.setProviderFilter(provider, installation, filter);
+    await this.loadMods();
+  }
+
+  async nextPage() {
+    const limit = get(modsLimit);
+    const offset = get(modsOffset) + limit;
+    modsOffset.set(offset);
+    await this.loadMods();
+  }
+
+  async prevPage() {
+    const limit = get(modsLimit);
+    const offset = Math.max(0, get(modsOffset) - limit);
+    modsOffset.set(offset);
+    await this.loadMods();
+  }
+
+  async downloadMod(modId: string, versionId: string | null, installation: KableInstallation) {
+    modsLoading.set(true);
+    modsError.set(null);
+    const provider = get(modsProvider);
+    if (!provider) {
+      modsError.set('No provider selected');
+      modsLoading.set(false);
+      return;
+    }
+    try {
+      await modsApi.downloadMod(provider, modId, versionId, installation);
+    } catch (e: any) {
+      modsError.set(e.message || 'Failed to download mod');
+    } finally {
+      modsLoading.set(false);
+    }
+  }
+
+  async clearProviderCache() {
+    const provider = get(modsProvider);
+    if (!provider) {
+      modsError.set('No provider selected');
+      return;
+    }
+    await modsApi.clearProviderCache(provider);
+    await this.loadMods();
+  }
+
+  async purgeStaleProviderCache() {
+    const provider = get(modsProvider);
+    if (!provider) {
+      modsError.set('No provider selected');
+      return;
+    }
+    await modsApi.purgeStaleProviderCache(provider);
+    await this.loadMods();
+  }
+
+  // Helpers for UI
+  getMods() {
+    const provider = get(modsProvider);
+    if (!provider) return [];
+    return get(modsByProvider)[provider] || [];
+  }
+  isLoading() { return get(modsLoading); }
+  getError() { return get(modsError); }
 }

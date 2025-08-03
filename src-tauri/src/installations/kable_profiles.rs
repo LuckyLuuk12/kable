@@ -1,3 +1,8 @@
+use std::path::PathBuf;
+use zip::ZipArchive;
+use std::fs::File;
+use serde_json::Value as JsonValue;
+use toml::Value as TomlValue;
 use crate::profiles::LauncherProfile;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -247,4 +252,103 @@ impl KableInstallation {
         }
         Ok(installation)
     }
+
+    /// Scans the mods folder for this installation and extracts mod info from each JAR
+    pub fn get_mod_info(&self) -> Result<Vec<ModJarInfo>, String> {
+        // Determine mods dir (absolute or relative)
+        let mods_dir: PathBuf = if let Some(ref custom_mods) = self.dedicated_mods_folder {
+            let custom_path = PathBuf::from(custom_mods);
+            if custom_path.is_absolute() {
+                custom_path
+            } else {
+                crate::get_minecraft_kable_dir()?.join(custom_mods)
+            }
+        } else {
+            crate::get_minecraft_kable_dir()?.join("mods").join(&self.version_id)
+        };
+        if !mods_dir.exists() {
+            return Ok(vec![]);
+        }
+        let mut result = Vec::new();
+        for entry in std::fs::read_dir(&mods_dir).map_err(|e| format!("Failed to read mods dir: {e}"))? {
+            let entry = entry.map_err(|e| format!("Failed to read entry: {e}"))?;
+            let path = entry.path();
+            if path.extension().map(|e| e == "jar").unwrap_or(false) {
+                let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                let mut mod_name = None;
+                let mut mod_version = None;
+                let mut loader = None;
+                if let Ok(file) = File::open(&path) {
+                    match ZipArchive::new(file) {
+                        Ok(mut zip) => {
+                            // Try Fabric/Quilt/Forge loader files in order
+                            let mut found = false;
+                            if let Ok(mut f) = zip.by_name("fabric.mod.json") {
+                                let mut buf = String::new();
+                                if f.read_to_string(&mut buf).is_ok() {
+                                    if let Ok(json) = serde_json::from_str::<JsonValue>(&buf) {
+                                        mod_name = json.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                        mod_version = json.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                        loader = Some("fabric".to_string());
+                                        found = true;
+                                    }
+                                }
+                            }
+                            if !found {
+                                if let Ok(mut f) = zip.by_name("quilt.mod.json") {
+                                    let mut buf = String::new();
+                                    if f.read_to_string(&mut buf).is_ok() {
+                                        if let Ok(json) = serde_json::from_str::<JsonValue>(&buf) {
+                                            mod_name = json.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                            mod_version = json.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                            loader = Some("quilt".to_string());
+                                            found = true;
+                                        }
+                                    }
+                                }
+                            }
+                            if !found {
+                                if let Ok(mut f) = zip.by_name("META-INF/mods.toml") {
+                                    let mut buf = String::new();
+                                    if f.read_to_string(&mut buf).is_ok() {
+                                        if let Ok(toml) = toml::from_str::<TomlValue>(&buf) {
+                                            if let Some(arr) = toml.get("mods").and_then(|v| v.as_array()) {
+                                                if let Some(first) = arr.first() {
+                                                    mod_name = first.get("displayName").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                    mod_version = first.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                    loader = Some("forge".to_string());
+                                                    // found = true; // not needed, last fallback
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Err(_e) => {
+                            // Optionally log: eprintln!("Failed to open zip for {:?}: {}", path, _e);
+                            // Skip this JAR
+                        }
+                    }
+                }
+                result.push(ModJarInfo {
+                    file_name,
+                    mod_name,
+                    mod_version,
+                    loader,
+                });
+            }
+        }
+        Ok(result)
+    }
+
+}
+
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ModJarInfo {
+    pub file_name: String,
+    pub mod_name: Option<String>,
+    pub mod_version: Option<String>,
+    pub loader: Option<String>,
 }

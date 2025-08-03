@@ -715,10 +715,6 @@ pub async fn ensure_version_manifest_and_jar(
     let jar_path = versions_dir.join(format!("{}.jar", version_id));
     // Download manifest JSON if missing
     if !manifest_path.exists() {
-        let manifest_url = format!(
-            "https://launchermeta.mojang.com/v1/packages/{}/{}.json",
-            version_id, version_id
-        );
         // Fallback: Use version list to get URL
         let version_list_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
         let client = Client::new();
@@ -799,7 +795,6 @@ pub async fn ensure_libraries(
     if let Some(libs) = manifest.get("libraries").and_then(|v| v.as_array()) {
         for lib in libs {
             if let Some(obj) = lib.as_object() {
-                let name = obj.get("name").and_then(|v| v.as_str()).unwrap_or("");
                 let downloads = obj.get("downloads").and_then(|v| v.as_object());
                 if let Some(downloads) = downloads {
                     if let Some(artifact) = downloads.get("artifact").and_then(|v| v.as_object()) {

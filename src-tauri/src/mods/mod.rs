@@ -60,7 +60,7 @@ pub async fn download_mod(
     provider: ProviderKind,
     mod_id: &str,
     version_id: Option<&str>,
-    target_dir: &std::path::Path,
+    installation: &KableInstallation,
 ) -> Result<(), String> {
     match provider {
         ProviderKind::Modrinth => {
@@ -68,7 +68,7 @@ pub async fn download_mod(
                 let prov_guard = MODRINTH.lock().unwrap();
                 prov_guard.clone()
             };
-            prov.download(mod_id, version_id, target_dir).await
+            prov.download(mod_id, version_id, installation).await
         }
         //ProviderKind::CurseForge => todo!(),
     }

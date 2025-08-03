@@ -1,6 +1,5 @@
 use crate::installations::kable_profiles::KableInstallation;
 use crate::mods::*;
-use std::path::PathBuf;
 
 #[tauri::command]
 pub async fn get_mods_command(
@@ -15,9 +14,9 @@ pub async fn download_mod_command(
     provider: ProviderKind,
     mod_id: String,
     version_id: Option<String>,
-    target_dir: PathBuf,
+    installation: KableInstallation,
 ) -> Result<(), String> {
-    download_mod(provider, &mod_id, version_id.as_deref(), &target_dir).await
+    download_mod(provider, &mod_id, version_id.as_deref(), &installation).await
 }
 
 #[tauri::command]

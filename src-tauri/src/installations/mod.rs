@@ -1,3 +1,13 @@
+pub mod kable_profiles;
+pub mod profiles;
+pub mod versions;
+
+pub use self::kable_profiles::*;
+pub use self::profiles::*;
+pub use self::versions::*;
+use crate::logging::{LogLevel, Logger};
+use tokio::sync::OnceCell;
+
 /// Ensures that a modded installation has a dedicated mods folder set and created.
 /// Returns true if the folder was set/created, false otherwise.
 async fn ensure_dedicated_mods_folder(
@@ -29,14 +39,7 @@ async fn ensure_dedicated_mods_folder(
         Ok(false)
     }
 }
-pub mod kable_profiles;
-pub mod profiles;
-pub mod versions;
 
-use crate::installations::kable_profiles::*;
-use crate::installations::versions::*;
-use crate::logging::{LogLevel, Logger};
-use tokio::sync::OnceCell;
 
 // Internal cache for installations
 static INSTALLATIONS_CACHE: OnceCell<Vec<KableInstallation>> = OnceCell::const_new();
@@ -79,13 +82,11 @@ async fn build_installations_async() -> Result<Vec<KableInstallation>, String> {
 
 static VERSIONS_CACHE: OnceCell<Versions> = OnceCell::const_new();
 /// Gets all versions, either from cache or by building them, does not modify the cache
-#[tauri::command]
 pub async fn get_versions() -> Versions {
     VERSIONS_CACHE.get_or_init(build_versions).await.clone()
 }
 
 /// Gets all versions, either from cache or by building them
-#[tauri::command]
 pub async fn get_all_versions(force: bool) -> Versions {
     if force {
         let versions = build_versions().await;
@@ -101,14 +102,12 @@ pub async fn get_all_versions(force: bool) -> Versions {
     }
 }
 
-#[tauri::command]
 pub async fn get_version(version_id: String) -> Option<VersionData> {
     let versions = get_versions().await;
     versions.get_version(&version_id).cloned()
 }
 
 /// Returns all Kable installations, using cache. Ensures conversion if needed.
-#[tauri::command]
 pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
     let cached = INSTALLATIONS_CACHE
         .get_or_init(|| async { build_installations_async().await.unwrap_or_default() })
@@ -130,13 +129,11 @@ pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
 }
 
 /// Returns a single installation by id, using cache.
-#[tauri::command]
 pub async fn get_installation(id: &str) -> Result<Option<KableInstallation>, String> {
     let installations = get_installations().await?;
     Ok(installations.into_iter().find(|i| i.id == id))
 }
 /// Deletes a KableInstallation by ID from kable_profiles.json and invalidates cache
-#[tauri::command]
 pub async fn delete_installation(id: &str) -> Result<(), String> {
     let mut installations = kable_profiles::read_kable_profiles_async().await?;
     let orig_len = installations.len();
@@ -167,7 +164,6 @@ pub async fn delete_installation(id: &str) -> Result<(), String> {
 }
 
 /// Modifies an existing KableInstallation by ID in kable_profiles.json and invalidates cache
-#[tauri::command]
 pub async fn modify_installation(
     id: &str,
     mut new_installation: KableInstallation,
@@ -204,7 +200,6 @@ pub async fn modify_installation(
 }
 
 /// Creates a new KableInstallation with the given version_id, using default settings for other fields and invalidates cache
-#[tauri::command]
 pub async fn create_installation(version_id: &str) -> Result<KableInstallation, String> {
     let mut installations = kable_profiles::read_kable_profiles_async().await?;
     // Generate a default name (e.g., based on version_id and count)

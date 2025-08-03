@@ -6,40 +6,24 @@ use tauri::Manager;
 use thiserror::Error;
 
 // Module declarations
-mod auth;
-mod commands;
-mod icons;
-mod installations;
-mod launcher;
-mod maps;
-mod mods;
-mod profile;
-mod settings;
-mod shaders;
-mod skins;
-mod window_state;
+pub mod auth;
+pub mod commands;
+pub mod icons;
+pub mod installations;
+pub mod launcher;
+pub mod maps;
+pub mod mods;
+pub mod profile;
+pub mod settings;
+pub mod shaders;
+pub mod skins;
+pub mod window_state;
 
 #[macro_use]
-mod logging;
+pub mod logging;
 
 // Re-export public items from modules
-pub use auth::{
-    get_active_launcher_account,
-    get_all_launcher_accounts,
-    get_launcher_accounts_path_string,
-    read_launcher_accounts,
-    remove_launcher_account,
-    set_active_launcher_account,
-    write_launcher_account,
-    write_launcher_accounts,
-    // Main auth types (only these are needed for lib.rs re-export)
-    AuthMethod,
-    // Auth utility functions
-    LauncherAccount,
-    LauncherAccountsJson,
-    MinecraftProfile,
-};
-pub use commands::*;
+pub use auth::*;
 pub use icons::*;
 pub use installations::*;
 pub use launcher::*;
@@ -50,6 +34,7 @@ pub use settings::*;
 pub use shaders::*;
 pub use skins::*;
 pub use window_state::*;
+pub use commands::*;
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -168,12 +153,8 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
         .invoke_handler(tauri::generate_handler![
-            get_cached_usernames,
-            launch_minecraft,
-            check_java_installation,
             get_default_minecraft_dir,
-            get_minecraft_kable_dir,
-            get_kable_launcher_dir,
+            validate_minecraft_directory,
             // Main authentication commands
             auth::get_minecraft_account,
             auth::get_launch_auth_account,
@@ -201,13 +182,13 @@ pub fn run() {
             settings::save_settings,
             settings::validate_minecraft_directory,
             // Installation commands
-            installations::get_versions,
-            installations::get_all_versions,
-            installations::get_installations,
-            installations::get_installation,
-            installations::modify_installation,
-            installations::delete_installation,
-            installations::create_installation,
+            commands::installations::get_versions,
+            commands::installations::get_all_versions,
+            commands::installations::get_installations,
+            commands::installations::get_installation,
+            commands::installations::modify_installation,
+            commands::installations::delete_installation,
+            commands::installations::create_installation,
             // Launcher commands
             launcher::launch_installation,
             launcher::kill_minecraft_process,

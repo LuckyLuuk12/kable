@@ -9,10 +9,6 @@
     selectedInstanceId, 
     type GameInstance, 
     settings,
-
-    logsData
-
-
   } from '$lib';
 
   let selectedLogType: 'launcher' | 'game' = 'launcher';
@@ -28,9 +24,6 @@
     info: $settings.logging.default_log_levels.indexOf('info') !== -1,
     debug: $settings.logging.default_log_levels.indexOf('debug') !== -1,
   };
-
-  logsData.subscribe(data => console.log('Logs data updated:', data));
-  gameInstances.subscribe(instances => console.log('Game instances updated:', instances));
   
   let showLogLevelDropdown = false;
   let showCopyNotification = false;

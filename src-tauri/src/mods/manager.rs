@@ -13,12 +13,12 @@ pub trait ModProvider {
     /// Apply filters (by installation, loader, version, etc.)
     fn filter(&mut self, installation: Option<&KableInstallation>, filter: Option<ModFilter>);
 
-    /// Download a mod by its identifier
+    /// Download a mod by its identifier, placing it in the correct mods directory for the installation
     async fn download(
         &self,
         mod_id: &str,
         version_id: Option<&str>,
-        target_dir: &std::path::Path,
+        installation: &KableInstallation,
     ) -> Result<(), String>;
 
     fn set_index(&mut self, index: Option<String>);

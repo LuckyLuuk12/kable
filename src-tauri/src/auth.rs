@@ -80,7 +80,7 @@ async fn get_minecraft_account_device_code() -> Result<LauncherAccount, String> 
             // Check if access token is still valid
             if is_access_token_valid(&launcher_account) {
                 Logger::console_log(LogLevel::Info, "🔑 Access token is still valid", None);
-                Ok(launcher_account.into())
+                Ok(launcher_account)
             } else {
                 Logger::console_log(
                     LogLevel::Warning,
@@ -119,7 +119,7 @@ async fn get_minecraft_account_auth_code() -> Result<LauncherAccount, String> {
             // Check if access token is still valid
             if is_access_token_valid(&launcher_account) {
                 Logger::console_log(LogLevel::Info, "🔑 Access token is still valid", None);
-                Ok(launcher_account.into())
+                Ok(launcher_account)
             } else {
                 Logger::console_log(
                     LogLevel::Warning,
@@ -131,7 +131,7 @@ async fn get_minecraft_account_auth_code() -> Result<LauncherAccount, String> {
                     Ok(_) => {
                         // After successful re-auth, try to get the account again
                         match get_active_launcher_account().await? {
-                            Some(new_account) => Ok(new_account.into()),
+                            Some(new_account) => Ok(new_account),
                             None => Err("Re-authentication failed, no account found.".to_string()),
                         }
                     }
@@ -144,7 +144,7 @@ async fn get_minecraft_account_auth_code() -> Result<LauncherAccount, String> {
             // Attempt to authenticate if no account is found
             match crate::auth::code_flow::start_microsoft_auth_code().await {
                 Ok(_) => match get_active_launcher_account().await? {
-                    Some(new_account) => Ok(new_account.into()),
+                    Some(new_account) => Ok(new_account),
                     None => Err("Authentication failed, no account found.".to_string()),
                 },
                 Err(e) => Err(format!("Authentication failed: {}", e)),
@@ -175,7 +175,7 @@ async fn get_minecraft_account_offline() -> Result<LauncherAccount, String> {
                 None,
             );
             // Return the account, even if it has no access token
-            Ok(launcher_account.into())
+            Ok(launcher_account)
         }
         None => {
             Logger::console_log(

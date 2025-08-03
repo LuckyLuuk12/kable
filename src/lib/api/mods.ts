@@ -5,8 +5,8 @@ export async function getMods(provider: ProviderKind, offset: number): Promise<M
   return invoke('get_mods_command', { provider, offset });
 }
 
-export async function downloadMod(provider: ProviderKind, modId: string, versionId: string | null, targetDir: string): Promise<void> {
-  return invoke('download_mod_command', { provider, modId, versionId, targetDir });
+export async function downloadMod(provider: ProviderKind, modId: string, versionId: string | null, installation: KableInstallation): Promise<void> {
+  return invoke('download_mod_command', { provider, modId, versionId, installation });
 }
 
 export async function setProviderFilter(provider: ProviderKind, installation: KableInstallation | null, filter: ModFilter | null): Promise<void> {

@@ -233,8 +233,27 @@ impl ModProvider for ModrinthProvider {
         &self,
         mod_id: &str,
         version_id: Option<&str>,
-        target_dir: &std::path::Path,
+        installation: &KableInstallation,
     ) -> Result<(), String> {
+        // Determine the mods directory for the installation
+        use std::path::PathBuf;
+        let mods_dir: PathBuf = if let Some(ref custom_mods) = installation.dedicated_mods_folder {
+            let custom_path = PathBuf::from(custom_mods);
+            if custom_path.is_absolute() {
+                custom_path
+            } else {
+                let mc_dir = crate::get_minecraft_kable_dir()?;
+                mc_dir.join(custom_mods)
+            }
+        } else {
+            let mc_dir = crate::get_minecraft_kable_dir()?;
+            mc_dir.join("mods").join(&installation.version_id)
+        };
+
+        // Ensure the mods directory exists
+        std::fs::create_dir_all(&mods_dir)
+            .map_err(|e| format!("Failed to create mods directory: {}", e))?;
+
         let versions = get_mod_versions(mod_id).await?;
         let version = if let Some(version_id) = version_id {
             versions.into_iter().find(|v| v.id == version_id)
@@ -248,7 +267,7 @@ impl ModProvider for ModrinthProvider {
             .find(|f| f.primary)
             .or_else(|| files_iter.next())
             .ok_or("No mod file found")?;
-        download_mod_file(&file.url, &target_dir.join(&file.filename)).await
+        download_mod_file(&file.url, &mods_dir.join(&file.filename)).await
     }
 
     fn set_index(&mut self, index: Option<String>) {
