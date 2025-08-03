@@ -12,4 +12,4 @@ export const modsLimit = writable<number>(20);
 export const modsOffset = writable<number>(0);
 export const modsFilter = writable<ModFilter | null>(null);
 export const modsInstallation = writable<KableInstallation | null>(null);
-export const modsProvider = writable<ProviderKind | null>(ProviderKind.Modrinth); // Default to Modrinth, can be set to other providers
+export const modsProvider = writable<ProviderKind | null>(null); // if we default here to an Enum value then the tauri app does not open

@@ -12,7 +12,7 @@
     console.log('Starting layout initialization...');
     
     // Wait a bit for Tauri to fully initialize
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 50));
     
     try {
       // Test if Tauri is ready by making a simple call

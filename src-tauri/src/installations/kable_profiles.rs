@@ -253,25 +253,118 @@ impl KableInstallation {
         Ok(installation)
     }
 
-    /// Scans the mods folder for this installation and extracts mod info from each JAR
-    pub fn get_mod_info(&self) -> Result<Vec<ModJarInfo>, String> {
-        // Determine mods dir (absolute or relative)
-        let mods_dir: PathBuf = if let Some(ref custom_mods) = self.dedicated_mods_folder {
+    /// Try to get the mods folder from the dedicated_mods_folder field.
+    fn get_dedicated_mods_folder_path(&self) -> Option<PathBuf> {
+        if let Some(ref custom_mods) = self.dedicated_mods_folder {
             let custom_path = PathBuf::from(custom_mods);
             if custom_path.is_absolute() {
-                custom_path
+                Some(custom_path)
             } else {
-                crate::get_minecraft_kable_dir()?.join(custom_mods)
+                crate::get_minecraft_kable_dir().ok().map(|dir| dir.join(custom_mods))
             }
         } else {
-            crate::get_minecraft_kable_dir()?.join("mods").join(&self.version_id)
-        };
-        if !mods_dir.exists() {
-            return Ok(vec![]);
+            None
         }
+    }
+
+    /// Try to get the mods folder from the version manifest (versions/<version_id>/<version_id>.json)
+    fn get_mods_folder_from_version_manifest(&self) -> Option<PathBuf> {
+        let mc_dir = crate::get_default_minecraft_dir().ok()?;
+        let version_json = mc_dir.join("versions").join(&self.version_id).join(format!("{}.json", &self.version_id));
+        if !version_json.exists() {
+            return None;
+        }
+        let json_str = std::fs::read_to_string(&version_json).ok()?;
+        let json: serde_json::Value = serde_json::from_str(&json_str).ok()?;
+
+        // 1. Look for -Dfabric.modsFolder=... or -DmodsFolder=... in arguments.jvm array (case-insensitive, robust)
+        if let Some(arguments) = json.get("arguments") {
+            if let Some(jvm_args) = arguments.get("jvm") {
+                if let Some(arr) = jvm_args.as_array() {
+                    let re = regex::Regex::new(r"(?i)-d(fabric\.)?modsfolder=(.+)").unwrap();
+                    for arg in arr {
+                        if let Some(arg_str) = arg.as_str() {
+                            let arg_trimmed = arg_str.trim();
+                            if let Some(caps) = re.captures(arg_trimmed) {
+                                if let Some(path_str) = caps.get(2) {
+                                    let path = PathBuf::from(path_str.as_str().trim());
+                                    if path.is_absolute() {
+                                        return Some(path);
+                                    } else {
+                                        // Relative to .minecraft
+                                        return Some(mc_dir.join(path_str.as_str().trim()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // 2. Fallback: check for common keys (legacy)
+        let possible_keys = [
+            "iris_installer_mods_folder",
+            "custom_mods_folder",
+            "mods_folder",
+        ];
+        for key in &possible_keys {
+            if let Some(val) = json.get(key) {
+                if let Some(path_str) = val.as_str() {
+                    let path = PathBuf::from(path_str);
+                    if path.is_absolute() {
+                        return Some(path);
+                    } else {
+                        // Relative to .minecraft
+                        return Some(mc_dir.join(path_str));
+                    }
+                }
+            }
+        }
+        None
+    }
+
+    /// Scans the mods folder for this installation and extracts mod info from each JAR
+    pub fn get_mod_info(&self) -> Result<Vec<ModJarInfo>, String> {
+        use crate::logging::{Logger};
+        Logger::debug_global( &format!("🔍 get_mod_info for installation: {} (version_id: {})", self.name, self.version_id), None);
+        let mods_dirs = [
+            self.get_dedicated_mods_folder_path(),
+            self.get_mods_folder_from_version_manifest(),
+            crate::get_minecraft_kable_dir().ok().map(|dir| dir.join("mods").join(&self.version_id)),
+        ];
+        let mut found_dir = None;
+        for (i, dir_opt) in mods_dirs.iter().enumerate() {
+            if let Some(dir) = dir_opt {
+                Logger::debug_global( &format!("Checking mods dir candidate {}: {}", i, dir.display()), None);
+                if dir.exists() {
+                    Logger::debug_global(&format!("✅ Using mods dir: {}", dir.display()), None);
+                    found_dir = Some(dir.clone());
+                    break;
+                }
+            }
+        }
+        let mods_dir = match found_dir {
+            Some(d) => d,
+            None => {
+                Logger::debug_global("No mods directory found for installation", None);
+                return Ok(vec![]);
+            }
+        };
         let mut result = Vec::new();
-        for entry in std::fs::read_dir(&mods_dir).map_err(|e| format!("Failed to read mods dir: {e}"))? {
-            let entry = entry.map_err(|e| format!("Failed to read entry: {e}"))?;
+        let read_dir = std::fs::read_dir(&mods_dir);
+        if let Err(e) = &read_dir {
+            Logger::debug_global(&format!("Failed to read mods dir: {}", e), None);
+            return Err(format!("Failed to read mods dir: {}", e));
+        }
+        for entry in read_dir.unwrap() {
+            let entry = match entry {
+                Ok(e) => e,
+                Err(e) => {
+                    Logger::debug_global(&format!("Failed to read entry: {}", e), None);
+                    continue;
+                }
+            };
             let path = entry.path();
             if path.extension().map(|e| e == "jar").unwrap_or(false) {
                 let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
@@ -325,11 +418,13 @@ impl KableInstallation {
                                 }
                             }
                         }
-                        Err(_e) => {
-                            // Optionally log: eprintln!("Failed to open zip for {:?}: {}", path, _e);
+                        Err(e) => {
+                            Logger::debug_global(&format!("Failed to open zip for {:?}: {}", path, e), None);
                             // Skip this JAR
                         }
                     }
+                } else {
+                    Logger::debug_global(&format!("Failed to open mod jar: {}", file_name), None);
                 }
                 result.push(ModJarInfo {
                     file_name,
@@ -339,6 +434,7 @@ impl KableInstallation {
                 });
             }
         }
+        Logger::debug_global(&format!("Found {} mods in {}", result.len(), mods_dir.display()), None);
         Ok(result)
     }
 

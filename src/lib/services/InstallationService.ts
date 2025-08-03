@@ -1,4 +1,4 @@
-import { type InstallationForm, type KableInstallation, type VersionData, installations, selectedInstallation, isLoadingInstallations, installationsError, versions, isLoadingVersions, versionsError, type LoaderKind } from '$lib';
+import { type InstallationForm, type KableInstallation, type VersionData, installations, selectedInstallation, isLoadingInstallations, installationsError, versions, isLoadingVersions, versionsError, type LoaderKind, type ModJarInfo } from '$lib';
 import * as installationsApi from '../api/installations';
 import { get } from 'svelte/store';
 
@@ -188,5 +188,9 @@ export class InstallationService {
       is_stable: true,
       extra: {},
     };
+  }
+
+  static async getModInfo(installation: KableInstallation): Promise<ModJarInfo[]> {
+    return await installationsApi.get_mod_info(installation) || [];
   }
 }

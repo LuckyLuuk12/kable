@@ -711,6 +711,23 @@ export interface InstallationForm {
   description?: string | null;
 }
 
+/** ModJarInfo struct - for mod jar file information
+ * ```ts
+ * export interface ModJarInfo {
+ *   file_name: string;
+ *   mod_name?: string | null;
+ *   mod_version?: string | null;
+ *   loader?: string | null;
+ * }
+ * ```
+ */
+export interface ModJarInfo {
+  file_name: string;
+  mod_name?: string | null;
+  mod_version?: string | null;
+  loader?: string | null;
+}
+
 // _____________________________________________________________________________
 //|                                                                             |
 //|                              Launcher Types                                 |

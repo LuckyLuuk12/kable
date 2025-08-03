@@ -171,6 +171,7 @@ pub fn run() {
 
             // Apply window state but don't show the window yet - let frontend trigger it
             if let Some(window) = app.get_webview_window("main") {
+                window.show().unwrap();
                 tauri::async_runtime::spawn(async move {
                     if let Ok(state) = load_window_state().await {
                         if let Err(e) = apply_window_state(window.clone(), state).await {

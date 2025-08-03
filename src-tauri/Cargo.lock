@@ -2193,7 +2193,8 @@ dependencies = [
 [[package]]
 name = "indexmap"
 version = "2.10.0"
-source = "git+https://github.com/indexmap-rs/indexmap.git?branch=main#91dbcc55d2b6be52b7f99929aebb7204a6576189"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe4cd85333e22411419a0bcae1297d25e58c9443848b11dc6a86fefe8c78a661"
 dependencies = [
  "equivalent",
  "hashbrown 0.15.4",
@@ -2356,7 +2357,6 @@ dependencies = [
  "chrono",
  "dirs 5.0.1",
  "dotenvy",
- "indexmap 2.10.0",
  "lazy_static",
  "minecraft-msa-auth",
  "modrinth-api",

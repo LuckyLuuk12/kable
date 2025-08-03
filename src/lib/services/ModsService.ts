@@ -1,7 +1,7 @@
 import * as modsApi from '../api/mods';
 import { get } from 'svelte/store';
 import { modsByProvider, modsLoading, modsError, modsLimit, modsOffset, modsFilter, modsInstallation, modsProvider } from '$lib';
-import type { ProviderKind, ModInfoKind, KableInstallation, ModFilter } from '$lib';
+import type { ProviderKind, ModInfoKind, KableInstallation, ModFilter, ModJarInfo } from '$lib';
 
 export class ModsService {
   initialized = false;
