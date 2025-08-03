@@ -1,7 +1,5 @@
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 use tauri::Manager;
 use thiserror::Error;
 
@@ -34,7 +32,12 @@ pub use settings::*;
 pub use shaders::*;
 pub use skins::*;
 pub use window_state::*;
-pub use commands::*;
+pub use commands::auth as commands_auth;
+pub use commands::installations as commands_installations;
+pub use commands::launcher as commands_launcher;
+pub use commands::mods as commands_mods;
+pub use commands::system as commands_system;
+
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -56,97 +59,6 @@ impl From<AppError> for String {
     }
 }
 
-// Existing structures
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LaunchOptions {
-    pub version: String,
-    pub username: String,
-    pub uuid: String,
-    pub access_token: String,
-    pub memory: u32, // in MB
-    pub java_path: Option<String>,
-    pub jvm_args: Option<Vec<String>>,
-    pub game_args: Option<Vec<String>>,
-    pub window_width: Option<u32>,
-    pub window_height: Option<u32>,
-    pub fullscreen: Option<bool>,
-}
-
-// Read usernames from usercache.json for offline mode reference
-#[tauri::command]
-async fn get_cached_usernames(minecraft_path: String) -> Result<Vec<String>, String> {
-    let usercache_path = PathBuf::from(&minecraft_path).join("usercache.json");
-
-    if !usercache_path.exists() {
-        return Ok(Vec::new());
-    }
-
-    let contents = fs::read_to_string(usercache_path).map_err(|e| e.to_string())?;
-    let usercache: Vec<serde_json::Value> =
-        serde_json::from_str(&contents).map_err(|e| e.to_string())?;
-
-    let usernames: Vec<String> = usercache
-        .iter()
-        .filter_map(|entry| entry["name"].as_str().map(|s| s.to_string()))
-        .collect();
-
-    Ok(usernames)
-}
-
-// Launch Minecraft with specified options
-#[tauri::command]
-async fn launch_minecraft(
-    options: LaunchOptions,
-    minecraft_path: String,
-) -> Result<String, String> {
-    let minecraft_dir = PathBuf::from(&minecraft_path);
-    let versions_dir = minecraft_dir.join("versions").join(&options.version);
-    let jar_path = versions_dir.join(format!("{}.jar", options.version));
-
-    if !jar_path.exists() {
-        return Err(format!("Minecraft version {} not found", options.version));
-    }
-
-    // Basic launch command - this is simplified
-    let java_args = vec![
-        format!("-Xmx{}m", options.memory),
-        "-cp".to_string(),
-        jar_path.to_string_lossy().to_string(),
-        "net.minecraft.client.main.Main".to_string(),
-        "--username".to_string(),
-        options.username.clone(),
-        "--uuid".to_string(),
-        options.uuid,
-        "--accessToken".to_string(),
-        options.access_token,
-        "--version".to_string(),
-        options.version,
-        "--gameDir".to_string(),
-        minecraft_dir.to_string_lossy().to_string(),
-    ];
-
-    match Command::new("java")
-        .args(&java_args)
-        .current_dir(&minecraft_dir)
-        .spawn()
-    {
-        Ok(_) => Ok("Minecraft launched successfully".to_string()),
-        Err(e) => Err(format!("Failed to launch Minecraft: {}", e)),
-    }
-}
-
-// Check if Java is installed
-#[tauri::command]
-async fn check_java_installation() -> Result<String, String> {
-    match Command::new("java").arg("-version").output() {
-        Ok(output) => {
-            let version_info = String::from_utf8_lossy(&output.stderr);
-            Ok(version_info.to_string())
-        }
-        Err(_) => Err("Java not found. Please install Java to run Minecraft.".to_string()),
-    }
-}
-
 /// This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -156,45 +68,45 @@ pub fn run() {
             get_default_minecraft_dir,
             validate_minecraft_directory,
             // Main authentication commands
-            auth::get_minecraft_account,
-            auth::get_launch_auth_account,
-            auth::refresh_minecraft_account,
+            commands_auth::get_minecraft_account,
+            commands_auth::get_launch_auth_account,
+            commands_auth::refresh_minecraft_account,
             // Auth utilities (starting fresh) - using direct module paths
-            auth::auth_util::read_launcher_accounts,
-            auth::auth_util::write_launcher_accounts,
-            auth::auth_util::write_launcher_account,
-            auth::auth_util::remove_launcher_account,
-            auth::auth_util::set_active_launcher_account,
-            auth::auth_util::get_active_launcher_account,
-            auth::auth_util::get_all_launcher_accounts,
-            auth::auth_util::get_launcher_accounts_path_string,
-            auth::auth_util::validate_and_cleanup_accounts,
+            commands_auth::read_launcher_accounts,
+            commands_auth::write_launcher_accounts,
+            commands_auth::write_launcher_account,
+            commands_auth::remove_launcher_account,
+            commands_auth::set_active_launcher_account,
+            commands_auth::get_active_launcher_account,
+            commands_auth::get_all_launcher_accounts,
+            commands_auth::get_launcher_accounts_path_string,
+            commands_auth::validate_and_cleanup_accounts,
             // Microsoft authentication commands - Device Code Flow
-            auth::device_code_flow::start_microsoft_device_auth,
-            auth::device_code_flow::poll_microsoft_device_auth,
-            auth::device_code_flow::complete_minecraft_auth,
+            commands_auth::start_microsoft_device_auth,
+            commands_auth::poll_microsoft_device_auth,
+            commands_auth::complete_minecraft_auth,
             // Microsoft authentication commands - Authorization Code Flow
-            auth::code_flow::start_microsoft_auth_code,
-            auth::code_flow::complete_minecraft_auth_code,
-            auth::code_flow::poll_microsoft_auth_code,
+            commands_auth::start_microsoft_auth_code,
+            commands_auth::complete_minecraft_auth_code,
+            commands_auth::poll_microsoft_auth_code,
             // Settings commands
             settings::load_settings,
             settings::save_settings,
             settings::validate_minecraft_directory,
             // Installation commands
-            commands::installations::get_versions,
-            commands::installations::get_all_versions,
-            commands::installations::get_installations,
-            commands::installations::get_installation,
-            commands::installations::modify_installation,
-            commands::installations::delete_installation,
-            commands::installations::create_installation,
+            commands_installations::get_versions,
+            commands_installations::get_all_versions,
+            commands_installations::get_installations,
+            commands_installations::get_installation,
+            commands_installations::modify_installation,
+            commands_installations::delete_installation,
+            commands_installations::create_installation,
             // Launcher commands
-            launcher::launch_installation,
-            launcher::kill_minecraft_process,
-            launcher::get_running_minecraft_processes,
-            launcher::is_minecraft_running,
-            launcher::wait_for_minecraft_exit,
+            commands_launcher::launch_installation,
+            commands_launcher::kill_minecraft_process,
+            commands_launcher::get_running_minecraft_processes,
+            commands_launcher::is_minecraft_running,
+            commands_launcher::wait_for_minecraft_exit,
             // Maps/Worlds commands
             maps::get_local_worlds,
             maps::delete_world,
@@ -240,7 +152,7 @@ pub fn run() {
             logging::cleanup_old_logs,
             logging::get_log_stats,
             // System commands
-            commands::system::open_url
+            commands_system::open_url
         ])
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {

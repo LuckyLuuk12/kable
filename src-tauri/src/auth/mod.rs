@@ -9,12 +9,10 @@ pub mod device_code_flow;
 pub mod secure_token;
 
 // Re-export the auth_util functions and types for convenience
-pub use auth_util::{
-    get_active_launcher_account, get_all_launcher_accounts, get_launcher_accounts_path_string,
-    read_launcher_accounts, remove_launcher_account, set_active_launcher_account,
-    write_launcher_account, write_launcher_accounts, LauncherAccount, LauncherAccountsJson,
-    MinecraftProfile,
-};
+pub use auth_util::*;
+pub use code_flow::*;
+pub use device_code_flow::*;
+pub use secure_token::*;
 
 use crate::logging::{LogLevel, Logger};
 use serde::{Deserialize, Serialize};
@@ -34,7 +32,7 @@ pub enum AuthMethod {
 
 /// Get the current authenticated Minecraft account for launching games
 /// This is the main function that other backend files should use
-#[tauri::command]
+// #[tauri::command]
 pub async fn get_minecraft_account(
     auth_method: Option<AuthMethod>,
 ) -> Result<LauncherAccount, String> {
@@ -242,7 +240,7 @@ pub fn is_access_token_valid(launcher_account: &LauncherAccount) -> bool {
 
 /// Helper function for installations.rs and other files that need account data
 /// This provides the same interface as the old get_launch_auth_account function
-#[tauri::command]
+// #[tauri::command]
 pub async fn get_launch_auth_account() -> Result<LauncherAccount, String> {
     match get_minecraft_account(Some(AuthMethod::DeviceCodeFlow)).await {
         Ok(account) => Ok(account),
@@ -258,7 +256,7 @@ pub async fn get_launch_auth_account() -> Result<LauncherAccount, String> {
 }
 
 /// Force refresh the current account's access token
-#[tauri::command]
+// #[tauri::command]
 pub async fn refresh_minecraft_account() -> Result<LauncherAccount, String> {
     Logger::console_log(
         LogLevel::Info,

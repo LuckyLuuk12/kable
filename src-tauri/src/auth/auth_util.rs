@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use tauri;
 
 // ...existing code...
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -87,7 +86,6 @@ pub fn get_kable_accounts_path() -> Result<PathBuf, AppError> {
 }
 
 /// Read all accounts from kable_accounts.json
-#[tauri::command]
 pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
     Logger::console_log(
         LogLevel::Info,
@@ -145,7 +143,6 @@ pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
 }
 
 /// Write accounts to launcher_accounts.json
-#[tauri::command]
 pub async fn write_launcher_accounts(mut accounts: LauncherAccountsJson) -> Result<(), String> {
     Logger::console_log(LogLevel::Info, "💾 Writing Kable accounts to file...", None);
     let accounts_path = get_kable_accounts_path()
@@ -190,7 +187,6 @@ pub async fn write_launcher_accounts(mut accounts: LauncherAccountsJson) -> Resu
 }
 
 /// Add or update a single account in launcher_accounts.json
-#[tauri::command]
 pub async fn write_launcher_account(account: LauncherAccount) -> Result<(), String> {
     Logger::console_log(
         LogLevel::Info,
@@ -221,7 +217,6 @@ pub async fn write_launcher_account(account: LauncherAccount) -> Result<(), Stri
 }
 
 /// Remove an account from launcher_accounts.json
-#[tauri::command]
 pub async fn remove_launcher_account(account_id: String) -> Result<(), String> {
     Logger::console_log(
         LogLevel::Info,
@@ -263,7 +258,6 @@ pub async fn remove_launcher_account(account_id: String) -> Result<(), String> {
 }
 
 /// Set the active account in launcher_accounts.json
-#[tauri::command]
 pub async fn set_active_launcher_account(account_id: String) -> Result<(), String> {
     Logger::console_log(
         LogLevel::Info,
@@ -291,7 +285,6 @@ pub async fn set_active_launcher_account(account_id: String) -> Result<(), Strin
 }
 
 /// Get the currently active account from launcher_accounts.json
-#[tauri::command]
 pub async fn get_active_launcher_account() -> Result<Option<LauncherAccount>, String> {
     Logger::console_log(
         LogLevel::Debug,
@@ -325,7 +318,6 @@ pub async fn get_active_launcher_account() -> Result<Option<LauncherAccount>, St
 }
 
 /// Get all accounts from launcher_accounts.json
-#[tauri::command]
 pub async fn get_all_launcher_accounts() -> Result<Vec<LauncherAccount>, String> {
     Logger::console_log(LogLevel::Debug, "📋 Getting all launcher accounts...", None);
 
@@ -342,7 +334,6 @@ pub async fn get_all_launcher_accounts() -> Result<Vec<LauncherAccount>, String>
 }
 
 /// Get the path to launcher_accounts.json as a string (useful for debugging)
-#[tauri::command]
 pub async fn get_launcher_accounts_path_string() -> Result<String, String> {
     let path = get_kable_accounts_path()
         .map_err(|e| format!("Failed to get Kable accounts path: {}", e))?;
@@ -372,7 +363,6 @@ pub fn get_oauth_port() -> u16 {
 }
 
 /// Validate and clean up malformed accounts in launcher_accounts.json
-#[tauri::command]
 pub async fn validate_and_cleanup_accounts() -> Result<String, String> {
     Logger::console_log(
         LogLevel::Info,

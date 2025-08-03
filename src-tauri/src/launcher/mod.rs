@@ -4,15 +4,14 @@ pub mod launchables;
 pub mod utils;
 pub mod vanilla;
 
-pub use fabric::FabricLaunchable;
-pub use forge::ForgeLaunchable;
-pub use launchables::{LaunchContext, LaunchResult, Launchable, LoaderType};
-pub use vanilla::VanillaLaunchable;
+pub use fabric::*;
+pub use forge::*;
+pub use launchables::*;
+pub use vanilla::*;
 
 use crate::logging::Logger;
-use crate::LauncherAccount;
 use crate::{
-    get_default_minecraft_dir, kable_profiles::KableInstallation, CategorizedLauncherSettings,
+    get_default_minecraft_dir, kable_profiles::KableInstallation, CategorizedLauncherSettings, LauncherAccount
 };
 
 use once_cell::sync::OnceCell;
@@ -43,7 +42,7 @@ async fn get_launchable_for_installation(
     }
 }
 
-#[tauri::command]
+
 pub async fn launch_installation(
     installation: KableInstallation,
     settings: CategorizedLauncherSettings,
@@ -112,7 +111,6 @@ pub async fn launch_installation(
 }
 
 /// Kill a Minecraft process by PID (only if tracked)
-#[tauri::command]
 pub async fn kill_minecraft_process(process_id: u32) -> Result<(), String> {
     let mut pids = get_pid_set().lock().unwrap();
     if !pids.contains(&process_id) {
@@ -135,7 +133,6 @@ pub async fn kill_minecraft_process(process_id: u32) -> Result<(), String> {
 }
 
 /// Get all running Minecraft process IDs (tracked by launcher)
-#[tauri::command]
 pub async fn get_running_minecraft_processes() -> Result<Vec<u32>, String> {
     let pids = get_pid_set().lock().unwrap();
     // Optionally, check if the process is still alive
@@ -174,14 +171,13 @@ fn is_process_alive(pid: u32) -> bool {
 }
 
 /// Check if any Minecraft process is running (tracked by launcher)
-#[tauri::command]
+// #[tauri::command]
 pub async fn is_minecraft_running() -> Result<bool, String> {
     let running = get_running_minecraft_processes().await?;
     Ok(!running.is_empty())
 }
 
 /// Wait for a Minecraft process to exit (tracked by launcher)
-#[tauri::command]
 pub async fn wait_for_minecraft_exit(process_id: u32) -> Result<(), String> {
     let mut found = false;
     {

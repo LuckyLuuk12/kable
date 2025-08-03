@@ -3,7 +3,7 @@ use crate::auth::auth_util::{
 };
 use crate::commands::system::open_url;
 use crate::logging::{LogLevel, Logger};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use minecraft_msa_auth::MinecraftAuthorizationFlow;
 /**
  * This file contains Microsoft Authentication backend logic using the minecraft-msa-auth crate.
@@ -39,11 +39,11 @@ pub struct DeviceCodeResponse {
     pub interval: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct MicrosoftToken {
-    pub access_token: String,
-    pub expires_at: DateTime<Utc>,
-}
+// #[derive(Debug, Serialize, Deserialize, Clone)]
+// pub struct MicrosoftToken {
+//     pub access_token: String,
+//     pub expires_at: DateTime<Utc>,
+// }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MinecraftToken {
@@ -53,7 +53,6 @@ pub struct MinecraftToken {
 }
 
 /// Start the Microsoft device code authentication flow
-#[tauri::command]
 pub async fn start_microsoft_device_auth() -> Result<DeviceCodeResponse, String> {
     Logger::console_log(
         LogLevel::Info,
@@ -231,10 +230,9 @@ pub async fn start_microsoft_device_auth() -> Result<DeviceCodeResponse, String>
 }
 
 /// Poll for the completion of Microsoft device code authentication
-#[tauri::command]
 pub async fn poll_microsoft_device_auth(
     device_code: String,
-) -> Result<Option<MicrosoftToken>, String> {
+) -> Result<Option<crate::auth::code_flow::MicrosoftToken>, String> {
     Logger::console_log(
         LogLevel::Debug,
         "🔄 Polling Microsoft device authentication...",
@@ -322,7 +320,7 @@ pub async fn poll_microsoft_device_auth(
                 None,
             );
 
-            let ms_token = MicrosoftToken {
+            let ms_token = crate::auth::code_flow::MicrosoftToken {
                 access_token: token.access_token().secret().to_string(),
                 expires_at,
             };
@@ -398,7 +396,7 @@ pub async fn poll_microsoft_device_auth(
 /// Exchange Microsoft token for Minecraft token and save account
 #[tauri::command]
 pub async fn complete_minecraft_auth(
-    microsoft_token: MicrosoftToken,
+    microsoft_token: crate::auth::code_flow::MicrosoftToken,
 ) -> Result<LauncherAccount, String> {
     Logger::console_log(
         LogLevel::Info,

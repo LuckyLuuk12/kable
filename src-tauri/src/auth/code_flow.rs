@@ -19,7 +19,6 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tauri;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use url::Url;
@@ -46,7 +45,6 @@ pub struct MicrosoftToken {
 }
 
 /// Start the Microsoft authorization code authentication flow
-#[tauri::command]
 pub async fn start_microsoft_auth_code() -> Result<AuthCodeResponse, String> {
     Logger::console_log(
         LogLevel::Info,
@@ -412,7 +410,6 @@ async fn exchange_auth_code_for_tokens(
 }
 
 /// Complete the Minecraft authentication using the Microsoft token (Authorization Code Flow)
-#[tauri::command]
 pub async fn complete_minecraft_auth_code(
     microsoft_token: MicrosoftToken,
 ) -> Result<LauncherAccount, String> {
@@ -495,7 +492,6 @@ pub async fn complete_minecraft_auth_code(
 }
 
 /// Poll for authentication completion (not needed for auth code flow, but kept for compatibility)
-#[tauri::command]
 pub async fn poll_microsoft_auth_code(_state: String) -> Result<Option<MicrosoftToken>, String> {
     // In auth code flow, polling is not needed as the callback handles everything
     // This function is kept for compatibility with the frontend
