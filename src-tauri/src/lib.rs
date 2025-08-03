@@ -33,9 +33,9 @@ pub use shaders::*;
 pub use skins::*;
 pub use window_state::*;
 pub use commands::auth as commands_auth;
+pub use commands::mods as commands_mods;
 pub use commands::installations as commands_installations;
 pub use commands::launcher as commands_launcher;
-pub use commands::mods as commands_mods;
 pub use commands::system as commands_system;
 
 
@@ -112,11 +112,12 @@ pub fn run() {
             maps::delete_world,
             maps::backup_world,
             // Mods commands
-            // mods::get_modded_installations,
-            // mods::setup_installation_mods,
-            // mods::get_installed_mods,
-            // mods::toggle_mod_enabled,
-            // mods::update_installation_mod_config,
+            commands_mods::get_mods,
+            commands_mods::download_mod,
+            commands_mods::set_provider_filter,
+            commands_mods::set_provider_limit,
+            commands_mods::clear_provider_cache,
+            commands_mods::purge_stale_provider_cache,
             // Shaders commands
             shaders::get_installed_shaders,
             shaders::toggle_shader,

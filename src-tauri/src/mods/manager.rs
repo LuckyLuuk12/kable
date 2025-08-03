@@ -37,7 +37,7 @@ pub enum ModInfoKind {
 }
 
 // Generic filter type for all providers
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ModFilter {
     Modrinth(crate::mods::modrinth::FilterFacets),
     // CurseForge(CurseForgeFilter),

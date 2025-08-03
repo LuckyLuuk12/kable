@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct FilterFacets {
     pub query: Option<String>,                     // User search string
     pub categories: Option<Vec<(String, String)>>, // (operation, value)
