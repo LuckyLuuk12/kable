@@ -1,8 +1,8 @@
 <script lang="ts">
   import { settings } from "$lib/stores";
-  import { SettingsManager } from "$lib/managers/SettingsManager";
+  import { SettingsService } from "$lib/services/SettingsService";
   function setUnlimitedDownloadSpeed() {
-    SettingsManager.update('network', {
+    SettingsService.update('network', {
       ...$settings.network,
       download_speed_limit: 'unlimited'
     });
@@ -50,7 +50,7 @@
             disabled={$settings.network.download_speed_limit === 'unlimited'}
             on:input={(e) => {
               if ($settings.network.download_speed_limit !== 'unlimited') {
-                SettingsManager.update('network', {
+                SettingsService.update('network', {
                   ...$settings.network,
                   download_speed_limit: Number((e.target as HTMLInputElement)?.value)
                 });
@@ -62,7 +62,7 @@
             disabled={$settings.network.download_speed_limit === 'unlimited'}
             on:input={(e) => {
               if ($settings.network.download_speed_limit !== 'unlimited') {
-                SettingsManager.update('network', {
+                SettingsService.update('network', {
                   ...$settings.network,
                   download_speed_limit: Number((e.target as HTMLInputElement)?.value)
                 });
@@ -74,7 +74,7 @@
           {#if $settings.network.download_speed_limit !== 'unlimited'}
             <button type="button" class="primary" on:click={setUnlimitedDownloadSpeed}>Unlimited</button>
           {:else}
-            <button type="button" class="primary" on:click={() => SettingsManager.update('network', {
+            <button type="button" class="primary" on:click={() => SettingsService.update('network', {
               ...$settings.network,
               download_speed_limit: 100
             })}>Use limit</button>

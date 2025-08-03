@@ -6,6 +6,12 @@ import { LogsManager, gameInstances } from '../stores/logs';
 import type { GameInstance, LogEntry } from '../types';
 
 export class LogsService {
+  /**
+   * Static helper for emitting launcher log events (compat with old manager)
+   */
+  static emitLauncherEvent(message: string, level: LogEntry['level'] = 'info', instanceId?: string) {
+    LogsManager.addLauncherLog(message, level, instanceId);
+  }
   private listeners: Map<string, UnlistenFn> = new Map();
   private static instance: LogsService;
   private isInitialized: boolean = false;

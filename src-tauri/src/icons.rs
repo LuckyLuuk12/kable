@@ -1,6 +1,6 @@
-use std::path::PathBuf;
-use std::fs;
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::PathBuf;
 use tauri::command;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -55,32 +55,30 @@ pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, Stri
     let mut templates = Vec::new();
 
     // Read all .json and .yml/.yaml files in the icons directory
-    let entries = fs::read_dir(&icons_dir)
-        .map_err(|e| format!("Failed to read icons directory: {}", e))?;
+    let entries =
+        fs::read_dir(&icons_dir).map_err(|e| format!("Failed to read icons directory: {}", e))?;
 
     for entry in entries {
         let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
         let path = entry.path();
-        
+
         if !path.is_file() {
             continue;
         }
 
-        let extension = path.extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("");
+        let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
 
         match extension {
             "json" => {
                 if let Ok(template) = load_json_template(&path) {
                     templates.push(template);
                 }
-            },
+            }
             "yml" | "yaml" => {
                 if let Ok(template) = load_yaml_template(&path) {
                     templates.push(template);
                 }
-            },
+            }
             _ => {}
         }
     }
@@ -90,23 +88,23 @@ pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, Stri
 
 /// Load a JSON icon template
 fn load_json_template(path: &PathBuf) -> Result<CustomIconTemplate, String> {
-    let content = fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read template file: {}", e))?;
-    
+    let content =
+        fs::read_to_string(path).map_err(|e| format!("Failed to read template file: {}", e))?;
+
     let template: CustomIconTemplate = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse JSON template: {}", e))?;
-    
+
     Ok(template)
 }
 
 /// Load a YAML icon template
 fn load_yaml_template(path: &PathBuf) -> Result<CustomIconTemplate, String> {
-    let content = fs::read_to_string(path)
-        .map_err(|e| format!("Failed to read template file: {}", e))?;
-    
+    let content =
+        fs::read_to_string(path).map_err(|e| format!("Failed to read template file: {}", e))?;
+
     let template: CustomIconTemplate = serde_yaml::from_str(&content)
         .map_err(|e| format!("Failed to parse YAML template: {}", e))?;
-    
+
     Ok(template)
 }
 
@@ -115,13 +113,13 @@ fn load_yaml_template(path: &PathBuf) -> Result<CustomIconTemplate, String> {
 pub async fn save_custom_icon_template(template: CustomIconTemplate) -> Result<String, String> {
     let icons_dir = ensure_icons_dir().await?;
     let file_path = icons_dir.join(format!("{}.json", template.name));
-    
+
     let json_content = serde_json::to_string_pretty(&template)
         .map_err(|e| format!("Failed to serialize template: {}", e))?;
-    
+
     fs::write(&file_path, json_content)
         .map_err(|e| format!("Failed to write template file: {}", e))?;
-    
+
     Ok(file_path.to_string_lossy().to_string())
 }
 
@@ -129,11 +127,11 @@ pub async fn save_custom_icon_template(template: CustomIconTemplate) -> Result<S
 #[command]
 pub async fn delete_custom_icon_template(template_name: String) -> Result<(), String> {
     let icons_dir = get_icons_dir().await?;
-    
+
     // Try both .json and .yml/.yaml extensions
     let extensions = ["json", "yml", "yaml"];
     let mut found = false;
-    
+
     for ext in &extensions {
         let file_path = icons_dir.join(format!("{}.{}", template_name, ext));
         if file_path.exists() {
@@ -143,61 +141,64 @@ pub async fn delete_custom_icon_template(template_name: String) -> Result<(), St
             break;
         }
     }
-    
+
     if !found {
         return Err(format!("Template '{}' not found", template_name));
     }
-    
+
     Ok(())
 }
 
 /// Validate an icon template
 #[command]
-pub async fn validate_icon_template(template_content: String, format: String) -> Result<CustomIconTemplate, String> {
+pub async fn validate_icon_template(
+    template_content: String,
+    format: String,
+) -> Result<CustomIconTemplate, String> {
     let template: CustomIconTemplate = match format.as_str() {
-        "json" => {
-            serde_json::from_str(&template_content)
-                .map_err(|e| format!("Invalid JSON format: {}", e))?
-        },
-        "yaml" | "yml" => {
-            serde_yaml::from_str(&template_content)
-                .map_err(|e| format!("Invalid YAML format: {}", e))?
-        },
-        _ => return Err("Unsupported format. Use 'json', 'yaml', or 'yml'".to_string())
+        "json" => serde_json::from_str(&template_content)
+            .map_err(|e| format!("Invalid JSON format: {}", e))?,
+        "yaml" | "yml" => serde_yaml::from_str(&template_content)
+            .map_err(|e| format!("Invalid YAML format: {}", e))?,
+        _ => return Err("Unsupported format. Use 'json', 'yaml', or 'yml'".to_string()),
     };
-    
+
     // Basic validation
     if template.name.is_empty() {
         return Err("Template name is required".to_string());
     }
-    
+
     if template.icon_type.is_empty() {
         return Err("Icon type is required".to_string());
     }
-    
+
     if template.fallback_icon.is_empty() {
         return Err("Fallback icon is required".to_string());
     }
-    
+
     if template.icons.is_empty() {
         return Err("At least one icon mapping is required".to_string());
     }
-    
+
     // If this is an SVG template, validate all SVG content
     if template.icon_type == "svg" {
         // Validate fallback icon
         if !is_valid_svg(&template.fallback_icon) {
             return Err("Invalid or potentially unsafe SVG in fallback icon".to_string());
         }
-        
+
         // Validate all icon SVG content
         for (name, svg_content) in &template.icons {
             if !is_valid_svg(svg_content) {
-                return Err(format!("Invalid or potentially unsafe SVG in icon '{}': {}", name, svg_content.chars().take(50).collect::<String>()));
+                return Err(format!(
+                    "Invalid or potentially unsafe SVG in icon '{}': {}",
+                    name,
+                    svg_content.chars().take(50).collect::<String>()
+                ));
             }
         }
     }
-    
+
     Ok(template)
 }
 
@@ -206,42 +207,57 @@ fn is_valid_svg(content: &str) -> bool {
     if content.is_empty() {
         return false;
     }
-    
+
     let content = content.trim();
-    
+
     // Must start with <svg and end with </svg>
     if !content.starts_with("<svg") || !content.ends_with("</svg>") {
         return false;
     }
-    
+
     // Check for potentially dangerous content (case-insensitive)
     let content_lower = content.to_lowercase();
     let dangerous_patterns = [
         "<script",
         "javascript:",
-        "onclick=", "onload=", "onerror=", "onmouseover=", "onfocus=", "onblur=",
-        "<iframe", "<object", "<embed", "<link", "<style", "<meta",
-        "data:text/html", "data:application/javascript", "data:text/javascript",
-        "href=\"javascript:", "src=\"javascript:",
-        "&#x", "&#", // HTML entities that could be used for obfuscation
+        "onclick=",
+        "onload=",
+        "onerror=",
+        "onmouseover=",
+        "onfocus=",
+        "onblur=",
+        "<iframe",
+        "<object",
+        "<embed",
+        "<link",
+        "<style",
+        "<meta",
+        "data:text/html",
+        "data:application/javascript",
+        "data:text/javascript",
+        "href=\"javascript:",
+        "src=\"javascript:",
+        "&#x",
+        "&#",          // HTML entities that could be used for obfuscation
         "expression(", // CSS expressions
-        "import(", // ES6 imports
-        "eval(", // JavaScript eval
-        "settimeout", "setinterval" // Timer functions
+        "import(",     // ES6 imports
+        "eval(",       // JavaScript eval
+        "settimeout",
+        "setinterval", // Timer functions
     ];
-    
+
     for pattern in &dangerous_patterns {
         if content_lower.contains(pattern) {
             return false;
         }
     }
-    
+
     // Additional check for event handlers with various quote styles
     let event_handler_regex = regex::Regex::new(r"(?i)on\w+\s*=").unwrap();
     if event_handler_regex.is_match(content) {
         return false;
     }
-    
+
     true
 }
 
@@ -256,7 +272,7 @@ pub async fn get_icons_directory_path() -> Result<String, String> {
 #[command]
 pub async fn open_icons_directory() -> Result<(), String> {
     let icons_dir = ensure_icons_dir().await?;
-    
+
     #[cfg(target_os = "windows")]
     {
         std::process::Command::new("explorer")
@@ -264,7 +280,7 @@ pub async fn open_icons_directory() -> Result<(), String> {
             .spawn()
             .map_err(|e| format!("Failed to open icons directory: {}", e))?;
     }
-    
+
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
@@ -272,7 +288,7 @@ pub async fn open_icons_directory() -> Result<(), String> {
             .spawn()
             .map_err(|e| format!("Failed to open icons directory: {}", e))?;
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         std::process::Command::new("xdg-open")
@@ -280,6 +296,6 @@ pub async fn open_icons_directory() -> Result<(), String> {
             .spawn()
             .map_err(|e| format!("Failed to open icons directory: {}", e))?;
     }
-    
+
     Ok(())
 }

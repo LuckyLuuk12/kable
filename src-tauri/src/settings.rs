@@ -1,7 +1,7 @@
+use crate::logging::{LogLevel, Logger};
+use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
-use crate::logging::{Logger, LogLevel};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CategorizedLauncherSettings {
@@ -18,8 +18,8 @@ pub struct CategorizedLauncherSettings {
 pub struct GeneralSettings {
     pub java_path: Option<String>,
     pub game_directory: Option<String>,
-    pub on_game_close: String, // 'exit' | 'minimize' | 'ask'
-    pub on_game_crash: String, // 'restart' | 'close' | 'ask'
+    pub on_game_close: String,  // 'exit' | 'minimize' | 'ask'
+    pub on_game_crash: String,  // 'restart' | 'close' | 'ask'
     pub on_game_launch: String, // 'keep_open' | 'close_launcher' | 'open_logs' | 'ask'
     pub auto_update_launcher: bool,
     pub show_ads: bool,
@@ -42,7 +42,7 @@ pub struct LoggingSettings {
     pub enable_persistent_logging: bool,
     pub enable_log_compression: bool,
     pub log_file_size_limit_mb: serde_json::Value, // number or "disabled"
-    pub log_retention_days: serde_json::Value, // number or "disabled"
+    pub log_retention_days: serde_json::Value,     // number or "disabled"
     pub merge_log_tabs: bool,
     pub default_log_levels: Vec<String>, // 'debug' | 'info' | 'warn' | 'error'
 }
@@ -103,7 +103,11 @@ impl Default for CategorizedLauncherSettings {
                 log_file_size_limit_mb: serde_json::json!(10),
                 log_retention_days: serde_json::json!(30),
                 merge_log_tabs: false,
-                default_log_levels: vec!["info".to_string(), "warn".to_string(), "error".to_string()],
+                default_log_levels: vec![
+                    "info".to_string(),
+                    "warn".to_string(),
+                    "error".to_string(),
+                ],
             },
             network: NetworkSettings {
                 parallel_downloads: 3,
@@ -140,13 +144,13 @@ impl Default for CategorizedLauncherSettings {
 //             "Could not find data directory"
 //         )));
 //     };
-    
+
 //     let launcher_dir = base_dir.join("kable-launcher");
-    
+
 //     if !launcher_dir.exists() {
 //         fs::create_dir_all(&launcher_dir)?;
 //     }
-    
+
 //     Ok(launcher_dir)
 // }
 
@@ -157,7 +161,12 @@ fn get_settings_path() -> Result<PathBuf, String> {
     let settings_path = kable_dir.join("settings.json");
     if !settings_path.exists() {
         fs::create_dir_all(&kable_dir).map_err(|e| e.to_string())?;
-        fs::write(&settings_path, serde_json::to_string_pretty(&CategorizedLauncherSettings::default()).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+        fs::write(
+            &settings_path,
+            serde_json::to_string_pretty(&CategorizedLauncherSettings::default())
+                .map_err(|e| e.to_string())?,
+        )
+        .map_err(|e| e.to_string())?;
     }
     Ok(settings_path)
 }
@@ -166,10 +175,11 @@ fn get_settings_path() -> Result<PathBuf, String> {
 #[tauri::command]
 pub async fn load_settings() -> Result<CategorizedLauncherSettings, String> {
     let settings_path = get_settings_path().map_err(|e| e.to_string())?;
-    
+
     if settings_path.exists() {
         let contents = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
-        let settings: CategorizedLauncherSettings = serde_json::from_str(&contents).map_err(|e| e.to_string())?;
+        let settings: CategorizedLauncherSettings =
+            serde_json::from_str(&contents).map_err(|e| e.to_string())?;
         Ok(settings)
     } else {
         let default_settings = CategorizedLauncherSettings::default();
@@ -183,7 +193,11 @@ pub fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), String
     let settings_path = get_settings_path().map_err(|e| e.to_string())?;
     let contents = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     fs::write(&settings_path, contents).map_err(|e| e.to_string())?;
-    Logger::console_log(LogLevel::Info, &format!("Settings saved to: {}", settings_path.display()), None);
+    Logger::console_log(
+        LogLevel::Info,
+        &format!("Settings saved to: {}", settings_path.display()),
+        None,
+    );
     Ok(())
 }
 
@@ -216,7 +230,7 @@ pub fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), String
 //             return Err("Could not find home directory".to_string());
 //         }
 //     };
-    
+
 //     Ok(minecraft_dir.to_string_lossy().to_string())
 // }
 
@@ -224,45 +238,47 @@ pub fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), String
 #[tauri::command]
 pub async fn validate_minecraft_directory(path: String) -> Result<MinecraftDirectoryInfo, String> {
     let minecraft_path = PathBuf::from(path);
-    
+
     if !minecraft_path.exists() {
         return Err("Directory does not exist".to_string());
     }
-    
+
     let saves_dir = minecraft_path.join("saves");
     let shaderpacks_dir = minecraft_path.join("shaderpacks");
     let resourcepacks_dir = minecraft_path.join("resourcepacks");
-    
+
     let has_saves = saves_dir.exists();
     let has_shaderpacks = shaderpacks_dir.exists();
     let has_resourcepacks = resourcepacks_dir.exists();
-    
+
     // Count directories/files
     let saves_count = if has_saves {
         count_directories(&saves_dir).unwrap_or(0)
     } else {
         0
     };
-    
+
     let shaderpacks_count = if has_shaderpacks {
         count_files_with_extensions(&shaderpacks_dir, &[".zip", ".jar"]).unwrap_or(0)
     } else {
         0
     };
-    
+
     let resourcepacks_count = if has_resourcepacks {
         count_files_with_extensions(&resourcepacks_dir, &[".zip", ".jar"]).unwrap_or(0)
     } else {
         0
     };
-    
+
     // Calculate directory size (approximation)
     let size_mb = calculate_directory_size(&minecraft_path).unwrap_or(0) / (1024 * 1024);
-    
-    let is_valid = minecraft_path.join("launcher_profiles.json").exists() || 
-                   minecraft_path.join("versions").exists() ||
-                   has_saves || has_shaderpacks || has_resourcepacks;
-    
+
+    let is_valid = minecraft_path.join("launcher_profiles.json").exists()
+        || minecraft_path.join("versions").exists()
+        || has_saves
+        || has_shaderpacks
+        || has_resourcepacks;
+
     Ok(MinecraftDirectoryInfo {
         path: minecraft_path.to_string_lossy().to_string(),
         is_valid,
@@ -275,7 +291,6 @@ pub async fn validate_minecraft_directory(path: String) -> Result<MinecraftDirec
         size_mb,
     })
 }
-
 
 // // Helper function to count directories
 fn count_directories(path: &PathBuf) -> Result<u32, std::io::Error> {
@@ -324,7 +339,6 @@ fn calculate_directory_size(path: &PathBuf) -> Result<u64, std::io::Error> {
     }
     Ok(size)
 }
-
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MinecraftDirectoryInfo {

@@ -1,16 +1,16 @@
 <script lang="ts">
   import { settings } from "$lib/stores";
-  import { SettingsManager } from "$lib/managers/SettingsManager";
+  import { SettingsService } from "$lib/services/SettingsService";
   import { error } from "@sveltejs/kit";
   const logLevels = ['debug', 'info', 'warn', 'error'];
   function disableFileSizeLimit() {
-    SettingsManager.update('logging', {
+    SettingsService.update('logging', {
       ...$settings.logging,
       log_file_size_limit_mb: 'disabled'
     });
   }
   function disableRetentionDays() {
-    SettingsManager.update('logging', {
+    SettingsService.update('logging', {
       ...$settings.logging,
       log_retention_days: 'disabled'
     });
@@ -71,7 +71,7 @@
             disabled={$settings.logging.log_file_size_limit_mb === 'disabled'}
             on:input={(e) => {
               if ($settings.logging.log_file_size_limit_mb !== 'disabled') {
-                SettingsManager.update('logging', {
+                SettingsService.update('logging', {
                   ...$settings.logging,
                   log_file_size_limit_mb: Number((e.target as HTMLInputElement).value)
                 });
@@ -83,7 +83,7 @@
             disabled={$settings.logging.log_file_size_limit_mb === 'disabled'}
             on:input={(e) => {
               if ($settings.logging.log_file_size_limit_mb !== 'disabled') {
-                SettingsManager.update('logging', {
+                SettingsService.update('logging', {
                   ...$settings.logging,
                   log_file_size_limit_mb: Number((e.target as HTMLInputElement).value)
                 });
@@ -109,7 +109,7 @@
             disabled={$settings.logging.log_retention_days === 'disabled'}
             on:input={(e) => {
               if ($settings.logging.log_retention_days !== 'disabled') {
-                SettingsManager.update('logging', {
+                SettingsService.update('logging', {
                   ...$settings.logging,
                   log_retention_days: Number((e.target as HTMLInputElement).value)
                 });
@@ -121,7 +121,7 @@
             disabled={$settings.logging.log_retention_days === 'disabled'}
             on:input={(e) => {
               if ($settings.logging.log_retention_days !== 'disabled') {
-                SettingsManager.update('logging', {
+                SettingsService.update('logging', {
                   ...$settings.logging,
                   log_retention_days: Number((e.target as HTMLInputElement).value)
                 });
@@ -165,13 +165,13 @@
               const idx = $settings.logging.default_log_levels.indexOf(typedLevel);
               if (idx === -1) {
                 console.log(`Adding log level: ${typedLevel}`);
-                SettingsManager.update('logging', {
+                SettingsService.update('logging', {
                   ...$settings.logging,
                   default_log_levels: [...$settings.logging.default_log_levels, typedLevel]
                 });
               } else {
                 console.log(`Removing log level: ${typedLevel}`);
-                SettingsManager.update('logging', {
+                SettingsService.update('logging', {
                   ...$settings.logging,
                   default_log_levels: $settings.logging.default_log_levels.filter(l => l !== typedLevel)
                 });
@@ -183,12 +183,12 @@
                 const typedLevel = level as 'debug' | 'info' | 'warn' | 'error';
                 const idx = $settings.logging.default_log_levels.indexOf(typedLevel);
                 if (idx === -1) {
-                  SettingsManager.update('logging', {
+                  SettingsService.update('logging', {
                     ...$settings.logging,
                     default_log_levels: [...$settings.logging.default_log_levels, typedLevel]
                   });
                 } else {
-                  SettingsManager.update('logging', {
+                  SettingsService.update('logging', {
                     ...$settings.logging,
                     default_log_levels: $settings.logging.default_log_levels.filter(l => l !== typedLevel)
                   });

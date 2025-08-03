@@ -1,40 +1,67 @@
-use std::fs;
-use std::path::{Path, PathBuf};
+use crate::launchables::LaunchContext;
+use crate::logging::{LogLevel, Logger};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tauri::Emitter;
-use crate::launchables::LaunchContext;
-use tokio::io::{BufReader};
-use serde::{Deserialize, Serialize};
-use crate::logging::{Logger, LogLevel};
-
+use tokio::io::BufReader;
 
 /// Loads a Minecraft version manifest, recursively merging inherited manifests if needed.
 /// Returns the fully merged manifest as serde_json::Value.
-pub fn load_and_merge_manifest_with_instance(minecraft_dir: &str, version_id: &str, instance_id: Option<&str>) -> Result<Value, String> {
+pub fn load_and_merge_manifest_with_instance(
+    minecraft_dir: &str,
+    version_id: &str,
+    instance_id: Option<&str>,
+) -> Result<Value, String> {
     if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         if let Some(app_handle) = handle_guard.as_ref() {
-            Logger::log(app_handle, LogLevel::Info, &format!("Loading manifest for version_id: {}", version_id), instance_id);
+            Logger::log(
+                app_handle,
+                LogLevel::Info,
+                &format!("Loading manifest for version_id: {}", version_id),
+                instance_id,
+            );
         } else {
-            Logger::debug_global(&format!("Loading manifest for version_id: {}", version_id), instance_id);
+            Logger::debug_global(
+                &format!("Loading manifest for version_id: {}", version_id),
+                instance_id,
+            );
         }
     } else {
-        Logger::debug_global(&format!("Loading manifest for version_id: {}", version_id), instance_id);
+        Logger::debug_global(
+            &format!("Loading manifest for version_id: {}", version_id),
+            instance_id,
+        );
     }
     let manifest_path = PathBuf::from(minecraft_dir)
-        .join("versions").join(version_id).join(format!("{}.json", version_id));
+        .join("versions")
+        .join(version_id)
+        .join(format!("{}.json", version_id));
     let manifest_str = match fs::read_to_string(&manifest_path) {
         Ok(s) => s,
         Err(e) => {
             if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
                 if let Some(app_handle) = handle_guard.as_ref() {
-                    Logger::log(app_handle, LogLevel::Error, &format!("Failed to read manifest for {}: {}", version_id, e), instance_id);
+                    Logger::log(
+                        app_handle,
+                        LogLevel::Error,
+                        &format!("Failed to read manifest for {}: {}", version_id, e),
+                        instance_id,
+                    );
                 } else {
-                    Logger::debug_global(&format!("Failed to read manifest for {}: {}", version_id, e), instance_id);
+                    Logger::debug_global(
+                        &format!("Failed to read manifest for {}: {}", version_id, e),
+                        instance_id,
+                    );
                 }
             } else {
-                Logger::debug_global(&format!("Failed to read manifest for {}: {}", version_id, e), instance_id);
+                Logger::debug_global(
+                    &format!("Failed to read manifest for {}: {}", version_id, e),
+                    instance_id,
+                );
             }
             return Err(format!("Failed to read manifest: {}", e));
         }
@@ -44,12 +71,23 @@ pub fn load_and_merge_manifest_with_instance(minecraft_dir: &str, version_id: &s
         Err(e) => {
             if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
                 if let Some(app_handle) = handle_guard.as_ref() {
-                    Logger::log(app_handle, LogLevel::Error, &format!("Failed to parse manifest for {}: {}", version_id, e), instance_id);
+                    Logger::log(
+                        app_handle,
+                        LogLevel::Error,
+                        &format!("Failed to parse manifest for {}: {}", version_id, e),
+                        instance_id,
+                    );
                 } else {
-                    Logger::debug_global(&format!("Failed to parse manifest for {}: {}", version_id, e), instance_id);
+                    Logger::debug_global(
+                        &format!("Failed to parse manifest for {}: {}", version_id, e),
+                        instance_id,
+                    );
                 }
             } else {
-                Logger::debug_global(&format!("Failed to parse manifest for {}: {}", version_id, e), instance_id);
+                Logger::debug_global(
+                    &format!("Failed to parse manifest for {}: {}", version_id, e),
+                    instance_id,
+                );
             }
             return Err(format!("Failed to parse manifest: {}", e));
         }
@@ -58,24 +96,55 @@ pub fn load_and_merge_manifest_with_instance(minecraft_dir: &str, version_id: &s
     if let Some(parent_id) = manifest.get("inheritsFrom").and_then(|v| v.as_str()) {
         if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
             if let Some(app_handle) = handle_guard.as_ref() {
-                Logger::log(app_handle, LogLevel::Info, &format!("Manifest {} inherits from {}. Recursively merging...", version_id, parent_id), instance_id);
+                Logger::log(
+                    app_handle,
+                    LogLevel::Info,
+                    &format!(
+                        "Manifest {} inherits from {}. Recursively merging...",
+                        version_id, parent_id
+                    ),
+                    instance_id,
+                );
             } else {
-                Logger::debug_global(&format!("Manifest {} inherits from {}. Recursively merging...", version_id, parent_id), instance_id);
+                Logger::debug_global(
+                    &format!(
+                        "Manifest {} inherits from {}. Recursively merging...",
+                        version_id, parent_id
+                    ),
+                    instance_id,
+                );
             }
         } else {
-            Logger::debug_global(&format!("Manifest {} inherits from {}. Recursively merging...", version_id, parent_id), instance_id);
+            Logger::debug_global(
+                &format!(
+                    "Manifest {} inherits from {}. Recursively merging...",
+                    version_id, parent_id
+                ),
+                instance_id,
+            );
         }
         let parent = load_and_merge_manifest_with_instance(minecraft_dir, parent_id, instance_id)?;
         manifest = merge_manifests_with_instance(parent, manifest, instance_id);
     }
     if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         if let Some(app_handle) = handle_guard.as_ref() {
-            Logger::log(app_handle, LogLevel::Info, &format!("Loaded and merged manifest for version_id: {}", version_id), instance_id);
+            Logger::log(
+                app_handle,
+                LogLevel::Info,
+                &format!("Loaded and merged manifest for version_id: {}", version_id),
+                instance_id,
+            );
         } else {
-            Logger::debug_global(&format!("Loaded and merged manifest for version_id: {}", version_id), instance_id);
+            Logger::debug_global(
+                &format!("Loaded and merged manifest for version_id: {}", version_id),
+                instance_id,
+            );
         }
     } else {
-        Logger::debug_global(&format!("Loaded and merged manifest for version_id: {}", version_id), instance_id);
+        Logger::debug_global(
+            &format!("Loaded and merged manifest for version_id: {}", version_id),
+            instance_id,
+        );
     }
     Ok(manifest)
 }
@@ -86,10 +155,19 @@ pub fn load_and_merge_manifest(minecraft_dir: &str, version_id: &str) -> Result<
 }
 
 /// Merges two manifests (parent, child), with child values taking precedence.
-pub fn merge_manifests_with_instance(parent: Value, child: Value, instance_id: Option<&str>) -> Value {
+pub fn merge_manifests_with_instance(
+    parent: Value,
+    child: Value,
+    instance_id: Option<&str>,
+) -> Value {
     if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         if let Some(app_handle) = handle_guard.as_ref() {
-            Logger::log(app_handle, LogLevel::Debug, "Merging manifests (child overrides parent)", instance_id);
+            Logger::log(
+                app_handle,
+                LogLevel::Debug,
+                "Merging manifests (child overrides parent)",
+                instance_id,
+            );
         } else {
             Logger::debug_global("Merging manifests (child overrides parent)", instance_id);
         }
@@ -117,10 +195,20 @@ pub fn merge_manifests(parent: Value, child: Value) -> Value {
 /// This is the single source of classpath logic for all loaders (vanilla, fabric, etc).
 /// It includes all libraries (with rules applied) and the version JAR as the last entry.
 /// No loader JAR filtering or prepending is needed; for Fabric, the version JAR is the loader JAR.
-pub fn build_classpath_from_manifest_with_instance(manifest: &Value, libraries_path: &Path, version_jar_path: &Path, instance_id: Option<&str>) -> String {
+pub fn build_classpath_from_manifest_with_instance(
+    manifest: &Value,
+    libraries_path: &Path,
+    version_jar_path: &Path,
+    instance_id: Option<&str>,
+) -> String {
     if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         if let Some(app_handle) = handle_guard.as_ref() {
-            Logger::log(app_handle, LogLevel::Info, "Building classpath from manifest", instance_id);
+            Logger::log(
+                app_handle,
+                LogLevel::Info,
+                "Building classpath from manifest",
+                instance_id,
+            );
         } else {
             Logger::debug_global("Building classpath from manifest", instance_id);
         }
@@ -144,7 +232,12 @@ pub fn build_classpath_from_manifest_with_instance(manifest: &Value, libraries_p
                 if jar_path_opt.is_none() {
                     if let Some(name_val) = obj.get("name") {
                         if let Some(name) = name_val.as_str() {
-                            if let Some(jar_path) = crate::launcher::utils::try_find_library_manually(name, libraries_path) {
+                            if let Some(jar_path) =
+                                crate::launcher::utils::try_find_library_manually(
+                                    name,
+                                    libraries_path,
+                                )
+                            {
                                 if jar_path.exists() {
                                     jar_path_opt = Some(jar_path.to_string_lossy().to_string());
                                 }
@@ -166,8 +259,12 @@ pub fn build_classpath_from_manifest_with_instance(manifest: &Value, libraries_p
                                     name.to_string()
                                 }
                             }
-                        } else { jar_path.clone() }
-                    } else { jar_path.clone() };
+                        } else {
+                            jar_path.clone()
+                        }
+                    } else {
+                        jar_path.clone()
+                    };
                     dedup_map.insert(dedup_key, jar_path);
                 }
             }
@@ -179,41 +276,84 @@ pub fn build_classpath_from_manifest_with_instance(manifest: &Value, libraries_p
     let classpath = entries.join(sep);
     if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         if let Some(app_handle) = handle_guard.as_ref() {
-            Logger::log(app_handle, LogLevel::Info, &format!("Classpath built: {} entries", entries.len()), instance_id);
+            Logger::log(
+                app_handle,
+                LogLevel::Info,
+                &format!("Classpath built: {} entries", entries.len()),
+                instance_id,
+            );
         } else {
-            Logger::debug_global(&format!("Classpath built: {} entries", entries.len()), instance_id);
+            Logger::debug_global(
+                &format!("Classpath built: {} entries", entries.len()),
+                instance_id,
+            );
         }
     } else {
-        Logger::debug_global(&format!("Classpath built: {} entries", entries.len()), instance_id);
+        Logger::debug_global(
+            &format!("Classpath built: {} entries", entries.len()),
+            instance_id,
+        );
     }
     classpath
 }
 
-pub fn build_classpath_from_manifest(manifest: &Value, libraries_path: &Path, version_jar_path: &Path) -> String {
+pub fn build_classpath_from_manifest(
+    manifest: &Value,
+    libraries_path: &Path,
+    version_jar_path: &Path,
+) -> String {
     build_classpath_from_manifest_with_instance(manifest, libraries_path, version_jar_path, None)
 }
 
 /// Builds JVM and game arguments from a merged manifest and variable map.
-pub fn build_jvm_and_game_args_with_instance(manifest: &Value, variables: &std::collections::HashMap<String, String>, instance_id: Option<&str>) -> (Vec<String>, Vec<String>) {
+pub fn build_jvm_and_game_args_with_instance(
+    manifest: &Value,
+    variables: &std::collections::HashMap<String, String>,
+    instance_id: Option<&str>,
+) -> (Vec<String>, Vec<String>) {
     if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         if let Some(app_handle) = handle_guard.as_ref() {
-            Logger::log(app_handle, LogLevel::Info, "Building JVM and game arguments from manifest", instance_id);
+            Logger::log(
+                app_handle,
+                LogLevel::Info,
+                "Building JVM and game arguments from manifest",
+                instance_id,
+            );
         } else {
             Logger::debug_global("Building JVM and game arguments from manifest", instance_id);
         }
     } else {
         Logger::debug_global("Building JVM and game arguments from manifest", instance_id);
     }
-    let arguments = manifest.get("arguments").and_then(|v| v.as_object()).expect("No arguments in manifest");
+    let arguments = manifest
+        .get("arguments")
+        .and_then(|v| v.as_object())
+        .expect("No arguments in manifest");
     let empty_vec = Vec::new();
-    let jvm_args = arguments.get("jvm").and_then(|v| v.as_array()).unwrap_or(&empty_vec);
-    let game_args = arguments.get("game").and_then(|v| v.as_array()).unwrap_or(&empty_vec);
+    let jvm_args = arguments
+        .get("jvm")
+        .and_then(|v| v.as_array())
+        .unwrap_or(&empty_vec);
+    let game_args = arguments
+        .get("game")
+        .and_then(|v| v.as_array())
+        .unwrap_or(&empty_vec);
     let jvm_args_vec = process_arguments(jvm_args, variables);
     let game_args_vec = process_arguments(game_args, variables);
     if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         if let Some(app_handle) = handle_guard.as_ref() {
-            Logger::log(app_handle, LogLevel::Info, &format!("JVM args: {:?}", jvm_args_vec), instance_id);
-            Logger::log(app_handle, LogLevel::Info, &format!("Game args: {:?}", game_args_vec), instance_id);
+            Logger::log(
+                app_handle,
+                LogLevel::Info,
+                &format!("JVM args: {:?}", jvm_args_vec),
+                instance_id,
+            );
+            Logger::log(
+                app_handle,
+                LogLevel::Info,
+                &format!("Game args: {:?}", game_args_vec),
+                instance_id,
+            );
         } else {
             Logger::debug_global(&format!("JVM args: {:?}", jvm_args_vec), instance_id);
             Logger::debug_global(&format!("Game args: {:?}", game_args_vec), instance_id);
@@ -225,7 +365,10 @@ pub fn build_jvm_and_game_args_with_instance(manifest: &Value, variables: &std::
     (jvm_args_vec, game_args_vec)
 }
 
-pub fn build_jvm_and_game_args(manifest: &Value, variables: &std::collections::HashMap<String, String>) -> (Vec<String>, Vec<String>) {
+pub fn build_jvm_and_game_args(
+    manifest: &Value,
+    variables: &std::collections::HashMap<String, String>,
+) -> (Vec<String>, Vec<String>) {
     build_jvm_and_game_args_with_instance(manifest, variables, None)
 }
 
@@ -327,33 +470,39 @@ pub fn process_arguments(args: &[Value], variables: &HashMap<String, String>) ->
                 } else {
                     processed.push(substituted);
                 }
-            },
+            }
             Value::Object(obj) => {
                 if let Some(rules) = obj.get("rules") {
-                    if !evaluate_rules(rules).unwrap_or(true) { continue; }
+                    if !evaluate_rules(rules).unwrap_or(true) {
+                        continue;
+                    }
                 }
                 if let Some(val) = obj.get("value") {
                     match val {
                         Value::String(s) => {
                             let substituted = substitute_variables(s, variables);
-                            if !substituted.trim().is_empty() && !is_problematic_argument(&substituted) {
+                            if !substituted.trim().is_empty()
+                                && !is_problematic_argument(&substituted)
+                            {
                                 processed.push(substituted);
                             }
-                        },
+                        }
                         Value::Array(arr) => {
                             for v in arr {
                                 if let Some(s) = v.as_str() {
                                     let substituted = substitute_variables(s, variables);
-                                    if !substituted.trim().is_empty() && !is_problematic_argument(&substituted) {
+                                    if !substituted.trim().is_empty()
+                                        && !is_problematic_argument(&substituted)
+                                    {
                                         processed.push(substituted);
                                     }
                                 }
                             }
-                        },
+                        }
                         _ => {}
                     }
                 }
-            },
+            }
             _ => {}
         }
     }
@@ -374,7 +523,8 @@ pub fn evaluate_rules(rules: &Value) -> Result<bool, String> {
     if let Value::Array(rules_array) = rules {
         for rule in rules_array {
             if let Value::Object(rule_obj) = rule {
-                let action = rule_obj.get("action")
+                let action = rule_obj
+                    .get("action")
                     .and_then(|v| v.as_str())
                     .unwrap_or("disallow");
                 let mut condition_met = true;
@@ -455,7 +605,7 @@ pub fn is_problematic_argument(arg: &str) -> bool {
 pub fn build_classpath(
     libraries: &[Library],
     libraries_path: &Path,
-    version_jar_path: &Path
+    version_jar_path: &Path,
 ) -> Result<String, String> {
     let mut classpath_entries = Vec::new();
     for library in libraries {
@@ -490,7 +640,11 @@ pub fn try_find_library_manually(library_name: &str, libraries_path: &Path) -> O
         let artifact = parts[1];
         let version = parts[2];
         let jar_name = format!("{}-{}.jar", artifact, version);
-        let jar_path = libraries_path.join(&group).join(artifact).join(version).join(jar_name);
+        let jar_path = libraries_path
+            .join(&group)
+            .join(artifact)
+            .join(version)
+            .join(jar_name);
         return Some(jar_path);
     }
     None
@@ -523,7 +677,11 @@ pub fn deduplicate_libraries(libraries: Vec<Library>) -> Vec<Library> {
         // Special case: always keep the net.fabricmc:fabric-loader entry from libraries
         if dedup_key == "net.fabricmc:fabric-loader" {
             // If we already found a fabric-loader, prefer the one from libraries (with downloads.artifact)
-            let is_real_loader = library.downloads.as_ref().and_then(|d| d.artifact.as_ref()).is_some();
+            let is_real_loader = library
+                .downloads
+                .as_ref()
+                .and_then(|d| d.artifact.as_ref())
+                .is_some();
             if is_real_loader {
                 fabric_loader_key = Some(dedup_key.clone());
                 fabric_loader_lib = Some(library);
@@ -542,39 +700,86 @@ pub fn deduplicate_libraries(libraries: Vec<Library>) -> Vec<Library> {
 // --- Java and JVM utilities ---
 /// Ensures the version manifest JSON and JAR exist for the given version_id in minecraft_dir.
 /// Downloads them from Mojang if missing.
-pub async fn ensure_version_manifest_and_jar(version_id: &str, minecraft_dir: &str) -> Result<(), String> {
+pub async fn ensure_version_manifest_and_jar(
+    version_id: &str,
+    minecraft_dir: &str,
+) -> Result<(), String> {
     use reqwest::Client;
     use std::fs;
     use std::path::PathBuf;
-    let versions_dir = PathBuf::from(minecraft_dir).join("versions").join(version_id);
+    let versions_dir = PathBuf::from(minecraft_dir)
+        .join("versions")
+        .join(version_id);
     fs::create_dir_all(&versions_dir).map_err(|e| format!("Failed to create versions dir: {e}"))?;
     let manifest_path = versions_dir.join(format!("{}.json", version_id));
     let jar_path = versions_dir.join(format!("{}.jar", version_id));
     // Download manifest JSON if missing
     if !manifest_path.exists() {
-        let manifest_url = format!("https://launchermeta.mojang.com/v1/packages/{}/{}.json", version_id, version_id);
+        let manifest_url = format!(
+            "https://launchermeta.mojang.com/v1/packages/{}/{}.json",
+            version_id, version_id
+        );
         // Fallback: Use version list to get URL
         let version_list_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
         let client = Client::new();
-        let resp = client.get(version_list_url).send().await.map_err(|e| format!("Failed to fetch version list: {e}"))?;
-        let manifest: serde_json::Value = resp.json().await.map_err(|e| format!("Failed to parse version list: {e}"))?;
-        let versions = manifest.get("versions").and_then(|v| v.as_array()).ok_or("No versions array")?;
-        let version_obj = versions.iter().find(|v| v.get("id").and_then(|id| id.as_str()) == Some(version_id)).ok_or("Version not found")?;
-        let url = version_obj.get("url").and_then(|v| v.as_str()).ok_or("No url for version")?;
-        let resp = client.get(url).send().await.map_err(|e| format!("Failed to fetch manifest: {e}"))?;
-        let manifest_str = resp.text().await.map_err(|e| format!("Failed to get manifest text: {e}"))?;
-        fs::write(&manifest_path, manifest_str).map_err(|e| format!("Failed to write manifest: {e}"))?;
+        let resp = client
+            .get(version_list_url)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to fetch version list: {e}"))?;
+        let manifest: serde_json::Value = resp
+            .json()
+            .await
+            .map_err(|e| format!("Failed to parse version list: {e}"))?;
+        let versions = manifest
+            .get("versions")
+            .and_then(|v| v.as_array())
+            .ok_or("No versions array")?;
+        let version_obj = versions
+            .iter()
+            .find(|v| v.get("id").and_then(|id| id.as_str()) == Some(version_id))
+            .ok_or("Version not found")?;
+        let url = version_obj
+            .get("url")
+            .and_then(|v| v.as_str())
+            .ok_or("No url for version")?;
+        let resp = client
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to fetch manifest: {e}"))?;
+        let manifest_str = resp
+            .text()
+            .await
+            .map_err(|e| format!("Failed to get manifest text: {e}"))?;
+        fs::write(&manifest_path, manifest_str)
+            .map_err(|e| format!("Failed to write manifest: {e}"))?;
     }
     // Download JAR if missing
     if !jar_path.exists() {
-        let manifest_str = fs::read_to_string(&manifest_path).map_err(|e| format!("Failed to read manifest: {e}"))?;
-        let manifest: serde_json::Value = serde_json::from_str(&manifest_str).map_err(|e| format!("Failed to parse manifest: {e}"))?;
-        let downloads = manifest.get("downloads").and_then(|v| v.as_object()).ok_or("No downloads object")?;
+        let manifest_str = fs::read_to_string(&manifest_path)
+            .map_err(|e| format!("Failed to read manifest: {e}"))?;
+        let manifest: serde_json::Value = serde_json::from_str(&manifest_str)
+            .map_err(|e| format!("Failed to parse manifest: {e}"))?;
+        let downloads = manifest
+            .get("downloads")
+            .and_then(|v| v.as_object())
+            .ok_or("No downloads object")?;
         let client = Client::new();
         if let Some(client_obj) = downloads.get("client").and_then(|v| v.as_object()) {
-            let url = client_obj.get("url").and_then(|v| v.as_str()).ok_or("No client jar url")?;
-            let resp = client.get(url).send().await.map_err(|e| format!("Failed to fetch jar: {e}"))?;
-            let bytes = resp.bytes().await.map_err(|e| format!("Failed to get jar bytes: {e}"))?;
+            let url = client_obj
+                .get("url")
+                .and_then(|v| v.as_str())
+                .ok_or("No client jar url")?;
+            let resp = client
+                .get(url)
+                .send()
+                .await
+                .map_err(|e| format!("Failed to fetch jar: {e}"))?;
+            let bytes = resp
+                .bytes()
+                .await
+                .map_err(|e| format!("Failed to get jar bytes: {e}"))?;
             fs::write(&jar_path, &bytes).map_err(|e| format!("Failed to write jar: {e}"))?;
         } else {
             return Err("No client jar info in manifest".to_string());
@@ -584,7 +789,10 @@ pub async fn ensure_version_manifest_and_jar(version_id: &str, minecraft_dir: &s
 }
 
 /// Ensures all libraries listed in the manifest exist in libraries_path. Downloads any missing ones.
-pub async fn ensure_libraries(manifest: &serde_json::Value, libraries_path: &std::path::Path) -> Result<(), String> {
+pub async fn ensure_libraries(
+    manifest: &serde_json::Value,
+    libraries_path: &std::path::Path,
+) -> Result<(), String> {
     use reqwest::Client;
     use std::fs;
     let client = Client::new();
@@ -600,11 +808,20 @@ pub async fn ensure_libraries(manifest: &serde_json::Value, libraries_path: &std
                         let jar_path = libraries_path.join(path);
                         if !jar_path.exists() {
                             if !jar_path.parent().unwrap().exists() {
-                                fs::create_dir_all(jar_path.parent().unwrap()).map_err(|e| format!("Failed to create lib dir: {e}"))?;
+                                fs::create_dir_all(jar_path.parent().unwrap())
+                                    .map_err(|e| format!("Failed to create lib dir: {e}"))?;
                             }
-                            let resp = client.get(url).send().await.map_err(|e| format!("Failed to fetch lib: {e}"))?;
-                            let bytes = resp.bytes().await.map_err(|e| format!("Failed to get lib bytes: {e}"))?;
-                            fs::write(&jar_path, &bytes).map_err(|e| format!("Failed to write lib: {e}"))?;
+                            let resp = client
+                                .get(url)
+                                .send()
+                                .await
+                                .map_err(|e| format!("Failed to fetch lib: {e}"))?;
+                            let bytes = resp
+                                .bytes()
+                                .await
+                                .map_err(|e| format!("Failed to get lib bytes: {e}"))?;
+                            fs::write(&jar_path, &bytes)
+                                .map_err(|e| format!("Failed to write lib: {e}"))?;
                         }
                     }
                 }
@@ -729,12 +946,12 @@ pub fn extract_natives(
 /// # Returns
 /// Ok(()) if successful, Err if extraction fails.
 fn extract_jar(jar_path: &PathBuf, extract_to: &Path) -> Result<(), String> {
-    let file = std::fs::File::open(jar_path)
-        .map_err(|e| format!("Failed to open JAR: {}", e))?;
-    let mut archive = zip::ZipArchive::new(file)
-        .map_err(|e| format!("Failed to read ZIP archive: {}", e))?;
+    let file = std::fs::File::open(jar_path).map_err(|e| format!("Failed to open JAR: {}", e))?;
+    let mut archive =
+        zip::ZipArchive::new(file).map_err(|e| format!("Failed to read ZIP archive: {}", e))?;
     for i in 0..archive.len() {
-        let mut file = archive.by_index(i)
+        let mut file = archive
+            .by_index(i)
             .map_err(|e| format!("Failed to read ZIP entry: {}", e))?;
         let outpath = match file.enclosed_name() {
             Some(path) => extract_to.join(path),
@@ -780,12 +997,36 @@ pub fn build_variable_map(
 ) -> HashMap<String, String> {
     let mut variables = HashMap::new();
     // Authentication
-    variables.insert("auth_player_name".to_string(), context.account.username.clone());
-    variables.insert("auth_uuid".to_string(), context.account.minecraft_profile.id.clone());
+    variables.insert(
+        "auth_player_name".to_string(),
+        context.account.username.clone(),
+    );
+    variables.insert(
+        "auth_uuid".to_string(),
+        context.account.minecraft_profile.id.clone(),
+    );
     let has_valid_token = !context.account.access_token.is_empty();
-    variables.insert("auth_access_token".to_string(), if has_valid_token { context.account.access_token.clone() } else { "offline".to_string() });
-    variables.insert("auth_xuid".to_string(), context.account.minecraft_profile.id.clone());
-    variables.insert("user_type".to_string(), if has_valid_token { "microsoft" } else { "offline" }.to_string());
+    variables.insert(
+        "auth_access_token".to_string(),
+        if has_valid_token {
+            context.account.access_token.clone()
+        } else {
+            "offline".to_string()
+        },
+    );
+    variables.insert(
+        "auth_xuid".to_string(),
+        context.account.minecraft_profile.id.clone(),
+    );
+    variables.insert(
+        "user_type".to_string(),
+        if has_valid_token {
+            "microsoft"
+        } else {
+            "offline"
+        }
+        .to_string(),
+    );
     variables.insert("clientid".to_string(), uuid::Uuid::new_v4().to_string());
     // Version info
     if let Some(manifest) = manifest {
@@ -793,7 +1034,10 @@ pub fn build_variable_map(
         if let Some(version_name) = manifest.get("id").and_then(|v| v.as_str()) {
             variables.insert("version_name".to_string(), version_name.to_string());
         } else if !context.installation.version_id.is_empty() {
-            variables.insert("version_name".to_string(), context.installation.version_id.clone());
+            variables.insert(
+                "version_name".to_string(),
+                context.installation.version_id.clone(),
+            );
         } else {
             variables.insert("version_name".to_string(), "".to_string());
         }
@@ -803,7 +1047,10 @@ pub fn build_variable_map(
         }
         // assets_index_name
         if let Some(assets_index_name) = manifest.get("assets").and_then(|v| v.as_str()) {
-            variables.insert("assets_index_name".to_string(), assets_index_name.to_string());
+            variables.insert(
+                "assets_index_name".to_string(),
+                assets_index_name.to_string(),
+            );
         } else {
             variables.insert("assets_index_name".to_string(), "".to_string());
         }
@@ -815,12 +1062,27 @@ pub fn build_variable_map(
         variables.insert("assets_index_name".to_string(), "".to_string());
     }
     variables.insert("launcher_name".to_string(), "Kable".to_string());
-    variables.insert("launcher_version".to_string(), env!("CARGO_PKG_VERSION").to_string());
+    variables.insert(
+        "launcher_version".to_string(),
+        env!("CARGO_PKG_VERSION").to_string(),
+    );
     variables.insert("classpath".to_string(), classpath.to_string());
     // Paths
     variables.insert("game_directory".to_string(), context.minecraft_dir.clone());
-    variables.insert("assets_root".to_string(), PathBuf::from(&context.minecraft_dir).join("assets").to_string_lossy().to_string());
-    variables.insert("natives_directory".to_string(), PathBuf::from(&context.minecraft_dir).join("natives").to_string_lossy().to_string());
+    variables.insert(
+        "assets_root".to_string(),
+        PathBuf::from(&context.minecraft_dir)
+            .join("assets")
+            .to_string_lossy()
+            .to_string(),
+    );
+    variables.insert(
+        "natives_directory".to_string(),
+        PathBuf::from(&context.minecraft_dir)
+            .join("natives")
+            .to_string_lossy()
+            .to_string(),
+    );
     // Resolution
     variables.insert("resolution_width".to_string(), "1024".to_string());
     variables.insert("resolution_height".to_string(), "768".to_string());
@@ -837,7 +1099,6 @@ pub fn build_variable_map(
     variables
 }
 
-
 /// Spawns a process, streams stdout/stderr, and logs each line to the logger with the given instance_id.
 /// Returns the process PID and command string.
 pub async fn spawn_and_log_process(
@@ -847,14 +1108,14 @@ pub async fn spawn_and_log_process(
     profile: &serde_json::Value,
     installation: &serde_json::Value,
 ) -> Result<crate::launcher::LaunchResult, String> {
-    use serde_json::json;
     use crate::logging::LogLevel;
     use crate::logging::Logger;
+    use serde_json::json;
+    use std::process::Stdio;
     use tokio::io::AsyncBufReadExt;
     use tokio::process::Command as TokioCommand;
     use tokio::sync::mpsc::unbounded_channel;
     use tokio::task;
-    use std::process::Stdio;
 
     // Helper to get AppHandle from global
     fn get_app_handle() -> Option<tauri::AppHandle> {
@@ -874,11 +1135,15 @@ pub async fn spawn_and_log_process(
         patched_profile["name"] = id.clone();
     }
     if let Some(ref app) = app {
-        let _ = app.emit_to("main", "game-launched", json!({
-            "instanceId": instance_id,
-            "profile": patched_profile,
-            "installation": installation
-        }));
+        let _ = app.emit_to(
+            "main",
+            "game-launched",
+            json!({
+                "instanceId": instance_id,
+                "profile": patched_profile,
+                "installation": installation
+            }),
+        );
     }
 
     // Now spawn the process
@@ -887,22 +1152,48 @@ pub async fn spawn_and_log_process(
     tokio_cmd.current_dir(working_dir);
     tokio_cmd.stdout(Stdio::piped());
     tokio_cmd.stderr(Stdio::piped());
-    let mut child = tokio_cmd.spawn().map_err(|e| format!("Failed to launch: {e}"))?;
+    let mut child = tokio_cmd
+        .spawn()
+        .map_err(|e| format!("Failed to launch: {e}"))?;
     let pid = child.id().unwrap_or(0);
 
     // Emit process started event
     if let Some(ref app) = app {
-        let _ = app.emit_to("main", "game-process-event", json!({
-            "instanceId": instance_id,
-            "type": "started",
-            "data": { "pid": pid }
-        }));
+        let _ = app.emit_to(
+            "main",
+            "game-process-event",
+            json!({
+                "instanceId": instance_id,
+                "type": "started",
+                "data": { "pid": pid }
+            }),
+        );
     }
     if let Some(ref app) = app {
-        Logger::log(app, LogLevel::Info, "=== MINECRAFT PROCESS SPAWNED ===", Some(instance_id));
-        Logger::log(app, LogLevel::Info, &format!("Process ID: {}", pid), Some(instance_id));
-        Logger::log(app, LogLevel::Info, "Minecraft launched successfully!", Some(instance_id));
-        Logger::log(app, LogLevel::Info, "=================================", Some(instance_id));
+        Logger::log(
+            app,
+            LogLevel::Info,
+            "=== MINECRAFT PROCESS SPAWNED ===",
+            Some(instance_id),
+        );
+        Logger::log(
+            app,
+            LogLevel::Info,
+            &format!("Process ID: {}", pid),
+            Some(instance_id),
+        );
+        Logger::log(
+            app,
+            LogLevel::Info,
+            "Minecraft launched successfully!",
+            Some(instance_id),
+        );
+        Logger::log(
+            app,
+            LogLevel::Info,
+            "=================================",
+            Some(instance_id),
+        );
     } else {
         Logger::debug_global("=== MINECRAFT PROCESS SPAWNED ===", Some(instance_id));
         Logger::debug_global(&format!("Process ID: {}", pid), Some(instance_id));
@@ -931,11 +1222,15 @@ pub async fn spawn_and_log_process(
                 }
                 let _ = sender.send(line.clone());
                 if let Some(ref app) = app {
-                    let _ = app.emit_to("main", "game-process-event", json!({
-                        "instanceId": &instance_id,
-                        "type": "output",
-                        "data": { "line": &line }
-                    }));
+                    let _ = app.emit_to(
+                        "main",
+                        "game-process-event",
+                        json!({
+                            "instanceId": &instance_id,
+                            "type": "output",
+                            "data": { "line": &line }
+                        }),
+                    );
                 }
             }
         });
@@ -957,11 +1252,15 @@ pub async fn spawn_and_log_process(
                 }
                 let _ = sender.send(line.clone());
                 if let Some(ref app) = app {
-                    let _ = app.emit_to("main", "game-process-event", json!({
-                        "instanceId": &instance_id,
-                        "type": "error",
-                        "data": { "line": &line }
-                    }));
+                    let _ = app.emit_to(
+                        "main",
+                        "game-process-event",
+                        json!({
+                            "instanceId": &instance_id,
+                            "type": "error",
+                            "data": { "line": &line }
+                        }),
+                    );
                 }
             }
         });
@@ -1005,15 +1304,25 @@ pub async fn spawn_and_log_process(
 
     // Wait for process to exit
     // eprintln!("Command:\n{:?}", cmd);
-    let status = child.wait().await.map_err(|e| format!("Process wait failed: {e}"))?;
+    let status = child
+        .wait()
+        .await
+        .map_err(|e| format!("Process wait failed: {e}"))?;
     let exit_code = status.code().unwrap_or(-1);
-    Logger::info_global(&format!("Minecraft process exited with status: {}", exit_code), Some(&instance_id_str));
+    Logger::info_global(
+        &format!("Minecraft process exited with status: {}", exit_code),
+        Some(&instance_id_str),
+    );
     if let Some(app) = get_app_handle() {
-        let _ = app.emit_to("main", "game-process-event", json!({
-            "instanceId": &instance_id_str,
-            "type": "exit",
-            "data": { "code": exit_code }
-        }));
+        let _ = app.emit_to(
+            "main",
+            "game-process-event",
+            json!({
+                "instanceId": &instance_id_str,
+                "type": "exit",
+                "data": { "code": exit_code }
+            }),
+        );
     }
 
     Ok(crate::launcher::LaunchResult {

@@ -1,6 +1,6 @@
 use crate::installations::kable_profiles::KableInstallation;
-use crate::mods::modrinth::{ModrinthInfo};
-use serde::{Serialize, Deserialize};
+use crate::mods::modrinth::ModrinthInfo;
+use serde::{Deserialize, Serialize};
 
 #[async_trait::async_trait]
 pub trait ModProvider {
@@ -14,7 +14,12 @@ pub trait ModProvider {
     fn filter(&mut self, installation: Option<&KableInstallation>, filter: Option<ModFilter>);
 
     /// Download a mod by its identifier
-    async fn download(&self, mod_id: &str, version_id: Option<&str>, target_dir: &std::path::Path) -> Result<(), String>;
+    async fn download(
+        &self,
+        mod_id: &str,
+        version_id: Option<&str>,
+        target_dir: &std::path::Path,
+    ) -> Result<(), String>;
 
     fn set_index(&mut self, index: Option<String>);
     fn get_index(&self) -> Option<&String>;
@@ -23,7 +28,6 @@ pub trait ModProvider {
         self.set_index(index);
     }
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ModInfoKind {

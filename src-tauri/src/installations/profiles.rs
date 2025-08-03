@@ -16,19 +16,20 @@ pub struct LauncherProfile {
     pub profile_type: String,
 }
 
-
 pub fn read_launcher_profiles() -> Result<Vec<LauncherProfile>, String> {
     // Synchronous version for compatibility
     let mc_dir = crate::get_default_minecraft_dir()?;
     let path = mc_dir.join("launcher_profiles.json");
-    let data = fs::read_to_string(&path).map_err(|e| format!("Failed to read launcher_profiles.json: {}", e))?;
+    let data = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read launcher_profiles.json: {}", e))?;
     parse_launcher_profiles_json(&data)
 }
 
 fn parse_launcher_profiles_json(data: &str) -> Result<Vec<LauncherProfile>, String> {
     let json: serde_json::Value = serde_json::from_str(data)
         .map_err(|e| format!("Failed to parse launcher_profiles.json: {}", e))?;
-    let profiles = json.get("profiles")
+    let profiles = json
+        .get("profiles")
         .and_then(|p| p.as_object())
         .ok_or("No 'profiles' object found in launcher_profiles.json")?;
     let mut result = Vec::new();
@@ -47,7 +48,9 @@ pub async fn read_launcher_profiles_async() -> Result<Vec<LauncherProfile>, Stri
         .await
         .map_err(|e| format!("Failed to read launcher_profiles.json: {}", e))?;
     // Parse JSON in a blocking thread
-    task::spawn_blocking(move || parse_launcher_profiles_json(&data)).await.unwrap()
+    task::spawn_blocking(move || parse_launcher_profiles_json(&data))
+        .await
+        .unwrap()
 }
 
 // We never need to write to official launcher_profiles.json, so this function is commented out.

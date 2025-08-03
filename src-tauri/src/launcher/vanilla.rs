@@ -1,11 +1,10 @@
 // launcher/vanilla.rs
 
-use super::{Launchable, LaunchContext, LaunchResult};
-use crate::launcher::utils::{build_variable_map};
+use super::{LaunchContext, LaunchResult, Launchable};
+use crate::launcher::utils::build_variable_map;
 use async_trait::async_trait;
-use std::process::Command;
 use std::path::PathBuf;
-
+use std::process::Command;
 
 #[derive(Default)]
 pub struct VanillaLaunchable;
@@ -29,7 +28,7 @@ impl Launchable for VanillaLaunchable {
         let manifest = crate::launcher::utils::load_and_merge_manifest_with_instance(
             minecraft_dir,
             version_id,
-            Some(&_context.installation.id)
+            Some(&_context.installation.id),
         )?;
         let libraries_path = std::path::PathBuf::from(minecraft_dir).join("libraries");
         crate::launcher::utils::ensure_libraries(&manifest, &libraries_path).await?;
@@ -43,18 +42,20 @@ impl Launchable for VanillaLaunchable {
         let manifest = crate::launcher::utils::load_and_merge_manifest_with_instance(
             &context.minecraft_dir,
             version_id,
-            Some(&context.installation.id)
+            Some(&context.installation.id),
         )?;
 
         // 2. Build classpath (all libraries + version JAR)
         let libraries_path = PathBuf::from(&context.minecraft_dir).join("libraries");
         let version_jar_path = PathBuf::from(&context.minecraft_dir)
-            .join("versions").join(version_id).join(format!("{}.jar", version_id));
+            .join("versions")
+            .join(version_id)
+            .join(format!("{}.jar", version_id));
         let classpath = crate::launcher::utils::build_classpath_from_manifest_with_instance(
             &manifest,
             &libraries_path,
             &version_jar_path,
-            Some(&context.installation.id)
+            Some(&context.installation.id),
         );
 
         // 3. Build variable map
@@ -66,11 +67,12 @@ impl Launchable for VanillaLaunchable {
         );
 
         // 4. Build JVM and game arguments
-        let (mut jvm_args_vec, game_args_vec) = crate::launcher::utils::build_jvm_and_game_args_with_instance(
-            &manifest,
-            &variables,
-            Some(&context.installation.id)
-        );
+        let (mut jvm_args_vec, game_args_vec) =
+            crate::launcher::utils::build_jvm_and_game_args_with_instance(
+                &manifest,
+                &variables,
+                Some(&context.installation.id),
+            );
 
         // 5. Add/overwrite with parameters_map (for --key style)
         for (k, v) in &context.installation.parameters_map {
@@ -83,8 +85,16 @@ impl Launchable for VanillaLaunchable {
         }
 
         // 6. Build command
-        let java_path = context.settings.general.java_path.clone().unwrap_or_else(|| "java".to_string());
-        let main_class = manifest.get("mainClass").and_then(|v| v.as_str()).unwrap_or("net.minecraft.client.main.Main");
+        let java_path = context
+            .settings
+            .general
+            .java_path
+            .clone()
+            .unwrap_or_else(|| "java".to_string());
+        let main_class = manifest
+            .get("mainClass")
+            .and_then(|v| v.as_str())
+            .unwrap_or("net.minecraft.client.main.Main");
         let mut cmd = Command::new(&java_path);
         cmd.args(&jvm_args_vec);
         cmd.arg("-cp");
@@ -102,6 +112,7 @@ impl Launchable for VanillaLaunchable {
             version_id,
             &manifest,
             &installation_json,
-        ).await
+        )
+        .await
     }
 }

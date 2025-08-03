@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { AuthManager, AuthService } from '$lib';
+  import { AuthService } from '$lib';
   import { isAuthenticating } from '../stores/auth';
   import Icon from './Icon.svelte';
 
@@ -22,10 +22,11 @@
   /**
    * Primary authentication method - Authorization Code Flow
    */
+
   async function signInWithAuthCode() {
     try {
       error = null;
-      await AuthManager.signIn();
+      await AuthService.signIn();
     } catch (err) {
       console.error('Authorization Code Flow sign in failed:', err);
       error = `Sign in failed: ${err}`;
@@ -39,22 +40,16 @@
     try {
       error = null;
       isPollingDeviceCode = true;
-      
       // Step 1: Start device code flow and get device code data for display
       deviceCodeData = await AuthService.startDeviceCodeFlow();
       console.log('📱 Device code started:', deviceCodeData);
-      
       // Step 2: Start polling for completion in the background
       try {
         const account = await AuthService.pollDeviceCodeCompletion(deviceCodeData.device_code);
-        
-        // Update the current account through AuthManager
-        await AuthManager.refreshAvailableAccounts();
-        
+        await AuthService.refreshAvailableAccounts();
         // Clear device code data and stop polling
         deviceCodeData = null;
         isPollingDeviceCode = false;
-        
         console.log('✅ Device code authentication successful:', account.username);
       } catch (pollError) {
         console.error('❌ Device code polling failed:', pollError);
@@ -108,7 +103,7 @@
         <p>Enter this code:</p>
         <div class="code-display">
           <code class="user-code">{deviceCodeData.user_code}</code>
-          <button on:click={() => AuthManager.copyToClipboard(deviceCodeData.user_code)} class="copy-btn">
+          <button on:click={() => AuthService.copyToClipboard(deviceCodeData.user_code)} class="copy-btn">
             <Icon name="duplicate" size="sm" />
           </button>
         </div>
@@ -121,7 +116,7 @@
         {/if}
         
         <div class="device-code-actions">
-          <button on:click={() => AuthManager.copyToClipboard(deviceCodeData.user_code)} class="btn btn-secondary">
+          <button on:click={() => AuthService.copyToClipboard(deviceCodeData.user_code)} class="btn btn-secondary">
             <Icon name="duplicate" size="sm" />
             Copy Code
           </button>

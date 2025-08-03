@@ -1,12 +1,12 @@
-import type { KableInstallation, CategorizedLauncherSettings, LauncherAccount } from '$lib';
+import type { KableInstallation, CategorizedLauncherSettings, LauncherAccount, LaunchResult } from '$lib';
 import { invoke } from '@tauri-apps/api/core';
 
 // Types matching backend LaunchResult
-export interface LaunchResult {
-  pid: number;
-  success: boolean;
-  error?: string;
-}
+// export interface LaunchResult {
+//   pid: number;
+//   success: boolean;
+//   error?: string;
+// }
 
 /**
  * Launch a Minecraft installation (matches tauri::command launch_installation)

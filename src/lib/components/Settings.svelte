@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { GeneralSettings, AppearanceSettings, ContentSettings, LoggingSettings, AdvancedSettings, MiscSettings, NetworkSettings } from './setting_categories/';
-  import { settings, SettingsManager } from '$lib';
+import { settings, SettingsService } from '$lib';
   import { writable } from 'svelte/store';
 
   const sections = ['general', 'appearance', 'logging', 'content', 'network', 'advanced', 'misc'];
@@ -57,7 +57,7 @@
     // Save settings on page unload
     window.addEventListener('beforeunload', () => {
       lastSettings = getValidatedSettings();
-      SettingsManager.save(lastSettings);
+      SettingsService.saveSettings(lastSettings);
     });
   }
 
@@ -79,7 +79,7 @@
           }
           saveInterval = setInterval(() => {
             lastSettings = getValidatedSettings();
-            SettingsManager.save(lastSettings);
+            SettingsService.saveSettings(lastSettings);
           }, intervalSetting);
           prevIntervalSetting = intervalSetting;
         } else {
@@ -106,9 +106,9 @@
     }
     window.removeEventListener('beforeunload', () => {
       lastSettings = getValidatedSettings();
-      SettingsManager.save(lastSettings);
+      SettingsService.saveSettings(lastSettings);
     });
-    SettingsManager.save(getValidatedSettings());
+    SettingsService.saveSettings(getValidatedSettings());
   });
 </script>
 

@@ -1,18 +1,16 @@
+use crate::auth::secure_token::{decrypt_token, encrypt_token};
+use crate::logging::{LogLevel, Logger};
+use crate::AppError;
 /**
  * This file contains authentication related utility functions.
- * E.g. functions to read/write to/from launcher_accounts.json to work with stored accounts, 
+ * E.g. functions to read/write to/from launcher_accounts.json to work with stored accounts,
  *      opening URLs in the browser (independent of the OS), etc.
  */
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 use tauri;
-use crate::AppError;
-use crate::logging::{Logger, LogLevel};
-use crate::auth::secure_token::{encrypt_token, decrypt_token};
-
 
 // ...existing code...
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -56,18 +54,25 @@ pub struct LauncherAccountsJson {
 
 /// Get the path to the Minecraft directory
 fn get_minecraft_directory() -> Result<PathBuf, AppError> {
-    let home_dir = dirs::home_dir()
-        .ok_or_else(|| AppError::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound, 
-            "Could not find home directory"
-        )))?;
-    
+    let home_dir = dirs::home_dir().ok_or_else(|| {
+        AppError::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "Could not find home directory",
+        ))
+    })?;
+
     // Instead of using the Minecraft directory, use the Kable app directory
     #[cfg(target_os = "windows")]
-    let kable_dir = home_dir.join("AppData").join("Roaming").join("kable-launcher");
+    let kable_dir = home_dir
+        .join("AppData")
+        .join("Roaming")
+        .join("kable-launcher");
 
     #[cfg(target_os = "macos")]
-    let kable_dir = home_dir.join("Library").join("Application Support").join("kable-launcher");
+    let kable_dir = home_dir
+        .join("Library")
+        .join("Application Support")
+        .join("kable-launcher");
 
     #[cfg(target_os = "linux")]
     let kable_dir = home_dir.join(".kable-launcher");
@@ -84,12 +89,24 @@ pub fn get_kable_accounts_path() -> Result<PathBuf, AppError> {
 /// Read all accounts from kable_accounts.json
 #[tauri::command]
 pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
-    Logger::console_log(LogLevel::Info, "📖 Reading Kable accounts from file...", None);
+    Logger::console_log(
+        LogLevel::Info,
+        "📖 Reading Kable accounts from file...",
+        None,
+    );
     let accounts_path = get_kable_accounts_path()
         .map_err(|e| format!("Failed to get Kable accounts path: {}", e))?;
-    Logger::console_log(LogLevel::Debug, &format!("📁 Accounts file path: {:?}", accounts_path), None);
+    Logger::console_log(
+        LogLevel::Debug,
+        &format!("📁 Accounts file path: {:?}", accounts_path),
+        None,
+    );
     if !accounts_path.exists() {
-        Logger::console_log(LogLevel::Warning, "⚠️ kable_accounts.json not found, returning empty structure", None);
+        Logger::console_log(
+            LogLevel::Warning,
+            "⚠️ kable_accounts.json not found, returning empty structure",
+            None,
+        );
         return Ok(LauncherAccountsJson {
             accounts: HashMap::new(),
             active_account_local_id: String::new(),
@@ -106,13 +123,24 @@ pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
             match decrypt_token(&account.access_token) {
                 Ok(decrypted) => account.access_token = decrypted,
                 Err(e) => {
-                    Logger::console_log(LogLevel::Warning, &format!("⚠️ Failed to decrypt access token for account {}: {}", account.local_id, e), None);
+                    Logger::console_log(
+                        LogLevel::Warning,
+                        &format!(
+                            "⚠️ Failed to decrypt access token for account {}: {}",
+                            account.local_id, e
+                        ),
+                        None,
+                    );
                     account.access_token.clear();
                 }
             }
         }
     }
-    Logger::console_log(LogLevel::Info, &format!("✅ Successfully read {} accounts", accounts.accounts.len()), None);
+    Logger::console_log(
+        LogLevel::Info,
+        &format!("✅ Successfully read {} accounts", accounts.accounts.len()),
+        None,
+    );
     Ok(accounts)
 }
 
@@ -133,7 +161,14 @@ pub async fn write_launcher_accounts(mut accounts: LauncherAccountsJson) -> Resu
             match encrypt_token(&account.access_token) {
                 Ok(encrypted) => account.access_token = encrypted,
                 Err(e) => {
-                    Logger::console_log(LogLevel::Warning, &format!("⚠️ Failed to encrypt access token for account {}: {}", account.local_id, e), None);
+                    Logger::console_log(
+                        LogLevel::Warning,
+                        &format!(
+                            "⚠️ Failed to encrypt access token for account {}: {}",
+                            account.local_id, e
+                        ),
+                        None,
+                    );
                     // Optionally clear or leave as plaintext if encryption fails
                 }
             }
@@ -143,97 +178,149 @@ pub async fn write_launcher_accounts(mut accounts: LauncherAccountsJson) -> Resu
         .map_err(|e| format!("Failed to serialize Kable accounts: {}", e))?;
     fs::write(&accounts_path, content)
         .map_err(|e| format!("Failed to write kable_accounts.json: {}", e))?;
-    Logger::console_log(LogLevel::Info, &format!("✅ Successfully wrote {} accounts to file", accounts.accounts.len()), None);
+    Logger::console_log(
+        LogLevel::Info,
+        &format!(
+            "✅ Successfully wrote {} accounts to file",
+            accounts.accounts.len()
+        ),
+        None,
+    );
     Ok(())
 }
 
 /// Add or update a single account in launcher_accounts.json
 #[tauri::command]
 pub async fn write_launcher_account(account: LauncherAccount) -> Result<(), String> {
-    Logger::console_log(LogLevel::Info, &format!("📝 Adding/updating account: {}", account.username), None);
-    
+    Logger::console_log(
+        LogLevel::Info,
+        &format!("📝 Adding/updating account: {}", account.username),
+        None,
+    );
+
     let mut accounts = read_launcher_accounts().await?;
-    
+
     // Add or update the account
-    accounts.accounts.insert(account.local_id.clone(), account.clone());
-    
+    accounts
+        .accounts
+        .insert(account.local_id.clone(), account.clone());
+
     // If this is the first account or no active account is set, make it active
     if accounts.active_account_local_id.is_empty() || accounts.accounts.len() == 1 {
         accounts.active_account_local_id = account.local_id.clone();
-        Logger::console_log(LogLevel::Info, &format!("🎯 Set {} as active account", account.username), None);
+        Logger::console_log(
+            LogLevel::Info,
+            &format!("🎯 Set {} as active account", account.username),
+            None,
+        );
     }
-    
+
     write_launcher_accounts(accounts).await?;
-    
+
     Ok(())
 }
 
 /// Remove an account from launcher_accounts.json
 #[tauri::command]
 pub async fn remove_launcher_account(account_id: String) -> Result<(), String> {
-    Logger::console_log(LogLevel::Info, &format!("🗑️ Removing account: {}", account_id), None);
-    
+    Logger::console_log(
+        LogLevel::Info,
+        &format!("🗑️ Removing account: {}", account_id),
+        None,
+    );
+
     let mut accounts = read_launcher_accounts().await?;
-    
+
     // Remove the account
     if accounts.accounts.remove(&account_id).is_some() {
         Logger::console_log(LogLevel::Info, "✅ Account removed successfully", None);
-        
+
         // If this was the active account, clear the active account or set a new one
         if accounts.active_account_local_id == account_id {
-            accounts.active_account_local_id = accounts.accounts.keys().next().unwrap_or(&String::new()).clone();
-            Logger::console_log(LogLevel::Info, &format!("🎯 New active account: {}", accounts.active_account_local_id), None);
+            accounts.active_account_local_id = accounts
+                .accounts
+                .keys()
+                .next()
+                .unwrap_or(&String::new())
+                .clone();
+            Logger::console_log(
+                LogLevel::Info,
+                &format!(
+                    "🎯 New active account: {}",
+                    accounts.active_account_local_id
+                ),
+                None,
+            );
         }
-        
+
         write_launcher_accounts(accounts).await?;
     } else {
         Logger::console_log(LogLevel::Warning, "⚠️ Account not found", None);
         return Err("Account not found".to_string());
     }
-    
+
     Ok(())
 }
 
 /// Set the active account in launcher_accounts.json
 #[tauri::command]
 pub async fn set_active_launcher_account(account_id: String) -> Result<(), String> {
-    Logger::console_log(LogLevel::Info, &format!("🎯 Setting active account: {}", account_id), None);
-    
+    Logger::console_log(
+        LogLevel::Info,
+        &format!("🎯 Setting active account: {}", account_id),
+        None,
+    );
+
     let mut accounts = read_launcher_accounts().await?;
-    
+
     // Check if the account exists
     if !accounts.accounts.contains_key(&account_id) {
         return Err("Account not found".to_string());
     }
-    
+
     accounts.active_account_local_id = account_id.clone();
     write_launcher_accounts(accounts).await?;
-    
-    Logger::console_log(LogLevel::Info, "✅ Active account updated successfully", None);
-    
+
+    Logger::console_log(
+        LogLevel::Info,
+        "✅ Active account updated successfully",
+        None,
+    );
+
     Ok(())
 }
 
 /// Get the currently active account from launcher_accounts.json
 #[tauri::command]
 pub async fn get_active_launcher_account() -> Result<Option<LauncherAccount>, String> {
-    Logger::console_log(LogLevel::Debug, "🔍 Getting active launcher account...", None);
-    
+    Logger::console_log(
+        LogLevel::Debug,
+        "🔍 Getting active launcher account...",
+        None,
+    );
+
     let accounts = read_launcher_accounts().await?;
-    
+
     if accounts.active_account_local_id.is_empty() {
         Logger::console_log(LogLevel::Info, "ℹ️ No active account set", None);
         return Ok(None);
     }
-    
-    let active_account = accounts.accounts.get(&accounts.active_account_local_id).cloned();
-    
+
+    let active_account = accounts
+        .accounts
+        .get(&accounts.active_account_local_id)
+        .cloned();
+
     if active_account.is_some() {
         Logger::console_log(LogLevel::Info, "✅ Found active account", None);
     } else {
-        Logger::console_log(LogLevel::Warning, "⚠️ Active account ID set but account not found", None);
+        Logger::console_log(
+            LogLevel::Warning,
+            "⚠️ Active account ID set but account not found",
+            None,
+        );
     }
-    
+
     Ok(active_account)
 }
 
@@ -241,47 +328,17 @@ pub async fn get_active_launcher_account() -> Result<Option<LauncherAccount>, St
 #[tauri::command]
 pub async fn get_all_launcher_accounts() -> Result<Vec<LauncherAccount>, String> {
     Logger::console_log(LogLevel::Debug, "📋 Getting all launcher accounts...", None);
-    
+
     let accounts = read_launcher_accounts().await?;
     let account_list: Vec<LauncherAccount> = accounts.accounts.into_values().collect();
-    
-    Logger::console_log(LogLevel::Info, &format!("✅ Retrieved {} accounts", account_list.len()), None);
-    
-    Ok(account_list)
-}
 
-/// Open a URL in the default browser
-#[tauri::command]
-pub async fn open_url(url: String) -> Result<(), String> {
-    Logger::console_log(LogLevel::Info, &format!("🌐 Opening URL: {}", url), None);
-    
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", &url])
-            .spawn()
-            .map_err(|e| format!("Failed to open URL on Windows: {}", e))?;
-    }
-    
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&url)
-            .spawn()
-            .map_err(|e| format!("Failed to open URL on macOS: {}", e))?;
-    }
-    
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&url)
-            .spawn()
-            .map_err(|e| format!("Failed to open URL on Linux: {}", e))?;
-    }
-    
-    Logger::console_log(LogLevel::Info, "✅ URL opened successfully", None);
-    
-    Ok(())
+    Logger::console_log(
+        LogLevel::Info,
+        &format!("✅ Retrieved {} accounts", account_list.len()),
+        None,
+    );
+
+    Ok(account_list)
 }
 
 /// Get the path to launcher_accounts.json as a string (useful for debugging)
@@ -317,39 +374,43 @@ pub fn get_oauth_port() -> u16 {
 /// Validate and clean up malformed accounts in launcher_accounts.json
 #[tauri::command]
 pub async fn validate_and_cleanup_accounts() -> Result<String, String> {
-    Logger::console_log(LogLevel::Info, "🧹 Starting account validation and cleanup...", None);
-    
+    Logger::console_log(
+        LogLevel::Info,
+        "🧹 Starting account validation and cleanup...",
+        None,
+    );
+
     let mut accounts = read_launcher_accounts().await?;
     let original_count = accounts.accounts.len();
     let mut removed_count = 0;
     let mut invalid_accounts = Vec::new();
-    
+
     // Find accounts with invalid data
     let mut valid_accounts = HashMap::new();
-    
+
     for (local_id, account) in accounts.accounts.iter() {
         let mut is_valid = true;
         let mut issues = Vec::new();
-        
+
         // Check if UUID is valid (not empty, not a username)
         if account.username.is_empty() {
             is_valid = false;
             issues.push("empty username");
         }
-        
+
         // Check if username is actually a UUID (malformed data)
         if account.username.len() == 36 && account.username.contains('-') {
             // This looks like a UUID, likely malformed
             is_valid = false;
             issues.push("username appears to be UUID");
         }
-        
+
         // Check if local_id is present
         if local_id.is_empty() {
             is_valid = false;
             issues.push("empty local_id");
         }
-        
+
         if is_valid {
             valid_accounts.insert(local_id.clone(), account.clone());
         } else {
@@ -357,33 +418,47 @@ pub async fn validate_and_cleanup_accounts() -> Result<String, String> {
             removed_count += 1;
         }
     }
-    
+
     // Update accounts with only valid ones
     accounts.accounts = valid_accounts;
-    
+
     // Check if active account is still valid
-    if !accounts.active_account_local_id.is_empty() && 
-       !accounts.accounts.contains_key(&accounts.active_account_local_id) {
-        Logger::console_log(LogLevel::Warning, "⚠️ Active account was invalid, clearing", None);
-        accounts.active_account_local_id = accounts.accounts.keys().next().unwrap_or(&String::new()).clone();
+    if !accounts.active_account_local_id.is_empty()
+        && !accounts
+            .accounts
+            .contains_key(&accounts.active_account_local_id)
+    {
+        Logger::console_log(
+            LogLevel::Warning,
+            "⚠️ Active account was invalid, clearing",
+            None,
+        );
+        accounts.active_account_local_id = accounts
+            .accounts
+            .keys()
+            .next()
+            .unwrap_or(&String::new())
+            .clone();
     }
-    
+
     // Write cleaned accounts back
     write_launcher_accounts(accounts).await?;
-    
+
     let summary = if removed_count > 0 {
         format!(
             "✅ Cleanup complete! Removed {} invalid accounts out of {}. Invalid accounts: {}",
-            removed_count, original_count, invalid_accounts.join("; ")
+            removed_count,
+            original_count,
+            invalid_accounts.join("; ")
         )
     } else {
-        format!("✅ All {} accounts are valid! No cleanup needed.", original_count)
+        format!(
+            "✅ All {} accounts are valid! No cleanup needed.",
+            original_count
+        )
     };
-    
+
     Logger::console_log(LogLevel::Info, &summary, None);
-    
+
     Ok(summary)
 }
-
-
-

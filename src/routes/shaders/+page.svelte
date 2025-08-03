@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { AuthManager, currentAccount } from '$lib';
+import { AuthService, currentAccount } from '$lib';
   import { onMount } from 'svelte';
 
   let searchQuery = '';
@@ -131,7 +131,7 @@
         <div class="warning-content">
           <h3>Authentication Required</h3>
           <p>Sign in with Microsoft to download and manage shader packs</p>
-          <button on:click={() => AuthManager.signIn()} class="sign-in-btn">
+          <button on:click={() => AuthService.signIn()} class="sign-in-btn">
             Sign in with Microsoft
           </button>
         </div>

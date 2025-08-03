@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { InstallationManager } from '$lib/managers/InstallationManager';
+  import { InstallationService } from '$lib/services/InstallationService';
   import type { KableInstallation } from '$lib/types';
   export let installation: KableInstallation;
   let edited: KableInstallation = { ...installation };
@@ -25,7 +25,7 @@
 
   async function confirmEdit() {
     edited.java_args = javaArgsString.split(' ').filter(arg => arg.length > 0);
-    await InstallationManager.updateInstallation(edited.id, edited);
+    await InstallationService.updateInstallation(edited.id, edited);
     close();
   }
 

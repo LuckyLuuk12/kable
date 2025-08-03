@@ -1,8 +1,8 @@
-import { Loader, type InstallationForm, type KableInstallation, type VersionData, installations, selectedInstallation, isLoadingInstallations, installationsError, versions, isLoadingVersions, versionsError, type LoaderKind } from '$lib';
+import { type InstallationForm, type KableInstallation, type VersionData, installations, selectedInstallation, isLoadingInstallations, installationsError, versions, isLoadingVersions, versionsError, type LoaderKind } from '$lib';
 import * as installationsApi from '../api/installations';
 import { get } from 'svelte/store';
 
-export class InstallationManager {
+export class InstallationService {
   /**
    * Load all installations and update the store. 
    * @returns A snapshot of the loaded installations.

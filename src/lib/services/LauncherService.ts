@@ -1,8 +1,7 @@
 
 import { currentAccount, installations, settings } from '$lib/stores';
-import type { KableInstallation } from '$lib/types';
+import type { KableInstallation, LaunchResult } from '$lib';
 import { get } from 'svelte/store';
-import type { LaunchResult } from '../api/launcher';
 import * as launcherApi from '../api/launcher';
 
 

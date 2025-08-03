@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Icon, installations, isLoadingInstallations, installationsError, type KableInstallation, Launcher, InstallationManager } from '$lib';
+import { Icon, installations, isLoadingInstallations, installationsError, type KableInstallation, Launcher, InstallationService } from '$lib';
     import InstallationsList from '$lib/components/InstallationsList.svelte';
 
 
@@ -84,7 +84,7 @@
         console.log('Launching installation:', lastPlayedInstallations[0]);
         launchStatus = `Launching ${lastPlayedInstallations[0].name}...`;
         // Select the installation and launch with GameManager
-        InstallationManager.selectInstallation(lastPlayedInstallations[0]);
+        InstallationService.selectInstallation(lastPlayedInstallations[0]);
         // await InstallationManager.launchGame();
         result = { success: true };
       } else {
@@ -97,7 +97,7 @@
         launchStatus = 'Launched Minecraft!';
         // Refresh installations to update last played
         setTimeout(() => {
-          InstallationManager.loadInstallations();
+          InstallationService.loadInstallations();
         }, 1000);
       } else {
         launchStatus = `Launch failed: ${result.error || 'Unknown error'}`;
@@ -126,7 +126,7 @@
     
     try {
       // Select the installation and check if we can launch
-      InstallationManager.selectInstallation(installation);
+      InstallationService.selectInstallation(installation);
       // const { canLaunch, reason } = await InstallationManager.canLaunch();
       // if (!canLaunch) {
       //   alert(reason || 'Cannot launch');
@@ -140,7 +140,7 @@
       }
       // Refresh installations to update last played
       setTimeout(() => {
-        InstallationManager.loadInstallations();
+        InstallationService.loadInstallations();
       }, 1000);
     } catch (err) {
       console.error('Installation launch error:', err);

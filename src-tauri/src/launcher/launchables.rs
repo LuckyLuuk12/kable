@@ -1,12 +1,12 @@
 // launcher/trait.rs
 
-use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use crate::auth::LauncherAccount;
 use crate::get_version;
 use crate::installations::kable_profiles::KableInstallation;
 use crate::settings::CategorizedLauncherSettings;
-use crate::auth::LauncherAccount;
 use crate::versions::LoaderKind;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LaunchContext {
@@ -38,10 +38,10 @@ impl LaunchContext {
                 LoaderKind::Vanilla => Ok(LoaderType::Vanilla),
                 LoaderKind::Fabric => Ok(LoaderType::Fabric),
                 LoaderKind::IrisFabric => Ok(LoaderType::IrisFabric), // Iris is a Fabric mod but has its own loader which is identical to Fabric
-                LoaderKind::Quilt => Ok(LoaderType::Quilt), // Quilt is a fork of Fabric
+                LoaderKind::Quilt => Ok(LoaderType::Quilt),           // Quilt is a fork of Fabric
                 LoaderKind::Forge => Ok(LoaderType::Forge),
-                LoaderKind::NeoForge => Ok(LoaderType::NeoForge)
-            }   
+                LoaderKind::NeoForge => Ok(LoaderType::NeoForge),
+            }
         } else {
             Err("Failed to detect loader type".into())
         }

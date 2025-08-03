@@ -2,25 +2,25 @@ import { invoke } from '@tauri-apps/api/core';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { WindowState } from '../types';
 
-export class WindowStateManager {
-  private static instance: WindowStateManager;
+export class WindowStateService {
+  private static instance: WindowStateService;
   private initialized = false;
   private window = getCurrentWindow();
 
   private constructor() {}
 
-  static getInstance(): WindowStateManager {
-    if (!WindowStateManager.instance) {
-      WindowStateManager.instance = new WindowStateManager();
+  static getInstance(): WindowStateService {
+    if (!WindowStateService.instance) {
+      WindowStateService.instance = new WindowStateService();
     }
-    return WindowStateManager.instance;
+    return WindowStateService.instance;
   }
 
   /**
    * Static initialize method for consistency with other managers
    */
   static async initialize(): Promise<void> {
-    const instance = WindowStateManager.getInstance();
+    const instance = WindowStateService.getInstance();
     return await instance.initialize();
   }
 
@@ -214,4 +214,4 @@ export class WindowStateManager {
 }
 
 // Export singleton instance
-export const windowStateManager = WindowStateManager.getInstance();
+export const windowStateManager = WindowStateService.getInstance();

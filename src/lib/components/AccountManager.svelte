@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { AuthManager, currentAccount, type LauncherAccount } from '$lib';
+  import { AuthService, currentAccount, type LauncherAccount } from '$lib';
   import Icon from './Icon.svelte';
   import AuthenticationFlow from './AuthenticationFlow.svelte';
 
@@ -16,7 +16,7 @@
     if (!$currentAccount || isOffline) return;
     isLoading = true;
     try {
-      await AuthManager.signInWithDeviceCode();
+      await AuthService.signInWithDeviceCode();
     } catch (error) {
       console.error('Device Code Flow refresh failed:', error);
     } finally {
@@ -29,7 +29,7 @@
     if (!$currentAccount) return;
     isLoading = true;
     try {
-      await AuthManager.signIn();
+      await AuthService.signIn();
     } catch (error) {
       console.error('Manual re-login failed:', error);
     } finally {
@@ -63,8 +63,8 @@
 
   onMount(async () => {
     // Initialize authentication and load accounts
-    await AuthManager.initialize();
-    await AuthManager.refreshAvailableAccounts();
+    await AuthService.initialize();
+    await AuthService.refreshAvailableAccounts();
   });
 
   /**
@@ -77,7 +77,7 @@
     }
     isLoading = true;
     try {
-      await AuthManager.removeAccount($currentAccount.local_id);
+      await AuthService.removeAccount($currentAccount.local_id);
     } catch (error) {
       console.error('Failed to remove account:', error);
     } finally {
@@ -93,7 +93,7 @@
     
     isLoading = true;
     try {
-      await AuthManager.refreshCurrentAccount();
+      await AuthService.refreshCurrentAccount();
     } catch (error) {
       console.error('Token refresh failed:', error);
     } finally {
@@ -106,7 +106,7 @@
    */
   async function signOut() {
     try {
-      await AuthManager.signOut();
+      await AuthService.signOut();
     } catch (error) {
       console.error('Sign out failed:', error);
     }

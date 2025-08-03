@@ -1,17 +1,17 @@
+use super::{LaunchContext, LaunchResult, Launchable};
+use crate::launcher::utils::build_variable_map;
+use async_trait::async_trait;
+use reqwest::Client;
 /// Loads and merges a Fabric manifest, recursively resolving `inheritsFrom` and merging libraries and arguments.
 /// Returns the fully merged manifest as serde_json::Value.
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
+use std::fs;
 use std::fs::File;
 use std::io::Read;
-use super::{Launchable, LaunchContext, LaunchResult};
-use async_trait::async_trait;
-use std::process::Command;
-use std::fs;
 use std::path::PathBuf;
-use reqwest::Client;
+use std::process::Command;
 use tokio::io::AsyncWriteExt;
-use crate::{launcher::utils::build_variable_map};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct FabricManifest {
@@ -62,7 +62,9 @@ struct FabricArguments {
 /// Loads a Fabric manifest from disk and parses as FabricManifest.
 fn load_fabric_manifest(minecraft_dir: &str, version_id: &str) -> Result<FabricManifest, String> {
     let manifest_path = PathBuf::from(minecraft_dir)
-        .join("versions").join(version_id).join(format!("{}.json", version_id));
+        .join("versions")
+        .join(version_id)
+        .join(format!("{}.json", version_id));
     let mut file = File::open(&manifest_path)
         .map_err(|e| format!("Failed to open manifest {}: {}", manifest_path.display(), e))?;
     let mut contents = String::new();
@@ -72,7 +74,10 @@ fn load_fabric_manifest(minecraft_dir: &str, version_id: &str) -> Result<FabricM
 }
 
 /// Recursively loads and merges Fabric manifests, returning a single FabricManifest.
-fn load_and_merge_fabric_manifest_struct(minecraft_dir: &str, version_id: &str) -> Result<FabricManifest, String> {
+fn load_and_merge_fabric_manifest_struct(
+    minecraft_dir: &str,
+    version_id: &str,
+) -> Result<FabricManifest, String> {
     let mut manifest = load_fabric_manifest(minecraft_dir, version_id)?;
     if let Some(parent_id) = &manifest.inherits_from {
         let parent = load_and_merge_fabric_manifest_struct(minecraft_dir, parent_id)?;
@@ -93,16 +98,36 @@ fn load_and_merge_fabric_manifest_struct(minecraft_dir: &str, version_id: &str) 
         };
         manifest.arguments = merged_args;
         // Merge other fields if not present in child
-        if manifest.main_class.is_none() { manifest.main_class = parent.main_class; }
-        if manifest.asset_index.is_none() { manifest.asset_index = parent.asset_index; }
-        if manifest.assets.is_none() { manifest.assets = parent.assets; }
-        if manifest.downloads.is_none() { manifest.downloads = parent.downloads; }
-        if manifest.logging.is_none() { manifest.logging = parent.logging; }
-        if manifest.java_version.is_none() { manifest.java_version = parent.java_version; }
-        if manifest.r#type.is_none() { manifest.r#type = parent.r#type; }
-        if manifest.id.is_none() { manifest.id = parent.id; }
-        if manifest.time.is_none() { manifest.time = parent.time; }
-        if manifest.release_time.is_none() { manifest.release_time = parent.release_time; }
+        if manifest.main_class.is_none() {
+            manifest.main_class = parent.main_class;
+        }
+        if manifest.asset_index.is_none() {
+            manifest.asset_index = parent.asset_index;
+        }
+        if manifest.assets.is_none() {
+            manifest.assets = parent.assets;
+        }
+        if manifest.downloads.is_none() {
+            manifest.downloads = parent.downloads;
+        }
+        if manifest.logging.is_none() {
+            manifest.logging = parent.logging;
+        }
+        if manifest.java_version.is_none() {
+            manifest.java_version = parent.java_version;
+        }
+        if manifest.r#type.is_none() {
+            manifest.r#type = parent.r#type;
+        }
+        if manifest.id.is_none() {
+            manifest.id = parent.id;
+        }
+        if manifest.time.is_none() {
+            manifest.time = parent.time;
+        }
+        if manifest.release_time.is_none() {
+            manifest.release_time = parent.release_time;
+        }
     }
     Ok(manifest)
 }
@@ -111,15 +136,27 @@ fn load_and_merge_fabric_manifest_struct(minecraft_dir: &str, version_id: &str) 
 impl From<FabricManifest> for Value {
     fn from(f: FabricManifest) -> Self {
         let mut map = serde_json::Map::new();
-        if let Some(inherits) = f.inherits_from { map.insert("inheritsFrom".to_string(), json!(inherits)); }
-        if let Some(main_class) = f.main_class { map.insert("mainClass".to_string(), json!(main_class)); }
+        if let Some(inherits) = f.inherits_from {
+            map.insert("inheritsFrom".to_string(), json!(inherits));
+        }
+        if let Some(main_class) = f.main_class {
+            map.insert("mainClass".to_string(), json!(main_class));
+        }
         // Convert libraries to vanilla-like array
-        let libs: Vec<Value> = f.libraries.into_iter().map(|l| {
-            let mut m = serde_json::Map::new();
-            if let Some(name) = l.name { m.insert("name".to_string(), json!(name)); }
-            for (k, v) in l.extra { m.insert(k, v); }
-            Value::Object(m)
-        }).collect();
+        let libs: Vec<Value> = f
+            .libraries
+            .into_iter()
+            .map(|l| {
+                let mut m = serde_json::Map::new();
+                if let Some(name) = l.name {
+                    m.insert("name".to_string(), json!(name));
+                }
+                for (k, v) in l.extra {
+                    m.insert(k, v);
+                }
+                Value::Object(m)
+            })
+            .collect();
         map.insert("libraries".to_string(), Value::Array(libs));
         // Convert arguments to vanilla-like object
         if let Some(args) = f.arguments {
@@ -128,15 +165,33 @@ impl From<FabricManifest> for Value {
             args_map.insert("game".to_string(), Value::Array(args.game));
             map.insert("arguments".to_string(), Value::Object(args_map));
         }
-        if let Some(asset_index) = f.asset_index { map.insert("assetIndex".to_string(), asset_index); }
-        if let Some(assets) = f.assets { map.insert("assets".to_string(), json!(assets)); }
-        if let Some(downloads) = f.downloads { map.insert("downloads".to_string(), downloads); }
-        if let Some(logging) = f.logging { map.insert("logging".to_string(), logging); }
-        if let Some(java_version) = f.java_version { map.insert("javaVersion".to_string(), java_version); }
-        if let Some(id) = f.id { map.insert("id".to_string(), json!(id)); }
-        if let Some(time) = f.time { map.insert("time".to_string(), json!(time)); }
-        if let Some(release_time) = f.release_time { map.insert("releaseTime".to_string(), json!(release_time)); }
-        if let Some(t) = f.r#type { map.insert("type".to_string(), json!(t)); }
+        if let Some(asset_index) = f.asset_index {
+            map.insert("assetIndex".to_string(), asset_index);
+        }
+        if let Some(assets) = f.assets {
+            map.insert("assets".to_string(), json!(assets));
+        }
+        if let Some(downloads) = f.downloads {
+            map.insert("downloads".to_string(), downloads);
+        }
+        if let Some(logging) = f.logging {
+            map.insert("logging".to_string(), logging);
+        }
+        if let Some(java_version) = f.java_version {
+            map.insert("javaVersion".to_string(), java_version);
+        }
+        if let Some(id) = f.id {
+            map.insert("id".to_string(), json!(id));
+        }
+        if let Some(time) = f.time {
+            map.insert("time".to_string(), json!(time));
+        }
+        if let Some(release_time) = f.release_time {
+            map.insert("releaseTime".to_string(), json!(release_time));
+        }
+        if let Some(t) = f.r#type {
+            map.insert("type".to_string(), json!(t));
+        }
         Value::Object(map)
     }
 }
@@ -151,13 +206,23 @@ impl Launchable for FabricLaunchable {
         // 1. Check if manifest and jar already exist; if so, skip installer
         let version_id = &context.installation.version_id;
         let versions_dir = PathBuf::from(&context.minecraft_dir).join("versions");
-        let fabric_json = versions_dir.join(version_id).join(format!("{}.json", version_id));
-        let fabric_jar = versions_dir.join(version_id).join(format!("{}.jar", version_id));
+        let fabric_json = versions_dir
+            .join(version_id)
+            .join(format!("{}.json", version_id));
+        let fabric_jar = versions_dir
+            .join(version_id)
+            .join(format!("{}.jar", version_id));
         if !fabric_json.exists() {
-            crate::logging::Logger::debug_global(&format!("Fabric manifest not found: {}", fabric_json.display()), Some(&context.installation.id));
+            crate::logging::Logger::debug_global(
+                &format!("Fabric manifest not found: {}", fabric_json.display()),
+                Some(&context.installation.id),
+            );
         }
         if !fabric_jar.exists() {
-            crate::logging::Logger::debug_global(&format!("Fabric jar not found: {}", fabric_jar.display()), Some(&context.installation.id));
+            crate::logging::Logger::debug_global(
+                &format!("Fabric jar not found: {}", fabric_jar.display()),
+                Some(&context.installation.id),
+            );
         }
         if fabric_json.exists() && fabric_jar.exists() {
             // Already installed, nothing to do
@@ -168,16 +233,27 @@ impl Launchable for FabricLaunchable {
         use crate::installations::get_version;
         let version_data = get_version(version_id.clone()).await;
         if version_data.is_none() {
-            crate::logging::Logger::debug_global(&format!("Could not find version data for installation's version_id: {}", version_id), Some(&context.installation.id));
+            crate::logging::Logger::debug_global(
+                &format!(
+                    "Could not find version data for installation's version_id: {}",
+                    version_id
+                ),
+                Some(&context.installation.id),
+            );
         }
-        let version_data = version_data.ok_or("Could not find version data for installation's version_id")?;
+        let version_data =
+            version_data.ok_or("Could not find version data for installation's version_id")?;
         let extra = &version_data.extra;
         let maven = extra.get("installer_maven");
         if maven.is_none() {
             crate::logging::Logger::debug_global(&format!("No 'installer_maven' key in version.extra for Fabric (and install is required) for version_id: {}", version_id), Some(&context.installation.id));
         }
-        let maven = maven.ok_or("No 'installer_maven' key in version.extra for Fabric (and install is required)")?
-            .as_str().ok_or("'installer_maven' must be a string")?;
+        let maven = maven
+            .ok_or(
+                "No 'installer_maven' key in version.extra for Fabric (and install is required)",
+            )?
+            .as_str()
+            .ok_or("'installer_maven' must be a string")?;
 
         // 3. Parse maven: group:artifact:version
         let mut parts = maven.split(':');
@@ -186,26 +262,62 @@ impl Launchable for FabricLaunchable {
         let version = parts.next().ok_or("Invalid maven: missing version")?;
         let group_path = group.replace('.', "/");
         let jar_name = format!("{}-{}.jar", artifact, version);
-        let url = format!("https://maven.fabricmc.net/{}/{}/{}/{}", group_path, artifact, version, jar_name);
+        let url = format!(
+            "https://maven.fabricmc.net/{}/{}/{}/{}",
+            group_path, artifact, version, jar_name
+        );
 
         // 4. Download to cache dir if not present
         let cache_dir = PathBuf::from(&context.minecraft_dir).join("fabric-installer-cache");
         if !cache_dir.exists() {
-            crate::logging::Logger::debug_global(&format!("Creating Fabric installer cache dir: {}", cache_dir.display()), Some(&context.installation.id));
-            fs::create_dir_all(&cache_dir).map_err(|e| format!("Failed to create cache dir: {e}"))?;
+            crate::logging::Logger::debug_global(
+                &format!(
+                    "Creating Fabric installer cache dir: {}",
+                    cache_dir.display()
+                ),
+                Some(&context.installation.id),
+            );
+            fs::create_dir_all(&cache_dir)
+                .map_err(|e| format!("Failed to create cache dir: {e}"))?;
         }
         let jar_path = cache_dir.join(&jar_name);
         if !jar_path.exists() {
-            crate::logging::Logger::debug_global(&format!("Fabric installer jar not found, will download: {}", jar_path.display()), Some(&context.installation.id));
+            crate::logging::Logger::debug_global(
+                &format!(
+                    "Fabric installer jar not found, will download: {}",
+                    jar_path.display()
+                ),
+                Some(&context.installation.id),
+            );
             let client = Client::new();
-            let resp = client.get(&url).send().await.map_err(|e| format!("Failed to download Fabric installer: {e}"))?;
+            let resp = client
+                .get(&url)
+                .send()
+                .await
+                .map_err(|e| format!("Failed to download Fabric installer: {e}"))?;
             if !resp.status().is_success() {
-                crate::logging::Logger::debug_global(&format!("Failed to download Fabric installer: HTTP {}", resp.status()), Some(&context.installation.id));
-                return Err(format!("Failed to download Fabric installer: HTTP {}", resp.status()));
+                crate::logging::Logger::debug_global(
+                    &format!(
+                        "Failed to download Fabric installer: HTTP {}",
+                        resp.status()
+                    ),
+                    Some(&context.installation.id),
+                );
+                return Err(format!(
+                    "Failed to download Fabric installer: HTTP {}",
+                    resp.status()
+                ));
             }
-            let bytes = resp.bytes().await.map_err(|e| format!("Failed to read Fabric installer bytes: {e}"))?;
-            let mut file = tokio::fs::File::create(&jar_path).await.map_err(|e| format!("Failed to create installer jar: {e}"))?;
-            file.write_all(&bytes).await.map_err(|e| format!("Failed to write installer jar: {e}"))?;
+            let bytes = resp
+                .bytes()
+                .await
+                .map_err(|e| format!("Failed to read Fabric installer bytes: {e}"))?;
+            let mut file = tokio::fs::File::create(&jar_path)
+                .await
+                .map_err(|e| format!("Failed to create installer jar: {e}"))?;
+            file.write_all(&bytes)
+                .await
+                .map_err(|e| format!("Failed to write installer jar: {e}"))?;
         }
 
         // 5. Run installer in headless mode
@@ -213,11 +325,20 @@ impl Launchable for FabricLaunchable {
             // Ensure version subdir exists
             let version_subdir = versions_dir.join(version_id);
             if !version_subdir.exists() {
-                crate::logging::Logger::debug_global(&format!("Creating version subdir: {}", version_subdir.display()), Some(&context.installation.id));
-                fs::create_dir_all(&version_subdir).map_err(|e| format!("Failed to create version dir: {e}"))?;
+                crate::logging::Logger::debug_global(
+                    &format!("Creating version subdir: {}", version_subdir.display()),
+                    Some(&context.installation.id),
+                );
+                fs::create_dir_all(&version_subdir)
+                    .map_err(|e| format!("Failed to create version dir: {e}"))?;
             }
             // Build java command: java -jar <installer> server|client -dir <mcdir> -mcversion <mcver> -noprofile -downloadMinecraft
-            let java_path = context.settings.general.java_path.clone().unwrap_or_else(|| "java".to_string());
+            let java_path = context
+                .settings
+                .general
+                .java_path
+                .clone()
+                .unwrap_or_else(|| "java".to_string());
             let mc_version = version_id;
             let mut cmd = Command::new(&java_path);
             cmd.arg("-jar");
@@ -229,10 +350,18 @@ impl Launchable for FabricLaunchable {
             cmd.arg(mc_version);
             cmd.arg("-noprofile");
             cmd.arg("-downloadMinecraft");
-            crate::logging::Logger::debug_global(&format!("Running Fabric installer: {:?}", cmd), Some(&context.installation.id));
-            let status = cmd.status().map_err(|e| format!("Failed to run Fabric installer: {e}"))?;
+            crate::logging::Logger::debug_global(
+                &format!("Running Fabric installer: {:?}", cmd),
+                Some(&context.installation.id),
+            );
+            let status = cmd
+                .status()
+                .map_err(|e| format!("Failed to run Fabric installer: {e}"))?;
             if !status.success() {
-                crate::logging::Logger::debug_global(&format!("Fabric installer failed with status: {}", status), Some(&context.installation.id));
+                crate::logging::Logger::debug_global(
+                    &format!("Fabric installer failed with status: {}", status),
+                    Some(&context.installation.id),
+                );
                 return Err(format!("Fabric installer failed with status: {}", status));
             }
         }
@@ -243,30 +372,39 @@ impl Launchable for FabricLaunchable {
         println!("FABRIC::launch() -> {}", context.installation.name);
         // 1. Load and merge Fabric manifest as struct, then convert to generic manifest
         let version_id = &context.installation.version_id;
-        let fabric_manifest_struct = match load_and_merge_fabric_manifest_struct(
-            &context.minecraft_dir,
-            version_id
-        ) {
-            Ok(m) => m,
-            Err(e) => {
-                crate::logging::Logger::debug_global(&format!("Failed to load/merge Fabric manifest: {}", e), Some(&context.installation.id));
-                return Err(e);
-            }
-        };
+        let fabric_manifest_struct =
+            match load_and_merge_fabric_manifest_struct(&context.minecraft_dir, version_id) {
+                Ok(m) => m,
+                Err(e) => {
+                    crate::logging::Logger::debug_global(
+                        &format!("Failed to load/merge Fabric manifest: {}", e),
+                        Some(&context.installation.id),
+                    );
+                    return Err(e);
+                }
+            };
         let manifest: Value = fabric_manifest_struct.into();
 
         // 2. Build classpath (all libraries + version JAR)
         let libraries_path = PathBuf::from(&context.minecraft_dir).join("libraries");
         let version_jar_path = PathBuf::from(&context.minecraft_dir)
-            .join("versions").join(version_id).join(format!("{}.jar", version_id));
+            .join("versions")
+            .join(version_id)
+            .join(format!("{}.jar", version_id));
         if !version_jar_path.exists() {
-            crate::logging::Logger::debug_global(&format!("Version jar not found for classpath: {}", version_jar_path.display()), Some(&context.installation.id));
+            crate::logging::Logger::debug_global(
+                &format!(
+                    "Version jar not found for classpath: {}",
+                    version_jar_path.display()
+                ),
+                Some(&context.installation.id),
+            );
         }
         let classpath = crate::launcher::utils::build_classpath_from_manifest_with_instance(
             &manifest,
             &libraries_path,
             &version_jar_path,
-            Some(&context.installation.id)
+            Some(&context.installation.id),
         );
 
         // 3. Build variable map
@@ -278,11 +416,12 @@ impl Launchable for FabricLaunchable {
         );
 
         // 4. Build JVM and game arguments
-        let (jvm_args_vec, game_args_vec) = crate::launcher::utils::build_jvm_and_game_args_with_instance(
-            &manifest,
-            &variables,
-            Some(&context.installation.id)
-        );
+        let (jvm_args_vec, game_args_vec) =
+            crate::launcher::utils::build_jvm_and_game_args_with_instance(
+                &manifest,
+                &variables,
+                Some(&context.installation.id),
+            );
 
         // Remove any -cp or -classpath and their following value from jvm_args_vec (defensive, in case manifest or parameters injects it)
         let mut cleaned_jvm_args = Vec::new();
@@ -322,7 +461,10 @@ impl Launchable for FabricLaunchable {
                 if p.is_absolute() {
                     p
                 } else {
-                    PathBuf::from(&context.minecraft_dir).join("kable").join("mods").join(p)
+                    PathBuf::from(&context.minecraft_dir)
+                        .join("kable")
+                        .join("mods")
+                        .join(p)
                 }
             };
             final_game_args_vec.retain(|arg| arg != "--fabric.modDir");
@@ -331,8 +473,16 @@ impl Launchable for FabricLaunchable {
         }
 
         // 8. Build command: exactly like vanilla (single -cp, correct order)
-        let java_path = context.settings.general.java_path.clone().unwrap_or_else(|| "java".to_string());
-        let main_class = manifest.get("mainClass").and_then(|v| v.as_str()).unwrap_or("net.fabricmc.loader.impl.launch.knot.KnotClient");
+        let java_path = context
+            .settings
+            .general
+            .java_path
+            .clone()
+            .unwrap_or_else(|| "java".to_string());
+        let main_class = manifest
+            .get("mainClass")
+            .and_then(|v| v.as_str())
+            .unwrap_or("net.fabricmc.loader.impl.launch.knot.KnotClient");
         let mut cmd = Command::new(&java_path);
         cmd.args(&cleaned_jvm_args);
         cmd.arg("-cp");
@@ -350,6 +500,7 @@ impl Launchable for FabricLaunchable {
             version_id,
             &manifest,
             &installation_json,
-        ).await
+        )
+        .await
     }
 }

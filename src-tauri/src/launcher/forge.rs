@@ -1,16 +1,21 @@
+use crate::launcher::launchables::{LaunchContext, LaunchResult, Launchable};
+use crate::launcher::utils::{
+    build_classpath_from_manifest_with_instance, build_jvm_and_game_args_with_instance,
+    build_variable_map, spawn_and_log_process,
+};
+use async_trait::async_trait;
 use serde_json::Value;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::Command;
-use async_trait::async_trait;
-use crate::launcher::launchables::{Launchable, LaunchContext, LaunchResult};
-use crate::launcher::utils::{build_variable_map, build_classpath_from_manifest_with_instance, build_jvm_and_game_args_with_instance, spawn_and_log_process};
 
 /// Loads a Forge manifest from disk as serde_json::Value
 fn load_forge_manifest(minecraft_dir: &str, version_id: &str) -> Result<Value, String> {
     let manifest_path = PathBuf::from(minecraft_dir)
-        .join("versions").join(version_id).join(format!("{}.json", version_id));
+        .join("versions")
+        .join(version_id)
+        .join(format!("{}.json", version_id));
     let mut file = File::open(&manifest_path)
         .map_err(|e| format!("Failed to open manifest {}: {}", manifest_path.display(), e))?;
     let mut contents = String::new();
@@ -37,15 +42,20 @@ impl Launchable for ForgeLaunchable {
         // Build classpath (all libraries + version JAR)
         let libraries_path = PathBuf::from(&context.minecraft_dir).join("libraries");
         let version_jar_path = PathBuf::from(&context.minecraft_dir)
-            .join("versions").join(version_id).join(format!("{}.jar", version_id));
+            .join("versions")
+            .join(version_id)
+            .join(format!("{}.jar", version_id));
         if !version_jar_path.exists() {
-            return Err(format!("Version jar not found for classpath: {}", version_jar_path.display()));
+            return Err(format!(
+                "Version jar not found for classpath: {}",
+                version_jar_path.display()
+            ));
         }
         let classpath = build_classpath_from_manifest_with_instance(
             &manifest,
             &libraries_path,
             &version_jar_path,
-            Some(&context.installation.id)
+            Some(&context.installation.id),
         );
 
         // Build variable map
@@ -60,7 +70,7 @@ impl Launchable for ForgeLaunchable {
         let (jvm_args_vec, game_args_vec) = build_jvm_and_game_args_with_instance(
             &manifest,
             &variables,
-            Some(&context.installation.id)
+            Some(&context.installation.id),
         );
 
         // Remove any -cp or -classpath and their following value from jvm_args_vec
@@ -98,7 +108,9 @@ impl Launchable for ForgeLaunchable {
         final_game_args_vec.retain(|arg| arg != "--fabric.modDir");
 
         // Ensure --gameDir is present and set to the correct path
-        let game_dir_flag_index = final_game_args_vec.iter().position(|arg| arg == "--gameDir");
+        let game_dir_flag_index = final_game_args_vec
+            .iter()
+            .position(|arg| arg == "--gameDir");
         if let Some(idx) = game_dir_flag_index {
             // If --gameDir is present, ensure the next argument is correct
             if idx + 1 < final_game_args_vec.len() {
@@ -113,8 +125,16 @@ impl Launchable for ForgeLaunchable {
         }
 
         // Build command: main class for Forge
-        let java_path = context.settings.general.java_path.clone().unwrap_or_else(|| "java".to_string());
-        let main_class = manifest.get("mainClass").and_then(|v| v.as_str()).unwrap_or("cpw.mods.modlauncher.Launcher");
+        let java_path = context
+            .settings
+            .general
+            .java_path
+            .clone()
+            .unwrap_or_else(|| "java".to_string());
+        let main_class = manifest
+            .get("mainClass")
+            .and_then(|v| v.as_str())
+            .unwrap_or("cpw.mods.modlauncher.Launcher");
         let mut cmd = Command::new(&java_path);
         cmd.args(&cleaned_jvm_args);
         cmd.arg("-cp");
@@ -132,6 +152,7 @@ impl Launchable for ForgeLaunchable {
             version_id,
             &manifest,
             &installation_json,
-        ).await
+        )
+        .await
     }
 }

@@ -1,14 +1,14 @@
-use tauri::{AppHandle, Emitter};
+use crate::settings::CategorizedLauncherSettings;
+use chrono::{DateTime, Utc};
 use serde_json::json;
 use std::fmt;
-use std::sync::{Arc, Mutex};
 use std::fs::{self, File, OpenOptions};
-use std::io::{Write};
+use std::io::Write;
 use std::path::{Path, PathBuf};
-use chrono::{DateTime, Utc};
-use crate::settings::CategorizedLauncherSettings;
+use std::sync::{Arc, Mutex};
+use tauri::{AppHandle, Emitter};
 
-// Global app handle for logging from anywhere 
+// Global app handle for logging from anywhere
 /// !NOTE: it should be initialized in the main function of your Tauri app at startup and accessed via the mutex
 pub static GLOBAL_APP_HANDLE: Mutex<Option<Arc<AppHandle>>> = Mutex::new(None);
 
@@ -19,7 +19,7 @@ static LOG_STORAGE: Mutex<Option<LogStorage>> = Mutex::new(None);
 pub fn init_global_logger(app: &AppHandle) {
     let mut handle = GLOBAL_APP_HANDLE.lock().unwrap();
     *handle = Some(Arc::new(app.clone()));
-    
+
     // Initialize log storage
     let mut storage = LOG_STORAGE.lock().unwrap();
     if let Ok(log_storage) = LogStorage::new(app) {
@@ -51,7 +51,7 @@ impl Default for LogConfig {
 
 /// Log storage management
 pub struct LogStorage {
-    config: LogConfig
+    config: LogConfig,
 }
 
 impl LogStorage {
@@ -59,17 +59,20 @@ impl LogStorage {
     pub fn new(app: &AppHandle) -> Result<Self, Box<dyn std::error::Error>> {
         let minecraft_path = Self::get_minecraft_path(app)?;
         let logs_dir = minecraft_path.join("kable").join("logs");
-        
+
         // Create logs directory structure
         fs::create_dir_all(&logs_dir)?;
         fs::create_dir_all(logs_dir.join("launcher"))?;
         fs::create_dir_all(logs_dir.join("installations"))?;
-        
+
         // Load settings to configure logging
-        let settings = tauri::async_runtime::block_on(crate::settings::load_settings()).unwrap_or_default();
-        
+        let settings =
+            tauri::async_runtime::block_on(crate::settings::load_settings()).unwrap_or_default();
+
         fn value_to_u64(val: &serde_json::Value, default: u64) -> u64 {
-            val.as_u64().or_else(|| val.as_i64().map(|v| v.max(0) as u64)).unwrap_or(default)
+            val.as_u64()
+                .or_else(|| val.as_i64().map(|v| v.max(0) as u64))
+                .unwrap_or(default)
         }
 
         // Usage:
@@ -80,12 +83,10 @@ impl LogStorage {
             retention_days: value_to_u64(&settings.logging.log_retention_days, 30),
             logs_dir,
         };
-        
-        Ok(Self {
-            config
-        })
+
+        Ok(Self { config })
     }
-    
+
     /// Get Minecraft path from app settings or default location
     fn get_minecraft_path(_app: &AppHandle) -> Result<PathBuf, Box<dyn std::error::Error>> {
         // For now, use a default path. In a real implementation, you'd read from settings
@@ -94,31 +95,40 @@ impl LogStorage {
             .join(".minecraft");
         Ok(minecraft_dir)
     }
-    
+
     /// Update logging configuration from settings
     pub fn update_config(&mut self, settings: &CategorizedLauncherSettings) {
         self.config.enable_persistent_logging = settings.logging.enable_persistent_logging;
         self.config.enable_compression = settings.logging.enable_log_compression;
         self.config.size_limit_mb = {
             fn value_to_u64(val: &serde_json::Value, default: u64) -> u64 {
-                val.as_u64().or_else(|| val.as_i64().map(|v| v.max(0) as u64)).unwrap_or(default)
+                val.as_u64()
+                    .or_else(|| val.as_i64().map(|v| v.max(0) as u64))
+                    .unwrap_or(default)
             }
             value_to_u64(&settings.logging.log_file_size_limit_mb, 10)
         };
         self.config.retention_days = {
             fn value_to_u64(val: &serde_json::Value, default: u64) -> u64 {
-                val.as_u64().or_else(|| val.as_i64().map(|v| v.max(0) as u64)).unwrap_or(default)
+                val.as_u64()
+                    .or_else(|| val.as_i64().map(|v| v.max(0) as u64))
+                    .unwrap_or(default)
             }
             value_to_u64(&settings.logging.log_retention_days, 30)
         };
     }
-    
+
     /// Write log message to persistent storage
-    pub fn write_log(&self, level: &LogLevel, message: &str, instance_id: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn write_log(
+        &self,
+        level: &LogLevel,
+        message: &str,
+        instance_id: Option<&str>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         if !self.config.enable_persistent_logging {
             return Ok(());
         }
-        
+
         let timestamp = Utc::now();
         let log_line = format!(
             "[{}] {} {}\n",
@@ -126,25 +136,29 @@ impl LogStorage {
             level.to_string().to_uppercase(),
             message
         );
-        
-        let log_type = if instance_id.is_some() { "installations" } else { "launcher" };
-        let filename = format!(
-            "{}-{}.log",
-            log_type,
-            timestamp.format("%Y-%m-%d")
-        );
-        
+
+        let log_type = if instance_id.is_some() {
+            "installations"
+        } else {
+            "launcher"
+        };
+        let filename = format!("{}-{}.log", log_type, timestamp.format("%Y-%m-%d"));
+
         let log_path = if let Some(instance_id) = instance_id {
-            self.config.logs_dir.join("installations").join(instance_id).join(&filename)
+            self.config
+                .logs_dir
+                .join("installations")
+                .join(instance_id)
+                .join(&filename)
         } else {
             self.config.logs_dir.join("launcher").join(&filename)
         };
-        
+
         // Ensure directory exists
         if let Some(parent) = log_path.parent() {
             fs::create_dir_all(parent)?;
         }
-        
+
         // Check if file needs compression before writing
         if log_path.exists() {
             let file_size = fs::metadata(&log_path)?.len();
@@ -152,67 +166,75 @@ impl LogStorage {
                 self.compress_log_file(&log_path)?;
             }
         }
-        
+
         // Write to file
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(&log_path)?;
-        
+
         file.write_all(log_line.as_bytes())?;
         file.flush()?;
-        
+
         Ok(())
     }
-    
+
     /// Compress a log file using 7zip
     fn compress_log_file(&self, log_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         if !self.config.enable_compression {
             return Ok(());
         }
-        
+
         let compressed_path = log_path.with_extension("log.7z");
         let file_content = fs::read(log_path)?;
-        
+
         // Create 7z archive
         let mut archive_file = File::create(&compressed_path)?;
         let mut encoder = sevenz_rust::SevenZWriter::new(&mut archive_file)?;
-        
-        let filename = log_path.file_name()
+
+        let filename = log_path
+            .file_name()
             .and_then(|name| name.to_str())
             .unwrap_or("log.txt");
-            
+
         encoder.push_archive_entry(
             sevenz_rust::SevenZArchiveEntry::from_path(filename, filename.to_string()),
             Some(std::io::Cursor::new(file_content)),
         )?;
-        
+
         encoder.finish()?;
-        
+
         // Remove original file after successful compression
         fs::remove_file(log_path)?;
-        
+
         Ok(())
     }
-    
+
     /// Clean up old log files based on retention policy
     pub fn cleanup_old_logs(&self) -> Result<(), Box<dyn std::error::Error>> {
         let cutoff_date = Utc::now() - chrono::Duration::days(self.config.retention_days as i64);
-        
-        for log_dir in [self.config.logs_dir.join("launcher"), self.config.logs_dir.join("installations")] {
+
+        for log_dir in [
+            self.config.logs_dir.join("launcher"),
+            self.config.logs_dir.join("installations"),
+        ] {
             if log_dir.exists() {
                 self.cleanup_directory(&log_dir, &cutoff_date)?;
             }
         }
-        
+
         Ok(())
     }
     #[allow(clippy::only_used_in_recursion)]
-    fn cleanup_directory(&self, dir: &Path, cutoff_date: &DateTime<Utc>) -> Result<(), Box<dyn std::error::Error>> {
+    fn cleanup_directory(
+        &self,
+        dir: &Path,
+        cutoff_date: &DateTime<Utc>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
-            
+
             if path.is_file() {
                 // Check file creation date
                 let metadata = fs::metadata(&path)?;
@@ -225,14 +247,14 @@ impl LogStorage {
             } else if path.is_dir() {
                 // Recursively clean subdirectories (for installation-specific logs)
                 self.cleanup_directory(&path, cutoff_date)?;
-                
+
                 // Remove empty directories
                 if path.read_dir()?.next().is_none() {
                     fs::remove_dir(&path)?;
                 }
             }
         }
-        
+
         Ok(())
     }
 }
@@ -274,7 +296,7 @@ impl Logger {
         if let Err(e) = app.emit_to("main", "launcher-log", log_data) {
             eprintln!("Failed to emit log event: {}", e);
         }
-        
+
         // Write to persistent storage if enabled
         if let Ok(storage_guard) = LOG_STORAGE.lock() {
             if let Some(storage) = storage_guard.as_ref() {
@@ -289,15 +311,17 @@ impl Logger {
     pub fn console_log(level: LogLevel, message: &str, instance_id: Option<&str>) {
         // Always log to console first (fallback)
         let timestamp = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC");
-        let instance_str = instance_id.map(|id| format!(" [{}]", id)).unwrap_or_default();
-        
+        let instance_str = instance_id
+            .map(|id| format!(" [{}]", id))
+            .unwrap_or_default();
+
         match level {
             LogLevel::Error => eprintln!("[{}] ERROR{}: {}", timestamp, instance_str, message),
             LogLevel::Warning => eprintln!("[{}] WARN{}: {}", timestamp, instance_str, message),
             LogLevel::Info => println!("[{}] INFO{}: {}", timestamp, instance_str, message),
             LogLevel::Debug => println!("[{}] DEBUG{}: {}", timestamp, instance_str, message),
         }
-        
+
         // Also try to log to frontend if app handle is available
         if let Ok(handle_guard) = GLOBAL_APP_HANDLE.lock() {
             if let Some(app_handle) = handle_guard.as_ref() {
@@ -327,27 +351,32 @@ impl Logger {
     }
 
     /// Log a formatted message (like println! but to the logging system)
-    pub fn log_fmt(app: &AppHandle, level: LogLevel, args: fmt::Arguments<'_>, instance_id: Option<&str>) {
+    pub fn log_fmt(
+        app: &AppHandle,
+        level: LogLevel,
+        args: fmt::Arguments<'_>,
+        instance_id: Option<&str>,
+    ) {
         Self::log(app, level, &format!("{}", args), instance_id);
     }
-    
+
     /// Convenient global logging methods that work without AppHandle
     pub fn info_global(message: &str, instance_id: Option<&str>) {
         Self::console_log(LogLevel::Info, message, instance_id);
     }
-    
+
     pub fn warn_global(message: &str, instance_id: Option<&str>) {
         Self::console_log(LogLevel::Warning, message, instance_id);
     }
-    
+
     pub fn error_global(message: &str, instance_id: Option<&str>) {
         Self::console_log(LogLevel::Error, message, instance_id);
     }
-    
+
     pub fn debug_global(message: &str, instance_id: Option<&str>) {
         Self::console_log(LogLevel::Debug, message, instance_id);
     }
-    
+
     /// Update logging configuration from settings
     pub fn update_log_config(settings: &CategorizedLauncherSettings) {
         if let Ok(mut storage_guard) = LOG_STORAGE.lock() {
@@ -356,12 +385,13 @@ impl Logger {
             }
         }
     }
-    
+
     /// Manually trigger log cleanup
     pub fn cleanup_logs() -> Result<(), String> {
         if let Ok(storage_guard) = LOG_STORAGE.lock() {
             if let Some(storage) = storage_guard.as_ref() {
-                storage.cleanup_old_logs()
+                storage
+                    .cleanup_old_logs()
                     .map_err(|e| format!("Failed to cleanup logs: {}", e))?;
             }
         }
@@ -432,7 +462,7 @@ macro_rules! log_debug_global {
 pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
     use std::fs::File;
     use std::io::Write;
-    
+
     // Get the logs directory from storage or fallback to default
     let logs_dir = if let Ok(storage_guard) = LOG_STORAGE.lock() {
         if let Some(storage) = storage_guard.as_ref() {
@@ -453,32 +483,38 @@ pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
             .join("kable")
             .join("logs")
     };
-    
+
     // Create exports directory
     let exports_dir = logs_dir.join("exports");
     fs::create_dir_all(&exports_dir)
         .map_err(|e| format!("Failed to create exports directory: {}", e))?;
-    
+
     let log_content = if let Some(ref id) = instance_id {
-        format!("Logs for instance: {}\n\n[Sample log entries for instance {}]", id, id)
+        format!(
+            "Logs for instance: {}\n\n[Sample log entries for instance {}]",
+            id, id
+        )
     } else {
         "Global launcher logs\n\n[Sample global log entries]".to_string()
     };
-    
+
     let filename = if let Some(ref id) = instance_id {
         format!("kable_logs_{}.txt", id)
     } else {
         "kable_logs_global.txt".to_string()
     };
-    
+
     let export_path = exports_dir.join(&filename);
-    let mut file = File::create(&export_path)
-        .map_err(|e| format!("Failed to create log file: {}", e))?;
-    
+    let mut file =
+        File::create(&export_path).map_err(|e| format!("Failed to create log file: {}", e))?;
+
     file.write_all(log_content.as_bytes())
         .map_err(|e| format!("Failed to write log file: {}", e))?;
-    
-    Logger::info_global(&format!("Logs exported to: {}", export_path.display()), instance_id.as_deref());
+
+    Logger::info_global(
+        &format!("Logs exported to: {}", export_path.display()),
+        instance_id.as_deref(),
+    );
     Ok(())
 }
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Icon, SkinsManager, type MinecraftSkin } from '$lib';
+import { Icon, SkinsService, type MinecraftSkin } from '$lib';
 
   // State variables
   let skins: MinecraftSkin[] = [];
@@ -18,7 +18,7 @@
       error = null;
 
       // Load skins from backend
-      const result = await SkinsManager.getSkins();
+      const result = await SkinsService.getSkins();
       skins = result || getDefaultSkins();
 
     } catch (err) {
@@ -63,7 +63,7 @@
       const skin = skins[index];
       
       // Apply the skin
-      await SkinsManager.applySkin(skin.id);
+      await SkinsService.applySkin(skin.id);
       
     } catch (err) {
       console.error('Failed to change skin:', err);
@@ -74,7 +74,7 @@
   async function uploadSkin() {
     try {
       // Trigger file picker and upload skin
-      const newSkin = await SkinsManager.uploadSkin();
+      const newSkin = await SkinsService.uploadSkin();
       if (newSkin) {
         skins = [...skins, newSkin];
       }
@@ -90,7 +90,7 @@
     }
 
     try {
-      await SkinsManager.deleteSkin(skinId);
+      await SkinsService.deleteSkin(skinId);
       skins = skins.filter(skin => skin.id !== skinId);
       
       // Reset selection if deleted skin was selected

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { MapsManager, SettingsManager, Icon } from '$lib';
+import { MapsService, SettingsService, Icon } from '$lib';
   import type { LocalWorld } from '$lib/types';
 
   let searchQuery = '';
@@ -30,7 +30,7 @@
     isLoading = true;
     error = null;
     try {
-      localWorlds = await MapsManager.getLocalWorlds();
+      localWorlds = await MapsService.getLocalWorlds();
       updateFilteredWorlds();
     } catch (err) {
       console.error('Failed to load worlds:', err);
@@ -86,7 +86,7 @@
     }
 
     try {
-      await MapsManager.deleteWorld(worldName);
+      await MapsService.deleteWorld(worldName);
       await loadWorlds(); // Refresh the list
     } catch (err) {
       console.error('Failed to delete world:', err);
@@ -96,7 +96,7 @@
 
   async function backupWorld(worldName: string) {
     try {
-      const backupName = await MapsManager.backupWorld(worldName);
+      const backupName = await MapsService.backupWorld(worldName);
       // Show success message with backup location info
       const successMessage = `World "${worldName}" backed up successfully as "${backupName}".\nBackups are stored in .minecraft/kable/world-backups/`;
       alert(successMessage);

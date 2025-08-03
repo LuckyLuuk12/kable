@@ -12,8 +12,8 @@ pub struct PlayerProfile {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum SkinModel {
-    Steve,  // Classic skin model
-    Alex,   // Slim skin model
+    Steve, // Classic skin model
+    Alex,  // Slim skin model
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -1,7 +1,7 @@
 <script lang="ts">
   let showCustomTemplates = false;
   import { settings } from "$lib/stores";
-  import { Icon, IconManager, availableTemplates } from "$lib";
+import { Icon, IconService, availableTemplates } from "$lib";
   import { onMount } from "svelte";
 
   let isWideScreen = true;
@@ -22,7 +22,7 @@
 
   async function selectIconTemplate(templateName: string) {
     try {
-      await IconManager.setActiveTemplate(templateName);
+      await IconService.setActiveTemplate?.(templateName);
       $settings.appearance.selected_icon_template = templateName;
       saveStatus = 'Icon template updated successfully';
       setTimeout(() => saveStatus = '', 2000);
@@ -37,8 +37,8 @@
       uploadError = '';
       const content = await uploadFile.text();
       const format = uploadFile.name.endsWith('.yml') || uploadFile.name.endsWith('.yaml') ? 'yaml' : 'json';
-      const template = await IconManager.validateTemplate(content, format);
-      await IconManager.installCustomTemplate(template);
+      const template = await IconService.validateTemplate?.(content, format);
+      await IconService.installCustomTemplate?.(template);
       showIconUpload = false;
       saveStatus = `Template "${template.displayName || uploadFile.name}" installed successfully`;
       setTimeout(() => saveStatus = '', 3000);
@@ -75,7 +75,7 @@
   async function removeCustomTemplate(templateName: string) {
     if (!confirm('Are you sure you want to remove this icon template?')) return;
     try {
-      await IconManager.removeCustomTemplate(templateName);
+      await IconService.removeCustomTemplate?.(templateName);
       saveStatus = 'Template removed successfully';
       setTimeout(() => saveStatus = '', 2000);
     } catch (error) {
@@ -86,7 +86,7 @@
 
   async function openIconsDirectory() {
     try {
-      await IconManager.openIconsDirectory();
+      await IconService.openIconsDirectory?.();
     } catch (error) {
       saveStatus = 'Failed to open icons directory';
       setTimeout(() => saveStatus = '', 2000);

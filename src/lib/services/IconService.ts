@@ -1,5 +1,5 @@
 import { writable, get } from 'svelte/store';
-import { type CustomIconTemplate, SettingsManager } from '$lib';
+import { type CustomIconTemplate, SettingsService } from '$lib';
 
 // Icon stores for reactive updates
 export const selectedTemplate = writable<string>('emoji');
@@ -7,7 +7,7 @@ export const availableTemplates = writable<Array<{ name: string; displayName: st
 export const isIconsLoading = writable(false);
 export const iconError = writable<string | null>(null);
 
-export class IconManager {
+export class IconService {
   private static customTemplates = new Map<string, CustomIconTemplate>();
   private static builtinTemplates = new Map<string, CustomIconTemplate>();
   private static initialized = false;
@@ -29,7 +29,7 @@ export class IconManager {
       await this.loadCustomTemplates();
       
       // Load the selected template from settings and set it
-      const settings = await SettingsManager.getSettings();
+      const settings = await SettingsService.getSettings();
       const templateName = settings.appearance.selected_icon_template || 'emoji';
       selectedTemplate.set(templateName);
       
@@ -657,8 +657,8 @@ export class IconManager {
       selectedTemplate.set(templateName);
       
       // Persist to settings
-      await SettingsManager.updateSetting('appearance', {
-        ...SettingsManager.getSettings().appearance,
+      await SettingsService.update('appearance', {
+        ...(await SettingsService.getSettings()).appearance,
         selected_icon_template: templateName
       });
       

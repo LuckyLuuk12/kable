@@ -1,7 +1,7 @@
+use crate::AppError;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
-use crate::AppError;
 
 // Shader management structures
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -78,17 +78,17 @@ pub enum ShaderSource {
 #[tauri::command]
 pub async fn get_installed_shaders(minecraft_path: String) -> Result<Vec<ShaderPack>, String> {
     let shaderpacks_dir = PathBuf::from(minecraft_path).join("shaderpacks");
-    
+
     if !shaderpacks_dir.exists() {
         return Ok(Vec::new());
     }
-    
+
     let mut shaders = Vec::new();
-    
+
     for entry in fs::read_dir(&shaderpacks_dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let file_path = entry.path();
-        
+
         if file_path.is_file() {
             if let Some(extension) = file_path.extension() {
                 if extension == "zip" || extension == "jar" {
@@ -99,10 +99,10 @@ pub async fn get_installed_shaders(minecraft_path: String) -> Result<Vec<ShaderP
             }
         }
     }
-    
+
     // Sort by name
     shaders.sort_by(|a, b| a.name.cmp(&b.name));
-    
+
     Ok(shaders)
 }
 
@@ -113,13 +113,13 @@ async fn parse_shader_pack(shader_path: &PathBuf) -> Result<ShaderPack, AppError
         .and_then(|n| n.to_str())
         .unwrap_or("Unknown")
         .to_string();
-    
+
     let file_size = fs::metadata(shader_path)?.len();
-    
+
     // Extract shader info from filename (basic approach)
     let name = extract_shader_name(&file_name);
     let version = extract_shader_version(&file_name);
-    
+
     // Get installation date from file metadata
     let installed_date = if let Ok(metadata) = fs::metadata(shader_path) {
         if let Ok(created) = metadata.created() {
@@ -134,7 +134,7 @@ async fn parse_shader_pack(shader_path: &PathBuf) -> Result<ShaderPack, AppError
     } else {
         0
     };
-    
+
     Ok(ShaderPack {
         id: file_name.clone(),
         name,
@@ -158,10 +158,10 @@ async fn parse_shader_pack(shader_path: &PathBuf) -> Result<ShaderPack, AppError
 fn extract_shader_name(filename: &str) -> String {
     // Remove file extension
     let name_without_ext = filename.trim_end_matches(".zip").trim_end_matches(".jar");
-    
+
     // Try to extract name before version indicators
     let version_indicators = ["_v", "_V", "-v", "-V", "_", "-"];
-    
+
     for indicator in &version_indicators {
         if let Some(pos) = name_without_ext.find(indicator) {
             let potential_name = &name_without_ext[..pos];
@@ -170,7 +170,7 @@ fn extract_shader_name(filename: &str) -> String {
             }
         }
     }
-    
+
     // If no version indicator found, use the whole name
     name_without_ext.replace("_", " ").replace("-", " ")
 }
@@ -178,7 +178,7 @@ fn extract_shader_name(filename: &str) -> String {
 // Extract version from filename
 fn extract_shader_version(filename: &str) -> String {
     let name_without_ext = filename.trim_end_matches(".zip").trim_end_matches(".jar");
-    
+
     // Simple version extraction - look for patterns like v1.0, 1.0, etc.
     if let Some(v_pos) = name_without_ext.find('v') {
         let after_v = &name_without_ext[v_pos + 1..];
@@ -188,15 +188,19 @@ fn extract_shader_version(filename: &str) -> String {
             return after_v.to_string();
         }
     }
-    
+
     "Unknown".to_string()
 }
 
 // Enable/disable shader pack
 #[tauri::command]
-pub async fn toggle_shader(minecraft_path: String, shader_file: String, enabled: bool) -> Result<(), String> {
+pub async fn toggle_shader(
+    minecraft_path: String,
+    shader_file: String,
+    enabled: bool,
+) -> Result<(), String> {
     let options_file = PathBuf::from(minecraft_path).join("optionsshaders.txt");
-    
+
     // This is a simplified implementation
     // In reality, you'd need to properly parse and modify the OptiFine shaders config
     if enabled {
@@ -206,60 +210,73 @@ pub async fn toggle_shader(minecraft_path: String, shader_file: String, enabled:
         let content = "shaderPack=\n";
         fs::write(&options_file, content).map_err(|e| e.to_string())?;
     }
-    
+
     Ok(())
 }
 
 // Delete shader pack
 #[tauri::command]
 pub async fn delete_shader(minecraft_path: String, shader_file: String) -> Result<(), String> {
-    let shader_path = PathBuf::from(minecraft_path).join("shaderpacks").join(shader_file);
-    
+    let shader_path = PathBuf::from(minecraft_path)
+        .join("shaderpacks")
+        .join(shader_file);
+
     if !shader_path.exists() {
         return Err("Shader file does not exist".to_string());
     }
-    
+
     fs::remove_file(&shader_path).map_err(|e| format!("Failed to delete shader: {}", e))?;
-    
+
     Ok(())
 }
 
 // Install shader pack from file
 #[tauri::command]
-pub async fn install_shader_pack(minecraft_path: String, shader_file_path: String) -> Result<String, String> {
+pub async fn install_shader_pack(
+    minecraft_path: String,
+    shader_file_path: String,
+) -> Result<String, String> {
     let source_path = PathBuf::from(shader_file_path);
     let shaderpacks_dir = PathBuf::from(minecraft_path).join("shaderpacks");
-    
+
     if !source_path.exists() {
         return Err("Source shader file does not exist".to_string());
     }
-    
+
     // Create shaderpacks directory if it doesn't exist
     if !shaderpacks_dir.exists() {
         fs::create_dir_all(&shaderpacks_dir).map_err(|e| e.to_string())?;
     }
-    
+
     let file_name = source_path
         .file_name()
         .and_then(|n| n.to_str())
         .ok_or("Invalid file name")?;
-    
+
     let destination_path = shaderpacks_dir.join(file_name);
-    
+
     // Copy shader pack to shaderpacks directory
-    fs::copy(&source_path, &destination_path).map_err(|e| format!("Failed to install shader: {}", e))?;
-    
+    fs::copy(&source_path, &destination_path)
+        .map_err(|e| format!("Failed to install shader: {}", e))?;
+
     Ok(file_name.to_string())
 }
 
 // Get shader pack info
 #[tauri::command]
-pub async fn get_shader_info(minecraft_path: String, shader_file: String) -> Result<ShaderPack, String> {
-    let shader_path = PathBuf::from(minecraft_path).join("shaderpacks").join(shader_file);
-    
+pub async fn get_shader_info(
+    minecraft_path: String,
+    shader_file: String,
+) -> Result<ShaderPack, String> {
+    let shader_path = PathBuf::from(minecraft_path)
+        .join("shaderpacks")
+        .join(shader_file);
+
     if !shader_path.exists() {
         return Err("Shader file does not exist".to_string());
     }
-    
-    parse_shader_pack(&shader_path).await.map_err(|e| e.to_string())
+
+    parse_shader_pack(&shader_path)
+        .await
+        .map_err(|e| e.to_string())
 }

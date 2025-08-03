@@ -1,23 +1,28 @@
 /// Ensures that a modded installation has a dedicated mods folder set and created.
 /// Returns true if the folder was set/created, false otherwise.
-async fn ensure_dedicated_mods_folder(installation: &mut KableInstallation) -> Result<bool, String> {
+async fn ensure_dedicated_mods_folder(
+    installation: &mut KableInstallation,
+) -> Result<bool, String> {
     use crate::installations::get_version;
     let version_id = &installation.version_id;
     let version_data = get_version(version_id.clone()).await;
     let is_modded = match &version_data {
-        Some(v) => {
-            v.loader != LoaderKind::Vanilla
-        },
-        None => false
+        Some(v) => v.loader != LoaderKind::Vanilla,
+        None => false,
     };
     if is_modded && installation.dedicated_mods_folder.is_none() {
         // Set mods_folder to installation id
         installation.dedicated_mods_folder = Some(installation.id.clone());
         // Create .minecraft/kable/mods/<id> if not exists
-        let minecraft_dir = crate::get_default_minecraft_dir().map_err(|e| format!("Failed to get default Minecraft dir: {e}"))?;
-        let mods_dir = minecraft_dir.join("kable").join("mods").join(&installation.id);
+        let minecraft_dir = crate::get_default_minecraft_dir()
+            .map_err(|e| format!("Failed to get default Minecraft dir: {e}"))?;
+        let mods_dir = minecraft_dir
+            .join("kable")
+            .join("mods")
+            .join(&installation.id);
         if !mods_dir.exists() {
-            std::fs::create_dir_all(&mods_dir).map_err(|e| format!("Failed to create mods dir: {e}"))?;
+            std::fs::create_dir_all(&mods_dir)
+                .map_err(|e| format!("Failed to create mods dir: {e}"))?;
         }
         Ok(true)
     } else {
@@ -30,8 +35,8 @@ pub mod versions;
 
 use crate::installations::kable_profiles::*;
 use crate::installations::versions::*;
+use crate::logging::{LogLevel, Logger};
 use tokio::sync::OnceCell;
-use crate::logging::{Logger, LogLevel};
 
 // Internal cache for installations
 static INSTALLATIONS_CACHE: OnceCell<Vec<KableInstallation>> = OnceCell::const_new();
@@ -41,9 +46,10 @@ async fn build_installations_async() -> Result<Vec<KableInstallation>, String> {
     match profiles::read_launcher_profiles_async().await {
         Ok(launcher_profiles) => {
             // Use a tuple of (name, last_version_id, created) for deduplication, all as String
-            let kable_keys: std::collections::HashSet<(String, String, String)> = installations.iter().map(|i| {
-                (i.name.clone(), i.version_id.clone(), i.created.clone())
-            }).collect();
+            let kable_keys: std::collections::HashSet<(String, String, String)> = installations
+                .iter()
+                .map(|i| (i.name.clone(), i.version_id.clone(), i.created.clone()))
+                .collect();
             let mut new_converted: Vec<KableInstallation> = launcher_profiles
                 .into_iter()
                 .map(|lp| lp.into())
@@ -54,9 +60,16 @@ async fn build_installations_async() -> Result<Vec<KableInstallation>, String> {
                 .collect();
             installations.append(&mut new_converted);
             kable_profiles::write_kable_profiles_async(&installations).await?;
-        },
+        }
         Err(e) => {
-            Logger::console_log(LogLevel::Warning, &format!("Failed to read launcher profiles, only kable profiles will be used. Error: {}", e), None);
+            Logger::console_log(
+                LogLevel::Warning,
+                &format!(
+                    "Failed to read launcher profiles, only kable profiles will be used. Error: {}",
+                    e
+                ),
+                None,
+            );
         }
     }
     Ok(installations)
@@ -76,7 +89,11 @@ pub async fn get_versions() -> Versions {
 pub async fn get_all_versions(force: bool) -> Versions {
     if force {
         let versions = build_versions().await;
-        Logger::console_log(LogLevel::Debug, &format!("Fetched versions: {:?}", versions.len()), None);
+        Logger::console_log(
+            LogLevel::Debug,
+            &format!("Fetched versions: {:?}", versions.len()),
+            None,
+        );
         let _ = VERSIONS_CACHE.set(versions.clone());
         versions
     } else {
@@ -90,18 +107,21 @@ pub async fn get_version(version_id: String) -> Option<VersionData> {
     versions.get_version(&version_id).cloned()
 }
 
-
 /// Returns all Kable installations, using cache. Ensures conversion if needed.
 #[tauri::command]
 pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
-    let cached = INSTALLATIONS_CACHE.get_or_init(|| async {
-        build_installations_async().await.unwrap_or_default()
-    }).await;
+    let cached = INSTALLATIONS_CACHE
+        .get_or_init(|| async { build_installations_async().await.unwrap_or_default() })
+        .await;
     if cached.is_empty() {
         // If cache is empty, try to build again for error reporting
         let installations = build_installations_async().await?;
         INSTALLATIONS_CACHE.set(installations.clone()).ok();
-        Logger::console_log(LogLevel::Debug, &format!("Built installations: {:?}", installations.len()), None);
+        Logger::console_log(
+            LogLevel::Debug,
+            &format!("Built installations: {:?}", installations.len()),
+            None,
+        );
         Ok(installations)
     } else {
         Logger::console_log(LogLevel::Debug, "Using cached installations", None);
@@ -122,21 +142,36 @@ pub async fn delete_installation(id: &str) -> Result<(), String> {
     let orig_len = installations.len();
     installations.retain(|i| i.id != id);
     if installations.len() == orig_len {
-        Logger::console_log(LogLevel::Warning, &format!("No Kable installation found with id: {}", id), None);
+        Logger::console_log(
+            LogLevel::Warning,
+            &format!("No Kable installation found with id: {}", id),
+            None,
+        );
         return Err(format!("No Kable installation found with id: {}", id));
     }
     let result = kable_profiles::write_kable_profiles_async(&installations).await;
     INSTALLATIONS_CACHE.set(installations.clone()).ok();
     match &result {
-        Ok(_) => Logger::console_log(LogLevel::Info, &format!("Installation '{}' deleted successfully.", id), None),
-        Err(e) => Logger::console_log(LogLevel::Error, &format!("Failed to delete installation '{}': {}", id, e), None),
+        Ok(_) => Logger::console_log(
+            LogLevel::Info,
+            &format!("Installation '{}' deleted successfully.", id),
+            None,
+        ),
+        Err(e) => Logger::console_log(
+            LogLevel::Error,
+            &format!("Failed to delete installation '{}': {}", id, e),
+            None,
+        ),
     }
     result
 }
 
 /// Modifies an existing KableInstallation by ID in kable_profiles.json and invalidates cache
 #[tauri::command]
-pub async fn modify_installation(id: &str, mut new_installation: KableInstallation) -> Result<(), String> {
+pub async fn modify_installation(
+    id: &str,
+    mut new_installation: KableInstallation,
+) -> Result<(), String> {
     let mut installations = kable_profiles::read_kable_profiles_async().await?;
     let index = installations.iter().position(|i| i.id == id);
     if let Some(index) = index {
@@ -146,12 +181,24 @@ pub async fn modify_installation(id: &str, mut new_installation: KableInstallati
         let result = kable_profiles::write_kable_profiles_async(&installations).await;
         INSTALLATIONS_CACHE.set(installations.clone()).ok();
         match &result {
-            Ok(_) => Logger::console_log(LogLevel::Info, &format!("Installation '{}' modified successfully.", id), None),
-            Err(e) => Logger::console_log(LogLevel::Error, &format!("Failed to modify installation '{}': {}", id, e), None),
+            Ok(_) => Logger::console_log(
+                LogLevel::Info,
+                &format!("Installation '{}' modified successfully.", id),
+                None,
+            ),
+            Err(e) => Logger::console_log(
+                LogLevel::Error,
+                &format!("Failed to modify installation '{}': {}", id, e),
+                None,
+            ),
         }
         result
     } else {
-        Logger::console_log(LogLevel::Warning, &format!("No Kable installation found with id: {}", id), None);
+        Logger::console_log(
+            LogLevel::Warning,
+            &format!("No Kable installation found with id: {}", id),
+            None,
+        );
         Err(format!("No Kable installation found with id: {}", id))
     }
 }
@@ -169,8 +216,18 @@ pub async fn create_installation(version_id: &str) -> Result<KableInstallation, 
         count += 1;
     }
     let versions = get_versions().await;
-    let version_data = versions.get_version(version_id).cloned().ok_or_else(|| format!("No version found for id: {}", version_id))?;
-    Logger::console_log(LogLevel::Info, &format!("Creating new installation: name='{}', version_id='{}'", name, version_data.version_id), None);
+    let version_data = versions
+        .get_version(version_id)
+        .cloned()
+        .ok_or_else(|| format!("No version found for id: {}", version_id))?;
+    Logger::console_log(
+        LogLevel::Info,
+        &format!(
+            "Creating new installation: name='{}', version_id='{}'",
+            name, version_data.version_id
+        ),
+        None,
+    );
     let mut new_installation = KableInstallation {
         name,
         version_id: version_data.version_id.clone(),
@@ -182,8 +239,22 @@ pub async fn create_installation(version_id: &str) -> Result<KableInstallation, 
     let result = kable_profiles::write_kable_profiles_async(&installations).await;
     INSTALLATIONS_CACHE.set(installations.clone()).ok();
     match &result {
-        Ok(_) => Logger::console_log(LogLevel::Info, &format!("Installation '{}' created successfully.", new_installation.name), None),
-        Err(e) => Logger::console_log(LogLevel::Error, &format!("Failed to create installation '{}': {}", new_installation.name, e), None),
+        Ok(_) => Logger::console_log(
+            LogLevel::Info,
+            &format!(
+                "Installation '{}' created successfully.",
+                new_installation.name
+            ),
+            None,
+        ),
+        Err(e) => Logger::console_log(
+            LogLevel::Error,
+            &format!(
+                "Failed to create installation '{}': {}",
+                new_installation.name, e
+            ),
+            None,
+        ),
     }
     result?;
     Ok(new_installation)

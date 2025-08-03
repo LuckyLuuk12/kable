@@ -1,21 +1,22 @@
+use serde::{Deserialize, Serialize};
+use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::fs;
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use tauri::Manager;
+use thiserror::Error;
 
 // Module declarations
 mod auth;
-mod settings;
-mod profile;
-mod maps;
-mod mods;
-mod shaders;
-mod skins;
+mod commands;
+mod icons;
 mod installations;
 mod launcher;
-mod icons;
+mod maps;
+mod mods;
+mod profile;
+mod settings;
+mod shaders;
+mod skins;
 mod window_state;
 
 #[macro_use]
@@ -23,24 +24,32 @@ mod logging;
 
 // Re-export public items from modules
 pub use auth::{
-    // Auth utility functions
-    LauncherAccount, MinecraftProfile, LauncherAccountsJson, 
-    read_launcher_accounts, write_launcher_accounts, write_launcher_account, 
-    remove_launcher_account, set_active_launcher_account, get_active_launcher_account, 
-    get_all_launcher_accounts, get_launcher_accounts_path_string, open_url,
+    get_active_launcher_account,
+    get_all_launcher_accounts,
+    get_launcher_accounts_path_string,
+    read_launcher_accounts,
+    remove_launcher_account,
+    set_active_launcher_account,
+    write_launcher_account,
+    write_launcher_accounts,
     // Main auth types (only these are needed for lib.rs re-export)
-    AuthMethod
+    AuthMethod,
+    // Auth utility functions
+    LauncherAccount,
+    LauncherAccountsJson,
+    MinecraftProfile,
 };
-pub use settings::*;
-pub use maps::*;
-pub use mods::*;
-pub use shaders::*;
-pub use skins::*;
+pub use commands::*;
+pub use icons::*;
 pub use installations::*;
 pub use launcher::*;
-pub use icons::*;
-pub use window_state::*;
 pub use logging::*;
+pub use maps::*;
+pub use mods::*;
+pub use settings::*;
+pub use shaders::*;
+pub use skins::*;
+pub use window_state::*;
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -62,8 +71,6 @@ impl From<AppError> for String {
     }
 }
 
-
-
 // Existing structures
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LaunchOptions {
@@ -80,40 +87,41 @@ pub struct LaunchOptions {
     pub fullscreen: Option<bool>,
 }
 
-
-
-
 // Read usernames from usercache.json for offline mode reference
 #[tauri::command]
 async fn get_cached_usernames(minecraft_path: String) -> Result<Vec<String>, String> {
     let usercache_path = PathBuf::from(&minecraft_path).join("usercache.json");
-    
+
     if !usercache_path.exists() {
         return Ok(Vec::new());
     }
-    
+
     let contents = fs::read_to_string(usercache_path).map_err(|e| e.to_string())?;
-    let usercache: Vec<serde_json::Value> = serde_json::from_str(&contents).map_err(|e| e.to_string())?;
-    
+    let usercache: Vec<serde_json::Value> =
+        serde_json::from_str(&contents).map_err(|e| e.to_string())?;
+
     let usernames: Vec<String> = usercache
         .iter()
         .filter_map(|entry| entry["name"].as_str().map(|s| s.to_string()))
         .collect();
-    
+
     Ok(usernames)
 }
 
 // Launch Minecraft with specified options
 #[tauri::command]
-async fn launch_minecraft(options: LaunchOptions, minecraft_path: String) -> Result<String, String> {
+async fn launch_minecraft(
+    options: LaunchOptions,
+    minecraft_path: String,
+) -> Result<String, String> {
     let minecraft_dir = PathBuf::from(&minecraft_path);
     let versions_dir = minecraft_dir.join("versions").join(&options.version);
     let jar_path = versions_dir.join(format!("{}.jar", options.version));
-    
+
     if !jar_path.exists() {
         return Err(format!("Minecraft version {} not found", options.version));
     }
-    
+
     // Basic launch command - this is simplified
     let java_args = vec![
         format!("-Xmx{}m", options.memory),
@@ -131,7 +139,7 @@ async fn launch_minecraft(options: LaunchOptions, minecraft_path: String) -> Res
         "--gameDir".to_string(),
         minecraft_dir.to_string_lossy().to_string(),
     ];
-    
+
     match Command::new("java")
         .args(&java_args)
         .current_dir(&minecraft_dir)
@@ -154,13 +162,11 @@ async fn check_java_installation() -> Result<String, String> {
     }
 }
 
-
-
-
 /// This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard_manager::init())
         .invoke_handler(tauri::generate_handler![
             get_cached_usernames,
             launch_minecraft,
@@ -173,7 +179,6 @@ pub fn run() {
             auth::get_launch_auth_account,
             auth::refresh_minecraft_account,
             // Auth utilities (starting fresh) - using direct module paths
-            auth::auth_util::open_url,
             auth::auth_util::read_launcher_accounts,
             auth::auth_util::write_launcher_accounts,
             auth::auth_util::write_launcher_account,
@@ -252,32 +257,46 @@ pub fn run() {
             logging::export_logs,
             logging::update_logging_config,
             logging::cleanup_old_logs,
-            logging::get_log_stats
+            logging::get_log_stats,
+            // System commands
+            commands::system::open_url
         ])
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Initialize global logger first
             logging::init_global_logger(app.handle());
-            
+
             // Set up window state handlers
             if let Err(e) = setup_window_state_handlers(app) {
-                Logger::console_log(LogLevel::Error, &format!("Failed to setup window state handlers: {}", e), None);
+                Logger::console_log(
+                    LogLevel::Error,
+                    &format!("Failed to setup window state handlers: {}", e),
+                    None,
+                );
             }
-            
+
             // Apply window state but don't show the window yet - let frontend trigger it
             if let Some(window) = app.get_webview_window("main") {
                 tauri::async_runtime::spawn(async move {
                     if let Ok(state) = load_window_state().await {
                         if let Err(e) = apply_window_state(window.clone(), state).await {
-                            Logger::console_log(LogLevel::Warning, &format!("Failed to apply window state: {}", e), None);
+                            Logger::console_log(
+                                LogLevel::Warning,
+                                &format!("Failed to apply window state: {}", e),
+                                None,
+                            );
                         }
                     } else {
-                        Logger::console_log(LogLevel::Warning, "No saved window state found, using default settings", None);
+                        Logger::console_log(
+                            LogLevel::Warning,
+                            "No saved window state found, using default settings",
+                            None,
+                        );
                     }
                     // Window will be shown by frontend after initialization
                 });
             }
-            
+
             Ok(())
         })
         .run(tauri::generate_context!())
@@ -292,17 +311,21 @@ fn get_default_minecraft_dir() -> Result<PathBuf, String> {
         dirs::data_dir().map(|p| p.join(".minecraft")),
         dirs::home_dir().map(|p| p.join("AppData").join("Roaming").join(".minecraft")),
         // macOS
-        dirs::home_dir().map(|p| p.join("Library").join("Application Support").join("minecraft")),
+        dirs::home_dir().map(|p| {
+            p.join("Library")
+                .join("Application Support")
+                .join("minecraft")
+        }),
         // Linux
         dirs::home_dir().map(|p| p.join(".minecraft")),
     ];
-    
+
     for path in possible_paths.into_iter().flatten() {
         if path.exists() {
             return Ok(path);
         }
     }
-    
+
     // If no existing installation found, return the default path
     if let Some(appdata) = dirs::data_dir() {
         let minecraft_dir = appdata.join(".minecraft");

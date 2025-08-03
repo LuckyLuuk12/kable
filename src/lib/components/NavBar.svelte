@@ -2,7 +2,7 @@
   import '$lib/styles/global.scss';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
-  import { currentAccount, AuthManager, SettingsManager, InstallationManager, Icon, logsService, LogsManager, IconManager, WindowStateManager, settings, TitleBar } from '$lib';
+ import { currentAccount, AuthService, SettingsService, InstallationService, Icon, logsService, LogsService, IconService, WindowStateService, settings } from '$lib';
   
   let isTauriReady = false;
   let initializationStatus = 'Initializing...';
@@ -16,24 +16,24 @@
     
     try {
       // Test if Tauri is ready by making a simple call
-      await InstallationManager.loadInstallations();
+      await InstallationService.loadInstallations();
       isTauriReady = true;
       
       // Initialize logs service first
       await logsService.initialize();
-      LogsManager.emitLauncherEvent('Kable launcher starting up...', 'info');
+      LogsService.emitLauncherEvent('Kable launcher starting up...', 'info');
       
-      // Initialize all managers
-      LogsManager.emitLauncherEvent('Initializing launcher components...', 'info');
+      // Initialize all services
+      LogsService.emitLauncherEvent('Initializing launcher components...', 'info');
       
       await Promise.all([
-        WindowStateManager.initialize(), // Initialize window state first
-        AuthManager.initialize(),
-        SettingsManager.initialize(),
-        IconManager.initialize()
+        WindowStateService.initialize(), // Initialize window state first
+        SettingsService.initialize(),
+        AuthService.initialize(),
+        IconService.initialize()
       ]);
       
-      LogsManager.emitLauncherEvent('All components initialized successfully', 'info');
+      LogsService.emitLauncherEvent('All components initialized successfully', 'info');
       initializationStatus = 'Ready';
       
       console.log('Layout initialization complete');
@@ -47,7 +47,7 @@
       }
     } catch (error) {
       console.error('Tauri initialization error:', error);
-      LogsManager.emitLauncherEvent(`Initialization error: ${error}`, 'error');
+      LogsService.emitLauncherEvent(`Initialization error: ${error}`, 'error');
       initializationStatus = `Initialization error: ${error}`;
       isTauriReady = false;
     }

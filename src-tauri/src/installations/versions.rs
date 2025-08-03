@@ -1,7 +1,7 @@
-use serde::{Serialize, Deserialize};
-use strum::{EnumIter, IntoEnumIterator};
-use serde_json::json;
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use strum::{EnumIter, IntoEnumIterator};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, Serialize, Deserialize)]
 pub enum LoaderKind {
@@ -46,17 +46,23 @@ impl Versions {
 impl IntoIterator for Versions {
     type Item = VersionData;
     type IntoIter = std::vec::IntoIter<VersionData>;
-    fn into_iter(self) -> Self::IntoIter { self.0.into_iter() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
 }
 impl<'a> IntoIterator for &'a Versions {
     type Item = &'a VersionData;
     type IntoIter = std::slice::Iter<'a, VersionData>;
-    fn into_iter(self) -> Self::IntoIter { self.0.iter() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
 }
 impl<'a> IntoIterator for &'a mut Versions {
     type Item = &'a mut VersionData;
     type IntoIter = std::slice::IterMut<'a, VersionData>;
-    fn into_iter(self) -> Self::IntoIter { self.0.iter_mut() }
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter_mut()
+    }
 }
 impl std::iter::FromIterator<VersionData> for Versions {
     fn from_iter<I: IntoIterator<Item = VersionData>>(iter: I) -> Self {
@@ -67,8 +73,14 @@ impl std::iter::FromIterator<VersionData> for Versions {
 pub trait Loader: Send + Sync {
     fn kind(&self) -> LoaderKind;
     /// If the loader needs vanilla versions, they are provided as Some(&[VersionData]), otherwise None.
-    fn get_versions<'a>(&'a self, vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>>;
-    fn download<'a>(&'a self, version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>>;
+    fn get_versions<'a>(
+        &'a self,
+        vanilla_versions: Option<&'a [VersionData]>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>>;
+    fn download<'a>(
+        &'a self,
+        version_id: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>>;
 }
 
 // --- Loader Implementations ---
@@ -76,8 +88,14 @@ pub trait Loader: Send + Sync {
 // Vanilla Loader
 pub struct VanillaLoader;
 impl Loader for VanillaLoader {
-    fn kind(&self) -> LoaderKind { LoaderKind::Vanilla }
-    fn get_versions<'a>(&'a self, _vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>> {
+    fn kind(&self) -> LoaderKind {
+        LoaderKind::Vanilla
+    }
+    fn get_versions<'a>(
+        &'a self,
+        _vanilla_versions: Option<&'a [VersionData]>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>>
+    {
         Box::pin(async move {
             let url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
             let resp = reqwest::get(url).await?.json::<serde_json::Value>().await?;
@@ -86,24 +104,30 @@ impl Loader for VanillaLoader {
                 Some(arr) => arr,
                 None => &[],
             };
-            let out = versions.iter().map(|v| {
-                let id_val = &v["id"];
-                let id = id_val.as_str().unwrap_or("");
-                let typ_val = &v["type"];
-                let typ = typ_val.as_str().unwrap_or("");
-                let is_stable = typ == "release";
-                VersionData {
-                    version_id: id.to_string(),
-                    loader: LoaderKind::Vanilla,
-                    display_name: id.to_string(),
-                    is_stable,
-                    extra: v.clone(),
-                }
-            }).collect();
+            let out = versions
+                .iter()
+                .map(|v| {
+                    let id_val = &v["id"];
+                    let id = id_val.as_str().unwrap_or("");
+                    let typ_val = &v["type"];
+                    let typ = typ_val.as_str().unwrap_or("");
+                    let is_stable = typ == "release";
+                    VersionData {
+                        version_id: id.to_string(),
+                        loader: LoaderKind::Vanilla,
+                        display_name: id.to_string(),
+                        is_stable,
+                        extra: v.clone(),
+                    }
+                })
+                .collect();
             Ok(out)
         })
     }
-    fn download<'a>(&'a self, _version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+    fn download<'a>(
+        &'a self,
+        _version_id: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move { Ok(()) })
     }
 }
@@ -111,8 +135,14 @@ impl Loader for VanillaLoader {
 // Fabric Loader
 pub struct FabricLoader;
 impl Loader for FabricLoader {
-    fn kind(&self) -> LoaderKind { LoaderKind::Fabric }
-    fn get_versions<'a>(&'a self, vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>> {
+    fn kind(&self) -> LoaderKind {
+        LoaderKind::Fabric
+    }
+    fn get_versions<'a>(
+        &'a self,
+        vanilla_versions: Option<&'a [VersionData]>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>>
+    {
         Box::pin(async move {
             let url = "https://meta.fabricmc.net/v2/versions/loader";
             let resp = reqwest::get(url).await?.json::<serde_json::Value>().await?;
@@ -140,7 +170,10 @@ impl Loader for FabricLoader {
             Ok(out)
         })
     }
-    fn download<'a>(&'a self, _version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+    fn download<'a>(
+        &'a self,
+        _version_id: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move { Ok(()) })
     }
 }
@@ -148,8 +181,14 @@ impl Loader for FabricLoader {
 // IrisFabric Loader (uses Fabric manifest)
 pub struct IrisFabricLoader;
 impl Loader for IrisFabricLoader {
-    fn kind(&self) -> LoaderKind { LoaderKind::IrisFabric }
-    fn get_versions<'a>(&'a self, vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>> {
+    fn kind(&self) -> LoaderKind {
+        LoaderKind::IrisFabric
+    }
+    fn get_versions<'a>(
+        &'a self,
+        vanilla_versions: Option<&'a [VersionData]>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>>
+    {
         Box::pin(async move {
             let url = "https://meta.fabricmc.net/v2/versions/loader";
             let resp = reqwest::get(url).await?.json::<serde_json::Value>().await?;
@@ -165,9 +204,15 @@ impl Loader for IrisFabricLoader {
                     let stable = v.get("stable").and_then(|x| x.as_bool()).unwrap_or(false);
                     for mcv in vanilla {
                         out.push(VersionData {
-                            version_id: format!("iris-fabric-loader-{}-{}", fabricv, mcv.version_id),
+                            version_id: format!(
+                                "iris-fabric-loader-{}-{}",
+                                fabricv, mcv.version_id
+                            ),
                             loader: LoaderKind::IrisFabric,
-                            display_name: format!("Iris Fabric {} for MC {}", fabricv, mcv.version_id),
+                            display_name: format!(
+                                "Iris Fabric {} for MC {}",
+                                fabricv, mcv.version_id
+                            ),
                             is_stable: stable,
                             extra: v.clone(),
                         });
@@ -177,7 +222,10 @@ impl Loader for IrisFabricLoader {
             Ok(out)
         })
     }
-    fn download<'a>(&'a self, _version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+    fn download<'a>(
+        &'a self,
+        _version_id: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move { Ok(()) })
     }
 }
@@ -185,10 +233,17 @@ impl Loader for IrisFabricLoader {
 // Forge Loader
 pub struct ForgeLoader;
 impl Loader for ForgeLoader {
-    fn kind(&self) -> LoaderKind { LoaderKind::Forge }
-    fn get_versions<'a>(&'a self, _vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>> {
+    fn kind(&self) -> LoaderKind {
+        LoaderKind::Forge
+    }
+    fn get_versions<'a>(
+        &'a self,
+        _vanilla_versions: Option<&'a [VersionData]>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>>
+    {
         Box::pin(async move {
-            let url = "https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.json";
+            let url =
+                "https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.json";
             let resp = reqwest::get(url).await?.json::<serde_json::Value>().await?;
             let binding = serde_json::Map::new();
             let obj = resp.as_object().unwrap_or(&binding);
@@ -199,12 +254,15 @@ impl Loader for ForgeLoader {
                         let forge_version_str = forge_version.as_str().unwrap_or("");
                         // Extract the part after the first dash for display purposes
                         let forge_version_display = match forge_version_str.find('-') {
-                            Some(idx) if idx + 1 < forge_version_str.len() => &forge_version_str[idx + 1..],
+                            Some(idx) if idx + 1 < forge_version_str.len() => {
+                                &forge_version_str[idx + 1..]
+                            }
                             _ => forge_version_str,
                         };
                         // Forge version_id format: forge-{mc_version}-{forge_version}
                         let version_id = format!("{}-forge-{}", mc_version, forge_version_display);
-                        let display_name = format!("Forge {} for MC {}", forge_version_display, mc_version);
+                        let display_name =
+                            format!("Forge {} for MC {}", forge_version_display, mc_version);
                         out.push(VersionData {
                             version_id,
                             loader: LoaderKind::Forge,
@@ -218,7 +276,10 @@ impl Loader for ForgeLoader {
             Ok(out)
         })
     }
-    fn download<'a>(&'a self, _version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+    fn download<'a>(
+        &'a self,
+        _version_id: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move { Ok(()) })
     }
 }
@@ -226,8 +287,14 @@ impl Loader for ForgeLoader {
 // NeoForge Loader
 pub struct NeoForgeLoader;
 impl Loader for NeoForgeLoader {
-    fn kind(&self) -> LoaderKind { LoaderKind::NeoForge }
-    fn get_versions<'a>(&'a self, _vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>> {
+    fn kind(&self) -> LoaderKind {
+        LoaderKind::NeoForge
+    }
+    fn get_versions<'a>(
+        &'a self,
+        _vanilla_versions: Option<&'a [VersionData]>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>>
+    {
         Box::pin(async move {
             let url = "https://maven.neoforged.net/api/maven/versions/releases/net%2Fneoforged%2Fneoforge";
             let resp = reqwest::get(url).await?.json::<serde_json::Value>().await?;
@@ -251,7 +318,10 @@ impl Loader for NeoForgeLoader {
             Ok(out)
         })
     }
-    fn download<'a>(&'a self, _version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+    fn download<'a>(
+        &'a self,
+        _version_id: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move { Ok(()) })
     }
 }
@@ -259,8 +329,14 @@ impl Loader for NeoForgeLoader {
 // Quilt Loader
 pub struct QuiltLoader;
 impl Loader for QuiltLoader {
-    fn kind(&self) -> LoaderKind { LoaderKind::Quilt }
-    fn get_versions<'a>(&'a self, vanilla_versions: Option<&'a [VersionData]>) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>> {
+    fn kind(&self) -> LoaderKind {
+        LoaderKind::Quilt
+    }
+    fn get_versions<'a>(
+        &'a self,
+        vanilla_versions: Option<&'a [VersionData]>,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<VersionData>>> + Send + 'a>>
+    {
         Box::pin(async move {
             let url = "https://meta.quiltmc.org/v3/versions/loader";
             let resp = reqwest::get(url).await?.json::<serde_json::Value>().await?;
@@ -288,7 +364,10 @@ impl Loader for QuiltLoader {
             Ok(out)
         })
     }
-    fn download<'a>(&'a self, _version_id: &'a str) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
+    fn download<'a>(
+        &'a self,
+        _version_id: &'a str,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>> {
         Box::pin(async move { Ok(()) })
     }
 }

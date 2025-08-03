@@ -1,8 +1,11 @@
+use crate::profiles::LauncherProfile;
 use serde::{Deserialize, Serialize};
-use std::{fs, io::{Read, Write}};
+use std::{
+    fs,
+    io::{Read, Write},
+};
 use tokio::fs as async_fs;
 use tokio::task;
-use crate::profiles::LauncherProfile;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KableInstallation {
@@ -64,10 +67,16 @@ impl From<LauncherProfile> for KableInstallation {
             name: profile.name,
             icon: profile.icon,
             version_id: profile.last_version_id.clone(),
-            created: profile.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-            last_used: profile.last_used.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+            created: profile
+                .created
+                .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+            last_used: profile
+                .last_used
+                .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
             java_args: match profile.java_args {
-                Some(ref args) if !args.trim().is_empty() => args.split_whitespace().map(String::from).collect(),
+                Some(ref args) if !args.trim().is_empty() => {
+                    args.split_whitespace().map(String::from).collect()
+                }
                 _ => vec![
                     "-Xmx2048M".to_string(),
                     "-XX:+UnlockExperimentalVMOptions".to_string(),
@@ -90,12 +99,12 @@ impl From<LauncherProfile> for KableInstallation {
     }
 }
 
-
 pub fn read_kable_profiles() -> Result<Vec<KableInstallation>, String> {
     // Synchronous version for compatibility
     let kable_dir = crate::get_minecraft_kable_dir()?;
     let path = kable_dir.join("kable_profiles.json");
-    let data = fs::read_to_string(&path).map_err(|e| format!("Failed to read kable_profiles.json: {}", e))?;
+    let data = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read kable_profiles.json: {}", e))?;
     serde_json::from_str::<Vec<KableInstallation>>(&data)
         .map_err(|e| format!("Failed to parse kable_profiles.json: {}", e))
 }
@@ -106,12 +115,13 @@ pub async fn read_kable_profiles_async() -> Result<Vec<KableInstallation>, Strin
     let data = async_fs::read_to_string(&path)
         .await
         .map_err(|e| format!("Failed to read kable_profiles.json: {}", e))?;
-    task::spawn_blocking(move || serde_json::from_str::<Vec<KableInstallation>>(&data)
-        .map_err(|e| format!("Failed to parse kable_profiles.json: {}", e)))
-        .await
-        .unwrap()
+    task::spawn_blocking(move || {
+        serde_json::from_str::<Vec<KableInstallation>>(&data)
+            .map_err(|e| format!("Failed to parse kable_profiles.json: {}", e))
+    })
+    .await
+    .unwrap()
 }
-
 
 pub fn write_kable_profiles(profiles: &[KableInstallation]) -> Result<(), String> {
     // Synchronous version for compatibility
@@ -126,10 +136,12 @@ pub async fn write_kable_profiles_async(profiles: &[KableInstallation]) -> Resul
     let kable_dir = crate::get_minecraft_kable_dir()?;
     let path = kable_dir.join("kable_profiles.json");
     let profiles_owned = profiles.to_vec();
-    let json = task::spawn_blocking(move || serde_json::to_string_pretty(&profiles_owned)
-        .map_err(|e| format!("Failed to serialize kable profiles: {}", e)))
-        .await
-        .unwrap()?;
+    let json = task::spawn_blocking(move || {
+        serde_json::to_string_pretty(&profiles_owned)
+            .map_err(|e| format!("Failed to serialize kable profiles: {}", e))
+    })
+    .await
+    .unwrap()?;
     async_fs::write(&path, json)
         .await
         .map_err(|e| format!("Failed to write kable_profiles.json: {}", e))
@@ -143,9 +155,11 @@ impl KableInstallation {
         let kable_dir = crate::get_minecraft_kable_dir()?;
         let path = kable_dir.join("exports");
         // Now we make a zip file inside the exports folder
-        fs::create_dir_all(&path).map_err(|e| format!("Failed to create exports directory: {}", e))?;
+        fs::create_dir_all(&path)
+            .map_err(|e| format!("Failed to create exports directory: {}", e))?;
         let export_path = path.join(format!("{}_export.zip", self.id));
-        let file = fs::File::create(&export_path).map_err(|e| format!("Failed to create export file: {}", e))?;
+        let file = fs::File::create(&export_path)
+            .map_err(|e| format!("Failed to create export file: {}", e))?;
         let mut zip = zip::ZipWriter::new(file);
         let options = zip::write::FileOptions::default()
             .compression_method(zip::CompressionMethod::Stored)
@@ -181,37 +195,51 @@ impl KableInstallation {
                     .map_err(|e| format!("Failed to copy shaders folder: {}", e))?;
             }
         }
-        zip.finish().map_err(|e| format!("Failed to finish zip file: {}", e))?;
+        zip.finish()
+            .map_err(|e| format!("Failed to finish zip file: {}", e))?;
         Ok(export_path.to_string_lossy().to_string())
     }
 
     /// This import does the opposite of export by extracting the KableInstallation data from a zip file and putting it in the right places.
     pub fn import(path: &str) -> Result<KableInstallation, String> {
         let kable_dir = crate::get_minecraft_kable_dir()?;
-        let file = fs::File::open(path).map_err(|e| format!("Failed to open import file: {}", e))?;
-        let mut zip = zip::ZipArchive::new(file).map_err(|e| format!("Failed to read zip file: {}", e))?;
+        let file =
+            fs::File::open(path).map_err(|e| format!("Failed to open import file: {}", e))?;
+        let mut zip =
+            zip::ZipArchive::new(file).map_err(|e| format!("Failed to read zip file: {}", e))?;
         let mut installation = KableInstallation::default();
         // Extract the kable_export.json file
         if let Ok(mut file) = zip.by_name("kable_export.json") {
             let mut json = String::new();
-            file.read_to_string(&mut json).map_err(|e| format!("Failed to read kable_export.json: {}", e))?;
-            installation = serde_json::from_str(&json).map_err(|e| format!("Failed to parse kable_export.json: {}", e))?;
+            file.read_to_string(&mut json)
+                .map_err(|e| format!("Failed to read kable_export.json: {}", e))?;
+            installation = serde_json::from_str(&json)
+                .map_err(|e| format!("Failed to parse kable_export.json: {}", e))?;
         }
         // Extract the resource pack if it exists
         if let Ok(mut file) = zip.by_name("resource_packs.zip") {
-            let resource_pack_rel = installation.dedicated_resource_pack_folder.as_deref().unwrap_or(&installation.id);
+            let resource_pack_rel = installation
+                .dedicated_resource_pack_folder
+                .as_deref()
+                .unwrap_or(&installation.id);
             let resource_pack_path = kable_dir.join("resource_packs").join(resource_pack_rel);
-            fs::create_dir_all(&resource_pack_path).map_err(|e| format!("Failed to create resource pack directory: {}", e))?;
-            let mut resource_pack_file = fs::File::create(resource_pack_path.join("resource_packs.zip"))
-                .map_err(|e| format!("Failed to create resource pack file: {}", e))?;
+            fs::create_dir_all(&resource_pack_path)
+                .map_err(|e| format!("Failed to create resource pack directory: {}", e))?;
+            let mut resource_pack_file =
+                fs::File::create(resource_pack_path.join("resource_packs.zip"))
+                    .map_err(|e| format!("Failed to create resource pack file: {}", e))?;
             std::io::copy(&mut file, &mut resource_pack_file)
                 .map_err(|e| format!("Failed to copy resource pack: {}", e))?;
         }
         // Extract the shaders folder if it exists
         if let Ok(mut file) = zip.by_name("shaders.zip") {
-            let shaders_rel = installation.dedicated_shaders_folder.as_deref().unwrap_or(&installation.id);
+            let shaders_rel = installation
+                .dedicated_shaders_folder
+                .as_deref()
+                .unwrap_or(&installation.id);
             let shaders_path = kable_dir.join("shaders").join(shaders_rel);
-            fs::create_dir_all(&shaders_path).map_err(|e| format!("Failed to create shaders directory: {}", e))?;
+            fs::create_dir_all(&shaders_path)
+                .map_err(|e| format!("Failed to create shaders directory: {}", e))?;
             let mut shaders_file = fs::File::create(shaders_path.join("shaders.zip"))
                 .map_err(|e| format!("Failed to create shaders file: {}", e))?;
             std::io::copy(&mut file, &mut shaders_file)

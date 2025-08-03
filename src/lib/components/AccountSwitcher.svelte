@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { AuthManager, currentAccount, availableAccounts } from '$lib';
+  import { AuthService, currentAccount, availableAccounts } from '$lib';
   import type { LauncherAccount } from '$lib';
   import Icon from './Icon.svelte';
 
@@ -32,7 +32,7 @@
 
   onMount(async () => {
     if ($availableAccounts.length === 0) {
-      await AuthManager.refreshAvailableAccounts();
+      await AuthService.refreshAvailableAccounts();
     }
   });
 
@@ -40,7 +40,7 @@
     if (account.local_id === $currentAccount?.local_id) return;
     isLoading = true;
     try {
-      await AuthManager.switchAccount(account.local_id);
+      await AuthService.switchAccount(account.local_id);
       showDropdown = false;
     } catch (error) {
       console.error('Failed to switch account:', error);
@@ -124,7 +124,7 @@
         </div>
       {/each}
       <div class="account-item add-account-item">
-        <button class="account-button add-account-btn" on:click={() => AuthManager.signIn()}>
+        <button class="account-button add-account-btn" on:click={() => AuthService.signIn()}>
           <div class="account-avatar-container">
             <div class="account-avatar minecraft-head" title="Add Account">
               <span class="avatar-letter">+</span>
@@ -141,7 +141,7 @@
 </div>
 {:else}
   <div class="no-account-container">
-    <button class="sign-in-btn" on:click={() => AuthManager.signIn()}>
+    <button class="sign-in-btn" on:click={() => AuthService.signIn()}>
       <div class="sign-in-avatar">
         <Icon name="user-plus" size="lg" />
       </div>

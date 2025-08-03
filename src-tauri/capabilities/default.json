@@ -15,6 +15,7 @@
     "core:window:allow-maximize",
     "core:window:allow-unmaximize",
     "core:window:allow-destroy",
-    "core:window:allow-close"
+    "core:window:allow-close",
+    "clipboard-manager:allow-write-text"
   ]
 }

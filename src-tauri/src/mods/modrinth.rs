@@ -1,28 +1,33 @@
-use std::fmt;
-use serde::{Deserialize, Serialize};
+use crate::{kable_profiles::KableInstallation, mods::cache::ModCache, mods::manager::*};
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::path::PathBuf;
-use crate::{kable_profiles::KableInstallation, mods::manager::*, mods::cache::ModCache};
 
 #[derive(Debug, Clone)]
 pub struct FilterFacets {
-    pub query: Option<String>,          // User search string
+    pub query: Option<String>,                     // User search string
     pub categories: Option<Vec<(String, String)>>, // (operation, value)
     pub client_side: Option<(String, String)>,     // (operation, value)
     pub server_side: Option<(String, String)>,     // (operation, value)
-    pub index: Option<String>,          // sort order
-    pub open_source: Option<bool>,      // Open source flag
+    pub index: Option<String>,                     // sort order
+    pub open_source: Option<bool>,                 // Open source flag
     pub license: Option<(String, String)>,         // (operation, value)
     pub downloads: Option<(String, u64)>,          // (operation, value)
-    // ...other fields that are NOT available in KableInstallation
+                                                   // ...other fields that are NOT available in KableInstallation
 }
 
 impl fmt::Display for FilterFacets {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut facets: Vec<Vec<String>> = Vec::new();
         if let Some(ref cats) = self.categories {
-            let arr: Vec<String> = cats.iter().map(|(op, val)| format!("categories{}{}", op, val)).collect();
-            if !arr.is_empty() { facets.push(arr); }
+            let arr: Vec<String> = cats
+                .iter()
+                .map(|(op, val)| format!("categories{}{}", op, val))
+                .collect();
+            if !arr.is_empty() {
+                facets.push(arr);
+            }
         }
         if let Some((op, val)) = &self.client_side {
             facets.push(vec![format!("client_side{}{}", op, val)]);
@@ -38,11 +43,13 @@ impl fmt::Display for FilterFacets {
         }
         // You can add more fields here as needed
         // Example: always AND mod and modpack types
-        facets.push(vec!["project_type:mod".to_string(), "project_type:modpack".to_string()]);
+        facets.push(vec![
+            "project_type:mod".to_string(),
+            "project_type:modpack".to_string(),
+        ]);
         write!(f, "{}", serde_json::to_string(&facets).unwrap_or_default())
     }
 }
-
 
 /// Modrinth project info (see https://docs.modrinth.com/api/operations/getproject/)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -160,13 +167,23 @@ impl ModProvider for ModrinthProvider {
     }
 
     async fn get(&mut self, offset: usize) -> Result<Vec<ModInfoKind>, String> {
-        let cache_key = format!("offset:{}:index:{}", offset, self.index.as_deref().unwrap_or(""));
+        let cache_key = format!(
+            "offset:{}:index:{}",
+            offset,
+            self.index.as_deref().unwrap_or("")
+        );
         if let Some(entry) = self.cache.get(&cache_key) {
             if !self.cache.is_stale(&cache_key) {
-                return Ok(entry.value.clone().into_iter().map(ModInfoKind::Modrinth).collect());
+                return Ok(entry
+                    .value
+                    .clone()
+                    .into_iter()
+                    .map(ModInfoKind::Modrinth)
+                    .collect());
             }
         }
-        let mods = if self.category.is_some() || self.loader.is_some() || self.mc_version.is_some() {
+        let mods = if self.category.is_some() || self.loader.is_some() || self.mc_version.is_some()
+        {
             get_mods_filtered_with_index(
                 self.category.as_deref(),
                 self.loader.as_deref(),
@@ -174,7 +191,8 @@ impl ModProvider for ModrinthProvider {
                 offset,
                 self.limit,
                 self.index.as_deref(),
-            ).await?
+            )
+            .await?
         } else {
             get_all_mods_with_index(offset, self.limit, self.index.as_deref()).await?
         };
@@ -183,7 +201,11 @@ impl ModProvider for ModrinthProvider {
         Ok(mods.into_iter().map(ModInfoKind::Modrinth).collect())
     }
 
-    fn filter(&mut self, installation: Option<&KableInstallation>, filter: Option<crate::mods::manager::ModFilter>) {
+    fn filter(
+        &mut self,
+        installation: Option<&KableInstallation>,
+        filter: Option<crate::mods::manager::ModFilter>,
+    ) {
         if let Some(crate::mods::manager::ModFilter::Modrinth(facets)) = filter {
             // Example: extract loader, mc_version, category from FilterFacets if present
             if let Some(ref cats) = facets.categories {
@@ -207,7 +229,12 @@ impl ModProvider for ModrinthProvider {
         }
     }
 
-    async fn download(&self, mod_id: &str, version_id: Option<&str>, target_dir: &std::path::Path) -> Result<(), String> {
+    async fn download(
+        &self,
+        mod_id: &str,
+        version_id: Option<&str>,
+        target_dir: &std::path::Path,
+    ) -> Result<(), String> {
         let versions = get_mod_versions(mod_id).await?;
         let version = if let Some(version_id) = version_id {
             versions.into_iter().find(|v| v.id == version_id)
@@ -216,7 +243,11 @@ impl ModProvider for ModrinthProvider {
         };
         let version = version.ok_or("Mod version not found")?;
         let mut files_iter = version.files.into_iter();
-        let file = files_iter.clone().find(|f| f.primary).or_else(|| files_iter.next()).ok_or("No mod file found")?;
+        let file = files_iter
+            .clone()
+            .find(|f| f.primary)
+            .or_else(|| files_iter.next())
+            .ok_or("No mod file found")?;
         download_mod_file(&file.url, &target_dir.join(&file.filename)).await
     }
 
@@ -229,7 +260,11 @@ impl ModProvider for ModrinthProvider {
 }
 
 /// Fetch all mods from Modrinth (paginated, with optional index)
-pub async fn get_all_mods_with_index(offset: usize, limit: usize, index: Option<&str>) -> Result<Vec<ModrinthInfo>, String> {
+pub async fn get_all_mods_with_index(
+    offset: usize,
+    limit: usize,
+    index: Option<&str>,
+) -> Result<Vec<ModrinthInfo>, String> {
     let client = Client::new();
     let mut url = format!(
         "https://staging-api.modrinth.com/v2/search?limit={}&offset={}",
@@ -240,10 +275,23 @@ pub async fn get_all_mods_with_index(offset: usize, limit: usize, index: Option<
             url.push_str(&format!("&index={}", index));
         }
     }
-    let resp = client.get(&url).send().await.map_err(|e| format!("Modrinth get all mods failed: {e}"))?;
-    let json: serde_json::Value = resp.json().await.map_err(|e| format!("Modrinth get all mods parse failed: {e}"))?;
-    let hits = json.get("hits").and_then(|v| v.as_array()).ok_or("No hits in Modrinth response")?;
-    let mods: Vec<ModrinthInfo> = hits.iter().filter_map(|hit| serde_json::from_value(hit.clone()).ok()).collect();
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth get all mods failed: {e}"))?;
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Modrinth get all mods parse failed: {e}"))?;
+    let hits = json
+        .get("hits")
+        .and_then(|v| v.as_array())
+        .ok_or("No hits in Modrinth response")?;
+    let mods: Vec<ModrinthInfo> = hits
+        .iter()
+        .filter_map(|hit| serde_json::from_value(hit.clone()).ok())
+        .collect();
     Ok(mods)
 }
 
@@ -281,15 +329,32 @@ pub async fn get_mods_filtered_with_index(
             url.push_str(&format!("&index={}", index));
         }
     }
-    let resp = client.get(&url).send().await.map_err(|e| format!("Modrinth get mods filtered failed: {e}"))?;
-    let json: serde_json::Value = resp.json().await.map_err(|e| format!("Modrinth get mods filtered parse failed: {e}"))?;
-    let hits = json.get("hits").and_then(|v| v.as_array()).ok_or("No hits in Modrinth response")?;
-    let mods: Vec<ModrinthInfo> = hits.iter().filter_map(|hit| serde_json::from_value(hit.clone()).ok()).collect();
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth get mods filtered failed: {e}"))?;
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Modrinth get mods filtered parse failed: {e}"))?;
+    let hits = json
+        .get("hits")
+        .and_then(|v| v.as_array())
+        .ok_or("No hits in Modrinth response")?;
+    let mods: Vec<ModrinthInfo> = hits
+        .iter()
+        .filter_map(|hit| serde_json::from_value(hit.clone()).ok())
+        .collect();
     Ok(mods)
 }
 
 /// Search mods on Modrinth, optionally filtered by loader and Minecraft version
-pub async fn search_mods(query: &str, loader: Option<&str>, mc_version: Option<&str>) -> Result<Vec<ModrinthInfo>, String> {
+pub async fn search_mods(
+    query: &str,
+    loader: Option<&str>,
+    mc_version: Option<&str>,
+) -> Result<Vec<ModrinthInfo>, String> {
     let client = Client::new();
     let mut url = format!("https://staging-api.modrinth.com/v2/search?query={}", query);
     if let Some(loader) = loader {
@@ -298,27 +363,57 @@ pub async fn search_mods(query: &str, loader: Option<&str>, mc_version: Option<&
     if let Some(mc_version) = mc_version {
         url.push_str(&format!("&facets=[[\"versions:{}\"]]", mc_version));
     }
-    let resp = client.get(&url).send().await.map_err(|e| format!("Modrinth search failed: {e}"))?;
-    let json: serde_json::Value = resp.json().await.map_err(|e| format!("Modrinth search parse failed: {e}"))?;
-    let hits = json.get("hits").and_then(|v| v.as_array()).ok_or("No hits in Modrinth response")?;
-    let mods: Vec<ModrinthInfo> = hits.iter().filter_map(|hit| serde_json::from_value(hit.clone()).ok()).collect();
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth search failed: {e}"))?;
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Modrinth search parse failed: {e}"))?;
+    let hits = json
+        .get("hits")
+        .and_then(|v| v.as_array())
+        .ok_or("No hits in Modrinth response")?;
+    let mods: Vec<ModrinthInfo> = hits
+        .iter()
+        .filter_map(|hit| serde_json::from_value(hit.clone()).ok())
+        .collect();
     Ok(mods)
 }
 
 /// Get all versions for a given Modrinth mod ID
 pub async fn get_mod_versions(mod_id: &str) -> Result<Vec<ModrinthVersion>, String> {
     let client = Client::new();
-    let url = format!("https://staging-api.modrinth.com/v2/project/{}/version", mod_id);
-    let resp = client.get(&url).send().await.map_err(|e| format!("Modrinth get versions failed: {e}"))?;
-    let versions: Vec<ModrinthVersion> = resp.json().await.map_err(|e| format!("Modrinth get versions parse failed: {e}"))?;
+    let url = format!(
+        "https://staging-api.modrinth.com/v2/project/{}/version",
+        mod_id
+    );
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth get versions failed: {e}"))?;
+    let versions: Vec<ModrinthVersion> = resp
+        .json()
+        .await
+        .map_err(|e| format!("Modrinth get versions parse failed: {e}"))?;
     Ok(versions)
 }
 
 /// Download a mod file from Modrinth and save to the given path
 pub async fn download_mod_file(url: &str, save_path: &std::path::Path) -> Result<(), String> {
     let client = Client::new();
-    let resp = client.get(url).send().await.map_err(|e| format!("Modrinth download failed: {e}"))?;
-    let bytes = resp.bytes().await.map_err(|e| format!("Modrinth download bytes failed: {e}"))?;
+    let resp = client
+        .get(url)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth download failed: {e}"))?;
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| format!("Modrinth download bytes failed: {e}"))?;
     if let Some(parent) = save_path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create mod dir: {e}"))?;
     }

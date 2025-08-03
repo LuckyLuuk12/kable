@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { IconManager, selectedTemplate } from '../managers/IconManager';
+  import { IconService, selectedTemplate } from '../services/IconService';
 
   export let name: string;
   export let size: 'sm' | 'md' | 'lg' | 'xl' = 'md';
@@ -19,7 +19,7 @@
 
   // Initialize icon system on mount
   onMount(async () => {
-    await IconManager.initialize();
+    await IconService.initialize();
     updateIcon();
   });
 
@@ -29,7 +29,7 @@
   }
 
   function updateIcon() {
-    iconData = IconManager.getIcon(name);
+    iconData = IconService.getIcon(name);
   }
 
   // Validate SVG content for security
@@ -62,7 +62,7 @@
   // Reactive statements for rendering type
   $: type = forceType || iconData.type;
   // If forceType is set we have to use one of the default icons and not iconData.type
-  $: icon = forceType ? IconManager.getDefaultIcon(name, forceType) : iconData.icon;
+  $: icon = forceType ? IconService.getDefaultIcon(name, forceType) : iconData.icon;
   
   // Log warning if SVG type but invalid content
   $: if (type === 'svg' && !isValidSvg(icon)) {

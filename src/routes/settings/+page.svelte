@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { SettingsManager, Icon, settings, IconManager, selectedTemplate, availableTemplates, Settings, type LaunchOptions } from '$lib';
+import { SettingsService, Icon, settings, IconService, selectedTemplate, availableTemplates, Settings, type LaunchOptions } from '$lib';
   import { onMount } from 'svelte';
 
   let isLoading = false;
@@ -32,7 +32,7 @@
 
   async function selectIconTemplate(templateName: string) {
     try {
-      await IconManager.setActiveTemplate(templateName);
+      await IconService.setActiveTemplate?.(templateName);
       saveStatus = 'Icon template updated successfully';
       setTimeout(() => saveStatus = '', 2000);
     } catch (error) {
@@ -53,10 +53,10 @@
       const format = uploadFile.name.endsWith('.yml') || uploadFile.name.endsWith('.yaml') ? 'yaml' : 'json';
       
       // Validate template
-      const template = await IconManager.validateTemplate(content, format);
+      const template = await IconService.validateTemplate?.(content, format);
       
       // Install template
-      await IconManager.installCustomTemplate(template);
+      await IconService.installCustomTemplate?.(template);
       
       // Clear upload state
       uploadFile = null;
@@ -75,7 +75,7 @@
 
   async function removeTemplate(templateName: string) {
     try {
-      await IconManager.removeCustomTemplate(templateName);
+      await IconService.removeCustomTemplate?.(templateName);
       saveStatus = 'Template removed successfully';
       setTimeout(() => saveStatus = '', 2000);
     } catch (error) {
@@ -124,7 +124,7 @@
     if (!confirm('Are you sure you want to remove this icon template?')) return;
     
     try {
-      await IconManager.removeCustomTemplate(templateName);
+      await IconService.removeCustomTemplate?.(templateName);
       saveStatus = 'Template removed successfully';
       setTimeout(() => saveStatus = '', 2000);
     } catch (error) {
@@ -136,7 +136,7 @@
 
   async function openIconsDirectory() {
     try {
-      await IconManager.openIconsDirectory();
+      await IconService.openIconsDirectory?.();
     } catch (error) {
       console.error('Failed to open icons directory:', error);
     }

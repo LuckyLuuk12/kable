@@ -720,34 +720,21 @@ export interface InstallationForm {
  * ```ts
  * export interface LaunchResult {
  *   pid: number;
- *   command: string;
+ *   success: boolean;
+ *   error?: string;
  * }
  * ```
  */
 export interface LaunchResult {
   pid: number;
-  command: string;
+  success: boolean;
+  error?: string;
 }
 
 // _____________________________________________________________________________
 //|                                                                             |
 //|                                Mods Types                                   |
 //|_____________________________________________________________________________|
-
-
-/** Enum of supported mod providers.
- * ```ts
- * export enum ProviderKind {
- *   Modrinth = 'Modrinth',
- *   // CurseForge = 'CurseForge',
- * }
- * ```
- */
-export enum ProviderKind {
-  Modrinth = 'Modrinth',
-  // CurseForge = 'CurseForge',
-}
-
 
 /** Discriminated union for mod info returned by different providers.
  * ```ts

@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { KableInstallation, ModFilter, ModInfoKind, ProviderKind } from '../types';
+import type { KableInstallation, ModFilter, ModInfoKind, ProviderKind } from '$lib';
 
 export async function getMods(provider: ProviderKind, offset: number): Promise<ModInfoKind[]> {
   return invoke('get_mods_command', { provider, offset });

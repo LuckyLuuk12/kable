@@ -1,3 +1,5 @@
+
+
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import * as authApi from '$lib';
 import type { LauncherAccount } from '$lib';
@@ -8,7 +10,27 @@ import * as systemApi from '$lib';
  * Auto-authenticates on startup and provides seamless account management
  */
 
+// TODO:
+// TODO: The account after DeviceCodeFlow is not properly applied or smth,... FIX THIS!!
+// TODO:
+
 export class AuthService {
+  /**
+   * Refresh the available accounts list (for compatibility with old AuthManager usage)
+   */
+  static async refreshAvailableAccounts(): Promise<void> {
+    try {
+      const accounts = await AuthService.getAllAccounts();
+      // If using Svelte stores, update them here if needed
+      // e.g., availableAccounts.set(accounts);
+      // For now, this is a no-op for compatibility
+    } catch (error) {
+      // Optionally handle error
+    }
+  }
+  // These are assigned after the class for Svelte compatibility
+  static signIn: typeof AuthService.authenticateWithMicrosoft;
+  static signInWithDeviceCode: typeof AuthService.authenticateWithDeviceCode;
   private static oauthWindow: WebviewWindow | null = null;
   private static pollInterval: number | null = null;
   private static isInitialized = false;
@@ -353,4 +375,22 @@ export class AuthService {
       return `${minutes}m`;
     }
   }
+
 }
+
+// --- Aliases for compatibility with old AuthManager usage in Svelte components ---
+// Should be removed or put into static methods instead!
+export const signIn = AuthService.authenticateWithMicrosoft;
+export const signInWithDeviceCode = AuthService.authenticateWithDeviceCode;
+export const refreshAvailableAccounts = AuthService.getAllAccounts;
+export const getCurrentAccount = AuthService.getCurrentAccount;
+export const isCurrentAccountValid = AuthService.isCurrentAccountValid;
+export const signOut = AuthService.signOut;
+export const getAllAccounts = AuthService.getAllAccounts;
+export const switchAccount = AuthService.switchAccount;
+export const removeAccount = AuthService.removeAccount;
+export const copyToClipboard = AuthService.copyToClipboard;
+export const formatTokenExpiry = AuthService.formatTokenExpiry;
+export const refreshCurrentAccount = AuthService.refreshCurrentAccount;
+export const startDeviceCodeFlow = AuthService.startDeviceCodeFlow;
+export const pollDeviceCodeCompletion = AuthService.pollDeviceCodeCompletion;

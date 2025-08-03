@@ -1,19 +1,19 @@
 <script lang="ts">
-  import { type VersionData, Loader, InstallationManager } from '$lib';
+  import { type VersionData, Loader, InstallationService, type LoaderKind } from '$lib';
   import { onMount } from 'svelte';
   import * as installationsApi from '$lib/api/installations';
 
   let dialogRef: HTMLDialogElement;
   let availableVersions: VersionData[] = [];
-  let loaderOptions: Loader[] = [];
-  let selectedLoader: Loader = Loader.Vanilla;
+  let loaderOptions: LoaderKind[] = [];
+  let selectedLoader: LoaderKind = "Vanilla";
   let selectedVersionId: string = '';
   let isLoading = false;
   let error: string | null = null;
 
   $: filteredVersions = availableVersions.filter(v => v.loader === selectedLoader);
-  $: if (filteredVersions.length > 0 && !filteredVersions.find(v => v.id === selectedVersionId)) {
-    selectedVersionId = filteredVersions[0]?.id ?? '';
+  $: if (filteredVersions.length > 0 && !filteredVersions.find(v => v.version_id === selectedVersionId)) {
+    selectedVersionId = filteredVersions[0]?.version_id ?? '';
   }
 
   function open() {
@@ -26,11 +26,11 @@
   onMount(async () => {
     isLoading = true;
     try {
-      availableVersions = await installationsApi.get_all_versions() ?? InstallationManager.getFallbackVersions();
+      availableVersions = await installationsApi.get_all_versions() ?? InstallationService.getFallbackVersions();
       loaderOptions = Array.from(new Set(availableVersions.map(v => v.loader)));
       selectedLoader = loaderOptions[0] ?? Loader.Vanilla;
       if (filteredVersions.length > 0) {
-        selectedVersionId = filteredVersions[0].id;
+        selectedVersionId = filteredVersions[0].version_id;
       }
     } catch (e) {
       error = 'Failed to load versions.';
@@ -44,7 +44,7 @@
     if (!selectedVersionId) return;
     isLoading = true;
     try {
-      await InstallationManager.createInstallation(selectedVersionId);
+      await InstallationService.createInstallation(selectedVersionId);
       close();
     } catch (e) {
       error = 'Failed to create installation.';
@@ -69,12 +69,12 @@
         <button
           type="button"
           class="loader-btn {selectedLoader === loader ? 'selected' : ''}"
-          style="background: {InstallationManager.getLoaderColor(loader)}20; color: {InstallationManager.getLoaderColor(loader)};"
+          style="background: {InstallationService.getLoaderColor(loader)}20; color: {InstallationService.getLoaderColor(loader)};"
           on:click={() => selectedLoader = loader}
         >
           <span class="loader-icon">
             <svg width="24" height="24" style="vertical-align: middle;">
-              <use href={`#icon-${InstallationManager.getLoaderIcon(loader)}`} />
+              <use href={`#icon-${InstallationService.getLoaderIcon(loader)}`} />
             </svg>
           </span>
           <span class="loader-label">{loader.replace(/_/g, ' ').replace(/(^|\s)([a-z])/g, (_, p1, p2) => p1 + p2.toUpperCase())}</span>
@@ -85,7 +85,7 @@
       Version:
       <select bind:value={selectedVersionId}>
         {#each filteredVersions as version}
-          <option value={version.id}>{version.id}</option>
+          <option value={version.version_id}>{version.version_id}</option>
         {/each}
       </select>
     </label>

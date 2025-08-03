@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { ModsManager, SettingsManager, Icon, type ModInstallationConfig, type InstalledMod } from '$lib';
+import { ModsService, SettingsService, Icon, type ModInstallationConfig, type InstalledMod } from '$lib';
 
   let selectedInstallation: string = 'global';
   let installations: ModInstallationConfig[] = [];
@@ -31,8 +31,8 @@
     isLoading = true;
     error = null;
     try {
-      const settings = await SettingsManager.getSettingsAsync();
-      installations = await ModsManager.getModdedInstallations(settings.general.game_directory || '');
+      const settings = await SettingsService.getSettings();
+      installations = await ModsService.getModdedInstallations(settings.general.game_directory || '');
       if (installations.length > 0 && selectedInstallation === 'global') {
         // Keep global selected by default
       }
@@ -51,14 +51,14 @@
     isLoading = true;
     error = null;
     try {
-      const settings = await SettingsManager.getSettingsAsync();
+      const settings = await SettingsService.getSettings();
       
       if (selectedInstallation === 'global') {
         // For global, we need to set up the global mods folder first
-        await ModsManager.setupInstallationMods(settings.general.game_directory || '', 'kable-global', true);
-        installedMods = await ModsManager.getInstalledMods(settings.general.game_directory || '', 'kable-global');
+        await ModsService.setupInstallationMods(settings.general.game_directory || '', 'kable-global', true);
+        installedMods = await ModsService.getInstalledMods(settings.general.game_directory || '', 'kable-global');
       } else {
-        installedMods = await ModsManager.getInstalledMods(settings.general.game_directory || '', selectedInstallation);
+        installedMods = await ModsService.getInstalledMods(settings.general.game_directory || '', selectedInstallation);
       }
     } catch (err) {
       console.error('Failed to load mods:', err);
@@ -71,7 +71,7 @@
 
   async function toggleMod(mod: InstalledMod) {
     try {
-      await ModsManager.toggleModEnabled(mod.file_path, !mod.enabled);
+      await ModsService.toggleModEnabled(mod.file_path, !mod.enabled);
       // Update the mod in the list
       mod.enabled = !mod.enabled;
       installedMods = [...installedMods];
@@ -100,8 +100,8 @@
     }
 
     try {
-      const settings = await SettingsManager.getSettingsAsync();
-      await ModsManager.updateInstallationModConfig(
+      const settings = await SettingsService.getSettings();
+      await ModsService.updateInstallationModConfig(
         settings.general.game_directory || '',
         selectedInstallation,
         useGlobalMods

@@ -1,9 +1,9 @@
+use crate::logging::{debug, error, info};
+use crate::AppError;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
-use std::collections::HashMap;
-use crate::AppError;
-use crate::logging::{info, error, debug};
 
 // Map/World management structures
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -89,24 +89,24 @@ struct LevelData {
 #[tauri::command]
 pub async fn get_local_worlds(minecraft_path: String) -> Result<Vec<LocalWorld>, String> {
     let saves_dir = PathBuf::from(&minecraft_path).join("saves");
-    
+
     if !saves_dir.exists() {
         return Ok(Vec::new());
     }
-    
+
     let mut worlds = Vec::new();
-    
+
     for entry in fs::read_dir(&saves_dir).map_err(|e| e.to_string())? {
         let entry = entry.map_err(|e| e.to_string())?;
         let world_path = entry.path();
-        
+
         if world_path.is_dir() {
             if let Ok(world) = parse_world_folder(&world_path, &minecraft_path).await {
                 worlds.push(world);
             }
         }
     }
-    
+
     // Sort by last played (most recent first)
     worlds.sort_by(|a, b| b.last_played.cmp(&a.last_played));
 
@@ -114,22 +114,25 @@ pub async fn get_local_worlds(minecraft_path: String) -> Result<Vec<LocalWorld>,
 }
 
 // Parse individual world folder
-async fn parse_world_folder(world_path: &PathBuf, minecraft_path: &str) -> Result<LocalWorld, AppError> {
+async fn parse_world_folder(
+    world_path: &PathBuf,
+    minecraft_path: &str,
+) -> Result<LocalWorld, AppError> {
     let folder_name = world_path
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Unknown")
         .to_string();
-    
+
     let level_dat = world_path.join("level.dat");
     let icon_path = world_path.join("icon.png");
-    
+
     // Calculate world size
     let size_mb = calculate_folder_size(world_path).unwrap_or(0) / (1024 * 1024);
-    
+
     // Count backups for this world
     let backup_count = count_world_backups(minecraft_path, &folder_name);
-    
+
     // Default values
     let mut world = LocalWorld {
         id: folder_name.clone(),
@@ -142,19 +145,23 @@ async fn parse_world_folder(world_path: &PathBuf, minecraft_path: &str) -> Resul
         last_played: 0,
         created: 0,
         seed: None,
-        icon: if icon_path.exists() { Some(icon_path.to_string_lossy().to_string()) } else { None },
+        icon: if icon_path.exists() {
+            Some(icon_path.to_string_lossy().to_string())
+        } else {
+            None
+        },
         backup_count,
         has_cheats: false,
         world_type: "default".to_string(),
     };
-    
+
     // Try to read level.dat for more information
     if level_dat.exists() {
         if let Ok(level_data) = parse_level_dat(&level_dat) {
             if let Some(name) = level_data.level_name {
                 world.name = name;
             }
-            
+
             if let Some(game_type) = level_data.game_type {
                 world.game_mode = match game_type {
                     0 => GameMode::Survival,
@@ -164,7 +171,7 @@ async fn parse_world_folder(world_path: &PathBuf, minecraft_path: &str) -> Resul
                     _ => GameMode::Survival,
                 };
             }
-            
+
             if let Some(difficulty) = level_data.difficulty {
                 world.difficulty = match difficulty {
                     0 => Difficulty::Peaceful,
@@ -174,23 +181,23 @@ async fn parse_world_folder(world_path: &PathBuf, minecraft_path: &str) -> Resul
                     _ => Difficulty::Normal,
                 };
             }
-            
+
             if let Some(last_played) = level_data.last_played {
                 world.last_played = last_played;
             }
-            
+
             if let Some(seed) = level_data.random_seed {
                 world.seed = Some(seed.to_string());
             }
-            
+
             if let Some(cheats) = level_data.allow_commands {
                 world.has_cheats = cheats;
             }
-            
+
             if let Some(generator) = level_data.generator_name {
                 world.world_type = generator;
             }
-            
+
             if let Some(version_data) = level_data.version {
                 if let Some(version_name) = version_data.get("Name") {
                     if let Some(version_str) = version_name.as_str() {
@@ -200,7 +207,7 @@ async fn parse_world_folder(world_path: &PathBuf, minecraft_path: &str) -> Resul
             }
         }
     }
-    
+
     // Set creation time from folder metadata if not available
     if world.created == 0 {
         if let Ok(metadata) = fs::metadata(world_path) {
@@ -211,10 +218,10 @@ async fn parse_world_folder(world_path: &PathBuf, minecraft_path: &str) -> Resul
             }
         }
     }
-    
+
     // Count backups for this world
     world.backup_count = count_world_backups(minecraft_path, &folder_name);
-    
+
     Ok(world)
 }
 
@@ -222,11 +229,11 @@ async fn parse_world_folder(world_path: &PathBuf, minecraft_path: &str) -> Resul
 fn parse_level_dat(level_dat_path: &PathBuf) -> Result<LevelData, AppError> {
     // This is a simplified implementation. In a real scenario, you'd want to use
     // a proper NBT library like `nbt` crate for parsing Minecraft's NBT format
-    
+
     // For now, we'll try to read basic information from the file
     // This is a placeholder implementation that would need proper NBT parsing
     let _contents = fs::read(level_dat_path)?;
-    
+
     // Return default data for now - in real implementation, parse NBT
     Ok(LevelData {
         level_name: None,
@@ -258,16 +265,21 @@ fn calculate_folder_size(path: &PathBuf) -> Result<u64, std::io::Error> {
 // Delete a world
 #[tauri::command]
 pub async fn delete_world(minecraft_path: String, world_folder: String) -> Result<(), String> {
-    info(&format!("Deleting world: {} from {}", world_folder, minecraft_path));
-    
-    let world_path = PathBuf::from(minecraft_path).join("saves").join(&world_folder);
-    
+    info(&format!(
+        "Deleting world: {} from {}",
+        world_folder, minecraft_path
+    ));
+
+    let world_path = PathBuf::from(minecraft_path)
+        .join("saves")
+        .join(&world_folder);
+
     if !world_path.exists() {
         let error_msg = "World folder does not exist".to_string();
         error(&error_msg);
         return Err(error_msg);
     }
-    
+
     match fs::remove_dir_all(&world_path) {
         Ok(_) => {
             info(&format!("Successfully deleted world: {}", world_folder));
@@ -284,39 +296,49 @@ pub async fn delete_world(minecraft_path: String, world_folder: String) -> Resul
 // Create backup of a world
 #[tauri::command]
 pub async fn backup_world(minecraft_path: String, world_folder: String) -> Result<String, String> {
-    info(&format!("Creating backup for world: {} from {}", world_folder, minecraft_path));
-    
+    info(&format!(
+        "Creating backup for world: {} from {}",
+        world_folder, minecraft_path
+    ));
+
     let minecraft_dir = PathBuf::from(minecraft_path);
     let saves_dir = minecraft_dir.join("saves");
     let world_path = saves_dir.join(&world_folder);
-    
+
     // Use .minecraft/kable/world-backups for backup storage
     let kable_dir = minecraft_dir.join("kable");
     let backups_dir = kable_dir.join("world-backups");
-    
+
     if !world_path.exists() {
         let error_msg = "World folder does not exist".to_string();
         error(&error_msg);
         return Err(error_msg);
     }
-    
+
     // Create kable and backups directories if they don't exist
     if !backups_dir.exists() {
-        debug(&format!("Creating backups directory: {}", backups_dir.display()));
+        debug(&format!(
+            "Creating backups directory: {}",
+            backups_dir.display()
+        ));
         fs::create_dir_all(&backups_dir).map_err(|e| {
             let error_msg = format!("Failed to create backups directory: {}", e);
             error(&error_msg);
             error_msg
         })?;
     }
-    
+
     // Create backup name with timestamp
     let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
     let backup_name = format!("{}_{}", world_folder, timestamp);
     let backup_path = backups_dir.join(&backup_name);
-    
-    debug(&format!("Copying world from {} to {}", world_path.display(), backup_path.display()));
-    
+
+    debug(&format!(
+        "Copying world from {} to {}",
+        world_path.display(),
+        backup_path.display()
+    ));
+
     // Copy world folder to backup location
     match copy_dir_all(&world_path, &backup_path) {
         Ok(_) => {
@@ -335,11 +357,11 @@ pub async fn backup_world(minecraft_path: String, world_folder: String) -> Resul
 fn count_world_backups(minecraft_path: &str, world_folder: &str) -> u32 {
     let minecraft_dir = PathBuf::from(minecraft_path);
     let backups_dir = minecraft_dir.join("kable").join("world-backups");
-    
+
     if !backups_dir.exists() {
         return 0;
     }
-    
+
     let mut count = 0;
     if let Ok(entries) = fs::read_dir(&backups_dir) {
         for entry in entries.flatten() {
@@ -351,7 +373,7 @@ fn count_world_backups(minecraft_path: &str, world_folder: &str) -> u32 {
             }
         }
     }
-    
+
     count
 }
 

@@ -1,8 +1,8 @@
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModCacheEntry<T> {
@@ -29,13 +29,25 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de>> ModCache<T> {
     }
 
     pub fn insert(&mut self, key: String, value: T) {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-        self.entries.insert(key, ModCacheEntry { value, last_updated: now });
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        self.entries.insert(
+            key,
+            ModCacheEntry {
+                value,
+                last_updated: now,
+            },
+        );
     }
 
     pub fn is_stale(&self, key: &str) -> bool {
         if let Some(entry) = self.entries.get(key) {
-            let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
             now > entry.last_updated + self.default_ttl_secs
         } else {
             true
@@ -62,7 +74,11 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de>> ModCache<T> {
 
     /// Remove all stale entries (older than ttl)
     pub fn purge_stale(&mut self) {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-        self.entries.retain(|_, entry| now <= entry.last_updated + self.default_ttl_secs);
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        self.entries
+            .retain(|_, entry| now <= entry.last_updated + self.default_ttl_secs);
     }
 }

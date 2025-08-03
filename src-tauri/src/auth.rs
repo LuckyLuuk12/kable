@@ -1,31 +1,23 @@
-/** 
+/**
  * Authentication module - public API that provides
  * 1. get_minecraft_account()
  * 2. authenticate()
  */
 pub mod auth_util;
-pub mod device_code_flow;
 pub mod code_flow;
+pub mod device_code_flow;
 pub mod secure_token;
 
 // Re-export the auth_util functions and types for convenience
 pub use auth_util::{
-    LauncherAccount, 
-    MinecraftProfile, 
-    LauncherAccountsJson,
-    read_launcher_accounts,
-    write_launcher_accounts,
-    write_launcher_account,
-    remove_launcher_account,
-    set_active_launcher_account,
-    get_active_launcher_account,
-    get_all_launcher_accounts,
-    get_launcher_accounts_path_string,
-    open_url,
+    get_active_launcher_account, get_all_launcher_accounts, get_launcher_accounts_path_string,
+    read_launcher_accounts, remove_launcher_account, set_active_launcher_account,
+    write_launcher_account, write_launcher_accounts, LauncherAccount, LauncherAccountsJson,
+    MinecraftProfile,
 };
 
+use crate::logging::{LogLevel, Logger};
 use serde::{Deserialize, Serialize};
-use crate::logging::{Logger, LogLevel};
 
 /// Authentication method to use for getting accounts
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,36 +35,36 @@ pub enum AuthMethod {
 /// Get the current authenticated Minecraft account for launching games
 /// This is the main function that other backend files should use
 #[tauri::command]
-pub async fn get_minecraft_account(auth_method: Option<AuthMethod>) -> Result<LauncherAccount, String> {
+pub async fn get_minecraft_account(
+    auth_method: Option<AuthMethod>,
+) -> Result<LauncherAccount, String> {
     let method = auth_method.unwrap_or(AuthMethod::DeviceCodeFlow);
-    
+
     Logger::console_log(
-        LogLevel::Info, 
-        &format!("🔍 Getting Minecraft account using method: {:?}", method), 
-        None
+        LogLevel::Info,
+        &format!("🔍 Getting Minecraft account using method: {:?}", method),
+        None,
     );
-    
+
     match method {
-        AuthMethod::DeviceCodeFlow => {
-            get_minecraft_account_device_code().await
-        }
-        AuthMethod::AuthCodeFlow => {
-            get_minecraft_account_auth_code().await
-        }
+        AuthMethod::DeviceCodeFlow => get_minecraft_account_device_code().await,
+        AuthMethod::AuthCodeFlow => get_minecraft_account_auth_code().await,
         AuthMethod::Custom => {
             // TODO: Implement custom authentication
             Err("Custom authentication not yet implemented".to_string())
         }
-        AuthMethod::Offline => {
-            get_minecraft_account_offline().await
-        }
+        AuthMethod::Offline => get_minecraft_account_offline().await,
     }
 }
 
 /// Get account using the device_code_flow.rs implementation
 async fn get_minecraft_account_device_code() -> Result<LauncherAccount, String> {
-    Logger::console_log(LogLevel::Debug, "� Using device code flow authentication", None);
-    
+    Logger::console_log(
+        LogLevel::Debug,
+        "� Using device code flow authentication",
+        None,
+    );
+
     // Try to get the active launcher account
     match get_active_launcher_account().await? {
         Some(launcher_account) => {
@@ -82,15 +74,19 @@ async fn get_minecraft_account_device_code() -> Result<LauncherAccount, String> 
             Logger::console_log(
                 LogLevel::Info,
                 &format!("✅ Found active account: {:?}", sanitized_account),
-                None
+                None,
             );
-            
+
             // Check if access token is still valid
             if is_access_token_valid(&launcher_account) {
                 Logger::console_log(LogLevel::Info, "🔑 Access token is still valid", None);
                 Ok(launcher_account.into())
             } else {
-                Logger::console_log(LogLevel::Warning, "⚠️ Access token expired, need to re-authenticate", None);
+                Logger::console_log(
+                    LogLevel::Warning,
+                    "⚠️ Access token expired, need to re-authenticate",
+                    None,
+                );
                 Err("Access token expired. Please authenticate again.".to_string())
             }
         }
@@ -103,8 +99,12 @@ async fn get_minecraft_account_device_code() -> Result<LauncherAccount, String> 
 
 /// Get account using the code_flow.rs implementation
 async fn get_minecraft_account_auth_code() -> Result<LauncherAccount, String> {
-    Logger::console_log(LogLevel::Debug, "🌐 Using authorization code flow authentication", None);
-    
+    Logger::console_log(
+        LogLevel::Debug,
+        "🌐 Using authorization code flow authentication",
+        None,
+    );
+
     // Try to get the active launcher account
     match get_active_launcher_account().await? {
         Some(launcher_account) => {
@@ -114,14 +114,18 @@ async fn get_minecraft_account_auth_code() -> Result<LauncherAccount, String> {
             Logger::console_log(
                 LogLevel::Info,
                 &format!("✅ Found active account: {:?}", sanitized_account),
-                None
+                None,
             );
             // Check if access token is still valid
             if is_access_token_valid(&launcher_account) {
                 Logger::console_log(LogLevel::Info, "🔑 Access token is still valid", None);
                 Ok(launcher_account.into())
             } else {
-                Logger::console_log(LogLevel::Warning, "⚠️ Access token expired, attempting re-authentication", None);
+                Logger::console_log(
+                    LogLevel::Warning,
+                    "⚠️ Access token expired, attempting re-authentication",
+                    None,
+                );
                 // Attempt to re-authenticate using code flow
                 match crate::auth::code_flow::start_microsoft_auth_code().await {
                     Ok(_) => {
@@ -139,12 +143,10 @@ async fn get_minecraft_account_auth_code() -> Result<LauncherAccount, String> {
             Logger::console_log(LogLevel::Warning, "❌ No active account found", None);
             // Attempt to authenticate if no account is found
             match crate::auth::code_flow::start_microsoft_auth_code().await {
-                Ok(_) => {
-                    match get_active_launcher_account().await? {
-                        Some(new_account) => Ok(new_account.into()),
-                        None => Err("Authentication failed, no account found.".to_string()),
-                    }
-                }
+                Ok(_) => match get_active_launcher_account().await? {
+                    Some(new_account) => Ok(new_account.into()),
+                    None => Err("Authentication failed, no account found.".to_string()),
+                },
                 Err(e) => Err(format!("Authentication failed: {}", e)),
             }
         }
@@ -153,7 +155,11 @@ async fn get_minecraft_account_auth_code() -> Result<LauncherAccount, String> {
 
 /// Get account using offline/mock authentication (for testing)
 async fn get_minecraft_account_offline() -> Result<LauncherAccount, String> {
-    Logger::console_log(LogLevel::Warning, "📴 Using offline authentication mode", None);
+    Logger::console_log(
+        LogLevel::Warning,
+        "📴 Using offline authentication mode",
+        None,
+    );
     // Try to get the active launcher account from launcher_accounts.json
     match get_active_launcher_account().await? {
         Some(launcher_account) => {
@@ -162,8 +168,11 @@ async fn get_minecraft_account_offline() -> Result<LauncherAccount, String> {
             sanitized_account.access_token = String::new();
             Logger::console_log(
                 LogLevel::Info,
-                &format!("✅ Found active account (offline mode): {:?}", sanitized_account),
-                None
+                &format!(
+                    "✅ Found active account (offline mode): {:?}",
+                    sanitized_account
+                ),
+                None,
             );
             // Return the account, even if it has no access token
             Ok(launcher_account.into())
@@ -172,7 +181,7 @@ async fn get_minecraft_account_offline() -> Result<LauncherAccount, String> {
             Logger::console_log(
                 LogLevel::Warning,
                 "❌ No active account found, returning fallback offline account",
-                None
+                None,
             );
             Ok(LauncherAccount {
                 access_token: "".to_string(),
@@ -205,26 +214,26 @@ async fn get_minecraft_account_offline() -> Result<LauncherAccount, String> {
 /// Check if an access token is still valid (not expired)
 pub fn is_access_token_valid(launcher_account: &LauncherAccount) -> bool {
     use chrono::{DateTime, Utc};
-    
+
     if launcher_account.access_token.is_empty() {
         return false;
     }
-    
+
     // Parse the expiry time
     match DateTime::parse_from_rfc3339(&launcher_account.access_token_expires_at) {
         Ok(expires_at) => {
             let now = Utc::now();
             let expires_at_utc = expires_at.with_timezone(&Utc);
-            
+
             // Consider token invalid if it expires within the next 5 minutes
             let buffer_time = chrono::Duration::minutes(5);
             expires_at_utc > (now + buffer_time)
         }
         Err(_) => {
             Logger::console_log(
-                LogLevel::Warning, 
-                "⚠️ Could not parse access token expiry time", 
-                None
+                LogLevel::Warning,
+                "⚠️ Could not parse access token expiry time",
+                None,
             );
             false
         }
@@ -239,9 +248,9 @@ pub async fn get_launch_auth_account() -> Result<LauncherAccount, String> {
         Ok(account) => Ok(account),
         Err(_) => {
             Logger::console_log(
-                LogLevel::Warning, 
-                "⚠️ Device code flow auth failed, falling back to offline mode", 
-                None
+                LogLevel::Warning,
+                "⚠️ Device code flow auth failed, falling back to offline mode",
+                None,
             );
             get_minecraft_account(Some(AuthMethod::Offline)).await
         }
@@ -251,8 +260,12 @@ pub async fn get_launch_auth_account() -> Result<LauncherAccount, String> {
 /// Force refresh the current account's access token
 #[tauri::command]
 pub async fn refresh_minecraft_account() -> Result<LauncherAccount, String> {
-    Logger::console_log(LogLevel::Info, "🔄 Refreshing Minecraft account access token...", None);
-    
+    Logger::console_log(
+        LogLevel::Info,
+        "🔄 Refreshing Minecraft account access token...",
+        None,
+    );
+
     // For now, this will require the user to re-authenticate
     // In the future, we could implement refresh token logic
     Err("Token refresh not yet implemented. Please sign in again.".to_string())

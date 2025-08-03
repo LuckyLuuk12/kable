@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Icon, InstallationManager, installations, isLoadingInstallations, isLoadingVersions, Launcher } from '$lib';
+  import { Icon, InstallationService, installations, isLoadingInstallations, isLoadingVersions, Launcher } from '$lib';
   
   export let isGrid: boolean = false;
   export let isSmall: boolean = false;
@@ -25,13 +25,13 @@
   $: loaderIcons = Object.fromEntries(
     $installations.map(installation => [
       installation.id,
-      InstallationManager.getLoaderIcon(InstallationManager.getVersionData(installation).loader)
+      InstallationService.getLoaderIcon(InstallationService.getVersionData(installation).loader)
     ])
   );
   $: loaderColors = Object.fromEntries(
     $installations.map(installation => [
       installation.id,
-      InstallationManager.getLoaderColor(InstallationManager.getVersionData(installation).loader)
+      InstallationService.getLoaderColor(InstallationService.getVersionData(installation).loader)
     ])
   );
 
@@ -63,7 +63,7 @@
       {#each limitedInstallations as installation, i (installation.id)}
         <div class={isSmall ? 'installation-card small' : 'installation-card'} style="background: linear-gradient(135deg, {loaderColors[installation.id]}22 0%, {loaderColors[installation.id]}08 40%); --loader-color: {loaderColors[installation.id]}55; z-index: {(limitedInstallations.length - i) * 2}; position: relative;">
           <div class="card-top-actions">
-            <button class="star-btn" title="Favorite" on:click={async (e) => { e.stopPropagation(); await InstallationManager.toggleFavorite(installation); }}>
+            <button class="star-btn" title="Favorite" on:click={async (e) => { e.stopPropagation(); await InstallationService.toggleFavorite(installation); }}>
               <Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="md" />
             </button>
             {#if isSmall}
@@ -72,11 +72,11 @@
                   <Icon name="more-horizontal" size="sm" />
                 </button>
                 <div class="dropdown-menu" style="z-index: {(limitedInstallations.length - i) * 2 - 1};">
-                  <button on:click={async () => await InstallationManager.updateInstallation(installation.id, installation)}>
+                  <button on:click={async () => await InstallationService.updateInstallation(installation.id, installation)}>
                     <Icon name="edit" size="sm" />
                     Edit
                   </button>
-                  <button on:click={async () => await InstallationManager.createInstallation(installation.version_id)}>
+                  <button on:click={async () => await InstallationService.createInstallation(installation.version_id)}>
                     <Icon name="duplicate" size="sm" />
                     Duplicate
                   </button>
@@ -87,7 +87,7 @@
                   <div class="dropdown-separator"></div>
                   <button 
                     class="danger" 
-                    on:click={async () => await InstallationManager.deleteInstallation(installation.id)}
+                    on:click={async () => await InstallationService.deleteInstallation(installation.id)}
                   >
                     <Icon name="trash" size="sm" />
                     Delete
@@ -100,7 +100,7 @@
             <div class="installation-icon-column">
               <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColors[installation.id]}; background: rgba(0,0,0,0.0);">
                 <Icon name={loaderIcons[installation.id]} size="lg" />
-                <span class="icon-tooltip">{InstallationManager.getVersionData(installation).loader}</span>
+                <span class="icon-tooltip">{InstallationService.getVersionData(installation).loader}</span>
               </div>
               <button 
                 class="btn btn-primary play-below-icon" 
@@ -148,11 +148,11 @@
 
           {#if !isSmall}
             <div class="installation-actions">
-              <button class="btn btn-secondary" on:click={async () => await InstallationManager.updateInstallation(installation.id, installation)}>
+              <button class="btn btn-secondary" on:click={async () => await InstallationService.updateInstallation(installation.id, installation)}>
                 <Icon name="edit" size="sm" />
                 Edit
               </button>
-              <button class="btn btn-secondary" on:click={async () => await InstallationManager.createInstallation(installation.version_id)}>
+              <button class="btn btn-secondary" on:click={async () => await InstallationService.createInstallation(installation.version_id)}>
                 <Icon name="duplicate" size="sm" />
                 Duplicate
               </button>
@@ -160,7 +160,7 @@
                 <Icon name="download" size="sm" />
                 Export
               </button>
-              <button class="btn btn-danger" on:click={async () => await InstallationManager.deleteInstallation(installation.id)}>
+              <button class="btn btn-danger" on:click={async () => await InstallationService.deleteInstallation(installation.id)}>
                 <Icon name="trash" size="sm" />
                 Delete
               </button>

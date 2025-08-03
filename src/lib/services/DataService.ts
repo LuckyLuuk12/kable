@@ -1,14 +1,12 @@
 import { writable } from 'svelte/store';
-import { SettingsManager } from './SettingsManager';
-import { InstallationManager } from './InstallationManager';
-import { MapsManager } from './MapsManager';
+import { SettingsService, MapsService } from '$lib';
 
 // Global initialization state
 export const isAppInitialized = writable(false);
 export const initializationStatus = writable('Starting...');
 export const initializationError = writable<string | null>(null);
 
-export class DataManager {
+export class DataService {
   private static isInitialized = false;
 
   /**
@@ -24,12 +22,12 @@ export class DataManager {
     
     try {
       // Step 1: Initialize settings first (required for other managers)
-      await SettingsManager.initialize();
+      await SettingsService.initialize();
       initializationStatus.set('Settings loaded');
 
       // Step 2: Load maps/worlds data
       initializationStatus.set('Loading worlds data...');
-      await MapsManager.loadWorlds();
+      await MapsService.loadWorlds();
       initializationStatus.set('Worlds loaded');
 
       // Mark as complete
@@ -57,7 +55,7 @@ export class DataManager {
     
     try {
       // Refresh non-GameManager data only - GameManager handles its own installations
-      await MapsManager.loadWorlds();
+      await MapsService.loadWorlds();
 
       initializationStatus.set('Ready');
       console.log('✅ DataManager: Data refreshed successfully');
