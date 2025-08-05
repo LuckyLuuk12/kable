@@ -979,3 +979,22 @@ export interface ModerationMessage {
   message: string;
   body?: string;
 }
+
+/** Extended mod information including jar info and additional metadata.
+ * ```ts
+ * export interface ExtendedModInfo {
+ *   mod_jar_info: ModJarInfo;
+ *   page_uri: string | null;
+ *   icon_uri: string | null;
+ *   description: string | null;
+ *   authors: string[];
+ * }
+ * ```
+ */
+export interface ExtendedModInfo {
+  mod_jar_info: ModJarInfo;
+  page_uri: string | null;
+  icon_uri: string | null;
+  description: string | null;
+  authors: string[];
+}

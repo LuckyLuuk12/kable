@@ -101,6 +101,7 @@ pub fn run() {
             commands_installations::modify_installation,
             commands_installations::delete_installation,
             commands_installations::create_installation,
+            commands_installations::get_mod_info,
             // Launcher commands
             commands_launcher::launch_installation,
             commands_launcher::kill_minecraft_process,
@@ -118,6 +119,7 @@ pub fn run() {
             commands_mods::set_provider_limit,
             commands_mods::clear_provider_cache,
             commands_mods::purge_stale_provider_cache,
+            commands_mods::get_extended_mod_info,
             // Shaders commands
             shaders::get_installed_shaders,
             shaders::toggle_shader,

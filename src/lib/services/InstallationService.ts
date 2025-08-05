@@ -1,4 +1,4 @@
-import { type InstallationForm, type KableInstallation, type VersionData, installations, selectedInstallation, isLoadingInstallations, installationsError, versions, isLoadingVersions, versionsError, type LoaderKind, type ModJarInfo } from '$lib';
+import { type InstallationForm, type KableInstallation, type VersionData, installations, selectedInstallation, isLoadingInstallations, installationsError, versions, isLoadingVersions, versionsError, type LoaderKind, type ModJarInfo, type ExtendedModInfo } from '$lib';
 import * as installationsApi from '../api/installations';
 import { get } from 'svelte/store';
 

@@ -269,6 +269,7 @@ impl KableInstallation {
 
     /// Try to get the mods folder from the version manifest (versions/<version_id>/<version_id>.json)
     fn get_mods_folder_from_version_manifest(&self) -> Option<PathBuf> {
+        use crate::logging::{Logger};
         let mc_dir = crate::get_default_minecraft_dir().ok()?;
         let version_json = mc_dir.join("versions").join(&self.version_id).join(format!("{}.json", &self.version_id));
         if !version_json.exists() {
@@ -279,7 +280,9 @@ impl KableInstallation {
 
         // 1. Look for -Dfabric.modsFolder=... or -DmodsFolder=... in arguments.jvm array (case-insensitive, robust)
         if let Some(arguments) = json.get("arguments") {
+            Logger::debug_global(&format!("Checking JVM arguments for mods folder in {}", version_json.display()), None);
             if let Some(jvm_args) = arguments.get("jvm") {
+                Logger::debug_global(&format!("Checking JVM arguments for mods folder in {}", version_json.display()), None);
                 if let Some(arr) = jvm_args.as_array() {
                     let re = regex::Regex::new(r"(?i)-d(fabric\.)?modsfolder=(.+)").unwrap();
                     for arg in arr {
@@ -289,6 +292,7 @@ impl KableInstallation {
                                 if let Some(path_str) = caps.get(2) {
                                     let path = PathBuf::from(path_str.as_str().trim());
                                     if path.is_absolute() {
+                                        Logger::debug_global(&format!("Found absolute mods folder path from JVM argument: {}", path.display()), None);
                                         return Some(path);
                                     } else {
                                         // Relative to .minecraft

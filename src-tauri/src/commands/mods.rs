@@ -1,5 +1,5 @@
 use crate::installations::kable_profiles::KableInstallation;
-use crate::mods::*;
+use crate::{mods::*, ModJarInfo};
 
 #[tauri::command]
 pub async fn get_mods(
@@ -41,4 +41,9 @@ pub async fn clear_provider_cache(provider: ProviderKind) {
 #[tauri::command]
 pub async fn purge_stale_provider_cache(provider: ProviderKind) {
     crate::mods::purge_stale_provider_cache(provider);
+}
+
+#[tauri::command]
+pub async fn get_extended_mod_info(mod_jar_info: ModJarInfo) -> Result<ExtendedModInfo, String> {
+    crate::mods::get_extended_mod_info(mod_jar_info).await
 }

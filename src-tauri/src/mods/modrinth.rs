@@ -54,40 +54,80 @@ impl fmt::Display for FilterFacets {
 /// Modrinth project info (see https://docs.modrinth.com/api/operations/getproject/)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModrinthInfo {
-    pub id: String,
-    pub slug: String,
+    #[serde(rename = "project_id")]
+    pub project_id: String,
     pub project_type: String,
+    pub slug: String,
     pub title: String,
     pub description: String,
-    pub body: Option<String>,
-    pub additional_categories: Option<Vec<String>>,
+    pub author: String,
     pub categories: Vec<String>,
+    #[serde(default)]
+    pub display_categories: Vec<String>,
+    #[serde(default)]
+    pub versions: Vec<String>,
+    pub downloads: u64,
+    #[serde(rename = "follows")]
+    pub followers: Option<u64>,
+    #[serde(rename = "icon_url")]
+    pub icon_url: Option<String>,
+    #[serde(rename = "date_created")]
+    pub date_created: Option<String>,
+    #[serde(rename = "date_modified")]
+    pub date_modified: Option<String>,
+    #[serde(rename = "latest_version")]
+    pub latest_version: Option<String>,
+    pub license: Option<String>,
     pub client_side: Option<String>,
     pub server_side: Option<String>,
-    pub downloads: u64,
-    pub icon_url: Option<String>,
-    pub issues_url: Option<String>,
-    pub source_url: Option<String>,
-    pub wiki_url: Option<String>,
-    pub discord_url: Option<String>,
-    pub donation_urls: Option<Vec<DonationUrl>>,
-    pub published: Option<String>,
-    pub updated: Option<String>,
-    pub approved: Option<String>,
-    pub followers: Option<u64>,
-    pub owner: String,
-    pub team: Option<String>,
-    pub host: Option<String>,
-    pub license: Option<ModrinthLicense>,
     pub gallery: Option<Vec<String>>,
-    pub versions: Option<Vec<ModrinthVersion>>,
+    #[serde(rename = "featured_gallery")]
+    pub featured_gallery: Option<String>,
+    pub color: Option<u32>,
+    // The following fields are not present in the search API, but may be present in the project details API
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub body: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub additional_categories: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub issues_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wiki_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discord_url: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub donation_urls: Option<Vec<DonationUrl>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub published: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub updated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub approved: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub owner: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub team: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub host: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub license_obj: Option<ModrinthLicense>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub versions_obj: Option<Vec<ModrinthVersion>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub game_versions: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub loaders: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub featured: Option<bool>,
-    pub project_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub published_by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub approved_by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub moderation_message: Option<ModerationMessage>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub moderation_message_type: Option<String>,
 }
 
@@ -146,7 +186,10 @@ pub struct ModrinthProvider {
 
 impl Default for ModrinthProvider {
     fn default() -> Self {
-        let cache_path = PathBuf::from("modrinth_cache.json");
+        let cache_path = match crate::get_minecraft_kable_dir() {
+            Ok(dir) => dir.join("modrinth_cache.json"),
+            Err(_) => PathBuf::from("modrinth_cache.json"),
+        };
         let cache = ModCache::load_from_disk(&cache_path).unwrap_or_else(|_| ModCache::new(3600));
         Self {
             limit: 20,

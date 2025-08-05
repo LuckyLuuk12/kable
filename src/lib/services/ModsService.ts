@@ -1,7 +1,7 @@
 import * as modsApi from '../api/mods';
 import { get } from 'svelte/store';
-import { modsByProvider, modsLoading, modsError, modsLimit, modsOffset, modsFilter, modsInstallation, modsProvider } from '$lib';
-import type { ProviderKind, ModInfoKind, KableInstallation, ModFilter, ModJarInfo } from '$lib';
+import { modsByProvider, modsLoading, modsError, modsLimit, modsOffset, modsFilter, modsInstallation, modsProvider, extendedModInfo } from '$lib';
+import type { ProviderKind, ModInfoKind, KableInstallation, ModFilter, ModJarInfo, ExtendedModInfo } from '$lib';
 
 export class ModsService {
   initialized = false;
@@ -119,4 +119,53 @@ export class ModsService {
   }
   isLoading() { return get(modsLoading); }
   getError() { return get(modsError); }
+
+  // --- Concurrency-limited queue for extended mod info requests ---
+  static #pending: (() => Promise<void>)[] = [];
+  static #inFlight = 0;
+  static #MAX_CONCURRENT = 3; // You can tune this (2-4 is safe)
+
+  static async getExtendedModInfo(modJarInfo: ModJarInfo): Promise<ExtendedModInfo | null> {
+    const fileName = modJarInfo.file_name;
+    if (get(extendedModInfo)[fileName]) {
+      return get(extendedModInfo)[fileName] || null;
+    }
+    // Wrap the actual fetch in a function for the queue
+    return new Promise<ExtendedModInfo | null>((resolve) => {
+      const task = async () => {
+        try {
+          const result = await modsApi.getExtendedModInfo(modJarInfo);
+          extendedModInfo.set({
+            ...get(extendedModInfo),
+            [fileName]: result
+          });
+          resolve(result || null);
+        } catch (e) {
+          // Store a null value in the store to prevent infinite retries
+          extendedModInfo.set({
+            ...get(extendedModInfo),
+            [fileName]: null
+          });
+          // Optionally: log error, set error state, etc.
+          console.warn(`Failed to fetch extended mod info for ${fileName}:`, e);
+          resolve(null);
+        } finally {
+          ModsService.#inFlight--;
+          ModsService.#runQueue();
+        }
+      };
+      ModsService.#pending.push(task);
+      ModsService.#runQueue();
+    });
+  }
+
+  static #runQueue() {
+    while (ModsService.#inFlight < ModsService.#MAX_CONCURRENT && ModsService.#pending.length > 0) {
+      const next = ModsService.#pending.shift();
+      if (next) {
+        ModsService.#inFlight++;
+        next();
+      }
+    }
+  }
 }
