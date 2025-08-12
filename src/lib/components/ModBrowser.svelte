@@ -488,7 +488,8 @@ onMount(async () => {
           disabled={!provider.available}
           title={provider.description}
         >
-          <Icon name={provider.id === ProviderKind.Modrinth ? 'download' : 'package'} size="sm" />
+        <!-- TODO: Change this to use the providers favicon -->
+          <Icon name={provider.id === ProviderKind.Modrinth ? 'download' : 'package'} size="sm" forceType="svg" />
           {provider.name}
           {#if !provider.available}
             <span class="coming-soon">(Soon)</span>
@@ -506,7 +507,7 @@ onMount(async () => {
         <h3>Filters</h3>
         <div class="filters-actions">
           <button class="reset-filters" on:click={resetFilters} title="Reset all filters">
-            <Icon name="refresh" size="sm" />
+            <Icon name="refresh" size="sm" forceType="svg" />
           </button>
           <button class="toggle-filters" on:click={() => showFilters = !showFilters} title="Toggle filters">
             <Icon name={showFilters ? 'arrow-left' : 'arrow-right'} size="sm" forceType="svg" />
@@ -881,7 +882,6 @@ onMount(async () => {
 // Main Layout
 .browser-main {
   display: flex;
-  flex: 1;
   overflow: hidden;
 }
 
@@ -1075,7 +1075,8 @@ onMount(async () => {
 
 // Content Area
 .content-area {
-  flex: 1;
+  overflow: hidden;
+  width: 100%;
   display: flex;
   flex-direction: column;
 }
@@ -1176,7 +1177,28 @@ onMount(async () => {
 .mods-content {
   display: flex;
   flex-direction: column;
-  height: fit-content;
+  flex: 1;
+  min-height: 0; // Important: allows flex child to shrink
+  overflow-y: scroll; // Enable scrolling on the content area
+  
+  /* Custom scrollbar styling */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: rgba($dark-600, 0.1);
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, rgba($primary, 0.6) 0%, rgba($secondary, 0.4) 100%);
+    border-radius: 4px;
+    
+    &:hover {
+      background: linear-gradient(135deg, rgba($primary, 0.8) 0%, rgba($secondary, 0.6) 100%);
+    }
+  }
 }
 
 // Loading/Error/Empty States
@@ -1230,29 +1252,7 @@ onMount(async () => {
 
 // Mods Container
 .mods-container {
-  flex: 1;
   padding: 0.75rem;
-  overflow-y: auto;
-  min-height: 0;
-  
-  /* Custom scrollbar styling */
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: rgba($dark-600, 0.1);
-    border-radius: 4px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, rgba($primary, 0.6) 0%, rgba($secondary, 0.4) 100%);
-    border-radius: 4px;
-    
-    &:hover {
-      background: linear-gradient(135deg, rgba($primary, 0.8) 0%, rgba($secondary, 0.6) 100%);
-    }
-  }
   
   &.grid {
     display: grid;

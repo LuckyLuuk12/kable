@@ -684,7 +684,11 @@
     margin-bottom: 1.5rem;
     
     .header-content {
-      flex: 1;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0 1rem;
       
       h1 {
         display: flex;

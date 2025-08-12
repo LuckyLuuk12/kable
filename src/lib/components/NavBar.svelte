@@ -59,7 +59,7 @@
     { path: '/installations', label: 'Installations', icon: 'minecraft' },
     { path: '/mods', label: 'Mods', icon: 'mods' },
     { path: '/shaders', label: 'Shaders', icon: 'shaders' },
-    { path: '/maps', label: 'Maps', icon: 'maps' },
+    { path: '/maps', label: 'Worlds', icon: 'maps' },
     { path: '/skins', label: 'Skins', icon: 'palette' },
     // Only show logs if enabled in settings (default: true for developers)
     ...($settings?.logging.show_logs_page_in_nav !== false ? [{ path: '/logs', label: 'Logs', icon: 'terminal' }] : [])
@@ -114,7 +114,7 @@
         aria-label={isNavCollapsed ? 'Expand navigation' : 'Collapse navigation'}
         title={isNavCollapsed ? 'Expand navigation (Ctrl+B)' : 'Collapse navigation (Ctrl+B)'}
       >
-        <Icon name="menu" size="lg" />
+        <Icon name={isNavCollapsed ? 'arrow-right' : 'arrow-left'} size="lg" forceType="svg" />
       </button>
     </div>
     
@@ -211,9 +211,10 @@
       }
       
       .user-avatar {
+        margin-top: 0.5rem;
         width: 2.5rem;
         height: 2.5rem;
-        border-radius: 50%;
+        border-radius: 40%;
         background: rgba($primary, 0.1);
         display: flex;
         align-items: center;
@@ -227,7 +228,7 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        border-radius: 50%;
+        border-radius: 40%;
         display: block;
         background: rgba($primary, 0.1);
       }
@@ -265,7 +266,7 @@
       background: transparent;
       border: none;
       border-radius: $border-radius;
-      padding: 0.75rem;
+      padding: 0 0.75rem;
       color: $text;
       cursor: pointer;
       transition: all 0.2s ease;
@@ -357,7 +358,6 @@
 
   .bottom-section {
     margin-top: auto;
-    padding-top: 1rem;
     border-top: 1px solid $dark-600;
   }
 

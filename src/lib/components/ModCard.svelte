@@ -194,7 +194,7 @@ function handleCardKeydown(event: KeyboardEvent) {
 
 <div class="mod-card" class:installed={isInstalled} class:compact={viewMode === 'compact'} class:list={viewMode === 'list'} class:grid={viewMode === 'grid'}>
   {#if viewMode === 'compact'}
-    <!-- Compact Mode -->
+    <!-- !Compact Mode - Icon + Name/Description + Stacked Buttons -->
     <div class="compact-layout">
       <div class="compact-icon">
         {#if displayInfo.icon_url}
@@ -214,58 +214,46 @@ function handleCardKeydown(event: KeyboardEvent) {
         {/if}
       </div>
 
-      <div class="compact-info">
+      <div class="compact-content">
         <h4 class="compact-title" title={displayInfo.title}>
           {displayInfo.title}
         </h4>
-        
-        <div class="compact-meta">
-          <span class="compact-downloads">
-            <Icon name="download" size="sm" forceType="svg" />
-            {displayInfo.downloads > 999 ? 
-              (displayInfo.downloads / 1000000 > 1 ? 
-                `${(displayInfo.downloads / 1000000).toFixed(1)}M` : 
-                `${(displayInfo.downloads / 1000).toFixed(0)}K`) : 
-              displayInfo.downloads.toLocaleString()}
-          </span>
-          
-          {#if getDisplayCategories(displayInfo.categories).length > 0}
-            <div class="compact-tags">
-              {#each getDisplayCategories(displayInfo.categories).slice(0, 2) as category}
-                <span class="compact-tag">{category}</span>
-              {/each}
-              {#if getDisplayCategories(displayInfo.categories).length > 2}
-                <span class="compact-tag-more">+{getDisplayCategories(displayInfo.categories).length - 2}</span>
-              {/if}
-            </div>
-          {/if}
-        </div>
+        <p class="compact-description" title={displayInfo.description}>
+          {displayInfo.description}
+        </p>
       </div>
 
       <div class="compact-actions">
+        <button 
+          class="compact-versions-btn" 
+          on:click={handleVersions}
+          title="View all versions"
+        >
+          <Icon name="list" size="sm" />
+        </button>
+        
         {#if !isInstalled && currentInstallation}
           <button 
             class="compact-download-btn" 
             on:click={handleDownload}
             disabled={loading}
+            title="Download latest version"
           >
             <Icon name="download" size="sm" forceType="svg" />
-            Download
           </button>
+        {:else if isInstalled}
+          <div class="compact-installed" title="Already installed">
+            <Icon name="check" size="sm" />
+          </div>
         {:else}
-          <div class="compact-no-installation">
+          <div class="compact-no-installation" title="Select installation first">
             <Icon name="info" size="sm" />
-            Select installation
           </div>
         {/if}
-        
-        <button class="info-btn" on:click={handleInfo}>
-          <Icon name="info" size="sm" />
-        </button>
       </div>
     </div>
   {:else}
-    <!-- Grid and List Mode -->
+    <!-- !Grid and List Mode -->
     {#if viewMode === 'grid'}
       <!-- Clickable grid card -->
       <div 
@@ -374,99 +362,115 @@ function handleCardKeydown(event: KeyboardEvent) {
         </div>
       </div>
     {:else}
-      <!-- Non-clickable list card -->
+      <!-- List Mode - Two-row layout -->
       <div class="mod-content-wrapper">
-        <!-- List Mode (unchanged) -->
-        <div class="mod-header-section">
-          <div class="mod-icon">
+        <!-- List Mode Container -->
+        <div class="list-layout">
+          <!-- Icon Section (Left) -->
+          <div class="list-icon">
             {#if displayInfo.icon_url}
               <img 
                 src={displayInfo.icon_url} 
                 alt={displayInfo.title} 
-                class="mod-icon-img"
+                class="list-icon-img"
                 on:error={handleImageError}
               />
-              <div class="mod-icon-placeholder" style="display: none;">
-                <Icon name="package" size="md" />
+              <div class="list-icon-placeholder" style="display: none;">
+                <Icon name="package" size="lg" />
               </div>
             {:else}
-              <div class="mod-icon-placeholder">
-                <Icon name="package" size="md" />
+              <div class="list-icon-placeholder">
+                <Icon name="package" size="lg" />
               </div>
             {/if}
           </div>
 
-          <div class="mod-header-info">
-            <h3 class="mod-title" title={displayInfo.title}>
-              {displayInfo.title}
-            </h3>
-            
-            <div class="mod-author">
-              by {displayInfo.author}
-            </div>
-            
-            {#if getDisplayCategories(displayInfo.categories).length > 0}
-              <div class="mod-tags">
-                {#each getDisplayCategories(displayInfo.categories) as category}
-                  <span class="mod-tag">{category}</span>
-                {/each}
+          <!-- Content Section (Two Rows) -->
+          <div class="list-content">
+            <!-- Top Row: Name/Author + Stats + Versions Button -->
+            <div class="list-top-row">
+              <div class="list-name-author">
+                <h3 class="list-title" title={displayInfo.title}>
+                  {displayInfo.title}
+                </h3>
+                <div class="list-author">
+                  by {displayInfo.author}
+                </div>
               </div>
-            {/if}
-          </div>
-        </div>
+              
+              <div class="list-stats">
+                <div class="list-stat">
+                  <Icon name="download" size="sm" forceType="svg" />
+                  <span class="stat-value">
+                    {displayInfo.downloads > 999 ? 
+                      (displayInfo.downloads / 1000000 > 1 ? 
+                        `${(displayInfo.downloads / 1000000).toFixed(1)}M` : 
+                        `${(displayInfo.downloads / 1000).toFixed(0)}K`) : 
+                      displayInfo.downloads.toLocaleString()}
+                  </span>
+                </div>
 
-        <div class="mod-stats">
-          <div class="mod-stat">
-            <Icon name="download" size="sm" forceType="svg" />
-            <span class="stat-value">
-              {displayInfo.downloads > 999 ? 
-                (displayInfo.downloads / 1000000 > 1 ? 
-                  `${(displayInfo.downloads / 1000000).toFixed(1)}M` : 
-                  `${(displayInfo.downloads / 1000).toFixed(0)}K`) : 
-                displayInfo.downloads.toLocaleString()}
-            </span>
-            <span class="stat-label">Downloads</span>
-          </div>
+                <div class="list-stat">
+                  <Icon name="star" size="sm" forceType="svg" />
+                  <span class="stat-value">{displayInfo.follows.toLocaleString()}</span>
+                </div>
 
-          <div class="mod-stat">
-            <Icon name="star" size="sm" forceType="svg" />
-            <span class="stat-value">{displayInfo.follows.toLocaleString()}</span>
-            <span class="stat-label">Follows</span>
-          </div>
+                <div class="list-stat">
+                  <Icon name="calendar" size="sm" forceType="svg" />
+                  <span class="stat-value">{displayInfo.updated}</span>
+                </div>
+              </div>
 
-          <div class="mod-stat">
-            <Icon name="calendar" size="sm" forceType="svg" />
-            <span class="stat-value">{displayInfo.updated}</span>
-            <span class="stat-label">Updated</span>
-          </div>
-        </div>
-
-        <div class="mod-content-section">
-          <p class="mod-description">
-            {displayInfo.description}
-          </p>
-        </div>
-
-        <div class="mod-actions">
-          {#if isInstalled}
-            <div class="installed-indicator">
-              Installed
+              <button 
+                class="list-versions-btn" 
+                on:click={handleVersions}
+                title="View all versions"
+              >
+                <Icon name="list" size="sm" />
+                Versions
+              </button>
             </div>
-          {:else if currentInstallation}
-            <button 
-              class="download-btn" 
-              on:click={handleDownload}
-              disabled={loading}
-            >
-              <Icon name="download" size="sm" />
-              Download
-            </button>
-          {:else}
-            <div class="no-installation-warning">
-              <Icon name="info" size="sm" />
-              <span>Select installation first</span>
+
+            <!-- Bottom Row: Description + Tags + Download Button -->
+            <div class="list-bottom-row">
+              <div class="list-desc-tags">
+                <p class="list-description">
+                  {displayInfo.description}
+                </p>
+
+                {#if getDisplayCategories(displayInfo.categories).length > 0}
+                  <div class="list-tags">
+                    {#each getDisplayCategories(displayInfo.categories) as category}
+                      <span class="list-tag">{category}</span>
+                    {/each}
+                  </div>
+                {/if}
+              </div>
+
+              <div class="list-action">
+                {#if isInstalled}
+                  <div class="installed-indicator">
+                    <Icon name="check" size="sm" forceType="svg" />
+                    Installed
+                  </div>
+                {:else if currentInstallation}
+                  <button 
+                    class="list-download-btn" 
+                    on:click={handleDownload}
+                    disabled={loading}
+                  >
+                    <Icon name="download" size="sm" forceType="svg" />
+                    Download
+                  </button>
+                {:else}
+                  <div class="no-installation-warning">
+                    <Icon name="info" size="sm" forceType="svg" />
+                    <span>Select installation</span>
+                  </div>
+                {/if}
+              </div>
             </div>
-          {/if}
+          </div>
         </div>
       </div>
     {/if}
@@ -505,7 +509,6 @@ function handleCardKeydown(event: KeyboardEvent) {
   }
   
   &.list {
-    flex-direction: row;
     width: 100%;
     max-width: none;
     min-height: fit-content;
@@ -516,6 +519,326 @@ function handleCardKeydown(event: KeyboardEvent) {
       transform: none;
       box-shadow: 0 2px 8px rgba($dark-900, 0.08);
     }
+  }
+
+  // New List Layout - Ultra-compact two-row design with centered icon
+  .list-layout {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .list-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 0.25rem;
+    overflow: hidden;
+    background: rgba($placeholder, 0.1);
+    border: 1px solid rgba($placeholder, 0.2);
+    flex-shrink: 0;
+    position: relative;
+
+    .list-icon-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .list-icon-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: $placeholder;
+      background: rgba($placeholder, 0.05);
+    }
+  }
+
+  .list-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+    overflow: hidden;
+    width: 100%;
+  }
+
+  .list-top-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .list-name-author {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    flex: 0 0 auto;
+    min-width: 0;
+    width: 180px;
+    max-width: 400px;
+  }
+
+  .list-title {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: $text;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .list-author {
+    color: $placeholder;
+    font-size: 0.7rem;
+    font-weight: 500;
+    margin: 0;
+  }
+
+  .list-stats {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .list-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: $placeholder;
+    font-size: 0.7rem;
+    white-space: nowrap;
+
+    .stat-value {
+      font-weight: 500;
+      color: $text;
+    }
+  }
+
+  .list-versions-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.5rem;
+    background: rgba($secondary, 0.1);
+    border: 1px solid rgba($secondary, 0.3);
+    border-radius: 0.25rem;
+    color: $secondary;
+    font-size: 0.7rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+    height: 1.75rem;
+    min-width: 5.75rem;
+    max-width: 5.5rem;
+    margin-left: auto;
+
+    &:hover {
+      background: rgba($secondary, 0.15);
+      border-color: rgba($secondary, 0.4);
+    }
+  }
+
+  .list-bottom-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .list-desc-tags {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .list-description {
+    margin: 0;
+    color: $placeholder;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .list-tags {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.125rem;
+    flex-shrink: 0;
+    margin-right: 1.5rem;
+  }
+
+  .list-tag {
+    padding: 0.0625rem 0.25rem;
+    background: rgba($primary, 0.1);
+    border: 1px solid rgba($primary, 0.2);
+    border-radius: 0.5rem;
+    color: $primary;
+    font-size: 0.6rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  // Responsive adjustments for list view
+  @media (max-width: 1024px) {
+    .list-name-author {
+      width: 150px;
+      max-width: 160px;
+    }
+    
+    .list-stats {
+      gap: 0.25rem;
+      
+      .list-stat {
+        font-size: 0.65rem;
+      }
+    }
+    
+    .list-versions-btn,
+    .list-download-btn,
+    .installed-indicator,
+    .no-installation-warning {
+      min-width: 6rem;
+      max-width: 7rem;
+      font-size: 0.65rem;
+      padding: 0.25rem 0.375rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .list-layout {
+      gap: 0.375rem;
+      padding: 0.375rem;
+    }
+    
+    .list-name-author {
+      width: 120px;
+      max-width: 130px;
+    }
+    
+    .list-stats {
+      gap: 0.25rem;
+      
+      .list-stat {
+        font-size: 0.6rem;
+        gap: 0.125rem;
+      }
+    }
+    
+    .list-versions-btn,
+    .list-download-btn,
+    .installed-indicator,
+    .no-installation-warning {
+      min-width: 5rem;
+      max-width: 6rem;
+      font-size: 0.6rem;
+      gap: 0.125rem;
+    }
+    
+    .list-description {
+      font-size: 0.7rem;
+    }
+    
+    .list-tag {
+      font-size: 0.55rem;
+      padding: 0.0625rem 0.1875rem;
+    }
+  }
+
+  .list-action {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    min-width: 70px;
+    max-width: 80px;
+    justify-content: flex-end;
+    margin-left: auto;
+  }
+
+  .list-download-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.5rem;
+    background: $tertiary;
+    border: none;
+    border-radius: 0.25rem;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    height: 1.75rem;
+    min-width: 5.75rem;
+    max-width: 10rem;
+    margin-left: auto;
+
+    &:hover:not(:disabled) {
+      background: rgba($tertiary, 0.9);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba($tertiary, 0.3);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  .installed-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.5rem;
+    background: rgba($green-600, 0.1);
+    border: 1px solid rgba($green-600, 0.3);
+    border-radius: 0.25rem;
+    color: $green-600;
+    font-size: 0.7rem;
+    font-weight: 600;
+    height: 1.75rem;
+    min-width: 5.75rem;
+    max-width: 10rem;
+    justify-content: center;
+  }
+
+  .no-installation-warning {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.5rem;
+    background: rgba($yellow, 0.1);
+    border: 1px solid rgba($yellow, 0.3);
+    border-radius: 0.25rem;
+    color: $yellow;
+    font-size: 0.7rem;
+    font-weight: 500;
+    height: 1.75rem;
+    min-width: 70px;
+    max-width: 80px;
+    justify-content: center;
   }
   
   &.compact {
@@ -537,237 +860,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-  }
-  
-  &.list .mod-content-wrapper {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  
-  .mod-header-section {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.25rem;
-  }
-  
-  &.list .mod-header-section {
-    flex: 0 0 auto;
-    display: flex;
-    gap: 1rem;
-    align-items: flex-start;
-    min-width: 300px;
-  }
-  
-  .mod-header-info {
-    flex: 1;
-    min-width: 0;
-    
-    .mod-title {
-      margin: 0 0 0.25rem 0;
-      font-size: 0.85em;
-      font-weight: 600;
-      color: $text;
-      line-height: 1.2;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-      hyphens: auto;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    
-    .mod-author {
-      color: $placeholder;
-      font-size: 0.8em;
-      margin-bottom: 0.375rem;
-    }
-    
-    .mod-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.25rem;
-      
-      .mod-tag {
-        background: rgba($primary, 0.08);
-        color: $primary;
-        padding: 0.1875rem 0.375rem;
-        border-radius: 0.25rem;
-        font-size: 0.7em;
-        font-weight: 500;
-        text-transform: capitalize;
-      }
-    }
-  }
-  
-  &.list .mod-header-info .mod-title {
-    font-size: 1.125rem;
-    margin-bottom: 0.5rem;
-  }
-  
-  .mod-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 0.375rem;
-    overflow: hidden;
-    background: rgba($placeholder, 0.1);
-    border: 1px solid rgba($placeholder, 0.2);
-    flex-shrink: 0;
-    position: relative;
-    
-    .mod-icon-img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    
-    .mod-icon-placeholder {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: $placeholder;
-      background: rgba($placeholder, 0.05);
-    }
-  }
-  
-  .mod-stats {
-    display: flex;
-    gap: 1rem;
-    margin: 0.5rem 0;
-    flex-direction: column;
-    
-    .mod-stat {
-      display: flex;
-      align-items: center;
-      gap: 0.375rem;
-      color: $placeholder;
-      font-size: 0.8em;
-      
-      .stat-value {
-        font-weight: 600;
-        color: $text;
-      }
-      
-      .stat-label {
-        color: $placeholder;
-        font-size: 0.9em;
-      }
-    }
-  }
-  
-  &.list .mod-stats {
-    flex-direction: row;
-    gap: 1.5rem;
-    margin: 0.75rem 0;
-  }
-  
-  .mod-content-section {
-    flex: 1;
-    
-    .mod-description {
-      color: $placeholder;
-      font-size: 0.85em;
-      line-height: 1.4;
-      margin: 0 0 0.75rem 0;
-      display: -webkit-box;
-      -webkit-line-clamp: 3;
-      line-clamp: 3;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-  }
-  
-  &.list .mod-content-section {
-    flex: 1;
-    max-width: none;
-    
-    .mod-description {
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
-    }
-  }
-  
-  .mod-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-top: auto;
-    padding-top: 0.75rem;
-    
-    .download-btn {
-      flex: 1;
-      background: $primary;
-      color: white;
-      border: none;
-      border-radius: 0.375rem;
-      padding: 0.75rem 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.375rem;
-      
-      &:hover:not(:disabled) {
-        background: rgba($primary, 0.8);
-        transform: translateY(-1px);
-      }
-      
-      &:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
-      }
-    }
-    
-    .no-installation-warning {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0.375rem;
-      padding: 0.75rem 1rem;
-      border: 1px solid rgba($yellow, 0.3);
-      border-radius: 0.375rem;
-      background: rgba($yellow, 0.05);
-      color: $yellow;
-      font-size: 0.85em;
-      font-weight: 500;
-    }
-    
-    .installed-indicator {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.5rem 1rem;
-      border: 1px solid rgba($green, 0.4);
-      border-radius: 0.375rem;
-      background: linear-gradient(135deg, rgba($green, 0.15) 0%, rgba($green, 0.08) 100%);
-      color: $green;
-      font-weight: 600;
-      font-size: 0.8em;
-      white-space: nowrap;
-      
-      :global(.icon) {
-        color: $green;
-      }
-    }
-  }
-  
-  &.grid .mod-actions {
-    width: 100%;
-    justify-content: center;
-  }
-
-  &.list .mod-actions {
-    margin-left: auto;
-    flex-shrink: 0;
-    padding-top: 0;
-    min-width: 200px;
+    min-width: 100%;
   }
 }
 
@@ -855,11 +948,11 @@ function handleCardKeydown(event: KeyboardEvent) {
         flex-shrink: 0;
         
         &.download-btn {
-          background: $primary;
+          background: $tertiary;
           color: white;
           
           &:hover:not(:disabled) {
-            background: rgba($primary, 0.8);
+            background: rgba($tertiary, 0.8);
             transform: translateY(-1px);
           }
           
@@ -960,8 +1053,8 @@ function handleCardKeydown(event: KeyboardEvent) {
   position: relative;
   
   .compact-icon {
-    width: 28px;
-    height: 28px;
+    width: 32px;
+    height: 32px;
     border-radius: 0.25rem;
     overflow: hidden;
     background: rgba($placeholder, 0.1);
@@ -986,89 +1079,72 @@ function handleCardKeydown(event: KeyboardEvent) {
     }
   }
   
-  .compact-info {
+  .compact-content {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.0625rem;
-    
-    .compact-title {
-      margin: 0;
-      font-size: 0.8em;
-      font-weight: 600;
-      color: $text;
-      line-height: 1.2;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-      hyphens: auto;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-    }
-    
-    .compact-meta {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      
-      .compact-downloads {
-        display: flex;
-        align-items: center;
-        gap: 0.1875rem;
-        color: $placeholder;
-        font-size: 0.65em;
-        font-weight: 500;
-      }
-      
-      .compact-tags {
-        display: flex;
-        gap: 0.1875rem;
-        flex-wrap: wrap;
-        
-        .compact-tag {
-          background: rgba($primary, 0.08);
-          color: $primary;
-          padding: 0.09375rem 0.25rem;
-          border-radius: 0.1875rem;
-          font-size: 0.55em;
-          font-weight: 500;
-          text-transform: capitalize;
-        }
-        
-        .compact-tag-more {
-          color: $placeholder;
-          font-size: 0.55em;
-          font-weight: 500;
-        }
-      }
-    }
+    justify-content: center;
+    gap: 0.125rem;
+    padding-right: 0.5rem;
+  }
+  
+  .compact-title {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: $text;
+    line-height: 1.2;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .compact-description {
+    margin: 0;
+    font-size: 0.65rem;
+    font-weight: 400;
+    color: $placeholder;
+    line-height: 1.3;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
   
   .compact-actions {
     margin-left: auto;
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 0.25rem;
     flex-shrink: 0;
     
-    .compact-download-btn {
-      background: $primary;
+    .compact-versions-btn {
+      background: $secondary;
       color: white;
       border: none;
       border-radius: 0.25rem;
-      padding: 0.375rem;
+      padding: 0.25rem;
       cursor: pointer;
       transition: all 0.2s ease;
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 28px;
+      height: 28px;
       
       &:hover:not(:disabled) {
-        background: rgba($primary, 0.8);
+        background: rgba($secondary, 0.8);
         transform: translateY(-1px);
       }
       
@@ -1079,33 +1155,56 @@ function handleCardKeydown(event: KeyboardEvent) {
       }
     }
     
-    .compact-no-installation {
-      display: flex;
-      align-items: center;
-      gap: 0.25rem;
-      color: $placeholder;
-      font-size: 0.75em;
-      opacity: 0.6;
-    }
-    
-    .info-btn {
+    .compact-download-btn {
+      background: $tertiary;
+      color: white;
+      border: none;
+      border-radius: 0.25rem;
+      padding: 0.25rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 32px;
-      height: 32px;
-      border: 1px solid rgba($placeholder, 0.3);
-      border-radius: 0.375rem;
-      background: rgba($placeholder, 0.05);
-      color: $placeholder;
-      cursor: pointer;
-      transition: all 0.2s ease;
+      width: 28px;
+      height: 28px;
       
-      &:hover {
-        background: rgba($secondary, 0.1);
-        color: $secondary;
-        border-color: rgba($secondary, 0.3);
+      &:hover:not(:disabled) {
+        background: rgba($tertiary, 0.8);
+        transform: translateY(-1px);
       }
+      
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+    }
+    
+    .compact-installed {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: $primary;
+      font-size: 0.65rem;
+      font-weight: 500;
+      padding: 0.25rem;
+      background: rgba($primary, 0.1);
+      border-radius: 0.25rem;
+      border: 1px solid rgba($primary, 0.2);
+      width: 28px;
+      height: 28px;
+    }
+    
+    .compact-no-installation {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: $placeholder;
+      font-size: 0.65rem;
+      opacity: 0.6;
+      width: 28px;
+      height: 28px;
     }
   }
 }

@@ -43,7 +43,7 @@
       >
         <Icon name={isGrid ? 'list' : 'grid'} size="md" />
       </button>
-      <button class="btn btn-secondary" on:click={() => isSmall = !isSmall} class:is-active={isSmall} title="Toggle compact mode">
+      <button class="btn btn-secondary" on:click={() => isSmall = !isSmall} class:is-active={isSmall} title={"Turn compact mode " + (isSmall ? 'off' : 'on')}>
         <Icon name="minimize" size="md" />
       </button>
     </div>
@@ -130,11 +130,22 @@
         background: $card;
         color: $text;
         border: 1px solid $dark-500;
-        transition: background 0.13s, color 0.13s;
-        &.is-active, &:hover, &:focus {
+        transition: background 0.13s, color 0.13s, border-color 0.13s;
+        
+        &:hover {
           background: rgba($primary, 0.10);
           color: $primary-900;
           border-color: $primary-800;
+        }
+        
+        &.is-active {
+          background: rgba($primary, 0.10);
+          color: $primary-900;
+          border-color: $primary-800;
+        }
+        
+        &:focus {
+          outline: none;
         }
       }
     }

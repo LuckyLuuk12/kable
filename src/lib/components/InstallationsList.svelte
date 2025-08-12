@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Icon, InstallationService, installations, isLoadingInstallations, isLoadingVersions, Launcher } from '$lib';
+  import { onMount, onDestroy } from 'svelte';
   
   export let isGrid: boolean = false;
   export let isSmall: boolean = false;
@@ -35,9 +36,115 @@
     ])
   );
 
+  // Dynamic action display logic
+  let useDropdownForActions: { [key: string]: boolean } = {};
+  let resizeObserver: ResizeObserver | null = null;
+
+  function checkActionsFit() {
+    if (isGrid) return; // Only applies to list view
+
+    const newUseDropdown: { [key: string]: boolean } = {};
+
+    // If compact mode is enabled, force all to dropdown
+    if (isSmall) {
+      limitedInstallations.forEach(installation => {
+        newUseDropdown[installation.id] = true;
+      });
+      useDropdownForActions = newUseDropdown;
+      return;
+    }
+
+    // If compact mode is disabled, show inline actions by default
+    // Only use dropdown if space is really tight
+    limitedInstallations.forEach(installation => {
+      newUseDropdown[installation.id] = false; // Default to inline actions
+    });
+
+    const listItems = document.querySelectorAll('.list-title-actions-row');
+
+    listItems.forEach((item, index) => {
+      const installation = limitedInstallations[index];
+      if (!installation) return;
+
+      const titleElement = item.querySelector('h3') as HTMLElement;
+      const actionsSection = item.querySelector('.list-actions-section') as HTMLElement;
+      const inlineActions = item.querySelector('.list-inline-actions') as HTMLElement;
+      
+      if (!titleElement || !actionsSection || !inlineActions) return;
+
+      const containerWidth = (item as HTMLElement).offsetWidth;
+      const titleWidth = titleElement.offsetWidth;
+      const actionsSectionWidth = actionsSection.offsetWidth;
+      
+      // Check if there's enough space (with some padding)
+      const availableSpace = containerWidth - titleWidth - 32; // 32px for gaps and padding
+      const neededSpace = actionsSectionWidth;
+      
+      newUseDropdown[installation.id] = neededSpace > availableSpace || containerWidth < 800;
+    });
+
+    useDropdownForActions = newUseDropdown;
+  }
+
+  function handleResize() {
+    checkActionsFit();
+  }
+
+  onMount(() => {
+    // Initial check
+    setTimeout(checkActionsFit, 100);
+
+    // Set up resize observer for more accurate detection
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        checkActionsFit();
+      });
+
+      const container = document.querySelector('.installations-list');
+      if (container) {
+        resizeObserver.observe(container);
+      }
+    }
+
+    // Fallback to window resize
+    window.addEventListener('resize', handleResize);
+  });
+
+  onDestroy(() => {
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+    }
+    window.removeEventListener('resize', handleResize);
+  });
+
+  // Re-check when installations change or isSmall prop changes
+  $: {
+    if (limitedInstallations.length >= 0) {
+      setTimeout(checkActionsFit, 100);
+    }
+  }
+
+  // Also re-check when isSmall changes specifically
+  $: {
+    if (typeof isSmall === 'boolean') {
+      // Immediate check for isSmall changes
+      if (isSmall) {
+        // Force all to dropdown when compact mode is enabled
+        const newUseDropdown: { [key: string]: boolean } = {};
+        limitedInstallations.forEach(installation => {
+          newUseDropdown[installation.id] = true;
+        });
+        useDropdownForActions = newUseDropdown;
+      } else {
+        // Reset to fit-based detection when compact mode is disabled
+        setTimeout(checkActionsFit, 10);
+      }
+    }
+  }
+
 </script>
 
-<div class=installations-list>
+<div class="installations-list" class:compact={isSmall && !isGrid}>
   {#if error}
     <div class="error-message">
       <Icon name="alert" size="sm" />
@@ -61,112 +168,215 @@
   {:else}
     <div class={isGrid ? 'installations-grid' : 'installations-flex'}>
       {#each limitedInstallations as installation, i (installation.id)}
-        <div class={isSmall ? 'installation-card small' : 'installation-card'} style="background: linear-gradient(135deg, {loaderColors[installation.id]}22 0%, {loaderColors[installation.id]}08 40%); --loader-color: {loaderColors[installation.id]}55; z-index: {(limitedInstallations.length - i) * 2}; position: relative;">
-          <div class="card-top-actions">
-            <button class="star-btn" title="Favorite" on:click={async (e) => { e.stopPropagation(); await InstallationService.toggleFavorite(installation); }}>
-              <Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="md" />
-            </button>
-            {#if isSmall}
-              <div class="dropdown installation-dropdown actions-dropdown small-actions-dropdown">
-                <button class="btn btn-secondary dropdown-toggle">
-                  <Icon name="more-horizontal" size="sm" />
-                </button>
-                <div class="dropdown-menu" style="z-index: {(limitedInstallations.length - i) * 2 - 1};">
-                  <button on:click={async () => await InstallationService.updateInstallation(installation.id, installation)}>
-                    <Icon name="edit" size="sm" />
-                    Edit
+        {#if isGrid}
+          <!-- Grid Layout - existing card design -->
+          <div class={isSmall ? 'installation-card small' : 'installation-card'} style="background: linear-gradient(135deg, {loaderColors[installation.id]}22 0%, {loaderColors[installation.id]}08 40%); --loader-color: {loaderColors[installation.id]}55; z-index: {(limitedInstallations.length - i) * 2}; position: relative;">
+            <div class="card-top-actions">
+              <button class="star-btn" title={installation.favorite ? "Unfavorite" : "Favorite"} on:click={async (e) => { e.stopPropagation(); await InstallationService.toggleFavorite(installation); }}>
+                <Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="md" />
+              </button>
+              {#if isSmall}
+                <div class="dropdown installation-dropdown actions-dropdown small-actions-dropdown">
+                  <button class="btn btn-secondary dropdown-toggle">
+                    <Icon name="more-horizontal" size="sm" />
                   </button>
-                  <button on:click={async () => await InstallationService.createInstallation(installation.version_id)}>
-                    <Icon name="duplicate" size="sm" />
-                    Duplicate
-                  </button>
-                  <button on:click={async () => {/* TODO: implement export logic */}}>
-                    <Icon name="download" size="sm" />
-                    Export
-                  </button>
-                  <div class="dropdown-separator"></div>
-                  <button 
-                    class="danger" 
-                    on:click={async () => await InstallationService.deleteInstallation(installation.id)}
-                  >
-                    <Icon name="trash" size="sm" />
-                    Delete
-                  </button>
+                  <div class="dropdown-menu" style="z-index: {(limitedInstallations.length - i) * 2 - 1};">
+                    <button on:click={async () => await InstallationService.updateInstallation(installation.id, installation)}>
+                      <Icon name="edit" size="sm" />
+                      Edit
+                    </button>
+                    <button on:click={async () => await InstallationService.createInstallation(installation.version_id)}>
+                      <Icon name="duplicate" size="sm" />
+                      Duplicate
+                    </button>
+                    <button on:click={async () => {/* TODO: implement export logic */}}>
+                      <Icon name="download" size="sm" />
+                      Export
+                    </button>
+                    <div class="dropdown-separator"></div>
+                    <button 
+                      class="danger" 
+                      on:click={async () => await InstallationService.deleteInstallation(installation.id)}
+                    >
+                      <Icon name="trash" size="sm" />
+                      Delete
+                    </button>
+                  </div>
                 </div>
+              {/if}
+            </div>
+            <div class="installation-main">
+              <div class="installation-icon-column">
+                <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColors[installation.id]}; background: rgba(0,0,0,0.0);">
+                  <Icon name={loaderIcons[installation.id]} size="lg" />
+                  <span class="icon-tooltip">{InstallationService.getVersionData(installation).loader}</span>
+                </div>
+                <button 
+                  class="btn btn-primary play-below-icon" 
+                  style="background: linear-gradient(90deg, {loaderColors[installation.id] || '#3a7bd5'} 60%, {loaderColors[installation.id] ? `${loaderColors[installation.id]}cc` : '#00b09b'} 100%); color: #fff !important;"
+                  on:click={async () => { await Launcher.launchInstallation(installation); }}
+                  disabled={isLoading}
+                >
+                  Play
+                </button>
+              </div>
+              <div class="installation-meta">
+                <div class="installation-title-row">
+                  <h3>{installation.name || installation.version_id}</h3>
+                </div>
+                {#if installation.version_id}
+                  <div class="loader-version-row">
+                    <span class="loader-version" style="color: {loaderColors[installation.id]};">{installation.version_id}</span>
+                  </div>
+                {/if}
+                {#if isSmall}
+                  <div class="installation-meta-grid small-meta-grid">
+                    <div class="meta-cell small-meta-cell">
+                      <span class="meta-key">Total time:</span>
+                      <span class="meta-value last-played small-meta-value"><Icon name="clock" size="sm" /> {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : 'Unknown'}</span>
+                    </div>
+                  </div>
+                {:else}
+                  <div class="installation-meta-grid">
+                    <div class="meta-cell">
+                      <span class="meta-key">Created:</span>
+                      <span class="meta-value created-date"><Icon name="calendar" size="sm" /> {installation.created ? new Date(installation.created).toLocaleDateString() : 'Unknown'}</span>
+                    </div>
+                    <div class="meta-cell">
+                      <span class="meta-key">Last played:</span>
+                      <span class="meta-value last-played"><Icon name="clock" size="sm" /> {installation.last_used ? new Date(installation.last_used).toLocaleDateString() : 'Never'}</span>
+                    </div>
+                    <div class="meta-cell">
+                      <span class="meta-key">Total time:</span>
+                      <span class="meta-value total-time"><Icon name="clock" size="sm" /> {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : '---'}</span>
+                    </div>
+                  </div>
+                {/if}
+              </div>
+            </div>
+
+            {#if !isSmall}
+              <div class="installation-actions">
+                <button class="btn btn-secondary" on:click={async () => await InstallationService.updateInstallation(installation.id, installation)}>
+                  <Icon name="edit" size="sm" />
+                  Edit
+                </button>
+                <button class="btn btn-secondary" on:click={async () => await InstallationService.createInstallation(installation.version_id)}>
+                  <Icon name="duplicate" size="sm" />
+                  Duplicate
+                </button>
+                <button class="btn btn-secondary" on:click={async () => {/* TODO: implement export logic */}}>
+                  <Icon name="download" size="sm" />
+                  Export
+                </button>
+                <button class="btn btn-danger" on:click={async () => await InstallationService.deleteInstallation(installation.id)}>
+                  <Icon name="trash" size="sm" />
+                  Delete
+                </button>
               </div>
             {/if}
           </div>
-          <div class="installation-main">
-            <div class="installation-icon-column">
-              <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColors[installation.id]}; background: rgba(0,0,0,0.0);">
-                <Icon name={loaderIcons[installation.id]} size="lg" />
-                <span class="icon-tooltip">{InstallationService.getVersionData(installation).loader}</span>
+        {:else}
+          <!-- List Layout - horizontal compact design -->
+          <div class="installation-list-item" class:dropdown-active={useDropdownForActions[installation.id]} style="background: linear-gradient(135deg, {loaderColors[installation.id]}15 0%, {loaderColors[installation.id]}05 40%); --loader-color: {loaderColors[installation.id]}55;">
+            <div class="list-item-main">
+              <!-- Icon and Play Button -->
+              <div class="list-item-icon-section">
+                <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColors[installation.id]};">
+                  <Icon name={loaderIcons[installation.id]} size="md" />
+                  <span class="icon-tooltip">{InstallationService.getVersionData(installation).loader}</span>
+                </div>
+                <button 
+                  class="btn btn-primary list-play-btn" 
+                  style="background: linear-gradient(90deg, {loaderColors[installation.id] || '#3a7bd5'} 60%, {loaderColors[installation.id] ? `${loaderColors[installation.id]}cc` : '#00b09b'} 100%); color: #fff !important;"
+                  on:click={async () => { await Launcher.launchInstallation(installation); }}
+                  disabled={isLoading}
+                >
+                  Play
+                </button>
               </div>
-              <button 
-                class="btn btn-primary play-below-icon" 
-                style="background: linear-gradient(90deg, {loaderColors[installation.id] || '#3a7bd5'} 60%, {loaderColors[installation.id] ? `${loaderColors[installation.id]}cc` : '#00b09b'} 100%); color: #fff !important;"
-                on:click={async () => { await Launcher.launchInstallation(installation); }}
-                disabled={isLoading}
-              >
-                Play
-              </button>
-            </div>
-            <div class="installation-meta">
-              <div class="installation-title-row">
-                <h3>{installation.name || installation.version_id}</h3>
+
+              <!-- Title and Actions Section -->
+              <div class="list-item-content">
+                <!-- Title Row with Actions -->
+                <div class="list-title-actions-row">
+                  <h3>{installation.name || installation.version_id}</h3>
+                  <div class="list-actions-section">
+                    <button class="star-btn" title={installation.favorite ? "Unfavorite" : "Favorite"} on:click={async (e) => { e.stopPropagation(); await InstallationService.toggleFavorite(installation); }}>
+                      <Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="sm" />
+                    </button>
+                    
+                    <!-- Inline Actions (shown when they fit) -->
+                    <div class="list-inline-actions" class:hidden={useDropdownForActions[installation.id]}>
+                      <button class="list-action-btn" on:click={async () => await InstallationService.updateInstallation(installation.id, installation)}>
+                        <Icon name="edit" size="sm" />
+                        Edit
+                      </button>
+                      <button class="list-action-btn" on:click={async () => await InstallationService.createInstallation(installation.version_id)}>
+                        <Icon name="duplicate" size="sm" />
+                        Duplicate
+                      </button>
+                      <button class="list-action-btn" on:click={async () => {/* TODO: implement export logic */}}>
+                        <Icon name="download" size="sm" />
+                        Export
+                      </button>
+                      <button class="list-action-btn danger" on:click={async () => await InstallationService.deleteInstallation(installation.id)}>
+                        <Icon name="trash" size="sm" />
+                        Delete
+                      </button>
+                    </div>
+                    
+                    <!-- Dropdown (shown when actions don't fit) -->
+                    <div class="dropdown list-dropdown" class:visible={useDropdownForActions[installation.id]}>
+                      <button class="btn btn-secondary dropdown-toggle">
+                        <Icon name="more-horizontal" size="sm" />
+                      </button>
+                      <div class="dropdown-menu">
+                        <button on:click={async () => await InstallationService.updateInstallation(installation.id, installation)}>
+                          <Icon name="edit" size="sm" />
+                          Edit
+                        </button>
+                        <button on:click={async () => await InstallationService.createInstallation(installation.version_id)}>
+                          <Icon name="duplicate" size="sm" />
+                          Duplicate
+                        </button>
+                        <button on:click={async () => {/* TODO: implement export logic */}}>
+                          <Icon name="download" size="sm" />
+                          Export
+                        </button>
+                        <div class="dropdown-separator"></div>
+                        <button 
+                          class="danger" 
+                          on:click={async () => await InstallationService.deleteInstallation(installation.id)}
+                        >
+                          <Icon name="trash" size="sm" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Version and Stats Row -->
+                <div class="list-version-stats-row">
+                  {#if installation.version_id && installation.name}
+                    <span class="list-version" style="color: {loaderColors[installation.id]};">{installation.version_id}</span>
+                  {/if}
+                  <div class="list-stats-section">
+                    <div class="list-meta-item">
+                      <Icon name="calendar" size="sm" />
+                      <span>{installation.created ? new Date(installation.created).toLocaleDateString() : 'Unknown'}</span>
+                    </div>
+                    <div class="list-meta-item">
+                      <Icon name="clock" size="sm" />
+                      <span>{installation.last_used ? new Date(installation.last_used).toLocaleDateString() : 'Never'}</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              {#if installation.version_id}
-                <div class="loader-version-row">
-                  <span class="loader-version" style="color: {loaderColors[installation.id]};">{installation.version_id}</span>
-                </div>
-              {/if}
-              {#if isSmall}
-                <div class="installation-meta-grid small-meta-grid">
-                  <div class="meta-cell small-meta-cell">
-                    <span class="meta-key">Total time:</span>
-                    <span class="meta-value last-played small-meta-value"><Icon name="clock" size="sm" /> {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : 'Unknown'}</span>
-                  </div>
-                </div>
-              {:else}
-                <div class="installation-meta-grid">
-                  <div class="meta-cell">
-                    <span class="meta-key">Created:</span>
-                    <span class="meta-value created-date"><Icon name="calendar" size="sm" /> {installation.created ? new Date(installation.created).toLocaleDateString() : 'Unknown'}</span>
-                  </div>
-                  <div class="meta-cell">
-                    <span class="meta-key">Last played:</span>
-                    <span class="meta-value last-played"><Icon name="clock" size="sm" /> {installation.last_used ? new Date(installation.last_used).toLocaleDateString() : 'Never'}</span>
-                  </div>
-                  <div class="meta-cell">
-                    <span class="meta-key">Total time:</span>
-                    <span class="meta-value total-time"><Icon name="clock" size="sm" /> {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : '---'}</span>
-                  </div>
-                </div>
-              {/if}
             </div>
           </div>
-
-          {#if !isSmall}
-            <div class="installation-actions">
-              <button class="btn btn-secondary" on:click={async () => await InstallationService.updateInstallation(installation.id, installation)}>
-                <Icon name="edit" size="sm" />
-                Edit
-              </button>
-              <button class="btn btn-secondary" on:click={async () => await InstallationService.createInstallation(installation.version_id)}>
-                <Icon name="duplicate" size="sm" />
-                Duplicate
-              </button>
-              <button class="btn btn-secondary" on:click={async () => {/* TODO: implement export logic */}}>
-                <Icon name="download" size="sm" />
-                Export
-              </button>
-              <button class="btn btn-danger" on:click={async () => await InstallationService.deleteInstallation(installation.id)}>
-                <Icon name="trash" size="sm" />
-                Delete
-              </button>
-            </div>
-          {/if}
-        </div>
+        {/if}
       {/each}
     </div>
   {/if}
@@ -193,6 +403,35 @@
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08); // 2px 4px
     overflow: scroll;
     animation: move-dots 32s ease infinite alternate;
+  }
+
+  .installations-list.compact {
+    padding: 1rem;
+    
+    .installation-list-item {
+      margin-bottom: 0.5rem;
+      
+      .list-item-main {
+        padding: 0.75rem;
+        gap: 0.5rem;
+      }
+      
+      .list-item-content {
+        h3 {
+          font-size: 0.9rem;
+          margin-bottom: 0.25rem;
+        }
+        
+        .list-version-stats-row {
+          font-size: 0.8rem;
+          opacity: 0.8;
+          
+          .list-meta-item {
+            font-size: 0.8rem;
+          }
+        }
+      }
+    }
   }
 
   @keyframes move-dots {
@@ -324,8 +563,210 @@
   }
   .installations-flex {
     display: flex;
-    gap: 1.25rem;
+    gap: 0.75rem;
     flex-direction: column;
+  }
+
+  /* List Layout Styles */
+  .installation-list-item {
+    background: $card;
+    border-radius: $border-radius;
+    box-shadow: 0 0.125rem 0.5rem rgba(80,80,90,0.06), 0 0.0625rem 0.125rem rgba(80,80,90,0.04);
+    border: 0.0625rem solid transparent;
+    transition: all 0.15s, border 0.15s;
+    position: relative;
+    backdrop-filter: blur(0.5rem);
+    -webkit-backdrop-filter: blur(0.5rem);
+    cursor: pointer;
+    z-index: 1;
+    
+    &.dropdown-active {
+      z-index: 3001; // Higher than dropdown menu z-index
+    }
+    
+    &:hover {
+      box-shadow: 0 0.25rem 1rem rgba(80,80,90,0.1), 0 0.125rem 0.25rem rgba(80,80,90,0.06);
+      border-color: var(--loader-color, $primary);
+    }
+  }
+
+  .list-item-main {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    min-height: 4rem;
+  }
+
+  .list-item-icon-section {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-shrink: 0;
+    
+    .installation-icon {
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.25rem;
+      background: $container;
+      box-shadow: 0 0.0625rem 0.25rem rgba(0,0,0,0.04);
+      position: relative;
+    }
+  }
+
+  .list-play-btn {
+    font-size: 0.875rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.5rem rgba(80,80,90,0.08);
+    transition: all 0.15s;
+    letter-spacing: 0.02em;
+    color: #fff !important;
+    padding: 0.5rem 1rem;
+    
+    &:hover, &:focus {
+      filter: brightness(1.1) saturate(1.15);
+      box-shadow: 0 0.25rem 1rem rgba(80,80,90,0.15);
+      transform: translateY(-1px);
+      outline: none;
+    }
+  }
+
+  .list-item-content {
+    flex: 1 1 0%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .list-title-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    
+    h3 {
+      margin: 0;
+      font-size: 1rem;
+      font-weight: 700;
+      color: $text;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+      flex: 1 1 0%;
+      min-width: 0;
+    }
+  }
+
+  .list-actions-section {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    
+    .star-btn {
+      background: none;
+      border: none;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      &:hover {
+        transform: scale(1.3);
+      }
+    }
+  }
+
+  .list-inline-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: opacity 0.2s ease;
+    
+    &.hidden {
+      display: none;
+    }
+    
+    .list-action-btn {
+      background: none;
+      border: none;
+      padding: 0.375rem 0.75rem;
+      border-radius: 0.375rem;
+      cursor: pointer;
+      color: $placeholder;
+      font-size: 0.8rem;
+      font-weight: 500;
+      transition: all 0.15s;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      white-space: nowrap;
+      
+      &:hover, &:focus {
+        color: $text;
+        background: rgba($dark-200, 0.08);
+        outline: none;
+      }
+      
+      &.danger {
+        color: $red-700;
+        
+        &:hover, &:focus {
+          background: rgba($red-700, 0.08);
+        }
+      }
+    }
+  }
+
+  .list-dropdown {
+    display: none;
+    
+    &.visible {
+      display: block;
+    }
+  }
+
+  .list-version-stats-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    
+    .list-version {
+      font-size: 0.75rem;
+      font-weight: 500;
+      background: $container;
+      border-radius: 0.375rem;
+      padding: 0.125rem 0.5rem;
+      opacity: 0.8;
+      flex-shrink: 0;
+    }
+  }
+
+  .list-stats-section {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+    
+    .list-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+      font-size: 0.8rem;
+      color: $placeholder;
+      white-space: nowrap;
+      
+      span {
+        font-weight: 500;
+      }
+    }
   }
 
   .installation-card {
@@ -662,23 +1103,25 @@
         pointer-events: none;
         transition: opacity 0.15s cubic-bezier(0.4,0,0.2,1), z-index 0s linear 0.15s;
         position: absolute;
-        right: 100%;
-        top: 0;
-        min-width: fit-content;
+        right: 0;
+        top: 100%;
+        min-width: 10rem;
         background: rgba($card, 0.94);
         border: 1px solid $dark-200;
         border-radius: $border-radius;
-        box-shadow: 0 2px 16px 4px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
+        box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15), 0 0.125rem 0.5rem rgba(0,0,0,0.08);
         z-index: 1;
         flex-direction: column;
         padding: 0.5rem 0;
         backdrop-filter: blur(0.7rem) saturate(1.2);
         -webkit-backdrop-filter: blur(0.7rem) saturate(1.2);
+        
         .dropdown-separator {
           height: 1px;
           background: $dark-200;
           margin: 0.3rem 0;
         }
+        
         button {
           width: 100%;
           background: none;
@@ -686,14 +1129,19 @@
           padding: 0.5rem 1rem;
           text-align: left;
           color: $text;
-          font-size: 1rem;
+          font-size: 0.875rem;
           border-radius: 0;
           cursor: pointer;
           display: flex;
           align-items: center;
           gap: 0.5rem;
           transition: background 0.12s;
+          
+          &:hover {
+            background: rgba($dark-200, 0.1);
+          }
         }
+        
         .danger {
           color: $red-700;
         }
@@ -769,6 +1217,47 @@
       width: 2.5rem;
       height: 2.5rem;
       font-size: 1.5rem;
+    }
+    
+    /* List layout responsive adjustments */
+    .list-item-main {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.75rem;
+      padding: 0.75rem;
+    }
+    
+    .list-item-icon-section {
+      justify-content: center;
+      
+      .list-play-btn {
+        flex: 1;
+        justify-content: center;
+      }
+    }
+    
+    .list-title-actions-row {
+      justify-content: center;
+      text-align: center;
+    }
+    
+    .list-version-stats-row {
+      justify-content: center;
+      gap: 1rem;
+    }
+    
+    .list-stats-section {
+      gap: 1rem;
+    }
+  }
+  
+  @media (max-width: 64rem) { // 1024px - tablet breakpoint
+    .list-stats-section {
+      gap: 1rem;
+      
+      .list-meta-item {
+        font-size: 0.75rem;
+      }
     }
   }
 </style>
