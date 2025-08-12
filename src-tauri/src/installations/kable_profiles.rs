@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use kable_macros::log_result;
 use zip::ZipArchive;
 use std::fs::File;
 use serde_json::Value as JsonValue;
@@ -104,6 +105,7 @@ impl From<LauncherProfile> for KableInstallation {
     }
 }
 
+#[log_result]
 pub fn read_kable_profiles() -> Result<Vec<KableInstallation>, String> {
     // Synchronous version for compatibility
     let kable_dir = crate::get_minecraft_kable_dir()?;

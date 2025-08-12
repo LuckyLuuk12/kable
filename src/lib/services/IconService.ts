@@ -185,6 +185,8 @@ export class IconService {
         'arrow-forward': '🔜',
         'chevron-up': '🔼',
         'chevron-down': '🔽',
+        'chevron-left': '◀️',
+        'chevron-right': '▶️',
         
         // Media & Effects
         volume: '🔊',
@@ -339,6 +341,8 @@ export class IconService {
         'arrow-forward': 'fas fa-arrow-right',
         'chevron-up': 'fas fa-chevron-up',
         'chevron-down': 'fas fa-chevron-down',
+        'chevron-left': 'fas fa-chevron-left',
+        'chevron-right': 'fas fa-chevron-right',
         volume: 'fas fa-volume-up',
         mute: 'fas fa-volume-mute',
         brightness: 'fas fa-sun',
@@ -438,6 +442,8 @@ export class IconService {
         'arrow-forward': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12,5 19,12 12,19"/></svg>',
         'chevron-up': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="18,15 12,9 6,15"/></svg>',
         'chevron-down': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg>',
+        'chevron-left': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>',
+        'chevron-right': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>',
         
         // Content Types
         folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',
@@ -640,6 +646,53 @@ export class IconService {
       icon,
       type: template.iconType,
       fallback: template.fallbackIcon
+    };
+  }
+
+  /**
+   * Get icon with priority: custom template first, then forced type for missing icons
+   */
+  static getIconWithFallback(iconName: string, forceType: 'emoji' | 'fontawesome' | 'svg' | 'system' | 'css' | null = null): { icon: string; type: string; fallback: string } {
+    const activeTemplate = this.getActiveTemplate();
+    const templateName = get(selectedTemplate);
+    
+    // Check if we have a CUSTOM template (not built-in) with the specific icon
+    const isCustomTemplate = this.customTemplates.has(templateName);
+    if (isCustomTemplate && activeTemplate && activeTemplate.icons[iconName]) {
+      // Icon found in custom template - this always takes highest priority
+      return {
+        icon: activeTemplate.icons[iconName],
+        type: activeTemplate.iconType,
+        fallback: activeTemplate.fallbackIcon
+      };
+    }
+    
+    // forceType takes priority over built-in templates
+    if (forceType) {
+      const forcedIcon = this.getDefaultIcon(iconName, forceType);
+      return {
+        icon: forcedIcon,
+        type: forceType,
+        fallback: this.getDefaultIcon(iconName, 'emoji')
+      };
+    }
+    
+    // No forceType specified - use active template (built-in or custom)
+    if (activeTemplate) {
+      const icon = activeTemplate.icons[iconName] || activeTemplate.fallbackIcon;
+      return {
+        icon,
+        type: activeTemplate.iconType,
+        fallback: activeTemplate.fallbackIcon
+      };
+    }
+    
+    // No template - default to SVG
+    const svgIcon = this.getDefaultIcon(iconName, 'svg');
+    return {
+      icon: svgIcon,
+      type: 'svg',
+      fallback: this.getDefaultIcon(iconName, 'emoji')
     };
   }
   

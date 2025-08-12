@@ -7,6 +7,7 @@ export class ModsService {
   initialized = false;
 
   constructor(provider: ProviderKind) {
+    console.log(`[ModsService] Initializing with ${provider} provider`);
     modsProvider.set(provider);
   }
 
@@ -21,15 +22,24 @@ export class ModsService {
     modsError.set(null);
     const provider = get(modsProvider);
     const offset = get(modsOffset);
+    const filter = get(modsFilter);
+    const installation = get(modsInstallation);
+    
     if (!provider) {
       modsError.set('No provider selected');
       modsLoading.set(false);
       return;
     }
+
+    // Log the request details
+    console.log(`[ModsService] Loading mods from ${provider} provider (offset: ${offset}, filter: ${filter ? JSON.stringify(filter) : 'none'}, installation: ${installation?.name || 'none'})`);
+
     try {
       const mods = await modsApi.getMods(provider, offset);
+      console.log(`[ModsService] Successfully loaded ${mods.length} mods from ${provider} provider`);
       modsByProvider.update(map => ({ ...map, [provider]: mods }));
     } catch (e: any) {
+      console.error(`[ModsService] Failed to load mods from ${provider} provider:`, e.message || 'Unknown error');
       modsError.set(e.message || 'Failed to load mods');
     } finally {
       modsLoading.set(false);
@@ -43,8 +53,16 @@ export class ModsService {
       modsError.set('No provider selected');
       return;
     }
-    await modsApi.setProviderLimit(provider, limit);
-    await this.loadMods();
+
+    console.log(`[ModsService] Setting mod limit to ${limit} for ${provider} provider`);
+
+    try {
+      await modsApi.setProviderLimit(provider, limit);
+      await this.loadMods();
+    } catch (e: any) {
+      console.error(`[ModsService] Failed to set limit for ${provider} provider:`, e.message || 'Unknown error');
+      throw e;
+    }
   }
 
   async setFilter(filter: ModFilter | null, installation: KableInstallation | null) {
@@ -55,13 +73,25 @@ export class ModsService {
       modsError.set('No provider selected');
       return;
     }
-    await modsApi.setProviderFilter(provider, installation, filter);
-    await this.loadMods();
+
+    console.log(`[ModsService] Setting filter for ${provider} provider: ${filter ? JSON.stringify(filter) : 'none'} (installation: ${installation?.name || 'none'})`);
+
+    try {
+      await modsApi.setProviderFilter(provider, installation, filter);
+      await this.loadMods();
+    } catch (e: any) {
+      console.error(`[ModsService] Failed to set filter for ${provider} provider:`, e.message || 'Unknown error');
+      throw e;
+    }
   }
 
   async nextPage() {
     const limit = get(modsLimit);
     const offset = get(modsOffset) + limit;
+    const provider = get(modsProvider);
+    
+    console.log(`[ModsService] Moving to next page for ${provider} provider (new offset: ${offset})`);
+    
     modsOffset.set(offset);
     await this.loadMods();
   }
@@ -69,6 +99,10 @@ export class ModsService {
   async prevPage() {
     const limit = get(modsLimit);
     const offset = Math.max(0, get(modsOffset) - limit);
+    const provider = get(modsProvider);
+    
+    console.log(`[ModsService] Moving to previous page for ${provider} provider (new offset: ${offset})`);
+    
     modsOffset.set(offset);
     await this.loadMods();
   }
@@ -82,9 +116,14 @@ export class ModsService {
       modsLoading.set(false);
       return;
     }
+
+    console.log(`[ModsService] Downloading mod ${modId}${versionId ? ` (version: ${versionId})` : ''} from ${provider} provider to installation "${installation.name}"`);
+
     try {
       await modsApi.downloadMod(provider, modId, versionId, installation);
+      console.log(`[ModsService] Successfully downloaded mod ${modId} from ${provider} provider`);
     } catch (e: any) {
+      console.error(`[ModsService] Failed to download mod ${modId} from ${provider} provider:`, e.message || 'Unknown error');
       modsError.set(e.message || 'Failed to download mod');
     } finally {
       modsLoading.set(false);
@@ -97,8 +136,17 @@ export class ModsService {
       modsError.set('No provider selected');
       return;
     }
-    await modsApi.clearProviderCache(provider);
-    await this.loadMods();
+
+    console.log(`[ModsService] Clearing cache for ${provider} provider`);
+
+    try {
+      await modsApi.clearProviderCache(provider);
+      await this.loadMods();
+      console.log(`[ModsService] Successfully cleared cache for ${provider} provider`);
+    } catch (e: any) {
+      console.error(`[ModsService] Failed to clear cache for ${provider} provider:`, e.message || 'Unknown error');
+      throw e;
+    }
   }
 
   async purgeStaleProviderCache() {
@@ -107,8 +155,17 @@ export class ModsService {
       modsError.set('No provider selected');
       return;
     }
-    await modsApi.purgeStaleProviderCache(provider);
-    await this.loadMods();
+
+    console.log(`[ModsService] Purging stale cache for ${provider} provider`);
+
+    try {
+      await modsApi.purgeStaleProviderCache(provider);
+      await this.loadMods();
+      console.log(`[ModsService] Successfully purged stale cache for ${provider} provider`);
+    } catch (e: any) {
+      console.error(`[ModsService] Failed to purge stale cache for ${provider} provider:`, e.message || 'Unknown error');
+      throw e;
+    }
   }
 
   // Helpers for UI
@@ -130,6 +187,9 @@ export class ModsService {
     if (get(extendedModInfo)[fileName]) {
       return get(extendedModInfo)[fileName] || null;
     }
+
+    console.log(`[ModsService] Fetching extended mod info for ${fileName}`);
+
     // Wrap the actual fetch in a function for the queue
     return new Promise<ExtendedModInfo | null>((resolve) => {
       const task = async () => {
@@ -139,6 +199,7 @@ export class ModsService {
             ...get(extendedModInfo),
             [fileName]: result
           });
+          console.log(`[ModsService] Successfully fetched extended mod info for ${fileName}`);
           resolve(result || null);
         } catch (e) {
           // Store a null value in the store to prevent infinite retries
@@ -146,6 +207,7 @@ export class ModsService {
             ...get(extendedModInfo),
             [fileName]: null
           });
+          console.warn(`[ModsService] Failed to fetch extended mod info for ${fileName}:`, e instanceof Error ? e.message : 'Unknown error');
           // Optionally: log error, set error state, etc.
           console.warn(`Failed to fetch extended mod info for ${fileName}:`, e);
           resolve(null);

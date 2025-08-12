@@ -6,7 +6,10 @@ export { default as CreateInstallationModal } from './CreateInstallationModal.sv
 export { default as EditInstallationModal } from './EditInstallationModal.svelte';
 export { default as Icon } from './Icon.svelte';
 
+export { default as InstallationMods } from './InstallationMods.svelte';
 export { default as InstallationsList } from './InstallationsList.svelte';
+export { default as ModBrowser } from './ModBrowser.svelte';
+export { default as ModCard } from './ModCard.svelte';
 export { default as NavBar } from './NavBar.svelte';
 export { default as Settings } from './Settings.svelte';
 export { default as TitleBar } from './TitleBar.svelte';

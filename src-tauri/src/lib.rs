@@ -3,6 +3,10 @@ use std::path::PathBuf;
 use tauri::Manager;
 use thiserror::Error;
 
+// Re-export procedural macros from the separate kable-macros crate
+// The actual macro implementations are in `../kable-macros/src/lib.rs`
+pub use kable_macros::*;
+
 // Module declarations
 pub mod auth;
 pub mod commands;
@@ -173,7 +177,7 @@ pub fn run() {
 
             // Apply window state but don't show the window yet - let frontend trigger it
             if let Some(window) = app.get_webview_window("main") {
-                window.show().unwrap();
+                // window.show().unwrap(); // Useful for debugging when something crashes,.. shows the window immediately
                 tauri::async_runtime::spawn(async move {
                     if let Ok(state) = load_window_state().await {
                         if let Err(e) = apply_window_state(window.clone(), state).await {

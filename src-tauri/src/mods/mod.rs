@@ -108,7 +108,7 @@ pub async fn get_extended_mod_info(
     mod_jar_info: crate::ModJarInfo,
 ) -> Result<ExtendedModInfo, String> {
     // Only hold the lock for the cache lookup
-    let (found_info, mod_name, loader) = {
+    let (found_info, mod_name, _loader) = {
         let modrinth = MODRINTH.lock().unwrap();
         let mod_name = mod_jar_info.mod_name.as_deref().unwrap_or("");
         let loader = mod_jar_info.loader.as_deref();

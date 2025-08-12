@@ -132,6 +132,20 @@
     await logsService.exportLogs(instanceId === 'global' ? undefined : instanceId);
   }
 
+  async function testMacroLogging() {
+    try {
+      // Import the invoke function from Tauri
+      const { invoke } = await import('@tauri-apps/api/core');
+      console.log('Triggering macro logging test...');
+      const result = await invoke('test_macro_logging');
+      console.log('Macro test result:', result);
+      alert(`Macro test completed! Check the logs for entries with "macro_debug:" prefix.`);
+    } catch (error) {
+      console.error('Failed to run macro test:', error);
+      alert(`Failed to run macro test: ${error}`);
+    }
+  }
+
   async function copyLogEntry(logEntry: any) {
     if (!logEntry) return;
     
@@ -390,6 +404,17 @@
         <Icon name="download" size="sm" />
         Export
       </button>
+      <!-- Debug button for testing macro logging -->
+      {#if import.meta.env.DEV}
+        <button 
+          class="btn btn-primary btn-sm"
+          on:click={testMacroLogging}
+          title="Test enhanced macro logging with Modrinth API"
+        >
+          <Icon name="bug" size="sm" />
+          Test Macros
+        </button>
+      {/if}
     </div>
   </div>
 

@@ -48,6 +48,7 @@ strum = { version = "0.27", features = ["derive"] }
 anyhow = "1.0"
 async-trait = "0.1.88"
 sysinfo = "0.36.1"
+kable-macros = { path = "../kable-macros" }
 windows-sys = { version = "0.60.2", features = ["Win32_System_Threading"] }
 modrinth-api = "2.7.1"
 tauri-plugin-clipboard-manager = "2"

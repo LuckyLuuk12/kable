@@ -2357,6 +2357,7 @@ dependencies = [
  "chrono",
  "dirs 5.0.1",
  "dotenvy",
+ "kable-macros",
  "lazy_static",
  "minecraft-msa-auth",
  "modrinth-api",
@@ -2385,6 +2386,15 @@ dependencies = [
  "uuid",
  "windows-sys 0.60.2",
  "zip",
+]
+
+[[package]]
+name = "kable-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
 ]
 
 [[package]]

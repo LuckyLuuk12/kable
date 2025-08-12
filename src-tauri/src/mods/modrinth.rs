@@ -1,4 +1,5 @@
 use crate::{kable_profiles::KableInstallation, mods::cache::ModCache, mods::manager::*};
+use kable_macros::log_result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -208,25 +209,37 @@ impl ModProvider for ModrinthProvider {
     fn set_limit(&mut self, limit: usize) {
         self.limit = limit;
     }
-
+    #[log_result(log_values = true, max_length = 150)]
     async fn get(&mut self, offset: usize) -> Result<Vec<ModInfoKind>, String> {
         let cache_key = format!(
-            "offset:{}:index:{}",
+            "offset:{}:index:{}:category:{}:loader:{}:mc_version:{}",
             offset,
-            self.index.as_deref().unwrap_or("")
+            self.index.as_deref().unwrap_or(""),
+            self.category.as_deref().unwrap_or(""),
+            self.loader.as_deref().unwrap_or(""),
+            self.mc_version.as_deref().unwrap_or("")
         );
+        println!("[ModrinthProvider] Using cache key: {}", cache_key);
+        
         if let Some(entry) = self.cache.get(&cache_key) {
             if !self.cache.is_stale(&cache_key) {
+                println!("[ModrinthProvider] Returning cached results for key: {}", cache_key);
                 return Ok(entry
                     .value
                     .clone()
                     .into_iter()
                     .map(ModInfoKind::Modrinth)
                     .collect());
+            } else {
+                println!("[ModrinthProvider] Cache entry is stale for key: {}", cache_key);
             }
+        } else {
+            println!("[ModrinthProvider] No cache entry found for key: {}", cache_key);
         }
+        
         let mods = if self.category.is_some() || self.loader.is_some() || self.mc_version.is_some()
         {
+            println!("[ModrinthProvider] Making filtered API call");
             get_mods_filtered_with_index(
                 self.category.as_deref(),
                 self.loader.as_deref(),
@@ -237,6 +250,7 @@ impl ModProvider for ModrinthProvider {
             )
             .await?
         } else {
+            println!("[ModrinthProvider] Making unfiltered API call");
             get_all_mods_with_index(offset, self.limit, self.index.as_deref()).await?
         };
         self.cache.insert(cache_key.clone(), mods.clone());
@@ -249,29 +263,48 @@ impl ModProvider for ModrinthProvider {
         installation: Option<&KableInstallation>,
         filter: Option<crate::mods::manager::ModFilter>,
     ) {
+        println!("[ModrinthProvider] Filtering called with installation: {:?}, filter: {:?}", 
+                 installation.map(|i| &i.name), filter);
+        
         if let Some(crate::mods::manager::ModFilter::Modrinth(facets)) = filter {
             // Example: extract loader, mc_version, category from FilterFacets if present
             if let Some(ref cats) = facets.categories {
                 // Just use the first category for now
                 if let Some((_, val)) = cats.first() {
                     self.category = Some(val.clone());
+                    println!("[ModrinthProvider] Set category filter: {}", val);
                 }
             }
             // Loader and mc_version could be encoded in categories or other fields, adapt as needed
             // For demonstration, not extracting loader/mc_version from facets
         }
         if let Some(installation) = installation {
-            // Optionally set loader/mc_version from installation
+            // Extract loader from version_id if present
             if self.loader.is_none() {
-                // Example: set loader from installation
-                // self.loader = Some("fabric".to_string());
+                if let Some(loader) = extract_loader_from_version_id(&installation.version_id) {
+                    self.loader = Some(loader.clone());
+                    println!("[ModrinthProvider] Set loader filter from installation: {}", loader);
+                }
             }
+            
+            // Extract Minecraft version from version_id
             if self.mc_version.is_none() {
-                self.mc_version = Some(installation.version_id.clone());
+                if let Some(mc_version) = extract_minecraft_version(&installation.version_id) {
+                    self.mc_version = Some(mc_version.clone());
+                    println!("[ModrinthProvider] Set mc_version filter from installation: {}", mc_version);
+                } else {
+                    // Fallback: use the version_id as-is if we can't extract a proper version
+                    self.mc_version = Some(installation.version_id.clone());
+                    println!("[ModrinthProvider] Set mc_version filter (fallback) from installation: {}", installation.version_id);
+                }
             }
         }
+        
+        println!("[ModrinthProvider] Current filters - category: {:?}, loader: {:?}, mc_version: {:?}", 
+                 self.category, self.loader, self.mc_version);
     }
 
+    #[log_result]
     async fn download(
         &self,
         mod_id: &str,
@@ -322,6 +355,7 @@ impl ModProvider for ModrinthProvider {
 }
 
 /// Fetch all mods from Modrinth (paginated, with optional index)
+#[log_result(log_values = true, max_length = 100, debug_only = false)]
 pub async fn get_all_mods_with_index(
     offset: usize,
     limit: usize,
@@ -329,7 +363,7 @@ pub async fn get_all_mods_with_index(
 ) -> Result<Vec<ModrinthInfo>, String> {
     let client = Client::new();
     let mut url = format!(
-        "https://staging-api.modrinth.com/v2/search?limit={}&offset={}",
+        "https://api.modrinth.com/v2/search?limit={}&offset={}",
         limit, offset
     );
     if let Some(index) = index {
@@ -337,6 +371,7 @@ pub async fn get_all_mods_with_index(
             url.push_str(&format!("&index={}", index));
         }
     }
+    println!("[ModrinthAPI] Calling URL: {}", url);
     let resp = client
         .get(&url)
         .send()
@@ -354,10 +389,12 @@ pub async fn get_all_mods_with_index(
         .iter()
         .filter_map(|hit| serde_json::from_value(hit.clone()).ok())
         .collect();
+    println!("[ModrinthAPI] Received {} mods from API", mods.len());
     Ok(mods)
 }
 
 /// Fetch mods by category, loader, and/or Minecraft version (with pagination and optional index)
+#[log_result(log_values = true, max_length = 100, debug_only = false)]
 pub async fn get_mods_filtered_with_index(
     category: Option<&str>,
     loader: Option<&str>,
@@ -368,7 +405,7 @@ pub async fn get_mods_filtered_with_index(
 ) -> Result<Vec<ModrinthInfo>, String> {
     let client = Client::new();
     let mut url = format!(
-        "https://staging-api.modrinth.com/v2/search?limit={}&offset={}",
+        "https://api.modrinth.com/v2/search?limit={}&offset={}",
         limit, offset
     );
     let mut facets = Vec::new();
@@ -391,6 +428,7 @@ pub async fn get_mods_filtered_with_index(
             url.push_str(&format!("&index={}", index));
         }
     }
+    println!("[ModrinthAPI] Calling filtered URL: {}", url);
     let resp = client
         .get(&url)
         .send()
@@ -408,17 +446,19 @@ pub async fn get_mods_filtered_with_index(
         .iter()
         .filter_map(|hit| serde_json::from_value(hit.clone()).ok())
         .collect();
+    println!("[ModrinthAPI] Received {} filtered mods from API", mods.len());
     Ok(mods)
 }
 
 /// Search mods on Modrinth, optionally filtered by loader and Minecraft version
+#[log_result(log_values = true, max_length = 80)]
 pub async fn search_mods(
     query: &str,
     loader: Option<&str>,
     mc_version: Option<&str>,
 ) -> Result<Vec<ModrinthInfo>, String> {
     let client = Client::new();
-    let mut url = format!("https://staging-api.modrinth.com/v2/search?query={}", query);
+    let mut url = format!("https://api.modrinth.com/v2/search?query={}", query);
     if let Some(loader) = loader {
         url.push_str(&format!("&facets=[[\"categories:{}\"]]", loader));
     }
@@ -446,10 +486,11 @@ pub async fn search_mods(
 }
 
 /// Get all versions for a given Modrinth mod ID
+#[log_result]
 pub async fn get_mod_versions(mod_id: &str) -> Result<Vec<ModrinthVersion>, String> {
     let client = Client::new();
     let url = format!(
-        "https://staging-api.modrinth.com/v2/project/{}/version",
+        "https://api.modrinth.com/v2/project/{}/version",
         mod_id
     );
     let resp = client
@@ -465,6 +506,7 @@ pub async fn get_mod_versions(mod_id: &str) -> Result<Vec<ModrinthVersion>, Stri
 }
 
 /// Download a mod file from Modrinth and save to the given path
+#[log_result]
 pub async fn download_mod_file(url: &str, save_path: &std::path::Path) -> Result<(), String> {
     let client = Client::new();
     let resp = client
@@ -482,3 +524,60 @@ pub async fn download_mod_file(url: &str, save_path: &std::path::Path) -> Result
     std::fs::write(save_path, &bytes).map_err(|e| format!("Failed to write mod file: {e}"))?;
     Ok(())
 }
+
+/// Extract Minecraft version from a version_id string
+/// Examples:
+/// - "iris-fabric-loader-0.16.10-1.21.4" -> Some("1.21.4")
+/// - "1.20.1" -> Some("1.20.1")
+/// - "forge-1.19.2-43.2.0" -> Some("1.19.2")
+/// - "neoforge-21.0.167-beta" -> None (fallback to original)
+fn extract_minecraft_version(version_id: &str) -> Option<String> {
+    // Common Minecraft version pattern: X.Y.Z where X, Y, Z are numbers
+    if let Ok(mc_version_regex) = regex::Regex::new(r"\b(\d+\.\d+(?:\.\d+)?)\b") {
+        // Try to find Minecraft version patterns in the version_id
+        for cap in mc_version_regex.captures_iter(version_id) {
+            if let Some(version) = cap.get(1) {
+                let version_str = version.as_str();
+                // Validate it looks like a Minecraft version (starts with 1.)
+                if version_str.starts_with("1.") {
+                    println!("[ModrinthProvider] Extracted MC version '{}' from version_id '{}'", version_str, version_id);
+                    return Some(version_str.to_string());
+                }
+            }
+        }
+    }
+    
+    println!("[ModrinthProvider] Could not extract MC version from version_id '{}'", version_id);
+    None
+}
+
+/// Extract loader type from version_id string
+/// Examples:
+/// - "iris-fabric-loader-0.16.10-1.21.4" -> Some("fabric")
+/// - "forge-1.19.2-43.2.0" -> Some("forge")
+/// - "neoforge-21.0.167-beta" -> Some("neoforge")
+/// - "quilt-loader-0.29.1-1.21.8" -> Some("quilt")
+fn extract_loader_from_version_id(version_id: &str) -> Option<String> {
+    let version_lower = version_id.to_lowercase();
+    
+    let loader = if version_lower.contains("fabric") {
+        Some("fabric".to_string())
+    } else if version_lower.contains("neoforge") {
+        Some("neoforge".to_string())
+    } else if version_lower.contains("forge") {
+        Some("forge".to_string())
+    } else if version_lower.contains("quilt") {
+        Some("quilt".to_string())
+    } else {
+        None
+    };
+    
+    if let Some(ref loader_name) = loader {
+        println!("[ModrinthProvider] Extracted loader '{}' from version_id '{}'", loader_name, version_id);
+    } else {
+        println!("[ModrinthProvider] Could not extract loader from version_id '{}'", version_id);
+    }
+    
+    loader
+}
+

@@ -750,7 +750,7 @@ onMount(() => {
   flex-wrap: wrap;
 }
 
-.installation-version, .installation-loader {
+.installation-version {
   font-size: calc(var(--carousel-font-size, 1) * 0.75em);
   padding: 0.15em 0.4em;
   border-radius: 0.3em;
@@ -766,16 +766,6 @@ onMount(() => {
   .installation-item.selected & {
     background: rgba(var(--loader-color, $tertiary), 0.15);
     color: var(--loader-color, $tertiary);
-  }
-}
-
-.installation-loader {
-  background: rgba($secondary, 0.1);
-  color: $secondary;
-  
-  .installation-item.selected & {
-    background: rgba(var(--loader-color, $secondary), 0.15);
-    color: var(--loader-color, $secondary);
   }
 }
 

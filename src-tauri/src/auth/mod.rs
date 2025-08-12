@@ -70,7 +70,7 @@ async fn get_minecraft_account_device_code() -> Result<LauncherAccount, String> 
             let mut sanitized_account = launcher_account.clone();
             sanitized_account.access_token = String::new();
             Logger::console_log(
-                LogLevel::Info,
+                LogLevel::Debug,
                 &format!("✅ Found active account: {:?}", sanitized_account),
                 None,
             );
@@ -110,7 +110,7 @@ async fn get_minecraft_account_auth_code() -> Result<LauncherAccount, String> {
             let mut sanitized_account = launcher_account.clone();
             sanitized_account.access_token = String::new();
             Logger::console_log(
-                LogLevel::Info,
+                LogLevel::Debug,
                 &format!("✅ Found active account: {:?}", sanitized_account),
                 None,
             );
@@ -165,7 +165,7 @@ async fn get_minecraft_account_offline() -> Result<LauncherAccount, String> {
             let mut sanitized_account = launcher_account.clone();
             sanitized_account.access_token = String::new();
             Logger::console_log(
-                LogLevel::Info,
+                LogLevel::Debug,
                 &format!(
                     "✅ Found active account (offline mode): {:?}",
                     sanitized_account

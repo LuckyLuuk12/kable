@@ -29,7 +29,7 @@
   }
 
   function updateIcon() {
-    iconData = IconService.getIcon(name);
+    iconData = IconService.getIconWithFallback(name, forceType);
   }
 
   // Validate SVG content for security
@@ -59,10 +59,9 @@
     return !dangerousPatterns.some(pattern => pattern.test(content));
   }
 
-  // Reactive statements for rendering type
-  $: type = forceType || iconData.type;
-  // If forceType is set we have to use one of the default icons and not iconData.type
-  $: icon = forceType ? IconService.getDefaultIcon(name, forceType) : iconData.icon;
+  // Reactive statements for rendering
+  $: type = iconData.type;
+  $: icon = iconData.icon;
   
   // Log warning if SVG type but invalid content
   $: if (type === 'svg' && !isValidSvg(icon)) {

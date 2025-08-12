@@ -754,14 +754,17 @@ export interface LaunchResult {
 //|_____________________________________________________________________________|
 
 /** Discriminated union for mod info returned by different providers.
+ * Supports both Rust enum serialization format and TypeScript discriminated union format.
  * ```ts
  * export type ModInfoKind =
- *   | { kind: 'Modrinth'; data: ModrinthInfo };
+ *   | { kind: 'Modrinth'; data: ModrinthInfo }        // TypeScript discriminated union
+ *   | { Modrinth: ModrinthInfo };                     // Rust enum serialization
  *   // | { kind: 'CurseForge'; data: CurseForgeInfo };
  * ```
  */
 export type ModInfoKind =
-  | { kind: 'Modrinth'; data: ModrinthInfo };
+  | { kind: 'Modrinth'; data: ModrinthInfo }        // TypeScript discriminated union format
+  | { Modrinth: ModrinthInfo };                     // Rust enum serialization format
   // | { kind: 'CurseForge'; data: CurseForgeInfo };
 
 
@@ -814,18 +817,29 @@ export interface FilterFacets {
 /** Modrinth mod project info.
  * ```ts
  * export interface ModrinthInfo {
- *   id: string;
- *   slug: string;
+ *   project_id: string;
  *   project_type: string;
+ *   slug: string;
  *   title: string;
  *   description: string;
- *   body?: string;
- *   additional_categories?: string[];
+ *   author: string;
  *   categories: string[];
+ *   display_categories: string[];
+ *   versions: string[];
+ *   downloads: number;
+ *   follows?: number;
+ *   icon_url?: string;
+ *   date_created?: string;
+ *   date_modified?: string;
+ *   latest_version?: string;
+ *   license?: string;
  *   client_side?: string;
  *   server_side?: string;
- *   downloads: number;
- *   icon_url?: string;
+ *   gallery?: string[];
+ *   featured_gallery?: string;
+ *   color?: number;
+ *   body?: string;
+ *   additional_categories?: string[];
  *   issues_url?: string;
  *   source_url?: string;
  *   wiki_url?: string;
@@ -834,17 +848,14 @@ export interface FilterFacets {
  *   published?: string;
  *   updated?: string;
  *   approved?: string;
- *   followers?: number;
- *   owner: string;
+ *   owner?: string;
  *   team?: string;
  *   host?: string;
- *   license?: ModrinthLicense;
- *   gallery?: string[];
- *   versions?: ModrinthVersion[];
+ *   license_obj?: ModrinthLicense;
+ *   versions_obj?: ModrinthVersion[];
  *   game_versions?: string[];
  *   loaders?: string[];
  *   featured?: boolean;
- *   project_id?: string;
  *   published_by?: string;
  *   approved_by?: string;
  *   moderation_message?: ModerationMessage;
@@ -853,18 +864,29 @@ export interface FilterFacets {
  * ```
  */
 export interface ModrinthInfo {
-  id: string;
-  slug: string;
+  project_id: string;
   project_type: string;
+  slug: string;
   title: string;
   description: string;
-  body?: string;
-  additional_categories?: string[];
+  author: string;
   categories: string[];
+  display_categories: string[];
+  versions: string[];
+  downloads: number;
+  follows?: number;
+  icon_url?: string;
+  date_created?: string;
+  date_modified?: string;
+  latest_version?: string;
+  license?: string;
   client_side?: string;
   server_side?: string;
-  downloads: number;
-  icon_url?: string;
+  gallery?: string[];
+  featured_gallery?: string;
+  color?: number;
+  body?: string;
+  additional_categories?: string[];
   issues_url?: string;
   source_url?: string;
   wiki_url?: string;
@@ -873,17 +895,14 @@ export interface ModrinthInfo {
   published?: string;
   updated?: string;
   approved?: string;
-  followers?: number;
-  owner: string;
+  owner?: string;
   team?: string;
   host?: string;
-  license?: ModrinthLicense;
-  gallery?: string[];
-  versions?: ModrinthVersion[];
+  license_obj?: ModrinthLicense;
+  versions_obj?: ModrinthVersion[];
   game_versions?: string[];
   loaders?: string[];
   featured?: boolean;
-  project_id?: string;
   published_by?: string;
   approved_by?: string;
   moderation_message?: ModerationMessage;
