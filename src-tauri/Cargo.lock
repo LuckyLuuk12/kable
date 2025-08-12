@@ -2359,6 +2359,7 @@ dependencies = [
  "dotenvy",
  "kable-macros",
  "lazy_static",
+ "libc",
  "minecraft-msa-auth",
  "modrinth-api",
  "oauth2",

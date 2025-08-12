@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, parse::Parse, parse::ParseStream, ItemFn, ReturnType, Type, TypePath, Lit, Meta, Expr, Token, Ident};
+use syn::{parse_macro_input, parse::Parse, parse::ParseStream, ItemFn, ReturnType, Type, TypePath, Lit, Expr, Token, Ident};
 
 // Configuration for macro behavior
 #[derive(Debug, Clone)]
@@ -245,76 +245,6 @@ fn generate_logging_wrapper_with_config(input_fn: &ItemFn, config: LogConfig, lo
                             None
                         );
                     }
-                }
-            }
-        }
-    } else {
-        quote! {
-            if let Err(e) = &result {
-                crate::logging::Logger::error_global(
-                    &format!("macro_debug: Function '{}' failed: {}", #fn_name_str, e),
-                    None
-                );
-            }
-        }
-    };
-    
-    let execution_block = if is_async {
-        quote! {
-            let result = async move #block.await;
-        }
-    } else {
-        quote! {
-            let result = (|| #block)();
-        }
-    };
-    
-    let expanded = quote! {
-        #(#attrs)*
-        #vis #sig {
-            #execution_block
-            #logging_code
-            result
-        }
-    };
-    
-    TokenStream::from(expanded)
-}
-
-fn generate_logging_wrapper(input_fn: &ItemFn, _logger_path: proc_macro2::TokenStream, log_success: bool) -> TokenStream {
-    // Check if the function returns a Result type
-    let returns_result = match &input_fn.sig.output {
-        ReturnType::Type(_, ty) => is_result_type(ty),
-        _ => false,
-    };
-    
-    if !returns_result {
-        // If it's not a Result type, return the function unchanged
-        return quote! { #input_fn }.into();
-    }
-    
-    let fn_name = &input_fn.sig.ident;
-    let fn_name_str = fn_name.to_string();
-    let vis = &input_fn.vis;
-    let sig = &input_fn.sig;
-    let attrs = &input_fn.attrs;
-    let block = &input_fn.block;
-    let is_async = input_fn.sig.asyncness.is_some();
-    
-    let logging_code = if log_success {
-        quote! {
-            match &result {
-                Err(e) => {
-                    crate::logging::Logger::error_global(
-                        &format!("macro_debug: Function '{}' failed: {}", #fn_name_str, e),
-                        None
-                    );
-                },
-                Ok(_) => {
-                    crate::logging::Logger::debug_global(
-                        &format!("macro_debug: Function '{}' completed successfully", #fn_name_str),
-                        None
-                    );
                 }
             }
         }
