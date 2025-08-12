@@ -32,10 +32,13 @@ let filters = {
 // Pagination state
 let currentPage = 1;
 let itemsPerPage = 20;
+let visitedPages = new Set([1]); // Track pages that had results
+let maxPageReached = 1; // Highest page number user has visited
 
 // Installed mods tracking
 let installedMods: ModJarInfo[] = [];
 let installedModsMap = new Map<string, ModJarInfo>();
+let installedModsLoaded = false;
 
 // Service instance
 let modsService: ModsService;
@@ -93,14 +96,13 @@ $: mods = $modsByProvider[currentProvider] || [];
 $: loading = $modsLoading;
 $: error = $modsError;
 $: filteredMods = applyFilters(mods);
+// For backend pagination, we show all loaded mods (no client-side slicing)
+$: paginatedMods = filteredMods;
 $: totalMods = filteredMods.length;
-$: totalPages = Math.ceil(totalMods / itemsPerPage);
-$: startIndex = (currentPage - 1) * itemsPerPage;
-$: endIndex = Math.min(startIndex + itemsPerPage, totalMods);
-$: paginatedMods = filteredMods.slice(startIndex, endIndex);
 
 // Load installed mods when installation changes
 $: if (currentInstallation) {
+  installedModsLoaded = false;
   loadInstalledMods(currentInstallation);
 }
 
@@ -160,12 +162,18 @@ function resetFilters() {
     gameVersions: []
   };
   currentPage = 1;
+  // Don't reset visitedPages or maxPageReached - keep pagination history
+  modsOffset.set(0);
+  if (modsService) {
+    modsService.loadMods();
+  }
 }
 
 // Load installed mods for the current installation
 async function loadInstalledMods(installation: KableInstallation) {
   try {
     installedMods = await InstallationService.getModInfo(installation);
+    
     // Create a map for quick lookups using mod name and file name for matching
     installedModsMap = new Map();
     installedMods.forEach(mod => {
@@ -180,34 +188,142 @@ async function loadInstalledMods(installation: KableInstallation) {
         installedModsMap.set(nameWithoutExt.toLowerCase(), mod);
       }
     });
+    
+    installedModsLoaded = true;
   } catch (e) {
-    console.error('Failed to load installed mods:', e);
+    console.error('[ModBrowser] Failed to load installed mods:', e);
     installedMods = [];
     installedModsMap = new Map();
+    installedModsLoaded = true; // Still set to true to prevent infinite loading
   }
+}
+
+// Fuzzy matching utilities
+function levenshteinDistance(a: string, b: string): number {
+  const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
+
+  for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+  for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+
+  for (let j = 1; j <= b.length; j++) {
+    for (let i = 1; i <= a.length; i++) {
+      const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
+      matrix[j][i] = Math.min(
+        matrix[j][i - 1] + 1,     // deletion
+        matrix[j - 1][i] + 1,     // insertion
+        matrix[j - 1][i - 1] + indicator  // substitution
+      );
+    }
+  }
+
+  return matrix[b.length][a.length];
+}
+
+function similarity(a: string, b: string): number {
+  const maxLength = Math.max(a.length, b.length);
+  if (maxLength === 0) return 1;
+  const distance = levenshteinDistance(a, b);
+  return (maxLength - distance) / maxLength;
+}
+
+function normalizeForComparison(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    // Remove common file extensions
+    .replace(/\.(jar|zip)$/i, '')
+    // Normalize separators to spaces
+    .replace(/[\-_]+/g, ' ')
+    // Remove extra spaces
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findBestMatch(target: string, candidates: string[], threshold: number = 0.7): { match: string; score: number } | null {
+  const normalizedTarget = normalizeForComparison(target);
+  
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const candidate of candidates) {
+    const normalizedCandidate = normalizeForComparison(candidate);
+    
+    // Skip very short strings
+    if (normalizedTarget.length < 3 || normalizedCandidate.length < 3) continue;
+    
+    const score = similarity(normalizedTarget, normalizedCandidate);
+    
+    if (score > bestScore && score >= threshold) {
+      bestScore = score;
+      bestMatch = candidate;
+    }
+  }
+
+  return bestMatch ? { match: bestMatch, score: bestScore } : null;
 }
 
 // Check if a mod is already installed
 function isModInstalled(mod: ModInfoKind): boolean {
+  // Don't check if installed mods haven't been loaded yet
+  if (!installedModsLoaded) {
+    return false;
+  }
+
   const displayInfo = getModDisplayInfo(mod);
   
   // Skip if mod info is unavailable
-  if (!displayInfo) return false;
+  if (!displayInfo) {
+    return false;
+  }
   
+  // First try exact matches for performance
   const modTitle = displayInfo.title.toLowerCase();
-  
-  // Check various ways the mod might be identified
-  if (installedModsMap.has(modTitle)) return true;
+  if (installedModsMap.has(modTitle)) {
+    return true;
+  }
   
   // For Modrinth mods, also check by project ID or slug
+  let modrinthData: any = null;
   if ('Modrinth' in mod) {
-    const modrinthData = mod.Modrinth;
-    if (modrinthData.project_id && installedModsMap.has(modrinthData.project_id.toLowerCase())) return true;
-    if (modrinthData.slug && installedModsMap.has(modrinthData.slug.toLowerCase())) return true;
+    modrinthData = mod.Modrinth;
   } else if ('kind' in mod && mod.kind === 'Modrinth') {
-    const modrinthData = mod.data;
-    if (modrinthData.project_id && installedModsMap.has(modrinthData.project_id.toLowerCase())) return true;
-    if (modrinthData.slug && installedModsMap.has(modrinthData.slug.toLowerCase())) return true;
+    modrinthData = mod.data;
+  }
+  
+  if (modrinthData) {
+    if (modrinthData.project_id && installedModsMap.has(modrinthData.project_id.toLowerCase())) {
+      return true;
+    }
+    if (modrinthData.slug && installedModsMap.has(modrinthData.slug.toLowerCase())) {
+      return true;
+    }
+  }
+  
+  // If no exact match, try fuzzy matching
+  const candidateNames: string[] = [];
+  
+  installedMods.forEach(installedMod => {
+    if (installedMod.mod_name) candidateNames.push(installedMod.mod_name.toLowerCase());
+    if (installedMod.file_name) {
+      candidateNames.push(installedMod.file_name.toLowerCase());
+      // Also add filename without extension
+      const nameWithoutExt = installedMod.file_name.replace(/\.(jar|zip)$/i, '').toLowerCase();
+      candidateNames.push(nameWithoutExt);
+    }
+  });
+  
+  // Try fuzzy matching against mod title with lower threshold first
+  const titleMatch = findBestMatch(displayInfo.title.toLowerCase(), candidateNames, 0.7);
+  if (titleMatch) {
+    return true;
+  }
+  
+  // Also try fuzzy matching against slug if available
+  if (modrinthData?.slug) {
+    const slugMatch = findBestMatch(modrinthData.slug.toLowerCase(), candidateNames, 0.7);
+    if (slugMatch) {
+      return true;
+    }
   }
   
   return false;
@@ -247,11 +363,16 @@ async function changeProvider(provider: ProviderKind) {
   if (!providers.find(p => p.id === provider)?.available) return;
   currentProvider = provider;
   currentPage = 1;
+  visitedPages = new Set([1]);
+  maxPageReached = 1;
+  modsOffset.set(0);
 }
 
 async function changePageSize(newSize: number) {
   itemsPerPage = newSize;
   currentPage = 1;
+  // Don't reset pagination history when changing page size
+  modsOffset.set(0);
   
   if (modsService) {
     await modsService.setLimit(newSize);
@@ -259,26 +380,75 @@ async function changePageSize(newSize: number) {
 }
 
 async function goToPage(page: number) {
-  if (page < 1 || page > totalPages) return;
+  if (page < 1) return;
   currentPage = page;
+  
+  // Track this page as visited and update max reached
+  visitedPages.add(page);
+  if (page > maxPageReached) {
+    maxPageReached = page;
+  }
   
   if (modsService) {
     const offset = (page - 1) * itemsPerPage;
+    console.log(`[ModBrowser] Going to page ${page}, setting offset to ${offset}`);
     modsOffset.set(offset);
     await modsService.loadMods();
   }
 }
 
 async function nextPage() {
-  if (currentPage < totalPages) {
-    await goToPage(currentPage + 1);
-  }
+  await goToPage(currentPage + 1);
 }
 
 async function prevPage() {
   if (currentPage > 1) {
     await goToPage(currentPage - 1);
   }
+}
+
+// Generate dynamic page numbers based on visited pages
+function generatePageNumbers(): (number | 'ellipsis')[] {
+  const totalToShow = 10; // Total page numbers to show
+  const pages: (number | 'ellipsis')[] = [];
+  
+  // Always show at least pages 1 through current + a few ahead
+  const minEndPage = Math.max(currentPage + 3, 10); // Show at least 10 pages or current + 3
+  
+  // Calculate the window around current page
+  const halfWindow = Math.floor(totalToShow / 2);
+  let startPage = Math.max(1, currentPage - halfWindow);
+  let endPage = Math.min(minEndPage, startPage + totalToShow - 1);
+  
+  // Adjust if we're near the beginning
+  if (endPage - startPage + 1 < totalToShow && endPage < minEndPage) {
+    endPage = Math.min(minEndPage, startPage + totalToShow - 1);
+  }
+  if (endPage - startPage + 1 < totalToShow) {
+    startPage = Math.max(1, endPage - totalToShow + 1);
+  }
+  
+  // If we're showing a window that doesn't start at 1, show first few pages + ellipsis
+  if (startPage > 3) {
+    pages.push(1);
+    pages.push(2);
+    pages.push('ellipsis');
+  } else if (startPage > 1) {
+    // Fill in the gap if it's small
+    for (let i = 1; i < startPage; i++) {
+      pages.push(i);
+    }
+  }
+  
+  // Add the main window of pages
+  for (let i = startPage; i <= endPage; i++) {
+    // Don't duplicate pages we already added
+    if (!pages.includes(i)) {
+      pages.push(i);
+    }
+  }
+  
+  return pages;
 }
 
 function toggleCategory(category: string) {
@@ -288,6 +458,9 @@ function toggleCategory(category: string) {
     filters.categories = [...filters.categories, category];
   }
   currentPage = 1;
+  // Don't reset pagination history for filters
+  modsOffset.set(0);
+  if (modsService) modsService.loadMods();
 }
 
 function handleModDownload(mod: ModInfoKind) {
@@ -526,11 +699,22 @@ onMount(async () => {
                 type="text"
                 placeholder="Search mods..."
                 bind:value={searchQuery}
-                on:input={() => currentPage = 1}
+                on:input={() => { 
+                  currentPage = 1; 
+                  // Don't reset pagination history for search
+                  modsOffset.set(0);
+                  if (modsService) modsService.loadMods();
+                }}
                 class="search-input"
               />
               {#if searchQuery}
-                <button class="clear-btn" on:click={() => { searchQuery = ''; currentPage = 1; }}>
+                <button class="clear-btn" on:click={() => { 
+                  searchQuery = ''; 
+                  currentPage = 1; 
+                  // Don't reset pagination history
+                  modsOffset.set(0);
+                  if (modsService) modsService.loadMods();
+                }}>
                   <Icon name="x" size="sm" />
                 </button>
               {/if}
@@ -540,7 +724,12 @@ onMount(async () => {
           <!-- Client/Server Side -->
           <div class="filter-section">
             <label class="filter-label" for="client-side">Client Side</label>
-            <select id="client-side" bind:value={filters.clientSide} on:change={() => currentPage = 1} class="filter-select">
+            <select id="client-side" bind:value={filters.clientSide} on:change={() => { 
+              currentPage = 1; 
+              // Don't reset pagination history for filters
+              modsOffset.set(0);
+              if (modsService) modsService.loadMods();
+            }} class="filter-select">
               {#each clientServerOptions as option}
                 <option value={option.value}>{option.label}</option>
               {/each}
@@ -549,7 +738,12 @@ onMount(async () => {
 
           <div class="filter-section">
             <label class="filter-label" for="server-side">Server Side</label>
-            <select id="server-side" bind:value={filters.serverSide} on:change={() => currentPage = 1} class="filter-select">
+            <select id="server-side" bind:value={filters.serverSide} on:change={() => { 
+              currentPage = 1; 
+              // Don't reset pagination history for filters
+              modsOffset.set(0);
+              if (modsService) modsService.loadMods();
+            }} class="filter-select">
               {#each clientServerOptions as option}
                 <option value={option.value}>{option.label}</option>
               {/each}
@@ -559,7 +753,12 @@ onMount(async () => {
           <!-- Project Type -->
           <div class="filter-section">
             <label class="filter-label" for="project-type">Type</label>
-            <select id="project-type" bind:value={filters.projectType} on:change={() => currentPage = 1} class="filter-select">
+            <select id="project-type" bind:value={filters.projectType} on:change={() => { 
+              currentPage = 1; 
+              // Don't reset pagination history for filters
+              modsOffset.set(0);
+              if (modsService) modsService.loadMods();
+            }} class="filter-select">
               {#each projectTypeOptions as option}
                 <option value={option.value}>{option.label}</option>
               {/each}
@@ -596,6 +795,40 @@ onMount(async () => {
             Filters
           </button>
           <span class="results-count">{totalMods} mods</span>
+          
+          <!-- Compact Pagination Controls -->
+          <div class="compact-pagination">
+            <button 
+              class="page-btn compact" 
+              on:click={prevPage} 
+              disabled={currentPage === 1}
+              title="Previous page"
+            >
+              <Icon name="arrow-left" size="sm" forceType="svg" />
+            </button>
+            
+            {#each generatePageNumbers() as pageItem}
+              {#if pageItem === 'ellipsis'}
+                <span class="pagination-ellipsis">...</span>
+              {:else}
+                <button
+                  class="page-btn compact"
+                  class:active={currentPage === pageItem}
+                  on:click={() => goToPage(pageItem)}
+                >
+                  {pageItem}
+                </button>
+              {/if}
+            {/each}
+            
+            <button 
+              class="page-btn compact" 
+              on:click={nextPage}
+              title="Next page"
+            >
+              <Icon name="arrow-right" size="sm" forceType="svg" />
+            </button>
+          </div>
         </div>
 
         <div class="toolbar-right">
@@ -666,7 +899,7 @@ onMount(async () => {
           <!-- Mods Grid/List -->
           <div class="mods-container" class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} class:compact={viewMode === 'compact'}>
             {#each paginatedMods as mod}
-              {@const installed = currentInstallation ? isModInstalled(mod) : false}
+              {@const installed = currentInstallation && installedModsLoaded ? isModInstalled(mod) : false}
               <ModCard 
                 {mod} 
                 {viewMode} 
@@ -678,84 +911,6 @@ onMount(async () => {
               />
             {/each}
           </div>
-
-          <!-- Pagination -->
-          {#if totalPages > 1}
-            <div class="pagination">
-              <div class="pagination-info">
-                Showing {startIndex + 1}-{endIndex} of {totalMods} mods
-              </div>
-              
-              <div class="pagination-controls">
-                <button 
-                  class="page-btn" 
-                  on:click={prevPage} 
-                  disabled={currentPage === 1}
-                  title="Previous page"
-                >
-                  <Icon name="arrow-left" size="sm" />
-                </button>
-                
-                {#if totalPages <= 7}
-                  {#each Array(totalPages) as _, i}
-                    <button
-                      class="page-btn"
-                      class:active={currentPage === i + 1}
-                      on:click={() => goToPage(i + 1)}
-                    >
-                      {i + 1}
-                    </button>
-                  {/each}
-                {:else}
-                  <button
-                    class="page-btn"
-                    class:active={currentPage === 1}
-                    on:click={() => goToPage(1)}
-                  >
-                    1
-                  </button>
-                  
-                  {#if currentPage > 3}
-                    <span class="pagination-ellipsis">...</span>
-                  {/if}
-                  
-                  {#each Array(Math.min(3, totalPages - 2)) as _, i}
-                    {@const pageNum = Math.max(2, Math.min(totalPages - 1, currentPage - 1 + i))}
-                    {#if pageNum > 1 && pageNum < totalPages}
-                      <button
-                        class="page-btn"
-                        class:active={currentPage === pageNum}
-                        on:click={() => goToPage(pageNum)}
-                      >
-                        {pageNum}
-                      </button>
-                    {/if}
-                  {/each}
-                  
-                  {#if currentPage < totalPages - 2}
-                    <span class="pagination-ellipsis">...</span>
-                  {/if}
-                  
-                  <button
-                    class="page-btn"
-                    class:active={currentPage === totalPages}
-                    on:click={() => goToPage(totalPages)}
-                  >
-                    {totalPages}
-                  </button>
-                {/if}
-                
-                <button 
-                  class="page-btn" 
-                  on:click={nextPage} 
-                  disabled={currentPage === totalPages}
-                  title="Next page"
-                >
-                  <Icon name="arrow-right" size="sm" />
-                </button>
-              </div>
-            </div>
-          {/if}
         {/if}
       </div>
     </div>
@@ -1119,6 +1274,55 @@ onMount(async () => {
       color: $placeholder;
       font-weight: 500;
     }
+    
+    .compact-pagination {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      
+      .page-btn.compact {
+        padding: 0.25rem 0.375rem;
+        border: 1px solid rgba($primary, 0.2);
+        border-radius: 0.25rem;
+        background: rgba($card, 0.8);
+        color: $text;
+        font-size: 0.7em;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+        min-width: 24px;
+        height: 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        
+        &:hover:not(:disabled) {
+          border-color: $primary;
+          background: rgba($primary, 0.1);
+          color: $primary;
+        }
+        
+        &.active {
+          background: $primary;
+          color: white;
+          border-color: transparent;
+          box-shadow: 0 1px 3px rgba($primary, 0.3);
+        }
+        
+        &:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+          background: rgba($card, 0.4);
+        }
+      }
+      
+      .pagination-ellipsis {
+        padding: 0.125rem 0.25rem;
+        color: $placeholder;
+        font-size: 0.7em;
+        font-weight: 500;
+      }
+    }
   }
   
   .toolbar-right {
@@ -1275,63 +1479,6 @@ onMount(async () => {
   }
 }
 
-// Pagination
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.75rem;
-  background: linear-gradient(135deg, rgba($container, 0.8) 0%, rgba($card, 0.4) 100%);
-  backdrop-filter: blur(4px);
-  border-top: 1px solid rgba($primary, 0.12);
-  
-  .pagination-info {
-    font-size: 0.75em;
-    color: $placeholder;
-    font-weight: 500;
-  }
-  
-  .pagination-controls {
-    display: flex;
-    align-items: center;
-    gap: 0.1875rem;
-    
-    .page-btn {
-      padding: 0.25rem 0.375rem;
-      border: 1px solid $dark-600;
-      border-radius: 0.25rem;
-      background: $card;
-      color: $text;
-      font-size: 0.75em;
-      cursor: pointer;
-      transition: all 0.15s;
-      min-width: 28px;
-      
-      &:hover:not(:disabled) {
-        border-color: $primary;
-        background: rgba($primary, 0.05);
-      }
-      
-      &.active {
-        background: $primary;
-        color: white;
-        border-color: transparent;
-      }
-      
-      &:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-    }
-    
-    .pagination-ellipsis {
-      padding: 0.25rem;
-      color: $placeholder;
-      font-size: 0.75em;
-    }
-  }
-}
-
 // Responsive Design
 @media (max-width: 768px) {
   .browser-main {
@@ -1359,6 +1506,17 @@ onMount(async () => {
     .toolbar-right {
       gap: 0.5rem;
     }
+    
+    .toolbar-left .compact-pagination {
+      gap: 0.125rem;
+      
+      .page-btn.compact {
+        min-width: 20px;
+        height: 20px;
+        padding: 0.125rem 0.25rem;
+        font-size: 0.65em;
+      }
+    }
   }
   
   .mods-container {
@@ -1366,16 +1524,6 @@ onMount(async () => {
     
     &.grid {
       grid-template-columns: 1fr;
-    }
-  }
-  
-  .pagination {
-    flex-direction: column;
-    gap: 0.5rem;
-    
-    .pagination-controls {
-      flex-wrap: wrap;
-      justify-content: center;
     }
   }
 }
