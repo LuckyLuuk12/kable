@@ -68,8 +68,44 @@ impl Default for KableInstallation {
 
 impl From<LauncherProfile> for KableInstallation {
     fn from(profile: LauncherProfile) -> Self {
+        let installation_id = uuid::Uuid::new_v4().to_string();
+        
+        // Create a temporary installation to check for mod loader-specific folder
+        let temp_installation = KableInstallation {
+            id: installation_id.clone(),
+            name: profile.name.clone(),
+            icon: profile.icon.clone(),
+            version_id: profile.last_version_id.clone(),
+            created: profile
+                .created
+                .clone()
+                .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+            last_used: profile
+                .last_used
+                .clone()
+                .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+            java_args: vec![], // Temporary, will be set below
+            dedicated_mods_folder: None, // Will be determined below
+            dedicated_resource_pack_folder: None,
+            dedicated_shaders_folder: None,
+            favorite: false,
+            total_time_played_ms: 0,
+            parameters_map: std::collections::HashMap::new(),
+            description: None,
+            times_launched: 0,
+        };
+        
+        // Check version manifest for custom mods folder first, fallback to default
+        let dedicated_mods_folder = temp_installation
+            .get_mods_folder_from_version_manifest()
+            .map(|path| {
+                // Store the full absolute path as-is if specified in manifest
+                path.to_string_lossy().to_string()
+            })
+            .or_else(|| Some(format!("mods/{}", installation_id))); // Fallback to default
+        
         KableInstallation {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: installation_id.clone(),
             name: profile.name,
             icon: profile.icon,
             version_id: profile.last_version_id.clone(),
@@ -93,7 +129,7 @@ impl From<LauncherProfile> for KableInstallation {
                     "-XX:G1HeapRegionSize=32M".to_string(),
                 ],
             },
-            dedicated_mods_folder: Some(profile.last_version_id),
+            dedicated_mods_folder,
             dedicated_resource_pack_folder: None,
             dedicated_shaders_folder: None,
             favorite: false,
@@ -337,7 +373,7 @@ impl KableInstallation {
         let mods_dirs = [
             self.get_dedicated_mods_folder_path(),
             self.get_mods_folder_from_version_manifest(),
-            crate::get_minecraft_kable_dir().ok().map(|dir| dir.join("mods").join(&self.version_id)),
+            crate::get_minecraft_kable_dir().ok().map(|dir| dir.join("mods").join(&self.id)), // Use installation ID, not version ID
         ];
         let mut found_dir = None;
         for (i, dir_opt) in mods_dirs.iter().enumerate() {
