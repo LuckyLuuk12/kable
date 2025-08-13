@@ -1,11 +1,15 @@
 # Kable
 ### An Unofficial Minecraft Launcher
 
-Kable is a modern, feature-rich Minecraft launcher built with Tauri and Svelte. It provides a sleek alternative to the official Minecraft launcher with advanced mod management, installation customization, and seamless authentication.
+Kable is a modern, developer-friendly Minecraft launcher built with Tauri and Svelte. Designed for power users and modders, it provides extensive customization options, transparent operation, and advanced debugging tools. Unlike traditional launchers, Kable emphasizes **modifiability** and **transparency** - offering comprehensive logging, detailed configuration options, and open-source architecture that lets you understand and modify every aspect of your Minecraft experience.
 
-![License](https://img.shields.io/badge/license-Proprietary-red.svg)
-![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
+![Latest Release](https://img.shields.io/github/v/release/LuckyLuuk12/kable?style=flat-square&color=blue)
+![Downloads](https://img.shields.io/github/downloads/LuckyLuuk12/kable/total?style=flat-square&color=green)
+![License](https://img.shields.io/badge/license-Proprietary-red.svg?style=flat-square)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)
+![GitHub Stars](https://img.shields.io/github/stars/LuckyLuuk12/kable?style=flat-square&color=yellow)
+![Issues](https://img.shields.io/github/issues/LuckyLuuk12/kable?style=flat-square&color=orange)
+![Last Commit](https://img.shields.io/github/last-commit/LuckyLuuk12/kable?style=flat-square&color=purple)
 
 ## 🚀 Features
 
@@ -50,6 +54,30 @@ Kable automatically detects and supports:
    - **Windows**: Run the `.msi` installer
    - **macOS**: Open the `.dmg` file and drag Kable to Applications
    - **Linux**: Install the `.deb` package or extract the `.tar.gz` archive
+
+### ⚠️ Antivirus & Security Notice
+
+**Windows Users**: You may encounter antivirus warnings when downloading or running Kable. This is common for new, unsigned applications and does **not** indicate malware.
+
+**Why this happens:**
+- Kable is currently unsigned (code signing certificates cost hundreds of dollars annually)
+- New applications haven't built reputation with antivirus vendors yet
+- Windows SmartScreen may show "Windows protected your PC" warnings
+
+**What you can do:**
+1. **Windows Defender/SmartScreen**: Click "More info" → "Run anyway"
+2. **Other Antivirus**: Add Kable to your antivirus whitelist/exclusions
+3. **Verify Download**: Check that you downloaded from the official [GitHub Releases](../../releases) page
+4. **Source Code**: Review the open-source code for transparency
+
+**Our commitment to security:**
+- ✅ All code is open source and publicly auditable
+- ✅ Builds are automated through GitHub Actions
+- ✅ No telemetry or data collection (by us)
+- ✅ Network requests only for legitimate purposes: Minecraft authentication, mod browsing (Modrinth), version manifests, and mod downloads
+- ✅ Builds are reproducible and verifiable
+
+As Kable gains popularity and reputation, these warnings will naturally decrease. We're working on alternative solutions like Microsoft Store distribution to improve trust.
 
 ### First Launch
 1. Open Kable
