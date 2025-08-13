@@ -1,6 +1,8 @@
 <script lang="ts">
   import { settings } from "$lib/stores";
   import { onMount } from 'svelte';
+  import AutoUpdater from '../AutoUpdater.svelte';
+  
   let isWideScreen = true;
   function checkScreen() {
     isWideScreen = window.innerWidth >= 700;
@@ -49,6 +51,9 @@
       </div>
     </div>
   </form>
+  
+  <!-- Auto-updater section -->
+  <AutoUpdater />
 </div>
 
 <style lang="scss">

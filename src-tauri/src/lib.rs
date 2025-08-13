@@ -41,6 +41,7 @@ pub use commands::mods as commands_mods;
 pub use commands::installations as commands_installations;
 pub use commands::launcher as commands_launcher;
 pub use commands::system as commands_system;
+pub use commands::updater as commands_updater;
 
 
 #[derive(Error, Debug)]
@@ -68,6 +69,7 @@ impl From<AppError> for String {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             get_default_minecraft_dir,
             validate_minecraft_directory,
@@ -159,7 +161,11 @@ pub fn run() {
             logging::cleanup_old_logs,
             logging::get_log_stats,
             // System commands
-            commands_system::open_url
+            commands_system::open_url,
+            // Updater commands
+            commands_updater::check_for_updates,
+            commands_updater::install_update,
+            commands_updater::get_current_version
         ])
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {

@@ -9,3 +9,4 @@ export * from './launcher';
 export * from './minecraft';
 export * from './settings';
 export * from './system';
+export * from './updater';

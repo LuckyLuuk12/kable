@@ -11,8 +11,12 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
   let isLaunching = false;
   let launchStatus = '';
   let openDropdownId: string | null = null;
+  
+  // RAM allocation state
+  let ramAllocation = 2048; // Default 2GB in MB
+  let ramInputValue = '2048'; // String value for text input
 
-  // Subscribe to the installations store
+  // Subscribe to the installations store and update RAM allocation
   $: {
     console.log('Total installations:', $installations.length);
     
@@ -25,6 +29,26 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
       .slice(0, 8); // Show up to 8 installations
       
     console.log('Last played installations:', lastPlayedInstallations.length);
+
+    // Update RAM allocation when installation changes
+    if (lastPlayedInstallations.length > 0) {
+      const latestInstallation = lastPlayedInstallations[0];
+      console.log('Latest installation java_args:', latestInstallation.java_args);
+      
+      // Extract RAM from java_args (look for -Xmx)
+      const xmxArg = latestInstallation.java_args?.find(arg => arg.startsWith('-Xmx'));
+      if (xmxArg) {
+        console.log('Found Xmx arg:', xmxArg);
+        const memValue = xmxArg.replace('-Xmx', '').toLowerCase();
+        if (memValue.endsWith('g')) {
+          ramAllocation = parseInt(memValue) * 1024;
+        } else if (memValue.endsWith('m')) {
+          ramAllocation = parseInt(memValue);
+        }
+        ramInputValue = ramAllocation.toString();
+        console.log('Set RAM allocation to:', ramAllocation, 'MB');
+      }
+    }
   }
 
   // Subscribe to loading and error states
@@ -155,132 +179,104 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
       }, 2000);
     }
   }
+
+  // RAM allocation functions
+  function updateRamFromSlider() {
+    ramInputValue = ramAllocation.toString();
+  }
+
+  function updateRamFromInput() {
+    const value = parseInt(ramInputValue);
+    if (!isNaN(value) && value >= 512 && value <= 32768) {
+      // Round to nearest 256MB increment
+      const roundedValue = Math.round(value / 256) * 256;
+      // Ensure it stays within bounds after rounding
+      const clampedValue = Math.max(512, Math.min(32768, roundedValue));
+      ramAllocation = clampedValue;
+      ramInputValue = clampedValue.toString();
+    } else {
+      // Reset to current valid value if invalid input
+      ramInputValue = ramAllocation.toString();
+    }
+  }
+
+  function formatRamDisplay(mb: number): string {
+    if (mb >= 1024) {
+      return `${(mb / 1024).toFixed(1)}GB`;
+    }
+    return `${mb}MB`;
+  }
 </script>
 
 <div class="page-wrapper">
-  <!-- Header -->
-  <div class="header">
-    <h1>Kable Launcher</h1>
-    <p>Your Minecraft launcher for all installations</p>
+
+  <!-- Installations List Section -->
+  <div class="installations-section">
+    <InstallationsList isGrid isSmall limit={15}/>
   </div>
 
-  <!-- Play Button Section - Fixed -->
-  <div class="play-section">
-    <button class="play-button" on:click={handlePlay} disabled={isLaunching || lastPlayedInstallations.length === 0}>
-      <Icon name={isLaunching ? "refresh" : "play"} size="md" forceType="svg" />
-      <span>{isLaunching ? 'Launching...' : 'Play Minecraft'}</span>
-    </button>
-    {#if lastPlayedInstallations.length === 0}
-      <p class="no-installations">No installations found. Please check your Minecraft directory in settings.</p>
-    {/if}
-    {#if launchStatus}
-      <p class="launch-status" class:error={launchStatus.includes('fail') || launchStatus.includes('error')}>
-        {launchStatus}
-      </p>
-    {/if}
-  </div>
+  <!-- Bottom Controls Section -->
+  <div class="bottom-controls">
+    <!-- Play Button (Centered) -->
+    <div class="play-section">
+      <button class="play-button" on:click={handlePlay} disabled={isLaunching || lastPlayedInstallations.length === 0}>
+        <Icon name={isLaunching ? "refresh" : "play"} size="md" forceType="svg" />
+        <span>{isLaunching ? 'Launching...' : 'Play Minecraft'}</span>
+      </button>
+      {#if lastPlayedInstallations.length === 0}
+        <p class="no-installations">No installations found. Please check your Minecraft directory in settings.</p>
+      {/if}
+      {#if launchStatus}
+        <p class="launch-status" class:error={launchStatus.includes('fail') || launchStatus.includes('error')}>
+          {launchStatus}
+        </p>
+      {/if}
+    </div>
 
-  <!-- Last Played Section - Scrollable -->
-  <!-- <div class="installations-section">
-    {#if error}
-      <div class="error-state">
-        <Icon name="warning" size="md" />
-        {error}
+    <!-- RAM Allocation Controls (Bottom Right) -->
+    <div class="ram-controls">
+      <div class="ram-header">
+        <span class="installation-name">
+          {lastPlayedInstallations.length > 0 ? lastPlayedInstallations[0].name : 'No Installation'}
+        </span>
+        <span class="ram-display">{formatRamDisplay(ramAllocation)}</span>
       </div>
-    {:else if isLoading}
-      <div class="loading-state">
-        <Icon name="refresh" size="md" />
-        <span>Loading installations...</span>
-      </div>
-    {:else if lastPlayedInstallations.length > 0}
-      <div class="section-header">
-        <h2>Last Played Installations</h2>
-        <button class="view-toggle" on:click={toggleViewMode} title="Toggle view mode">
-          <Icon name={viewMode === 'grid' ? 'list' : 'grid'} size="sm" />
-        </button>
-      </div>
-      <div class="installations-container">
-        <div class="installations-{viewMode}">
-          {#each lastPlayedInstallations as installation}
-            <div class="installation-card" class:selected={false}>
-              <div class="installation-header">
-                <div class="installation-icon">
-                  <Icon name={getModLoaderIcon(installation.mod_loader)} size="md" />
-                </div>
-                <div class="installation-info">
-                  <h3>{installation.name || `Minecraft ${installation.version}`}</h3>
-                  <p class="installation-details">
-                    {installation.version}
-                    {#if installation.mod_loader !== 'vanilla'}
-                      • {installation.mod_loader}
-                      {#if installation.loader_version}
-                        {installation.loader_version}
-                      {/if}
-                    {/if}
-                  </p>
-                </div>
-              </div>
-              
-              <div class="installation-meta">
-                {#if installation.last_played}
-                  <span class="last-played">
-                    Last played: {new Date(installation.last_played).toLocaleDateString()}
-                  </span>
-                {/if}
-                <div class="installation-actions">
-                  <button class="action-btn" title="Launch this installation" on:click={() => handleInstallationLaunch(installation)}>
-                    <Icon name="play" size="sm" forceType="svg" />
-                  </button>
-                  <div class="dropdown-container">
-                    <button 
-                      class="action-btn dropdown-trigger" 
-                      title="More options"
-                      on:click={() => toggleDropdown(installation.id)}
-                    >
-                      <Icon name="more" size="sm" />
-                    </button>
-                    {#if openDropdownId === installation.id}
-                      <div 
-                        class="dropdown-menu"
-                        role="menu"
-                        tabindex="-1"
-                        on:mouseleave={closeDropdown}
-                      >
-                        <button class="dropdown-item" role="menuitem" on:click={() => { /* Edit installation */ closeDropdown(); }}>
-                          <Icon name="edit" size="sm" />
-                          Edit
-                        </button>
-                        <button class="dropdown-item" role="menuitem" on:click={() => { /* Duplicate installation */ closeDropdown(); }}>
-                          <Icon name="copy" size="sm" />
-                          Duplicate
-                        </button>
-                        <button class="dropdown-item danger" role="menuitem" on:click={() => { /* Delete installation */ closeDropdown(); }}>
-                          <Icon name="trash" size="sm" />
-                          Delete
-                        </button>
-                      </div>
-                    {/if}
-                  </div>
-                </div>
-              </div>
-            </div>
-          {/each}
+      
+      <div class="ram-inputs">
+        <!-- Slider Input -->
+        <div class="ram-slider-container">
+          <input
+            type="range"
+            class="ram-slider"
+            bind:value={ramAllocation}
+            on:input={updateRamFromSlider}
+            min="512"
+            max="32768"
+            step="256"
+          />
+          <div class="slider-labels">
+            <span>512MB</span>
+            <span>8GB</span>
+            <span>16GB</span>
+            <span>32GB</span>
+          </div>
+        </div>
+        
+        <!-- Text Input -->
+        <div class="ram-text-container">
+          <input
+            type="text"
+            class="ram-input"
+            bind:value={ramInputValue}
+            on:blur={updateRamFromInput}
+            on:keydown={(e) => e.key === 'Enter' && updateRamFromInput()}
+            placeholder="2048"
+          />
+          <span class="ram-unit">MB</span>
         </div>
       </div>
-    {:else}
-      <div class="empty-state">
-        <Icon name="home" size="lg" />
-        <h2>No Installations Found</h2>
-        <p>It looks like you don't have any Minecraft installations yet.</p>
-        <button class="btn btn-primary">Add Installation</button>
-      </div>
-    {/if}
-  </div> -->
-  
-  <div class="section-header">
-    <h2>Last Played Installations</h2>
+    </div>
   </div>
-  <InstallationsList isGrid isSmall limit={12}/>
 </div>
 
 <style lang="scss">
@@ -298,7 +294,6 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     text-align: center;
     padding: 2rem 2rem 1rem;
     background: $container;
-    border-bottom: 1px solid $dark-600;
     flex-shrink: 0;
 
     h1 {
@@ -318,12 +313,178 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     }
   }
 
-  .play-section {
-    padding: 2rem;
-    text-align: center;
-    border-bottom: 1px solid $dark-600;
-    background: $container;
+  .installations-section {
+    flex: 1;
+    overflow-y: auto;
+    padding-bottom: 2rem;
+    margin-bottom: -2rem;
+    
+    .section-header {
+      padding: 1rem 0;
+      border-bottom: 1px solid $dark-600;
+      margin-bottom: 1rem;
+
+      h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: $text;
+      }
+    }
+  }
+
+  .bottom-controls {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 1.5rem 2rem;
+    background: linear-gradient(to top, $container 40%, rgba($container, 0.6) 80%, rgba($container, 0.15) 90%, transparent 100%);
+    backdrop-filter: blur(0.125rem);
     flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+    min-height: 5rem;
+  }
+
+  .play-section {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .ram-controls {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    margin: 0;
+    padding: 1rem;
+    background: $card;
+    border: 1px solid $dark-600;
+    border-radius: 0.5rem;
+    max-width: 23.75rem;
+    min-width: 20rem;
+
+      .ram-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: $text;
+
+        .installation-name {
+          color: $text;
+          font-weight: 500;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          flex: 1;
+          margin-right: 0.5rem;
+        }
+
+        .ram-display {
+          color: $primary;
+          font-weight: 600;
+          flex-shrink: 0;
+        }
+      }
+
+      .ram-inputs {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+
+        .ram-slider-container {
+          flex: 1;
+          
+          .ram-slider {
+            width: 100%;
+            height: 0.25rem;
+            border-radius: 0.125rem;
+            outline: none;
+            appearance: none;
+            cursor: pointer;
+            
+            &::-webkit-slider-thumb {
+              appearance: none;
+              width: 1rem;
+              height: 1rem;
+              background: $primary;
+              border-radius: 50%;
+              cursor: pointer;
+              transition: all 0.2s ease;
+              
+              &:hover {
+                background: $primary-600;
+                transform: scale(1.1);
+              }
+            }
+            
+            &::-moz-range-thumb {
+              width: 1rem;
+              height: 1rem;
+              background: $primary;
+              border-radius: 50%;
+              border: none;
+              cursor: pointer;
+              transition: all 0.2s ease;
+              
+              &:hover {
+                background: $primary-600;
+                transform: scale(1.1);
+              }
+            }
+          }
+
+          .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 0.25rem;
+            font-size: 0.625rem;
+            color: $placeholder;
+          }
+        }
+
+        .ram-text-container {
+          display: flex;
+          align-items: center;
+          gap: 0.375rem;
+          flex-shrink: 0;
+
+          .ram-input {
+            width: 3.75rem;
+            padding: 0.375rem 0.5rem;
+            background: $dark-600;
+            border: 1px solid $dark-500;
+            border-radius: 0.25rem;
+            color: $text;
+            font-size: 0.75rem;
+            text-align: center;
+            transition: border-color 0.2s ease;
+
+            &:focus {
+              outline: none;
+              border-color: $primary;
+            }
+
+            &::placeholder {
+              color: $placeholder;
+            }
+          }
+
+          .ram-unit {
+            font-size: 0.75rem;
+            color: $placeholder;
+            font-weight: 500;
+          }
+        }
+      }
+    }
 
     .play-button {
       display: inline-flex;
@@ -333,16 +494,17 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
       background: $primary;
       color: white;
       border: none;
-      border-radius: 12px;
+      border-radius: 0.75rem;
       font-size: 1.1rem;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s ease;
-      min-width: 200px;
+      width: 20rem;
+      justify-content: center;
 
       &:hover:not(:disabled) {
         background: $primary-600;
-        transform: translateY(-2px);
+        transform: translateY(-0.125rem);
       }
 
       &:disabled {
@@ -373,7 +535,7 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
         border-color: rgba($red, 0.3);
       }
     }
-  }
+  
 
   .section-header {
     display: flex;
