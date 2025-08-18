@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { GeneralSettings, AppearanceSettings, ContentSettings, LoggingSettings, AdvancedSettings, MiscSettings, NetworkSettings } from './setting_categories/';
+  import { GeneralSettingsUI, AppearanceSettingsUI, ContentSettingsUI, LoggingSettingsUI, AdvancedSettingsUI, MiscSettingsUI, NetworkSettingsUI } from '.';
 import { settings, SettingsService } from '$lib';
   import { writable } from 'svelte/store';
 
@@ -120,13 +120,13 @@ import { settings, SettingsService } from '$lib';
     {/each}
   </div>
   <div class="settings">
-    <div id="general"><GeneralSettings /></div>
-    <div id="appearance"><AppearanceSettings /></div>
-    <div id="logging"><LoggingSettings /></div>
-    <div id="content"><ContentSettings /></div>
-    <div id="network"><NetworkSettings /></div>
-    <div id="advanced"><AdvancedSettings /></div>
-    <div id="misc"><MiscSettings /></div>
+    <div id="general"><GeneralSettingsUI /></div>
+    <div id="appearance"><AppearanceSettingsUI /></div>
+    <div id="logging"><LoggingSettingsUI /></div>
+    <div id="content"><ContentSettingsUI /></div>
+    <div id="network"><NetworkSettingsUI /></div>
+    <div id="advanced"><AdvancedSettingsUI /></div>
+    <div id="misc"><MiscSettingsUI /></div>
   </div>
 </div>
 <style lang="scss">

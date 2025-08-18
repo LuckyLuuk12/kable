@@ -1,8 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { AuthService } from '$lib';
-  import { isAuthenticating } from '../stores/auth';
-  import Icon from './Icon.svelte';
+  import { AuthService , Icon, isAuthenticating } from '$lib';
 
   // Authentication state
   let error: string | null = null;

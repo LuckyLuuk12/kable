@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 import { Icon, installations, isLoadingInstallations, installationsError, type KableInstallation, Launcher, InstallationService } from '$lib';
-    import InstallationsList from '$lib/components/InstallationsList.svelte';
+    import InstallationsList from '$lib/components/installations/InstallationsList.svelte';
 
 
   // State variables

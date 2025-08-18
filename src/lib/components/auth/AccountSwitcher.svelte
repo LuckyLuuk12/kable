@@ -1,8 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { AuthService, currentAccount, availableAccounts } from '$lib';
-  import type { LauncherAccount } from '$lib';
-  import Icon from './Icon.svelte';
+  import { AuthService, currentAccount, availableAccounts, type LauncherAccount, Icon } from '$lib';
 
   let showDropdown = false;
   let isLoading = false;
