@@ -3,7 +3,8 @@ applyTo: '**'
 ---
 
 - Follow Rust best practices and idioms.
-- Ensure code is well-documented.
+- Ensure code is well-documented (inline)
+- Do not provide .md files with documentation
 - Maintain a consistent coding style throughout the project.
 - Do not include tests unless explicitly requested.
 - Scan/look for files/whole codebase if not enough context is available.

@@ -1,10 +1,10 @@
 pub mod cache;
-// pub mod curseforge;
+pub mod curseforge;
 pub mod manager;
 pub mod modrinth;
 
 pub use self::cache::*;
-// pub use self::curseforge::*;
+pub use self::curseforge::{CurseForgeInfo, CurseForgeProvider, CurseForgeFilter};
 pub use self::manager::*;
 pub use self::modrinth::*;
 
@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ProviderKind {
     Modrinth,
-    // CurseForge, // TODO
+    CurseForge,
 }
 
 use once_cell::sync::Lazy;
@@ -22,6 +22,8 @@ use std::sync::Mutex;
 
 static MODRINTH: Lazy<Mutex<ModrinthProvider>> =
     Lazy::new(|| Mutex::new(ModrinthProvider::default()));
+static CURSEFORGE: Lazy<Mutex<CurseForgeProvider>> =
+    Lazy::new(|| Mutex::new(CurseForgeProvider::default()));
 
 pub fn set_provider_filter(
     provider: ProviderKind,
@@ -31,7 +33,10 @@ pub fn set_provider_filter(
     match provider {
         ProviderKind::Modrinth => {
             MODRINTH.lock().unwrap().filter(installation, filter);
-        } //ProviderKind::CurseForge => { /* TODO */ }
+        }
+        ProviderKind::CurseForge => {
+            CURSEFORGE.lock().unwrap().filter(installation, filter);
+        }
     }
 }
 
@@ -39,7 +44,10 @@ pub fn set_provider_limit(provider: ProviderKind, limit: usize) {
     match provider {
         ProviderKind::Modrinth => {
             MODRINTH.lock().unwrap().set_limit(limit);
-        } //ProviderKind::CurseForge => { /* TODO */ }
+        }
+        ProviderKind::CurseForge => {
+            CURSEFORGE.lock().unwrap().set_limit(limit);
+        }
     }
 }
 
@@ -52,7 +60,13 @@ pub async fn get_mods(provider: ProviderKind, offset: usize) -> Result<Vec<ModIn
             };
             prov.get(offset).await
         }
-        //ProviderKind::CurseForge => todo!(),
+        ProviderKind::CurseForge => {
+            let mut prov = {
+                let prov_guard = CURSEFORGE.lock().unwrap();
+                prov_guard.clone()
+            };
+            prov.get(offset).await
+        }
     }
 }
 
@@ -70,7 +84,13 @@ pub async fn download_mod(
             };
             prov.download(mod_id, version_id, installation).await
         }
-        //ProviderKind::CurseForge => todo!(),
+        ProviderKind::CurseForge => {
+            let prov = {
+                let prov_guard = CURSEFORGE.lock().unwrap();
+                prov_guard.clone()
+            };
+            prov.download(mod_id, version_id, installation).await
+        }
     }
 }
 
@@ -80,7 +100,12 @@ pub fn clear_provider_cache(provider: ProviderKind) {
             let mut prov = MODRINTH.lock().unwrap();
             prov.cache.clear();
             let _ = prov.cache.save_to_disk(&prov.cache_path);
-        } //ProviderKind::CurseForge => { /* TODO */ }
+        }
+        ProviderKind::CurseForge => {
+            let mut prov = CURSEFORGE.lock().unwrap();
+            prov.cache.clear();
+            let _ = prov.cache.save_to_disk(&prov.cache_path);
+        }
     }
 }
 
@@ -90,7 +115,12 @@ pub fn purge_stale_provider_cache(provider: ProviderKind) {
             let mut prov = MODRINTH.lock().unwrap();
             prov.cache.purge_stale();
             let _ = prov.cache.save_to_disk(&prov.cache_path);
-        } //ProviderKind::CurseForge => { /* TODO */ }
+        }
+        ProviderKind::CurseForge => {
+            let mut prov = CURSEFORGE.lock().unwrap();
+            prov.cache.purge_stale();
+            let _ = prov.cache.save_to_disk(&prov.cache_path);
+        }
     }
 }
 

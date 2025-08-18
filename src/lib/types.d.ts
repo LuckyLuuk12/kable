@@ -758,26 +758,28 @@ export interface LaunchResult {
  * ```ts
  * export type ModInfoKind =
  *   | { kind: 'Modrinth'; data: ModrinthInfo }        // TypeScript discriminated union
- *   | { Modrinth: ModrinthInfo };                     // Rust enum serialization
- *   // | { kind: 'CurseForge'; data: CurseForgeInfo };
+ *   | { Modrinth: ModrinthInfo }                      // Rust enum serialization
+ *   | { kind: 'CurseForge'; data: CurseForgeInfo }    // TypeScript discriminated union
+ *   | { CurseForge: CurseForgeInfo };                 // Rust enum serialization
  * ```
  */
 export type ModInfoKind =
   | { kind: 'Modrinth'; data: ModrinthInfo }        // TypeScript discriminated union format
-  | { Modrinth: ModrinthInfo };                     // Rust enum serialization format
-  // | { kind: 'CurseForge'; data: CurseForgeInfo };
+  | { Modrinth: ModrinthInfo }                      // Rust enum serialization format
+  | { kind: 'CurseForge'; data: CurseForgeInfo }    // TypeScript discriminated union format
+  | { CurseForge: CurseForgeInfo };                 // Rust enum serialization format
 
 
 /** Discriminated union for mod filters for each provider.
  * ```ts
  * export type ModFilter =
- *   | { kind: 'Modrinth'; facets: FilterFacets };
- *   // | { kind: 'CurseForge'; facets: CurseForgeFilter };
+ *   | { kind: 'Modrinth'; facets: FilterFacets }
+ *   | { kind: 'CurseForge'; facets: CurseForgeFilter };
  * ```
  */
 export type ModFilter =
-  | { kind: 'Modrinth'; facets: FilterFacets };
-  // | { kind: 'CurseForge'; facets: CurseForgeFilter };
+  | { kind: 'Modrinth'; facets: FilterFacets }
+  | { kind: 'CurseForge'; facets: CurseForgeFilter };
 
 
 /** Modrinth filter facets for searching mods.
@@ -907,6 +909,307 @@ export interface ModrinthInfo {
   approved_by?: string;
   moderation_message?: ModerationMessage;
   moderation_message_type?: string;
+}
+
+
+/** CurseForge mod project info.
+ * ```ts
+ * export interface CurseForgeInfo {
+ *   id: number;
+ *   game_id: number;
+ *   name: string;
+ *   slug: string;
+ *   links: CurseForgeModLinks;
+ *   summary: string;
+ *   status: number;
+ *   download_count: number;
+ *   is_featured: boolean;
+ *   primary_category_id: number;
+ *   categories: CurseForgeCategory[];
+ *   class_id?: number;
+ *   authors: CurseForgeAuthor[];
+ *   logo?: CurseForgeAsset;
+ *   screenshots: CurseForgeAsset[];
+ *   main_file_id: number;
+ *   latest_files: CurseForgeFile[];
+ *   latest_files_indexes: CurseForgeFileIndex[];
+ *   date_created: string;
+ *   date_modified: string;
+ *   date_released?: string;
+ *   allow_mod_distribution?: boolean;
+ *   game_popularity_rank: number;
+ *   is_available: boolean;
+ *   thumbs_up_count: number;
+ *   rating?: number;
+ * }
+ * ```
+ */
+export interface CurseForgeInfo {
+  id: number;
+  game_id: number;
+  name: string;
+  slug: string;
+  links: CurseForgeModLinks;
+  summary: string;
+  status: number;
+  download_count: number;
+  is_featured: boolean;
+  primary_category_id: number;
+  categories: CurseForgeCategory[];
+  class_id?: number;
+  authors: CurseForgeAuthor[];
+  logo?: CurseForgeAsset;
+  screenshots: CurseForgeAsset[];
+  main_file_id: number;
+  latest_files: CurseForgeFile[];
+  latest_files_indexes: CurseForgeFileIndex[];
+  date_created: string;
+  date_modified: string;
+  date_released?: string;
+  allow_mod_distribution?: boolean;
+  game_popularity_rank: number;
+  is_available: boolean;
+  thumbs_up_count: number;
+  rating?: number;
+}
+
+/** CurseForge mod links.
+ * ```ts
+ * export interface CurseForgeModLinks {
+ *   website_url?: string;
+ *   wiki_url?: string;
+ *   issues_url?: string;
+ *   source_url?: string;
+ * }
+ * ```
+ */
+export interface CurseForgeModLinks {
+  website_url?: string;
+  wiki_url?: string;
+  issues_url?: string;
+  source_url?: string;
+}
+
+/** CurseForge category info.
+ * ```ts
+ * export interface CurseForgeCategory {
+ *   id: number;
+ *   game_id: number;
+ *   name: string;
+ *   slug: string;
+ *   url: string;
+ *   icon_url: string;
+ *   date_modified: string;
+ *   is_class: boolean;
+ *   class_id?: number;
+ *   parent_category_id?: number;
+ *   display_index: number;
+ * }
+ * ```
+ */
+export interface CurseForgeCategory {
+  id: number;
+  game_id: number;
+  name: string;
+  slug: string;
+  url: string;
+  icon_url: string;
+  date_modified: string;
+  is_class: boolean;
+  class_id?: number;
+  parent_category_id?: number;
+  display_index: number;
+}
+
+/** CurseForge author info.
+ * ```ts
+ * export interface CurseForgeAuthor {
+ *   id: number;
+ *   name: string;
+ *   url: string;
+ * }
+ * ```
+ */
+export interface CurseForgeAuthor {
+  id: number;
+  name: string;
+  url: string;
+}
+
+/** CurseForge mod asset (logo, screenshots).
+ * ```ts
+ * export interface CurseForgeAsset {
+ *   id: number;
+ *   mod_id: number;
+ *   title: string;
+ *   description: string;
+ *   thumbnail_url: string;
+ *   url: string;
+ * }
+ * ```
+ */
+export interface CurseForgeAsset {
+  id: number;
+  mod_id: number;
+  title: string;
+  description: string;
+  thumbnail_url: string;
+  url: string;
+}
+
+/** CurseForge file info.
+ * ```ts
+ * export interface CurseForgeFile {
+ *   id: number;
+ *   game_id: number;
+ *   mod_id: number;
+ *   is_available: boolean;
+ *   display_name: string;
+ *   file_name: string;
+ *   release_type: number;
+ *   file_status: number;
+ *   hashes: CurseForgeFileHash[];
+ *   file_date: string;
+ *   file_length: number;
+ *   download_count: number;
+ *   download_url: string;
+ *   game_versions: string[];
+ *   sortable_game_versions: CurseForgeSortableGameVersion[];
+ *   dependencies: CurseForgeModDependency[];
+ *   alternate_file_id?: number;
+ *   is_server_pack: boolean;
+ *   server_pack_file_id?: number;
+ *   is_early_access_content: boolean;
+ *   early_access_end_date?: string;
+ *   file_fingerprint: number;
+ *   modules: CurseForgeModuleFingerprint[];
+ * }
+ * ```
+ */
+export interface CurseForgeFile {
+  id: number;
+  game_id: number;
+  mod_id: number;
+  is_available: boolean;
+  display_name: string;
+  file_name: string;
+  release_type: number;
+  file_status: number;
+  hashes: CurseForgeFileHash[];
+  file_date: string;
+  file_length: number;
+  download_count: number;
+  download_url: string;
+  game_versions: string[];
+  sortable_game_versions: CurseForgeSortableGameVersion[];
+  dependencies: CurseForgeModDependency[];
+  alternate_file_id?: number;
+  is_server_pack: boolean;
+  server_pack_file_id?: number;
+  is_early_access_content: boolean;
+  early_access_end_date?: string;
+  file_fingerprint: number;
+  modules: CurseForgeModuleFingerprint[];
+}
+
+/** CurseForge file index.
+ * ```ts
+ * export interface CurseForgeFileIndex {
+ *   game_version: string;
+ *   file_id: number;
+ *   filename: string;
+ *   release_type: number;
+ *   game_version_type_id?: number;
+ *   mod_loader?: number;
+ * }
+ * ```
+ */
+export interface CurseForgeFileIndex {
+  game_version: string;
+  file_id: number;
+  filename: string;
+  release_type: number;
+  game_version_type_id?: number;
+  mod_loader?: number;
+}
+
+/** CurseForge file hash.
+ * ```ts
+ * export interface CurseForgeFileHash {
+ *   value: string;
+ *   algo: number;
+ * }
+ * ```
+ */
+export interface CurseForgeFileHash {
+  value: string;
+  algo: number;
+}
+
+/** CurseForge sortable game version.
+ * ```ts
+ * export interface CurseForgeSortableGameVersion {
+ *   game_version_name: string;
+ *   game_version_padded: string;
+ *   game_version: string;
+ *   game_version_release_date: string;
+ *   game_version_type_id?: number;
+ * }
+ * ```
+ */
+export interface CurseForgeSortableGameVersion {
+  game_version_name: string;
+  game_version_padded: string;
+  game_version: string;
+  game_version_release_date: string;
+  game_version_type_id?: number;
+}
+
+/** CurseForge mod dependency.
+ * ```ts
+ * export interface CurseForgeModDependency {
+ *   mod_id: number;
+ *   relation_type: number;
+ * }
+ * ```
+ */
+export interface CurseForgeModDependency {
+  mod_id: number;
+  relation_type: number;
+}
+
+/** CurseForge module fingerprint.
+ * ```ts
+ * export interface CurseForgeModuleFingerprint {
+ *   foldername: string;
+ *   fingerprints: number[];
+ * }
+ * ```
+ */
+export interface CurseForgeModuleFingerprint {
+  foldername: string;
+  fingerprints: number[];
+}
+
+/** CurseForge filter for mod searches.
+ * ```ts
+ * export interface CurseForgeFilter {
+ *   query?: string;
+ *   category_id?: number;
+ *   game_version?: string;
+ *   mod_loader_type?: number;
+ *   sort_field?: number;
+ *   sort_order?: number;
+ * }
+ * ```
+ */
+export interface CurseForgeFilter {
+  query?: string;
+  category_id?: number;
+  game_version?: string;
+  mod_loader_type?: number;
+  sort_field?: number;
+  sort_order?: number;
 }
 
 

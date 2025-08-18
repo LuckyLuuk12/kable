@@ -43,19 +43,19 @@ let installedModsLoaded = false;
 // Service instance
 let modsService: ModsService;
 
-// Available providers (for now just Modrinth, but ready for expansion)
+// Available providers
 const providers: { id: ProviderKind; name: string; description: string; available: boolean }[] = [
   { 
     id: ProviderKind.Modrinth, 
     name: 'Modrinth', 
-    description: 'Open-source mod platform', 
+    description: 'Flexible API, though try not to spam refresh this tab', 
     available: true 
   },
   { 
-    id: 'CurseForge' as ProviderKind, 
+    id: ProviderKind.CurseForge, 
     name: 'CurseForge', 
-    description: 'Popular mod repository', 
-    available: false // For visual testing
+    description: 'Might not work because of API limitations', 
+    available: true 
   }
 ];
 
@@ -298,6 +298,23 @@ function isModInstalled(mod: ModInfoKind): boolean {
       return true;
     }
   }
+
+  // For CurseForge mods, also check by mod ID or slug
+  let curseforgeData: any = null;
+  if ('CurseForge' in mod) {
+    curseforgeData = mod.CurseForge;
+  } else if ('kind' in mod && mod.kind === 'CurseForge') {
+    curseforgeData = mod.data;
+  }
+  
+  if (curseforgeData) {
+    if (curseforgeData.id && installedModsMap.has(curseforgeData.id.toString().toLowerCase())) {
+      return true;
+    }
+    if (curseforgeData.slug && installedModsMap.has(curseforgeData.slug.toLowerCase())) {
+      return true;
+    }
+  }
   
   // If no exact match, try fuzzy matching
   const candidateNames: string[] = [];
@@ -321,6 +338,14 @@ function isModInstalled(mod: ModInfoKind): boolean {
   // Also try fuzzy matching against slug if available
   if (modrinthData?.slug) {
     const slugMatch = findBestMatch(modrinthData.slug.toLowerCase(), candidateNames, 0.7);
+    if (slugMatch) {
+      return true;
+    }
+  }
+
+  // Also try fuzzy matching against CurseForge slug if available
+  if (curseforgeData?.slug) {
+    const slugMatch = findBestMatch(curseforgeData.slug.toLowerCase(), candidateNames, 0.7);
     if (slugMatch) {
       return true;
     }
@@ -472,15 +497,29 @@ function handleModDownload(mod: ModInfoKind) {
   let modId: string;
   let versionId: string | undefined;
   
-  // Handle both Rust enum and discriminated union formats
+  // Handle Modrinth - Rust enum format
   if ('Modrinth' in mod) {
     modId = mod.Modrinth.project_id;
     versionId = mod.Modrinth.latest_version || undefined;
-  } else if ('kind' in mod && mod.kind === 'Modrinth') {
+  }
+  // Handle Modrinth - TypeScript discriminated union format
+  else if ('kind' in mod && mod.kind === 'Modrinth') {
     modId = mod.data.project_id;
     versionId = mod.data.latest_version || undefined;
-  } else {
-    // Handle other providers when implemented
+  }
+  // Handle CurseForge - Rust enum format
+  else if ('CurseForge' in mod) {
+    modId = mod.CurseForge.id.toString();
+    versionId = mod.CurseForge.main_file_id.toString() || undefined;
+  }
+  // Handle CurseForge - TypeScript discriminated union format
+  else if ('kind' in mod && mod.kind === 'CurseForge') {
+    modId = mod.data.id.toString();
+    versionId = mod.data.main_file_id.toString() || undefined;
+  }
+  // Unknown provider
+  else {
+    console.error('[ModBrowser] Unknown mod provider format:', mod);
     return;
   }
   
@@ -492,14 +531,36 @@ function handleModDownload(mod: ModInfoKind) {
 }
 
 function handleModInfo(mod: ModInfoKind) {
-  // Handle both Rust enum and discriminated union formats
+  // Handle Modrinth - Rust enum format
   if ('Modrinth' in mod) {
     const url = mod.Modrinth.source_url || mod.Modrinth.wiki_url || `https://modrinth.com/mod/${mod.Modrinth.slug}`;
     if (url) {
       window.open(url, '_blank');
     }
-  } else if ('kind' in mod && mod.kind === 'Modrinth') {
+  }
+  // Handle Modrinth - TypeScript discriminated union format
+  else if ('kind' in mod && mod.kind === 'Modrinth') {
     const url = mod.data.source_url || mod.data.wiki_url || `https://modrinth.com/mod/${mod.data.slug}`;
+    if (url) {
+      window.open(url, '_blank');
+    }
+  }
+  // Handle CurseForge - Rust enum format
+  else if ('CurseForge' in mod) {
+    const url = mod.CurseForge.links?.website_url || 
+               mod.CurseForge.links?.source_url || 
+               mod.CurseForge.links?.wiki_url || 
+               `https://www.curseforge.com/minecraft/mc-mods/${mod.CurseForge.slug}`;
+    if (url) {
+      window.open(url, '_blank');
+    }
+  }
+  // Handle CurseForge - TypeScript discriminated union format
+  else if ('kind' in mod && mod.kind === 'CurseForge') {
+    const url = mod.data.links?.website_url || 
+               mod.data.links?.source_url || 
+               mod.data.links?.wiki_url || 
+               `https://www.curseforge.com/minecraft/mc-mods/${mod.data.slug}`;
     if (url) {
       window.open(url, '_blank');
     }
@@ -534,7 +595,7 @@ function getModDisplayInfo(mod: ModInfoKind): {
   date_modified?: string;
   latest_version?: string;
 } {
-  // Type guard for Rust enum format
+  // Handle Modrinth - Rust enum format
   if ('Modrinth' in mod) {
     const modrinthData = mod.Modrinth;
     return {
@@ -559,7 +620,32 @@ function getModDisplayInfo(mod: ModInfoKind): {
     };
   }
   
-  // Handle the TypeScript discriminated union format
+  // Handle CurseForge - Rust enum format
+  if ('CurseForge' in mod) {
+    const curseforgeData = mod.CurseForge;
+    return {
+      title: curseforgeData.name || 'Unknown Mod',
+      description: curseforgeData.summary || 'No description available.',
+      author: curseforgeData.authors?.[0]?.name || 'Unknown Author',
+      downloads: curseforgeData.download_count || 0,
+      icon_url: curseforgeData.logo?.url || curseforgeData.logo?.thumbnail_url,
+      categories: curseforgeData.categories?.map(cat => cat.name) || [] as string[],
+      project_type: 'mod', // CurseForge doesn't distinguish project types the same way
+      // Additional fields mapped from CurseForge
+      follows: curseforgeData.thumbs_up_count, // Use thumbs up as follow count equivalent
+      client_side: undefined, // CurseForge doesn't have this concept
+      server_side: undefined, // CurseForge doesn't have this concept
+      game_versions: curseforgeData.latest_files_indexes?.map(file => file.game_version) || [] as string[],
+      source_url: curseforgeData.links?.source_url,
+      wiki_url: curseforgeData.links?.wiki_url,
+      license: undefined, // CurseForge doesn't expose license in the same way
+      date_created: curseforgeData.date_created,
+      date_modified: curseforgeData.date_modified,
+      latest_version: curseforgeData.latest_files?.[0]?.display_name
+    };
+  }
+  
+  // Handle Modrinth - TypeScript discriminated union format
   if ('kind' in mod && mod.kind === 'Modrinth') {
     console.log('[ModBrowser] Using TypeScript discriminated union data structure:', mod.data);
     return {
@@ -581,6 +667,31 @@ function getModDisplayInfo(mod: ModInfoKind): {
       date_created: mod.data.date_created,
       date_modified: mod.data.date_modified,
       latest_version: mod.data.latest_version
+    };
+  }
+
+  // Handle CurseForge - TypeScript discriminated union format
+  if ('kind' in mod && mod.kind === 'CurseForge') {
+    console.log('[ModBrowser] Using CurseForge TypeScript discriminated union data structure:', mod.data);
+    return {
+      title: mod.data.name || 'Unknown Mod',
+      description: mod.data.summary || 'No description available.',
+      author: mod.data.authors?.[0]?.name || 'Unknown Author',
+      downloads: mod.data.download_count || 0,
+      icon_url: mod.data.logo?.url || mod.data.logo?.thumbnail_url,
+      categories: mod.data.categories?.map(cat => cat.name) || [] as string[],
+      project_type: 'mod', // CurseForge doesn't distinguish project types the same way
+      // Additional fields mapped from CurseForge
+      follows: mod.data.thumbs_up_count, // Use thumbs up as follow count equivalent
+      client_side: undefined, // CurseForge doesn't have this concept
+      server_side: undefined, // CurseForge doesn't have this concept
+      game_versions: mod.data.latest_files_indexes?.map(file => file.game_version) || [] as string[],
+      source_url: mod.data.links?.source_url,
+      wiki_url: mod.data.links?.wiki_url,
+      license: undefined, // CurseForge doesn't expose license in the same way
+      date_created: mod.data.date_created,
+      date_modified: mod.data.date_modified,
+      latest_version: mod.data.latest_files?.[0]?.display_name
     };
   }
   
@@ -662,7 +773,7 @@ onMount(async () => {
           title={provider.description}
         >
         <!-- TODO: Change this to use the providers favicon -->
-          <Icon name={provider.id === ProviderKind.Modrinth ? 'download' : 'package'} size="sm" forceType="svg" />
+          <Icon name={provider.id === ProviderKind.Modrinth ? 'download' : provider.id === ProviderKind.CurseForge ? 'flame' : 'package'} size="sm" forceType="svg" />
           {provider.name}
           {#if !provider.available}
             <span class="coming-soon">(Soon)</span>

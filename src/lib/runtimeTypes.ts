@@ -22,11 +22,11 @@ export enum Loader {
  * ```ts
  * export enum ProviderKind {
  *   Modrinth = 'Modrinth',
- *   // CurseForge = 'CurseForge',
+ *   CurseForge = 'CurseForge',
  * }
  * ```
  */
 export enum ProviderKind {
   Modrinth = 'Modrinth',
-  // CurseForge = 'CurseForge',
+  CurseForge = 'CurseForge',
 }

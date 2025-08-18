@@ -1,5 +1,6 @@
 use crate::installations::kable_profiles::KableInstallation;
 use crate::mods::modrinth::ModrinthInfo;
+use crate::mods::curseforge::CurseForgeInfo;
 use serde::{Deserialize, Serialize};
 
 #[async_trait::async_trait]
@@ -29,10 +30,10 @@ pub trait ModProvider {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum ModInfoKind {
     Modrinth(ModrinthInfo),
-    // CurseForge(CurseForgeInfo),
+    CurseForge(CurseForgeInfo),
     // Add more sources as needed
 }
 
@@ -40,6 +41,6 @@ pub enum ModInfoKind {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum ModFilter {
     Modrinth(crate::mods::modrinth::FilterFacets),
-    // CurseForge(CurseForgeFilter),
+    CurseForge(crate::mods::curseforge::CurseForgeFilter),
     // Add more sources as needed
 }
