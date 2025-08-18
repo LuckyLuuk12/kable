@@ -107,10 +107,8 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
       if (lastPlayedInstallations.length > 0) {
         console.log('Launching installation:', lastPlayedInstallations[0]);
         launchStatus = `Launching ${lastPlayedInstallations[0].name}...`;
-        // Select the installation and launch with GameManager
-        InstallationService.selectInstallation(lastPlayedInstallations[0]);
-        // await InstallationManager.launchGame();
-        result = { success: true };
+        // Launch the installation directly using Launcher
+        result = await Launcher.launchInstallation(lastPlayedInstallations[0]);
       } else {
         launchStatus = 'Launching default Minecraft...';
         // Use Launcher for quick launch fallback
@@ -149,23 +147,20 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     }
     
     try {
-      // Select the installation and check if we can launch
-      InstallationService.selectInstallation(installation);
-      // const { canLaunch, reason } = await InstallationManager.canLaunch();
-      // if (!canLaunch) {
-      //   alert(reason || 'Cannot launch');
-      //   return;
-      // }
-      // TODO: make launchService work with selected installation
-      // await InstallationManager.launchGame();
+      // Launch the installation directly using Launcher
+      const result = await Launcher.launchInstallation(installation);
       
-      if (launchButton) {
-        launchButton.textContent = 'Launched!';
+      if (result.success) {
+        if (launchButton) {
+          launchButton.textContent = 'Launched!';
+        }
+        // Refresh installations to update last played
+        setTimeout(() => {
+          InstallationService.loadInstallations();
+        }, 1000);
+      } else {
+        alert(`Launch failed: ${result.error || 'Unknown error'}`);
       }
-      // Refresh installations to update last played
-      setTimeout(() => {
-        InstallationService.loadInstallations();
-      }, 1000);
     } catch (err) {
       console.error('Installation launch error:', err);
       alert(`Launch failed: ${err}`);
@@ -290,47 +285,11 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     border-radius: $border-radius;
   }
 
-  .header {
-    text-align: center;
-    padding: 2rem 2rem 1rem;
-    background: $container;
-    flex-shrink: 0;
-
-    h1 {
-      margin: 0 0 0.5rem 0;
-      font-size: 2.5rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, $primary, $tertiary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    p {
-      margin: 0;
-      color: $placeholder;
-      font-size: 1rem;
-    }
-  }
-
   .installations-section {
     flex: 1;
     overflow-y: auto;
     padding-bottom: 2rem;
     margin-bottom: -2rem;
-    
-    .section-header {
-      padding: 1rem 0;
-      border-bottom: 1px solid $dark-600;
-      margin-bottom: 1rem;
-
-      h2 {
-        margin: 0;
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: $text;
-      }
-    }
   }
 
   .bottom-controls {
@@ -368,186 +327,171 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     max-width: 23.75rem;
     min-width: 20rem;
 
-      .ram-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 0.75rem;
-        font-size: 0.875rem;
-        font-weight: 500;
-        color: $text;
-
-        .installation-name {
-          color: $text;
-          font-weight: 500;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          flex: 1;
-          margin-right: 0.5rem;
-        }
-
-        .ram-display {
-          color: $primary;
-          font-weight: 600;
-          flex-shrink: 0;
-        }
-      }
-
-      .ram-inputs {
-        display: flex;
-        gap: 0.75rem;
-        align-items: center;
-
-        .ram-slider-container {
-          flex: 1;
-          
-          .ram-slider {
-            width: 100%;
-            height: 0.25rem;
-            border-radius: 0.125rem;
-            outline: none;
-            appearance: none;
-            cursor: pointer;
-            
-            &::-webkit-slider-thumb {
-              appearance: none;
-              width: 1rem;
-              height: 1rem;
-              background: $primary;
-              border-radius: 50%;
-              cursor: pointer;
-              transition: all 0.2s ease;
-              
-              &:hover {
-                background: $primary-600;
-                transform: scale(1.1);
-              }
-            }
-            
-            &::-moz-range-thumb {
-              width: 1rem;
-              height: 1rem;
-              background: $primary;
-              border-radius: 50%;
-              border: none;
-              cursor: pointer;
-              transition: all 0.2s ease;
-              
-              &:hover {
-                background: $primary-600;
-                transform: scale(1.1);
-              }
-            }
-          }
-
-          .slider-labels {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 0.25rem;
-            font-size: 0.625rem;
-            color: $placeholder;
-          }
-        }
-
-        .ram-text-container {
-          display: flex;
-          align-items: center;
-          gap: 0.375rem;
-          flex-shrink: 0;
-
-          .ram-input {
-            width: 3.75rem;
-            padding: 0.375rem 0.5rem;
-            background: $dark-600;
-            border: 1px solid $dark-500;
-            border-radius: 0.25rem;
-            color: $text;
-            font-size: 0.75rem;
-            text-align: center;
-            transition: border-color 0.2s ease;
-
-            &:focus {
-              outline: none;
-              border-color: $primary;
-            }
-
-            &::placeholder {
-              color: $placeholder;
-            }
-          }
-
-          .ram-unit {
-            font-size: 0.75rem;
-            color: $placeholder;
-            font-weight: 500;
-          }
-        }
-      }
-    }
-
-    .play-button {
-      display: inline-flex;
+    .ram-header {
+      display: flex;
       align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: $text;
+
+      .installation-name {
+        color: $text;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+        margin-right: 0.5rem;
+      }
+
+      .ram-display {
+        color: $primary;
+        font-weight: 600;
+        flex-shrink: 0;
+      }
+    }
+
+    .ram-inputs {
+      display: flex;
       gap: 0.75rem;
-      padding: 1rem 2rem;
-      background: $primary;
-      color: white;
-      border: none;
-      border-radius: 0.75rem;
-      font-size: 1.1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      width: 20rem;
-      justify-content: center;
+      align-items: center;
 
-      &:hover:not(:disabled) {
-        background: $primary-600;
-        transform: translateY(-0.125rem);
+      .ram-slider-container {
+        flex: 1;
+        
+        .ram-slider {
+          width: 100%;
+          height: 0.25rem;
+          border-radius: 0.125rem;
+          outline: none;
+          appearance: none;
+          cursor: pointer;
+          
+          &::-webkit-slider-thumb {
+            appearance: none;
+            width: 1rem;
+            height: 1rem;
+            background: $primary;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            
+            &:hover {
+              background: $primary-600;
+              transform: scale(1.1);
+            }
+          }
+          
+          &::-moz-range-thumb {
+            width: 1rem;
+            height: 1rem;
+            background: $primary;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            
+            &:hover {
+              background: $primary-600;
+              transform: scale(1.1);
+            }
+          }
+        }
+
+        .slider-labels {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 0.25rem;
+          font-size: 0.625rem;
+          color: $placeholder;
+        }
       }
 
-      &:disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        transform: none;
+      .ram-text-container {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+        flex-shrink: 0;
+
+        .ram-input {
+          width: 3.75rem;
+          padding: 0.375rem 0.5rem;
+          background: $dark-600;
+          border: 1px solid $dark-500;
+          border-radius: 0.25rem;
+          color: $text;
+          font-size: 0.75rem;
+          text-align: center;
+          transition: border-color 0.2s ease;
+
+          &:focus {
+            outline: none;
+            border-color: $primary;
+          }
+
+          &::placeholder {
+            color: $placeholder;
+          }
+        }
+
+        .ram-unit {
+          font-size: 0.75rem;
+          color: $placeholder;
+          font-weight: 500;
+        }
       }
     }
+  }
 
-    .no-installations {
-      margin: 1rem 0 0;
-      color: $placeholder;
-      font-size: 0.875rem;
-    }
-    
-    .launch-status {
-      margin: 1rem 0 0;
-      padding: 0.75rem 1rem;
-      border-radius: 8px;
-      font-size: 0.875rem;
-      background: rgba($green, 0.1);
-      color: $green;
-      border: 1px solid rgba($green, 0.3);
-      
-      &.error {
-        background: rgba($red, 0.1);
-        color: $red;
-        border-color: rgba($red, 0.3);
-      }
-    }
-  
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
+  .play-button {
+    display: inline-flex;
     align-items: center;
-    padding: 1.5rem 2rem 0 2rem;
-    flex-shrink: 0;
+    gap: 0.75rem;
+    padding: 1rem 2rem;
+    background: $primary;
+    color: white;
+    border: none;
+    border-radius: 0.75rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 20rem;
+    justify-content: center;
 
-    h2 {
-      margin: 0;
-      font-size: 1.5rem;
-      font-weight: 600;
+    &:hover:not(:disabled) {
+      background: $primary-600;
+      transform: translateY(-0.125rem);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+
+  .no-installations {
+    margin: 1rem 0 0;
+    color: $placeholder;
+    font-size: 0.875rem;
+  }
+  
+  .launch-status {
+    margin: 1rem 0 0;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    background: rgba($green, 0.1);
+    color: $green;
+    border: 1px solid rgba($green, 0.3);
+    
+    &.error {
+      background: rgba($red, 0.1);
+      color: $red;
+      border-color: rgba($red, 0.3);
     }
   }
 
@@ -569,7 +513,6 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
 
   // Responsive design
   @media (max-width: 768px) {
-    .header,
     .play-section {
       padding-left: 1rem;
       padding-right: 1rem;

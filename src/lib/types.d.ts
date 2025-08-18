@@ -403,9 +403,9 @@ export interface GeneralSettings {
   /** What to do when the game is being closed (quit game / close window) */
   on_game_close: 'open_logs' | 'open_home' | 'exit' | 'minimize' | 'ask';
   /** What to do when the game crashes */
-  on_game_crash: 'restart' | 'close' | 'ask';
+  on_game_crash: 'restart' | 'open_logs' | 'open_home' | 'exit' | 'minimize' | 'ask';
   /** Whether to keep the launcher open after launching the game */
-  on_game_launch: 'keep_open' | 'close_launcher' | 'open_logs' | 'ask';
+  on_game_launch: 'keep_open' | 'exit' | 'open_logs' | 'minimize' | 'ask';
   /** Whether to automatically check for updates on startup */
   auto_update_launcher: boolean;
   /** Whether to show ads; I am a nice guy, no paid subscription needed to disable ads */
@@ -1016,4 +1016,24 @@ export interface ExtendedModInfo {
   icon_uri: string | null;
   description: string | null;
   authors: string[];
+}
+
+//|_____________________________________________________________________________|
+//|                            Settings Event Types                             |
+//|_____________________________________________________________________________|
+
+/** Event payload for navigation events */
+export interface NavigationEventPayload {
+  reason: string;
+}
+
+/** Event payload for behavior choice requests */
+export interface BehaviorChoiceEventPayload {
+  options: string[];
+  exit_code?: number;
+}
+
+/** Event payload for game restart requests */
+export interface GameRestartEventPayload {
+  exit_code: number;
 }

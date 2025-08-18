@@ -2,7 +2,9 @@
   import '$lib/styles/global.scss';
   import { page } from '$app/stores';
   import { onMount } from 'svelte';
- import { currentAccount, AuthService, SettingsService, InstallationService, Icon, logsService, LogsService, IconService, WindowStateService, settings } from '$lib';
+  import { goto } from '$app/navigation';
+  import { currentAccount, AuthService, SettingsService, InstallationService, Icon, logsService, LogsService, IconService, WindowStateService, settings } from '$lib';
+  import type { NavigationEventPayload, BehaviorChoiceEventPayload, GameRestartEventPayload } from '$lib/types';
   
   let isTauriReady = false;
   let initializationStatus = 'Initializing...';
@@ -45,6 +47,10 @@
       } catch (error) {
         console.error('Failed to show main window:', error);
       }
+
+      // Set up settings behavior event listeners
+      await setupSettingsEventListeners();
+      
     } catch (error) {
       console.error('Tauri initialization error:', error);
       LogsService.emitLauncherEvent(`Initialization error: ${error}`, 'error');
@@ -52,6 +58,146 @@
       isTauriReady = false;
     }
   });
+
+  // Set up event listeners for settings behavior
+  async function setupSettingsEventListeners() {
+    try {
+      const { listen } = await import('@tauri-apps/api/event');
+      
+      // Navigation events
+      await listen<NavigationEventPayload>('navigate-to-logs', (event) => {
+        console.log('Navigating to logs due to settings:', event.payload);
+        LogsService.emitLauncherEvent('Navigating to logs page due to game settings', 'info');
+        goto('/logs');
+      });
+
+      await listen<NavigationEventPayload>('navigate-to-home', (event) => {
+        console.log('Navigating to home due to settings:', event.payload);
+        LogsService.emitLauncherEvent('Navigating to home page due to game settings', 'info');
+        goto('/');
+      });
+
+      // User choice dialogs
+      await listen<BehaviorChoiceEventPayload>('ask-launch-behavior', async (event) => {
+        console.log('User choice requested for launch behavior:', event.payload);
+        const choice = await showBehaviorDialog('Launch Behavior', 
+          'What should happen when the game launches?', 
+          event.payload.options);
+        if (choice) {
+          await handleUserChoice('on_game_launch', choice);
+        }
+      });
+
+      await listen<BehaviorChoiceEventPayload>('ask-close-behavior', async (event) => {
+        console.log('User choice requested for close behavior:', event.payload);
+        const choice = await showBehaviorDialog('Close Behavior', 
+          `What should happen now? (Game exited with code ${event.payload.exit_code})`, 
+          event.payload.options);
+        if (choice) {
+          await handleUserChoice('on_game_close', choice);
+        }
+      });
+
+      await listen<BehaviorChoiceEventPayload>('ask-crash-behavior', async (event) => {
+        console.log('User choice requested for crash behavior:', event.payload);
+        const choice = await showBehaviorDialog('Game Crashed', 
+          `The game crashed (exit code ${event.payload.exit_code}). What should we do?`, 
+          event.payload.options);
+        if (choice) {
+          await handleUserChoice('on_game_crash', choice);
+        }
+      });
+
+      await listen<GameRestartEventPayload>('game-restart-requested', (event) => {
+        console.log('Game restart requested:', event.payload);
+        LogsService.emitLauncherEvent(`Game restart requested due to crash (exit code: ${event.payload.exit_code})`, 'warn');
+        // TODO: Implement game restart functionality
+        alert('Game restart feature is not implemented yet. Please launch manually.');
+      });
+
+      LogsService.emitLauncherEvent('Settings behavior event listeners initialized', 'info');
+    } catch (error) {
+      console.error('Failed to set up settings event listeners:', error);
+      LogsService.emitLauncherEvent(`Failed to set up settings event listeners: ${error}`, 'error');
+    }
+  }
+
+  // Show a dialog for user behavior choice
+  async function showBehaviorDialog(title: string, message: string, options: string[]): Promise<string | null> {
+    const optionLabels: Record<string, string> = {
+      'keep_open': 'Keep Launcher Open',
+      'exit': 'Close Launcher',
+      'minimize': 'Minimize Launcher',
+      'open_logs': 'Open Logs Page',
+      'open_home': 'Go to Home Page',
+      'restart': 'Restart Game',
+      'close': 'Close Launcher',
+      'ask': 'Ask Me Each Time'
+    };
+
+    const buttons = options.map(opt => optionLabels[opt] || opt);
+    
+    // Use browser's confirm for now - could be replaced with a custom modal
+    if (options.length === 2) {
+      const result = confirm(`${title}\n\n${message}\n\nClick OK for "${buttons[0]}" or Cancel for "${buttons[1]}"`);
+      return result ? options[0] : options[1];
+    } else {
+      // For multiple options, show a simple prompt
+      let promptMessage = `${title}\n\n${message}\n\nOptions:\n`;
+      buttons.forEach((label, index) => {
+        promptMessage += `${index + 1}. ${label}\n`;
+      });
+      promptMessage += '\nEnter the number of your choice:';
+      
+      const choice = prompt(promptMessage);
+      const choiceIndex = parseInt(choice || '0') - 1;
+      
+      if (choiceIndex >= 0 && choiceIndex < options.length) {
+        return options[choiceIndex];
+      }
+    }
+    
+    return null;
+  }
+
+  // Handle user's choice by executing the action
+  async function handleUserChoice(settingType: string, choice: string) {
+    LogsService.emitLauncherEvent(`User chose "${choice}" for ${settingType}`, 'info');
+    
+    try {
+      const { getCurrentWindow } = await import('@tauri-apps/api/window');
+      const window = getCurrentWindow();
+      
+      switch (choice) {
+        case 'exit':
+        case 'close':
+          await window.close();
+          break;
+        case 'minimize':
+          await window.minimize();
+          break;
+        case 'open_logs':
+          goto('/logs');
+          break;
+        case 'open_home':
+          goto('/');
+          break;
+        case 'restart':
+          LogsService.emitLauncherEvent('Game restart requested by user', 'info');
+          alert('Game restart feature is not implemented yet. Please launch manually.');
+          break;
+        case 'keep_open':
+          // Do nothing - keep launcher open
+          LogsService.emitLauncherEvent('Keeping launcher open as requested', 'info');
+          break;
+        default:
+          console.warn(`Unknown choice: ${choice}`);
+      }
+    } catch (error) {
+      console.error('Error handling user choice:', error);
+      LogsService.emitLauncherEvent(`Error handling user choice: ${error}`, 'error');
+    }
+  }
 
   // Navigation items - conditionally include logs based on settings
   $: navItems = [

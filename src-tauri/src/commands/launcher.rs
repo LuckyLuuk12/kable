@@ -31,5 +31,6 @@ pub async fn is_minecraft_running() -> Result<bool, String> {
 /// Wait for a Minecraft process to exit (tracked by launcher)
 #[tauri::command]
 pub async fn wait_for_minecraft_exit(process_id: u32) -> Result<(), String> {
-    crate::launcher::wait_for_minecraft_exit(process_id).await
+    // Call the internal function but ignore the exit code for the command interface
+    crate::launcher::wait_for_minecraft_exit(process_id).await.map(|_exit_code| ())
 }

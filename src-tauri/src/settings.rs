@@ -18,9 +18,12 @@ pub struct CategorizedLauncherSettings {
 pub struct GeneralSettings {
     pub java_path: Option<String>,
     pub game_directory: Option<String>,
-    pub on_game_close: String,  // 'exit' | 'minimize' | 'ask'
-    pub on_game_crash: String,  // 'restart' | 'close' | 'ask'
-    pub on_game_launch: String, // 'keep_open' | 'close_launcher' | 'open_logs' | 'ask'
+    /// 'open_logs' | 'open_home' | 'exit' | 'minimize' | 'ask'
+    pub on_game_close: String,  
+    /// 'restart' | 'open_logs' | 'open_home' | 'exit' | 'minimize' | 'ask'
+    pub on_game_crash: String,  
+    /// 'keep_open' | 'exit' | 'open_logs' | 'minimize' | 'ask'
+    pub on_game_launch: String, 
     pub auto_update_launcher: bool,
     pub show_ads: bool,
 }
@@ -124,7 +127,7 @@ impl Default for CategorizedLauncherSettings {
                 enable_experimental_features: false,
                 default_memory: 2048,
                 separate_logs_window: false,
-                auto_save_interval: 30000, // in milliseconds
+                auto_save_interval: 30, // in seconds, 0 means no auto save
             },
             misc: MiscSettings {
                 use_titlebar: true,

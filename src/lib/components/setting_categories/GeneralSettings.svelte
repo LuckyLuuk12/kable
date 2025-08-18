@@ -75,14 +75,20 @@
       <div class="setting-control">
         {#if isWideScreen}
           <div class="radio-group">
-            <label><input type="radio" name="on-game-crash" value="close" bind:group={$settings.general.on_game_crash} /> Close Application</label>
-            <label><input type="radio" name="on-game-crash" value="restart" bind:group={$settings.general.on_game_crash} /> Restart Application</label>
+            <label><input type="radio" name="on-game-crash" value="restart" bind:group={$settings.general.on_game_crash} /> Restart Game</label>
+            <label><input type="radio" name="on-game-crash" value="open_logs" bind:group={$settings.general.on_game_crash} /> Open Logs</label>
+            <label><input type="radio" name="on-game-crash" value="open_home" bind:group={$settings.general.on_game_crash} /> Open Home</label>
+            <label><input type="radio" name="on-game-crash" value="exit" bind:group={$settings.general.on_game_crash} /> Exit Application</label>
+            <label><input type="radio" name="on-game-crash" value="minimize" bind:group={$settings.general.on_game_crash} /> Minimize to Tray</label>
             <label><input type="radio" name="on-game-crash" value="ask" bind:group={$settings.general.on_game_crash} /> Ask</label>
           </div>
         {:else}
           <select id="on-game-crash" bind:value={$settings.general.on_game_crash}>
-            <option value="close">Close Application</option>
-            <option value="restart">Restart Application</option>
+            <option value="restart">Restart Game</option>
+            <option value="open_logs">Open Logs</option>
+            <option value="open_home">Open Home</option>
+            <option value="exit">Exit Application</option>
+            <option value="minimize">Minimize to Tray</option>
             <option value="ask">Ask</option>
           </select>
         {/if}
@@ -99,15 +105,17 @@
         {#if isWideScreen}
           <div class="radio-group">
             <label><input type="radio" name="on-game-launch" value="keep_open" bind:group={$settings.general.on_game_launch} /> Keep Application Open</label>
-            <label><input type="radio" name="on-game-launch" value="close_launcher" bind:group={$settings.general.on_game_launch} /> Close Application</label>
+            <label><input type="radio" name="on-game-launch" value="exit" bind:group={$settings.general.on_game_launch} /> Exit Application</label>
             <label><input type="radio" name="on-game-launch" value="open_logs" bind:group={$settings.general.on_game_launch} /> Open Logs</label>
+            <label><input type="radio" name="on-game-launch" value="minimize" bind:group={$settings.general.on_game_launch} /> Minimize to Tray</label>
             <label><input type="radio" name="on-game-launch" value="ask" bind:group={$settings.general.on_game_launch} /> Ask</label>
           </div>
         {:else}
           <select id="on-game-launch" bind:value={$settings.general.on_game_launch}>
             <option value="keep_open">Keep Application Open</option>
-            <option value="close_launcher">Close Application</option>
+            <option value="exit">Exit Application</option>
             <option value="open_logs">Open Logs</option>
+            <option value="minimize">Minimize to Tray</option>
             <option value="ask">Ask</option>
           </select>
         {/if}
