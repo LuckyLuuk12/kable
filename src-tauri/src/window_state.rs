@@ -1,3 +1,6 @@
+/**
+ * !NOTE: It appears there also is a tauri plugin for this... try that!
+ */
 use crate::logging::{LogLevel, Logger};
 use serde::{Deserialize, Serialize};
 use std::fs;

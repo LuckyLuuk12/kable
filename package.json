@@ -27,6 +27,7 @@
 	"dependencies": {
 		"@kablan/clean-ui": "1.0.6",
 		"@tauri-apps/api": "^2.6.0",
-		"@tauri-apps/plugin-clipboard-manager": "^2.3.0"
+		"@tauri-apps/plugin-clipboard-manager": "^2.3.0",
+		"skinview3d": "^3.4.1"
 	}
 }

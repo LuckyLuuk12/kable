@@ -40,6 +40,7 @@ pub use commands::auth as commands_auth;
 pub use commands::mods as commands_mods;
 pub use commands::installations as commands_installations;
 pub use commands::launcher as commands_launcher;
+pub use commands::skins as commands_skins;
 pub use commands::system as commands_system;
 pub use commands::updater as commands_updater;
 
@@ -133,14 +134,12 @@ pub fn run() {
             shaders::install_shader_pack,
             shaders::get_shader_info,
             // Skins commands
-            skins::get_local_skins,
-            skins::save_skin,
-            skins::delete_skin,
-            skins::install_skin,
-            skins::get_skin_data,
-            skins::get_current_minecraft_skin,
-            skins::upload_skin_to_minecraft,
-            skins::select_skin_file,
+            commands_skins::upload_skin_to_account,
+            commands_skins::change_skin_model,
+            commands_skins::get_current_skin_info,
+            commands_skins::select_skin_file,
+            commands_skins::get_all_account_skins,
+            commands_skins::apply_account_skin,
             // Icons commands
             icons::get_custom_icon_templates,
             icons::save_custom_icon_template,

@@ -1340,3 +1340,40 @@ export interface BehaviorChoiceEventPayload {
 export interface GameRestartEventPayload {
   exit_code: number;
 }
+
+//|_____________________________________________________________________________|
+//|                              Skin Types                                     |
+//|_____________________________________________________________________________|
+
+/** Skin model types in Minecraft */
+export type SkinModelType = 'Classic' | 'Slim';
+
+/** Configuration for skin upload operations */
+export interface SkinUploadConfig {
+  model: SkinModelType;
+  file_path: string;
+}
+
+/** Response from skin upload operation */
+export interface SkinUploadResponse {
+  success: boolean;
+  message: string;
+  model_used: SkinModelType;
+}
+
+/** Current skin information from Mojang API */
+export interface CurrentSkin {
+  model: SkinModelType;
+  url?: string;
+  has_skin: boolean;
+}
+
+/** Account skin from Microsoft/Mojang skin history */
+export interface AccountSkin {
+  id: string;
+  name: string;
+  url?: string;
+  model: SkinModelType;
+  is_current: boolean;
+  uploaded_date?: number; // Unix timestamp
+}

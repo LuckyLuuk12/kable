@@ -1,0 +1,728 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { getAllAccountSkins, getCurrentSkinInfo, applyAccountSkin, selectSkinFile, uploadSkinToAccount } from '$lib/api/skins';
+  import { Icon } from '$lib';
+  import { SkinViewer3D } from '$lib/components/skins';
+  import type { AccountSkin, CurrentSkin, SkinModelType } from '$lib/types';
+
+  // State
+  let accountSkins: AccountSkin[] = [];
+  let currentSkin: CurrentSkin | null = null;
+  let loading = false;
+  let error = '';
+  
+  // Animation state for skin previews
+  let hoveredSkinId: string | null = null;
+
+  // Load skins on component mount
+  onMount(async () => {
+    await loadSkins();
+  });
+
+  async function loadSkins() {
+    loading = true;
+    error = '';
+    
+    try {
+      // Load both current skin info and account skins
+      const [current, skins] = await Promise.all([
+        getCurrentSkinInfo(),
+        getAllAccountSkins()
+      ]);
+      
+      currentSkin = current;
+      accountSkins = skins;
+    } catch (err) {
+      error = `Failed to load skins: ${err}`;
+      console.error('Error loading skins:', err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function handleApplySkin(skinId: string) {
+    loading = true;
+    error = '';
+    
+    try {
+      await applyAccountSkin(skinId);
+      await loadSkins(); // Refresh the skin list
+    } catch (err) {
+      error = `Failed to apply skin: ${err}`;
+      console.error('Error applying skin:', err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function handleUploadNewSkin() {
+    loading = true;
+    error = '';
+    
+    try {
+      // Open file dialog
+      const filePath = await selectSkinFile();
+      if (!filePath) {
+        loading = false;
+        return; // User cancelled
+      }
+
+      // For now default to Classic model
+      // TODO: Add UI to let user choose between Classic and Slim
+      const config = {
+        model: 'Classic' as SkinModelType,
+        file_path: filePath
+      };
+
+      await uploadSkinToAccount(config);
+      await loadSkins(); // Refresh the skin list
+    } catch (err) {
+      error = `Failed to upload skin: ${err}`;
+      console.error('Error uploading skin:', err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  // Convert skin model to skinview3d format
+  function getSkinModel(skinModel: string): 'classic' | 'slim' | 'auto' {
+    if (skinModel?.toLowerCase() === 'slim') return 'slim';
+    if (skinModel?.toLowerCase() === 'classic') return 'classic';
+    return 'auto';
+  }
+
+  // Get skin display name
+  function getSkinDisplayName(skin: AccountSkin): string {
+    if (skin.name && skin.name !== 'Current Skin') {
+      return skin.name;
+    }
+    return `${skin.model} Skin`;
+  }
+</script>
+
+<div class="skin-selection-menu">
+  <div class="header">
+    <div class="header-content">
+      <h1>Skin Management</h1>
+      <p>Manage your Minecraft character appearance</p>
+    </div>
+    <button 
+      class="btn btn-primary glass-btn" 
+      on:click={handleUploadNewSkin}
+      disabled={loading}
+    >
+      <Icon name="upload" size="sm" />
+      {loading ? 'Uploading...' : 'Upload New Skin'}
+    </button>
+  </div>
+
+  {#if error}
+    <div class="error-message glass-card">
+      <Icon name="alert" size="sm" />
+      {error}
+    </div>
+  {/if}
+
+  {#if loading}
+    <div class="loading-state">
+      <Icon name="refresh" size="md" />
+      <span>Loading skins...</span>
+    </div>
+  {:else}
+    <div class="skins-content">
+      <!-- Current Skin Section -->
+      <div class="current-skin-section">
+        <h2>Current Skin</h2>
+        {#if currentSkin && currentSkin.has_skin}
+          <div class="current-skin-card glass-card"
+               on:mouseenter={() => hoveredSkinId = 'current'}
+               on:mouseleave={() => hoveredSkinId = null}>
+            <div class="skin-preview large">
+              {#if currentSkin.url}
+                <SkinViewer3D 
+                  skinUrl={currentSkin.url} 
+                  width={140} 
+                  height={140}
+                  model={getSkinModel(currentSkin.model)}
+                  animation={hoveredSkinId === 'current' ? 'walk' : 'idle'}
+                />
+              {:else}
+                <div class="skin-placeholder">
+                  <Icon name="user" size="lg" />
+                </div>
+              {/if}
+            </div>
+            <div class="skin-details">
+              <h3>Active Skin</h3>
+              <div class="skin-info">
+                <span class="info-item">
+                  <Icon name="user" size="sm" />
+                  Model: {currentSkin.model}
+                </span>
+                <span class="status-badge active">Active</span>
+              </div>
+            </div>
+          </div>
+        {:else}
+          <div class="no-current-skin glass-card">
+            <Icon name="user" size="lg" />
+            <h3>No Current Skin</h3>
+            <p>Upload a skin to get started</p>
+          </div>
+        {/if}
+      </div>
+
+      <!-- Available Skins Section -->
+      <div class="skins-section">
+        <h2>Available Skins</h2>
+        {#if accountSkins.length === 0}
+          <div class="no-skins glass-card">
+            <Icon name="image" size="lg" />
+            <h3>No Skins Found</h3>
+            <p>No skins found in your Microsoft account. Upload a skin to get started.</p>
+            <button class="btn btn-primary glass-btn" on:click={handleUploadNewSkin} disabled={loading}>
+              <Icon name="upload" size="sm" />
+              Upload Your First Skin
+            </button>
+          </div>
+        {:else}
+          <div class="skins-grid">
+            {#each accountSkins as skin (skin.id)}
+              <div class="skin-card glass-card" 
+                   class:current={skin.is_current}
+                   on:mouseenter={() => hoveredSkinId = skin.id}
+                   on:mouseleave={() => hoveredSkinId = null}>
+                <div class="skin-preview">
+                  {#if skin.url}
+                    <SkinViewer3D 
+                      skinUrl={skin.url} 
+                      width={220} 
+                      height={180}
+                      model={getSkinModel(skin.model)}
+                      animation={hoveredSkinId === skin.id ? 'walk' : 'idle'}
+                    />
+                  {:else}
+                    <div class="skin-placeholder">
+                      <Icon name="user" size="md" />
+                    </div>
+                  {/if}
+                </div>
+                <div class="skin-info">
+                  <div class="skin-header">
+                    <h4>{getSkinDisplayName(skin)}</h4>
+                    {#if skin.is_current}
+                      <span class="status-badge current">Current</span>
+                    {/if}
+                  </div>
+                  <div class="skin-meta">
+                    <span class="meta-item">
+                      <Icon name="user" size="sm" />
+                      {skin.model}
+                    </span>
+                    {#if skin.uploaded_date}
+                      <span class="meta-item">
+                        <Icon name="calendar" size="sm" />
+                        {new Date(skin.uploaded_date * 1000).toLocaleDateString()}
+                      </span>
+                    {/if}
+                  </div>
+                  {#if !skin.is_current}
+                    <div class="skin-actions">
+                      <button 
+                        class="btn btn-secondary btn-sm glass-btn"
+                        on:click={() => handleApplySkin(skin.id)}
+                        disabled={loading}
+                      >
+                        <Icon name="check" size="sm" />
+                        Apply
+                      </button>
+                    </div>
+                  {/if}
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    </div>
+  {/if}
+</div>
+
+<style lang="scss">
+@use "@kablan/clean-ui/scss/_variables.scss" as *;
+
+.skin-selection-menu {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+// Glass morphism effects
+.glass-card {
+  background: rgba($card, 0.7);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba($primary, 0.1);
+  box-shadow: 
+    0 8px 32px rgba($dark-900, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.glass-btn {
+  background: rgba($primary, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba($primary, 0.2);
+  transition: all 0.3s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba($primary, 0.2);
+    border-color: rgba($primary, 0.3);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    background: rgba($placeholder, 0.1);
+    border-color: rgba($placeholder, 0.2);
+  }
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 1.5rem 2rem 0;
+  margin-bottom: 1.5rem;
+  flex-shrink: 0;
+
+  .header-content {
+    h1 {
+      margin: 0 0 0.5rem;
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: $text;
+    }
+
+    p {
+      margin: 0;
+      color: $placeholder;
+      font-size: 0.9rem;
+    }
+  }
+
+  .btn {
+    flex-shrink: 0;
+  }
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  margin: 0 2rem 1.5rem;
+  background: rgba($red, 0.1);
+  border: 1px solid rgba($red, 0.3);
+  border-radius: $border-radius;
+  color: $red;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 4rem 2rem;
+  color: $placeholder;
+  flex: 1;
+
+  :global(.icon) {
+    animation: spin 1s linear infinite;
+  }
+
+  span {
+    font-size: 1.1rem;
+    font-weight: 500;
+  }
+}
+
+.skins-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 2rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+
+  // Custom scrollbar
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba($placeholder, 0.1);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba($primary, 0.3);
+    border-radius: 4px;
+    
+    &:hover {
+      background: rgba($primary, 0.5);
+    }
+  }
+}
+
+// Current Skin Section
+.current-skin-section {
+  flex-shrink: 0;
+
+  h2 {
+    margin: 0 0 1rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: $text;
+  }
+}
+
+  .current-skin-card {
+    display: flex;
+    gap: 1.5rem;
+    padding: 2rem;
+    border-radius: $border-radius-large;
+    align-items: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 
+        0 12px 35px rgba($dark-900, 0.2),
+        0 0 20px rgba($primary, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    }
+
+    .skin-preview.large {
+      width: 140px;
+      height: 140px;
+      border-radius: $border-radius;
+      overflow: hidden;
+      background: rgba($placeholder, 0.05);
+      border: 2px solid rgba($primary, 0.1);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+
+    .skin-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: $placeholder;
+    }
+  }
+
+  .skin-details {
+    flex: 1;
+
+    h3 {
+      margin: 0 0 1rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: $text;
+    }
+
+    .skin-info {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+
+      .info-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: $placeholder;
+        font-size: 0.9rem;
+      }
+
+      .status-badge {
+        align-self: flex-start;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+
+        &.active {
+          background: rgba($green, 0.8);
+          backdrop-filter: blur(10px);
+          color: white;
+          border: 1px solid rgba($green, 0.3);
+        }
+      }
+    }
+  }
+}
+
+  .no-current-skin {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 2rem;
+    background: rgba($placeholder, 0.03);
+    border: 2px dashed rgba($placeholder, 0.2);
+    border-radius: $border-radius-large;
+    text-align: center;  :global(.icon) {
+    margin-bottom: 1rem;
+    color: $placeholder;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem;
+    color: $text;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    color: $placeholder;
+    font-size: 0.9rem;
+  }
+}
+
+// Available Skins Section
+.skins-section {
+  flex: 1;
+  min-height: 0;
+
+  h2 {
+    margin: 0 0 1.5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: $text;
+  }
+}
+
+  .no-skins {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    background: rgba($placeholder, 0.03);
+    border: 2px dashed rgba($placeholder, 0.2);
+    border-radius: $border-radius-large;
+    text-align: center;  :global(.icon) {
+    margin-bottom: 1.5rem;
+    color: $placeholder;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem;
+    color: $text;
+    font-weight: 600;
+    font-size: 1.1rem;
+  }
+
+  p {
+    margin: 0 0 2rem;
+    color: $placeholder;
+    font-size: 0.9rem;
+  }
+
+  .btn {
+    margin: 0 auto;
+  }
+}
+
+.skins-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  max-height: 600px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+
+  // Custom scrollbar for grid
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba($placeholder, 0.1);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba($primary, 0.3);
+    border-radius: 3px;
+    
+    &:hover {
+      background: rgba($primary, 0.5);
+    }
+  }
+}
+
+.skin-card {
+  border-radius: $border-radius-large;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  cursor: pointer;
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 
+      0 12px 35px rgba($dark-900, 0.2),
+      0 0 15px rgba($primary, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    border-color: rgba($primary, 0.2);
+  }
+
+  &.current {
+    background: rgba($green, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba($green, 0.2);
+    box-shadow: 
+      0 8px 32px rgba($green, 0.15),
+      inset 0 1px 0 rgba($green, 0.2);
+  }
+
+  .skin-preview {
+    width: 100%;
+    height: 180px;
+    border-radius: $border-radius;
+    overflow: hidden;
+    background: rgba($placeholder, 0.03);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+
+    .skin-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: $placeholder;
+      background: rgba($placeholder, 0.03);
+    }
+  }
+
+  .skin-info {
+    .skin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+
+      h4 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+        color: $text;
+        flex: 1;
+        line-height: 1.3;
+      }
+
+      .status-badge {
+        padding: 0.15rem 0.5rem;
+        border-radius: 8px;
+        font-size: 0.6rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-left: 0.5rem;
+        flex-shrink: 0;
+
+        &.current {
+          background: rgba($green, 0.8);
+          backdrop-filter: blur(10px);
+          color: white;
+          border: 1px solid rgba($green, 0.3);
+        }
+      }
+    }
+
+    .skin-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+
+      .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: $placeholder;
+        font-size: 0.8rem;
+      }
+    }
+
+    .skin-actions {
+      display: flex;
+      gap: 0.75rem;
+    }
+  }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .skin-selection-menu {
+    height: 100vh;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+
+    .btn {
+      align-self: flex-start;
+    }
+  }
+
+  .skins-content {
+    padding: 0 1rem 2rem;
+  }
+
+  .current-skin-card {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.5rem;
+
+    .skin-preview.large {
+      align-self: center;
+    }
+  }
+
+  .skins-grid {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+    max-height: 500px;
+  }
+
+  .skin-card {
+    padding: 1rem;
+
+    .skin-preview {
+      height: 150px;
+    }
+  }
+}
+</style>
