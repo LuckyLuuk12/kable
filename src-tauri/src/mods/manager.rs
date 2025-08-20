@@ -31,6 +31,7 @@ pub trait ModProvider {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum ModInfoKind {
     Modrinth(ModrinthInfo),
     CurseForge(CurseForgeInfo),

@@ -384,7 +384,7 @@ pub async fn get_selected_css_theme() -> Result<String, String> {
 /// Select a CSS file using the system file dialog
 #[tauri::command]
 pub async fn select_css_file() -> Result<Option<String>, String> {
-    use tauri_plugin_dialog::DialogExt;
+    // use tauri_plugin_dialog::DialogExt;
     
     // We need the app handle to use the dialog plugin
     // For now, return an error indicating this needs to be implemented differently
@@ -640,7 +640,7 @@ pub async fn load_css_theme(theme_name: String, app: tauri::AppHandle) -> Result
     }
 
     // If not found in custom themes, try built-in themes
-    match app.path().resolve(&format!("static/themes/{}.css", theme_name), tauri::path::BaseDirectory::Resource) {
+    match app.path().resolve(format!("static/themes/{}.css", theme_name), tauri::path::BaseDirectory::Resource) {
         Ok(builtin_file_path) => {
             Logger::console_log(
                 LogLevel::Debug,
