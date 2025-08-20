@@ -4,7 +4,6 @@ export * from './components/';
 
 // Export organized structure
 export * from './api/';
-// export * from './managers/';
 export * from './services/';
 export * from './stores/';
 

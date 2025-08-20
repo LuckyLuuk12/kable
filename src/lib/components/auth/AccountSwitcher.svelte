@@ -170,8 +170,8 @@
     gap: 0.75rem;
     padding: 0.75rem 1rem;
     width: 100%;
-    background: $container;
-    border: 0.0625rem solid $dark-600;
+    background: var(--container);
+    border: 0.0625rem solid var(--dark-600);
     border-radius: 0.75rem;
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -179,9 +179,9 @@
     color: inherit;
     
     &:hover:not(:disabled) {
-      background: $button-hover;
-      border-color: $primary;
-      box-shadow: 0 0.125rem 0.5rem rgba($primary, 0.15);
+      background: var(--button-hover);
+      border-color: var(--primary);
+      box-shadow: 0 0.125rem 0.5rem rgba(var(--primary), 0.15);
     }
     
     &:disabled {
@@ -204,20 +204,20 @@
     width: 2.25rem;
     height: 2.25rem;
     border-radius: 50%;
-    background: $container;
-    border: 0.125rem solid $dark-600;
+    background: var(--container);
+    border: 0.125rem solid var(--dark-600);
     transition: border-color 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     font-weight: 600;
     font-size: 1rem;
-    color: $text;
+    color: var(--text);
     
     &.minecraft-head {
-      background: linear-gradient(135deg, $primary, $primary-600);
+      background: linear-gradient(135deg, var(--primary), var(--primary-600));
       color: white;
-      border-color: $primary;
+      border-color: var(--primary);
     }
   
     .avatar-letter {
@@ -232,18 +232,18 @@
     width: 0.75rem;
     height: 0.75rem;
     border-radius: 50%;
-    border: 0.125rem solid $container;
+    border: 0.125rem solid var(--container);
     
     &.online {
-      background: $green;
+      background: var(--green);
     }
     
     &.offline {
-      background: $yellow;
+      background: var(--yellow);
     }
     
     &.expired {
-      background: $red;
+      background: var(--red);
     }
   }
   
@@ -256,7 +256,7 @@
   .username {
     display: block;
     font-weight: 600;
-    color: $text;
+    color: var(--text);
     font-size: 0.875rem;
     white-space: nowrap;
     overflow: hidden;
@@ -266,13 +266,13 @@
   .account-type {
     display: block;
     font-size: 0.75rem;
-    color: $placeholder;
+    color: var(--placeholder);
     margin-top: 0.125rem;
   }
   
   .dropdown-chevron {
     flex-shrink: 0;
-    fill: $placeholder;
+    fill: var(--placeholder);
     transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     
     &.rotated {
@@ -286,8 +286,8 @@
     top: 100%;
     left: 0;
     right: 0;
-    background: $card;
-    border: 0.0625rem solid $dark-600;
+    background: var(--card);
+    border: 0.0625rem solid var(--dark-600);
     border-radius: 0.75rem;
     box-shadow: 
       0 0.625rem 1.5625rem rgba(0, 0, 0, 0.3),
@@ -305,7 +305,7 @@
     overflow: hidden;
     
     &.active {
-      background: rgba($primary, 0.1);
+      background: rgba(var(--primary), 0.1);
     }
   }
   
@@ -325,7 +325,7 @@
     border-radius: 0.5rem;
     
     &:hover:not(:disabled) {
-      background: $container;
+      background: var(--container);
     }
     
     &:disabled {

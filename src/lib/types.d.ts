@@ -468,6 +468,7 @@ export interface IconSettings {
  *   sidebarWidth: number;
  *   selectedIconTemplate: string;
  *   iconSettings: IconSettings;
+ *   selectedCssTheme: string;
  * }
  * ```
  */
@@ -484,6 +485,8 @@ export interface AppearanceSettings {
   selected_icon_template: string;
   /** Icon settings to allow user customization */
   icon_settings: IconSettings;
+  /** The selected CSS theme name */
+  selected_css_theme: string;
 }
 
 /** Logging Settings for the launcher

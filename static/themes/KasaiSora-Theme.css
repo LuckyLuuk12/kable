@@ -1,0 +1,320 @@
+/* 
+ * KasaiSora Theme v3.0 - Minecraft Edition
+ * Blocky Minecraft aesthetic with KasaiSora purple colors
+ * Features local Minecraft font with system fallbacks
+ */
+
+@font-face {
+  font-family: 'Minecraft';
+  src: url('./themes/Minecraft-Regular.woff2') format('woff2'),
+       url('/themes/Minecraft-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap; /* Ensures text is visible during font load */
+}
+
+:root {
+  /* ========================================
+     KASAISORA BRAND COLORS
+     ======================================== */
+  
+  /* Primary Purple Palette - KasaiSora Signature */
+  --primary-50: #faf7ff !important;
+  --primary-100: #f4edff !important;
+  --primary-200: #e9ddff !important;
+  --primary-300: #d4c2ff !important;
+  --primary-400: #b395ff !important;
+  --primary-500: #8f5cf6 !important;  /* Main KasaiSora purple */
+  --primary-600: #7c3aed !important;
+  --primary-700: #6d28d9 !important;
+  --primary-800: #5b21b6 !important;
+  --primary-900: #4c1d95 !important;
+
+  /* Secondary Pink-Purple */
+  --secondary-50: #fdf4ff !important;
+  --secondary-100: #fae8ff !important;
+  --secondary-200: #f5d0fe !important;
+  --secondary-300: #f0abfc !important;
+  --secondary-400: #e879f9 !important;
+  --secondary-500: #d946ef !important;
+  --secondary-600: #c026d3 !important;
+  --secondary-700: #a21caf !important;
+  --secondary-800: #86198f !important;
+  --secondary-900: #701a75 !important;
+
+  /* Tertiary Soft Peach-Apricot Accents - Light & Gentle */
+  --tertiary-50: #fefcf9 !important;
+  --tertiary-100: #fef7ed !important;
+  --tertiary-200: #fdedc8 !important;
+  --tertiary-300: #fbd9a3 !important;
+  --tertiary-400: #f8c074 !important;
+  --tertiary-500: #f4a261 !important;
+  --tertiary-600: #e8944a !important;
+  --tertiary-700: #d17d39 !important;
+  --tertiary-800: #b86832 !important;
+  --tertiary-900: #9a552b !important;
+
+  /* ========================================
+     DARK THEME FOUNDATION
+     ======================================== */
+  
+  /* Dark color progression - KasaiSora themed */
+  --dark-50: #c5bdd1 !important;   /* Lightest purple-gray */
+  --dark-100: #b5acbf !important;  /* Light purple-gray */
+  --dark-200: #a59bb0 !important;  /* Medium-light */
+  --dark-300: #958ba1 !important;  /* Medium */
+  --dark-400: #857b92 !important;  /* Medium-dark */
+  --dark-500: #756b83 !important;  /* Darker purple-gray */
+  --dark-600: #655b74 !important;  /* Deep purple-gray */
+  --dark-700: #554b65 !important;  /* Very deep */
+  --dark-800: #1b132b !important;  /* KasaiSora signature color */
+  --dark-900: #0e0a17 !important;  /* Darkest background */
+  --dark: #0e0a17 !important;      /* Alias for dark-900 */
+
+  /* Light colors - High contrast for text on dark theme */
+  --light-50: #ffffff !important;
+  --light-100: #f7f7fa !important;
+  --light-200: #ececf0 !important;
+  --light-300: #e2e2e8 !important;
+  --light-400: #d6d6de !important;
+  --light-500: #c8c8d2 !important;
+  --light-600: #bcbcc6 !important;
+  --light-700: #b2b2bd !important;
+  --light-800: #ababba !important;
+  --light-900: #a0a0aa !important;
+  --light: #ffffff !important;
+
+  /* Status Colors - KasaiSora compatible */
+  --red-50: #fef2f2 !important;
+  --red-100: #fee2e2 !important;
+  --red-200: #fecaca !important;
+  --red-300: #fca5a5 !important;
+  --red-400: #f87171 !important;
+  --red-500: #ef4444 !important;
+  --red-600: #dc2626 !important;
+  --red-700: #b91c1c !important;
+  --red-800: #991b1b !important;
+  --red-900: #7f1d1d !important;
+
+  --green-50: #f0fdf4 !important;
+  --green-100: #dcfce7 !important;
+  --green-200: #bbf7d0 !important;
+  --green-300: #86efac !important;
+  --green-400: #4ade80 !important;
+  --green-500: #22c55e !important;
+  --green-600: #16a34a !important;
+  --green-700: #15803d !important;
+  --green-800: #166534 !important;
+  --green-900: #14532d !important;
+
+  --blue-50: #eff6ff !important;
+  --blue-100: #dbeafe !important;
+  --blue-200: #bfdbfe !important;
+  --blue-300: #93c5fd !important;
+  --blue-400: #60a5fa !important;
+  --blue-500: #3b82f6 !important;
+  --blue-600: #2563eb !important;
+  --blue-700: #1d4ed8 !important;
+  --blue-800: #1e40af !important;
+  --blue-900: #1e3a8a !important;
+
+  --yellow-50: #fefce8 !important;
+  --yellow-100: #fef9c3 !important;
+  --yellow-200: #fef08a !important;
+  --yellow-300: #fde047 !important;
+  --yellow-400: #facc15 !important;
+  --yellow-500: #eab308 !important;
+  --yellow-600: #ca8a04 !important;
+  --yellow-700: #a16207 !important;
+  --yellow-800: #854d0e !important;
+  --yellow-900: #713f12 !important;
+
+  /* Additional color palettes */
+  --cyan: #06b6d4 !important;
+  --cyan-50: #ecfeff !important;
+  --cyan-100: #cffafe !important;
+  --cyan-200: #a5f3fc !important;
+  --cyan-300: #67e8f9 !important;
+  --cyan-400: #22d3ee !important;
+  --cyan-500: #06b6d4 !important;
+  --cyan-600: #0891b2 !important;
+  --cyan-700: #0e7490 !important;
+  --cyan-800: #155e75 !important;
+  --cyan-900: #164e63 !important;
+
+  --magenta: #d946ef !important;
+  --magenta-50: #fdf4ff !important;
+  --magenta-100: #fae8ff !important;
+  --magenta-200: #f5d0fe !important;
+  --magenta-300: #f0abfc !important;
+  --magenta-400: #e879f9 !important;
+  --magenta-500: #d946ef !important;
+  --magenta-600: #c026d3 !important;
+  --magenta-700: #a21caf !important;
+  --magenta-800: #86198f !important;
+  --magenta-900: #701a75 !important;
+
+  --quaternary: #84cc16 !important;
+  --quaternary-50: #f7fee7 !important;
+  --quaternary-100: #ecfccb !important;
+  --quaternary-200: #d9f99d !important;
+  --quaternary-300: #bef264 !important;
+  --quaternary-400: #a3e635 !important;
+  --quaternary-500: #84cc16 !important;
+  --quaternary-600: #65a30d !important;
+  --quaternary-700: #4d7c0f !important;
+  --quaternary-800: #3f6212 !important;
+  --quaternary-900: #365314 !important;
+
+  /* ========================================
+     CORE UI VARIABLES
+     ======================================== */
+  
+  /* Main theme colors */
+  --primary: var(--primary-500) !important;
+  --secondary: var(--secondary-500) !important;
+  --tertiary: var(--tertiary-500) !important;
+  
+  /* Layout colors - KasaiSora dark foundation */
+  --background: var(--dark-900) !important;        /* Deepest dark */
+  --container: var(--dark-800) !important;         /* KasaiSora signature */
+  --card: var(--dark-800) !important;              /* Consistent with container */
+  --input: var(--dark-800) !important;             /* Form elements */
+  --button: var(--dark-800) !important;            /* Button backgrounds */
+  --button-hover: var(--dark-700) !important;      /* Button hover states */
+  
+  /* Text colors */
+  --text: var(--dark-50) !important;               /* Primary text */
+  --text-secondary: var(--dark-300) !important;    /* Secondary text */
+  --text-muted: var(--dark-400) !important;        /* Muted text */
+  --placeholder: var(--dark-400) !important;       /* Placeholder text */
+
+  /* ========================================
+     COMPONENT-SPECIFIC VARIABLES
+     ======================================== */
+  
+  /* Text utilities */
+  --text-white: #ffffff !important;
+  --text-black: #000000 !important;
+  --text-transparent: transparent !important;
+  
+  /* Gradients */
+  --gradient-primary: var(--primary-500) !important;
+  --gradient-secondary: var(--secondary-500) !important;
+  
+  /* Shader previews */
+  --shader-preview-gradient: linear-gradient(135deg, var(--primary-500) 0%, var(--secondary-500) 100%) !important;
+  --shader-preview-primary: var(--primary-500) !important;
+  --shader-preview-secondary: var(--secondary-500) !important;
+  
+  /* Status colors - KasaiSora compatible */
+  --status-success: #10b981 !important;
+  --status-success-hover: #059669 !important;
+  --status-success-bg: rgba(16, 185, 129, 0.1) !important;
+  --status-error: #ef4444 !important;
+  --status-error-bg: rgba(239, 68, 68, 0.1) !important;
+  --status-warning: #f59e0b !important;
+  --status-warning-bg: rgba(245, 158, 11, 0.1) !important;
+  --status-info: var(--tertiary-500) !important;
+  --status-info-bg: rgba(14, 165, 233, 0.1) !important;
+  
+  /* Loader colors */
+  --loader-primary: var(--primary-500) !important;
+  --loader-secondary: var(--secondary-500) !important;
+  --loader-accent: cc !important;
+  
+  /* Badge colors */
+  --badge-installed: var(--status-success) !important;
+  --badge-available: var(--input) !important;
+  --badge-premium: #fbbf24 !important;
+  --badge-premium-text: #1f2937 !important;
+  --badge-category: var(--dark-800) !important;
+  --badge-category-text: var(--text-white) !important;
+
+  /* ========================================
+     TYPOGRAPHY & FONTS - MINECRAFT EDITION
+     ======================================== */
+  
+  /* Font families - Minecraft with robust fallbacks */
+  --font: 'Minecraft', 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace !important;
+  --font-code: 'Minecraft', 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace !important;
+  --font-heading: 'Minecraft', 'Impact', 'Arial Black', sans-serif !important;
+  --font-fancy: 'Minecraft', 'Courier New', 'Monaco', monospace !important;
+  
+  /* Font sizes */
+  --font-size-tiny: 0.5rem !important;
+  --font-size-small: 0.75rem !important;
+  --font-size: 1rem !important;
+  --font-size-large: 1.25rem !important;
+  --font-size-huge: 2rem !important;
+
+  /* ========================================
+     SPACING & SIZING - MINECRAFT BLOCKY STYLE
+     ======================================== */
+  
+  /* Spacing values */
+  --small: 0.1rem !important;
+  --medium: 0.25rem !important;
+  --normal: 0.5rem !important;
+  --large: 1rem !important;
+  --huge: 1.5rem !important;
+  
+  /* Border radius - Minecraft blocky aesthetic */
+  --border-radius-tiny: 0.05rem !important;    /* Extra small for subtle edges */
+  --border-radius-small: 0.1rem !important;    /* Minimal rounding */
+  --border-radius: 0.15rem !important;         /* Main border radius - very blocky */
+  --border-radius-large: 0.2rem !important;    /* Large elements - still blocky */
+  
+  /* ========================================
+     BUTTON STYLING
+     ======================================== */
+  
+  /* Button colors */
+  --button-text: #ffffff !important;
+  --button-border: var(--dark-600) !important;
+  --button-opacity: 0.9 !important;
+  
+  /* Button padding */
+  --button-padding-small: 0.25rem 0.5rem !important;
+  --button-padding: 0.5rem 1rem !important;
+  --button-padding-large: 1rem 1.5rem !important;
+
+  /* ========================================
+     CONTAINER & CARD STYLING
+     ======================================== */
+  
+  /* Container styling */
+  --container-padding: 1.5rem !important;
+  --container-border-radius: var(--border-radius) !important;  /* Blocky containers */
+  
+  /* Card styling */
+  --card-padding: 1rem !important;
+  --card-border-radius: var(--border-radius) !important;       /* Blocky cards */
+
+  /* ========================================
+     GLASS MORPHISM & EFFECTS
+     ======================================== */
+  
+  /* Enhanced glass effects with KasaiSora colors */
+  --glass-bg: rgba(139, 92, 246, 0.05) !important;
+  --glass-border: rgba(139, 92, 246, 0.15) !important;
+  --glass-shadow: 0 8px 32px rgba(139, 92, 246, 0.15) !important;
+  
+  /* Hover states */
+  --hover-overlay: rgba(139, 92, 246, 0.1) !important;
+  --active-overlay: rgba(139, 92, 246, 0.2) !important;
+  
+  /* ========================================
+     MINECRAFT-INSPIRED ENHANCEMENTS
+     ======================================== */
+  
+  /* Sharp, pixelated-inspired styling */
+  --pixel-border: 1px solid var(--dark-600) !important;
+  --minecraft-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+  --blocky-transition: all 0.1s ease-out !important;           /* Quick, snappy transitions */
+  
+  /* Craft-grid inspired spacing */
+  --grid-gap: 0.25rem !important;
+  --grid-padding: 0.5rem !important;
+}
+

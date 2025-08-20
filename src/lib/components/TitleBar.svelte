@@ -78,13 +78,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 30px;
-    background: $container;
-    color: $text;
+    height: 2rem;
+    background: var(--container);
+    color: var(--text);
     -webkit-app-region: drag;
     user-select: none;
     padding: 0 0 0 1rem;
-    border-bottom: 1px solid rgba($dark-700, 0.5);
+    border-bottom: 1px solid rgba(var(--dark-700), 0.5);
   }
   .titlebar-left {
     display: flex;
@@ -94,12 +94,12 @@
       width: 24px;
       height: 24px;
       border-radius: 6px;
-      box-shadow: 0 2px 8px rgba($primary, 0.08);
+      box-shadow: 0 2px 8px rgba(var(--primary), 0.08);
     }
     .app-title {
       font-size: 1.1rem;
       font-weight: 600;
-      color: $text;
+      color: var(--text);
       letter-spacing: 0.02em;
       margin-left: 0.25rem;
     }
@@ -113,24 +113,24 @@
   .titlebar-btn {
     background: none;
     border: none;
-    color: $placeholder;
+    color: var(--placeholder);
     padding: 0.25rem 0.75rem;
-    border-radius: $border-radius-small;
+    border-radius: var(--border-radius-small);
     cursor: pointer;
     transition: background 0.2s;
     -webkit-app-region: no-drag;
     &:hover {
-      background: $container;
-      color: $text;
+      background: var(--container);
+      color: var(--text);
     }
     &.close:hover {
-      background: rgba($red, 0.5);
+      background: rgba(var(--red), 0.5);
     }
     &.minimize:hover {
-      background: rgba($tertiary-500, 0.05);
+      background: rgba(var(--tertiary-500), 0.05);
     }
     &.maximize:hover {
-      background: rgba($secondary-500, 0.05);
+      background: rgba(var(--secondary-500), 0.05);
     }
   }
 </style>

@@ -481,7 +481,7 @@ function handleCardKeydown(event: KeyboardEvent) {
 @use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 .mod-card {
-  background: $card;
+  background: var(--card);
   border: 1px solid rgba($primary, 0.08);
   border-radius: 0.5rem;
   overflow: hidden;
@@ -555,7 +555,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: $placeholder;
+      color: var(--placeholder);
       background: rgba($placeholder, 0.05);
     }
   }
@@ -592,14 +592,14 @@ function handleCardKeydown(event: KeyboardEvent) {
     margin: 0;
     font-size: 0.95rem;
     font-weight: 600;
-    color: $text;
+    color: var(--text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .list-author {
-    color: $placeholder;
+    color: var(--placeholder);
     font-size: 0.7rem;
     font-weight: 500;
     margin: 0;
@@ -619,13 +619,13 @@ function handleCardKeydown(event: KeyboardEvent) {
     display: flex;
     align-items: center;
     gap: 0.2rem;
-    color: $placeholder;
+    color: var(--placeholder);
     font-size: 0.7rem;
     white-space: nowrap;
 
     .stat-value {
       font-weight: 500;
-      color: $text;
+      color: var(--text);
     }
   }
 
@@ -637,7 +637,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     background: rgba($secondary, 0.1);
     border: 1px solid rgba($secondary, 0.3);
     border-radius: 0.25rem;
-    color: $secondary;
+    color: var(--secondary);
     font-size: 0.7rem;
     font-weight: 500;
     cursor: pointer;
@@ -672,7 +672,7 @@ function handleCardKeydown(event: KeyboardEvent) {
 
   .list-description {
     margin: 0;
-    color: $placeholder;
+    color: var(--placeholder);
     font-size: 0.75rem;
     line-height: 1.2;
     white-space: nowrap;
@@ -695,7 +695,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     background: rgba($primary, 0.1);
     border: 1px solid rgba($primary, 0.2);
     border-radius: 0.5rem;
-    color: $primary;
+    color: var(--primary);
     font-size: 0.6rem;
     font-weight: 500;
     white-space: nowrap;
@@ -782,7 +782,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     align-items: center;
     gap: 0.25rem;
     padding: 0.375rem 0.5rem;
-    background: $tertiary;
+    background: var(--tertiary);
     border: none;
     border-radius: 0.25rem;
     color: white;
@@ -815,7 +815,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     background: rgba($green-600, 0.1);
     border: 1px solid rgba($green-600, 0.3);
     border-radius: 0.25rem;
-    color: $green-600;
+    color: var(--green-600);
     font-size: 0.7rem;
     font-weight: 600;
     height: 1.75rem;
@@ -832,7 +832,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     background: rgba($yellow, 0.1);
     border: 1px solid rgba($yellow, 0.3);
     border-radius: 0.25rem;
-    color: $yellow;
+    color: var(--yellow);
     font-size: 0.7rem;
     font-weight: 500;
     height: 1.75rem;
@@ -899,7 +899,7 @@ function handleCardKeydown(event: KeyboardEvent) {
         display: flex;
         align-items: center;
         justify-content: center;
-        color: $placeholder;
+        color: var(--placeholder);
         background: rgba($placeholder, 0.05);
       }
     }
@@ -912,7 +912,7 @@ function handleCardKeydown(event: KeyboardEvent) {
         margin: 0 0 0.25rem 0;
         font-size: 0.9rem;
         font-weight: 600;
-        color: $text;
+        color: var(--text);
         line-height: 1.3;
         word-wrap: break-word;
         overflow-wrap: break-word;
@@ -921,7 +921,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       }
       
       .flex-author {
-        color: $placeholder;
+        color: var(--placeholder);
         font-size: 0.75em;
         font-weight: 500;
       }
@@ -948,7 +948,7 @@ function handleCardKeydown(event: KeyboardEvent) {
         flex-shrink: 0;
         
         &.download-btn {
-          background: $tertiary;
+          background: var(--tertiary);
           color: white;
           
           &:hover:not(:disabled) {
@@ -965,7 +965,7 @@ function handleCardKeydown(event: KeyboardEvent) {
         
         &.versions-btn {
           background: rgba($secondary, 0.1);
-          color: $secondary;
+          color: var(--secondary);
           border: 1px solid rgba($secondary, 0.3);
           
           &:hover {
@@ -976,7 +976,7 @@ function handleCardKeydown(event: KeyboardEvent) {
         
         &.disabled-btn {
           background: rgba($placeholder, 0.05);
-          color: $placeholder;
+          color: var(--placeholder);
           border: 1px solid rgba($placeholder, 0.2);
           cursor: not-allowed;
           opacity: 0.6;
@@ -998,18 +998,18 @@ function handleCardKeydown(event: KeyboardEvent) {
         display: flex;
         align-items: center;
         gap: 0.25rem;
-        color: $placeholder;
+        color: var(--placeholder);
         font-size: 0.65em;
         
         .stat-value {
           font-weight: 600;
-          color: $text;
+          color: var(--text);
         }
       }
     }
     
     .flex-description {
-      color: $placeholder;
+      color: var(--placeholder);
       font-size: 0.75em;
       line-height: 1.4;
       display: -webkit-box;
@@ -1028,7 +1028,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       
       .flex-tag {
         background: rgba($primary, 0.08);
-        color: $primary;
+        color: var(--primary);
         padding: 0.125rem 0.25rem;
         border-radius: 0.1875rem;
         font-size: 0.65em;
@@ -1074,7 +1074,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: $placeholder;
+      color: var(--placeholder);
       background: rgba($placeholder, 0.05);
     }
   }
@@ -1093,7 +1093,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     margin: 0;
     font-size: 0.75rem;
     font-weight: 600;
-    color: $text;
+    color: var(--text);
     line-height: 1.2;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -1109,7 +1109,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     margin: 0;
     font-size: 0.65rem;
     font-weight: 400;
-    color: $placeholder;
+    color: var(--placeholder);
     line-height: 1.3;
     word-wrap: break-word;
     overflow-wrap: break-word;
@@ -1130,7 +1130,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     flex-shrink: 0;
     
     .compact-versions-btn {
-      background: $secondary;
+      background: var(--secondary);
       color: white;
       border: none;
       border-radius: 0.25rem;
@@ -1156,7 +1156,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     }
     
     .compact-download-btn {
-      background: $tertiary;
+      background: var(--tertiary);
       color: white;
       border: none;
       border-radius: 0.25rem;
@@ -1185,7 +1185,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: $primary;
+      color: var(--primary);
       font-size: 0.65rem;
       font-weight: 500;
       padding: 0.25rem;
@@ -1200,7 +1200,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       display: flex;
       align-items: center;
       justify-content: center;
-      color: $placeholder;
+      color: var(--placeholder);
       font-size: 0.65rem;
       opacity: 0.6;
       width: 28px;

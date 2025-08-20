@@ -46,6 +46,7 @@ export function defaultAppearanceSettings(): AppearanceSettings {
     extra_spacing: 16,
     sidebar_width: 250,
     selected_icon_template: 'default',
+    selected_css_theme: '',
     icon_settings: {
       selected_template: 'default',
       custom_templates: [],

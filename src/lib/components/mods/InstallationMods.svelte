@@ -536,10 +536,10 @@ onMount(() => {
   display: flex;
   height: 100%;
   gap: 1.5rem;
-  background: $container;
+  background: var(--container);
   border-radius: 0.75rem;
-  border: 1px solid rgba($primary, 0.08);
-  box-shadow: 0 2px 12px rgba($dark-900, 0.06);
+  border: 1px solid rgba(var(--primary), 0.08);
+  box-shadow: 0 2px 12px rgba(var(--dark-900), 0.06);
   overflow: hidden;
 }
 
@@ -548,12 +548,12 @@ onMount(() => {
   width: 320px;
   min-width: 320px;
   background: 
-    radial-gradient(circle at var(--dot1-x, 25%) var(--dot1-y, 35%), rgba($primary-900, 0.04) 0%, transparent 16%),
-    radial-gradient(circle at var(--dot2-x, 75%) var(--dot2-y, 65%), rgba($secondary, 0.03) 0%, transparent 14%),
-    radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 15%), rgba($tertiary, 0.025) 0%, transparent 12%),
-    radial-gradient(circle at var(--dot4-x, 20%) var(--dot4-y, 80%), rgba($quaternary, 0.03) 0%, transparent 15%),
-    linear-gradient(135deg, $card 0%, rgba($primary, 0.02) 100%);
-  border-right: 1px solid rgba($primary, 0.08);
+    radial-gradient(circle at var(--dot1-x, 25%) var(--dot1-y, 35%), rgba(var(--primary-900), 0.04) 0%, transparent 16%),
+    radial-gradient(circle at var(--dot2-x, 75%) var(--dot2-y, 65%), rgba(var(--secondary), 0.03) 0%, transparent 14%),
+    radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 15%), rgba(var(--tertiary), 0.025) 0%, transparent 12%),
+    radial-gradient(circle at var(--dot4-x, 20%) var(--dot4-y, 80%), rgba(var(--quaternary), 0.03) 0%, transparent 15%),
+    linear-gradient(135deg, var(--card) 0%, rgba(var(--primary), 0.02) 100%);
+  border-right: 1px solid rgba(var(--primary), 0.08);
   display: flex;
   flex-direction: column;
   animation: move-dots 28s ease infinite alternate;
@@ -561,13 +561,13 @@ onMount(() => {
   h2 {
     margin: 0;
     padding: 1.5rem 1.5rem 1rem 1.5rem;
-    background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
     font-weight: 700;
     font-size: 1.4em;
-    border-bottom: 1px solid rgba($primary, 0.08);
+    border-bottom: 1px solid rgba(var(--primary), 0.08);
   }
 }
 
@@ -652,26 +652,26 @@ onMount(() => {
   transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   
   &:hover {
-    border-color: var(--loader-color, rgba($primary, 0.15));
+    border-color: var(--loader-color, rgba(var(--primary), 0.15));
     // Properly maintain center position on hover
-    box-shadow: 0 2px 8px rgba(var(--loader-color, $primary), 0.1);
+    box-shadow: 0 2px 8px rgba(var(--loader-color, var(--primary)), 0.1);
   }
   
   &.selected {
-    border-color: var(--loader-color, $primary);
+    border-color: var(--loader-color, var(--primary));
     box-shadow: 
-      0 4px 16px rgba(var(--loader-color, $primary), 0.15),
+      0 4px 16px rgba(var(--loader-color, var(--primary)), 0.15),
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
     z-index: 10; // Bring selected item to front
     
     // Add green selection indicator
-    border: 2px solid $green-800;
+    border: 2px solid var(--green-800);
     
     &:hover {
       // Keep the same transform as base state but with slight scale increase
       box-shadow: 
-        0 6px 20px rgba(var(--loader-color, $primary), 0.2),
-        0 0 0 3px rgba($green-800, 0.3),
+        0 6px 20px rgba(var(--loader-color, var(--primary)), 0.2),
+        0 0 0 3px rgba(var(--green-800), 0.3),
         inset 0 1px 0 rgba(255, 255, 255, 0.15);
     }
     
@@ -683,15 +683,15 @@ onMount(() => {
       transform: translateY(-50%);
       width: 4px;
       height: 60%;
-      background: linear-gradient(to bottom, $green-700, $green-900);
+      background: linear-gradient(to bottom, var(--green-700), var(--green-900));
       border-radius: 2px;
-      box-shadow: 0 0 8px rgba($green-800, 0.4);
+      box-shadow: 0 0 8px rgba(var(--green-800), 0.4);
     }
   }
   
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(var(--loader-color, $primary), 0.3);
+    box-shadow: 0 0 0 2px rgba(var(--loader-color, var(--primary)), 0.3);
   }
 }
 
@@ -702,16 +702,16 @@ onMount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: $container;
-  color: var(--loader-color, $primary);
-  box-shadow: 0 2px 6px rgba($dark-900, 0.08);
+  background: var(--container);
+  color: var(--loader-color, var(--primary));
+  box-shadow: 0 2px 6px rgba(var(--dark-900), 0.08);
   flex-shrink: 0;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   
   .installation-item.selected & {
-    background: linear-gradient(135deg, var(--loader-color, $primary) 0%, rgba(var(--loader-color, $secondary), 0.8) 100%);
+    background: linear-gradient(135deg, var(--loader-color, var(--primary)) 0%, rgba(var(--loader-color, var(--secondary)), 0.8) 100%);
     color: white;
-    box-shadow: 0 3px 12px rgba(var(--loader-color, $primary), 0.3);
+    box-shadow: 0 3px 12px rgba(var(--loader-color, var(--primary)), 0.3);
     transform: scale(1.05);
   }
 }
@@ -734,13 +734,13 @@ onMount(() => {
   font-size: calc(var(--carousel-font-size, 1) * 1em);
   
   // Default state
-  color: $text;
+  color: var(--text);
   
   // Selected state - use solid color instead of gradient to avoid transparency issues
   .installation-item.selected & {
-    color: var(--loader-color, $primary);
+    color: var(--loader-color, var(--primary));
     font-weight: 700;
-    text-shadow: 0 0 8px rgba(var(--loader-color, $primary), 0.3);
+    text-shadow: 0 0 8px rgba(var(--loader-color, var(--primary)), 0.3);
   }
 }
 
@@ -760,12 +760,12 @@ onMount(() => {
 }
 
 .installation-version {
-  background: rgba($tertiary, 0.1);
-  color: $tertiary;
+  background: rgba(var(--tertiary), 0.1);
+  color: var(--tertiary);
   
   .installation-item.selected & {
-    background: rgba(var(--loader-color, $tertiary), 0.15);
-    color: var(--loader-color, $tertiary);
+    background: rgba(var(--loader-color, var(--tertiary)), 0.15);
+    color: var(--loader-color, var(--tertiary));
   }
 }
 
@@ -778,8 +778,8 @@ onMount(() => {
 }
 
 .mods-header {
-  background: linear-gradient(135deg, $card 0%, rgba($primary, 0.02) 100%);
-  border-bottom: 1px solid rgba($primary, 0.08);
+  background: linear-gradient(135deg, var(--card) 0%, rgba(var(--primary), 0.02) 100%);
+  border-bottom: 1px solid rgba(var(--primary), 0.08);
   padding: 1.2rem 1.5rem;
   
   .mods-title-section {
@@ -790,7 +790,7 @@ onMount(() => {
     
     h3 {
       margin: 0;
-      color: $text;
+      color: var(--text);
       font-weight: 500;
       font-size: 1.1em;
     }
@@ -801,33 +801,33 @@ onMount(() => {
   display: flex;
   align-items: center;
   gap: 0.3em;
-  background: linear-gradient(135deg, rgba($primary, 0.08) 0%, rgba($secondary, 0.04) 100%);
-  border: 1px solid rgba($primary, 0.15);
+  background: linear-gradient(135deg, rgba(var(--primary), 0.08) 0%, rgba(var(--secondary), 0.04) 100%);
+  border: 1px solid rgba(var(--primary), 0.15);
   border-radius: 1rem;
   padding: 0.4em 0.8em;
   font-size: 0.85em;
   font-weight: 500;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 1px 4px rgba($dark-900, 0.06);
+  box-shadow: 0 1px 4px rgba(var(--dark-900), 0.06);
   
   .filtered-count {
-    color: $primary;
+    color: var(--primary);
     font-weight: 600;
   }
   
   .count-separator {
-    color: $placeholder;
+    color: var(--placeholder);
     font-size: 0.9em;
   }
   
   .total-count {
-    color: $text;
+    color: var(--text);
     font-weight: 600;
   }
   
   .count-label {
-    color: $placeholder;
+    color: var(--placeholder);
     font-size: 0.9em;
   }
 }
@@ -848,26 +848,26 @@ onMount(() => {
     left: 0.85rem;
     top: 50%;
     transform: translateY(-50%);
-    color: $placeholder;
+    color: var(--placeholder);
     z-index: 1;
   }
   
   .search-input {
     flex: 1;
     padding: 0.75rem 1rem 0.75rem 2.5rem;
-    border: 1px solid $dark-600;
+    border: 1px solid var(--dark-600);
     border-radius: 0.75rem;
-    background: $input;
-    color: $text;
+    background: var(--input);
+    color: var(--text);
     font-size: 1rem;
     
     &:focus {
       outline: none;
-      border-color: $primary;
+      border-color: var(--primary);
     }
     
     &::placeholder {
-      color: $placeholder;
+      color: var(--placeholder);
     }
   }
   
@@ -878,7 +878,7 @@ onMount(() => {
     transform: translateY(-50%);
     background: none;
     border: none;
-    color: $red;
+    color: var(--red);
     font-size: 1.1em;
     cursor: pointer;
     padding: 0.25em;
@@ -891,7 +891,7 @@ onMount(() => {
     z-index: 1;
     
     &:hover {
-      color: $red-600;
+      color: var(--red-600);
       transform: translateY(-50%) scale(1.1);
     }
   }
@@ -900,7 +900,7 @@ onMount(() => {
 .mods-content {
   flex: 1;
   padding: 1.5rem;
-  background: $container;
+  background: var(--container);
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -921,14 +921,14 @@ onMount(() => {
   align-items: center;
   justify-content: center;
   position: relative;
-  background: $card;
+  background: var(--card);
   border-radius: 0.5rem;
-  border: 1px solid rgba($primary, 0.1);
+  border: 1px solid rgba(var(--primary), 0.1);
   width: 48px;
   height: 48px;
   min-width: 48px;
   min-height: 48px;
-  box-shadow: 0 1px 6px 0 rgba($dark-900, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 6px 0 rgba(var(--dark-900), 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   overflow: visible;
@@ -938,11 +938,11 @@ onMount(() => {
   &:hover, &:focus {
     transform: translateY(-1px) scale(1.04);
     box-shadow: 
-      0 6px 20px 0 rgba($primary, 0.18),
-      0 2px 8px 0 rgba($dark-900, 0.12),
+      0 6px 20px 0 rgba(var(--primary), 0.18),
+      0 2px 8px 0 rgba(var(--dark-900), 0.12),
       inset 0 1px 0 rgba(255, 255, 255, 0.15);
-    border-color: $primary;
-    background: linear-gradient(135deg, $card 0%, rgba($primary, 0.06) 100%);
+    border-color: var(--primary);
+    background: linear-gradient(135deg, var(--card) 0%, rgba(var(--primary), 0.06) 100%);
     z-index: 15;
     
     .mod-tooltip {
@@ -958,8 +958,8 @@ onMount(() => {
   }
   
   &.loading {
-    background: linear-gradient(135deg, $card 0%, rgba($placeholder, 0.04) 100%);
-    color: $placeholder;
+    background: linear-gradient(135deg, var(--card) 0%, rgba(var(--placeholder), 0.04) 100%);
+    color: var(--placeholder);
     animation: pulse 1.8s ease-in-out infinite;
   }
   
@@ -988,19 +988,19 @@ onMount(() => {
   height: 38px;
   border-radius: 0.4rem;
   object-fit: cover;
-  background: linear-gradient(45deg, $background 0%, rgba($primary, 0.02) 100%);
-  box-shadow: 0 1px 4px rgba($dark-900, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: linear-gradient(45deg, var(--background) 0%, rgba(var(--primary), 0.02) 100%);
+  box-shadow: 0 1px 4px rgba(var(--dark-900), 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid rgba($primary, 0.08);
+  border: 1px solid rgba(var(--primary), 0.08);
 }
 
 .mod-tooltip {
   opacity: 0;
   pointer-events: none;
   position: absolute;
-  background: linear-gradient(135deg, rgba($container, 0.98) 0%, rgba($primary, 0.05) 100%);
-  color: $text;
-  border: 1px solid rgba($primary, 0.25);
+  background: linear-gradient(135deg, rgba(var(--container), 0.98) 0%, rgba(var(--primary), 0.05) 100%);
+  color: var(--text);
+  border: 1px solid rgba(var(--primary), 0.25);
   border-radius: 0.5rem;
   padding: 0.5em 0.8em;
   font-size: 0.85em;
@@ -1008,8 +1008,8 @@ onMount(() => {
   min-width: 160px;
   max-width: 280px;
   box-shadow: 
-    0 8px 24px 0 rgba($dark-900, 0.25),
-    0 2px 6px 0 rgba($primary, 0.15),
+    0 8px 24px 0 rgba(var(--dark-900), 0.25),
+    0 2px 6px 0 rgba(var(--primary), 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
   z-index: 100;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1027,9 +1027,9 @@ onMount(() => {
     position: absolute;
     width: 10px;
     height: 10px;
-    background: linear-gradient(135deg, rgba($container, 0.98) 0%, rgba($primary, 1) 100%);
-    border-left: 1px solid rgba($primary, 0.25);
-    border-bottom: 1px solid rgba($primary, 0.25);
+    background: linear-gradient(135deg, rgba(var(--container), 0.98) 0%, rgba(var(--primary), 1) 100%);
+    border-left: 1px solid rgba(var(--primary), 0.25);
+    border-bottom: 1px solid rgba(var(--primary), 0.25);
     transform: rotate(45deg);
     // Default arrow position (left side, pointing left)
     left: -5px;
@@ -1039,7 +1039,7 @@ onMount(() => {
   .mod-tooltip-title {
     font-weight: 600;
     font-size: 1em;
-    background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
@@ -1050,8 +1050,8 @@ onMount(() => {
   }
   .mod-tooltip-version {
     font-size: 0.8em;
-    color: $tertiary;
-    background: rgba($tertiary, 0.08);
+    color: var(--tertiary);
+    background: rgba(var(--tertiary), 0.08);
     padding: 0.15em 0.4em;
     border-radius: 0.25em;
     display: inline-block;
@@ -1060,7 +1060,7 @@ onMount(() => {
   }
   .mod-tooltip-desc {
     font-size: 0.78em;
-    color: $placeholder;
+    color: var(--placeholder);
     margin-top: 0.2em;
     line-height: 1.35;
     max-width: 260px;
@@ -1069,10 +1069,10 @@ onMount(() => {
   
   .mod-tooltip-link {
     font-size: 0.75em;
-    color: $primary;
+    color: var(--primary);
     margin-top: 0.4em;
     padding: 0.2em 0.4em;
-    background: rgba($primary, 0.08);
+    background: rgba(var(--primary), 0.08);
     border-radius: 0.25em;
     text-align: center;
     font-weight: 500;
@@ -1090,8 +1090,8 @@ onMount(() => {
   &::before {
     left: -5px;
     top: 18%;
-    border-left: 1px solid rgba($primary, 0.25);
-    border-bottom: 1px solid rgba($primary, 0.25);
+    border-left: 1px solid rgba(var(--primary), 0.25);
+    border-bottom: 1px solid rgba(var(--primary), 0.25);
     border-right: none;
     border-top: none;
     transform: rotate(45deg);
@@ -1108,8 +1108,8 @@ onMount(() => {
     right: -5px;
     left: auto;
     top: 18%;
-    border-right: 1px solid rgba($primary, 0.25);
-    border-top: 1px solid rgba($primary, 0.25);
+    border-right: 1px solid rgba(var(--primary), 0.25);
+    border-top: 1px solid rgba(var(--primary), 0.25);
     border-left: none;
     border-bottom: none;
     transform: rotate(45deg);
@@ -1127,8 +1127,8 @@ onMount(() => {
     top: auto;
     bottom: -5px;
     transform: translateX(-50%) rotate(45deg);
-    border-bottom: 1px solid rgba($primary, 0.25);
-    border-right: 1px solid rgba($primary, 0.25);
+    border-bottom: 1px solid rgba(var(--primary), 0.25);
+    border-right: 1px solid rgba(var(--primary), 0.25);
     border-left: none;
     border-top: none;
   }
@@ -1144,8 +1144,8 @@ onMount(() => {
     top: -5px;
     bottom: auto;
     transform: translateX(-50%) rotate(45deg);
-    border-top: 1px solid rgba($primary, 0.25);
-    border-left: 1px solid rgba($primary, 0.25);
+    border-top: 1px solid rgba(var(--primary), 0.25);
+    border-left: 1px solid rgba(var(--primary), 0.25);
     border-right: none;
     border-bottom: none;
   }
@@ -1155,15 +1155,15 @@ onMount(() => {
   display: flex;
   align-items: center;
   gap: 0.7em;
-  color: $placeholder;
+  color: var(--placeholder);
   font-size: 1.1em;
   padding: 2.5rem 0;
   justify-content: center;
 }
 .error-message {
-  color: $red;
-  background: rgba($red, 0.08);
-  border: 1px solid $red;
+  color: var(--red);
+  background: rgba(var(--red), 0.08);
+  border: 1px solid var(--red);
   border-radius: 0.5rem;
   padding: 0.7em 1em;
   margin: 1em 0;
@@ -1177,7 +1177,7 @@ onMount(() => {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: $placeholder;
+  color: var(--placeholder);
   font-size: 1.1em;
   padding: 2.5rem 0 1.5rem 0;
   gap: 0.5em;
@@ -1212,7 +1212,7 @@ onMount(() => {
   
   .mods-section {
     border-left: none;
-    border-top: 1px solid rgba($primary, 0.08);
+    border-top: 1px solid rgba(var(--primary), 0.08);
   }
 }
 

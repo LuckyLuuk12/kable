@@ -1,7 +1,6 @@
 <script lang="ts">
   import { settings } from "$lib/stores";
   import { SettingsService } from "$lib/services/SettingsService";
-  import { error } from "@sveltejs/kit";
   const logLevels = ['debug', 'info', 'warn', 'error'];
   function disableFileSizeLimit() {
     SettingsService.update('logging', {
@@ -210,8 +209,8 @@
 @use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 .settings-tab {
-  background: $container;
-  border-radius: $border-radius-large;
+  background: var(--container);
+  border-radius: var(--border-radius-large);
   box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.08);
   padding: 2rem 2.5rem;
   margin-bottom: 2rem;
@@ -225,7 +224,7 @@
   font-weight: 600;
   margin-bottom: 0.5rem;
   background: linear-gradient(to right, $primary, $secondary);
-  color: transparent;
+  color: var(--text-transparent);
   background-clip: text;
   -webkit-background-clip: text;
   -moz-background-clip: text;
@@ -241,7 +240,7 @@ form {
   align-items: flex-start;
   gap: 2rem;
   padding: 1rem 0;
-  border-bottom: 1px solid $dark-200;
+  border-bottom: 1px solid var(--dark-200);
 }
 .setting-item:last-child {
   border-bottom: none;
@@ -256,12 +255,12 @@ form {
 .setting-info label {
   font-size: 1.08rem;
   font-weight: 500;
-  color: $text;
+  color: var(--text);
   margin-bottom: 0.1rem;
 }
 .setting-description {
   font-size: 0.95rem;
-  color: $placeholder;
+  color: var(--placeholder);
   margin-bottom: 0.2rem;
   line-height: 1.4;
 }
@@ -295,8 +294,8 @@ form {
 button[type="button"] {
   font-size: 0.95rem;
   padding: 0.35em 1em;
-  border-radius: $border-radius;
-  color: #fff;
+  border-radius: var(--border-radius);
+  color: var(--text-white);
   border: none;
   cursor: pointer;
   transition: background 0.2s;
@@ -311,7 +310,7 @@ button[type="button"] {
   align-items: center;
   gap: 0.5rem;
   font-size: 1rem;
-  color: $text;
+  color: var(--text);
 }
 .log-levels-control {
   display: grid;
@@ -321,7 +320,7 @@ button[type="button"] {
 .log-level-label {
   cursor: pointer;
   padding: 0.4rem 1.1rem;
-  border-radius: $border-radius;
+  border-radius: var(--border-radius);
   font-weight: 600;
   user-select: none;
   transition: background 0.18s, color 0.18s;
@@ -329,23 +328,23 @@ button[type="button"] {
   border: 2px solid transparent;
 }
 .log-level-label.unselected {
-  background: $input;
-  color: $red-700;
+  background: var(--input);
+  color: var(--red-700);
 }
 .log-level-label.selected {
-  background: $input;
-  color: $green-600;
+  background: var(--input);
+  color: var(--green-600);
 }
 .log-level-label.unselected:hover {
-  color: color-mix(in srgb, $red-700 70%, #fff 30%);
-  border-color: $dark-200;
+  color: color-mix(in srgb, var(--red-700) 70%, var(--text-white) 30%);
+  border-color: var(--dark-200);
 }
 .log-level-label.selected:hover {
-  color: color-mix(in srgb, $green-600 70%, #fff 30%);
-  border-color: $dark-200;
+  color: color-mix(in srgb, var(--green-600) 70%, var(--text-white) 30%);
+  border-color: var(--dark-200);
 }
 .log-level-label:focus {
-  border: 2px solid $primary;
+  border: 2px solid var(--primary);
 }
 .visually-hidden {
   position: absolute;

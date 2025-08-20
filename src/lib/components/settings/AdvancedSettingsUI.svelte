@@ -157,8 +157,8 @@
 @use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 .settings-tab {
-  background: $container;
-  border-radius: $border-radius-large;
+  background: var(--container);
+  border-radius: var(--border-radius-large);
   box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.08);
   padding: 2rem 2.5rem;
   margin-bottom: 2rem;
@@ -172,7 +172,7 @@
   font-weight: 600;
   margin-bottom: 0.5rem;
   background: linear-gradient(to right, $primary, $secondary);
-  color: transparent;
+  color: var(--text-transparent);
   background-clip: text;
   -webkit-background-clip: text;
   -moz-background-clip: text;
@@ -188,7 +188,7 @@ form {
   align-items: flex-start;
   gap: 2rem;
   padding: 1rem 0;
-  border-bottom: 1px solid $dark-200;
+  border-bottom: 1px solid var(--dark-200);
 }
 .setting-item:last-child {
   border-bottom: none;
@@ -203,12 +203,12 @@ form {
 .setting-info label {
   font-size: 1.08rem;
   font-weight: 500;
-  color: $text;
+  color: var(--text);
   margin-bottom: 0.1rem;
 }
 .setting-description {
   font-size: 0.95rem;
-  color: $placeholder;
+  color: var(--placeholder);
   margin-bottom: 0.2rem;
   line-height: 1.4;
 }
@@ -255,7 +255,7 @@ form {
   align-items: stretch;
   gap: 0.5rem;
   font-size: 0.98rem;
-  color: $placeholder;
+  color: var(--placeholder);
   font-weight: 500;
   margin-bottom: 0.2rem;
 }
@@ -282,18 +282,18 @@ form {
   flex: 0 1 8rem;
   max-width: 10rem;
   min-width: 5rem;
-  border: 1px solid $dark-200;
+  border: 1px solid var(--dark-200);
   border-radius: 4px;
-  background: $background;
-  color: $text;
+  background: var(--background);
+  color: var(--text);
   font-size: 1rem;
 }
 .extra-value {
   flex: 2 1 60%;
-  border: 1px solid $dark-200;
+  border: 1px solid var(--dark-200);
   border-radius: 4px;
-  background: $background;
-  color: $text;
+  background: var(--background);
+  color: var(--text);
   font-size: 1rem;
   font-family: inherit;
   resize: vertical;
@@ -305,7 +305,7 @@ form {
   flex: 0 0 auto;
   background: none;
   border: none;
-  color: $red-600;
+  color: var(--red-600);
   font-size: 1.1rem;
   cursor: pointer;
   padding: 0 0.3rem;
@@ -313,7 +313,7 @@ form {
   align-self: center;
 }
 .remove-btn:hover {
-  color: $red-700;
+  color: var(--red-700);
 }
 
 .add-btn {
@@ -336,7 +336,7 @@ form {
 .collapse-btn {
   background: none;
   border: none;
-  color: $text;
+  color: var(--text);
   font-size: 1.1rem;
   cursor: pointer;
   padding: 0 0.2rem;

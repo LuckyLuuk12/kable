@@ -391,7 +391,7 @@ fn is_valid_skin_file(data: &[u8]) -> bool {
 
     // PNG signature: 89 50 4E 47 0D 0A 1A 0A
     let png_signature = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
-    if &data[0..8] != png_signature {
+    if data[0..8] != png_signature {
         return false;
     }
 

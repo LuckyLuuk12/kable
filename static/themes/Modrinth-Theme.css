@@ -1,0 +1,212 @@
+/* 
+ * Modrinth Theme v2.0 - Pure CSS Variable Approach
+ * Clean, focused theme that only redefines colors via CSS variables
+ * Works seamlessly with the existing component architecture
+ * Inspired by Modrinth's signature green color palette
+ */
+
+:root {
+  /* ========================================
+     MODRINTH BRAND COLORS
+     ======================================== */
+  
+  /* Primary Green Palette - Modrinth Signature */
+  --primary-50: #f0fdf4 !important;
+  --primary-100: #dcfce7 !important;
+  --primary-200: #bbf7d0 !important;
+  --primary-300: #86efac !important;
+  --primary-400: #4ade80 !important;
+  --primary-500: #1bd96a !important;  /* Main Modrinth green */
+  --primary-600: #16b85a !important;
+  --primary-700: #129447 !important;
+  --primary-800: #0f7035 !important;
+  --primary-900: #0d5828 !important;
+
+  /* Secondary Emerald-Green */
+  --secondary-50: #ecfdf5 !important;
+  --secondary-100: #d1fae5 !important;
+  --secondary-200: #a7f3d0 !important;
+  --secondary-300: #6ee7b7 !important;
+  --secondary-400: #34d399 !important;
+  --secondary-500: #10b981 !important;
+  --secondary-600: #059669 !important;
+  --secondary-700: #047857 !important;
+  --secondary-800: #065f46 !important;
+  --secondary-900: #064e3b !important;
+
+  /* Tertiary Orange-Yellow Accents - Complementary to Green */
+  --tertiary-50: #fffbeb !important;
+  --tertiary-100: #fef3c7 !important;
+  --tertiary-200: #fde68a !important;
+  --tertiary-300: #fcd34d !important;
+  --tertiary-400: #fbbf24 !important;
+  --tertiary-500: #f59e0b !important;
+  --tertiary-600: #d97706 !important;
+  --tertiary-700: #b45309 !important;
+  --tertiary-800: #92400e !important;
+  --tertiary-900: #78350f !important;
+
+  /* ========================================
+     DARK THEME FOUNDATION - MODRINTH STYLE
+     ======================================== */
+  
+  /* Dark color progression - GitHub-inspired dark theme */
+  --dark-50: #f0f6fc !important;   /* Lightest */
+  --dark-100: #c9d1d9 !important;  /* Light gray */
+  --dark-200: #b1bac4 !important;  /* Medium-light */
+  --dark-300: #8b949e !important;  /* Medium */
+  --dark-400: #6e7681 !important;  /* Medium-dark */
+  --dark-500: #484f58 !important;  /* Darker gray */
+  --dark-600: #30363d !important;  /* Deep gray */
+  --dark-700: #21262d !important;  /* Very deep */
+  --dark-800: #161b22 !important;  /* Modrinth dark */
+  --dark-900: #0d1117 !important;  /* Darkest background */
+  --dark: #0d1117 !important;      /* Alias for dark-900 */
+
+  /* Light colors - High contrast for text on dark theme */
+  --light-50: #ffffff !important;
+  --light-100: #f0f6fc !important;
+  --light-200: #c9d1d9 !important;
+  --light-300: #b1bac4 !important;
+  --light-400: #8b949e !important;
+  --light-500: #6e7681 !important;
+  --light-600: #484f58 !important;
+  --light-700: #30363d !important;
+  --light-800: #21262d !important;
+  --light-900: #161b22 !important;
+  --light: #ffffff !important;
+
+  /* Status Colors - Modrinth compatible */
+  --red-50: #fef2f2 !important;
+  --red-100: #fee2e2 !important;
+  --red-200: #fecaca !important;
+  --red-300: #fca5a5 !important;
+  --red-400: #f87171 !important;
+  --red-500: #f85149 !important;  /* Modrinth red */
+  --red-600: #dc2626 !important;
+  --red-700: #b91c1c !important;
+  --red-800: #991b1b !important;
+  --red-900: #7f1d1d !important;
+
+  --green-50: #f0fdf4 !important;
+  --green-100: #dcfce7 !important;
+  --green-200: #bbf7d0 !important;
+  --green-300: #86efac !important;
+  --green-400: #4ade80 !important;
+  --green-500: #1bd96a !important;  /* Main Modrinth green */
+  --green-600: #16b85a !important;
+  --green-700: #129447 !important;
+  --green-800: #0f7035 !important;
+  --green-900: #0d5828 !important;
+
+  --blue-50: #eff6ff !important;
+  --blue-100: #dbeafe !important;
+  --blue-200: #bfdbfe !important;
+  --blue-300: #93c5fd !important;
+  --blue-400: #60a5fa !important;
+  --blue-500: #58a6ff !important;  /* Modrinth blue */
+  --blue-600: #2563eb !important;
+  --blue-700: #1d4ed8 !important;
+  --blue-800: #1e40af !important;
+  --blue-900: #1e3a8a !important;
+
+  --yellow-50: #fefce8 !important;
+  --yellow-100: #fef9c3 !important;
+  --yellow-200: #fef08a !important;
+  --yellow-300: #fde047 !important;
+  --yellow-400: #facc15 !important;
+  --yellow-500: #f79009 !important;  /* Modrinth warning */
+  --yellow-600: #ca8a04 !important;
+  --yellow-700: #a16207 !important;
+  --yellow-800: #854d0e !important;
+  --yellow-900: #713f12 !important;
+
+  /* ========================================
+     CORE UI VARIABLES
+     ======================================== */
+  
+  /* Main theme colors */
+  --primary: var(--primary-500) !important;
+  --secondary: var(--secondary-500) !important;
+  --tertiary: var(--tertiary-500) !important;
+  
+  /* Convenience color aliases */
+  --red: var(--red-500) !important;
+  --green: var(--green-500) !important;
+  --blue: var(--blue-500) !important;
+  --yellow: var(--yellow-500) !important;
+  
+  /* Layout colors - Modrinth dark foundation */
+  --background: var(--dark-900) !important;        /* Deepest dark */
+  --container: var(--dark-800) !important;         /* Modrinth container */
+  --card: var(--dark-700) !important;              /* Card background */
+  --input: var(--dark-700) !important;             /* Form elements */
+  --button: var(--dark-700) !important;            /* Button backgrounds */
+  --button-hover: var(--dark-600) !important;      /* Button hover states */
+  
+  /* Text colors */
+  --text: var(--dark-50) !important;               /* Primary text */
+  --text-secondary: var(--dark-300) !important;    /* Secondary text */
+  --text-muted: var(--dark-400) !important;        /* Muted text */
+  --placeholder: var(--dark-400) !important;       /* Placeholder text */
+
+  /* ========================================
+     COMPONENT-SPECIFIC VARIABLES
+     ======================================== */
+  
+  /* Text utilities */
+  --text-white: #ffffff !important;
+  --text-black: #000000 !important;
+  --text-transparent: transparent !important;
+  
+  /* Gradients */
+  --gradient-primary: var(--primary-500) !important;
+  --gradient-secondary: var(--secondary-500) !important;
+  
+  /* Shader previews */
+  --shader-preview-gradient: linear-gradient(135deg, var(--primary-500) 0%, var(--secondary-500) 100%) !important;
+  --shader-preview-primary: var(--primary-500) !important;
+  --shader-preview-secondary: var(--secondary-500) !important;
+  
+  /* Status colors - Modrinth compatible */
+  --status-success: var(--primary-500) !important;     /* Use Modrinth green */
+  --status-success-hover: var(--primary-600) !important;
+  --status-success-bg: rgba(27, 217, 106, 0.1) !important;
+  --status-error: var(--red-500) !important;
+  --status-error-bg: rgba(248, 81, 73, 0.1) !important;
+  --status-warning: var(--yellow-500) !important;
+  --status-warning-bg: rgba(247, 144, 9, 0.1) !important;
+  --status-info: var(--blue-500) !important;
+  --status-info-bg: rgba(88, 166, 255, 0.1) !important;
+  
+  /* Loader colors */
+  --loader-primary: var(--primary-500) !important;
+  --loader-secondary: var(--secondary-500) !important;
+  --loader-accent: cc !important;
+  
+  /* Badge colors */
+  --badge-installed: var(--status-success) !important;
+  --badge-available: var(--input) !important;
+  --badge-premium: var(--yellow-500) !important;
+  --badge-premium-text: #1f2937 !important;
+  --badge-category: var(--dark-700) !important;
+  --badge-category-text: var(--text-white) !important;
+
+  /* ========================================
+     GLASS MORPHISM & EFFECTS
+     ======================================== */
+  
+  /* Enhanced glass effects with Modrinth colors */
+  --glass-bg: rgba(27, 217, 106, 0.05) !important;
+  --glass-border: rgba(27, 217, 106, 0.15) !important;
+  --glass-shadow: 0 8px 32px rgba(27, 217, 106, 0.15) !important;
+  
+  /* Hover states */
+  --hover-overlay: rgba(27, 217, 106, 0.1) !important;
+  --active-overlay: rgba(27, 217, 106, 0.2) !important;
+}
+
+/* ========================================
+   OPTIONAL ENHANCEMENTS
+   ======================================== */
+

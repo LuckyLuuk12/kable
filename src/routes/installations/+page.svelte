@@ -31,7 +31,7 @@
       class="btn btn-primary new-installation-btn"
       on:click={() => showCreateModal = true}
     >
-      <Icon name="plus" size="md" />
+      <Icon name="plus" size="md" forceType="svg" />
       New Installation
     </button>
     <div class="view-controls">
@@ -82,12 +82,12 @@
         margin: 0 0 0.5rem;
         font-size: 2rem;
         font-weight: 700;
-        color: $text;
+        color: var(--text);
         text-align: center;
       }
       p {
         margin: 0;
-        color: $placeholder;
+        color: var(--placeholder);
         font-size: 1rem;
         text-align: center;
       }
@@ -105,16 +105,16 @@
       font-size: 1.1rem;
       padding: 0.75rem 1.5rem;
       background: none;
-      color: $primary;
-      border-radius: $border-radius;
+      color: var(--primary);
+      border-radius: var(--border-radius);
       box-shadow: none;
-      border: 1.5px solid $primary;
+      border: 1.5px solid var(--primary);
       font-weight: 600;
       transition: color 0.13s, background 0.13s, border 0.13s;
       &:hover, &:focus {
-        background: rgba($primary, 0.10);
-        color: $primary-900;
-        border-color: $primary-700;
+        background: rgba(var(--primary), 0.10);
+        color: var(--primary-900);
+        border-color: var(--primary-700);
       }
     }
     .view-controls {
@@ -126,22 +126,22 @@
         justify-content: center;
         padding: 0.6rem 0.9rem;
         font-size: 1rem;
-        border-radius: $border-radius;
-        background: $card;
-        color: $text;
-        border: 1px solid $dark-500;
+        border-radius: var(--border-radius);
+        background: var(--card);
+        color: var(--text);
+        border: 1px solid var(--dark-500);
         transition: background 0.13s, color 0.13s, border-color 0.13s;
         
         &:hover {
-          background: rgba($primary, 0.10);
-          color: $primary-900;
-          border-color: $primary-800;
+          background: rgba(var(--primary), 0.10);
+          color: var(--primary-900);
+          border-color: var(--primary-800);
         }
         
         &.is-active {
-          background: rgba($primary, 0.10);
-          color: $primary-900;
-          border-color: $primary-800;
+          background: rgba(var(--primary), 0.10);
+          color: var(--primary-900);
+          border-color: var(--primary-800);
         }
         
         &:focus {

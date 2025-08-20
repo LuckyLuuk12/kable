@@ -100,13 +100,13 @@
 @use '@kablan/clean-ui/scss/_variables.scss' as *;
 .create-installation-modal {
   padding: 2rem;
-  background: $container;
-  border-radius: $border-radius;
+  background: var(--container);
+  border-radius: var(--border-radius);
   max-width: 28rem;
   margin: 0 auto;
   h2 {
     margin-bottom: 1rem;
-    color: $text;
+    color: var(--text);
   }
   form {
     display: flex;
@@ -121,15 +121,15 @@
         align-items: center;
         gap: 0.5rem;
         padding: 0.75rem 1.25rem;
-        border-radius: $border-radius;
+        border-radius: var(--border-radius);
         border: none;
         font-size: 1rem;
         cursor: pointer;
-        background: $container;
-        color: $text;
+        background: var(--container);
+        color: var(--text);
         transition: box-shadow 0.2s;
         &.selected {
-          box-shadow: 0 0 0 2px $primary;
+          box-shadow: 0 0 0 2px var(--primary);
         }
         .loader-icon {
           display: flex;
@@ -141,7 +141,7 @@
       }
     }
     label {
-      color: $text;
+      color: var(--text);
       font-size: 1rem;
       display: flex;
       flex-direction: column;
@@ -152,23 +152,23 @@
       gap: 1rem;
       button {
         padding: 0.5rem 1.5rem;
-        border-radius: $border-radius;
+        border-radius: var(--border-radius);
         border: none;
         font-size: 1rem;
         cursor: pointer;
         &.btn-primary {
-          background: $primary;
-          color: $text;
+          background: var(--primary);
+          color: var(--text);
         }
         &.btn-secondary {
-          background: $container;
-          color: $text;
+          background: var(--container);
+          color: var(--text);
         }
       }
     }
   }
   .error-message {
-    color: $red;
+    color: var(--red);
     margin-bottom: 1rem;
   }
 }

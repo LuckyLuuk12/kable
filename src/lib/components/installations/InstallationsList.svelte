@@ -213,7 +213,7 @@
                 </div>
                 <button 
                   class="btn btn-primary play-below-icon" 
-                  style="background: linear-gradient(90deg, {loaderColors[installation.id] || '#3a7bd5'} 60%, {loaderColors[installation.id] ? `${loaderColors[installation.id]}cc` : '#00b09b'} 100%); color: #fff !important;"
+                  style="background: linear-gradient(90deg, {loaderColors[installation.id] || 'var(--loader-primary)'} 60%, {loaderColors[installation.id] ? `${loaderColors[installation.id]}cc` : 'var(--loader-secondary)'} 100%); color: var(--text-white) !important;"
                   on:click={async () => { await Launcher.launchInstallation(installation); }}
                   disabled={isLoading}
                 >
@@ -288,7 +288,7 @@
                 </div>
                 <button 
                   class="btn btn-primary list-play-btn" 
-                  style="background: linear-gradient(90deg, {loaderColors[installation.id] || '#3a7bd5'} 60%, {loaderColors[installation.id] ? `${loaderColors[installation.id]}cc` : '#00b09b'} 100%); color: #fff !important;"
+                  style="background: linear-gradient(90deg, {loaderColors[installation.id] || 'var(--loader-primary)'} 60%, {loaderColors[installation.id] ? `${loaderColors[installation.id]}cc` : 'var(--loader-secondary)'} 100%); color: var(--text-white) !important;"
                   on:click={async () => { await Launcher.launchInstallation(installation); }}
                   disabled={isLoading}
                 >
@@ -386,20 +386,20 @@
   @use "@kablan/clean-ui/scss/_variables.scss" as *;
   .installations-list {
     padding: 2rem;
-    border-radius: $border-radius;
-    border: 1px solid rgba($dark-400, 0.03);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(var(--dark-400), 0.03);
     background:
-      radial-gradient(circle at var(--dot1-x, 30%) var(--dot1-y, 40%), rgba($primary-900, 0.045) 0%, transparent 18%),
-      radial-gradient(circle at var(--dot2-x, 70%) var(--dot2-y, 60%), rgba($secondary, 0.035) 0%, transparent 15%),
-      radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 20%), rgba($tertiary, 0.03) 0%, transparent 13%),
-      radial-gradient(circle at var(--dot4-x, 80%) var(--dot4-y, 80%), rgba($quaternary, 0.035) 0%, transparent 16%),
-      radial-gradient(circle at var(--dot5-x, 20%) var(--dot5-y, 70%), rgba($primary, 0.025) 0%, transparent 12%),
-      radial-gradient(circle at var(--dot6-x, 50%) var(--dot6-y, 10%), rgba($secondary, 0.03) 0%, transparent 10%),
-      radial-gradient(circle at var(--dot7-x, 10%) var(--dot7-y, 80%), rgba($tertiary, 0.025) 0%, transparent 11%),
-      radial-gradient(circle at var(--dot8-x, 85%) var(--dot8-y, 30%), rgba($quaternary, 0.03) 0%, transparent 13%),
-      radial-gradient(circle at var(--dot9-x, 40%) var(--dot9-y, 85%), rgba($primary-900, 0.035) 0%, transparent 12%),
-      radial-gradient(circle at var(--dot10-x, 75%) var(--dot10-y, 15%), rgba($primary, 0.03) 0%, transparent 10%),
-      linear-gradient(120deg, rgba($container, 0.98) 60%, rgba($primary, 0.04) 100%);
+      radial-gradient(circle at var(--dot1-x, 30%) var(--dot1-y, 40%), rgba(var(--primary-900), 0.045) 0%, transparent 18%),
+      radial-gradient(circle at var(--dot2-x, 70%) var(--dot2-y, 60%), rgba(var(--secondary), 0.035) 0%, transparent 15%),
+      radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 20%), rgba(var(--tertiary), 0.03) 0%, transparent 13%),
+      radial-gradient(circle at var(--dot4-x, 80%) var(--dot4-y, 80%), rgba(var(--quaternary), 0.035) 0%, transparent 16%),
+      radial-gradient(circle at var(--dot5-x, 20%) var(--dot5-y, 70%), rgba(var(--primary), 0.025) 0%, transparent 12%),
+      radial-gradient(circle at var(--dot6-x, 50%) var(--dot6-y, 10%), rgba(var(--secondary), 0.03) 0%, transparent 10%),
+      radial-gradient(circle at var(--dot7-x, 10%) var(--dot7-y, 80%), rgba(var(--tertiary), 0.025) 0%, transparent 11%),
+      radial-gradient(circle at var(--dot8-x, 85%) var(--dot8-y, 30%), rgba(var(--quaternary), 0.03) 0%, transparent 13%),
+      radial-gradient(circle at var(--dot9-x, 40%) var(--dot9-y, 85%), rgba(var(--primary-900), 0.035) 0%, transparent 12%),
+      radial-gradient(circle at var(--dot10-x, 75%) var(--dot10-y, 15%), rgba(var(--primary), 0.03) 0%, transparent 10%),
+      linear-gradient(120deg, rgba(var(--container), 0.98) 60%, rgba(var(--primary), 0.04) 100%);
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08); // 2px 4px
     overflow: scroll;
     animation: move-dots 32s ease infinite alternate;
@@ -569,8 +569,8 @@
 
   /* List Layout Styles */
   .installation-list-item {
-    background: $card;
-    border-radius: $border-radius;
+    background: var(--card);
+    border-radius: var(--border-radius);
     box-shadow: 0 0.125rem 0.5rem rgba(80,80,90,0.06), 0 0.0625rem 0.125rem rgba(80,80,90,0.04);
     border: 0.0625rem solid transparent;
     transition: all 0.15s, border 0.15s;
@@ -586,7 +586,7 @@
     
     &:hover {
       box-shadow: 0 0.25rem 1rem rgba(80,80,90,0.1), 0 0.125rem 0.25rem rgba(80,80,90,0.06);
-      border-color: var(--loader-color, $primary);
+      border-color: var(--loader-color, var(--primary));
     }
   }
 
@@ -612,7 +612,7 @@
       align-items: center;
       justify-content: center;
       font-size: 1.25rem;
-      background: $container;
+      background: var(--container);
       box-shadow: 0 0.0625rem 0.25rem rgba(0,0,0,0.04);
       position: relative;
     }
@@ -626,7 +626,7 @@
     box-shadow: 0 0.125rem 0.5rem rgba(80,80,90,0.08);
     transition: all 0.15s;
     letter-spacing: 0.02em;
-    color: #fff !important;
+    color: var(--text-white) !important;
     padding: 0.5rem 1rem;
     
     &:hover, &:focus {
@@ -655,7 +655,7 @@
       margin: 0;
       font-size: 1rem;
       font-weight: 700;
-      color: $text;
+      color: var(--text);
       text-overflow: ellipsis;
       overflow: hidden;
       white-space: nowrap;
@@ -700,7 +700,7 @@
       padding: 0.375rem 0.75rem;
       border-radius: 0.375rem;
       cursor: pointer;
-      color: $placeholder;
+      color: var(--placeholder);
       font-size: 0.8rem;
       font-weight: 500;
       transition: all 0.15s;
@@ -710,16 +710,16 @@
       white-space: nowrap;
       
       &:hover, &:focus {
-        color: $text;
-        background: rgba($dark-200, 0.08);
+        color: var(--text);
+        background: rgba(var(--dark-200), 0.08);
         outline: none;
       }
       
       &.danger {
-        color: $red-700;
+        color: var(--red-700);
         
         &:hover, &:focus {
-          background: rgba($red-700, 0.08);
+          background: rgba(var(--red-700), 0.08);
         }
       }
     }
@@ -742,7 +742,7 @@
     .list-version {
       font-size: 0.75rem;
       font-weight: 500;
-      background: $container;
+      background: var(--container);
       border-radius: 0.375rem;
       padding: 0.125rem 0.5rem;
       opacity: 0.8;
@@ -760,7 +760,7 @@
       align-items: center;
       gap: 0.375rem;
       font-size: 0.8rem;
-      color: $placeholder;
+      color: var(--placeholder);
       white-space: nowrap;
       
       span {
@@ -800,8 +800,8 @@
         outline: none;
       }
     }
-    background: $card;
-    border-radius: $border-radius;
+    background: var(--card);
+    border-radius: var(--border-radius);
     box-shadow: 0 0.125rem 0.75rem rgba(80,80,90,0.07), 0 0.09375rem 0.25rem rgba(80,80,90,0.04); // 2px 12px, 1.5px 4px
     border: 0.0625rem solid transparent; // 1px
     display: flex;
@@ -819,7 +819,7 @@
     }
     &:hover {
       box-shadow: 0 0.375rem 1.5rem rgba(80,80,90,0.13), 0 0.125rem 0.5rem rgba(80,80,90,0.07); // 6px 24px, 2px 8px
-      border-color: var(--loader-color, $primary);
+      border-color: var(--loader-color, var(--primary));
     }
     &.small {
       padding: 0.6rem 0.6rem 0.6rem 0.6rem;
@@ -855,20 +855,20 @@
       background: none !important;
       border: none;
       box-shadow: none;
-      color: $primary;
+      color: var(--primary);
       font-weight: 600;
       transition: color 0.13s;
       padding: 0;
-      color: $placeholder;
+      color: var(--placeholder);
       &:hover, &:focus {
-        color: $text;
+        color: var(--text);
       }
       &.btn-danger, &.btn.btn-danger, &.btn-danger:focus, &.btn-danger:hover {
-        color: $red-700;
+        color: var(--red-700);
       }
     }
     .btn-danger, .btn.btn-danger {
-      color: $red-700;
+      color: var(--red-700);
     }
   }
   .installation-main {
@@ -892,7 +892,7 @@
     align-items: center;
     justify-content: center;
     font-size: 1.5rem;
-    background: $container;
+    background: var(--container);
     box-shadow: 0 0.0625rem 0.25rem rgba(0,0,0,0.04); // 1px 4px
     flex-shrink: 0;
     position: relative;
@@ -910,7 +910,7 @@
     box-shadow: 0 0.125rem 0.75rem rgba(80,80,90,0.10); // 2px 12px
     transition: background 0.15s, box-shadow 0.15s, filter 0.15s;
     letter-spacing: 0.02em;
-    color: #fff !important;
+    color: var(--text-white) !important;
     &:hover, &:focus {
       filter: brightness(1.13) saturate(1.18);
       box-shadow: 0 0.375rem 2rem 0 rgba(80,80,90,0.18), 0 0 0 0.125rem rgba(0,0,0,0.08); // 6px 32px 2px
@@ -932,9 +932,9 @@
     position: absolute;
     left: -0.75rem;
     top: -1rem;
-    background: $container;
-    color: $text;
-    border: 0.0625rem solid $dark-200; // 1px
+    background: var(--container);
+    color: var(--text);
+    border: 0.0625rem solid var(--dark-200); // 1px
     border-radius: 0.22em;
     padding: 0.03em 0.28em;
     font-size: 0.7em;
@@ -960,7 +960,7 @@
         margin: 0;
         font-size: 1.18rem;
         font-weight: 800;
-        color: $text;
+        color: var(--text);
         text-overflow: ellipsis;
         overflow: hidden;
         white-space: nowrap;
@@ -993,7 +993,7 @@
     }
   }
     .meta-key {
-      color: $text;
+      color: var(--text);
       font-weight: 500;
       opacity: 0.8;
       text-align: left;
@@ -1006,9 +1006,9 @@
       text-align: right;
     }
     .meta-value {
-      color: $placeholder;
+      color: var(--placeholder);
       font-weight: 400;
-      background: rgba($dark-200, 0.08);
+      background: rgba(var(--dark-200), 0.08);
       border-radius: 0.4em;
       padding: 0.05em 0.45em;
       display: flex;
@@ -1042,9 +1042,9 @@
   }
   .loader-version {
     font-size: 0.82rem;
-    color: $placeholder;
+    color: var(--placeholder);
     font-weight: 500;
-    background: $container;
+    background: var(--container);
     border-radius: 0.5em;
     padding: 0.08em 0.4em;
     text-align: left;
@@ -1088,9 +1088,9 @@
         background: none;
         border: none;
         padding: 0.5rem 0.75rem;
-        border-radius: $border-radius;
+        border-radius: var(--border-radius);
         cursor: pointer;
-        color: $text;
+        color: var(--text);
         transition: background 0.12s;
         height: 2.25rem;
         min-height: 2.25rem;
@@ -1106,9 +1106,9 @@
         right: 0;
         top: 100%;
         min-width: 10rem;
-        background: rgba($card, 0.94);
-        border: 1px solid $dark-200;
-        border-radius: $border-radius;
+        background: rgba(var(--card), 0.94);
+        border: 1px solid var(--dark-200);
+        border-radius: var(--border-radius);
         box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15), 0 0.125rem 0.5rem rgba(0,0,0,0.08);
         z-index: 1;
         flex-direction: column;
@@ -1118,7 +1118,7 @@
         
         .dropdown-separator {
           height: 1px;
-          background: $dark-200;
+          background: var(--dark-200);
           margin: 0.3rem 0;
         }
         
@@ -1128,7 +1128,7 @@
           border: none;
           padding: 0.5rem 1rem;
           text-align: left;
-          color: $text;
+          color: var(--text);
           font-size: 0.875rem;
           border-radius: 0;
           cursor: pointer;
@@ -1138,12 +1138,12 @@
           transition: background 0.12s;
           
           &:hover {
-            background: rgba($dark-200, 0.1);
+            background: rgba(var(--dark-200), 0.1);
           }
         }
         
         .danger {
-          color: $red-700;
+          color: var(--red-700);
         }
       }
       &:hover .dropdown-menu,
@@ -1166,17 +1166,17 @@
     padding: 4rem 2rem;
     .empty-icon {
       margin-bottom: 1.5rem;
-      color: $placeholder;
+      color: var(--placeholder);
     }
     h3 {
       margin: 0 0 1rem;
       font-size: 1.5rem;
       font-weight: 600;
-      color: $text;
+      color: var(--text);
     }
     p {
       margin: 0 0 2rem;
-      color: $placeholder;
+      color: var(--placeholder);
       font-size: 1rem;
     }
   }
@@ -1186,7 +1186,7 @@
     justify-content: center;
     gap: 0.5rem;
     padding: 4rem 2rem;
-    color: $placeholder;
+    color: var(--placeholder);
     :global(.icon) {
       animation: spin 1s linear infinite;
     }
@@ -1196,10 +1196,10 @@
     align-items: center;
     gap: 0.5rem;
     padding: 1rem;
-    background: rgba($red, 0.1);
-    border: 1px solid $red;
-    border-radius: $border-radius;
-    color: $red;
+    background: rgba(var(--red), 0.1);
+    border: 1px solid var(--red);
+    border-radius: var(--border-radius);
+    color: var(--red);
     margin-bottom: 1rem;
   }
   @keyframes spin {

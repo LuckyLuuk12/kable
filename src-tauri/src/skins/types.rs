@@ -1,9 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 /// Represents the skin model type in Minecraft
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
 pub enum SkinModel {
     /// Classic model (Steve) - 4px wide arms
+    #[default]
     Classic,
     /// Slim model (Alex) - 3px wide arms
     Slim,
@@ -25,12 +26,6 @@ impl SkinModel {
             "slim" | "alex" => Some(SkinModel::Slim),
             _ => None,
         }
-    }
-}
-
-impl Default for SkinModel {
-    fn default() -> Self {
-        SkinModel::Classic
     }
 }
 

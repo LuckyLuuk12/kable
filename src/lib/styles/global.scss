@@ -15,7 +15,7 @@
     margin: 0 0 0.5rem 0;
     font-size: 2.5rem;
     font-weight: 700;
-    background: linear-gradient(135deg, $primary, $tertiary);
+    background: linear-gradient(135deg, var(--primary), var(--tertiary));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -23,24 +23,24 @@
   
   p {
     margin: 0;
-    color: $placeholder;
+    color: var(--placeholder);
     font-size: 1.1rem;
   }
 
   .save-status {
     margin-top: 1rem;
     padding: 0.5rem 1rem;
-    border-radius: $border-radius;
+    border-radius: var(--border-radius);
     font-weight: 500;
     
     &.success {
-      background: rgba($green, 0.1);
-      color: $green;
+      background: var(--status-success-bg);
+      color: var(--status-success);
     }
     
     &.error {
-      background: rgba($red, 0.1);
-      color: $red;
+      background: var(--status-error-bg);
+      color: var(--status-error);
     }
   }
 }
@@ -51,9 +51,9 @@
   align-items: center;
   gap: 1rem;
   padding: 1.5rem;
-  background: rgba($yellow, 0.1);
-  border: 1px solid $yellow;
-  border-radius: $border-radius-large;
+  background: var(--status-warning-bg);
+  border: 1px solid var(--status-warning);
+  border-radius: var(--border-radius-large);
   
   .warning-icon {
     font-size: 2rem;
@@ -64,12 +64,12 @@
     
     h3 {
       margin: 0 0 0.5rem 0;
-      color: $yellow;
+      color: var(--status-warning);
     }
     
     p {
       margin: 0 0 1rem 0;
-      color: $placeholder;
+      color: var(--placeholder);
     }
   }
 }
@@ -83,9 +83,9 @@
     align-items: center;
     gap: 1rem;
     padding: 1.5rem;
-    background: rgba($blue, 0.1);
-    border: 1px solid $blue;
-    border-radius: $border-radius-large;
+    background: var(--status-info-bg);
+    border: 1px solid var(--status-info);
+    border-radius: var(--border-radius-large);
     
     .banner-icon {
       font-size: 2rem;
@@ -96,12 +96,12 @@
       
       h3 {
         margin: 0 0 0.5rem 0;
-        color: $blue;
+        color: var(--blue);
       }
       
       p {
         margin: 0;
-        color: $placeholder;
+        color: var(--placeholder);
       }
     }
   }
@@ -120,12 +120,12 @@
   
   h3 {
     margin: 0 0 1rem 0;
-    color: $text;
+    color: var(--text);
   }
   
   p {
     margin: 0 0 2rem 0;
-    color: $placeholder;
+    color: var(--placeholder);
     line-height: 1.5;
   }
 }
@@ -137,7 +137,7 @@
 // Base button styles
 %btn-base {
   border: none;
-  border-radius: $border-radius;
+  border-radius: var(--border-radius);
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -157,48 +157,48 @@
   @extend %btn-base;
   
   &.btn-primary {
-    background: $primary;
-    color: white;
+    background: var(--primary);
+    color: var(--text-white);
     
     &:hover:not(:disabled) {
-      background: $primary-600;
+      background: var(--primary-600);
       transform: translateY(-1px);
     }
   }
   
   &.btn-secondary {
-    background: $button;
-    color: $text;
+    background: var(--button);
+    color: var(--text);
     
     &:hover:not(:disabled) {
-      background: $button-hover;
+      background: var(--button-hover);
     }
   }
   
   &.btn-success {
-    background: $green;
-    color: white;
+    background: var(--green);
+    color: var(--text-white);
     
     &:hover:not(:disabled) {
-      background: $green-600;
+      background: var(--green-600);
     }
   }
   
   &.btn-warning {
-    background: $yellow;
-    color: white;
+    background: var(--yellow);
+    color: var(--text-white);
     
     &:hover:not(:disabled) {
-      background: $yellow-600;
+      background: var(--yellow-600);
     }
   }
   
   &.btn-error, &.btn-danger {
-    background: $red;
-    color: white;
+    background: var(--red);
+    color: var(--text-white);
     
     &:hover:not(:disabled) {
-      background: $red-600;
+      background: var(--red-600);
     }
   }
   
@@ -223,12 +223,12 @@
 .sign-in-btn, .refresh-btn {
   @extend %btn-base;
   padding: 0.75rem 1.5rem;
-  background: $primary;
-  color: white;
+  background: var(--primary);
+  color: var(--text-white);
   font-size: 1rem;
   
   &:hover:not(:disabled) {
-    background: $primary-600;
+    background: var(--primary-600);
     transform: translateY(-1px);
   }
 }
@@ -246,65 +246,65 @@
   }
   
   &.install-btn {
-    background: $primary;
-    color: white;
+    background: var(--primary);
+    color: var(--text-white);
     
     &:hover:not(:disabled) {
-      background: $primary-600;
+      background: var(--primary-600);
     }
   }
   
   &.uninstall-btn {
-    background: $red;
-    color: white;
+    background: var(--red);
+    color: var(--text-white);
     
     &:hover:not(:disabled) {
-      background: $red-600;
+      background: var(--red-600);
     }
   }
   
   &.edit-btn {
-    background: $primary;
-    color: white;
+    background: var(--primary);
+    color: var(--text-white);
     
     &:hover:not(:disabled) {
-      background: $primary-600;
+      background: var(--primary-600);
     }
   }
   
   &.duplicate-btn {
-    background: $input;
-    color: $text;
+    background: var(--input);
+    color: var(--text);
     
     &:hover:not(:disabled) {
-      background: $button-hover;
+      background: var(--button-hover);
     }
   }
   
   &.delete-btn {
-    background: $red;
-    color: white;
+    background: var(--red);
+    color: var(--text-white);
     
     &:hover:not(:disabled) {
-      background: $red-600;
+      background: var(--red-600);
     }
   }
   
   &.play-btn {
-    background: $green;
-    color: white;
+    background: var(--green);
+    color: var(--text-white);
     
     &:hover:not(:disabled) {
-      background: $green-600;
+      background: var(--green-600);
     }
   }
   
   &.info-btn, &.preview-btn {
-    background: $input;
-    color: $text;
+    background: var(--input);
+    color: var(--text);
     
     &:hover:not(:disabled) {
-      background: $button-hover;
+      background: var(--button-hover);
     }
   }
 }
@@ -338,21 +338,21 @@
     left: 1rem;
     top: 50%;
     transform: translateY(-50%);
-    color: $placeholder;
+    color: var(--placeholder);
   }
   
   .search-input {
     width: 100%;
     padding: 0.75rem 1rem 0.75rem 2.5rem;
-    border: 1px solid $dark-600;
+    border: 1px solid var(--dark-600);
     border-radius: 0.75rem;
-    background: $container;
-    color: $text;
+    background: var(--container);
+    color: var(--text);
     font-size: 1rem;
     
     &:focus {
       outline: none;
-      border-color: $primary;
+      border-color: var(--primary);
     }
   }
 }
@@ -364,15 +364,15 @@
 
 .category-select, .sort-select {
   padding: 0.75rem 1rem;
-  border: 1px solid $dark-600;
+  border: 1px solid var(--dark-600);
   border-radius: 0.75rem;
-  background: $container;
-  color: $text;
+  background: var(--container);
+  color: var(--text);
   cursor: pointer;
   
   &:focus {
     outline: none;
-    border-color: $primary;
+    border-color: var(--primary);
   }
 }
 
@@ -389,7 +389,7 @@
   
   h2 {
     margin: 0;
-    color: $text;
+    color: var(--text);
     font-size: 1.5rem;
   }
 }
@@ -401,45 +401,45 @@
   
   .view-btn {
     padding: 0.5rem 1rem;
-    border: 1px solid $dark-600;
-    border-radius: $border-radius;
-    background: $container;
-    color: $text;
+    border: 1px solid var(--dark-600);
+    border-radius: var(--border-radius);
+    background: var(--container);
+    color: var(--text);
     cursor: pointer;
     transition: all 0.2s ease;
     
     &.active {
-      background: $primary;
+      background: var(--primary);
       color: white;
-      border-color: $primary;
+      border-color: var(--primary);
     }
     
     &:hover:not(.active) {
-      background: $button-hover;
+      background: var(--button-hover);
     }
   }
 }
 
 // Card layouts
 .card {
-  background: $card;
-  border: 1px solid $dark-600;
-  border-radius: $border-radius-large;
+  background: var(--card);
+  border: 1px solid var(--dark-600);
+  border-radius: var(--border-radius-large);
   padding: 1.5rem;
   transition: all 0.2s ease;
   
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    border-color: $primary;
+    border-color: var(--primary);
   }
   
   &.installed {
-    border-color: $green;
+    border-color: var(--green);
   }
   
   &.premium {
-    border-color: $tertiary;
+    border-color: var(--tertiary);
   }
 }
 
@@ -462,6 +462,62 @@
 }
 
 // ========================================
+// CSS VARIABLES FOR THEMING
+// ========================================
+
+:root {
+  // Common text colors
+  --text-white: #ffffff;
+  --text-black: #000000;
+  --text-transparent: transparent;
+  
+  // Gradient colors for installations/progress bars
+  --gradient-primary: #3a7bd5;
+  --gradient-secondary: #00b09b;
+  
+  // Shader preview gradients
+  --shader-preview-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --shader-preview-primary: #667eea;
+  --shader-preview-secondary: #764ba2;
+  
+  // Status colors
+  --status-success: #22c55e;
+  --status-success-hover: #16a34a;
+  --status-success-bg: #f0fdf4;
+  --status-error: #ef4444;
+  --status-error-bg: #fef2f2;
+  --status-warning: #f59e0b;
+  --status-warning-bg: #fffbeb;
+  --status-info: #3b82f6;
+  --status-info-bg: #eff6ff;
+  
+  // Loading/progress indicators
+  --loader-primary: #3a7bd5;
+  --loader-secondary: #00b09b;
+  --loader-accent: #cc;
+  
+  // Badge colors
+  --badge-installed: #22c55e;
+  --badge-available: var(--input);
+  --badge-premium: rgba(255, 215, 0, 0.9);
+  --badge-premium-text: #333;
+  --badge-category: rgba(0, 0, 0, 0.7);
+  --badge-category-text: #ffffff;
+
+  // Common UI variables for compatibility
+  --accent: #8b5cf6;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --warning-light: #fffbeb;
+  --error: #ef4444;
+  --info: #3b82f6;
+  --info-light: #eff6ff;
+  --border: #374151;
+  --surface: #1f2937;
+  --surface-hover: #374151;
+}
+
+// ========================================
 // UTILITY CLASSES
 // ========================================
 
@@ -472,13 +528,13 @@
   align-items: center;
   justify-content: center;
   padding: 4rem;
-  color: $placeholder;
+  color: var(--placeholder);
   
   .spinner {
     width: 40px;
     height: 40px;
-    border: 4px solid $input;
-    border-top: 4px solid $primary;
+    border: 4px solid var(--input);
+    border-top: 4px solid var(--primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 1rem;
@@ -504,23 +560,23 @@
   display: inline-block;
   
   &.installed {
-    background: $green;
-    color: white;
+    background: var(--badge-installed);
+    color: var(--text-white);
   }
   
   &.available {
-    background: $input;
-    color: $text;
+    background: var(--badge-available);
+    color: var(--text);
   }
   
   &.premium {
-    background: rgba(255, 215, 0, 0.9);
-    color: #333;
+    background: var(--badge-premium);
+    color: var(--badge-premium-text);
   }
   
   &.category {
-    background: rgba(0, 0, 0, 0.7);
-    color: white;
+    background: var(--badge-category);
+    color: var(--badge-category-text);
   }
 }
 
@@ -532,11 +588,11 @@
   margin-bottom: 0.25rem;
   
   .meta-label {
-    color: $placeholder;
+    color: var(--placeholder);
   }
   
   .meta-value {
-    color: $text;
+    color: var(--text);
     font-weight: 500;
   }
 }
@@ -548,12 +604,12 @@
   margin-bottom: 0.5rem;
   
   .label {
-    color: $placeholder;
+    color: var(--placeholder);
     font-size: 0.875rem;
   }
   
   .value {
-    color: $text;
+    color: var(--text);
     font-size: 0.875rem;
     font-weight: 500;
   }

@@ -78,41 +78,41 @@
         align-items: center;
         gap: 0.5rem;
         padding-bottom: 0.5rem;
-        background: $background;
-        border-bottom: 1px solid rgba($primary, 0.08);
+        background: var(--background);
+        border-bottom: 1px solid rgba(var(--primary), 0.08);
         
         .tab-btn {
             padding: 0.6rem 1.2rem;
-            border: 1px solid $dark-600;
+            border: 1px solid var(--dark-600);
             border-radius: 0.5rem;
-            background: $card;
-            color: $text;
+            background: var(--card);
+            color: var(--text);
             font-weight: 500;
             font-size: 0.9em;
             cursor: pointer;
             transition: all 0.15s;
             
             &:hover {
-                border-color: $primary;
-                background: rgba($primary, 0.05);
+                border-color: var(--primary);
+                background: rgba(var(--primary), 0.05);
             }
             
             &.active {
-                background: linear-gradient(135deg, $primary 0%, $secondary 100%);
-                color: white;
-                border-color: transparent;
-                box-shadow: 0 2px 8px rgba($primary, 0.25);
+                background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+                color: var(--text-white);
+                border-color: var(--text-transparent);
+                box-shadow: 0 2px 8px rgba(var(--primary), 0.25);
             }
         }
         
         .current-installation {
             margin-left: auto;
             padding: 0.6rem 1rem;
-            background: rgba($primary, 0.08);
-            border: 1px solid rgba($primary, 0.15);
+            background: rgba(var(--primary), 0.08);
+            border: 1px solid rgba(var(--primary), 0.15);
             border-radius: 0.5rem;
             font-size: 0.85em;
-            color: $primary;
+            color: var(--primary);
             
             strong {
                 font-weight: 600;

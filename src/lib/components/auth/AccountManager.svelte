@@ -47,6 +47,7 @@
 
   // Format token expiry for display
   function formatTokenExpiry(account: LauncherAccount): string {
+    console.log("Account expires at: ", account.access_token_expires_at);
     if (!account.access_token_expires_at) return 'Never expires';
     const expiryDate = new Date(account.access_token_expires_at);
     const now = new Date();
@@ -54,8 +55,10 @@
     if (diff <= 0) return 'Expired';
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     if (days > 0) return `Expires in ${days} day${days > 1 ? 's' : ''}`;
     if (hours > 0) return `Expires in ${hours} hour${hours > 1 ? 's' : ''}`;
+    if (minutes > 0) return `Expires in ${minutes} minute${minutes > 1 ? 's' : ''}`;
     return 'Expires soon';
   }
 
@@ -241,9 +244,9 @@
     background: none;
     border: none;
     padding: 0.5rem 0.75rem;
-    border-radius: $border-radius;
+    border-radius: var(--border-radius);
     cursor: pointer;
-    color: $text;
+    color: var(--text);
     transition: background 0.12s;
     height: 2.25rem;
     min-height: 2.25rem;
@@ -252,7 +255,7 @@
     align-items: center;
     z-index: 10;
     &:hover, &:focus {
-      background: $button-hover;
+      background: var(--button-hover);
     }
   }
 
@@ -262,9 +265,9 @@
     transition: opacity 0.15s cubic-bezier(0.4,0,0.2,1), z-index 0s linear 0.15s;
     position: absolute;
     min-width: 180px;
-    background: rgba($card, 0.94);
-    border: 1px solid $dark-200;
-    border-radius: $border-radius;
+    background: rgba(var(--card), 0.94);
+    border: 1px solid var(--dark-200);
+    border-radius: var(--border-radius);
     box-shadow: 0 2px 16px 4px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
     z-index: 1;
     flex-direction: column;
@@ -274,7 +277,7 @@
     display: flex;
     .dropdown-separator {
       height: 1px;
-      background: $dark-200;
+      background: var(--dark-200);
       margin: 0.3rem 0;
     }
     button {
@@ -283,7 +286,7 @@
       border: none;
       padding: 0.5rem 1rem;
       text-align: left;
-      color: $text;
+      color: var(--text);
       font-size: 1rem;
       border-radius: 0;
       cursor: pointer;
@@ -293,7 +296,7 @@
       transition: background 0.12s;
     }
     .danger {
-      color: $red-700;
+      color: var(--red-700);
     }
   }
   
@@ -309,12 +312,12 @@
     border-radius: 50%;
     font-weight: 600;
     color: white;
-    border: 3px solid $dark-600;
+    border: 3px solid var(--dark-600);
     transition: border-color 0.2s ease;
     
     &.minecraft-head {
-      background: linear-gradient(135deg, $primary, $primary-600);
-      border-color: $primary;
+      background: linear-gradient(135deg, var(--primary), var(--primary-600));
+      border-color: var(--primary);
     }
     
     &.large {
@@ -339,18 +342,18 @@
     width: 16px;
     height: 16px;
     border-radius: 50%;
-    border: 3px solid $container;
+    border: 3px solid var(--container);
     
     &.online {
-      background: $green;
+      background: var(--green);
     }
     
     &.offline {
-      background: $yellow;
+      background: var(--yellow);
     }
     
     &.expired {
-      background: $red;
+      background: var(--red);
     }
   }
   .account-avatar-details-row {
@@ -378,7 +381,7 @@
       margin: 0 0 4px 0;
       font-size: 20px;
       font-weight: 600;
-      color: $text;
+      color: var(--text);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -387,7 +390,7 @@
     .account-type {
       margin: 0 0 8px 0;
       font-size: 14px;
-      color: $placeholder;
+      color: var(--placeholder);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -402,7 +405,7 @@
     min-width: 0;
     .account-id {
       font-size: 12px;
-      color: $placeholder;
+      color: var(--placeholder);
       font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
       white-space: nowrap;
       overflow: hidden;
@@ -410,21 +413,21 @@
     }
     .token-status {
       font-size: 13px;
-      color: $green;
+      color: var(--green);
       font-weight: 500;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       max-width: 180px;
       &.expired {
-        color: $red;
+        color: var(--red);
       }
     }
   }
   
   .account-id {
     font-size: 11px;
-    color: $placeholder;
+    color: var(--placeholder);
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     opacity: 0.8;
   }
@@ -432,8 +435,8 @@
   .no-accounts-container {
     text-align: center;
     padding: 48px 24px;
-    background: $container;
-    border: 1px solid $dark-600;
+    background: var(--container);
+    border: 1px solid var(--dark-600);
     border-radius: 1rem;
   }
   
@@ -444,7 +447,7 @@
       width: 64px;
       height: 64px;
       margin: 0 auto 16px;
-      background: linear-gradient(135deg, $primary, $primary-600);
+      background: linear-gradient(135deg, var(--primary), var(--primary-600));
       border-radius: 16px;
       display: flex;
       align-items: center;
@@ -456,20 +459,20 @@
       margin: 0 0 8px 0;
       font-size: 24px;
       font-weight: 600;
-      color: $text;
+      color: var(--text);
     }
     
     p {
       margin: 0;
       font-size: 16px;
-      color: $placeholder;
+      color: var(--placeholder);
       line-height: 1.5;
     }
   }
   
   .auth-flow-container {
-    background: $container;
-    border: 1px solid $dark-600;
+    background: var(--container);
+    border: 1px solid var(--dark-600);
     border-radius: 16px;
     overflow: hidden;
   }

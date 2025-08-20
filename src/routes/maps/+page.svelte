@@ -282,21 +282,21 @@ import { MapsService, SettingsService, Icon } from '$lib';
     
     h1 {
       margin: 0 0 0.5rem 0;
-      color: $text;
+      color: var(--text);
       font-size: 2.5rem;
       font-weight: 700;
     }
     
     p {
       margin: 0;
-      color: $placeholder;
+      color: var(--placeholder);
       font-size: 1.1rem;
     }
   }
 
   .error-message {
-    background: rgba($red, 0.1);
-    color: $red;
+    background: rgba(var(--red), 0.1);
+    color: var(--red);
     padding: 1rem;
     border-radius: 0.5rem;
     margin-bottom: 1rem;
@@ -307,8 +307,8 @@ import { MapsService, SettingsService, Icon } from '$lib';
   }
 
   .search-section {
-    background: $card;
-    border: 1px solid $dark-600;
+    background: var(--card);
+    border: 1px solid var(--dark-600);
     border-radius: 1rem;
     padding: 1.5rem;
     margin-bottom: 2rem;
@@ -335,21 +335,21 @@ import { MapsService, SettingsService, Icon } from '$lib';
       left: 1rem;
       top: 50%;
       transform: translateY(-50%);
-      color: $placeholder;
+      color: var(--placeholder);
     }
     
     .search-input {
       width: 100%;
       padding: 0.75rem 1rem 0.75rem 2.5rem;
-      border: 1px solid $dark-600;
+      border: 1px solid var(--dark-600);
       border-radius: 0.75rem;
-      background: $input;
-      color: $text;
+      background: var(--input);
+      color: var(--text);
       font-size: 1rem;
       
       &:focus {
         outline: none;
-        border-color: $primary;
+        border-color: var(--primary);
       }
     }
   }
@@ -363,22 +363,22 @@ import { MapsService, SettingsService, Icon } from '$lib';
 
   .category-select, .sort-select {
     padding: 0.75rem 1rem;
-    border: 1px solid $dark-600;
+    border: 1px solid var(--dark-600);
     border-radius: 0.75rem;
-    background: $input;
-    color: $text;
+    background: var(--input);
+    color: var(--text);
     font-size: 0.9rem;
     cursor: pointer;
     
     &:focus {
       outline: none;
-      border-color: $primary;
+      border-color: var(--primary);
     }
   }
 
   .worlds-section {
-    background: $card;
-    border: 1px solid $dark-600;
+    background: var(--card);
+    border: 1px solid var(--dark-600);
     border-radius: 1rem;
     padding: 2rem;
   }
@@ -391,7 +391,7 @@ import { MapsService, SettingsService, Icon } from '$lib';
     
     h2 {
       margin: 0;
-      color: $text;
+      color: var(--text);
       font-size: 1.5rem;
       font-weight: 600;
     }
@@ -402,13 +402,13 @@ import { MapsService, SettingsService, Icon } from '$lib';
     padding: 3rem 1rem;
     
     :global(.loader) {
-      color: $primary;
+      color: var(--primary);
       margin-bottom: 1rem;
       animation: spin 1s linear infinite;
     }
     
     p {
-      color: $placeholder;
+      color: var(--placeholder);
       font-size: 1.1rem;
     }
   }
@@ -424,14 +424,14 @@ import { MapsService, SettingsService, Icon } from '$lib';
   }
 
   .world-card {
-    background: $container;
-    border: 1px solid $dark-600;
+    background: var(--container);
+    border: 1px solid var(--dark-600);
     border-radius: 0.75rem;
     padding: 1.5rem;
     transition: all 0.2s ease;
     
     &:hover {
-      border-color: $primary;
+      border-color: var(--primary);
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
@@ -444,7 +444,7 @@ import { MapsService, SettingsService, Icon } from '$lib';
       
       .world-name {
         margin: 0;
-        color: $text;
+        color: var(--text);
         font-size: 1.25rem;
         font-weight: 600;
         flex: 1;
@@ -466,13 +466,13 @@ import { MapsService, SettingsService, Icon } from '$lib';
         margin-bottom: 0.5rem;
         
         .label {
-          color: $placeholder;
+          color: var(--placeholder);
           font-size: 0.875rem;
           font-weight: 500;
         }
         
         .value {
-          color: $text;
+          color: var(--text);
           font-size: 0.875rem;
           font-weight: 500;
         }
@@ -498,11 +498,11 @@ import { MapsService, SettingsService, Icon } from '$lib';
         transition: all 0.2s ease;
         
         &.danger-btn {
-          background: $red;
-          color: white;
+          background: var(--red);
+          color: var(--text-white);
           
           &:hover {
-            background: $red-600;
+            background: var(--red-600);
           }
         }
       }
@@ -514,20 +514,20 @@ import { MapsService, SettingsService, Icon } from '$lib';
     padding: 3rem 1rem;
     
     :global(.empty-icon) {
-      color: $placeholder;
+      color: var(--placeholder);
       margin-bottom: 1rem;
     }
     
     h3 {
       margin: 0 0 0.5rem 0;
-      color: $text;
+      color: var(--text);
       font-size: 1.25rem;
       font-weight: 600;
     }
     
     p {
       margin: 0 0 1.5rem 0;
-      color: $placeholder;
+      color: var(--placeholder);
       font-size: 1rem;
       max-width: 500px;
       margin-left: auto;

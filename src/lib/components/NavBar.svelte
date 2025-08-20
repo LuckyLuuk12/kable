@@ -309,14 +309,14 @@
     display: flex;
     height: 100%;
     overflow: scroll;
-    background: $background;
-    color: $text;
+    background: var(--background);
+    color: var(--text);
   }
 
   .sidebar {
     min-width: calc(fit-content + 2rem);
-    background: $container;
-    border-right: 1px solid $dark-600;
+    background: var(--container);
+    border-right: 1px solid var(--dark-600);
     display: flex;
     flex-direction: column;
     padding: 0.25rem;
@@ -344,15 +344,15 @@
       align-items: center;
       gap: 0.75rem;
       padding: 0;
-      border-radius: $border-radius;
+      border-radius: var(--border-radius);
       text-decoration: none;
-      color: $text;
+      color: var(--text);
       transition: all 0.2s ease;
       cursor: pointer;
       
       &:hover, &.active {
         & .user-avatar{
-          background: $primary;
+          background: var(--primary);
         }
       }
       
@@ -361,11 +361,11 @@
         width: 2.5rem;
         height: 2.5rem;
         border-radius: 40%;
-        background: rgba($primary, 0.1);
+        background: rgba(var(--primary), 0.1);
         display: flex;
         align-items: center;
         justify-content: center;
-        color: white;
+        color: var(--text-white);
         flex-shrink: 0;
         overflow: hidden;
         position: relative;
@@ -376,7 +376,7 @@
         object-fit: cover;
         border-radius: 40%;
         display: block;
-        background: rgba($primary, 0.1);
+        background: rgba(var(--primary), 0.1);
       }
       
       .header-content {
@@ -388,7 +388,7 @@
           margin: 0;
           font-size: 1rem;
           font-weight: 800;
-          color: $primary;
+          color: var(--primary);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -396,7 +396,7 @@
         
         .app-subtitle {
           font-size: 0.65rem;
-          color: $placeholder;
+          color: var(--placeholder);
           white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
@@ -411,9 +411,9 @@
     .hamburger-btn {
       background: transparent;
       border: none;
-      border-radius: $border-radius;
+      border-radius: var(--border-radius);
       padding: 0 0.75rem;
-      color: $text;
+      color: var(--text);
       cursor: pointer;
       transition: all 0.2s ease;
       display: flex;
@@ -421,8 +421,8 @@
       justify-content: center;
       
       &:hover {
-        color: $primary;
-        border-color: $primary;
+        color: var(--primary);
+        border-color: var(--primary);
       }
     }
   }
@@ -439,20 +439,20 @@
     align-items: center;
     gap: 0.75rem;
     padding: 0.75rem 1rem;
-    border-radius: $border-radius;
+    border-radius: var(--border-radius);
     text-decoration: none;
-    color: $text;
+    color: var(--text);
     transition: all 0.2s ease;
     position: relative;
     
     &:hover {
-      background: $button-hover;
+      background: var(--button-hover);
     }
     
     &.active {
-      background: linear-gradient(155deg, rgba($primary, 0.15), rgba($primary, 0.01));
+      background: linear-gradient(155deg, rgba(var(--primary), 0.15), rgba(var(--primary), 0.01));
       backdrop-filter: blur(15px);
-      color: white;
+      color: var(--text-white);
     }
     
     :global(.nav-icon) {
@@ -482,17 +482,17 @@
         left: 100%;
         top: 50%;
         transform: translateY(-50%);
-        background: $container;
-        color: $text;
+        background: var(--container);
+        color: var(--text);
         padding: 0.5rem 0.75rem;
-        border-radius: $border-radius;
+        border-radius: var(--border-radius);
         font-size: 0.875rem;
         white-space: nowrap;
         opacity: 0;
         pointer-events: none;
         transition: opacity 0.2s ease;
         margin-left: 0.5rem;
-        border: 1px solid $dark-600;
+        border: 1px solid var(--dark-600);
         z-index: 9999;
       }
       
@@ -504,7 +504,7 @@
 
   .bottom-section {
     margin-top: auto;
-    border-top: 1px solid $dark-600;
+    border-top: 1px solid var(--dark-600);
   }
 
   .content {

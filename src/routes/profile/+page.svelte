@@ -128,7 +128,7 @@
       margin: 0 0 0.5rem;
       font-size: 2.5rem;
       font-weight: 700;
-      background: linear-gradient(135deg, $primary, $tertiary);
+      background: linear-gradient(135deg, var(--primary), var(--tertiary));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -136,7 +136,7 @@
     
     p {
       margin: 0;
-      color: $placeholder;
+      color: var(--placeholder);
       font-size: 1.125rem;
       line-height: 1.6;
     }
@@ -160,9 +160,9 @@
   }
 
   .profile-section {
-    background: $container;
-    border: 1px solid $dark-600;
-    border-radius: $border-radius-large;
+    background: var(--container);
+    border: 1px solid var(--dark-600);
+    border-radius: var(--border-radius-large);
     padding: 2rem;
     transition: all 0.3s ease;
     position: relative;
@@ -177,11 +177,11 @@
       left: 0;
       right: 0;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba($primary, 0.3), transparent);
+      background: linear-gradient(90deg, transparent, rgba(var(--primary), 0.3), transparent);
     }
     
     &:hover {
-      border-color: rgba($primary, 0.3);
+      border-color: rgba(var(--primary), 0.3);
       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
     }
 
@@ -191,13 +191,13 @@
       align-items: center;
       margin-bottom: 1.5rem;
       padding-bottom: 1rem;
-      border-bottom: 1px solid rgba($dark-600, 0.5);
+      border-bottom: 1px solid rgba(var(--dark-600), 0.5);
 
       h2 {
         margin: 0;
         font-size: 1.25rem;
         font-weight: 600;
-        color: $text;
+        color: var(--text);
         display: flex;
         align-items: center;
         gap: 0.5rem;
@@ -216,9 +216,9 @@
       gap: 1.5rem;
 
       .stat-card {
-        background: linear-gradient(135deg, rgba($primary, 0.03) 0%, rgba($tertiary, 0.02) 100%);
-        border: 1px solid rgba($dark-600, 0.6);
-        border-radius: $border-radius;
+        background: linear-gradient(135deg, rgba(var(--primary), 0.03) 0%, rgba(var(--tertiary), 0.02) 100%);
+        border: 1px solid rgba(var(--dark-600), 0.6);
+        border-radius: var(--border-radius);
         padding: 1.5rem;
         display: flex;
         align-items: center;
@@ -236,13 +236,13 @@
           left: 0;
           width: 100%;
           height: 2px;
-          background: linear-gradient(90deg, $primary, $tertiary);
+          background: linear-gradient(90deg, var(--primary), var(--tertiary));
           transform: translateX(-100%);
           transition: transform 0.3s ease;
         }
         
         &:hover {
-          border-color: rgba($primary, 0.3);
+          border-color: rgba(var(--primary), 0.3);
           transform: translateY(-2px);
           box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
           
@@ -254,12 +254,12 @@
         .stat-icon {
           width: 48px;
           height: 48px;
-          border-radius: $border-radius;
-          background: linear-gradient(135deg, rgba($primary, 0.15), rgba($tertiary, 0.1));
+          border-radius: var(--border-radius);
+          background: linear-gradient(135deg, rgba(var(--primary), 0.15), rgba(var(--tertiary), 0.1));
           display: flex;
           align-items: center;
           justify-content: center;
-          color: $primary;
+          color: var(--primary);
           flex-shrink: 0;
           position: relative;
           
@@ -267,8 +267,8 @@
             content: '';
             position: absolute;
             inset: -1px;
-            border-radius: $border-radius;
-            background: linear-gradient(135deg, $primary, $tertiary);
+            border-radius: var(--border-radius);
+            background: linear-gradient(135deg, var(--primary), var(--tertiary));
             z-index: -1;
             opacity: 0.3;
             filter: blur(4px);
@@ -284,7 +284,7 @@
             margin: 0 0 0.25rem;
             font-size: 0.875rem;
             font-weight: 500;
-            color: $placeholder;
+            color: var(--placeholder);
             text-transform: uppercase;
             letter-spacing: 0.5px;
             word-wrap: break-word;
@@ -294,8 +294,8 @@
             margin: 0;
             font-size: 1.25rem;
             font-weight: 600;
-            color: $text;
-            background: linear-gradient(135deg, $primary, $tertiary);
+            color: var(--text);
+            background: linear-gradient(135deg, var(--primary), var(--tertiary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -313,10 +313,10 @@
     align-items: center;
     gap: 0.5rem;
     padding: 1rem;
-    background: rgba($red, 0.1);
-    border: 1px solid $red;
-    border-radius: $border-radius;
-    color: $red;
+    background: rgba(var(--red), 0.1);
+    border: 1px solid var(--red);
+    border-radius: var(--border-radius);
+    color: var(--red);
     margin-bottom: 1rem;
   }
 

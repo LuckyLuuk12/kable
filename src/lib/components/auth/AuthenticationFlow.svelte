@@ -175,10 +175,10 @@
     align-items: center;
     gap: 0.5rem;
     padding: 1rem;
-    background: rgba($red, 0.1);
-    border: 1px solid $red;
-    border-radius: $border-radius;
-    color: $red;
+    background: rgba(var(--red), 0.1);
+    border: 1px solid var(--red);
+    border-radius: var(--border-radius);
+    color: var(--red);
     margin-bottom: 1rem;
   }
 
@@ -188,7 +188,7 @@
 
     .auth-icon {
       margin-bottom: 1.5rem;
-      color: $primary;
+      color: var(--primary);
       opacity: 0.8;
     }
 
@@ -196,12 +196,12 @@
       margin: 0 0 1rem;
       font-size: 1.25rem;
       font-weight: 600;
-      color: $text;
+      color: var(--text);
     }
 
     p {
       margin: 0;
-      color: $placeholder;
+      color: var(--placeholder);
       line-height: 1.6;
     }
   }
@@ -225,23 +225,23 @@
       align-items: center;
       gap: 0.75rem;
       padding: 1rem;
-      background: $container;
-      border: 1px solid $dark-600;
-      border-radius: $border-radius;
+      background: var(--container);
+      border: 1px solid var(--dark-600);
+      border-radius: var(--border-radius);
       cursor: pointer;
       transition: all 0.2s ease;
 
       &:hover {
-        border-color: $primary;
-        background: rgba($primary, 0.05);
+        border-color: var(--primary);
+        background: rgba(var(--primary), 0.05);
       }
 
       input[type="radio"] {
-        accent-color: $primary;
+        accent-color: var(--primary);
       }
 
       span {
-        color: $text;
+        color: var(--text);
         font-weight: 500;
       }
     }
@@ -266,16 +266,16 @@
     justify-content: center;
     gap: 0.5rem;
     font-size: 0.875rem;
-    color: $placeholder;
+    color: var(--placeholder);
     margin: 0;
     text-align: center;
   }
 
   .device-code-info {
     padding: 1.5rem;
-    background: rgba($primary, 0.05);
-    border: 1px solid rgba($primary, 0.1);
-    border-radius: $border-radius;
+    background: rgba(var(--primary), 0.05);
+    border: 1px solid rgba(var(--primary), 0.1);
+    border-radius: var(--border-radius);
     text-align: center;
     
     .device-code-header {
@@ -284,7 +284,7 @@
       justify-content: center;
       gap: 0.5rem;
       margin-bottom: 1rem;
-      color: $primary;
+      color: var(--primary);
       font-weight: 600;
     }
     
@@ -293,7 +293,7 @@
       
       p {
         margin: 0 0 0.5rem;
-        color: $text;
+        color: var(--text);
         font-size: 0.9rem;
       }
       
@@ -304,29 +304,29 @@
         gap: 0.5rem;
         margin-bottom: 1rem;
         padding: 1rem;
-        background: $container;
-        border: 2px solid $primary;
-        border-radius: $border-radius;
+        background: var(--container);
+        border: 2px solid var(--primary);
+        border-radius: var(--border-radius);
         
         .user-code {
           font-size: 1.25rem;
           font-weight: 700;
-          color: $primary;
+          color: var(--primary);
           letter-spacing: 0.1em;
         }
         
         .copy-btn {
           background: none;
-          border: 1px solid rgba($primary, 0.3);
+          border: 1px solid rgba(var(--primary), 0.3);
           border-radius: 4px;
           padding: 0.25rem;
-          color: $primary;
+          color: var(--primary);
           cursor: pointer;
           transition: all 0.2s ease;
           
           &:hover {
-            background: rgba($primary, 0.1);
-            border-color: $primary;
+            background: rgba(var(--primary), 0.1);
+            border-color: var(--primary);
           }
         }
       }
@@ -338,7 +338,7 @@
       justify-content: center;
       gap: 0.5rem;
       margin-bottom: 1rem;
-      color: $placeholder;
+      color: var(--placeholder);
       
       :global(.icon) {
         animation: spin 1s linear infinite;

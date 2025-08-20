@@ -60,8 +60,8 @@
 @use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 .settings-tab {
-  background: $container;
-  border-radius: $border-radius-large;
+  background: var(--container);
+  border-radius: var(--border-radius-large);
   box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.08);
   padding: 2rem 2.5rem;
   margin-bottom: 2rem;
@@ -74,8 +74,8 @@
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  background: linear-gradient(to right, $primary, $secondary);
-  color: transparent;
+  background: linear-gradient(to right, var(--primary), var(--secondary));
+  color: var(--text-transparent);
   background-clip: text;
   -webkit-background-clip: text;
   -moz-background-clip: text;
@@ -91,7 +91,7 @@ form {
   align-items: flex-start;
   gap: 2rem;
   padding: 1rem 0;
-  border-bottom: 1px solid $dark-200;
+  border-bottom: 1px solid var(--dark-200);
 }
 .setting-item:last-child {
   border-bottom: none;
@@ -106,12 +106,12 @@ form {
 .setting-info label {
   font-size: 1.08rem;
   font-weight: 500;
-  color: $text;
+  color: var(--text);
   margin-bottom: 0.1rem;
 }
 .setting-description {
   font-size: 0.95rem;
-  color: $placeholder;
+  color: var(--placeholder);
   margin-bottom: 0.2rem;
   line-height: 1.4;
 }
@@ -130,10 +130,10 @@ form {
 select {
   min-width: 12rem;
   padding: 0.5rem 1rem;
-  border-radius: $border-radius;
-  background: $input;
-  color: $text;
-  border: 1px solid $dark-200;
+  border-radius: var(--border-radius);
+  background: var(--input);
+  color: var(--text);
+  border: 1px solid var(--dark-200);
   font-size: 1rem;
 }
 .toggle-switch {

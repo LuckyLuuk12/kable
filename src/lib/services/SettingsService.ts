@@ -73,6 +73,9 @@ export class SettingsService {
 
       // Save updated settings back to backend if we auto-detected the path or filled missing fields
       await this.save(loadedSettings);
+
+      // Initialize custom CSS after settings are loaded
+      await this.initializeCustomCss();
     } catch (error) {
       console.error('Failed to load settings:', error);
       settingsError.set(`Failed to load settings: ${error}`);
@@ -172,5 +175,115 @@ export class SettingsService {
 
   static async saveSettings(settings: CategorizedLauncherSettings): Promise<void> {
     return await settingsApi.saveSettings(settings);
+  }
+
+  /**
+   * Load custom CSS content from a theme name
+   */
+  static async loadCustomCss(themeName: string): Promise<string> {
+    return await settingsApi.loadCustomCss(themeName);
+  }
+
+  /**
+   * Set the selected CSS theme in settings and apply it
+   */
+  static async setSelectedCssTheme(themeName: string): Promise<void> {
+    await settingsApi.setSelectedCssTheme(themeName);
+    
+    // Reload settings to update the store
+    await this.initialize();
+    
+    // Apply the CSS theme
+    await this.applyCustomCss(themeName);
+  }
+
+  /**
+   * Get the current selected CSS theme from settings
+   */
+  static async getSelectedCssTheme(): Promise<string> {
+    return await settingsApi.getSelectedCssTheme();
+  }
+
+  /**
+   * Get all available CSS themes
+   */
+  static async getCssThemes(): Promise<string[]> {
+    return await settingsApi.getCssThemes();
+  }
+
+  /**
+   * Save a CSS theme with content
+   */
+  static async saveCssTheme(themeName: string, cssContent: string): Promise<string> {
+    return await settingsApi.saveCssTheme(themeName, cssContent);
+  }
+
+  /**
+   * Delete a CSS theme
+   */
+  static async deleteCssTheme(themeName: string): Promise<void> {
+    return await settingsApi.deleteCssTheme(themeName);
+  }
+
+  /**
+   * Open CSS themes directory
+   */
+  static async openCssThemesDirectory(): Promise<void> {
+    return await settingsApi.openCssThemesDirectory();
+  }
+
+  /**
+   * Apply custom CSS by theme name
+   */
+  static async applyCustomCss(themeName: string): Promise<void> {
+    try {
+      // Remove any existing custom CSS
+      this.removeCustomCss();
+      
+      if (themeName === 'default') {
+        console.log('✅ Default theme applied (no custom CSS)');
+        return;
+      }
+
+      const cssContent = await this.loadCustomCss(themeName);
+      
+      // Create and inject new style element
+      const styleElement = document.createElement('style');
+      styleElement.id = 'kable-custom-css';
+      styleElement.textContent = cssContent;
+      document.head.appendChild(styleElement);
+      
+      console.log('✅ Custom CSS theme applied:', themeName);
+    } catch (error) {
+      console.error('❌ Failed to apply custom CSS theme:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove custom CSS from the document
+   */
+  static removeCustomCss(): void {
+    const existingStyle = document.getElementById('kable-custom-css');
+    if (existingStyle) {
+      existingStyle.remove();
+      console.log('✅ Custom CSS removed');
+    }
+  }
+
+  /**
+   * Initialize custom CSS on app startup
+   */
+  static async initializeCustomCss(): Promise<void> {
+    const themeName = await this.getSelectedCssTheme();
+    if (themeName && themeName !== 'default') {
+      try {
+        await this.applyCustomCss(themeName);
+      } catch (error) {
+        console.warn('⚠️ Failed to load custom CSS theme on startup:', error);
+        // Reset to default theme if loading fails
+        await this.setSelectedCssTheme('default');
+      }
+    }
   }
 }

@@ -701,7 +701,7 @@
       
       p {
         margin: 0 0 1rem 0;
-        color: $placeholder;
+        color: var(--placeholder);
         font-size: 1.1rem;
       }
       
@@ -710,9 +710,9 @@
         align-items: center;
         gap: 0.25rem;
         padding: 0.25rem 0.75rem;
-        background: rgba($primary, 0.1);
-        color: $primary;
-        border-radius: $border-radius;
+        background: rgba(var(--primary), 0.1);
+        color: var(--primary);
+        border-radius: var(--border-radius);
         font-size: 0.875rem;
         font-weight: 500;
       }
@@ -730,9 +730,9 @@
     align-items: center;
     margin-bottom: 0.5rem;
     padding: 1rem;
-    background: $container;
-    border-radius: $border-radius;
-    border: 1px solid $dark-200;
+    background: var(--container);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--dark-200);
 
     .search-container {
       flex: 1;
@@ -748,19 +748,19 @@
         
         &:focus {
           outline: none;
-          border-color: $primary;
+          border-color: var(--primary);
         }
         
         &::placeholder {
-          color: $placeholder;
+          color: var(--placeholder);
         }
       }
       
       .search-mode-selector {
         display: flex;
-        background: $card;
-        // border: 1px solid $dark-200;
-        border-radius: $border-radius-tiny;
+        background: var(--card);
+        // border: 1px solid var(--dark-200);
+        border-radius: var(--border-radius-tiny);
         overflow: hidden;
         
         .search-mode-button {
@@ -770,29 +770,29 @@
           padding: 0.5rem;
           background: transparent;
           border: none;
-          color: $placeholder;
+          color: var(--placeholder);
           cursor: pointer;
           transition: all 0.2s ease;
           min-width: 2.5rem;
-          border-right: 1px solid $dark-200;
+          border-right: 1px solid var(--dark-200);
           
           &:last-child {
             border-right: none;
           }
           
           &:hover {
-            background: $dark-200;
-            color: $text;
+            background: var(--dark-200);
+            color: var(--text);
           }
           
           &.active {
-            background: $primary;
-            color: white;
+            background: var(--primary);
+            color: var(--text-white);
           }
           
           &:focus {
             outline: none;
-            box-shadow: inset 0 0 0 2px rgba($primary, 0.3);
+            box-shadow: inset 0 0 0 2px rgba(var(--primary), 0.3);
           }
         }
       }
@@ -811,10 +811,10 @@
           align-items: center;
           gap: 0.5rem;
           padding: 0.5rem 0.75rem;
-          background: $card;
-          border: 1px solid $dark-200;
-          border-radius: $border-radius-small;
-          color: $text;
+          background: var(--card);
+          border: 1px solid var(--dark-200);
+          border-radius: var(--border-radius-small);
+          color: var(--text);
           font-size: 0.9rem;
           font-weight: 500;
           cursor: pointer;
@@ -822,13 +822,13 @@
           white-space: nowrap;
           
           &:hover {
-            background: $dark-200;
-            border-color: $primary;
+            background: var(--dark-200);
+            border-color: var(--primary);
           }
           
           &:focus {
             outline: none;
-            border-color: $primary;
+            border-color: var(--primary);
           }
         }
         
@@ -837,20 +837,20 @@
           top: calc(100% + 0.25rem);
           right: 0;
           min-width: 180px;
-          background: $container;
-          border: 1px solid $dark-200;
-          border-radius: $border-radius;
+          background: var(--container);
+          border: 1px solid var(--dark-200);
+          border-radius: var(--border-radius);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
           z-index: 1000;
           overflow: hidden;
           
           .dropdown-header {
             padding: 0.75rem;
-            background: $card;
-            border-bottom: 1px solid $dark-200;
+            background: var(--card);
+            border-bottom: 1px solid var(--dark-200);
             font-size: 0.85rem;
             font-weight: 600;
-            color: $placeholder;
+            color: var(--placeholder);
           }
           
           .dropdown-item {
@@ -863,15 +863,15 @@
             transition: background-color 0.2s ease;
             
             &:hover {
-              background: $card;
+              background: var(--card);
             }
             
             input[type="checkbox"] {
-              accent-color: $primary;
+              accent-color: var(--primary);
             }
             .log-level-count {
               margin-left: auto;
-              color: $placeholder;
+              color: var(--placeholder);
               font-size: 0.85em;
               font-weight: 500;
               letter-spacing: 0.02em;
@@ -893,7 +893,7 @@
         cursor: pointer;
         
         input[type="checkbox"] {
-          accent-color: $primary;
+          accent-color: var(--primary);
         }
       }
     }
@@ -903,9 +903,9 @@
     
     .tab-list {
       display: flex;
-      background: $container;
-      border-radius: $border-radius $border-radius 0 0;
-      border: 1px solid $dark-200;
+      background: var(--container);
+      border-radius: var(--border-radius) var(--border-radius) 0 0;
+      border: 1px solid var(--dark-200);
       overflow-x: auto;
       gap: 0.05rem;
       
@@ -916,14 +916,14 @@
         padding: 0.75rem 1rem;
         background: transparent;
         border: none;
-        color: $placeholder;
+        color: var(--placeholder);
         font-size: 0.9rem;
         font-weight: 500;
         cursor: pointer;
         white-space: nowrap;
         transition: all 0.2s ease;
-        border-right: 1px solid $dark-200;
-        border-radius: $border-radius $border-radius 0 0;
+        border-right: 1px solid var(--dark-200);
+        border-radius: var(--border-radius) var(--border-radius) 0 0;
 
         &:last-child {
           border-right: none;
@@ -931,26 +931,26 @@
         
         &:hover {
           // background: var(--hover);
-          color: $text;
+          color: var(--text);
         }
         
         &.active {
-          background: $primary;
-          color: $text;
+          background: var(--primary);
+          color: var(--text);
         }
         
         .status-badge {
           padding: 0.125rem 0.375rem;
-          border-radius: calc($border-radius * 0.5);
+          border-radius: calc(var(--border-radius) * 0.5);
           font-size: 0.85rem;
           font-weight: 600;
           
-          &.success { background: rgba($green, 0.1); color: $green; }
-          &.warning { background: rgba($yellow, 0.1); color: $yellow; }
-          &.danger { background: rgba($red, 0.1); color: $red; }
-          &.info { background: rgba($green, 0.1); color: $green-900; }
-          &.secondary { background: rgba($text, 0.2); color: $text; }
-          &.muted { background: rgba($dark-300, 0.1); color: white; }
+          &.success { background: rgba(var(--green), 0.1); color: var(--green); }
+          &.warning { background: rgba(var(--yellow), 0.1); color: var(--yellow); }
+          &.danger { background: rgba(var(--red), 0.1); color: var(--red); }
+          &.info { background: rgba(var(--green), 0.1); color: var(--green-900); }
+          &.secondary { background: rgba(var(--text), 0.2); color: var(--text); }
+          &.muted { background: rgba(var(--dark-300), 0.1); color: var(--text-white); }
         }
       }
     }
@@ -961,9 +961,9 @@
     
     .sub-tab-list {
       display: flex;
-      background: $container;
-      border-left: 1px solid $dark-200;
-      border-right: 1px solid $dark-200;
+      background: var(--container);
+      border-left: 1px solid var(--dark-200);
+      border-right: 1px solid var(--dark-200);
       gap: 0.05rem;
       
       .sub-tab-button {
@@ -973,32 +973,32 @@
         padding: 0.25rem 0.75rem;
         background: transparent;
         border: none;
-        color: $placeholder;
+        color: var(--placeholder);
         font-size: 0.875rem;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
-        border-right: 1px solid $dark-200;
-        border-radius: $border-radius $border-radius 0 0;
+        border-right: 1px solid var(--dark-200);
+        border-radius: var(--border-radius) var(--border-radius) 0 0;
         
         &:last-child {
           border-right: none;
         }
         
         &:hover {
-          background: $card;
-          color: $text;
+          background: var(--card);
+          color: var(--text);
         }
         
         &.active {
-          background: $primary;
-          color: white;
+          background: var(--primary);
+          color: var(--text-white);
         }
         
         .count-badge {
           padding: 0.125rem 0.25rem;
           background: rgba(255, 255, 255, 0.2);
-          border-radius: calc($border-radius * 0.5);
+          border-radius: calc(var(--border-radius) * 0.5);
           font-size: 0.75rem;
           min-width: 1.25rem;
           text-align: center;
@@ -1016,17 +1016,17 @@
     .log-container {
       flex: 1;
       overflow-y: auto;
-      background: $container;
-      border: 1px solid $dark-200;
-      border-radius: 0 0 $border-radius $border-radius;
+      background: var(--container);
+      border: 1px solid var(--dark-200);
+      border-radius: 0 0 var(--border-radius) var(--border-radius);
       margin-bottom: 0.5rem;
       position: relative;
       
       &.copy-notification-active {
         .log-entries {
           .log-entry {
-            background: rgba($primary, 0.1);
-            border: 1px solid rgba($primary, 0.2);
+            background: rgba(var(--primary), 0.1);
+            border: 1px solid rgba(var(--primary), 0.2);
           }
         }
       }
@@ -1037,7 +1037,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba($dark-100, 0.35);
+        background: rgba(var(--dark-100), 0.35);
         backdrop-filter: blur(4px);
         display: flex;
         align-items: center;
@@ -1051,10 +1051,10 @@
           align-items: center;
           gap: 0.5rem;
           padding: 2rem;
-          background: $card;
-          border: 1px solid $primary;
-          border-radius: $border-radius;
-          color: $primary;
+          background: var(--card);
+          border: 1px solid var(--primary);
+          border-radius: var(--border-radius);
+          color: var(--primary);
           font-weight: 600;
           box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
@@ -1075,7 +1075,7 @@
         height: 100%;
         padding: 2rem;
         text-align: center;
-        color: $placeholder;
+        color: var(--placeholder);
         
         .empty-icon {
           margin-bottom: 1rem;
@@ -1103,11 +1103,11 @@
           gap: 0.5rem;
           padding: 0.05rem;
           margin-bottom: 0;
-          border-radius: $border-radius;
+          border-radius: var(--border-radius);
           transition: background-color 0.2s ease;
           
           &:hover {
-            background: $card;
+            background: var(--card);
             
             .log-copy-icon {
               opacity: 1;
@@ -1121,15 +1121,15 @@
             justify-content: center;
             width: 1.5rem;
             height: 1.5rem;
-            color: $placeholder;
+            color: var(--placeholder);
             cursor: pointer;
             opacity: 0.3;
             transition: all 0.2s ease;
-            border-radius: calc($border-radius * 0.5);
+            border-radius: calc(var(--border-radius) * 0.5);
             
             &:hover {
               opacity: 1;
-              color: $primary;
+              color: var(--primary);
             }
             
             &:active {
@@ -1140,7 +1140,7 @@
           .log-timestamp {
             flex-shrink: 0;
             font-size: 0.75rem;
-            color: $placeholder;
+            color: var(--placeholder);
             min-width: 3rem;
           }
           
@@ -1154,7 +1154,7 @@
             font-weight: 1000;
             min-width: 5.5rem;
             max-width: 5.5rem;
-            border-radius: $border-radius-small;
+            border-radius: var(--border-radius-small);
           }
           
           .log-message {
@@ -1188,10 +1188,10 @@
     justify-content: space-between;
     align-items: center;
     padding: 0.5rem;
-    background: $card;
+    background: var(--card);
     font-size: 0.75rem;
-    color: $placeholder;
-    border-radius: $border-radius-small;
+    color: var(--placeholder);
+    border-radius: var(--border-radius-small);
 
     .status-left,
     .status-right {
@@ -1208,7 +1208,7 @@
       display: flex;
       align-items: center;
       gap: 0.25rem;
-      color: $green;
+      color: var(--green);
       font-weight: 500;
     }
   }
@@ -1216,33 +1216,33 @@
   // Badge variants
   .badge {
     &.danger {
-      background: rgba($red, 0.1);
-      color: $red;
-      border: 1px solid rgba($red, 0.2);
+      background: rgba(var(--red), 0.1);
+      color: var(--red);
+      border: 1px solid rgba(var(--red), 0.2);
     }
     
     &.warning {
-      background: rgba($yellow, 0.1);
-      color: $yellow;
-      border: 1px solid rgba($yellow, 0.2);
+      background: rgba(var(--yellow), 0.1);
+      color: var(--yellow);
+      border: 1px solid rgba(var(--yellow), 0.2);
     }
     
     &.info {
-      background: rgba($blue, 0.1);
-      color: $blue;
-      border: 1px solid rgba($blue, 0.2);
+      background: rgba(var(--blue), 0.1);
+      color: var(--blue);
+      border: 1px solid rgba(var(--blue), 0.2);
     }
     
     &.muted {
-      background: rgba($dark-300, 0.1);
-      color: $dark-300;
-      border: 1px solid rgba($dark-300, 0.2);
+      background: rgba(var(--dark-300), 0.1);
+      color: var(--dark-300);
+      border: 1px solid rgba(var(--dark-300), 0.2);
     }
     
     &.secondary {
-      background: rgba($text, 0.1);
-      color: $text;
-      border: 1px solid rgba($text, 0.2);
+      background: rgba(var(--text), 0.1);
+      color: var(--text);
+      border: 1px solid rgba(var(--text), 0.2);
     }
   }
 </style>

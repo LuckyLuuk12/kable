@@ -135,6 +135,8 @@
         <h2>Current Skin</h2>
         {#if currentSkin && currentSkin.has_skin}
           <div class="current-skin-card glass-card"
+               role="button"
+               tabindex="0"
                on:mouseenter={() => hoveredSkinId = 'current'}
                on:mouseleave={() => hoveredSkinId = null}>
             <div class="skin-preview large">
@@ -189,6 +191,8 @@
           <div class="skins-grid">
             {#each accountSkins as skin (skin.id)}
               <div class="skin-card glass-card" 
+                   role="button"
+                   tabindex="0"
                    class:current={skin.is_current}
                    on:mouseenter={() => hoveredSkinId = skin.id}
                    on:mouseleave={() => hoveredSkinId = null}>
@@ -261,29 +265,29 @@
 
 // Glass morphism effects
 .glass-card {
-  background: rgba($card, 0.7);
+  background: rgba(var(--card), 0.7);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba($primary, 0.1);
-  box-shadow: 
-    0 8px 32px rgba($dark-900, 0.12),
+  border: 1px solid rgba(var(--primary), 0.1);
+  box-shadow:
+    0 8px 32px rgba(var(--dark-900), 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .glass-btn {
-  background: rgba($primary, 0.1);
+  background: rgba(var(--primary), 0.1);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba($primary, 0.2);
+  border: 1px solid rgba(var(--primary), 0.2);
   transition: all 0.3s ease;
 
   &:hover:not(:disabled) {
-    background: rgba($primary, 0.2);
-    border-color: rgba($primary, 0.3);
+    background: rgba(var(--primary), 0.2);
+    border-color: rgba(var(--primary), 0.3);
     transform: translateY(-1px);
   }
 
   &:disabled {
-    background: rgba($placeholder, 0.1);
-    border-color: rgba($placeholder, 0.2);
+    background: rgba(var(--placeholder), 0.1);
+    border-color: rgba(var(--placeholder), 0.2);
   }
 }
 
@@ -300,12 +304,12 @@
       margin: 0 0 0.5rem;
       font-size: 1.75rem;
       font-weight: 700;
-      color: $text;
+      color: var(--text);
     }
 
     p {
       margin: 0;
-      color: $placeholder;
+      color: var(--placeholder);
       font-size: 0.9rem;
     }
   }
@@ -321,10 +325,10 @@
   gap: 0.75rem;
   padding: 1rem 1.5rem;
   margin: 0 2rem 1.5rem;
-  background: rgba($red, 0.1);
-  border: 1px solid rgba($red, 0.3);
-  border-radius: $border-radius;
-  color: $red;
+  background: rgba(var(--red), 0.1);
+  border: 1px solid rgba(var(--red), 0.3);
+  border-radius: var(--border-radius);
+  color: var(--red);
   font-size: 0.9rem;
   flex-shrink: 0;
 }
@@ -336,7 +340,7 @@
   justify-content: center;
   gap: 1rem;
   padding: 4rem 2rem;
-  color: $placeholder;
+  color: var(--placeholder);
   flex: 1;
 
   :global(.icon) {
@@ -364,16 +368,16 @@
   }
 
   &::-webkit-scrollbar-track {
-    background: rgba($placeholder, 0.1);
+    background: rgba(var(--placeholder), 0.1);
     border-radius: 4px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba($primary, 0.3);
+    background: rgba(var(--primary), 0.3);
     border-radius: 4px;
     
     &:hover {
-      background: rgba($primary, 0.5);
+      background: rgba(var(--primary), 0.5);
     }
   }
 }
@@ -386,7 +390,7 @@
     margin: 0 0 1rem;
     font-size: 1.25rem;
     font-weight: 600;
-    color: $text;
+    color: var(--text);
   }
 }
 
@@ -394,7 +398,7 @@
     display: flex;
     gap: 1.5rem;
     padding: 2rem;
-    border-radius: $border-radius-large;
+    border-radius: var(--border-radius-large);
     align-items: center;
     transition: all 0.3s ease;
     cursor: pointer;
@@ -402,18 +406,18 @@
     &:hover {
       transform: translateY(-2px);
       box-shadow: 
-        0 12px 35px rgba($dark-900, 0.2),
-        0 0 20px rgba($primary, 0.1),
+        0 12px 35px rgba(var(--dark-900), 0.2),
+        0 0 20px rgba(var(--primary), 0.1),
         inset 0 1px 0 rgba(255, 255, 255, 0.3);
     }
 
     .skin-preview.large {
       width: 140px;
       height: 140px;
-      border-radius: $border-radius;
+      border-radius: var(--border-radius);
       overflow: hidden;
-      background: rgba($placeholder, 0.05);
-      border: 2px solid rgba($primary, 0.1);
+      background: rgba(var(--placeholder), 0.05);
+      border: 2px solid rgba(var(--primary), 0.1);
       flex-shrink: 0;
       display: flex;
       align-items: center;
@@ -426,7 +430,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: $placeholder;
+      color: var(--placeholder);
     }
   }
 
@@ -437,7 +441,7 @@
       margin: 0 0 1rem;
       font-size: 1.25rem;
       font-weight: 600;
-      color: $text;
+      color: var(--text);
     }
 
     .skin-info {
@@ -449,7 +453,7 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        color: $placeholder;
+        color: var(--placeholder);
         font-size: 0.9rem;
       }
 
@@ -463,10 +467,10 @@
         letter-spacing: 0.5px;
 
         &.active {
-          background: rgba($green, 0.8);
+          background: rgba(var(--green), 0.8);
           backdrop-filter: blur(10px);
-          color: white;
-          border: 1px solid rgba($green, 0.3);
+          color: var(--text-white);
+          border: 1px solid rgba(var(--green), 0.3);
         }
       }
     }
@@ -479,23 +483,25 @@
     align-items: center;
     justify-content: center;
     padding: 3rem 2rem;
-    background: rgba($placeholder, 0.03);
-    border: 2px dashed rgba($placeholder, 0.2);
-    border-radius: $border-radius-large;
-    text-align: center;  :global(.icon) {
-    margin-bottom: 1rem;
-    color: $placeholder;
-  }
+    background: rgba(var(--placeholder), 0.03);
+    border: 2px dashed rgba(var(--placeholder), 0.2);
+    border-radius: var(--border-radius-large);
+    text-align: center;
+
+    :global(.icon) {
+      margin-bottom: 1rem;
+      color: var(--placeholder);
+    }
 
   h3 {
     margin: 0 0 0.5rem;
-    color: $text;
+    color: var(--text);
     font-weight: 600;
   }
 
   p {
     margin: 0;
-    color: $placeholder;
+    color: var(--placeholder);
     font-size: 0.9rem;
   }
 }
@@ -509,7 +515,7 @@
     margin: 0 0 1.5rem;
     font-size: 1.25rem;
     font-weight: 600;
-    color: $text;
+    color: var(--text);
   }
 }
 
@@ -519,24 +525,26 @@
     align-items: center;
     justify-content: center;
     padding: 4rem 2rem;
-    background: rgba($placeholder, 0.03);
-    border: 2px dashed rgba($placeholder, 0.2);
-    border-radius: $border-radius-large;
-    text-align: center;  :global(.icon) {
-    margin-bottom: 1.5rem;
-    color: $placeholder;
-  }
+    background: rgba(var(--placeholder), 0.03);
+    border: 2px dashed rgba(var(--placeholder), 0.2);
+    border-radius: var(--border-radius-large);
+    text-align: center;
+
+    :global(.icon) {
+      margin-bottom: 1.5rem;
+      color: var(--placeholder);
+    }
 
   h3 {
     margin: 0 0 0.5rem;
-    color: $text;
+    color: var(--text);
     font-weight: 600;
     font-size: 1.1rem;
   }
 
   p {
     margin: 0 0 2rem;
-    color: $placeholder;
+    color: var(--placeholder);
     font-size: 0.9rem;
   }
 
@@ -559,22 +567,22 @@
   }
 
   &::-webkit-scrollbar-track {
-    background: rgba($placeholder, 0.1);
+    background: rgba(var(--placeholder), 0.1);
     border-radius: 3px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba($primary, 0.3);
+    background: rgba(var(--primary), 0.3);
     border-radius: 3px;
     
     &:hover {
-      background: rgba($primary, 0.5);
+      background: rgba(var(--primary), 0.5);
     }
   }
 }
 
 .skin-card {
-  border-radius: $border-radius-large;
+  border-radius: var(--border-radius-large);
   padding: 1.5rem;
   transition: all 0.3s ease;
   cursor: pointer;
@@ -582,27 +590,27 @@
   &:hover {
     transform: translateY(-3px);
     box-shadow: 
-      0 12px 35px rgba($dark-900, 0.2),
-      0 0 15px rgba($primary, 0.1),
+      0 12px 35px rgba(var(--dark-900), 0.2),
+      0 0 15px rgba(var(--primary), 0.1),
       inset 0 1px 0 rgba(255, 255, 255, 0.3);
-    border-color: rgba($primary, 0.2);
+    border-color: rgba(var(--primary), 0.2);
   }
 
   &.current {
-    background: rgba($green, 0.05);
+    background: rgba(var(--green), 0.05);
     backdrop-filter: blur(20px);
-    border: 1px solid rgba($green, 0.2);
+    border: 1px solid rgba(var(--green), 0.2);
     box-shadow: 
-      0 8px 32px rgba($green, 0.15),
-      inset 0 1px 0 rgba($green, 0.2);
+      0 8px 32px rgba(var(--green), 0.15),
+      inset 0 1px 0 rgba(var(--green), 0.2);
   }
 
   .skin-preview {
     width: 100%;
     height: 180px;
-    border-radius: $border-radius;
+    border-radius: var(--border-radius);
     overflow: hidden;
-    background: rgba($placeholder, 0.03);
+    background: rgba(var(--placeholder), 0.03);
     margin-bottom: 1rem;
     display: flex;
     align-items: center;
@@ -615,8 +623,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: $placeholder;
-      background: rgba($placeholder, 0.03);
+      color: var(--placeholder);
+      background: rgba(var(--placeholder), 0.03);
     }
   }
 
@@ -631,7 +639,7 @@
         margin: 0;
         font-size: 1rem;
         font-weight: 600;
-        color: $text;
+        color: var(--text);
         flex: 1;
         line-height: 1.3;
       }
@@ -647,10 +655,10 @@
         flex-shrink: 0;
 
         &.current {
-          background: rgba($green, 0.8);
+          background: rgba(var(--green), 0.8);
           backdrop-filter: blur(10px);
-          color: white;
-          border: 1px solid rgba($green, 0.3);
+          color: var(--text-white);
+          border: 1px solid rgba(var(--green), 0.3);
         }
       }
     }
@@ -665,7 +673,7 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
-        color: $placeholder;
+        color: var(--placeholder);
         font-size: 0.8rem;
       }
     }

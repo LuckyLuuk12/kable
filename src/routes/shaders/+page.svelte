@@ -503,7 +503,7 @@ import { AuthService, currentAccount } from '$lib';
       
       &.active {
         background: var(--primary);
-        color: white;
+        color: var(--text-white);
         border-color: var(--primary);
       }
       
@@ -543,7 +543,7 @@ import { AuthService, currentAccount } from '$lib';
   .shader-preview {
     position: relative;
     height: 200px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--shader-preview-gradient);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -553,7 +553,7 @@ import { AuthService, currentAccount } from '$lib';
       flex-direction: column;
       align-items: center;
       gap: 0.5rem;
-      color: white;
+      color: var(--text-white);
       opacity: 0.8;
       
       .preview-icon {
@@ -583,13 +583,13 @@ import { AuthService, currentAccount } from '$lib';
       backdrop-filter: blur(10px);
       
       &.premium {
-        background: rgba(255, 215, 0, 0.9);
-        color: #333;
+        background: var(--badge-premium);
+        color: var(--badge-premium-text);
       }
       
       &.installed {
-        background: rgba(34, 197, 94, 0.9);
-        color: white;
+        background: var(--badge-installed);
+        color: var(--text-white);
       }
     }
   }
@@ -685,7 +685,7 @@ import { AuthService, currentAccount } from '$lib';
       
       &.install-btn {
         background: var(--primary);
-        color: white;
+        color: var(--text-white);
         
         &:hover:not(:disabled) {
           background: var(--primary-hover);
@@ -694,7 +694,7 @@ import { AuthService, currentAccount } from '$lib';
       
       &.uninstall-btn {
         background: var(--error);
-        color: white;
+        color: var(--text-white);
         
         &:hover:not(:disabled) {
           background: var(--error-hover);
@@ -794,7 +794,7 @@ import { AuthService, currentAccount } from '$lib';
   .sign-in-btn {
     padding: 0.75rem 1.5rem;
     background: var(--primary);
-    color: white;
+    color: var(--text-white);
     border: none;
     border-radius: 0.5rem;
     font-weight: 500;

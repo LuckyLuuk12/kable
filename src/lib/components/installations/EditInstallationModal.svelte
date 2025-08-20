@@ -62,20 +62,20 @@
 
 .edit-installation-modal {
   padding: 2rem;
-  background: $container;
-  border-radius: $border-radius;
+  background: var(--container);
+  border-radius: var(--border-radius);
   max-width: 28rem;
   margin: 0 auto;
   h2 {
     margin-bottom: 1rem;
-    color: $text;
+    color: var(--text);
   }
   form {
     display: flex;
     flex-direction: column;
     gap: 1rem;
     label {
-      color: $text;
+      color: var(--text);
       font-size: 1rem;
       display: flex;
       flex-direction: column;
@@ -86,7 +86,7 @@
       gap: 1rem;
       button {
         padding: 0.5rem 1.5rem;
-        border-radius: $border-radius;
+        border-radius: var(--border-radius);
         border: none;
         font-size: 1rem;
         cursor: pointer;

@@ -8,5 +8,4 @@ export * from './skins';
 export { default as Icon } from './Icon.svelte';
 
 export { default as NavBar } from './NavBar.svelte';
-export { default as Settings } from './settings/SettingsUI.svelte';
 export { default as TitleBar } from './TitleBar.svelte';

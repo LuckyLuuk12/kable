@@ -280,9 +280,9 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     display: flex;
     flex-direction: column;
     height: 100vh;
-    background: $container;
+    background: var(--container);
     overflow: hidden;
-    border-radius: $border-radius;
+    border-radius: var(--border-radius);
   }
 
   .installations-section {
@@ -297,7 +297,7 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     align-items: flex-end;
     justify-content: space-between;
     padding: 1.5rem 2rem;
-    background: linear-gradient(to top, $container 40%, rgba($container, 0.6) 80%, rgba($container, 0.15) 90%, transparent 100%);
+    background: linear-gradient(to top, var(--container) 40%, rgba(var(--container), 0.6) 80%, rgba(var(--container), 0.15) 90%, transparent 100%);
     backdrop-filter: blur(0.125rem);
     flex-shrink: 0;
     position: relative;
@@ -321,8 +321,8 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     right: 0;
     margin: 0;
     padding: 1rem;
-    background: $card;
-    border: 1px solid $dark-600;
+    background: var(--card);
+    border: 1px solid var(--dark-600);
     border-radius: 0.5rem;
     max-width: 23.75rem;
     min-width: 20rem;
@@ -334,10 +334,10 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
       margin-bottom: 0.75rem;
       font-size: 0.875rem;
       font-weight: 500;
-      color: $text;
+      color: var(--text);
 
       .installation-name {
-        color: $text;
+        color: var(--text);
         font-weight: 500;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -347,7 +347,7 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
       }
 
       .ram-display {
-        color: $primary;
+        color: var(--primary);
         font-weight: 600;
         flex-shrink: 0;
       }
@@ -373,13 +373,13 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
             appearance: none;
             width: 1rem;
             height: 1rem;
-            background: $primary;
+            background: var(--primary);
             border-radius: 50%;
             cursor: pointer;
             transition: all 0.2s ease;
             
             &:hover {
-              background: $primary-600;
+              background: var(--primary-600);
               transform: scale(1.1);
             }
           }
@@ -387,14 +387,14 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
           &::-moz-range-thumb {
             width: 1rem;
             height: 1rem;
-            background: $primary;
+            background: var(--primary);
             border-radius: 50%;
             border: none;
             cursor: pointer;
             transition: all 0.2s ease;
             
             &:hover {
-              background: $primary-600;
+              background: var(--primary-600);
               transform: scale(1.1);
             }
           }
@@ -405,7 +405,7 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
           justify-content: space-between;
           margin-top: 0.25rem;
           font-size: 0.625rem;
-          color: $placeholder;
+          color: var(--placeholder);
         }
       }
 
@@ -418,27 +418,27 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
         .ram-input {
           width: 3.75rem;
           padding: 0.375rem 0.5rem;
-          background: $dark-600;
-          border: 1px solid $dark-500;
+          background: var(--dark-600);
+          border: 1px solid var(--dark-500);
           border-radius: 0.25rem;
-          color: $text;
+          color: var(--text);
           font-size: 0.75rem;
           text-align: center;
           transition: border-color 0.2s ease;
 
           &:focus {
             outline: none;
-            border-color: $primary;
+            border-color: var(--primary);
           }
 
           &::placeholder {
-            color: $placeholder;
+            color: var(--placeholder);
           }
         }
 
         .ram-unit {
           font-size: 0.75rem;
-          color: $placeholder;
+          color: var(--placeholder);
           font-weight: 500;
         }
       }
@@ -450,8 +450,8 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     align-items: center;
     gap: 0.75rem;
     padding: 1rem 2rem;
-    background: $primary;
-    color: white;
+    background: var(--primary);
+    color: var(--text-white);
     border: none;
     border-radius: 0.75rem;
     font-size: 1.1rem;
@@ -462,7 +462,7 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     justify-content: center;
 
     &:hover:not(:disabled) {
-      background: $primary-600;
+      background: var(--primary-600);
       transform: translateY(-0.125rem);
     }
 
@@ -475,7 +475,7 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
 
   .no-installations {
     margin: 1rem 0 0;
-    color: $placeholder;
+    color: var(--placeholder);
     font-size: 0.875rem;
   }
   
@@ -484,14 +484,14 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     padding: 0.75rem 1rem;
     border-radius: 8px;
     font-size: 0.875rem;
-    background: rgba($green, 0.1);
-    color: $green;
-    border: 1px solid rgba($green, 0.3);
+    background: rgba(var(--green), 0.1);
+    color: var(--green);
+    border: 1px solid rgba(var(--green), 0.3);
     
     &.error {
-      background: rgba($red, 0.1);
-      color: $red;
-      border-color: rgba($red, 0.3);
+      background: rgba(var(--red), 0.1);
+      color: var(--red);
+      border-color: rgba(var(--red), 0.3);
     }
   }
 

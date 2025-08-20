@@ -199,8 +199,8 @@
 	}
 
 	.install-button {
-		background: var(--success, #22c55e);
-		color: white;
+		background: var(--status-success);
+		color: var(--text-white);
 		border: none;
 		border-radius: 0.375rem;
 		padding: 0.75rem 1.5rem;
@@ -210,7 +210,7 @@
 		transition: all 0.2s ease;
 		
 		&:hover:not(:disabled) {
-			background: var(--success-hover, #16a34a);
+			background: var(--status-success-hover);
 		}
 		
 		&:disabled {
@@ -220,7 +220,7 @@
 	}
 
 	.up-to-date {
-		color: var(--success, #22c55e);
+		color: var(--status-success);
 		font-size: 0.875rem;
 		font-weight: 500;
 		margin: 0;
@@ -228,11 +228,11 @@
 	}
 
 	.error {
-		background: var(--error-bg, #fef2f2);
-		border: 1px solid var(--error, #ef4444);
+		background: var(--status-error-bg);
+		border: 1px solid var(--status-error);
 		border-radius: 0.375rem;
 		padding: 0.75rem;
-		color: var(--error, #ef4444);
+		color: var(--status-error);
 		font-size: 0.875rem;
 		line-height: 1.4;
 	}

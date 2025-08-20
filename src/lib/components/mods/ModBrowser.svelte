@@ -1037,23 +1037,23 @@ onMount(async () => {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: $container;
+  background: var(--container);
   border-radius: 0.5rem;
-  border: 1px solid rgba($primary, 0.08);
-  box-shadow: 0 2px 8px rgba($dark-900, 0.04);
+  border: 1px solid rgba(var(--primary), 0.08);
+  box-shadow: 0 2px 8px rgba(var(--dark-900), 0.04);
   overflow: hidden;
 }
 
 // Compact Header
 .browser-header {
   background: linear-gradient(135deg, 
-    rgba($card, 0.95) 0%, 
-    rgba($primary, 0.04) 30%,
-    rgba($secondary, 0.02) 70%,
-    rgba($card, 0.8) 100%
+    rgba(var(--card), 0.95) 0%, 
+    rgba(var(--primary), 0.04) 30%,
+    rgba(var(--secondary), 0.02) 70%,
+    rgba(var(--card), 0.8) 100%
   );
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba($primary, 0.15);
+  border-bottom: 1px solid rgba(var(--primary), 0.15);
   padding: 0.75rem 1rem;
   position: relative;
   
@@ -1066,8 +1066,8 @@ onMount(async () => {
     height: 1px;
     background: linear-gradient(90deg, 
       transparent 0%, 
-      rgba($primary, 0.3) 20%, 
-      rgba($secondary, 0.2) 80%, 
+      rgba(var(--primary), 0.3) 20%, 
+      rgba(var(--secondary), 0.2) 80%, 
       transparent 100%
     );
   }
@@ -1080,7 +1080,7 @@ onMount(async () => {
     
     h2 {
       margin: 0;
-      background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       background-clip: text;
       -webkit-background-clip: text;
       color: transparent;
@@ -1092,13 +1092,13 @@ onMount(async () => {
       display: flex;
       align-items: center;
       gap: 0.375rem;
-      background: rgba($primary, 0.08);
-      border: 1px solid rgba($primary, 0.15);
+      background: rgba(var(--primary), 0.08);
+      border: 1px solid rgba(var(--primary), 0.15);
       border-radius: 0.75rem;
       padding: 0.25rem 0.5rem;
       font-size: 0.75em;
       font-weight: 500;
-      color: $primary;
+      color: var(--primary);
     }
   }
   
@@ -1111,25 +1111,25 @@ onMount(async () => {
       align-items: center;
       gap: 0.375rem;
       padding: 0.375rem 0.75rem;
-      border: 1px solid rgba($primary, 0.15);
+      border: 1px solid rgba(var(--primary), 0.15);
       border-radius: 0.375rem;
-      background: $card;
-      color: $text;
+      background: var(--card);
+      color: var(--text);
       font-weight: 500;
       font-size: 0.8em;
       cursor: pointer;
       transition: all 0.15s;
       
       &:hover:not(:disabled) {
-        border-color: $primary;
-        background: rgba($primary, 0.05);
+        border-color: var(--primary);
+        background: rgba(var(--primary), 0.05);
       }
       
       &.active {
-        background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
         color: white;
         border-color: transparent;
-        box-shadow: 0 2px 6px rgba($primary, 0.25);
+        box-shadow: 0 2px 6px rgba(var(--primary), 0.25);
       }
       
       &.disabled {
@@ -1154,9 +1154,9 @@ onMount(async () => {
 // Filters Sidebar
 .filters-sidebar {
   width: 240px;
-  background: linear-gradient(135deg, rgba($container, 0.95) 0%, rgba($card, 0.8) 100%);
+  background: linear-gradient(135deg, rgba(var(--container), 0.95) 0%, rgba(var(--card), 0.8) 100%);
   backdrop-filter: blur(8px);
-  border-right: 1px solid rgba($primary, 0.12);
+  border-right: 1px solid rgba(var(--primary), 0.12);
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
@@ -1187,15 +1187,15 @@ onMount(async () => {
     justify-content: space-between;
     padding: 0.5rem 0.75rem;
     height: 2.6875rem;
-    border-bottom: 1px solid rgba($primary, 0.12);
-    background: linear-gradient(135deg, rgba($primary, 0.06) 0%, rgba($secondary, 0.03) 100%);
+    border-bottom: 1px solid rgba(var(--primary), 0.12);
+    background: linear-gradient(135deg, rgba(var(--primary), 0.06) 0%, rgba(var(--secondary), 0.03) 100%);
     backdrop-filter: blur(4px);
     
     h3 {
       margin: 0;
       font-size: 0.9em;
       font-weight: 600;
-      color: $text;
+      color: var(--text);
     }
     
     .filters-actions {
@@ -1208,13 +1208,13 @@ onMount(async () => {
         border: none;
         border-radius: 0.25rem;
         background: transparent;
-        color: $placeholder;
+        color: var(--placeholder);
         cursor: pointer;
         transition: all 0.15s;
         
         &:hover {
-          background: rgba($primary, 0.1);
-          color: $primary;
+          background: rgba(var(--primary), 0.1);
+          color: var(--primary);
         }
       }
     }
@@ -1232,7 +1232,7 @@ onMount(async () => {
         display: block;
         font-size: 0.75em;
         font-weight: 600;
-        color: $text;
+        color: var(--text);
         margin-bottom: 0.375rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -1246,27 +1246,27 @@ onMount(async () => {
         :global(.icon) {
           position: absolute;
           left: 0.5rem;
-          color: $placeholder;
+          color: var(--placeholder);
           z-index: 1;
         }
         
         .search-input {
           width: 100%;
           padding: 0.5rem 0.5rem 0.5rem 2rem;
-          border: 1px solid $dark-600;
+          border: 1px solid var(--dark-600);
           border-radius: 0.375rem;
-          background: $input;
-          color: $text;
+          background: var(--input);
+          color: var(--text);
           font-size: 0.8em;
           
           &:focus {
             outline: none;
-            border-color: $primary;
-            box-shadow: 0 0 0 2px rgba($primary, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(var(--primary), 0.1);
           }
           
           &::placeholder {
-            color: $placeholder;
+            color: var(--placeholder);
           }
         }
         
@@ -1275,14 +1275,14 @@ onMount(async () => {
           right: 0.375rem;
           background: none;
           border: none;
-          color: $placeholder;
+          color: var(--placeholder);
           cursor: pointer;
           padding: 0.125rem;
           border-radius: 0.125rem;
           
           &:hover {
-            color: $red;
-            background: rgba($red, 0.1);
+            color: var(--red);
+            background: rgba(var(--red), 0.1);
           }
         }
       }
@@ -1290,16 +1290,16 @@ onMount(async () => {
       .filter-select {
         width: 100%;
         padding: 0.375rem 0.5rem;
-        border: 1px solid $dark-600;
+        border: 1px solid var(--dark-600);
         border-radius: 0.375rem;
-        background: $card;
-        color: $text;
+        background: var(--card);
+        color: var(--text);
         font-size: 0.8em;
         cursor: pointer;
         
         &:focus {
           outline: none;
-          border-color: $primary;
+          border-color: var(--primary);
         }
       }
       
@@ -1320,17 +1320,17 @@ onMount(async () => {
           transition: background 0.15s;
           
           &:hover {
-            background: rgba($primary, 0.05);
+            background: rgba(var(--primary), 0.05);
           }
           
           input[type="checkbox"] {
             margin: 0;
-            accent-color: $primary;
+            accent-color: var(--primary);
           }
           
           .checkbox-label {
             font-size: 0.75em;
-            color: $text;
+            color: var(--text);
             text-transform: capitalize;
           }
         }
@@ -1354,9 +1354,9 @@ onMount(async () => {
   justify-content: space-between;
   padding: 0.5rem 0.75rem;
   height: 2.6875rem;
-  background: linear-gradient(135deg, $container 0%, rgba($card, 0.6) 100%);
+  background: linear-gradient(135deg, var(--container) 0%, rgba(var(--card), 0.6) 100%);
   backdrop-filter: blur(6px);
-  border-bottom: 1px solid rgba($primary, 0.12);
+  border-bottom: 1px solid rgba(var(--primary), 0.12);
   
   .toolbar-left {
     display: flex;
@@ -1368,21 +1368,21 @@ onMount(async () => {
       align-items: center;
       gap: 0.375rem;
       padding: 0.375rem 0.5rem;
-      border: 1px solid $dark-600;
+      border: 1px solid var(--dark-600);
       border-radius: 0.25rem;
-      background: $card;
-      color: $text;
+      background: var(--card);
+      color: var(--text);
       font-size: 0.8em;
       cursor: pointer;
       
       &:hover {
-        border-color: $primary;
+        border-color: var(--primary);
       }
     }
     
     .results-count {
       font-size: 0.75em;
-      color: $placeholder;
+      color: var(--placeholder);
       font-weight: 500;
     }
     
@@ -1393,10 +1393,10 @@ onMount(async () => {
       
       .page-btn.compact {
         padding: 0.25rem 0.375rem;
-        border: 1px solid rgba($primary, 0.2);
+        border: 1px solid rgba(var(--primary), 0.2);
         border-radius: 0.25rem;
-        background: rgba($card, 0.8);
-        color: $text;
+        background: rgba(var(--card), 0.8);
+        color: var(--text);
         font-size: 0.7em;
         font-weight: 500;
         cursor: pointer;
@@ -1408,28 +1408,28 @@ onMount(async () => {
         justify-content: center;
         
         &:hover:not(:disabled) {
-          border-color: $primary;
-          background: rgba($primary, 0.1);
-          color: $primary;
+          border-color: var(--primary);
+          background: rgba(var(--primary), 0.1);
+          color: var(--primary);
         }
         
         &.active {
-          background: $primary;
+          background: var(--primary);
           color: white;
           border-color: transparent;
-          box-shadow: 0 1px 3px rgba($primary, 0.3);
+          box-shadow: 0 1px 3px rgba(var(--primary), 0.3);
         }
         
         &:disabled {
           opacity: 0.4;
           cursor: not-allowed;
-          background: rgba($card, 0.4);
+          background: rgba(var(--card), 0.4);
         }
       }
       
       .pagination-ellipsis {
         padding: 0.125rem 0.25rem;
-        color: $placeholder;
+        color: var(--placeholder);
         font-size: 0.7em;
         font-weight: 500;
       }
@@ -1443,46 +1443,46 @@ onMount(async () => {
     
     .view-controls {
       display: flex;
-      border: 1px solid $dark-600;
+      border: 1px solid var(--dark-600);
       border-radius: 0.25rem;
       overflow: hidden;
       
       .view-mode-btn {
         padding: 0.25rem 0.375rem;
         border: none;
-        background: $card;
-        color: $placeholder;
+        background: var(--card);
+        color: var(--placeholder);
         cursor: pointer;
         transition: all 0.15s;
         
         &:hover {
-          background: rgba($primary, 0.05);
-          color: $text;
+          background: rgba(var(--primary), 0.05);
+          color: var(--text);
         }
         
         &.active {
-          background: $primary;
+          background: var(--primary);
           color: white;
         }
         
         &:not(:last-child) {
-          border-right: 1px solid $dark-600;
+          border-right: 1px solid var(--dark-600);
         }
       }
     }
     
     .page-size-select {
       padding: 0.25rem 0.375rem;
-      border: 1px solid $dark-600;
+      border: 1px solid var(--dark-600);
       border-radius: 0.25rem;
-      background: $card;
-      color: $text;
+      background: var(--card);
+      color: var(--text);
       font-size: 0.75em;
       cursor: pointer;
       
       &:focus {
         outline: none;
-        border-color: $primary;
+        border-color: var(--primary);
       }
     }
   }
@@ -1502,16 +1502,16 @@ onMount(async () => {
   }
   
   &::-webkit-scrollbar-track {
-    background: rgba($dark-600, 0.1);
+    background: rgba(var(--dark-600), 0.1);
     border-radius: 4px;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, rgba($primary, 0.6) 0%, rgba($secondary, 0.4) 100%);
+    background: linear-gradient(135deg, rgba(var(--primary), 0.6) 0%, rgba(var(--secondary), 0.4) 100%);
     border-radius: 4px;
     
     &:hover {
-      background: linear-gradient(135deg, rgba($primary, 0.8) 0%, rgba($secondary, 0.6) 100%);
+      background: linear-gradient(135deg, rgba(var(--primary), 0.8) 0%, rgba(var(--secondary), 0.6) 100%);
     }
   }
 }
@@ -1525,13 +1525,13 @@ onMount(async () => {
   justify-content: center;
   padding: 2rem;
   gap: 0.75rem;
-  color: $placeholder;
+  color: var(--placeholder);
 }
 
 .error-state, .empty-state {
   h3 {
     margin: 0;
-    color: $text;
+    color: var(--text);
     font-weight: 600;
     font-size: 1.1em;
   }
@@ -1550,17 +1550,17 @@ onMount(async () => {
   align-items: center;
   gap: 0.375rem;
   padding: 0.5rem 1rem;
-  border: 1px solid $primary;
+  border: 1px solid var(--primary);
   border-radius: 0.375rem;
-  background: rgba($primary, 0.1);
-  color: $primary;
+  background: rgba(var(--primary), 0.1);
+  color: var(--primary);
   font-weight: 500;
   font-size: 0.8em;
   cursor: pointer;
   transition: all 0.15s;
   
   &:hover {
-    background: $primary;
+    background: var(--primary);
     color: white;
   }
 }
@@ -1600,8 +1600,8 @@ onMount(async () => {
     width: 100%;
     max-height: 200px;
     border-right: none;
-    border-bottom: 1px solid rgba($primary, 0.15);
-    background: linear-gradient(135deg, rgba($container, 0.9) 0%, rgba($card, 0.7) 100%);
+    border-bottom: 1px solid rgba(var(--primary), 0.15);
+    background: linear-gradient(135deg, rgba(var(--container), 0.9) 0%, rgba(var(--card), 0.7) 100%);
     
     &.collapsed {
       max-height: 48px;

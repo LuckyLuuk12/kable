@@ -8,6 +8,15 @@ import { settings, SettingsService } from '$lib';
   let currentSection = writable('general');
   currentSection.subscribe(val => $currentSection = val);
 
+  // Dynamic layout variables
+  let miniNavElement: HTMLElement;
+  let miniNavWidth = 0;
+  
+  // Reactive statement to update width when mini-nav changes
+  $: if (miniNavElement) {
+    miniNavWidth = miniNavElement.offsetWidth;
+  }
+
   function updateCurrentSection() {
     let found = false;
     for (const id of sections) {
@@ -62,8 +71,23 @@ import { settings, SettingsService } from '$lib';
   }
 
   let sectionInterval: ReturnType<typeof setInterval> | null = null;
+  let resizeObserver: ResizeObserver | null = null;
+  
   onMount(() => {
     sectionInterval = setInterval(updateCurrentSection, 1000);
+
+    // Set up ResizeObserver for mini-nav width changes
+    if (typeof window !== 'undefined' && 'ResizeObserver' in window) {
+      resizeObserver = new ResizeObserver(() => {
+        if (miniNavElement) {
+          miniNavWidth = miniNavElement.offsetWidth;
+        }
+      });
+      
+      if (miniNavElement) {
+        resizeObserver.observe(miniNavElement);
+      }
+    }
 
     // Auto-save interval logic
     if (typeof window !== 'undefined') {
@@ -100,6 +124,10 @@ import { settings, SettingsService } from '$lib';
       clearInterval(sectionInterval);
       sectionInterval = null;
     }
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+    }
     if (unsubscribeSettings) {
       unsubscribeSettings();
       unsubscribeSettings = null;
@@ -113,8 +141,8 @@ import { settings, SettingsService } from '$lib';
 </script>
 
 <!-- a small fixed nav on the left side with links to specific tabs -->
-<div class="settings-content">
-  <div class="mini-nav">
+<div class="settings-content" style="--mini-nav-width: {miniNavWidth}px;">
+  <div class="mini-nav" bind:this={miniNavElement}>
     {#each sections as section}
       <a href={`#${section}`} class:active={$currentSection === section} on:click={() => currentSection.set(section)}>{section.charAt(0).toUpperCase() + section.slice(1)}</a>
     {/each}
@@ -142,17 +170,19 @@ import { settings, SettingsService } from '$lib';
     min-height: 0;
   }
   .mini-nav {
+    position: fixed;
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
     flex: 0 0 auto;
-    min-width: 120px;
+    min-width: fit-content;
     align-self: center;
+    transform: translateY(-40%);
   }
   .mini-nav a {
-    color: $tertiary;
+    color: var(--tertiary);
     &.active {
-      color: $primary;
+      color: var(--primary);
     }
     text-decoration: none;
     position: relative;
@@ -168,7 +198,7 @@ import { settings, SettingsService } from '$lib';
       bottom: 0;
       width: 100%;
       height: 2px;
-      background: $tertiary;
+      background: var(--tertiary);
       border-radius: 2px;
       transform: scaleX(0);
       transform-origin: left;
@@ -179,7 +209,7 @@ import { settings, SettingsService } from '$lib';
       transform: scaleX(1);
     }
     &.active::before {
-      background: $primary;
+      background: var(--primary);
     }
   }
   .settings {
@@ -188,7 +218,8 @@ import { settings, SettingsService } from '$lib';
     gap: 1rem;
     flex: 1 1 0;
     min-width: 0;
-    max-height: 80vh;
+    max-height: 100%;
     overflow-y: auto;
+    margin-left: calc(var(--mini-nav-width, 120px) + 2rem);
   }
 </style>

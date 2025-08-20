@@ -1,24 +1,141 @@
 <script lang="ts">
-  let showCustomTemplates = false;
   import { settings } from "$lib/stores";
-import { Icon, IconService, availableTemplates } from "$lib";
+  import { Icon, IconService, availableTemplates, SettingsService } from "$lib";
   import { onMount } from "svelte";
-
-  let isWideScreen = true;
-  function checkScreen() {
-    isWideScreen = window.innerWidth >= 700;
-  }
-  onMount(() => {
-    checkScreen();
-    window.addEventListener('resize', checkScreen);
-    return () => window.removeEventListener('resize', checkScreen);
-  });
-
+  
+  let showCustomTemplates = false;
   let showIconUpload = false;
   let uploadError = '';
   let uploadFile: File | null = null;
   let isDragOver = false;
   let saveStatus = '';
+
+  // CSS themes functionality
+  let showCssUpload = false;
+  let cssUploadError = '';
+  let cssUploadFile: File | null = null;
+  let cssIsDragOver = false;
+  let cssThemes: string[] = ['default'];
+  let showCustomThemes = false;
+
+  // Built-in themes that shouldn't be removable
+  const builtInThemes = ['default', 'KasaiSora-Theme', 'Modrinth-Theme'];
+  
+  // Helper function to get only custom (user-uploaded) themes
+  $: customThemes = cssThemes.filter(theme => !builtInThemes.includes(theme));
+  $: hasCustomThemes = customThemes.length > 0;
+
+  // Load available CSS themes on mount
+  onMount(async () => {
+    await loadCssThemes();
+  });
+
+  async function loadCssThemes() {
+    try {
+      cssThemes = await SettingsService.getCssThemes();
+    } catch (error) {
+      console.error('Failed to load CSS themes:', error);
+      cssThemes = ['default'];
+    }
+  }
+
+  async function selectCssTheme(themeName: string) {
+    try {
+      await SettingsService.setSelectedCssTheme(themeName);
+      $settings.appearance.selected_css_theme = themeName;
+      
+      // Trigger theme reload in the layout
+      if (typeof window !== 'undefined' && (window as any).reloadCustomCSS) {
+        await (window as any).reloadCustomCSS();
+      }
+      
+      saveStatus = 'CSS theme updated successfully';
+      setTimeout(() => saveStatus = '', 2000);
+    } catch (error) {
+      saveStatus = 'Failed to update CSS theme';
+      setTimeout(() => saveStatus = '', 2000);
+    }
+  }
+
+  async function handleCssUpload() {
+    if (!cssUploadFile) return;
+    try {
+      cssUploadError = '';
+      const content = await cssUploadFile.text();
+      const themeName = cssUploadFile.name.replace('.css', '');
+      await SettingsService.saveCssTheme(themeName, content);
+      await loadCssThemes(); // Refresh the themes list
+      showCssUpload = false;
+      saveStatus = `CSS theme "${themeName}" uploaded successfully`;
+      setTimeout(() => saveStatus = '', 3000);
+      cssUploadFile = null;
+    } catch (error) {
+      cssUploadError = `Upload failed: ${error}`;
+    }
+  }
+
+  function handleCssDragOver(event: DragEvent) {
+    event.preventDefault();
+    cssIsDragOver = true;
+  }
+  function handleCssDragLeave() { 
+    cssIsDragOver = false; 
+  }
+  function handleCssDrop(event: DragEvent) {
+    event.preventDefault();
+    cssIsDragOver = false;
+    const files = event.dataTransfer?.files;
+    if (files && files.length > 0) {
+      const file = files[0];
+      if (file.name.endsWith('.css')) {
+        cssUploadFile = file;
+        cssUploadError = '';
+      } else {
+        cssUploadError = 'Please select a .css file';
+      }
+    }
+  }
+  function handleCssFileSelect(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (file) {
+      if (file.name.endsWith('.css')) {
+        cssUploadFile = file;
+        cssUploadError = '';
+      } else {
+        cssUploadError = 'Please select a .css file';
+      }
+    }
+  }
+
+  async function removeCssTheme(themeName: string) {
+    // Prevent removal of built-in themes
+    if (builtInThemes.includes(themeName)) {
+      saveStatus = 'Cannot remove built-in themes';
+      setTimeout(() => saveStatus = '', 2000);
+      return;
+    }
+    
+    if (!confirm(`Are you sure you want to remove the "${themeName}" CSS theme?`)) return;
+    try {
+      await SettingsService.deleteCssTheme(themeName);
+      await loadCssThemes(); // Refresh the themes list
+      saveStatus = 'CSS theme removed successfully';
+      setTimeout(() => saveStatus = '', 2000);
+    } catch (error) {
+      saveStatus = 'Failed to remove CSS theme';
+      setTimeout(() => saveStatus = '', 2000);
+    }
+  }
+
+  async function openCssThemesDirectory() {
+    try {
+      await SettingsService.openCssThemesDirectory();
+    } catch (error) {
+      saveStatus = 'Failed to open CSS themes directory';
+      setTimeout(() => saveStatus = '', 2000);
+    }
+  }
 
   async function selectIconTemplate(templateName: string) {
     try {
@@ -99,9 +216,107 @@ import { Icon, IconService, availableTemplates } from "$lib";
   <h2>Appearance Settings</h2>
   <p>Customize the look and feel of the launcher.</p>
   <form>
+    <!-- CSS Theme Section -->
     <div class="setting-item">
       <div class="setting-info">
         <!-- svelte-ignore a11y_label_has_associated_control -->
+        <label>CSS Theme</label>
+        <p class="setting-description">Choose or upload a custom CSS theme</p>
+      </div>
+      <div class="setting-control">
+        <select bind:value={$settings.appearance.selected_css_theme} on:change={(e) => selectCssTheme((e.target as HTMLSelectElement).value)}>
+          {#each cssThemes as theme}
+            <option value={theme}>{theme === 'default' ? 'Default (No Custom CSS)' : theme}</option>
+          {/each}
+        </select>
+      </div>
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
+        <label>CSS Theme Management</label>
+        <p class="setting-description">Upload, remove, or open CSS themes folder</p>
+      </div>
+      <div class="setting-control">
+        <button type="button" on:click={() => showCssUpload = !showCssUpload}>
+          {showCssUpload ? 'Cancel Upload' : 'Upload Custom Theme'}
+        </button>
+        <button type="button" on:click={openCssThemesDirectory}>
+          Open Themes Directory
+        </button>
+      </div>
+    </div>
+
+    {#if showCssUpload}
+      <div class="setting-item">
+        <div class="setting-info">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label>Upload Zone</label>
+          <p class="setting-description">Drag & drop or click to select a CSS theme file (.css)</p>
+        </div>
+        <div class="setting-control">
+          <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+          <div class="upload-zone {cssIsDragOver ? 'drag-over' : ''} {cssUploadError ? 'error' : ''}"
+            role="form"
+            tabindex="-1"
+            on:dragover={handleCssDragOver}
+            on:dragleave={handleCssDragLeave}
+            on:drop={handleCssDrop}
+            on:keydown={(e) => e.key === 'Enter' && document.getElementById('css-file-input')?.click()}
+            on:click={() => document.getElementById('css-file-input')?.click()}>
+            <input type="file" id="css-file-input" accept=".css" on:change={handleCssFileSelect} style="display:none;" />
+            <div class="upload-placeholder">
+              <h4>Drag & drop or click to select a CSS file</h4>
+              <p>Accepted: .css</p>
+              {#if cssUploadFile}
+                <div class="file-info">
+                  <span class="file-name">{cssUploadFile.name}</span>
+                  <div class="file-actions">
+                    <button type="button" on:click={handleCssUpload}>Upload</button>
+                    <button type="button" on:click={() => cssUploadFile = null}>Remove</button>
+                  </div>
+                </div>
+              {/if}
+              {#if cssUploadError}
+                <div class="error-message">{cssUploadError}</div>
+              {/if}
+            </div>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    {#if hasCustomThemes}
+      <div class="setting-item">
+        <div class="setting-info">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label>Custom CSS Themes</label>
+          <p class="setting-description">Manage your custom CSS themes (built-in themes cannot be removed)</p>
+        </div>
+        <div class="setting-control custom-templates-list">
+          <button type="button" class="dropdown-toggle" on:click={() => showCustomThemes = !showCustomThemes}>
+            {showCustomThemes ? 'Hide Custom Themes' : 'Manage Custom Themes'}
+          </button>
+          {#if showCustomThemes}
+            <div class="custom-templates-rows">
+              {#each customThemes as theme}
+                <div class="custom-template-row">
+                  <span class="template-name">{theme}</span>
+                  <button type="button" class="icon-btn btn-danger" title="Remove Custom Theme" on:click={() => removeCssTheme(theme)}>
+                    <Icon name="delete" />
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
+    {/if}
+    <!-- TODO: OUDATED THEME SELECTION 
+    <div class="setting-item">
+      <div class="setting-info">
+        <!-- svelte-ignore a11y_label_has_associated_control ->
         <label>Theme</label>
         <p class="setting-description">Choose your preferred theme</p>
       </div>
@@ -120,7 +335,7 @@ import { Icon, IconService, availableTemplates } from "$lib";
           </select>
         {/if}
       </div>
-    </div>
+    </div>-->
 
     <div class="setting-item">
       <div class="setting-info">
@@ -261,8 +476,8 @@ import { Icon, IconService, availableTemplates } from "$lib";
 @use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 .settings-tab {
-  background: $container;
-  border-radius: $border-radius-large;
+  background: var(--container);
+  border-radius: var(--border-radius-large);
   box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.08);
   padding: 2rem 2.5rem;
   margin-bottom: 2rem;
@@ -276,7 +491,7 @@ import { Icon, IconService, availableTemplates } from "$lib";
   font-weight: 600;
   margin-bottom: 0.5rem;
   background: linear-gradient(to right, $primary, $secondary);
-  color: transparent;
+  color: var(--text-transparent);
   background-clip: text;
   -webkit-background-clip: text;
   -moz-background-clip: text;
@@ -292,7 +507,7 @@ form {
   align-items: flex-start;
   gap: 2rem;
   padding: 1rem 0;
-  border-bottom: 1px solid $dark-200;
+  border-bottom: 1px solid var(--dark-200);
 }
 .setting-item:last-child {
   border-bottom: none;
@@ -307,12 +522,12 @@ form {
 .setting-info label {
   font-size: 1.08rem;
   font-weight: 500;
-  color: $text;
+  color: var(--text);
   margin-bottom: 0.1rem;
 }
 .setting-description {
   font-size: 0.95rem;
-  color: $placeholder;
+  color: var(--placeholder);
   margin-bottom: 0.2rem;
   line-height: 1.4;
 }
@@ -326,53 +541,49 @@ form {
 .slider-control {
   gap: 0.7rem;
 }
-.radio-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
+
 input[type="text"] {
   width: 100%;
   font-size: 1rem;
   padding: 0.4em 0.8em;
-  border-radius: $border-radius;
-  border: 1px solid $dark-200;
-  color: $text;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--dark-200);
+  color: var(--text);
 }
 select {
   font-size: 1rem;
   padding: 0.4em 0.8em;
-  border-radius: $border-radius;
-  border: 1px solid $dark-200;
-  color: $text;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--dark-200);
+  color: var(--text);
 }
 .template-management {
   display: flex;
   gap: 1rem;
 }
 .upload-zone {
-  border: 2px dashed $primary;
-  border-radius: $border-radius-large;
+  border: 2px dashed var(--primary);
+  border-radius: var(--border-radius-large);
   padding: 1.5rem;
   text-align: center;
   cursor: pointer;
   transition: border-color 0.2s;
   &.drag-over {
-    border-color: $secondary;
+    border-color: var(--secondary);
   }
   &.error {
-    border-color: $red;
+    border-color: var(--red);
   }
 }
 .upload-placeholder {
   h4 {
     margin: 0 0 0.5rem 0;
     font-size: 1.1rem;
-    color: $primary;
+    color: var(--primary);
   }
   p {
     margin: 0 0 1rem 0;
-    color: $placeholder;
+    color: var(--placeholder);
   }
   .file-info {
     display: flex;
@@ -381,7 +592,7 @@ select {
     margin-bottom: 0.5rem;
     .file-name {
       font-weight: 500;
-      color: $text;
+      color: var(--text);
     }
     .file-actions {
       display: flex;
@@ -389,7 +600,7 @@ select {
     }
   }
   .error-message {
-    color: $red;
+    color: var(--red);
     font-size: 0.95rem;
     margin-top: 0.5rem;
   }
@@ -403,17 +614,17 @@ select {
 .dropdown-toggle {
   font-size: 1rem;
   padding: 0.4em 0.8em;
-  border-radius: $border-radius;
-  border: 1px solid $primary;
-  color: $primary;
+  border-radius: var(--border-radius);
+  border: 1px solid var(--primary);
+  color: var(--primary);
   margin-bottom: 0.5rem;
   width: 100%;
   max-width: 320px;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s;
   &:hover {
-    border-color: $secondary;
-    color: $secondary;
+    border-color: var(--secondary);
+    color: var(--secondary);
   }
 }
 .custom-templates-rows {
@@ -426,20 +637,20 @@ select {
   display: flex;
   align-items: center;
   gap: 1rem;
-  background: $card;
-  border: 1px solid $dark-200;
-  border-radius: $border-radius-large;
+  background: var(--card);
+  border: 1px solid var(--dark-200);
+  border-radius: var(--border-radius-large);
   padding: 0.75rem 1rem;
 }
 .custom-template-row .template-name {
   font-weight: 500;
-  color: $primary;
+  color: var(--primary);
   flex: 1;
 }
 .custom-template-row .icon-btn {
-  background: $red;
+  background: var(--red);
   border: none;
-  border-radius: $border-radius;
+  border-radius: var(--border-radius);
   padding: 0.3em 0.7em;
   display: flex;
   align-items: center;
@@ -447,6 +658,6 @@ select {
   transition: background 0.2s;
 }
 .custom-template-row .icon-btn:hover {
-  background: $red-600;
+  background: var(--red-600);
 }
 </style>
