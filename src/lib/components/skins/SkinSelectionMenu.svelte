@@ -22,19 +22,42 @@
   async function loadSkins() {
     loading = true;
     error = '';
-    
+    let onlineError = '';
     try {
-      // Load both current skin info and account skins
+      // Try to load both current skin info and account skins
       const [current, skins] = await Promise.all([
         getCurrentSkinInfo(),
         getAllAccountSkins()
       ]);
-      
       currentSkin = current;
       accountSkins = skins;
+      // Debug log
+      console.log('Loaded accountSkins:', accountSkins);
+      // Check for missing URLs
+      const missingUrls = accountSkins.filter(skin => !skin.url);
+      if (missingUrls.length > 0) {
+        error = `Warning: ${missingUrls.length} skin(s) are missing a valid file path and cannot be displayed.`;
+        console.warn('Skins missing url:', missingUrls);
+      }
     } catch (err) {
-      error = `Failed to load skins: ${err}`;
-      console.error('Error loading skins:', err);
+      // If error is authentication, fallback to local skins only
+      onlineError = `${err}`;
+      if (onlineError.includes('Authentication required')) {
+        try {
+          // Only load local skins
+          const skins = await getAllAccountSkins();
+          currentSkin = null;
+          accountSkins = skins;
+          error = 'Online skin info unavailable. Showing local skins only.';
+          console.warn('Online skin info unavailable:', onlineError);
+        } catch (localErr) {
+          error = `Failed to load local skins: ${localErr}`;
+          console.error('Error loading local skins:', localErr);
+        }
+      } else {
+        error = `Failed to load skins: ${err}`;
+        console.error('Error loading skins:', err);
+      }
     } finally {
       loading = false;
     }
@@ -129,7 +152,7 @@
       <span>Loading skins...</span>
     </div>
   {:else}
-    <div class="skins-content">
+    <div class="skins-content skins-row">
       <!-- Current Skin Section -->
       <div class="current-skin-section">
         <h2>Current Skin</h2>
@@ -238,7 +261,7 @@
                         disabled={loading}
                       >
                         <Icon name="check" size="sm" />
-                        Apply
+                        Use
                       </button>
                     </div>
                   {/if}
@@ -257,7 +280,7 @@
 
 .skin-selection-menu {
   width: 100%;
-  height: 100%;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -353,46 +376,55 @@
   }
 }
 
-.skins-content {
+// Row layout for current skin and available skins side-by-side
+.skins-content.skins-row {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 0 2rem 2rem;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 2rem;
+}
 
-  // Custom scrollbar
-  &::-webkit-scrollbar {
-    width: 8px;
+// Responsive: stack on mobile
+@media (max-width: 900px) {
+  .skins-content.skins-row {
+    flex-direction: column;
+    gap: 2rem;
   }
+}
 
-  &::-webkit-scrollbar-track {
-    background: rgba(var(--placeholder), 0.1);
-    border-radius: 4px;
-  }
+// Custom scrollbar for .skin-selection-menu
+.skin-selection-menu::-webkit-scrollbar {
+  width: 8px;
+}
 
-  &::-webkit-scrollbar-thumb {
-    background: rgba(var(--primary), 0.3);
-    border-radius: 4px;
-    
-    &:hover {
-      background: rgba(var(--primary), 0.5);
-    }
-  }
+.skin-selection-menu::-webkit-scrollbar-track {
+  background: rgba(var(--placeholder), 0.1);
+  border-radius: 4px;
+}
+
+.skin-selection-menu::-webkit-scrollbar-thumb {
+  background: rgba(var(--primary), 0.3);
+  border-radius: 4px;
+}
+
+.skin-selection-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--primary), 0.5);
 }
 
 // Current Skin Section
-.current-skin-section {
-  flex-shrink: 0;
+  .current-skin-section {
+    flex-shrink: 0;
 
-  h2 {
-    margin: 0 0 1rem;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--text);
+    h2 {
+      margin: 0 0 1rem;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text);
+    }
   }
-}
 
   .current-skin-card {
     display: flex;
@@ -475,7 +507,8 @@
       }
     }
   }
-}
+} // <-- Add this missing closing brace here
+// ...existing code...
 
   .no-current-skin {
     display: flex;
@@ -507,15 +540,34 @@
 }
 
 // Available Skins Section
+// Limit available skins section to scroll independently
 .skins-section {
   flex: 1;
-  min-height: 0;
+  min-width: 0;
+  max-height: 600px;
+  overflow-y: auto;
 
   h2 {
     margin: 0 0 1.5rem;
     font-size: 1.25rem;
     font-weight: 600;
     color: var(--text);
+  }
+
+  // Custom scrollbar for available skins
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: rgba(var(--placeholder), 0.1);
+    border-radius: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(var(--primary), 0.3);
+    border-radius: 4px;
+    &:hover {
+      background: rgba(var(--primary), 0.5);
+    }
   }
 }
 
@@ -553,10 +605,11 @@
   }
 }
 
+// More compact grid for available skins
 .skins-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
   max-height: 600px;
   overflow-y: auto;
   padding-right: 0.5rem;
@@ -583,35 +636,35 @@
 
 .skin-card {
   border-radius: var(--border-radius-large);
-  padding: 1.5rem;
+  padding: 0.75rem;
   transition: all 0.3s ease;
   cursor: pointer;
 
   &:hover {
-    transform: translateY(-3px);
+    transform: translateY(-2px);
     box-shadow: 
-      0 12px 35px rgba(var(--dark-900), 0.2),
-      0 0 15px rgba(var(--primary), 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3);
-    border-color: rgba(var(--primary), 0.2);
+      0 8px 20px rgba(var(--dark-900), 0.15),
+      0 0 10px rgba(var(--primary), 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    border-color: rgba(var(--primary), 0.15);
   }
 
   &.current {
-    background: rgba(var(--green), 0.05);
-    backdrop-filter: blur(20px);
-    border: 1px solid rgba(var(--green), 0.2);
+    background: rgba(var(--green), 0.04);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(var(--green), 0.15);
     box-shadow: 
-      0 8px 32px rgba(var(--green), 0.15),
-      inset 0 1px 0 rgba(var(--green), 0.2);
+      0 4px 16px rgba(var(--green), 0.10),
+      inset 0 1px 0 rgba(var(--green), 0.15);
   }
 
   .skin-preview {
     width: 100%;
-    height: 180px;
+    height: 120px;
     border-radius: var(--border-radius);
     overflow: hidden;
     background: rgba(var(--placeholder), 0.03);
-    margin-bottom: 1rem;
+    margin-bottom: 0.5rem;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -633,32 +686,32 @@
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 0.75rem;
+      margin-bottom: 0.5rem;
 
       h4 {
         margin: 0;
-        font-size: 1rem;
+        font-size: 0.95rem;
         font-weight: 600;
         color: var(--text);
         flex: 1;
-        line-height: 1.3;
+        line-height: 1.2;
       }
 
       .status-badge {
-        padding: 0.15rem 0.5rem;
+        padding: 0.12rem 0.4rem;
         border-radius: 8px;
-        font-size: 0.6rem;
+        font-size: 0.55rem;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        margin-left: 0.5rem;
+        margin-left: 0.4rem;
         flex-shrink: 0;
 
         &.current {
           background: rgba(var(--green), 0.8);
-          backdrop-filter: blur(10px);
+          backdrop-filter: blur(8px);
           color: var(--text-white);
-          border: 1px solid rgba(var(--green), 0.3);
+          border: 1px solid rgba(var(--green), 0.25);
         }
       }
     }
@@ -666,21 +719,21 @@
     .skin-meta {
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
+      gap: 0.35rem;
+      margin-bottom: 0.5rem;
 
       .meta-item {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.4rem;
         color: var(--placeholder);
-        font-size: 0.8rem;
+        font-size: 0.75rem;
       }
     }
 
     .skin-actions {
       display: flex;
-      gap: 0.75rem;
+      gap: 0.5rem;
     }
   }
 }

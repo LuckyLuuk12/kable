@@ -43,7 +43,7 @@
     .skins-page {
         max-width: 100vw;
         max-height: 100vh;
-        overflow: hidden;
+        overflow: auto;
         display: flex;
         flex-direction: column;
     }

@@ -72,6 +72,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
+            commands_auth::refresh_microsoft_token,
             get_default_minecraft_dir,
             validate_minecraft_directory,
             // Main authentication commands

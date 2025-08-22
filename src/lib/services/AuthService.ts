@@ -12,7 +12,7 @@ import * as systemApi from '$lib';
  */
 
 // TODO:
-// TODO: The account after DeviceCodeFlow is not properly applied or smth,... FIX THIS!!
+// TODO: The normal Code Flow does not really seem to work / do anything
 // TODO:
 
 export class AuthService {
@@ -33,7 +33,7 @@ export class AuthService {
   static signIn: typeof AuthService.authenticateWithMicrosoft;
   static signInWithDeviceCode: typeof AuthService.authenticateWithDeviceCode;
   private static oauthWindow: WebviewWindow | null = null;
-  private static pollInterval: number | null = null;
+  private static refreshTimer: ReturnType<typeof setInterval> | null = null;
   private static isInitialized = false;
   private static currentAccount: LauncherAccount | null = null;
 
@@ -41,14 +41,15 @@ export class AuthService {
    * Initialize authentication service and try to auto-authenticate
    * Call this on app startup
    */
+  /**
+   * Initialize authentication service and background refresh
+   */
   static async initialize(): Promise<LauncherAccount | null> {
     if (this.isInitialized) {
       return this.currentAccount;
     }
-
     console.log('🔐 Initializing authentication service...');
     this.isInitialized = true;
-
     try {
       // Try to get existing account with valid token
       const account = await authApi.getLaunchAuthAccount();
@@ -56,12 +57,56 @@ export class AuthService {
       currentAccount.set(account);
       // Load all available accounts
       await this.refreshAvailableAccounts();
+      // Start background refresh
+      this.initializeBackgroundRefresh();
       console.log('✅ Auto-authenticated with existing account:', account.username);
       return account;
     } catch (error) {
       currentAccount.set(null);
+      this.initializeBackgroundRefresh();
       console.log('ℹ️ No valid account found, user will need to sign in');
       return null;
+    }
+  }
+
+  /**
+   * Start background refresh timer (checks every 5 minutes)
+   */
+  private static initializeBackgroundRefresh(): void {
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+    // Check every 5 minutes
+    this.refreshTimer = setInterval(() => {
+      this.startBackgroundRefresh();
+    }, 5 * 60 * 1000);
+  }
+
+  /**
+   * Refresh token if expiring soon (no sign out or prompt)
+   */
+  private static async startBackgroundRefresh(): Promise<void> {
+    if (!this.currentAccount) return;
+    if (!this.currentAccount.access_token_expires_at) return;
+    // Check for encrypted_refresh_token before attempting refresh
+    if (!this.currentAccount.encrypted_refresh_token) {
+      console.warn('⚠️ Cannot auto-refresh token: encrypted_refresh_token is missing');
+      return;
+    }
+    const expiresAt = new Date(this.currentAccount.access_token_expires_at);
+    const now = new Date();
+    // If token expires in less than 10 minutes, refresh
+    if (expiresAt.getTime() - now.getTime() < 10 * 60 * 1000) {
+      try {
+        const refreshed = await authApi.refreshMicrosoftToken(this.currentAccount.local_id);
+        this.currentAccount = refreshed;
+        currentAccount.set(refreshed);
+        await this.refreshAvailableAccounts();
+        console.log('🔄 Token auto-refreshed in background');
+      } catch (error) {
+        console.error('❌ Background token refresh failed:', error);
+      }
     }
   }
 
@@ -236,20 +281,29 @@ export class AuthService {
   /**
    * Refresh current account token
    */
-  static async refreshCurrentAccount(): Promise<LauncherAccount> {
+  /**
+   * Manual refresh for current account (used by AccountManager refresh button)
+   */
+  static async refreshCurrentAccount(): Promise<LauncherAccount | null> {
+    if (!this.currentAccount) {
+      console.warn('⚠️ No account to refresh');
+      return null;
+    }
+    if (!this.currentAccount.encrypted_refresh_token) {
+      console.warn('⚠️ Cannot refresh token: encrypted_refresh_token is missing');
+      return null;
+    }
     try {
-      console.log('🔄 Refreshing current account token...');
-      const refreshedAccount = await authApi.refreshMinecraftAccount();
-      this.currentAccount = refreshedAccount;
-      currentAccount.set(refreshedAccount);
+      console.log('🔄 Manually refreshing current account token...');
+      const refreshed = await authApi.refreshMicrosoftToken(this.currentAccount.local_id);
+      this.currentAccount = refreshed;
+      currentAccount.set(refreshed);
       await this.refreshAvailableAccounts();
-      console.log('✅ Token refreshed successfully');
-      return refreshedAccount;
+      console.log('✅ Token manually refreshed');
+      return refreshed;
     } catch (error) {
-      console.error('❌ Token refresh failed:', error);
-      this.currentAccount = null;
-      currentAccount.set(null);
-      throw new Error(`Failed to refresh token: ${error}`);
+      console.error('❌ Manual token refresh failed:', error);
+      return null;
     }
   }
 
@@ -296,9 +350,9 @@ export class AuthService {
    * Clean up authentication resources
    */
   private static async cleanup(): Promise<void> {
-    if (this.pollInterval) {
-      clearInterval(this.pollInterval);
-      this.pollInterval = null;
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
     }
 
     if (this.oauthWindow) {

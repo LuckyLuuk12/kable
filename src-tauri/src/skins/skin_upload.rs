@@ -1,11 +1,10 @@
 use crate::auth::{get_minecraft_account, AuthMethod, LauncherAccount};
 use crate::logging::{LogLevel, Logger};
-use crate::skins::types::{CurrentSkin, SkinModel, SkinUploadConfig, SkinUploadResponse, AccountSkin};
-use base64::{Engine as _, engine::general_purpose};
-use reqwest;
-use serde_json::Value;
+use crate::skins::types::{SkinModel, SkinUploadConfig, SkinUploadResponse};
 use std::fs;
+use base64::Engine;
 use tauri_plugin_dialog::DialogExt;
+use reqwest;
 
 /// Upload a skin file to the authenticated Microsoft/Mojang account
 pub async fn upload_skin_to_account(config: SkinUploadConfig) -> Result<SkinUploadResponse, String> {
@@ -73,7 +72,7 @@ pub async fn change_skin_model(new_model: SkinModel) -> Result<SkinUploadRespons
         .map_err(|e| format!("Authentication required: {}", e))?;
 
     // Get current skin
-    let current_skin = get_current_skin(&account).await?;
+    let current_skin = crate::skins::get_skins::get_current_skin(&account).await?;
     
     if !current_skin.has_skin {
         return Err("No current skin found. Upload a skin first.".to_string());
@@ -85,7 +84,7 @@ pub async fn change_skin_model(new_model: SkinModel) -> Result<SkinUploadRespons
     })?;
 
     // Download current skin
-    let skin_data = download_skin_from_url(&skin_url).await?;
+    let skin_data = crate::skins::get_skins::download_skin_from_url(&skin_url).await?;
 
     // Re-upload with new model
     match upload_skin_to_mojang(&account, &skin_data, new_model).await {
@@ -110,22 +109,6 @@ pub async fn change_skin_model(new_model: SkinModel) -> Result<SkinUploadRespons
             Err(e)
         }
     }
-}
-
-/// Get the current skin information from Mojang
-pub async fn get_current_skin_info() -> Result<CurrentSkin, String> {
-    Logger::console_log(
-        LogLevel::Info,
-        "🔍 Fetching current skin information",
-        None,
-    );
-
-    // Get the authenticated account
-    let account = get_minecraft_account(Some(AuthMethod::DeviceCodeFlow))
-        .await
-        .map_err(|e| format!("Authentication required: {}", e))?;
-
-    get_current_skin(&account).await
 }
 
 /// Select a skin file using the system file dialog
@@ -167,97 +150,35 @@ pub async fn select_skin_file(app: tauri::AppHandle) -> Result<Option<String>, S
     }
 }
 
-/// Get all skins stored in the user's Microsoft/Mojang account
-pub async fn get_all_account_skins() -> Result<Vec<AccountSkin>, String> {
-    Logger::console_log(
-        LogLevel::Info,
-        "🎨 Fetching all skins from Microsoft account",
-        None,
-    );
-
-    // Get the authenticated account
-    let account = get_minecraft_account(Some(AuthMethod::DeviceCodeFlow))
-        .await
-        .map_err(|e| format!("Authentication required: {}", e))?;
-
-    // Unfortunately, Microsoft/Mojang doesn't provide a direct API to get all user skins
-    // The skin history feature in the official launcher likely uses internal APIs
-    // 
-    // For now, we can only get the current skin. Future implementation could:
-    // 1. Store previously uploaded skins locally
-    // 2. Use unofficial APIs if available
-    // 3. Parse skin history from other sources
-    
-    let current_skin = get_current_skin(&account).await?;
-    
-    if current_skin.has_skin {
-        let account_skin = AccountSkin {
-            id: "current".to_string(),
-            name: "Current Skin".to_string(),
-            url: current_skin.url,
-            model: current_skin.model,
-            is_current: true,
-            uploaded_date: None, // We don't have this information from the API
-        };
-        Ok(vec![account_skin])
-    } else {
-        Ok(vec![])
-    }
-}
-
-/// Apply an account skin (set it as the current skin)
-pub async fn apply_account_skin(skin_id: String) -> Result<SkinUploadResponse, String> {
-    Logger::console_log(
-        LogLevel::Info,
-        &format!("🎯 Applying account skin: {}", skin_id),
-        None,
-    );
-
-    // For the "current" skin, there's nothing to do
-    if skin_id == "current" {
-        return Ok(SkinUploadResponse {
-            success: true,
-            message: "Current skin is already active".to_string(),
-            model_used: SkinModel::Classic, // We'd need to get the actual model
-        });
-    }
-
-    // For future implementation when we have access to skin history:
-    // 1. Get the skin data from Microsoft's API using the skin_id
-    // 2. Re-upload it to set as current
-    
-    Err("Skin history management not yet implemented".to_string())
-}
-
 /// Internal function to upload skin data to Mojang API
 async fn upload_skin_to_mojang(
     account: &LauncherAccount,
     skin_data: &[u8],
-    model: SkinModel,
+    model: SkinModel, // Assume this can return "classic" or "slim"
 ) -> Result<(), String> {
     let client = reqwest::Client::new();
-    
-    // Create form data
-    let form = reqwest::multipart::Form::new()
-        .part("file", reqwest::multipart::Part::bytes(skin_data.to_vec())
-            .file_name("skin.png")
-            .mime_str("image/png")
-            .map_err(|e| format!("Failed to create form data: {}", e))?)
-        .text("model", model.to_api_string());
 
-    let url = format!(
-        "https://api.mojang.com/user/profile/{}/skin",
-        account.minecraft_profile.id
-    );
+    // Multipart form: file + variant
+    let form = reqwest::multipart::Form::new()
+        .part(
+            "file",
+            reqwest::multipart::Part::bytes(skin_data.to_vec())
+                .file_name("skin.png")
+                .mime_str("image/png")
+                .map_err(|e| format!("Failed to create form data: {}", e))?,
+        )
+        .text("variant", model.to_api_string()); // "classic" or "slim"
+
+    let url = "https://api.minecraftservices.com/minecraft/profile/skins";
 
     Logger::console_log(
         LogLevel::Debug,
-        &format!("🌐 Making API request to: {}", url),
+        &format!("🌐 Uploading skin to: {}", url),
         None,
     );
 
     let response = client
-        .put(&url)
+        .post(url)
         .header("Authorization", format!("Bearer {}", account.access_token))
         .multipart(form)
         .send()
@@ -265,122 +186,14 @@ async fn upload_skin_to_mojang(
         .map_err(|e| format!("Network request failed: {}", e))?;
 
     match response.status() {
-        reqwest::StatusCode::OK => Ok(()),
-        reqwest::StatusCode::NO_CONTENT => Ok(()),
+        reqwest::StatusCode::OK | reqwest::StatusCode::NO_CONTENT => Ok(()),
         status => {
             let error_body = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
-            Err(format!("API request failed with status {}: {}", status, error_body))
+            Err(format!("Skin upload failed with status {}: {}", status, error_body))
         }
     }
 }
 
-/// Get current skin information from Mojang profile API
-async fn get_current_skin(account: &LauncherAccount) -> Result<CurrentSkin, String> {
-    let client = reqwest::Client::new();
-    
-    // Get profile with textures
-    let url = format!(
-        "https://sessionserver.mojang.com/session/minecraft/profile/{}",
-        account.minecraft_profile.id
-    );
-
-    Logger::console_log(
-        LogLevel::Debug,
-        &format!("🌐 Fetching profile from: {}", url),
-        None,
-    );
-
-    let response = client
-        .get(&url)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to fetch profile: {}", e))?;
-
-    if response.status() != reqwest::StatusCode::OK {
-        return Err(format!("Profile request failed with status: {}", response.status()));
-    }
-
-    let profile_data: Value = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse profile response: {}", e))?;
-
-    // Parse the profile data to extract skin information
-    let properties = profile_data
-        .get("properties")
-        .and_then(|p| p.as_array())
-        .ok_or_else(|| "No properties found in profile".to_string())?;
-
-    for property in properties {
-        if property.get("name").and_then(|n| n.as_str()) == Some("textures") {
-            let value = property
-                .get("value")
-                .and_then(|v| v.as_str())
-                .ok_or_else(|| "No texture value found".to_string())?;
-
-            // Decode base64
-            let decoded = general_purpose::STANDARD
-                .decode(value)
-                .map_err(|e| format!("Failed to decode texture data: {}", e))?;
-
-            let texture_data: Value = serde_json::from_slice(&decoded)
-                .map_err(|e| format!("Failed to parse texture JSON: {}", e))?;
-
-            // Extract skin information
-            if let Some(skin) = texture_data.get("textures").and_then(|t| t.get("SKIN")) {
-                let url = skin.get("url").and_then(|u| u.as_str()).map(|s| s.to_string());
-                let metadata = skin.get("metadata");
-                
-                let model = if let Some(meta) = metadata {
-                    let model_str = meta.get("model").and_then(|m| m.as_str()).unwrap_or("classic");
-                    SkinModel::from_api_string(model_str).unwrap_or(SkinModel::Classic)
-                } else {
-                    SkinModel::Classic
-                };
-
-                return Ok(CurrentSkin {
-                    model,
-                    url,
-                    has_skin: true,
-                });
-            }
-        }
-    }
-
-    Ok(CurrentSkin {
-        model: SkinModel::Classic,
-        url: None,
-        has_skin: false,
-    })
-}
-
-/// Download skin data from a URL
-async fn download_skin_from_url(url: &str) -> Result<Vec<u8>, String> {
-    let client = reqwest::Client::new();
-    
-    Logger::console_log(
-        LogLevel::Debug,
-        &format!("⬇️ Downloading skin from: {}", url),
-        None,
-    );
-
-    let response = client
-        .get(url)
-        .send()
-        .await
-        .map_err(|e| format!("Failed to download skin: {}", e))?;
-
-    if response.status() != reqwest::StatusCode::OK {
-        return Err(format!("Download failed with status: {}", response.status()));
-    }
-
-    let data = response
-        .bytes()
-        .await
-        .map_err(|e| format!("Failed to read skin data: {}", e))?;
-
-    Ok(data.to_vec())
-}
 
 /// Validate that the file is a valid PNG skin file
 fn is_valid_skin_file(data: &[u8]) -> bool {
@@ -401,4 +214,72 @@ fn is_valid_skin_file(data: &[u8]) -> bool {
     // - Check if it's a valid Minecraft skin format
 
     true
+}
+
+/// Apply an account skin (set it as the current skin)
+pub async fn apply_account_skin(skin_id: String) -> Result<SkinUploadResponse, String> {
+    Logger::console_log(
+        LogLevel::Info,
+        &format!("🎯 Applying skin: {}", skin_id),
+        None,
+    );
+
+    // For the "current" skin, there's nothing to do
+    if skin_id == "current" {
+        return Ok(SkinUploadResponse {
+            success: true,
+            message: "Current skin is already active".to_string(),
+            model_used: SkinModel::Classic, // Could fetch actual model if needed
+        });
+    }
+
+    // Handle local skins
+    if skin_id.starts_with("local_") {
+        // Get all local skins
+        let local_skins = crate::skins::get_skins::get_local_skins().await?;
+        if let Some(skin) = local_skins.iter().find(|s| s.id == skin_id) {
+            if let Some(url) = &skin.url {
+                // Extract base64 from data URL
+                let b64 = url.strip_prefix("data:image/png;base64,").unwrap_or(url);
+                // Use the recommended base64 decode engine
+                let skin_data = match base64::engine::general_purpose::STANDARD.decode(b64) {
+                    Ok(data) => data,
+                    Err(e) => return Err(format!("Failed to decode skin data: {}", e)),
+                };
+                // Get authenticated account
+                let account = get_minecraft_account(Some(AuthMethod::DeviceCodeFlow))
+                    .await
+                    .map_err(|e| format!("Authentication required: {}", e))?;
+                // Upload skin
+                match upload_skin_to_mojang(&account, &skin_data, skin.model).await {
+                    Ok(_) => {
+                        Logger::console_log(
+                            LogLevel::Info,
+                            "✅ Local skin applied successfully",
+                            None,
+                        );
+                        return Ok(SkinUploadResponse {
+                            success: true,
+                            message: "Local skin applied successfully".to_string(),
+                            model_used: skin.model,
+                        });
+                    }
+                    Err(e) => {
+                        Logger::console_log(
+                            LogLevel::Error,
+                            &format!("❌ Failed to apply local skin: {}", e),
+                            None,
+                        );
+                        return Err(e);
+                    }
+                }
+            }
+        }
+        return Err(format!("Local skin with ID '{}' not found or missing data URL", skin_id));
+    }
+
+    // For future implementation when we have access to skin history:
+    // 1. Get the skin data from Microsoft's API using the skin_id
+    // 2. Re-upload it to set as current
+    Err("Online skin history management not yet implemented".to_string())
 }

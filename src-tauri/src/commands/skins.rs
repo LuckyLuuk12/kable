@@ -2,15 +2,13 @@
 // These commands call the functions in the skins module
 
 use crate::skins::{
-    skin_upload::{
-        upload_skin_to_account as upload_skin_impl,
-        change_skin_model as change_model_impl,
-        get_current_skin_info as get_skin_info_impl,
-        select_skin_file as select_file_impl,
-        get_all_account_skins as get_account_skins_impl,
-        apply_account_skin as apply_skin_impl,
-    },
-    types::{SkinUploadConfig, SkinUploadResponse, CurrentSkin, SkinModel, AccountSkin},
+    get_current_skin_info as get_skin_info_impl,
+    get_all_account_skins as get_account_skins_impl,
+    apply_account_skin as apply_skin_impl,
+    upload_skin_to_account as upload_skin_impl,
+    change_skin_model as change_model_impl,
+    select_skin_file as select_file_impl,
+    SkinUploadConfig, SkinUploadResponse, CurrentSkin, SkinModel, AccountSkin,
 };
 
 /// Upload a skin file to the authenticated Microsoft/Mojang account

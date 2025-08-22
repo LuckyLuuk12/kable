@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 /// Represents the skin model type in Minecraft
@@ -61,4 +63,35 @@ pub struct AccountSkin {
     pub model: SkinModel,
     pub is_current: bool,
     pub uploaded_date: Option<i64>, // Unix timestamp
+}
+
+/// Root structure for launcher_custom_skins.json
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CustomSkinsRoot {
+	#[serde(rename = "customSkins")]
+	pub custom_skins: HashMap<String, CustomSkinEntry>,
+	pub version: Option<u32>,
+}
+
+/// Local skin entry from launcher_custom_skins.json
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CustomSkinEntry {
+	#[serde(default, rename = "capeId")]
+	pub cape_id: String,
+	#[serde(default, rename = "created")]
+	pub created: String,
+	#[serde(default, rename = "id")]
+	pub id: String,
+	#[serde(default, rename = "modelImage")]
+	pub model_image: String,
+	#[serde(default, rename = "name")]
+	pub name: String,
+	#[serde(default, rename = "skinImage")]
+	pub skin_image: String,
+	#[serde(default, rename = "slim")]
+	pub slim: bool,
+	#[serde(default, rename = "textureId")]
+	pub texture_id: String,
+	#[serde(default, rename = "updated")]
+	pub updated: String,
 }

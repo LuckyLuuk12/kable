@@ -184,6 +184,7 @@ async fn get_minecraft_account_offline() -> Result<LauncherAccount, String> {
             Ok(LauncherAccount {
                 access_token: "".to_string(),
                 access_token_expires_at: "1970-01-01T00:00:00Z".to_string(),
+                encrypted_refresh_token: None,
                 avatar: String::new(),
                 eligible_for_free_trials: false,
                 eligible_for_migration: false,

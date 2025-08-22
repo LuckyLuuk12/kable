@@ -14,6 +14,7 @@ use oauth2::{
     basic::BasicClient, reqwest::async_http_client, AuthUrl, AuthorizationCode, ClientId,
     CsrfToken, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
+use crate::auth::secure_token::{encrypt_token, decrypt_token};
 use once_cell::sync::Lazy;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,52 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use url::Url;
 use uuid;
+
+pub async fn refresh_microsoft_token(local_id: String) -> Result<LauncherAccount, String> {
+
+    // Load accounts and find the one to refresh
+    let accounts_json = crate::read_launcher_accounts().await?;
+    let account = accounts_json.accounts.get(&local_id).cloned()
+        .ok_or_else(|| format!("Account not found for local_id: {}", local_id))?;
+
+    let encrypted_refresh_token = account.encrypted_refresh_token.clone()
+        .ok_or_else(|| "No refresh token available".to_string())?;
+    let refresh_token = decrypt_token(&encrypted_refresh_token)?;
+
+    let client_id = crate::auth::auth_util::get_client_id()?;
+    let client = BasicClient::new(
+        ClientId::new(client_id),
+        None,
+        AuthUrl::new("https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize".to_string())
+            .map_err(|e| format!("Failed to create auth URL: {}", e))?,
+        Some(TokenUrl::new("https://login.microsoftonline.com/consumers/oauth2/v2.0/token".to_string())
+            .map_err(|e| format!("Failed to create token URL: {}", e))?),
+    );
+
+    let token_result = client
+        .exchange_refresh_token(&oauth2::RefreshToken::new(refresh_token))
+        .request_async(oauth2::reqwest::async_http_client)
+        .await
+        .map_err(|e| format!("Failed to refresh token: {}", e))?;
+
+    let new_access_token = token_result.access_token().secret().to_string();
+    let new_expires_at = Utc::now()
+        + chrono::Duration::seconds(
+            token_result.expires_in().map(|d| d.as_secs() as i64).unwrap_or(3600),
+        );
+    let new_encrypted_refresh_token = token_result.refresh_token()
+        .map(|rt| encrypt_token(rt.secret()).unwrap_or_default())
+        .or(account.encrypted_refresh_token.clone());
+
+    let mut updated_account = account.clone();
+    updated_account.access_token = new_access_token;
+    updated_account.access_token_expires_at = new_expires_at.to_rfc3339();
+    updated_account.encrypted_refresh_token = new_encrypted_refresh_token;
+
+    write_launcher_account(updated_account.clone()).await?;
+    Ok(updated_account)
+}
+
 
 const MSA_AUTHORIZE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
 const MSA_TOKEN_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
@@ -42,6 +89,7 @@ pub struct AuthCodeResponse {
 pub struct MicrosoftToken {
     pub access_token: String,
     pub expires_at: DateTime<Utc>,
+    pub encrypted_refresh_token: Option<String>, // AES-encrypted refresh token
 }
 
 /// Start the Microsoft authorization code authentication flow
@@ -390,6 +438,8 @@ async fn exchange_auth_code_for_tokens(
             format!("Failed to exchange authorization code: {}", e)
         })?;
 
+    let encrypted_refresh_token = token_result.refresh_token()
+        .map(|rt| encrypt_token(rt.secret()).unwrap_or_default());
     let microsoft_token = MicrosoftToken {
         access_token: token_result.access_token().secret().to_string(),
         expires_at: Utc::now()
@@ -399,6 +449,7 @@ async fn exchange_auth_code_for_tokens(
                     .map(|d| d.as_secs() as i64)
                     .unwrap_or(3600),
             ),
+        encrypted_refresh_token,
     };
 
     Logger::console_log(LogLevel::Info, "✅ Microsoft access token obtained", None);
@@ -449,6 +500,7 @@ pub async fn complete_minecraft_auth_code(
             .expires_at
             .format("%Y-%m-%dT%H:%M:%SZ")
             .to_string(),
+        encrypted_refresh_token: microsoft_token.encrypted_refresh_token.clone(),
         avatar: format!(
             "https://crafatar.com/avatars/{}?size=64&default=MHF_Steve&overlay",
             profile_uuid

@@ -1,3 +1,7 @@
+#[tauri::command]
+pub async fn refresh_microsoft_token(local_id: String) -> Result<crate::auth::LauncherAccount, String> {
+    crate::auth::code_flow::refresh_microsoft_token(local_id).await
+}
 pub use crate::auth::*;
 
 // Tauri command wrappers for all public async functions in the auth module

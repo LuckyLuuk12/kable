@@ -16,6 +16,7 @@ use std::path::PathBuf;
 pub struct LauncherAccount {
     pub access_token: String,
     pub access_token_expires_at: String,
+    pub encrypted_refresh_token: Option<String>, // AES-encrypted refresh token
     pub avatar: String,
     pub eligible_for_free_trials: bool,
     pub eligible_for_migration: bool,

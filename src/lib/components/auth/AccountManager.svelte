@@ -14,7 +14,7 @@
     if (!$currentAccount || isOffline) return;
     isLoading = true;
     try {
-      await AuthService.signInWithDeviceCode();
+      await AuthService.authenticateWithDeviceCode();
     } catch (error) {
       console.error('Device Code Flow refresh failed:', error);
     } finally {
@@ -27,7 +27,7 @@
     if (!$currentAccount) return;
     isLoading = true;
     try {
-      await AuthService.signIn();
+      await AuthService.authenticateWithMicrosoft();
     } catch (error) {
       console.error('Manual re-login failed:', error);
     } finally {
@@ -46,9 +46,8 @@
   }
 
   // Format token expiry for display
-  function formatTokenExpiry(account: LauncherAccount): string {
-    console.log("Account expires at: ", account.access_token_expires_at);
-    if (!account.access_token_expires_at) return 'Never expires';
+  function formatTokenExpiry(account: LauncherAccount | null): string {
+    if (!account || !account.access_token_expires_at) return 'Never expires';
     const expiryDate = new Date(account.access_token_expires_at);
     const now = new Date();
     const diff = expiryDate.getTime() - now.getTime();
@@ -61,6 +60,30 @@
     if (minutes > 0) return `Expires in ${minutes} minute${minutes > 1 ? 's' : ''}`;
     return 'Expires soon';
   }
+
+  // Reactive token expiry display
+  let tokenExpiryDisplay: string = '';
+  let expiryInterval: ReturnType<typeof setInterval> | null = null;
+
+  $: tokenExpiryDisplay = formatTokenExpiry($currentAccount);
+
+  onMount(async () => {
+    // Initialize authentication and load accounts
+    await AuthService.initialize();
+    await AuthService.refreshAvailableAccounts();
+    // Start interval to update expiry display every second
+    expiryInterval = setInterval(() => {
+      tokenExpiryDisplay = formatTokenExpiry($currentAccount);
+    }, 1000);
+  });
+
+  // Clean up interval on destroy
+  import { onDestroy } from 'svelte';
+  onDestroy(() => {
+    if (expiryInterval) clearInterval(expiryInterval);
+  });
+
+  $: expiryDisplay = !$currentAccount ? '' :  formatTokenExpiry($currentAccount);
 
   onMount(async () => {
     // Initialize authentication and load accounts
@@ -89,16 +112,18 @@
   /**
    * Refresh current account token
    */
+  // Refresh current account token using centralized AuthService logic
   async function refreshToken() {
     if (!$currentAccount || isOffline) return;
-    
     isLoading = true;
     try {
+      // Calls the new background refresh logic in AuthService
       await AuthService.refreshCurrentAccount();
     } catch (error) {
       console.error('Token refresh failed:', error);
     } finally {
       isLoading = false;
+      showActionsDropdown = false;
     }
   }
 
@@ -134,19 +159,12 @@
           <div class="account-details-horizontal">
             <div class="account-details-main">
               <h4>{$currentAccount.minecraft_profile?.name || $currentAccount.username || 'Unknown User'}</h4>
-              <p class="account-type">
-                {#if getAccountStatus($currentAccount) === 'offline'}
-                  Offline Account
-                {:else}
-                  Microsoft Account
-                {/if}
-              </p>
             </div>
             <div class="account-details-side">
               <span class="account-id">UUID: {$currentAccount.minecraft_profile?.id}</span>
               {#if getAccountStatus($currentAccount) !== 'offline'}
                 <span class="token-status" class:expired={getAccountStatus($currentAccount) === 'expired'}>
-                  {formatTokenExpiry($currentAccount)}
+                  {tokenExpiryDisplay}
                 </span>
               {/if}
             </div>
@@ -372,31 +390,7 @@
     min-width: 0;
     justify-content: space-between;
   }
-  .account-details-main {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    min-width: 0;
-    h4 {
-      margin: 0 0 4px 0;
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 220px;
-    }
-    .account-type {
-      margin: 0 0 8px 0;
-      font-size: 14px;
-      color: var(--placeholder);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 220px;
-    }
-  }
+
   .account-details-side {
     display: flex;
     flex-direction: column;

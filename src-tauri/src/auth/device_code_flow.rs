@@ -43,6 +43,7 @@ pub struct DeviceCodeResponse {
 // pub struct MicrosoftToken {
 //     pub access_token: String,
 //     pub expires_at: DateTime<Utc>,
+//     pub encrypted_refresh_token: Option<String>, // AES-encrypted refresh token
 // }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -320,9 +321,12 @@ pub async fn poll_microsoft_device_auth(
                 None,
             );
 
+            let encrypted_refresh_token = token.refresh_token()
+                .map(|rt| crate::auth::secure_token::encrypt_token(rt.secret()).unwrap_or_default());
             let ms_token = crate::auth::code_flow::MicrosoftToken {
                 access_token: token.access_token().secret().to_string(),
                 expires_at,
+                encrypted_refresh_token,
             };
 
             // Debug: Log token info (without sensitive data)
@@ -548,6 +552,7 @@ pub async fn complete_minecraft_auth(
     let account = LauncherAccount {
         access_token: access_token.clone(),
         access_token_expires_at: microsoft_token.expires_at.to_rfc3339(),
+        encrypted_refresh_token: microsoft_token.encrypted_refresh_token.clone(),
         avatar: format!("https://crafatar.com/avatars/{}?size=64", final_uuid),
         eligible_for_free_trials: true,
         eligible_for_migration: false,

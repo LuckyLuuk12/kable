@@ -1,3 +1,26 @@
+// Microsoft authentication types
+export interface MicrosoftToken {
+  access_token: string;
+  expires_at: string;
+  encrypted_refresh_token?: string;
+}
+
+// Authentication Methods
+export type AuthMethod = 'DeviceCodeFlow' | 'AuthCodeFlow' | 'Custom' | 'Offline';
+
+export interface AuthCodeResponse {
+  auth_url: string;
+  state: string;
+  local_server_port: number;
+}
+
+export interface DeviceCodeResponse {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+  interval: number;
+}
 export interface MinecraftInstallation {
   id: string;
   name: string;
@@ -75,6 +98,7 @@ export interface MicrosoftAccount {
 export interface LauncherAccount {
   access_token: string;
   access_token_expires_at: string;
+  encrypted_refresh_token?: string; // AES-encrypted refresh token
   avatar: string;
   eligible_for_free_trials: boolean;
   eligible_for_migration: boolean;
@@ -93,7 +117,7 @@ export interface LauncherAccount {
   persistent: boolean;
   remote_id: string;
   account_type: string; // "Xbox", "Offline", etc.
-  user_properites: any[]; // Note: backend keeps the typo from official launcher
+  user_properties: any[];
   username: string;
 }
 

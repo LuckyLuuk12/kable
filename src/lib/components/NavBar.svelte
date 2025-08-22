@@ -12,34 +12,28 @@
   // Here we initialize all the required managers and services
   onMount(async () => {
     console.log('Starting layout initialization...');
-    
     // Wait a bit for Tauri to fully initialize
     await new Promise(resolve => setTimeout(resolve, 50));
-    
     try {
       // Test if Tauri is ready by making a simple call
       await InstallationService.loadInstallations();
       isTauriReady = true;
-      
       // Initialize logs service first
       await logsService.initialize();
       LogsService.emitLauncherEvent('Kable launcher starting up...', 'info');
-      
       // Initialize all services
       LogsService.emitLauncherEvent('Initializing launcher components...', 'info');
-      
       await Promise.all([
         WindowStateService.initialize(), // Initialize window state first
         SettingsService.initialize(),
         AuthService.initialize(),
         IconService.initialize()
       ]);
-      
+      // Refresh token on startup
+      await AuthService.refreshCurrentAccount();
       LogsService.emitLauncherEvent('All components initialized successfully', 'info');
       initializationStatus = 'Ready';
-      
       console.log('Layout initialization complete');
-
       // Show the window now that initialization is complete
       try {
         const { invoke } = await import('@tauri-apps/api/core');
@@ -47,10 +41,8 @@
       } catch (error) {
         console.error('Failed to show main window:', error);
       }
-
       // Set up settings behavior event listeners
       await setupSettingsEventListeners();
-      
     } catch (error) {
       console.error('Tauri initialization error:', error);
       LogsService.emitLauncherEvent(`Initialization error: ${error}`, 'error');
