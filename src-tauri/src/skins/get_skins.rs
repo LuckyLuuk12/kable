@@ -4,6 +4,92 @@ use crate::skins::types::{CurrentSkin, SkinModel, AccountSkin};
 use base64::{Engine as _, engine::general_purpose};
 use serde_json::Value;
 use std::fs;
+use crate::skins::types::{PlayerProfile, AccountCape};
+
+
+/// Get the full player profile (id, name, skins, capes) from Mojang API
+pub async fn get_player_profile() -> Result<PlayerProfile, String> {
+	Logger::console_log(
+		LogLevel::Info,
+		"🔍 Fetching player profile (skins & capes)",
+		None,
+	);
+
+	// Get the authenticated account
+	let account = get_minecraft_account(Some(AuthMethod::DeviceCodeFlow))
+		.await
+		.map_err(|e| format!("Authentication required: {}", e))?;
+
+	let client = reqwest::Client::new();
+	let url = "https://api.minecraftservices.com/minecraft/profile";
+	let response = client
+		.get(url)
+		.header("Authorization", format!("Bearer {}", account.access_token))
+		.send()
+		.await
+		.map_err(|e| format!("Failed to fetch profile: {}", e))?;
+
+	if response.status() != reqwest::StatusCode::OK {
+		return Err(format!("Profile request failed with status: {}", response.status()));
+	}
+
+	let profile_data: serde_json::Value = response
+		.json()
+		.await
+		.map_err(|e| format!("Failed to parse profile response: {}", e))?;
+
+	let id = profile_data.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+	let name = profile_data.get("name").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+
+	// Parse skins
+	let mut skins = Vec::new();
+	if let Some(skins_arr) = profile_data.get("skins").and_then(|v| v.as_array()) {
+		for skin in skins_arr {
+			let id = skin.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+			let name = "Account Skin".to_string();
+			let url = skin.get("url").and_then(|v| v.as_str()).map(|s| s.to_string());
+			let variant = skin.get("variant").and_then(|v| v.as_str()).unwrap_or("CLASSIC");
+			let model = match variant {
+				"SLIM" => SkinModel::Slim,
+				_ => SkinModel::Classic,
+			};
+			let is_current = skin.get("state").and_then(|v| v.as_str()) == Some("ACTIVE");
+			skins.push(AccountSkin {
+				id,
+				name,
+				url,
+				model,
+				is_current,
+				uploaded_date: None,
+			});
+		}
+	}
+
+	// Parse capes
+	let mut capes = Vec::new();
+	if let Some(capes_arr) = profile_data.get("capes").and_then(|v| v.as_array()) {
+		for cape in capes_arr {
+			let id = cape.get("id").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+			let state = cape.get("state").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+			let url = cape.get("url").and_then(|v| v.as_str()).map(|s| s.to_string());
+			let alias = cape.get("alias").and_then(|v| v.as_str()).map(|s| s.to_string());
+			capes.push(AccountCape {
+				id,
+				state,
+				url,
+				alias,
+			});
+		}
+	}
+
+	Ok(PlayerProfile {
+		id,
+		name,
+		skins,
+		capes,
+	})
+}
+
 
 /// Get the current skin information from Mojang
 pub async fn get_current_skin_info() -> Result<CurrentSkin, String> {

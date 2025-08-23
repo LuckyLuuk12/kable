@@ -1,14 +1,11 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { Icon, AuthService, currentAccount, type LauncherAccount, AuthenticationFlow } from '$lib';
 
   let isLoading = false;
-  let showAddAccount = false;
 
   // Check if current account is offline (no access token)
   $: isOffline = !$currentAccount || !$currentAccount.access_token;
-
-  let showActionsDropdown = false;
 
   async function refreshTokenDCF() {
     if (!$currentAccount || isOffline) return;
@@ -19,7 +16,6 @@
       console.error('Device Code Flow refresh failed:', error);
     } finally {
       isLoading = false;
-      showActionsDropdown = false;
     }
   }
 
@@ -32,7 +28,6 @@
       console.error('Manual re-login failed:', error);
     } finally {
       isLoading = false;
-      showActionsDropdown = false;
     }
   }
   // Determine account status
@@ -78,17 +73,8 @@
   });
 
   // Clean up interval on destroy
-  import { onDestroy } from 'svelte';
   onDestroy(() => {
     if (expiryInterval) clearInterval(expiryInterval);
-  });
-
-  $: expiryDisplay = !$currentAccount ? '' :  formatTokenExpiry($currentAccount);
-
-  onMount(async () => {
-    // Initialize authentication and load accounts
-    await AuthService.initialize();
-    await AuthService.refreshAvailableAccounts();
   });
 
   /**
@@ -123,7 +109,6 @@
       console.error('Token refresh failed:', error);
     } finally {
       isLoading = false;
-      showActionsDropdown = false;
     }
   }
 
@@ -171,10 +156,6 @@
           </div>
         </div>
         <div class="dropdown account-actions-dropdown"
-          on:mouseenter={() => showActionsDropdown = true}
-          on:mouseleave={() => showActionsDropdown = false}
-          on:focusin={() => showActionsDropdown = true}
-          on:focusout={() => showActionsDropdown = false}
           role="menu" tabindex="0"
         >
           <button class="btn btn-secondary dropdown-toggle actions-dropdown-btn" aria-label="Account Actions">

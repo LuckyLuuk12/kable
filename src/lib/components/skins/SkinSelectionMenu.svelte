@@ -1,18 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getAllAccountSkins, getCurrentSkinInfo, applyAccountSkin, selectSkinFile, uploadSkinToAccount } from '$lib/api/skins';
+  import { getPlayerProfile, getCurrentSkinInfo, applyAccountSkin, selectSkinFile, uploadSkinToAccount, removeSkinById, modifySkinById, getLocalSkins } from '$lib/api/skins';
   import { Icon } from '$lib';
   import { SkinViewer3D } from '$lib/components/skins';
-  import type { AccountSkin, CurrentSkin, SkinModelType } from '$lib/types';
+  import type { AccountSkin, CurrentSkin, SkinModelType, AccountCape, PlayerProfile } from '$lib/types';
 
   // State
   let accountSkins: AccountSkin[] = [];
   let currentSkin: CurrentSkin | null = null;
+  let capes: AccountCape[] = [];
   let loading = false;
   let error = '';
-  
-  // Animation state for skin previews
   let hoveredSkinId: string | null = null;
+  let editingSkinId: string | null = null;
+  let editName = '';
+  let editCapeId = '';
+  let editSlim: boolean | undefined = undefined;
 
   // Load skins on component mount
   onMount(async () => {
@@ -22,42 +25,82 @@
   async function loadSkins() {
     loading = true;
     error = '';
-    let onlineError = '';
+    let remoteSkins: AccountSkin[] = [];
+    let remoteCapes: AccountCape[] = [];
     try {
-      // Try to load both current skin info and account skins
-      const [current, skins] = await Promise.all([
-        getCurrentSkinInfo(),
-        getAllAccountSkins()
-      ]);
-      currentSkin = current;
-      accountSkins = skins;
+      // Try to fetch remote profile (skins/capes)
+      const profile: PlayerProfile = await getPlayerProfile();
+      remoteSkins = profile.skins || [];
+      remoteCapes = profile.capes || [];
+    } catch (err) {
+      error = `Failed to load remote skins/capes: ${err}`;
+      console.error('Error loading remote skins/capes:', err);
+    }
+    try {
+      // Always load local skins from launcher_custom_skins.json
+  const localSkins: AccountSkin[] = await getLocalSkins();
+      // Merge remote and local skins, local always shown
+      accountSkins = [...localSkins, ...remoteSkins];
+      capes = remoteCapes;
+      currentSkin = await getCurrentSkinInfo();
       // Debug log
       console.log('Loaded accountSkins:', accountSkins);
-      // Check for missing URLs
+      console.log('Loaded capes:', capes);
       const missingUrls = accountSkins.filter(skin => !skin.url);
       if (missingUrls.length > 0) {
-        error = `Warning: ${missingUrls.length} skin(s) are missing a valid file path and cannot be displayed.`;
+        error += `\nWarning: ${missingUrls.length} skin(s) are missing a valid file path and cannot be displayed.`;
         console.warn('Skins missing url:', missingUrls);
       }
     } catch (err) {
-      // If error is authentication, fallback to local skins only
-      onlineError = `${err}`;
-      if (onlineError.includes('Authentication required')) {
-        try {
-          // Only load local skins
-          const skins = await getAllAccountSkins();
-          currentSkin = null;
-          accountSkins = skins;
-          error = 'Online skin info unavailable. Showing local skins only.';
-          console.warn('Online skin info unavailable:', onlineError);
-        } catch (localErr) {
-          error = `Failed to load local skins: ${localErr}`;
-          console.error('Error loading local skins:', localErr);
-        }
-      } else {
-        error = `Failed to load skins: ${err}`;
-        console.error('Error loading skins:', err);
-      }
+      error += `\nFailed to load local skins: ${err}`;
+      console.error('Error loading local skins:', err);
+      // Fallback: show only remote skins if local fails
+      accountSkins = remoteSkins;
+      capes = remoteCapes;
+    } finally {
+      loading = false;
+    }
+  }
+  async function handleRemoveSkin(skinId: string) {
+    loading = true;
+    error = '';
+    try {
+      await removeSkinById(skinId);
+      await loadSkins();
+    } catch (err) {
+      error = `Failed to remove skin: ${err}`;
+      console.error('Error removing skin:', err);
+    } finally {
+      loading = false;
+    }
+  }
+
+  function startEditSkin(skin: AccountSkin) {
+  editingSkinId = skin.id;
+  editName = skin.name || '';
+  editCapeId = '';
+  // Type-safe check for Slim model
+  editSlim = String(skin.model).toLowerCase() === 'slim';
+  }
+
+  function cancelEditSkin() {
+  editingSkinId = null;
+  editName = '';
+  editCapeId = '';
+  editSlim = undefined;
+  }
+
+  async function handleModifySkin() {
+    if (!editingSkinId) return;
+    loading = true;
+    error = '';
+    try {
+      await modifySkinById(editingSkinId, editName, editCapeId, editSlim);
+      await loadSkins();
+      cancelEditSkin();
+    } catch (err) {
+      error = `Failed to modify skin: ${err}`;
+      console.error('Error modifying skin:', err);
     } finally {
       loading = false;
     }
@@ -263,8 +306,59 @@
                         <Icon name="check" size="sm" />
                         Use
                       </button>
+                      <button 
+                        class="btn btn-danger btn-sm glass-btn"
+                        on:click={() => handleRemoveSkin(skin.id)}
+                        disabled={loading}
+                      >
+                        <Icon name="trash" size="sm" />
+                        Remove
+                      </button>
+                      <button 
+                        class="btn btn-info btn-sm glass-btn"
+                        on:click={() => startEditSkin(skin)}
+                        disabled={loading}
+                      >
+                        <Icon name="edit" size="sm" />
+                        Edit
+                      </button>
                     </div>
                   {/if}
+              {#if editingSkinId === skin.id}
+                <div class="skin-edit-form glass-card">
+                  <h5>Edit Skin</h5>
+                  <div class="form-group">
+                    <label for="editName">Name:</label>
+                    <input id="editName" type="text" bind:value={editName} />
+                  </div>
+                  <div class="form-group">
+                    <label for="editCape">Cape:</label>
+                    <select id="editCape" bind:value={editCapeId}>
+                      <option value="">None</option>
+                      {#each capes as cape}
+                        <option value={cape.id}>{cape.alias || cape.id}</option>
+                      {/each}
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="editSlim">Model:</label>
+                    <select id="editSlim" bind:value={editSlim}>
+                      <option value={false}>Classic</option>
+                      <option value={true}>Slim</option>
+                    </select>
+                  </div>
+                  <div class="form-actions">
+                    <button class="btn btn-success btn-sm glass-btn" on:click={handleModifySkin} disabled={loading}>
+                      <Icon name="check" size="sm" />
+                      Save
+                    </button>
+                    <button class="btn btn-secondary btn-sm glass-btn" on:click={cancelEditSkin} disabled={loading}>
+                      <Icon name="close" size="sm" />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              {/if}
                 </div>
               </div>
             {/each}

@@ -1,3 +1,39 @@
+/**
+ * Get all local skins stored in launcher_custom_skins.json
+ */
+export async function getLocalSkins(): Promise<AccountSkin[]> {
+  return await invoke('get_local_skins');
+}
+import type { PlayerProfile } from '../types';
+/**
+ * Get the full player profile (id, name, skins, capes) from Mojang API
+ */
+export async function getPlayerProfile(): Promise<PlayerProfile> {
+  return await invoke('get_player_profile');
+}
+/**
+ * Remove a skin entry by its id from launcher_custom_skins.json
+ */
+export async function removeSkinById(skinId: string): Promise<void> {
+  await invoke('remove_skin_by_id', { skinId });
+}
+
+/**
+ * Modify a skin entry by its id in launcher_custom_skins.json
+ */
+export async function modifySkinById(
+  skinId: string,
+  newName?: string,
+  newCapeId?: string,
+  newSlim?: boolean
+): Promise<void> {
+  await invoke('modify_skin_by_id', {
+    skinId,
+    newName,
+    newCapeId,
+    newSlim,
+  });
+}
 import { invoke } from '@tauri-apps/api/core';
 import type { SkinUploadConfig, SkinUploadResponse, CurrentSkin, SkinModelType, AccountSkin } from '../types';
 

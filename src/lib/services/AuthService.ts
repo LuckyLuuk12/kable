@@ -3,6 +3,7 @@
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import * as authApi from '$lib';
 import { currentAccount, availableAccounts, isAuthenticating } from '../stores/auth';
+import { get } from 'svelte/store';
 import type { LauncherAccount } from '../types';
 import * as systemApi from '$lib';
 
@@ -35,7 +36,7 @@ export class AuthService {
   private static oauthWindow: WebviewWindow | null = null;
   private static refreshTimer: ReturnType<typeof setInterval> | null = null;
   private static isInitialized = false;
-  private static currentAccount: LauncherAccount | null = null;
+  // Removed: private static currentAccount
 
   /**
    * Initialize authentication service and try to auto-authenticate
@@ -46,20 +47,19 @@ export class AuthService {
    */
   static async initialize(): Promise<LauncherAccount | null> {
     if (this.isInitialized) {
-      return this.currentAccount;
+      return get(currentAccount);
     }
     console.log('🔐 Initializing authentication service...');
     this.isInitialized = true;
     try {
       // Try to get existing account with valid token
       const account = await authApi.getLaunchAuthAccount();
-      this.currentAccount = account;
       currentAccount.set(account);
       // Load all available accounts
       await this.refreshAvailableAccounts();
       // Start background refresh
       this.initializeBackgroundRefresh();
-      console.log('✅ Auto-authenticated with existing account:', account.username);
+      console.log('✅ Auto-authenticated with existing account:', account?.username);
       return account;
     } catch (error) {
       currentAccount.set(null);
@@ -87,20 +87,20 @@ export class AuthService {
    * Refresh token if expiring soon (no sign out or prompt)
    */
   private static async startBackgroundRefresh(): Promise<void> {
-    if (!this.currentAccount) return;
-    if (!this.currentAccount.access_token_expires_at) return;
+    const account = get(currentAccount);
+    if (!account) return;
+    if (!account.access_token_expires_at) return;
     // Check for encrypted_refresh_token before attempting refresh
-    if (!this.currentAccount.encrypted_refresh_token) {
+    if (!account.encrypted_refresh_token) {
       console.warn('⚠️ Cannot auto-refresh token: encrypted_refresh_token is missing');
       return;
     }
-    const expiresAt = new Date(this.currentAccount.access_token_expires_at);
+    const expiresAt = new Date(account.access_token_expires_at);
     const now = new Date();
     // If token expires in less than 10 minutes, refresh
     if (expiresAt.getTime() - now.getTime() < 10 * 60 * 1000) {
       try {
-        const refreshed = await authApi.refreshMicrosoftToken(this.currentAccount.local_id);
-        this.currentAccount = refreshed;
+        const refreshed = await authApi.refreshMicrosoftToken(account.local_id);
         currentAccount.set(refreshed);
         await this.refreshAvailableAccounts();
         console.log('🔄 Token auto-refreshed in background');
@@ -153,7 +153,6 @@ export class AuthService {
         setTimeout(async () => {
           try {
             const account = await authApi.getMinecraftAccount('AuthCodeFlow');
-            this.currentAccount = account;
             currentAccount.set(account);
             await this.refreshAvailableAccounts();
             // Clean up
@@ -213,7 +212,6 @@ export class AuthService {
           if (token) {
             console.log('✅ Device code authentication successful!');
             const account = await authApi.completeMicrosoftAuth(token);
-            this.currentAccount = account;
             currentAccount.set(account);
             await this.refreshAvailableAccounts();
             resolve(account);
@@ -248,7 +246,6 @@ export class AuthService {
             if (token) {
               console.log('✅ Device code authentication successful!');
               const account = await authApi.completeMicrosoftAuth(token);
-              this.currentAccount = account;
               currentAccount.set(account);
               await this.refreshAvailableAccounts();
               isAuthenticating.set(false);
@@ -285,18 +282,18 @@ export class AuthService {
    * Manual refresh for current account (used by AccountManager refresh button)
    */
   static async refreshCurrentAccount(): Promise<LauncherAccount | null> {
-    if (!this.currentAccount) {
+    const account = get(currentAccount);
+    if (!account) {
       console.warn('⚠️ No account to refresh');
       return null;
     }
-    if (!this.currentAccount.encrypted_refresh_token) {
+    if (!account.encrypted_refresh_token) {
       console.warn('⚠️ Cannot refresh token: encrypted_refresh_token is missing');
       return null;
     }
     try {
       console.log('🔄 Manually refreshing current account token...');
-      const refreshed = await authApi.refreshMicrosoftToken(this.currentAccount.local_id);
-      this.currentAccount = refreshed;
+      const refreshed = await authApi.refreshMicrosoftToken(account.local_id);
       currentAccount.set(refreshed);
       await this.refreshAvailableAccounts();
       console.log('✅ Token manually refreshed');
@@ -311,23 +308,24 @@ export class AuthService {
    * Get current authenticated account
    */
   static getCurrentAccount(): LauncherAccount | null {
-    return this.currentAccount;
+    return get(currentAccount);
   }
 
   /**
    * Check if current account has a valid token
    */
   static isCurrentAccountValid(): boolean {
-    if (!this.currentAccount) {
+    const account = get(currentAccount);
+    if (!account) {
       return false;
     }
     // Check if we have an access token
-    if (!this.currentAccount.access_token) {
+    if (!account.access_token) {
       return false;
     }
     // Check expiry if available
-    if (this.currentAccount.access_token_expires_at) {
-      const expiresAt = new Date(this.currentAccount.access_token_expires_at);
+    if (account.access_token_expires_at) {
+      const expiresAt = new Date(account.access_token_expires_at);
       const now = new Date();
       const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
       return expiresAt > fiveMinutesFromNow;
@@ -340,7 +338,6 @@ export class AuthService {
    * Sign out current account
    */
   static async signOut(): Promise<void> {
-    this.currentAccount = null;
     currentAccount.set(null);
     await this.refreshAvailableAccounts();
     console.log('✅ Signed out successfully');
@@ -390,7 +387,6 @@ export class AuthService {
     try {
       await authApi.setActiveLauncherAccount(accountId);
       const account = await authApi.getMinecraftAccount();
-      this.currentAccount = account;
       currentAccount.set(account);
       await this.refreshAvailableAccounts();
       console.log('✅ Switched to account:', account.username);
@@ -405,8 +401,8 @@ export class AuthService {
   static async removeAccount(accountId: string): Promise<void> {
     try {
       await authApi.removeLauncherAccount(accountId);
-      if (this.currentAccount && this.currentAccount.local_id === accountId) {
-        this.currentAccount = null;
+      const account = get(currentAccount);
+      if (account && account.local_id === accountId) {
         currentAccount.set(null);
       }
       await this.refreshAvailableAccounts();

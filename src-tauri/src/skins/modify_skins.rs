@@ -5,24 +5,122 @@ use std::fs;
 use base64::Engine;
 use tauri_plugin_dialog::DialogExt;
 use reqwest;
+use crate::skins::types::{CustomSkinEntry, CustomSkinsRoot};
+use std::collections::HashMap;
+use chrono::Utc;
+use base64::engine::general_purpose::STANDARD;
+use serde_json;
+
+/// Modify a skin entry by its id in launcher_custom_skins.json
+pub fn modify_skin_by_id(skin_id: &str, new_name: Option<&str>, new_cape_id: Option<&str>, new_slim: Option<bool>) -> Result<(), String> {
+    // Find Minecraft directory and skins file
+    let minecraft_dir = crate::get_default_minecraft_dir()?;
+    let skins_path = minecraft_dir.join("launcher_custom_skins.json");
+
+    // Read or create CustomSkinsRoot
+    let mut root: CustomSkinsRoot = if skins_path.exists() {
+        match fs::read_to_string(&skins_path) {
+            Ok(data) => serde_json::from_str(&data).unwrap_or(CustomSkinsRoot { custom_skins: HashMap::new(), version: Some(1) }),
+            Err(_) => CustomSkinsRoot { custom_skins: HashMap::new(), version: Some(1) },
+        }
+    } else {
+        return Err("No skins file found".to_string());
+    };
+
+    // Find and modify the skin entry
+    if let Some(skin) = root.custom_skins.get_mut(skin_id) {
+        if let Some(name) = new_name {
+            skin.name = name.to_string();
+        }
+        if let Some(cape_id) = new_cape_id {
+            skin.cape_id = cape_id.to_string();
+        }
+        if let Some(slim) = new_slim {
+            skin.slim = slim;
+        }
+        skin.updated = Utc::now().to_rfc3339();
+    } else {
+        return Err(format!("Skin id '{}' not found", skin_id));
+    }
+
+    // Sort custom_skins by skin number
+    let mut sorted: Vec<(String, crate::skins::types::CustomSkinEntry)> = root.custom_skins
+        .drain()
+        .collect();
+    sorted.sort_by_key(|(k, _)| {
+        k.strip_prefix("skin_")
+            .and_then(|num| num.parse::<usize>().ok())
+            .unwrap_or(usize::MAX)
+    });
+    root.custom_skins = sorted.into_iter().collect();
+
+    // Write back to file
+    fs::write(&skins_path, serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?)
+        .map_err(|e| format!("Failed to write skin file: {}", e))?;
+
+    Logger::console_log(
+        LogLevel::Info,
+        &format!("✏️ Modified skin {} in launcher_custom_skins.json", skin_id),
+        None,
+    );
+    Ok(())
+}
+
+
+/// Remove a skin entry by its id from launcher_custom_skins.json
+pub fn remove_skin_by_id(skin_id: &str) -> Result<(), String> {
+    // Find Minecraft directory and skins file
+    let minecraft_dir = crate::get_default_minecraft_dir()?;
+    let skins_path = minecraft_dir.join("launcher_custom_skins.json");
+
+    // Read or create CustomSkinsRoot
+    let mut root: CustomSkinsRoot = if skins_path.exists() {
+        match fs::read_to_string(&skins_path) {
+            Ok(data) => serde_json::from_str(&data).unwrap_or(CustomSkinsRoot { custom_skins: HashMap::new(), version: Some(1) }),
+            Err(_) => CustomSkinsRoot { custom_skins: HashMap::new(), version: Some(1) },
+        }
+    } else {
+        return Err("No skins file found".to_string());
+    };
+
+    // Remove the skin entry
+    if root.custom_skins.remove(skin_id).is_none() {
+        return Err(format!("Skin id '{}' not found", skin_id));
+    }
+
+    // Sort custom_skins by skin number
+    let mut sorted: Vec<(String, crate::skins::types::CustomSkinEntry)> = root.custom_skins
+        .drain()
+        .collect();
+    sorted.sort_by_key(|(k, _)| {
+        k.strip_prefix("skin_")
+            .and_then(|num| num.parse::<usize>().ok())
+            .unwrap_or(usize::MAX)
+    });
+    root.custom_skins = sorted.into_iter().collect();
+
+    // Write back to file
+    fs::write(&skins_path, serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?)
+        .map_err(|e| format!("Failed to write skin file: {}", e))?;
+
+    Logger::console_log(
+        LogLevel::Info,
+        &format!("🗑️ Removed skin {} from launcher_custom_skins.json", skin_id),
+        None,
+    );
+    Ok(())
+}
+
 
 /// Upload a skin file to the authenticated Microsoft/Mojang account
 pub async fn upload_skin_to_account(config: SkinUploadConfig) -> Result<SkinUploadResponse, String> {
+    
+
     Logger::console_log(
         LogLevel::Info,
-        &format!("🎨 Starting skin upload with model: {:?}", config.model),
+        &format!("🎨 Adding skin locally with model: {:?}", config.model),
         None,
     );
-
-    // Get the authenticated account
-    let account = get_minecraft_account(Some(AuthMethod::DeviceCodeFlow))
-        .await
-        .map_err(|e| format!("Authentication required: {}", e))?;
-
-    // Validate the account has Minecraft
-    if account.access_token.is_empty() {
-        return Err("No valid access token found".to_string());
-    }
 
     // Read the skin file
     let skin_data = fs::read(&config.file_path)
@@ -33,29 +131,86 @@ pub async fn upload_skin_to_account(config: SkinUploadConfig) -> Result<SkinUplo
         return Err("Invalid skin file. Must be a valid PNG image.".to_string());
     }
 
-    // Upload to Mojang API
-    match upload_skin_to_mojang(&account, &skin_data, config.model).await {
-        Ok(_) => {
-            Logger::console_log(
-                LogLevel::Info,
-                "✅ Skin uploaded successfully",
-                None,
-            );
-            Ok(SkinUploadResponse {
-                success: true,
-                message: "Skin uploaded successfully".to_string(),
-                model_used: config.model,
-            })
+    // Find Minecraft directory and skins file
+    let minecraft_dir = crate::get_default_minecraft_dir()?;
+    let skins_path = minecraft_dir.join("launcher_custom_skins.json");
+
+    // Read or create CustomSkinsRoot
+    let mut root: CustomSkinsRoot = if skins_path.exists() {
+        match fs::read_to_string(&skins_path) {
+            Ok(data) => serde_json::from_str(&data).unwrap_or(CustomSkinsRoot { custom_skins: HashMap::new(), version: Some(1) }),
+            Err(_) => CustomSkinsRoot { custom_skins: HashMap::new(), version: Some(1) },
         }
-        Err(e) => {
-            Logger::console_log(
-                LogLevel::Error,
-                &format!("❌ Skin upload failed: {}", e),
-                None,
-            );
-            Err(e)
+    } else {
+        CustomSkinsRoot { custom_skins: HashMap::new(), version: Some(1) }
+    };
+
+    // Find the first available skin number (fill gaps)
+    let mut used_numbers: Vec<usize> = root.custom_skins
+        .keys()
+        .filter_map(|k| {
+            if let Some(num_str) = k.strip_prefix("skin_") {
+                num_str.parse::<usize>().ok()
+            } else {
+                None
+            }
+        })
+        .collect();
+    used_numbers.sort_unstable();
+    let mut next_num = 1;
+    for n in &used_numbers {
+        match n.cmp(&next_num) {
+            std::cmp::Ordering::Equal => next_num += 1,
+            std::cmp::Ordering::Greater => break,
+            std::cmp::Ordering::Less => {} // continue
         }
     }
+    let skin_id = format!("skin_{}", next_num);
+    let now = Utc::now().to_rfc3339();
+    let skin_base64 = STANDARD.encode(&skin_data);
+    let slim = config.model == crate::skins::types::SkinModel::Slim;
+
+    let entry = CustomSkinEntry {
+        cape_id: String::new(),
+        created: now.clone(),
+        id: skin_id.clone(),
+        model_image: skin_base64.clone(), // modelImage same as skinImage
+        name: format!("Custom Skin {}", now),
+        skin_image: skin_base64.clone(),
+        slim,
+        texture_id: String::new(), // unknown purpose
+        updated: now.clone(),
+    };
+
+    // Insert new skin with key = id
+    root.custom_skins.insert(skin_id.clone(), entry.clone());
+
+    // Sort custom_skins by skin number
+    let mut sorted: Vec<(String, CustomSkinEntry)> = root.custom_skins
+        .drain()
+        .collect();
+    sorted.sort_by_key(|(k, _)| {
+        k.strip_prefix("skin_")
+            .and_then(|num| num.parse::<usize>().ok())
+            .unwrap_or(usize::MAX)
+    });
+    root.custom_skins = sorted.into_iter().collect();
+
+    // Write back to file
+    fs::write(&skins_path, serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?)
+        .map_err(|e| format!("Failed to write skin file: {}", e))?;
+
+    Logger::console_log(
+        LogLevel::Info,
+        &format!("✅ Skin added locally as {}", entry.id),
+        None,
+    );
+
+    Ok(SkinUploadResponse {
+        success: true,
+        message: format!("Skin added and applied locally as {}", entry.name),
+        model_used: config.model,
+    })
 }
 
 /// Change the skin model (slim/classic) for the current skin
@@ -150,7 +305,7 @@ pub async fn select_skin_file(app: tauri::AppHandle) -> Result<Option<String>, S
     }
 }
 
-/// Internal function to upload skin data to Mojang API
+/// Internal function to update skin data on Mojang API
 async fn upload_skin_to_mojang(
     account: &LauncherAccount,
     skin_data: &[u8],
@@ -194,7 +349,7 @@ async fn upload_skin_to_mojang(
     }
 }
 
-
+// TODO: Change return type to the expected SkinModel type (e.g. detect whether the file is probably a slim or classic skin)
 /// Validate that the file is a valid PNG skin file
 fn is_valid_skin_file(data: &[u8]) -> bool {
     // Check PNG signature

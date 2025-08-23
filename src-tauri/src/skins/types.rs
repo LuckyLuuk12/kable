@@ -1,3 +1,20 @@
+/// Cape info from Mojang profile API
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AccountCape {
+    pub id: String,
+    pub state: String,
+    pub url: Option<String>,
+    pub alias: Option<String>,
+}
+
+/// Full player profile from Mojang profile API
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct PlayerProfile {
+    pub id: String,
+    pub name: String,
+    pub skins: Vec<AccountSkin>,
+    pub capes: Vec<AccountCape>,
+}
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -55,7 +72,7 @@ pub struct CurrentSkin {
 }
 
 /// Account skin from Microsoft/Mojang skin history
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AccountSkin {
     pub id: String,
     pub name: String,
@@ -74,7 +91,7 @@ pub struct CustomSkinsRoot {
 }
 
 /// Local skin entry from launcher_custom_skins.json
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CustomSkinEntry {
 	#[serde(default, rename = "capeId")]
 	pub cape_id: String,

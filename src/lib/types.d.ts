@@ -1,3 +1,18 @@
+/** Cape info from Mojang profile API */
+export interface AccountCape {
+  id: string;
+  state: string;
+  url?: string;
+  alias?: string;
+}
+
+/** Full player profile from Mojang profile API */
+export interface PlayerProfile {
+  id: string;
+  name: string;
+  skins: AccountSkin[];
+  capes: AccountCape[];
+}
 // Microsoft authentication types
 export interface MicrosoftToken {
   access_token: string;
