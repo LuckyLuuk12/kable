@@ -11,3 +11,4 @@ applyTo: '**'
 - Only respond in clear lists, no paragraphs are needed, be concise and direct.
 - Never make "documentation readme" files
 - Avoid running `npm run dev`, this is only useful for human evaluation.
+- NEVER replace existing code with "// ...existing code" or similar comments, if you edit code be sure to only edit the relevant parts and just keep the existing code...

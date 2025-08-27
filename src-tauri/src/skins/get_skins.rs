@@ -18,7 +18,7 @@ pub async fn get_player_profile() -> Result<PlayerProfile, String> {
 	// Get the authenticated account
 	let account = get_minecraft_account(Some(AuthMethod::DeviceCodeFlow))
 		.await
-		.map_err(|e| format!("Authentication required: {}", e))?;
+		.map_err(|e| format!("Authentication required to fetch player profile: {}", e))?;
 
 	let client = reqwest::Client::new();
 	let url = "https://api.minecraftservices.com/minecraft/profile";

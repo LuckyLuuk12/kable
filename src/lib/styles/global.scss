@@ -6,6 +6,17 @@
 // COMMON PAGE COMPONENTS
 // ========================================
 
+@font-face{
+  font-family: "minecraft";
+  src: url('/themes/Minecraft-Regular.woff2') format('woff2'),
+       url('/themes/Minecraft-Regular.woff') format('woff');
+  font-style: normal;
+}
+
+
+* {
+  font-family: var(--font);
+}
 // Page Headers
 .page-header {
   text-align: center;

@@ -84,8 +84,8 @@
     // Force font loading and DOM reflow
     setTimeout(() => {
       // Trigger a reflow to ensure fonts are applied
-      document.body.style.fontFamily = document.body.style.fontFamily;
-      console.log('Font loading triggered');
+      document.body.style.fontFamily = document.body.style.fontFamily ?? '"Open Sans", Tahoma, Geneva, sans-serif';
+      console.log('Font loading triggered: ', document.body.style.fontFamily);
     }, 100);
   }
 
@@ -94,7 +94,9 @@
     const existingStyle = document.getElementById('user-custom-css');
     if (existingStyle) {
       existingStyle.remove();
-      console.log('Previous custom CSS removed');
+      // Trigger a reflow to ensure fonts are applied
+      document.body.style.fontFamily = document.body.style.fontFamily ?? '"Open Sans", Tahoma, Geneva, sans-serif';
+      console.log('Previous custom CSS removed: ', document.body.style.fontFamily);
     }
   }
 

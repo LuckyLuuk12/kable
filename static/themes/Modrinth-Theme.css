@@ -125,6 +125,12 @@
      CORE UI VARIABLES
      ======================================== */
   
+  /* Font families - Minecraft with robust fallbacks */
+  --font: 'Minecraft', 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace !important;
+  --font-code: 'Minecraft', 'Courier New', 'Monaco', 'Menlo', 'Consolas', monospace !important;
+  --font-heading: 'Minecraft', 'Impact', 'Arial Black', sans-serif !important;
+  --font-fancy: 'Minecraft', 'Courier New', 'Monaco', monospace !important;
+
   /* Main theme colors */
   --primary: var(--primary-500) !important;
   --secondary: var(--secondary-500) !important;
