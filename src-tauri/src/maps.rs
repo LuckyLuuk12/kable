@@ -1,5 +1,4 @@
 use crate::logging::{debug, error, info};
-use crate::AppError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -117,7 +116,7 @@ pub async fn get_local_worlds(minecraft_path: String) -> Result<Vec<LocalWorld>,
 async fn parse_world_folder(
     world_path: &PathBuf,
     minecraft_path: &str,
-) -> Result<LocalWorld, AppError> {
+) -> Result<LocalWorld, String> {
     let folder_name = world_path
         .file_name()
         .and_then(|n| n.to_str())
@@ -226,13 +225,13 @@ async fn parse_world_folder(
 }
 
 // Parse level.dat file (simplified NBT parsing)
-fn parse_level_dat(level_dat_path: &PathBuf) -> Result<LevelData, AppError> {
+fn parse_level_dat(level_dat_path: &PathBuf) -> Result<LevelData, String> {
     // This is a simplified implementation. In a real scenario, you'd want to use
     // a proper NBT library like `nbt` crate for parsing Minecraft's NBT format
 
     // For now, we'll try to read basic information from the file
     // This is a placeholder implementation that would need proper NBT parsing
-    let _contents = fs::read(level_dat_path)?;
+    let _contents = fs::read(level_dat_path).map_err(|e| e.to_string())?;
 
     // Return default data for now - in real implementation, parse NBT
     Ok(LevelData {

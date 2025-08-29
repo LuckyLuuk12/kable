@@ -79,7 +79,7 @@
         gap: 0.5rem;
         padding-bottom: 0.5rem;
         background: var(--background);
-        border-bottom: 1px solid rgba(var(--primary), 0.08);
+    border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
         
         .tab-btn {
             padding: 0.6rem 1.2rem;
@@ -94,22 +94,22 @@
             
             &:hover {
                 border-color: var(--primary);
-                background: rgba(var(--primary), 0.05);
+                background: color-mix(in srgb, var(--primary), 5%, transparent);
             }
             
             &.active {
                 background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
                 color: var(--text-white);
                 border-color: var(--text-transparent);
-                box-shadow: 0 2px 8px rgba(var(--primary), 0.25);
+                box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 25%, transparent);
             }
         }
         
         .current-installation {
             margin-left: auto;
             padding: 0.6rem 1rem;
-            background: rgba(var(--primary), 0.08);
-            border: 1px solid rgba(var(--primary), 0.15);
+            background: color-mix(in srgb, var(--primary), 8%, transparent);
+            border: 1px solid color-mix(in srgb, var(--primary), 15%, transparent);
             border-radius: 0.5rem;
             font-size: 0.85em;
             color: var(--primary);

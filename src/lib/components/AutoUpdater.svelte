@@ -152,7 +152,7 @@
 		align-self: flex-start;
 		
 		&:hover:not(:disabled) {
-			background: var(--primary-hover, color-mix(in srgb, var(--primary) 90%, black));
+			background: var(--primary-hover, #{'color-mix(in srgb, var(--primary) 90%, black)'});
 		}
 		
 		&:disabled {

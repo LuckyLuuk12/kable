@@ -127,7 +127,6 @@ pub struct ModLinks {
     pub source_url: Option<String>,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Category {
     pub id: u32,
@@ -299,16 +298,31 @@ impl ModProvider for CurseForgeProvider {
             offset,
             self.filter.query.as_deref().unwrap_or(""),
             self.filter.category_id.unwrap_or(0),
-            self.filter.mod_loader_type.as_ref().map(|_| "loader").unwrap_or(""),
+            self.filter
+                .mod_loader_type
+                .as_ref()
+                .map(|_| "loader")
+                .unwrap_or(""),
             self.filter.game_version.as_deref().unwrap_or(""),
-            self.filter.sort_field.as_ref().map(|_| "sort").unwrap_or(""),
-            self.filter.sort_order.as_ref().map(|_| "order").unwrap_or("")
+            self.filter
+                .sort_field
+                .as_ref()
+                .map(|_| "sort")
+                .unwrap_or(""),
+            self.filter
+                .sort_order
+                .as_ref()
+                .map(|_| "order")
+                .unwrap_or("")
         );
         println!("[CurseForgeProvider] Using cache key: {}", cache_key);
 
         if let Some(entry) = self.cache.get(&cache_key) {
             if !self.cache.is_stale(&cache_key) {
-                println!("[CurseForgeProvider] Returning cached results for key: {}", cache_key);
+                println!(
+                    "[CurseForgeProvider] Returning cached results for key: {}",
+                    cache_key
+                );
                 return Ok(entry
                     .value
                     .clone()
@@ -316,10 +330,16 @@ impl ModProvider for CurseForgeProvider {
                     .map(ModInfoKind::CurseForge)
                     .collect());
             } else {
-                println!("[CurseForgeProvider] Cache entry is stale for key: {}", cache_key);
+                println!(
+                    "[CurseForgeProvider] Cache entry is stale for key: {}",
+                    cache_key
+                );
             }
         } else {
-            println!("[CurseForgeProvider] No cache entry found for key: {}", cache_key);
+            println!(
+                "[CurseForgeProvider] No cache entry found for key: {}",
+                cache_key
+            );
         }
 
         let mods = search_mods(&self.filter, offset, self.limit).await?;
@@ -333,8 +353,11 @@ impl ModProvider for CurseForgeProvider {
         installation: Option<&KableInstallation>,
         filter: Option<crate::mods::manager::ModFilter>,
     ) {
-        println!("[CurseForgeProvider] Filtering called with installation: {:?}, filter: {:?}", 
-                 installation.map(|i| &i.name), filter);
+        println!(
+            "[CurseForgeProvider] Filtering called with installation: {:?}, filter: {:?}",
+            installation.map(|i| &i.name),
+            filter
+        );
 
         if let Some(crate::mods::manager::ModFilter::CurseForge(cf_filter)) = filter {
             self.filter = cf_filter;
@@ -346,15 +369,21 @@ impl ModProvider for CurseForgeProvider {
             if self.filter.mod_loader_type.is_none() {
                 if let Some(loader) = extract_loader_from_version_id(&installation.version_id) {
                     self.filter.mod_loader_type = Some(loader);
-                    println!("[CurseForgeProvider] Set loader filter from installation: {:?}", self.filter.mod_loader_type);
+                    println!(
+                        "[CurseForgeProvider] Set loader filter from installation: {:?}",
+                        self.filter.mod_loader_type
+                    );
                 }
             }
-            
+
             // Extract Minecraft version from version_id if not already set
             if self.filter.game_version.is_none() {
                 if let Some(mc_version) = extract_minecraft_version(&installation.version_id) {
                     self.filter.game_version = Some(mc_version.clone());
-                    println!("[CurseForgeProvider] Set mc_version filter from installation: {}", mc_version);
+                    println!(
+                        "[CurseForgeProvider] Set mc_version filter from installation: {}",
+                        mc_version
+                    );
                 } else {
                     // Fallback: use the version_id as-is if we can't extract a proper version
                     self.filter.game_version = Some(installation.version_id.clone());
@@ -362,7 +391,7 @@ impl ModProvider for CurseForgeProvider {
                 }
             }
         }
-        
+
         println!("[CurseForgeProvider] Current filters: {}", self.filter);
     }
 
@@ -391,12 +420,14 @@ impl ModProvider for CurseForgeProvider {
         std::fs::create_dir_all(&mods_dir)
             .map_err(|e| format!("Failed to create mods directory: {}", e))?;
 
-        let mod_id_u32: u32 = mod_id.parse()
+        let mod_id_u32: u32 = mod_id
+            .parse()
             .map_err(|_| format!("Invalid mod ID: {}", mod_id))?;
 
         let files = get_mod_files(mod_id_u32).await?;
         let file = if let Some(version_id) = version_id {
-            let version_id_u32: u32 = version_id.parse()
+            let version_id_u32: u32 = version_id
+                .parse()
                 .map_err(|_| format!("Invalid version ID: {}", version_id))?;
             files.into_iter().find(|f| f.id == version_id_u32)
         } else {
@@ -415,23 +446,23 @@ impl ModProvider for CurseForgeProvider {
                 "featured" => {
                     self.filter.sort_field = Some(ModsSearchSortField::Featured);
                     self.filter.sort_order = Some(SortOrder::Descending);
-                },
+                }
                 "popularity" => {
                     self.filter.sort_field = Some(ModsSearchSortField::Popularity);
                     self.filter.sort_order = Some(SortOrder::Descending);
-                },
+                }
                 "updated" => {
                     self.filter.sort_field = Some(ModsSearchSortField::LastUpdated);
                     self.filter.sort_order = Some(SortOrder::Descending);
-                },
+                }
                 "downloads" => {
                     self.filter.sort_field = Some(ModsSearchSortField::TotalDownloads);
                     self.filter.sort_order = Some(SortOrder::Descending);
-                },
+                }
                 "name" => {
                     self.filter.sort_field = Some(ModsSearchSortField::Name);
                     self.filter.sort_order = Some(SortOrder::Ascending);
-                },
+                }
                 _ => {
                     self.filter.sort_field = Some(ModsSearchSortField::Popularity);
                     self.filter.sort_order = Some(SortOrder::Descending);
@@ -458,11 +489,17 @@ fn get_api_key() -> Result<String, String> {
             if key.is_empty() {
                 Err("CURSEFORGE_API_KEY environment variable is empty. Please add a valid API key to your .env file.".to_string())
             } else {
-                println!("[CurseForgeAPI] API key loaded successfully (length: {})", key.len());
+                println!(
+                    "[CurseForgeAPI] API key loaded successfully (length: {})",
+                    key.len()
+                );
                 Ok(key)
             }
         }
-        Err(_) => Err("CURSEFORGE_API_KEY environment variable not set. Please add it to your .env file.".to_string())
+        Err(_) => Err(
+            "CURSEFORGE_API_KEY environment variable not set. Please add it to your .env file."
+                .to_string(),
+        ),
     }
 }
 
@@ -492,7 +529,10 @@ pub async fn search_mods(
 
     // Add game version filter
     if let Some(ref game_version) = filter.game_version {
-        url.push_str(&format!("&gameVersion={}", urlencoding::encode(game_version)));
+        url.push_str(&format!(
+            "&gameVersion={}",
+            urlencoding::encode(game_version)
+        ));
     }
 
     // Add mod loader type filter
@@ -524,27 +564,43 @@ pub async fn search_mods(
         .map_err(|e| format!("CurseForge search failed: {}", e))?;
 
     println!("[CurseForgeAPI] Response status: {}", resp.status());
-    
+
     // Check if the response is successful
     let status = resp.status();
     if !status.is_success() {
-        let error_text = resp.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+        let error_text = resp
+            .text()
+            .await
+            .unwrap_or_else(|_| "Failed to read error response".to_string());
         return Err(format!("CurseForge API error {}: {}", status, error_text));
     }
 
-    let response_text = resp.text().await
+    let response_text = resp
+        .text()
+        .await
         .map_err(|e| format!("Failed to read response body: {}", e))?;
-    
-    println!("[CurseForgeAPI] Response body length: {}", response_text.len());
-    
+
+    println!(
+        "[CurseForgeAPI] Response body length: {}",
+        response_text.len()
+    );
+
     if response_text.is_empty() {
         return Err("CurseForge API returned empty response".to_string());
     }
 
-    let search_response: SearchModsResponse = serde_json::from_str(&response_text)
-        .map_err(|e| format!("CurseForge search parse failed: {} (body: {})", e, response_text))?;
+    let search_response: SearchModsResponse =
+        serde_json::from_str(&response_text).map_err(|e| {
+            format!(
+                "CurseForge search parse failed: {} (body: {})",
+                e, response_text
+            )
+        })?;
 
-    println!("[CurseForgeAPI] Received {} mods from API", search_response.data.len());
+    println!(
+        "[CurseForgeAPI] Received {} mods from API",
+        search_response.data.len()
+    );
     Ok(search_response.data)
 }
 
@@ -627,21 +683,27 @@ fn extract_minecraft_version(version_id: &str) -> Option<String> {
             if let Some(version) = cap.get(1) {
                 let version_str = version.as_str();
                 if version_str.starts_with("1.") {
-                    println!("[CurseForgeProvider] Extracted MC version '{}' from version_id '{}'", version_str, version_id);
+                    println!(
+                        "[CurseForgeProvider] Extracted MC version '{}' from version_id '{}'",
+                        version_str, version_id
+                    );
                     return Some(version_str.to_string());
                 }
             }
         }
     }
-    
-    println!("[CurseForgeProvider] Could not extract MC version from version_id '{}'", version_id);
+
+    println!(
+        "[CurseForgeProvider] Could not extract MC version from version_id '{}'",
+        version_id
+    );
     None
 }
 
 /// Extract loader type from version_id string and convert to CurseForge ModLoaderType
 fn extract_loader_from_version_id(version_id: &str) -> Option<ModLoaderType> {
     let version_lower = version_id.to_lowercase();
-    
+
     let loader = if version_lower.contains("fabric") {
         Some(ModLoaderType::Fabric)
     } else if version_lower.contains("neoforge") {
@@ -653,12 +715,18 @@ fn extract_loader_from_version_id(version_id: &str) -> Option<ModLoaderType> {
     } else {
         None
     };
-    
+
     if let Some(ref loader_type) = loader {
-        println!("[CurseForgeProvider] Extracted loader '{:?}' from version_id '{}'", loader_type, version_id);
+        println!(
+            "[CurseForgeProvider] Extracted loader '{:?}' from version_id '{}'",
+            loader_type, version_id
+        );
     } else {
-        println!("[CurseForgeProvider] Could not extract loader from version_id '{}'", version_id);
+        println!(
+            "[CurseForgeProvider] Could not extract loader from version_id '{}'",
+            version_id
+        );
     }
-    
+
     loader
 }

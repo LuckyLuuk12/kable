@@ -4,7 +4,7 @@ pub mod manager;
 pub mod modrinth;
 
 pub use self::cache::*;
-pub use self::curseforge::{CurseForgeInfo, CurseForgeProvider, CurseForgeFilter};
+pub use self::curseforge::{CurseForgeFilter, CurseForgeInfo, CurseForgeProvider};
 pub use self::manager::*;
 pub use self::modrinth::*;
 
@@ -124,7 +124,6 @@ pub fn purge_stale_provider_cache(provider: ProviderKind) {
     }
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ExtendedModInfo {
     pub mod_jar_info: crate::ModJarInfo,
@@ -148,7 +147,9 @@ pub async fn get_extended_mod_info(
                 let name_match = info.title.eq_ignore_ascii_case(mod_name)
                     || info.slug.eq_ignore_ascii_case(mod_name);
                 let loader_match = if let Some(loader) = loader {
-                    info.loaders.as_ref().is_some_and(|ls| ls.iter().any(|l| l.eq_ignore_ascii_case(loader)))
+                    info.loaders
+                        .as_ref()
+                        .is_some_and(|ls| ls.iter().any(|l| l.eq_ignore_ascii_case(loader)))
                 } else {
                     true
                 };
@@ -158,7 +159,11 @@ pub async fn get_extended_mod_info(
                 break;
             }
         }
-        (found_info, mod_name.to_string(), loader.map(|s| s.to_string()))
+        (
+            found_info,
+            mod_name.to_string(),
+            loader.map(|s| s.to_string()),
+        )
     };
 
     if let Some(found) = found_info {
@@ -179,10 +184,18 @@ pub async fn get_extended_mod_info(
     } else {
         mod_jar_info.file_name.as_str()
     };
-    let url = format!("https://api.modrinth.com/v2/search?query={}&limit=1", urlencoding::encode(query));
-    let resp = reqwest::get(&url).await.map_err(|e| format!("Modrinth API error: {e}"))?;
+    let url = format!(
+        "https://api.modrinth.com/v2/search?query={}&limit=1",
+        urlencoding::encode(query)
+    );
+    let resp = reqwest::get(&url)
+        .await
+        .map_err(|e| format!("Modrinth API error: {e}"))?;
     let status = resp.status();
-    let text = resp.text().await.map_err(|e| format!("Modrinth API read error: {e}"))?;
+    let text = resp
+        .text()
+        .await
+        .map_err(|e| format!("Modrinth API read error: {e}"))?;
     if !status.is_success() {
         return Err(format!("Modrinth API HTTP error: {} - {}", status, text));
     }
@@ -217,5 +230,8 @@ pub async fn get_extended_mod_info(
             }
         }
     }
-    Err(format!("Mod '{}' not found in Modrinth cache or API", mod_name))
+    Err(format!(
+        "Mod '{}' not found in Modrinth cache or API",
+        mod_name
+    ))
 }

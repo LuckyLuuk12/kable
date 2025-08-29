@@ -1,6 +1,5 @@
 use crate::auth::secure_token::{decrypt_token, encrypt_token};
 use crate::logging::{LogLevel, Logger};
-use crate::AppError;
 /**
  * This file contains authentication related utility functions.
  * E.g. functions to read/write to/from launcher_accounts.json to work with stored accounts,
@@ -52,38 +51,32 @@ pub struct LauncherAccountsJson {
     pub mojang_client_token: String,
 }
 
-/// Get the path to the Minecraft directory
-fn get_minecraft_directory() -> Result<PathBuf, AppError> {
-    let home_dir = dirs::home_dir().ok_or_else(|| {
-        AppError::Io(std::io::Error::new(
-            std::io::ErrorKind::NotFound,
-            "Could not find home directory",
-        ))
-    })?;
-
-    // Instead of using the Minecraft directory, use the Kable app directory
-    #[cfg(target_os = "windows")]
-    let kable_dir = home_dir
-        .join("AppData")
-        .join("Roaming")
-        .join("kable-launcher");
-
-    #[cfg(target_os = "macos")]
-    let kable_dir = home_dir
-        .join("Library")
-        .join("Application Support")
-        .join("kable-launcher");
-
-    #[cfg(target_os = "linux")]
-    let kable_dir = home_dir.join(".kable-launcher");
-
-    Ok(kable_dir)
-}
-
 /// Get the path to the kable_accounts.json file
-pub fn get_kable_accounts_path() -> Result<PathBuf, AppError> {
-    let kable_dir = get_minecraft_directory()?;
-    Ok(kable_dir.join("kable_accounts.json"))
+pub fn get_kable_accounts_path() -> Result<PathBuf, String> {
+    // Use the launcher directory for kable_accounts.json
+    let launcher_dir = crate::get_kable_launcher_dir()?;
+    let accounts_path = launcher_dir.join("kable_accounts.json");
+    // If file does not exist, create it with an empty structure
+    if !accounts_path.exists() {
+        // Ensure parent directory exists
+        if let Some(parent_dir) = accounts_path.parent() {
+            std::fs::create_dir_all(parent_dir)
+                .map_err(|e| format!("Failed to create Kable launcher directory: {}", e))?;
+        }
+        // Write empty structure
+        let empty = serde_json::json!({
+            "accounts": {},
+            "active_account_local_id": "",
+            "mojang_client_token": ""
+        });
+        std::fs::write(
+            &accounts_path,
+            serde_json::to_string_pretty(&empty)
+                .map_err(|e| format!("Failed to serialize empty accounts: {}", e))?,
+        )
+        .map_err(|e| format!("Failed to create kable_accounts.json: {}", e))?;
+    }
+    Ok(accounts_path)
 }
 
 /// Read all accounts from kable_accounts.json
@@ -341,26 +334,38 @@ pub async fn get_launcher_accounts_path_string() -> Result<String, String> {
     Ok(path.to_string_lossy().to_string())
 }
 
-/// Get client ID from environment variable
+/// Hardcoded fallback Azure client ID
+pub const DEFAULT_AZURE_CLIENT_ID: &str = "4c27a19f-a3d0-4cd2-8e05-9fd961f905df";
+
 pub fn get_client_id() -> Result<String, String> {
     std::env::var("AZURE_CLIENT_ID")
-        .or_else(|_| std::env::var("CLIENT_ID"))
-        .map_err(|_| "AZURE_CLIENT_ID environment variable not set".to_string())
+        .or(std::env::var("CLIENT_ID"))
+        .or(Ok(DEFAULT_AZURE_CLIENT_ID.to_string()))
+        .map_err(|_: String| {
+            "AZURE_CLIENT_ID / CLIENT_ID not set and no fallback available".to_string()
+        })
 }
 
-/// Get redirect URI from environment variable
+/// Hardcoded fallback Azure redirect URI
+pub const DEFAULT_AZURE_REDIRECT_URI: &str = "http://localhost:43110/callback";
+
 pub fn get_redirect_uri() -> Result<String, String> {
     std::env::var("AZURE_REDIRECT_URI")
-        .or_else(|_| std::env::var("REDIRECT_URI"))
-        .map_err(|_| "AZURE_REDIRECT_URI environment variable not set".to_string())
+        .or(std::env::var("REDIRECT_URI"))
+        .or(Ok(DEFAULT_AZURE_REDIRECT_URI.to_string()))
+        .map_err(|_: String| {
+            "AZURE_REDIRECT_URI / REDIRECT_URI not set and no fallback available".to_string()
+        })
 }
 
-/// Get OAuth port from environment variable, defaults to 5713
+/// Hardcoded fallback OAuth port
+pub const DEFAULT_OAUTH_PORT: u16 = 43110;
+
 pub fn get_oauth_port() -> u16 {
     std::env::var("OAUTH_PORT")
-        .unwrap_or_else(|_| "5713".to_string())
-        .parse()
-        .unwrap_or(5713)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(DEFAULT_OAUTH_PORT)
 }
 
 /// Validate and clean up malformed accounts in launcher_accounts.json

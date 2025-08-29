@@ -1,6 +1,6 @@
 [package]
 name = "kable"
-version = "0.0.2"
+version = "0.0.3"
 description = "A Minecraft Launcher"
 authors = ["Luuk Kablan"]
 license = ""
@@ -58,4 +58,7 @@ toml = "0.9.4"
 
 # Pin problematic dependencies to avoid edition2024 issues
 base64ct = "=1.6.0"  # Pin to avoid 1.8.0 which uses edition2024
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-window-state = "2"
 

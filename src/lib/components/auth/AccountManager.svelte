@@ -264,7 +264,7 @@
     transition: opacity 0.15s cubic-bezier(0.4,0,0.2,1), z-index 0s linear 0.15s;
     position: absolute;
     min-width: 180px;
-    background: rgba(var(--card), 0.94);
+  background: color-mix(in srgb, var(--card), 94%, transparent);
     border: 1px solid var(--dark-200);
     border-radius: var(--border-radius);
     box-shadow: 0 2px 16px 4px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);

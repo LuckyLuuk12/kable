@@ -112,7 +112,7 @@
       font-weight: 600;
       transition: color 0.13s, background 0.13s, border 0.13s;
       &:hover, &:focus {
-        background: rgba(var(--primary), 0.10);
+        background: color-mix(in srgb, var(--primary), 10%, transparent);
         color: var(--primary-900);
         border-color: var(--primary-700);
       }
@@ -133,13 +133,13 @@
         transition: background 0.13s, color 0.13s, border-color 0.13s;
         
         &:hover {
-          background: rgba(var(--primary), 0.10);
+          background: color-mix(in srgb, var(--primary), 10%, transparent);
           color: var(--primary-900);
           border-color: var(--primary-800);
         }
         
         &.is-active {
-          background: rgba(var(--primary), 0.10);
+          background: color-mix(in srgb, var(--primary), 10%, transparent);
           color: var(--primary-900);
           border-color: var(--primary-800);
         }

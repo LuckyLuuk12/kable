@@ -155,19 +155,6 @@ export interface ModDetectionResult {
   }>;
 }
 
-// Window State Manager Types
-export interface WindowState {
-  width: number;
-  height: number;
-  x: number;
-  y: number;
-  maximized: boolean;
-  fullscreen: boolean;
-  monitor_name?: string;
-  monitor_position?: [number, number];
-  monitor_size?: [number, number];
-}
-
 // Minecraft Session Data (launcher_profiles.json)
 export interface MinecraftSession {
   access_token: string;

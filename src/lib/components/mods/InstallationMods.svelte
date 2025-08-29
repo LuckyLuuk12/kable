@@ -538,8 +538,8 @@ onMount(() => {
   gap: 1.5rem;
   background: var(--container);
   border-radius: 0.75rem;
-  border: 1px solid rgba(var(--primary), 0.08);
-  box-shadow: 0 2px 12px rgba(var(--dark-900), 0.06);
+  border: 1px solid #{'color-mix(in srgb, var(--primary), 8%, transparent)'};
+  box-shadow: 0 2px 12px #{'color-mix(in srgb, var(--dark-900), 6%, transparent)'};
   overflow: hidden;
 }
 
@@ -548,12 +548,12 @@ onMount(() => {
   width: 320px;
   min-width: 320px;
   background: 
-    radial-gradient(circle at var(--dot1-x, 25%) var(--dot1-y, 35%), rgba(var(--primary-900), 0.04) 0%, transparent 16%),
-    radial-gradient(circle at var(--dot2-x, 75%) var(--dot2-y, 65%), rgba(var(--secondary), 0.03) 0%, transparent 14%),
-    radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 15%), rgba(var(--tertiary), 0.025) 0%, transparent 12%),
-    radial-gradient(circle at var(--dot4-x, 20%) var(--dot4-y, 80%), rgba(var(--quaternary), 0.03) 0%, transparent 15%),
-    linear-gradient(135deg, var(--card) 0%, rgba(var(--primary), 0.02) 100%);
-  border-right: 1px solid rgba(var(--primary), 0.08);
+    radial-gradient(circle at var(--dot1-x, 25%) var(--dot1-y, 35%), #{'color-mix(in srgb, var(--primary-900), 4%, transparent)'} 0%, transparent 16%),
+    radial-gradient(circle at var(--dot2-x, 75%) var(--dot2-y, 65%), #{'color-mix(in srgb, var(--secondary), 3%, transparent)'} 0%, transparent 14%),
+    radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 15%), #{'color-mix(in srgb, var(--tertiary), 2.5%, transparent)'} 0%, transparent 12%),
+    radial-gradient(circle at var(--dot4-x, 20%) var(--dot4-y, 80%), #{'color-mix(in srgb, var(--quaternary), 3%, transparent)'} 0%, transparent 15%),
+    linear-gradient(135deg, var(--card) 0%, #{'color-mix(in srgb, var(--primary), 2%, transparent)'} 100%);
+  border-right: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
   display: flex;
   flex-direction: column;
   animation: move-dots 28s ease infinite alternate;
@@ -567,7 +567,7 @@ onMount(() => {
     color: transparent;
     font-weight: 700;
     font-size: 1.4em;
-    border-bottom: 1px solid rgba(var(--primary), 0.08);
+    border-bottom: 1px solid #{'color-mix(in srgb, var(--primary), 8%, transparent)'};
   }
 }
 
@@ -652,16 +652,16 @@ onMount(() => {
   transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   
   &:hover {
-    border-color: var(--loader-color, rgba(var(--primary), 0.15));
-    // Properly maintain center position on hover
-    box-shadow: 0 2px 8px rgba(var(--loader-color, var(--primary)), 0.1);
+  border-color: var(--loader-color, #{'color-mix(in srgb, var(--primary), 15%, transparent)'});
+  // Properly maintain center position on hover
+  box-shadow: 0 2px 8px #{'color-mix(in srgb, var(--loader-color, var(--primary)), 10%, transparent)'};
   }
-  
+
   &.selected {
     border-color: var(--loader-color, var(--primary));
     box-shadow: 
-      0 4px 16px rgba(var(--loader-color, var(--primary)), 0.15),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      0 4px 16px #{'color-mix(in srgb, var(--loader-color, var(--primary)), 15%, transparent)'},
+       inset 0 1px 0 rgba(255, 255, 255, 0.1);
     z-index: 10; // Bring selected item to front
     
     // Add green selection indicator
@@ -670,9 +670,9 @@ onMount(() => {
     &:hover {
       // Keep the same transform as base state but with slight scale increase
       box-shadow: 
-        0 6px 20px rgba(var(--loader-color, var(--primary)), 0.2),
-        0 0 0 3px rgba(var(--green-800), 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        0 6px 20px #{'color-mix(in srgb, var(--loader-color, var(--primary)), 20%, transparent)'},
+        0 0 0 3px #{'color-mix(in srgb, var(--green-800), 30%, transparent)'},
+        inset 0 1px 0 #{'color-mix(in srgb, #fff, 15%, transparent)'};
     }
     
     &::before {
@@ -684,14 +684,13 @@ onMount(() => {
       width: 4px;
       height: 60%;
       background: linear-gradient(to bottom, var(--green-700), var(--green-900));
-      border-radius: 2px;
-      box-shadow: 0 0 8px rgba(var(--green-800), 0.4);
+      box-shadow: 0 0 8px #{'color-mix(in srgb, var(--green-800), 40%, transparent)'};
     }
   }
   
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(var(--loader-color, var(--primary)), 0.3);
+    box-shadow: 0 0 0 2px #{'color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)'};
   }
 }
 
@@ -704,16 +703,16 @@ onMount(() => {
   justify-content: center;
   background: var(--container);
   color: var(--loader-color, var(--primary));
-  box-shadow: 0 2px 6px rgba(var(--dark-900), 0.08);
+  box-shadow: 0 2px 6px #{'color-mix(in srgb, var(--dark-900), 8%, transparent)'};
   flex-shrink: 0;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   
   .installation-item.selected & {
-    background: linear-gradient(135deg, var(--loader-color, var(--primary)) 0%, rgba(var(--loader-color, var(--secondary)), 0.8) 100%);
-    color: white;
-    box-shadow: 0 3px 12px rgba(var(--loader-color, var(--primary)), 0.3);
-    transform: scale(1.05);
-  }
+  background: linear-gradient(135deg, var(--loader-color, var(--primary)) 0%, #{'color-mix(in srgb, var(--loader-color, var(--secondary)), 80%, transparent)'} 100%);
+   color: white;
+  box-shadow: 0 3px 12px #{'color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)'};
+   transform: scale(1.05);
+   }
 }
 
 .installation-meta {
@@ -740,8 +739,8 @@ onMount(() => {
   .installation-item.selected & {
     color: var(--loader-color, var(--primary));
     font-weight: 700;
-    text-shadow: 0 0 8px rgba(var(--loader-color, var(--primary)), 0.3);
-  }
+    text-shadow: 0 0 8px #{'color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)'};
+   }
 }
 
 .installation-details {
@@ -760,13 +759,13 @@ onMount(() => {
 }
 
 .installation-version {
-  background: rgba(var(--tertiary), 0.1);
+  background: color-mix(in srgb, var(--tertiary), 10%, transparent);
   color: var(--tertiary);
   
   .installation-item.selected & {
-    background: rgba(var(--loader-color, var(--tertiary)), 0.15);
-    color: var(--loader-color, var(--tertiary));
-  }
+  background: #{'color-mix(in srgb, var(--loader-color, var(--tertiary)), 15%, transparent)'};
+     color: var(--loader-color, var(--tertiary));
+   }
 }
 
 // --- Right content: Search and mods ---
@@ -778,8 +777,8 @@ onMount(() => {
 }
 
 .mods-header {
-  background: linear-gradient(135deg, var(--card) 0%, rgba(var(--primary), 0.02) 100%);
-  border-bottom: 1px solid rgba(var(--primary), 0.08);
+  background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--primary), 2%, transparent) 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
   padding: 1.2rem 1.5rem;
   
   .mods-title-section {
@@ -801,15 +800,15 @@ onMount(() => {
   display: flex;
   align-items: center;
   gap: 0.3em;
-  background: linear-gradient(135deg, rgba(var(--primary), 0.08) 0%, rgba(var(--secondary), 0.04) 100%);
-  border: 1px solid rgba(var(--primary), 0.15);
+  background: linear-gradient(135deg, #{'color-mix(in srgb, var(--primary), 8%, transparent)'} 0%, #{'color-mix(in srgb, var(--secondary), 4%, transparent)'} 100%);
+  border: 1px solid #{'color-mix(in srgb, var(--primary), 15%, transparent)'};
   border-radius: 1rem;
   padding: 0.4em 0.8em;
   font-size: 0.85em;
   font-weight: 500;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 1px 4px rgba(var(--dark-900), 0.06);
+  box-shadow: 0 1px 4px #{'color-mix(in srgb, var(--dark-900), 6%, transparent)'};
   
   .filtered-count {
     color: var(--primary);
@@ -923,12 +922,12 @@ onMount(() => {
   position: relative;
   background: var(--card);
   border-radius: 0.5rem;
-  border: 1px solid rgba(var(--primary), 0.1);
+  border: 1px solid color-mix(in srgb, var(--primary), 10%, transparent);
   width: 48px;
   height: 48px;
   min-width: 48px;
   min-height: 48px;
-  box-shadow: 0 1px 6px 0 rgba(var(--dark-900), 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 6px 0 color-mix(in srgb, var(--dark-900), 6%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   overflow: visible;
@@ -938,11 +937,11 @@ onMount(() => {
   &:hover, &:focus {
     transform: translateY(-1px) scale(1.04);
     box-shadow: 
-      0 6px 20px 0 rgba(var(--primary), 0.18),
-      0 2px 8px 0 rgba(var(--dark-900), 0.12),
-      inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      0 6px 20px 0 color-mix(in srgb, var(--primary), 18%, transparent),
+      0 2px 8px 0 color-mix(in srgb, var(--dark-900), 12%, transparent),
+      inset 0 1px 0 color-mix(in srgb, #fff, 15%, transparent);
     border-color: var(--primary);
-    background: linear-gradient(135deg, var(--card) 0%, rgba(var(--primary), 0.06) 100%);
+    background: linear-gradient(135deg, var(--card) 0%, #{'color-mix(in srgb, var(--primary), 6%, transparent)'} 100%);
     z-index: 15;
     
     .mod-tooltip {
@@ -958,7 +957,7 @@ onMount(() => {
   }
   
   &.loading {
-    background: linear-gradient(135deg, var(--card) 0%, rgba(var(--placeholder), 0.04) 100%);
+  background: linear-gradient(135deg, var(--card) 0%, #{'color-mix(in srgb, var(--placeholder), 4%, transparent)'} 100%);
     color: var(--placeholder);
     animation: pulse 1.8s ease-in-out infinite;
   }
@@ -988,19 +987,19 @@ onMount(() => {
   height: 38px;
   border-radius: 0.4rem;
   object-fit: cover;
-  background: linear-gradient(45deg, var(--background) 0%, rgba(var(--primary), 0.02) 100%);
-  box-shadow: 0 1px 4px rgba(var(--dark-900), 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: linear-gradient(45deg, var(--background) 0%, #{'color-mix(in srgb, var(--primary), 2%, transparent)'} 100%);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--dark-900), 8%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid rgba(var(--primary), 0.08);
+  border: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
 }
 
 .mod-tooltip {
   opacity: 0;
   pointer-events: none;
   position: absolute;
-  background: linear-gradient(135deg, rgba(var(--container), 0.98) 0%, rgba(var(--primary), 0.05) 100%);
+  background: linear-gradient(135deg, #{'color-mix(in srgb, var(--container), 98%, transparent)'} 0%, #{'color-mix(in srgb, var(--primary), 5%, transparent)'} 100%);
   color: var(--text);
-  border: 1px solid rgba(var(--primary), 0.25);
+  border: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
   border-radius: 0.5rem;
   padding: 0.5em 0.8em;
   font-size: 0.85em;
@@ -1008,8 +1007,8 @@ onMount(() => {
   min-width: 160px;
   max-width: 280px;
   box-shadow: 
-    0 8px 24px 0 rgba(var(--dark-900), 0.25),
-    0 2px 6px 0 rgba(var(--primary), 0.15),
+  0 8px 24px 0 color-mix(in srgb, var(--dark-900), 25%, transparent),
+  0 2px 6px 0 color-mix(in srgb, var(--primary), 15%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
   z-index: 100;
   transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1027,9 +1026,9 @@ onMount(() => {
     position: absolute;
     width: 10px;
     height: 10px;
-    background: linear-gradient(135deg, rgba(var(--container), 0.98) 0%, rgba(var(--primary), 1) 100%);
-    border-left: 1px solid rgba(var(--primary), 0.25);
-    border-bottom: 1px solid rgba(var(--primary), 0.25);
+  background: linear-gradient(135deg, #{'color-mix(in srgb, var(--container), 98%, transparent)'} 0%, #{'color-mix(in srgb, var(--primary), 100%, transparent)'} 100%);
+  border-left: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
     transform: rotate(45deg);
     // Default arrow position (left side, pointing left)
     left: -5px;
@@ -1051,7 +1050,7 @@ onMount(() => {
   .mod-tooltip-version {
     font-size: 0.8em;
     color: var(--tertiary);
-    background: rgba(var(--tertiary), 0.08);
+  background: color-mix(in srgb, var(--tertiary), 8%, transparent);
     padding: 0.15em 0.4em;
     border-radius: 0.25em;
     display: inline-block;
@@ -1072,7 +1071,7 @@ onMount(() => {
     color: var(--primary);
     margin-top: 0.4em;
     padding: 0.2em 0.4em;
-    background: rgba(var(--primary), 0.08);
+  background: color-mix(in srgb, var(--primary), 8%, transparent);
     border-radius: 0.25em;
     text-align: center;
     font-weight: 500;
@@ -1090,8 +1089,8 @@ onMount(() => {
   &::before {
     left: -5px;
     top: 18%;
-    border-left: 1px solid rgba(var(--primary), 0.25);
-    border-bottom: 1px solid rgba(var(--primary), 0.25);
+  border-left: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
     border-right: none;
     border-top: none;
     transform: rotate(45deg);
@@ -1108,8 +1107,8 @@ onMount(() => {
     right: -5px;
     left: auto;
     top: 18%;
-    border-right: 1px solid rgba(var(--primary), 0.25);
-    border-top: 1px solid rgba(var(--primary), 0.25);
+  border-right: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
     border-left: none;
     border-bottom: none;
     transform: rotate(45deg);
@@ -1127,8 +1126,8 @@ onMount(() => {
     top: auto;
     bottom: -5px;
     transform: translateX(-50%) rotate(45deg);
-    border-bottom: 1px solid rgba(var(--primary), 0.25);
-    border-right: 1px solid rgba(var(--primary), 0.25);
+  border-bottom: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
+  border-right: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
     border-left: none;
     border-top: none;
   }
@@ -1144,8 +1143,8 @@ onMount(() => {
     top: -5px;
     bottom: auto;
     transform: translateX(-50%) rotate(45deg);
-    border-top: 1px solid rgba(var(--primary), 0.25);
-    border-left: 1px solid rgba(var(--primary), 0.25);
+  border-top: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
     border-right: none;
     border-bottom: none;
   }
@@ -1162,7 +1161,7 @@ onMount(() => {
 }
 .error-message {
   color: var(--red);
-  background: rgba(var(--red), 0.08);
+  background: color-mix(in srgb, var(--red), 8%, transparent);
   border: 1px solid var(--red);
   border-radius: 0.5rem;
   padding: 0.7em 1em;
@@ -1212,7 +1211,7 @@ onMount(() => {
   
   .mods-section {
     border-left: none;
-    border-top: 1px solid rgba(var(--primary), 0.08);
+  border-top: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
   }
 }
 

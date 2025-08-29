@@ -2,6 +2,7 @@ use crate::auth::auth_util::{
     get_client_id, get_oauth_port, get_redirect_uri, write_launcher_account, LauncherAccount,
     MinecraftProfile,
 };
+use crate::auth::secure_token::{decrypt_token, encrypt_token};
 use crate::commands::system::open_url;
 use crate::logging::{LogLevel, Logger};
 use chrono::{DateTime, Utc};
@@ -14,7 +15,6 @@ use oauth2::{
     basic::BasicClient, reqwest::async_http_client, AuthUrl, AuthorizationCode, ClientId,
     CsrfToken, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
-use crate::auth::secure_token::{encrypt_token, decrypt_token};
 use once_cell::sync::Lazy;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -26,13 +26,17 @@ use url::Url;
 use uuid;
 
 pub async fn refresh_microsoft_token(local_id: String) -> Result<LauncherAccount, String> {
-
     // Load accounts and find the one to refresh
     let accounts_json = crate::read_launcher_accounts().await?;
-    let account = accounts_json.accounts.get(&local_id).cloned()
+    let account = accounts_json
+        .accounts
+        .get(&local_id)
+        .cloned()
         .ok_or_else(|| format!("Account not found for local_id: {}", local_id))?;
 
-    let encrypted_refresh_token = account.encrypted_refresh_token.clone()
+    let encrypted_refresh_token = account
+        .encrypted_refresh_token
+        .clone()
         .ok_or_else(|| "No refresh token available".to_string())?;
     let refresh_token = decrypt_token(&encrypted_refresh_token)?;
 
@@ -40,10 +44,16 @@ pub async fn refresh_microsoft_token(local_id: String) -> Result<LauncherAccount
     let client = BasicClient::new(
         ClientId::new(client_id),
         None,
-        AuthUrl::new("https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize".to_string())
-            .map_err(|e| format!("Failed to create auth URL: {}", e))?,
-        Some(TokenUrl::new("https://login.microsoftonline.com/consumers/oauth2/v2.0/token".to_string())
-            .map_err(|e| format!("Failed to create token URL: {}", e))?),
+        AuthUrl::new(
+            "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize".to_string(),
+        )
+        .map_err(|e| format!("Failed to create auth URL: {}", e))?,
+        Some(
+            TokenUrl::new(
+                "https://login.microsoftonline.com/consumers/oauth2/v2.0/token".to_string(),
+            )
+            .map_err(|e| format!("Failed to create token URL: {}", e))?,
+        ),
     );
 
     let token_result = client
@@ -55,9 +65,13 @@ pub async fn refresh_microsoft_token(local_id: String) -> Result<LauncherAccount
     let new_access_token = token_result.access_token().secret().to_string();
     let new_expires_at = Utc::now()
         + chrono::Duration::seconds(
-            token_result.expires_in().map(|d| d.as_secs() as i64).unwrap_or(3600),
+            token_result
+                .expires_in()
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(3600),
         );
-    let new_encrypted_refresh_token = token_result.refresh_token()
+    let new_encrypted_refresh_token = token_result
+        .refresh_token()
         .map(|rt| encrypt_token(rt.secret()).unwrap_or_default())
         .or(account.encrypted_refresh_token.clone());
 
@@ -69,7 +83,6 @@ pub async fn refresh_microsoft_token(local_id: String) -> Result<LauncherAccount
     write_launcher_account(updated_account.clone()).await?;
     Ok(updated_account)
 }
-
 
 const MSA_AUTHORIZE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
 const MSA_TOKEN_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
@@ -438,7 +451,8 @@ async fn exchange_auth_code_for_tokens(
             format!("Failed to exchange authorization code: {}", e)
         })?;
 
-    let encrypted_refresh_token = token_result.refresh_token()
+    let encrypted_refresh_token = token_result
+        .refresh_token()
         .map(|rt| encrypt_token(rt.secret()).unwrap_or_default());
     let microsoft_token = MicrosoftToken {
         access_token: token_result.access_token().secret().to_string(),
