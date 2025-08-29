@@ -459,8 +459,6 @@ Notes and best practices
 - Monitor the GitHub Actions build logs for the Tauri build to confirm artifact generation.
 
 Following this flow helps keep `main` for active development and `release` for CI-driven packaging and distribution.
-```bash
-
 
 ## 📜 License Agreement
 
