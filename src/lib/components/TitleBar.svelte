@@ -84,7 +84,7 @@
     -webkit-app-region: drag;
     user-select: none;
     padding: 0 0 0 1rem;
-    border-bottom: 1px solid color-mix(in srgb, var(--dark-700), 50%, transparent);
+    border-bottom: 1px solid #{'color-mix(in srgb, var(--dark-700), 50%, transparent)'};
   }
   .titlebar-left {
     display: flex;
@@ -94,7 +94,7 @@
       width: 24px;
       height: 24px;
       border-radius: 6px;
-      box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 8%, transparent);
+      box-shadow: 0 2px 8px #{'color-mix(in srgb, var(--primary), 8%, transparent)'};
     }
     .app-title {
       font-size: 1.1rem;
@@ -124,7 +124,7 @@
       color: var(--text);
     }
     &.close:hover {
-      background: color-mix(in srgb, var(--red), 50%, transparent);
+      background: #{'color-mix(in srgb, var(--red), 50%, transparent)'};
     }
     &.minimize:hover {
       background: color-mix(in srgb, var(--tertiary-500), 5%, transparent);

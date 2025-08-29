@@ -1,34 +1,39 @@
 {
-	"name": "kable",
-	"description": "A Minecraft launcher",
-	"version": "0.0.1",
-	"type": "module",
-	"scripts": {
-		"tauri": "tauri",
-		"web:dev": "vite dev",
-		"dev": "tauri dev",
-		"build": "vite build",
-		"build:quiet": "vite build 2>&1 | findstr /V \"Deprecation [legacy-js-api]\" | findstr /V \"More info:\"",
-		"preview": "vite preview",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
-	},
-	"devDependencies": {
-		"@sveltejs/adapter-static": "^3.0.8",
-		"@sveltejs/kit": "^2.0.0",
-		"@sveltejs/vite-plugin-svelte": "^4.0.0",
-		"@tauri-apps/cli": "^2.6.2",
-		"sass": "^1.89.2",
-		"svelte": "^5.0.0",
-		"svelte-check": "^4.0.0",
-		"typescript": "^5.0.0",
-		"vite": "^5.0.3"
-	},
-	"dependencies": {
-		"@kablan/clean-ui": "1.0.9",
-		"@tauri-apps/api": "^2.6.0",
-		"@tauri-apps/plugin-clipboard-manager": "^2.3.0",
-		"@tauri-apps/plugin-window-state": "^2.4.0",
-		"skinview3d": "^3.4.1"
-	}
+  "name": "kable",
+  "description": "A Minecraft launcher",
+  "version": "0.0.3",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "web:dev": "vite dev",
+    "dev": "tauri dev",
+    "build": "vite build",
+    "build:quiet": "vite build 2>&1 | findstr /V \"Deprecation [legacy-js-api]\" | findstr /V \"More info:\"",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "version": "node scripts/bump-version.mjs",
+    "version:patch": "node scripts/bump-version.mjs patch",
+    "version:minor": "node scripts/bump-version.mjs minor",
+    "version:major": "node scripts/bump-version.mjs major"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.8",
+    "@sveltejs/kit": "^2.0.0",
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@tauri-apps/cli": "^2.6.2",
+    "sass": "^1.89.2",
+    "semver": "^7.7.2",
+    "svelte": "^5.0.0",
+    "svelte-check": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.3"
+  },
+  "dependencies": {
+    "@kablan/clean-ui": "1.0.9",
+    "@tauri-apps/api": "^2.6.0",
+    "@tauri-apps/plugin-clipboard-manager": "^2.3.0",
+    "@tauri-apps/plugin-window-state": "^2.4.0",
+    "skinview3d": "^3.4.1"
+  }
 }

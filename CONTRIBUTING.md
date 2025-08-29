@@ -14,7 +14,7 @@ Thank you for your interest in contributing to Kable! We welcome community contr
 - [Testing](#testing)
 - [License Agreement](#license-agreement)
 
-## � AI-Assisted Development
+## AI-Assisted Development
 
 ### Our Stance on AI
 We **welcome and encourage** the use of AI tools for development! AI can be incredibly helpful for:
@@ -423,6 +423,44 @@ npm run test:integration
 - Verify UI changes in different screen sizes
 - Test with different Minecraft versions and mod loaders
 - Check performance with large installations
+
+## Releasing
+We have set up the Tauri GitHub Action which triggers on pushes to the `release` branch and builds the packaged app for the appropriate platforms. Follow the checklist and example below to create a release from work on `main`.
+
+Recommended workflow (example)
+
+- Get your changes merged onto main (by means of testing, PR, etc.).
+- Merge `main` into `release` and push the `release` branch — the Tauri GitHub Action will run on that push and produce build artifacts.
+- Go back to your working branch (or `main`) after pushing `release`.
+
+Example commands
+
+```bash
+# on your feature branch
+git add -A
+git commit -m "chore(release): describe changes"
+git push origin main
+
+# merge main into release and push (use PR if your repo requires it)
+git checkout release
+git pull origin release
+git merge --no-ff main -m "chore(release): merge main into release"
+git push origin release
+
+# return to main
+git checkout main
+git pull origin main
+```
+
+Notes and best practices
+
+- If your changes fix a severe (security) issue, prefer creating a PR to update `release` instead of pushing directly. The example above shows the direct git commands for simple workflows.
+- Consider tagging the release after `release` builds succeed, e.g. `git tag -a v1.2.3 -m "Release v1.2.3"` and `git push origin v1.2.3`.
+- Monitor the GitHub Actions build logs for the Tauri build to confirm artifact generation.
+
+Following this flow helps keep `main` for active development and `release` for CI-driven packaging and distribution.
+```bash
+
 
 ## 📜 License Agreement
 

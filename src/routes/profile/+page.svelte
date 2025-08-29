@@ -177,7 +177,7 @@
       left: 0;
       right: 0;
       height: 1px;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--primary), 30%, transparent), transparent);
+      background: linear-gradient(90deg, transparent, #{'color-mix(in srgb, var(--primary), 30%, transparent)'}, transparent);
     }
     
     &:hover {
@@ -216,8 +216,8 @@
       gap: 1.5rem;
 
       .stat-card {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 3%, transparent) 0%, color-mix(in srgb, var(--tertiary), 2%, transparent) 100%);
-  border: 1px solid color-mix(in srgb, var(--dark-600), 60%, transparent);
+  background: linear-gradient(135deg, #{'color-mix(in srgb, var(--primary), 3%, transparent)'} 0%, #{'color-mix(in srgb, var(--tertiary), 2%, transparent)'} 100%);
+  border: 1px solid #{'color-mix(in srgb, var(--dark-600), 60%, transparent)'};
         border-radius: var(--border-radius);
         padding: 1.5rem;
         display: flex;
@@ -255,7 +255,7 @@
           width: 48px;
           height: 48px;
           border-radius: var(--border-radius);
-          background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 15%, transparent), color-mix(in srgb, var(--tertiary), 10%, transparent));
+          background: linear-gradient(135deg, #{'color-mix(in srgb, var(--primary), 15%, transparent)'}, #{'color-mix(in srgb, var(--tertiary), 10%, transparent)'});
           display: flex;
           align-items: center;
           justify-content: center;

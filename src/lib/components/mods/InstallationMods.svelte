@@ -538,8 +538,8 @@ onMount(() => {
   gap: 1.5rem;
   background: var(--container);
   border-radius: 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
-  box-shadow: 0 2px 12px color-mix(in srgb, var(--dark-900), 6%, transparent);
+  border: 1px solid #{'color-mix(in srgb, var(--primary), 8%, transparent)'};
+  box-shadow: 0 2px 12px #{'color-mix(in srgb, var(--dark-900), 6%, transparent)'};
   overflow: hidden;
 }
 
@@ -548,11 +548,11 @@ onMount(() => {
   width: 320px;
   min-width: 320px;
   background: 
-    radial-gradient(circle at var(--dot1-x, 25%) var(--dot1-y, 35%), color-mix(in srgb, var(--primary-900), 4%, transparent) 0%, transparent 16%),
-    radial-gradient(circle at var(--dot2-x, 75%) var(--dot2-y, 65%), color-mix(in srgb, var(--secondary), 3%, transparent) 0%, transparent 14%),
-    radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 15%), color-mix(in srgb, var(--tertiary), 2.5%, transparent) 0%, transparent 12%),
-    radial-gradient(circle at var(--dot4-x, 20%) var(--dot4-y, 80%), color-mix(in srgb, var(--quaternary), 3%, transparent) 0%, transparent 15%),
-    linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--primary), 2%, transparent) 100%);
+    radial-gradient(circle at var(--dot1-x, 25%) var(--dot1-y, 35%), #{'color-mix(in srgb, var(--primary-900), 4%, transparent)'} 0%, transparent 16%),
+    radial-gradient(circle at var(--dot2-x, 75%) var(--dot2-y, 65%), #{'color-mix(in srgb, var(--secondary), 3%, transparent)'} 0%, transparent 14%),
+    radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 15%), #{'color-mix(in srgb, var(--tertiary), 2.5%, transparent)'} 0%, transparent 12%),
+    radial-gradient(circle at var(--dot4-x, 20%) var(--dot4-y, 80%), #{'color-mix(in srgb, var(--quaternary), 3%, transparent)'} 0%, transparent 15%),
+    linear-gradient(135deg, var(--card) 0%, #{'color-mix(in srgb, var(--primary), 2%, transparent)'} 100%);
   border-right: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
   display: flex;
   flex-direction: column;
@@ -567,7 +567,7 @@ onMount(() => {
     color: transparent;
     font-weight: 700;
     font-size: 1.4em;
-    border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+    border-bottom: 1px solid #{'color-mix(in srgb, var(--primary), 8%, transparent)'};
   }
 }
 
@@ -652,16 +652,16 @@ onMount(() => {
   transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   
   &:hover {
-  border-color: var(--loader-color, color-mix(in srgb, var(--primary), 15%, transparent));
+  border-color: var(--loader-color, #{'color-mix(in srgb, var(--primary), 15%, transparent)'});
   // Properly maintain center position on hover
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--loader-color, var(--primary)), 10%, transparent);
+  box-shadow: 0 2px 8px #{'color-mix(in srgb, var(--loader-color, var(--primary)), 10%, transparent)'};
   }
-  
+
   &.selected {
     border-color: var(--loader-color, var(--primary));
     box-shadow: 
-      0 4px 16px color-mix(in srgb, var(--loader-color, var(--primary)), 15%, transparent),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      0 4px 16px #{'color-mix(in srgb, var(--loader-color, var(--primary)), 15%, transparent)'},
+       inset 0 1px 0 rgba(255, 255, 255, 0.1);
     z-index: 10; // Bring selected item to front
     
     // Add green selection indicator
@@ -670,9 +670,9 @@ onMount(() => {
     &:hover {
       // Keep the same transform as base state but with slight scale increase
       box-shadow: 
-        0 6px 20px color-mix(in srgb, var(--loader-color, var(--primary)), 20%, transparent),
-        0 0 0 3px color-mix(in srgb, var(--green-800), 30%, transparent),
-        inset 0 1px 0 color-mix(in srgb, #fff, 15%, transparent);
+        0 6px 20px #{'color-mix(in srgb, var(--loader-color, var(--primary)), 20%, transparent)'},
+        0 0 0 3px #{'color-mix(in srgb, var(--green-800), 30%, transparent)'},
+        inset 0 1px 0 #{'color-mix(in srgb, #fff, 15%, transparent)'};
     }
     
     &::before {
@@ -684,14 +684,13 @@ onMount(() => {
       width: 4px;
       height: 60%;
       background: linear-gradient(to bottom, var(--green-700), var(--green-900));
-      border-radius: 2px;
-  box-shadow: 0 0 8px color-mix(in srgb, var(--green-800), 40%, transparent);
+      box-shadow: 0 0 8px #{'color-mix(in srgb, var(--green-800), 40%, transparent)'};
     }
   }
   
   &:focus {
     outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent);
+    box-shadow: 0 0 0 2px #{'color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)'};
   }
 }
 
@@ -704,16 +703,16 @@ onMount(() => {
   justify-content: center;
   background: var(--container);
   color: var(--loader-color, var(--primary));
-  box-shadow: 0 2px 6px color-mix(in srgb, var(--dark-900), 8%, transparent);
+  box-shadow: 0 2px 6px #{'color-mix(in srgb, var(--dark-900), 8%, transparent)'};
   flex-shrink: 0;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   
   .installation-item.selected & {
-  background: linear-gradient(135deg, var(--loader-color, var(--primary)) 0%, color-mix(in srgb, var(--loader-color, var(--secondary)), 80%, transparent) 100%);
-  color: white;
-  box-shadow: 0 3px 12px color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent);
-  transform: scale(1.05);
-  }
+  background: linear-gradient(135deg, var(--loader-color, var(--primary)) 0%, #{'color-mix(in srgb, var(--loader-color, var(--secondary)), 80%, transparent)'} 100%);
+   color: white;
+  box-shadow: 0 3px 12px #{'color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)'};
+   transform: scale(1.05);
+   }
 }
 
 .installation-meta {
@@ -740,8 +739,8 @@ onMount(() => {
   .installation-item.selected & {
     color: var(--loader-color, var(--primary));
     font-weight: 700;
-  text-shadow: 0 0 8px color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent);
-  }
+    text-shadow: 0 0 8px #{'color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)'};
+   }
 }
 
 .installation-details {
@@ -764,9 +763,9 @@ onMount(() => {
   color: var(--tertiary);
   
   .installation-item.selected & {
-  background: color-mix(in srgb, var(--loader-color, var(--tertiary)), 15%, transparent);
-    color: var(--loader-color, var(--tertiary));
-  }
+  background: #{'color-mix(in srgb, var(--loader-color, var(--tertiary)), 15%, transparent)'};
+     color: var(--loader-color, var(--tertiary));
+   }
 }
 
 // --- Right content: Search and mods ---
@@ -801,15 +800,15 @@ onMount(() => {
   display: flex;
   align-items: center;
   gap: 0.3em;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 8%, transparent) 0%, color-mix(in srgb, var(--secondary), 4%, transparent) 100%);
-  border: 1px solid color-mix(in srgb, var(--primary), 15%, transparent);
+  background: linear-gradient(135deg, #{'color-mix(in srgb, var(--primary), 8%, transparent)'} 0%, #{'color-mix(in srgb, var(--secondary), 4%, transparent)'} 100%);
+  border: 1px solid #{'color-mix(in srgb, var(--primary), 15%, transparent)'};
   border-radius: 1rem;
   padding: 0.4em 0.8em;
   font-size: 0.85em;
   font-weight: 500;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 1px 4px color-mix(in srgb, var(--dark-900), 6%, transparent);
+  box-shadow: 0 1px 4px #{'color-mix(in srgb, var(--dark-900), 6%, transparent)'};
   
   .filtered-count {
     color: var(--primary);
@@ -942,7 +941,7 @@ onMount(() => {
       0 2px 8px 0 color-mix(in srgb, var(--dark-900), 12%, transparent),
       inset 0 1px 0 color-mix(in srgb, #fff, 15%, transparent);
     border-color: var(--primary);
-    background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--primary), 6%, transparent) 100%);
+    background: linear-gradient(135deg, var(--card) 0%, #{'color-mix(in srgb, var(--primary), 6%, transparent)'} 100%);
     z-index: 15;
     
     .mod-tooltip {
@@ -958,7 +957,7 @@ onMount(() => {
   }
   
   &.loading {
-  background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--placeholder), 4%, transparent) 100%);
+  background: linear-gradient(135deg, var(--card) 0%, #{'color-mix(in srgb, var(--placeholder), 4%, transparent)'} 100%);
     color: var(--placeholder);
     animation: pulse 1.8s ease-in-out infinite;
   }
@@ -988,7 +987,7 @@ onMount(() => {
   height: 38px;
   border-radius: 0.4rem;
   object-fit: cover;
-  background: linear-gradient(45deg, var(--background) 0%, color-mix(in srgb, var(--primary), 2%, transparent) 100%);
+  background: linear-gradient(45deg, var(--background) 0%, #{'color-mix(in srgb, var(--primary), 2%, transparent)'} 100%);
   box-shadow: 0 1px 4px color-mix(in srgb, var(--dark-900), 8%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
@@ -998,7 +997,7 @@ onMount(() => {
   opacity: 0;
   pointer-events: none;
   position: absolute;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--container), 98%, transparent) 0%, color-mix(in srgb, var(--primary), 5%, transparent) 100%);
+  background: linear-gradient(135deg, #{'color-mix(in srgb, var(--container), 98%, transparent)'} 0%, #{'color-mix(in srgb, var(--primary), 5%, transparent)'} 100%);
   color: var(--text);
   border: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
   border-radius: 0.5rem;
@@ -1027,7 +1026,7 @@ onMount(() => {
     position: absolute;
     width: 10px;
     height: 10px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--container), 98%, transparent) 0%, color-mix(in srgb, var(--primary), 100%, transparent) 100%);
+  background: linear-gradient(135deg, #{'color-mix(in srgb, var(--container), 98%, transparent)'} 0%, #{'color-mix(in srgb, var(--primary), 100%, transparent)'} 100%);
   border-left: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
   border-bottom: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
     transform: rotate(45deg);

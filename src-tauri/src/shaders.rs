@@ -1,4 +1,3 @@
-use crate::AppError;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -107,14 +106,14 @@ pub async fn get_installed_shaders(minecraft_path: String) -> Result<Vec<ShaderP
 }
 
 // Parse shader pack file
-async fn parse_shader_pack(shader_path: &PathBuf) -> Result<ShaderPack, AppError> {
+async fn parse_shader_pack(shader_path: &PathBuf) -> Result<ShaderPack, String> {
     let file_name = shader_path
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("Unknown")
         .to_string();
 
-    let file_size = fs::metadata(shader_path)?.len();
+    let file_size = fs::metadata(shader_path).map_err(|e| e.to_string())?.len();
 
     // Extract shader info from filename (basic approach)
     let name = extract_shader_name(&file_name);

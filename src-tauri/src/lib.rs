@@ -1,7 +1,5 @@
 use std::fs;
 use std::path::PathBuf;
-use tauri::Manager;
-use thiserror::Error;
 
 // Re-export procedural macros from the separate kable-macros crate
 // The actual macro implementations are in `../kable-macros/src/lib.rs`
@@ -19,7 +17,6 @@ pub mod profile;
 pub mod settings;
 pub mod shaders;
 pub mod skins;
-pub mod window_state;
 
 #[macro_use]
 pub mod logging;
@@ -42,27 +39,6 @@ pub use mods::*;
 pub use settings::*;
 pub use shaders::*;
 pub use skins::*;
-pub use window_state::*;
-
-#[derive(Error, Debug)]
-pub enum AppError {
-    #[error("IO error: {0}")]
-    Io(#[from] std::io::Error),
-    #[error("JSON error: {0}")]
-    Json(#[from] serde_json::Error),
-    #[error("HTTP error: {0}")]
-    Http(#[from] reqwest::Error),
-    #[error("OAuth error: {0}")]
-    OAuth(String),
-    #[error("Minecraft error: {0}")]
-    Minecraft(String),
-}
-
-impl From<AppError> for String {
-    fn from(err: AppError) -> String {
-        err.to_string()
-    }
-}
 
 /// This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

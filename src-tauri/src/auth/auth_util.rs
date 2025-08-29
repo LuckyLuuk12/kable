@@ -1,6 +1,5 @@
 use crate::auth::secure_token::{decrypt_token, encrypt_token};
 use crate::logging::{LogLevel, Logger};
-use crate::AppError;
 /**
  * This file contains authentication related utility functions.
  * E.g. functions to read/write to/from launcher_accounts.json to work with stored accounts,

@@ -389,17 +389,11 @@
     border-radius: var(--border-radius);
     border: 1px solid color-mix(in srgb, var(--dark-400), 3%, transparent);
     background:
-      radial-gradient(circle at var(--dot1-x, 30%) var(--dot1-y, 40%), color-mix(in srgb, var(--primary-900), 4.5%, transparent) 0%, transparent 18%),
-      radial-gradient(circle at var(--dot2-x, 70%) var(--dot2-y, 60%), color-mix(in srgb, var(--secondary), 3.5%, transparent) 0%, transparent 15%),
-      radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 20%), color-mix(in srgb, var(--tertiary), 3%, transparent) 0%, transparent 13%),
-      radial-gradient(circle at var(--dot4-x, 80%) var(--dot4-y, 80%), color-mix(in srgb, var(--quaternary), 3.5%, transparent) 0%, transparent 16%),
-      radial-gradient(circle at var(--dot5-x, 20%) var(--dot5-y, 70%), color-mix(in srgb, var(--primary), 2.5%, transparent) 0%, transparent 12%),
-      radial-gradient(circle at var(--dot6-x, 50%) var(--dot6-y, 10%), color-mix(in srgb, var(--secondary), 3%, transparent) 0%, transparent 10%),
-      radial-gradient(circle at var(--dot7-x, 10%) var(--dot7-y, 80%), color-mix(in srgb, var(--tertiary), 2.5%, transparent) 0%, transparent 11%),
-      radial-gradient(circle at var(--dot8-x, 85%) var(--dot8-y, 30%), color-mix(in srgb, var(--quaternary), 3%, transparent) 0%, transparent 13%),
-      radial-gradient(circle at var(--dot9-x, 40%) var(--dot9-y, 85%), color-mix(in srgb, var(--primary-900), 3.5%, transparent) 0%, transparent 12%),
-      radial-gradient(circle at var(--dot10-x, 75%) var(--dot10-y, 15%), color-mix(in srgb, var(--primary), 3%, transparent) 0%, transparent 10%),
-      linear-gradient(120deg, color-mix(in srgb, var(--container), 98%, transparent) 60%, color-mix(in srgb, var(--primary), 4%, transparent) 100%);
+      radial-gradient(circle at var(--dot1-x, 30%) var(--dot1-y, 40%), #{'color-mix(in srgb, var(--primary-900), 4.5%, transparent)'} 0%, transparent 18%),
+      radial-gradient(circle at var(--dot2-x, 70%) var(--dot2-y, 60%), #{'color-mix(in srgb, var(--secondary), 3.5%, transparent)'} 0%, transparent 15%),
+      radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 20%), #{'color-mix(in srgb, var(--tertiary), 3%, transparent)'} 0%, transparent 13%),
+      radial-gradient(circle at var(--dot4-x, 80%) var(--dot4-y, 80%), #{'color-mix(in srgb, var(--quaternary), 3.5%, transparent)'} 0%, transparent 16%),
+      linear-gradient(120deg, #{'color-mix(in srgb, var(--container), 98%, transparent)'} 60%, #{'color-mix(in srgb, var(--primary), 4%, transparent)'} 100%);
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08); // 2px 4px
     overflow: scroll;
     animation: move-dots 32s ease infinite alternate;

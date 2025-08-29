@@ -527,7 +527,10 @@
     }
     
     &.active {
-      background: linear-gradient(155deg, color-mix(in srgb, var(--primary), 15%, transparent), color-mix(in srgb, var(--primary), 1%, transparent));
+      background: linear-gradient(155deg,
+        #{'color-mix(in srgb, var(--primary) 15%, transparent)'},
+        #{'color-mix(in srgb, var(--primary) 1%, transparent)'}
+      );
       backdrop-filter: blur(15px);
       color: var(--text-white);
     }
