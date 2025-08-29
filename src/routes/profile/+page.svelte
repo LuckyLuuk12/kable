@@ -177,11 +177,11 @@
       left: 0;
       right: 0;
       height: 1px;
-      background: linear-gradient(90deg, transparent, rgba(var(--primary), 0.3), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--primary), 30%, transparent), transparent);
     }
     
     &:hover {
-      border-color: rgba(var(--primary), 0.3);
+  border-color: color-mix(in srgb, var(--primary), 30%, transparent);
       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
     }
 
@@ -191,7 +191,7 @@
       align-items: center;
       margin-bottom: 1.5rem;
       padding-bottom: 1rem;
-      border-bottom: 1px solid rgba(var(--dark-600), 0.5);
+  border-bottom: 1px solid color-mix(in srgb, var(--dark-600), 50%, transparent);
 
       h2 {
         margin: 0;
@@ -216,8 +216,8 @@
       gap: 1.5rem;
 
       .stat-card {
-        background: linear-gradient(135deg, rgba(var(--primary), 0.03) 0%, rgba(var(--tertiary), 0.02) 100%);
-        border: 1px solid rgba(var(--dark-600), 0.6);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 3%, transparent) 0%, color-mix(in srgb, var(--tertiary), 2%, transparent) 100%);
+  border: 1px solid color-mix(in srgb, var(--dark-600), 60%, transparent);
         border-radius: var(--border-radius);
         padding: 1.5rem;
         display: flex;
@@ -242,7 +242,7 @@
         }
         
         &:hover {
-          border-color: rgba(var(--primary), 0.3);
+          border-color: color-mix(in srgb, var(--primary), 30%, transparent);
           transform: translateY(-2px);
           box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
           
@@ -255,7 +255,7 @@
           width: 48px;
           height: 48px;
           border-radius: var(--border-radius);
-          background: linear-gradient(135deg, rgba(var(--primary), 0.15), rgba(var(--tertiary), 0.1));
+          background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 15%, transparent), color-mix(in srgb, var(--tertiary), 10%, transparent));
           display: flex;
           align-items: center;
           justify-content: center;
@@ -313,7 +313,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 1rem;
-    background: rgba(var(--red), 0.1);
+  background: color-mix(in srgb, var(--red), 10%, transparent);
     border: 1px solid var(--red);
     border-radius: var(--border-radius);
     color: var(--red);

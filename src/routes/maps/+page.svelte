@@ -295,7 +295,7 @@ import { MapsService, SettingsService, Icon } from '$lib';
   }
 
   .error-message {
-    background: rgba(var(--red), 0.1);
+  background: color-mix(in srgb, var(--red), 10%, transparent);
     color: var(--red);
     padding: 1rem;
     border-radius: 0.5rem;

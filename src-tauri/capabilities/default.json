@@ -5,9 +5,15 @@
   "windows": [
     "main"
   ],
+  "platforms": [
+    "windows",
+    "macOS",
+    "linux"
+  ],
   "permissions": [
     "core:default",
     "core:window:default",
+    "core:window:allow-center",
     "core:window:allow-hide",
     "core:window:allow-show",
     "core:window:allow-unminimize",
@@ -17,6 +23,7 @@
     "core:window:allow-destroy",
     "core:window:allow-close",
     "clipboard-manager:allow-write-text",
-    "updater:default"
+    "updater:default",
+    "window-state:default"
   ]
 }

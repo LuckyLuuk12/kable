@@ -20,11 +20,11 @@ pub struct GeneralSettings {
     pub java_path: Option<String>,
     pub game_directory: Option<String>,
     /// 'open_logs' | 'open_home' | 'exit' | 'minimize' | 'ask'
-    pub on_game_close: String,  
+    pub on_game_close: String,
     /// 'restart' | 'open_logs' | 'open_home' | 'exit' | 'minimize' | 'ask'
-    pub on_game_crash: String,  
+    pub on_game_crash: String,
     /// 'keep_open' | 'exit' | 'open_logs' | 'minimize' | 'ask'
-    pub on_game_launch: String, 
+    pub on_game_launch: String,
     pub auto_update_launcher: bool,
     pub show_ads: bool,
 }
@@ -385,7 +385,7 @@ pub async fn get_selected_css_theme() -> Result<String, String> {
 #[tauri::command]
 pub async fn select_css_file() -> Result<Option<String>, String> {
     // use tauri_plugin_dialog::DialogExt;
-    
+
     // We need the app handle to use the dialog plugin
     // For now, return an error indicating this needs to be implemented differently
     Err("File dialog not implemented yet - please enter path manually".to_string())
@@ -453,7 +453,10 @@ async fn get_builtin_css_themes(app: &tauri::AppHandle) -> Result<Vec<String>, S
     let mut builtin_themes = Vec::new();
 
     // First try using the Tauri resource resolution method
-    match app.path().resolve("static/themes", tauri::path::BaseDirectory::Resource) {
+    match app
+        .path()
+        .resolve("static/themes", tauri::path::BaseDirectory::Resource)
+    {
         Ok(themes_dir) => {
             Logger::console_log(
                 LogLevel::Debug,
@@ -466,7 +469,8 @@ async fn get_builtin_css_themes(app: &tauri::AppHandle) -> Result<Vec<String>, S
                     .map_err(|e| format!("Failed to read built-in themes directory: {}", e))?;
 
                 for entry in entries {
-                    let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+                    let entry =
+                        entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
                     let path = entry.path();
 
                     if !path.is_file() {
@@ -475,7 +479,9 @@ async fn get_builtin_css_themes(app: &tauri::AppHandle) -> Result<Vec<String>, S
 
                     if let Some(extension) = path.extension() {
                         if extension == "css" {
-                            if let Some(theme_name) = path.file_stem().and_then(|stem| stem.to_str()) {
+                            if let Some(theme_name) =
+                                path.file_stem().and_then(|stem| stem.to_str())
+                            {
                                 Logger::console_log(
                                     LogLevel::Info,
                                     &format!("Found built-in theme: {}", theme_name),
@@ -515,31 +521,38 @@ async fn get_builtin_css_themes(app: &tauri::AppHandle) -> Result<Vec<String>, S
         // Try to find the workspace root by looking for package.json + src-tauri directory
         let current_exe = std::env::current_exe().unwrap_or_default();
         let mut search_dir = current_exe.parent().unwrap_or(std::path::Path::new("."));
-        
-        for level in 0..10 {  // Search up to 10 levels up
+
+        for level in 0..10 {
+            // Search up to 10 levels up
             Logger::console_log(
                 LogLevel::Debug,
                 &format!("Searching level {}: {:?}", level, search_dir),
                 None,
             );
-            
+
             let package_json = search_dir.join("package.json");
             let src_tauri_dir = search_dir.join("src-tauri");
-            
+
             // Look for workspace markers: package.json at root level AND src-tauri directory
             if package_json.exists() && src_tauri_dir.exists() {
                 let static_themes_dir = search_dir.join("static").join("themes");
-                
+
                 Logger::console_log(
                     LogLevel::Debug,
-                    &format!("Found workspace root, checking static themes path: {:?}", static_themes_dir),
+                    &format!(
+                        "Found workspace root, checking static themes path: {:?}",
+                        static_themes_dir
+                    ),
                     None,
                 );
-                
+
                 if static_themes_dir.exists() {
                     Logger::console_log(
                         LogLevel::Info,
-                        &format!("Found development static themes directory: {:?}", static_themes_dir),
+                        &format!(
+                            "Found development static themes directory: {:?}",
+                            static_themes_dir
+                        ),
                         None,
                     );
 
@@ -547,7 +560,8 @@ async fn get_builtin_css_themes(app: &tauri::AppHandle) -> Result<Vec<String>, S
                         .map_err(|e| format!("Failed to read built-in themes directory: {}", e))?;
 
                     for entry in entries {
-                        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+                        let entry =
+                            entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
                         let path = entry.path();
 
                         if !path.is_file() {
@@ -556,7 +570,9 @@ async fn get_builtin_css_themes(app: &tauri::AppHandle) -> Result<Vec<String>, S
 
                         if let Some(extension) = path.extension() {
                             if extension == "css" {
-                                if let Some(theme_name) = path.file_stem().and_then(|stem| stem.to_str()) {
+                                if let Some(theme_name) =
+                                    path.file_stem().and_then(|stem| stem.to_str())
+                                {
                                     Logger::console_log(
                                         LogLevel::Info,
                                         &format!("Found built-in theme: {}", theme_name),
@@ -570,13 +586,16 @@ async fn get_builtin_css_themes(app: &tauri::AppHandle) -> Result<Vec<String>, S
                 } else {
                     Logger::console_log(
                         LogLevel::Debug,
-                        &format!("Static themes directory not found at: {:?}", static_themes_dir),
+                        &format!(
+                            "Static themes directory not found at: {:?}",
+                            static_themes_dir
+                        ),
                         None,
                     );
                 }
                 break;
             }
-            
+
             if let Some(parent) = search_dir.parent() {
                 search_dir = parent;
             } else {
@@ -594,8 +613,7 @@ pub async fn save_css_theme(theme_name: String, css_content: String) -> Result<S
     let themes_dir = ensure_css_themes_dir().await?;
     let file_path = themes_dir.join(format!("{}.css", theme_name));
 
-    fs::write(&file_path, css_content)
-        .map_err(|e| format!("Failed to write theme file: {}", e))?;
+    fs::write(&file_path, css_content).map_err(|e| format!("Failed to write theme file: {}", e))?;
 
     Ok(file_path.to_string_lossy().to_string())
 }
@@ -611,8 +629,7 @@ pub async fn delete_css_theme(theme_name: String) -> Result<(), String> {
     let file_path = themes_dir.join(format!("{}.css", theme_name));
 
     if file_path.exists() {
-        fs::remove_file(&file_path)
-            .map_err(|e| format!("Failed to delete theme file: {}", e))?;
+        fs::remove_file(&file_path).map_err(|e| format!("Failed to delete theme file: {}", e))?;
     }
 
     Ok(())
@@ -640,7 +657,10 @@ pub async fn load_css_theme(theme_name: String, app: tauri::AppHandle) -> Result
     }
 
     // If not found in custom themes, try built-in themes
-    match app.path().resolve(format!("static/themes/{}.css", theme_name), tauri::path::BaseDirectory::Resource) {
+    match app.path().resolve(
+        format!("static/themes/{}.css", theme_name),
+        tauri::path::BaseDirectory::Resource,
+    ) {
         Ok(builtin_file_path) => {
             Logger::console_log(
                 LogLevel::Debug,
@@ -651,7 +671,10 @@ pub async fn load_css_theme(theme_name: String, app: tauri::AppHandle) -> Result
             if builtin_file_path.exists() {
                 Logger::console_log(
                     LogLevel::Info,
-                    &format!("Loading built-in theme '{}' from: {:?}", theme_name, builtin_file_path),
+                    &format!(
+                        "Loading built-in theme '{}' from: {:?}",
+                        theme_name, builtin_file_path
+                    ),
                     None,
                 );
                 return fs::read_to_string(&builtin_file_path)
@@ -659,7 +682,10 @@ pub async fn load_css_theme(theme_name: String, app: tauri::AppHandle) -> Result
             } else {
                 Logger::console_log(
                     LogLevel::Debug,
-                    &format!("Built-in theme file does not exist: {:?}", builtin_file_path),
+                    &format!(
+                        "Built-in theme file does not exist: {:?}",
+                        builtin_file_path
+                    ),
                     None,
                 );
             }
@@ -667,7 +693,10 @@ pub async fn load_css_theme(theme_name: String, app: tauri::AppHandle) -> Result
         Err(e) => {
             Logger::console_log(
                 LogLevel::Debug,
-                &format!("Failed to resolve built-in theme path for '{}': {}", theme_name, e),
+                &format!(
+                    "Failed to resolve built-in theme path for '{}': {}",
+                    theme_name, e
+                ),
                 None,
             );
         }
@@ -677,41 +706,51 @@ pub async fn load_css_theme(theme_name: String, app: tauri::AppHandle) -> Result
     if cfg!(debug_assertions) {
         Logger::console_log(
             LogLevel::Debug,
-            &format!("Development mode: trying to find theme '{}' in workspace", theme_name),
+            &format!(
+                "Development mode: trying to find theme '{}' in workspace",
+                theme_name
+            ),
             None,
         );
 
         let current_exe = std::env::current_exe().unwrap_or_default();
         let mut search_dir = current_exe.parent().unwrap_or(std::path::Path::new("."));
-        
+
         // Search up the directory tree to find workspace root
-        for level in 0..10 {  // Increased search depth
+        for level in 0..10 {
+            // Increased search depth
             Logger::console_log(
                 LogLevel::Debug,
                 &format!("Searching level {}: {:?}", level, search_dir),
                 None,
             );
-            
+
             let package_json = search_dir.join("package.json");
             let src_tauri_dir = search_dir.join("src-tauri");
-            
+
             // Look for workspace markers: package.json at root level AND src-tauri directory
             if package_json.exists() && src_tauri_dir.exists() {
                 let theme_file_path = search_dir
                     .join("static")
                     .join("themes")
                     .join(format!("{}.css", theme_name));
-                
+
                 Logger::console_log(
                     LogLevel::Debug,
-                    &format!("Found workspace root, checking theme path: {:?}", theme_file_path),
+                    &format!(
+                        "Found workspace root, checking theme path: {:?}",
+                        theme_file_path
+                    ),
                     None,
                 );
-                
+
                 if theme_file_path.exists() {
                     Logger::console_log(
                         LogLevel::Info,
-                        &format!("Loading built-in theme '{}' from development path: {:?}", theme_name, theme_file_path),
+                        &format!(
+                            "Loading built-in theme '{}' from development path: {:?}",
+                            theme_name, theme_file_path
+                        ),
                         None,
                     );
                     return fs::read_to_string(&theme_file_path)
@@ -719,13 +758,16 @@ pub async fn load_css_theme(theme_name: String, app: tauri::AppHandle) -> Result
                 } else {
                     Logger::console_log(
                         LogLevel::Debug,
-                        &format!("Theme file not found at expected path: {:?}", theme_file_path),
+                        &format!(
+                            "Theme file not found at expected path: {:?}",
+                            theme_file_path
+                        ),
                         None,
                     );
                 }
                 break;
             }
-            
+
             if let Some(parent) = search_dir.parent() {
                 search_dir = parent;
             } else {
@@ -734,7 +776,10 @@ pub async fn load_css_theme(theme_name: String, app: tauri::AppHandle) -> Result
         }
     }
 
-    Err(format!("Theme '{}' not found in custom or built-in themes", theme_name))
+    Err(format!(
+        "Theme '{}' not found in custom or built-in themes",
+        theme_name
+    ))
 }
 
 /// Open the CSS themes directory in file explorer

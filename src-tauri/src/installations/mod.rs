@@ -40,7 +40,6 @@ async fn ensure_dedicated_mods_folder(
     }
 }
 
-
 // Internal cache for installations
 static INSTALLATIONS_CACHE: OnceCell<Vec<KableInstallation>> = OnceCell::const_new();
 /// Builds the list of installations by merging kable_profiles and converted launcher_profiles.

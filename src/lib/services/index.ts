@@ -8,4 +8,3 @@ export { ModsService } from './ModsService';
 export { SkinsService } from './SkinsService';
 export * from './LauncherService';
 export * from './LogService';
-export * from './WindowStateService'

@@ -387,19 +387,19 @@
   .installations-list {
     padding: 2rem;
     border-radius: var(--border-radius);
-    border: 1px solid rgba(var(--dark-400), 0.03);
+    border: 1px solid color-mix(in srgb, var(--dark-400), 3%, transparent);
     background:
-      radial-gradient(circle at var(--dot1-x, 30%) var(--dot1-y, 40%), rgba(var(--primary-900), 0.045) 0%, transparent 18%),
-      radial-gradient(circle at var(--dot2-x, 70%) var(--dot2-y, 60%), rgba(var(--secondary), 0.035) 0%, transparent 15%),
-      radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 20%), rgba(var(--tertiary), 0.03) 0%, transparent 13%),
-      radial-gradient(circle at var(--dot4-x, 80%) var(--dot4-y, 80%), rgba(var(--quaternary), 0.035) 0%, transparent 16%),
-      radial-gradient(circle at var(--dot5-x, 20%) var(--dot5-y, 70%), rgba(var(--primary), 0.025) 0%, transparent 12%),
-      radial-gradient(circle at var(--dot6-x, 50%) var(--dot6-y, 10%), rgba(var(--secondary), 0.03) 0%, transparent 10%),
-      radial-gradient(circle at var(--dot7-x, 10%) var(--dot7-y, 80%), rgba(var(--tertiary), 0.025) 0%, transparent 11%),
-      radial-gradient(circle at var(--dot8-x, 85%) var(--dot8-y, 30%), rgba(var(--quaternary), 0.03) 0%, transparent 13%),
-      radial-gradient(circle at var(--dot9-x, 40%) var(--dot9-y, 85%), rgba(var(--primary-900), 0.035) 0%, transparent 12%),
-      radial-gradient(circle at var(--dot10-x, 75%) var(--dot10-y, 15%), rgba(var(--primary), 0.03) 0%, transparent 10%),
-      linear-gradient(120deg, rgba(var(--container), 0.98) 60%, rgba(var(--primary), 0.04) 100%);
+      radial-gradient(circle at var(--dot1-x, 30%) var(--dot1-y, 40%), color-mix(in srgb, var(--primary-900), 4.5%, transparent) 0%, transparent 18%),
+      radial-gradient(circle at var(--dot2-x, 70%) var(--dot2-y, 60%), color-mix(in srgb, var(--secondary), 3.5%, transparent) 0%, transparent 15%),
+      radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 20%), color-mix(in srgb, var(--tertiary), 3%, transparent) 0%, transparent 13%),
+      radial-gradient(circle at var(--dot4-x, 80%) var(--dot4-y, 80%), color-mix(in srgb, var(--quaternary), 3.5%, transparent) 0%, transparent 16%),
+      radial-gradient(circle at var(--dot5-x, 20%) var(--dot5-y, 70%), color-mix(in srgb, var(--primary), 2.5%, transparent) 0%, transparent 12%),
+      radial-gradient(circle at var(--dot6-x, 50%) var(--dot6-y, 10%), color-mix(in srgb, var(--secondary), 3%, transparent) 0%, transparent 10%),
+      radial-gradient(circle at var(--dot7-x, 10%) var(--dot7-y, 80%), color-mix(in srgb, var(--tertiary), 2.5%, transparent) 0%, transparent 11%),
+      radial-gradient(circle at var(--dot8-x, 85%) var(--dot8-y, 30%), color-mix(in srgb, var(--quaternary), 3%, transparent) 0%, transparent 13%),
+      radial-gradient(circle at var(--dot9-x, 40%) var(--dot9-y, 85%), color-mix(in srgb, var(--primary-900), 3.5%, transparent) 0%, transparent 12%),
+      radial-gradient(circle at var(--dot10-x, 75%) var(--dot10-y, 15%), color-mix(in srgb, var(--primary), 3%, transparent) 0%, transparent 10%),
+      linear-gradient(120deg, color-mix(in srgb, var(--container), 98%, transparent) 60%, color-mix(in srgb, var(--primary), 4%, transparent) 100%);
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08); // 2px 4px
     overflow: scroll;
     animation: move-dots 32s ease infinite alternate;
@@ -595,7 +595,7 @@
     align-items: center;
     gap: 1rem;
     padding: 0.75rem 1rem;
-    min-height: 4rem;
+    background: color-mix(in srgb, var(--red), 10%, transparent);
   }
 
   .list-item-icon-section {
@@ -711,7 +711,7 @@
       
       &:hover, &:focus {
         color: var(--text);
-        background: rgba(var(--dark-200), 0.08);
+  background: color-mix(in srgb, var(--dark-200), 8%, transparent);
         outline: none;
       }
       
@@ -719,7 +719,7 @@
         color: var(--red-700);
         
         &:hover, &:focus {
-          background: rgba(var(--red-700), 0.08);
+          background: color-mix(in srgb, var(--red-700), 8%, transparent);
         }
       }
     }
@@ -1008,7 +1008,7 @@
     .meta-value {
       color: var(--placeholder);
       font-weight: 400;
-      background: rgba(var(--dark-200), 0.08);
+  background: color-mix(in srgb, var(--dark-200), 8%, transparent);
       border-radius: 0.4em;
       padding: 0.05em 0.45em;
       display: flex;
@@ -1106,7 +1106,7 @@
         right: 0;
         top: 100%;
         min-width: 10rem;
-        background: rgba(var(--card), 0.94);
+  background: color-mix(in srgb, var(--card), 94%, transparent);
         border: 1px solid var(--dark-200);
         border-radius: var(--border-radius);
         box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15), 0 0.125rem 0.5rem rgba(0,0,0,0.08);
@@ -1138,7 +1138,7 @@
           transition: background 0.12s;
           
           &:hover {
-            background: rgba(var(--dark-200), 0.1);
+            background: color-mix(in srgb, var(--dark-200), 10%, transparent);
           }
         }
         
@@ -1196,7 +1196,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 1rem;
-    background: rgba(var(--red), 0.1);
+  background: color-mix(in srgb, var(--red), 10%, transparent);
     border: 1px solid var(--red);
     border-radius: var(--border-radius);
     color: var(--red);

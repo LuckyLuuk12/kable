@@ -11,7 +11,8 @@ pub use vanilla::*;
 
 use crate::logging::Logger;
 use crate::{
-    get_default_minecraft_dir, kable_profiles::KableInstallation, CategorizedLauncherSettings, LauncherAccount
+    get_default_minecraft_dir, kable_profiles::KableInstallation, CategorizedLauncherSettings,
+    LauncherAccount,
 };
 use tauri::{Emitter, Manager};
 
@@ -29,144 +30,239 @@ fn get_pid_set() -> &'static Mutex<HashSet<u32>> {
 }
 
 /// Handle on_game_launch settings behavior
-async fn handle_launch_settings(settings: &CategorizedLauncherSettings, app_handle: Option<tauri::AppHandle>) {
+async fn handle_launch_settings(
+    settings: &CategorizedLauncherSettings,
+    app_handle: Option<tauri::AppHandle>,
+) {
     let behavior = &settings.general.on_game_launch;
-    Logger::info_global(&format!("Handling on_game_launch setting: {}", behavior), None);
-    
+    Logger::info_global(
+        &format!("Handling on_game_launch setting: {}", behavior),
+        None,
+    );
+
     match behavior.as_str() {
         "exit" => {
-            Logger::info_global("Closing launcher as requested by on_game_launch setting", None);
+            Logger::info_global(
+                "Closing launcher as requested by on_game_launch setting",
+                None,
+            );
             if let Some(app) = app_handle {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.close();
                 }
             }
-        },
+        }
         "minimize" => {
-            Logger::info_global("Minimizing launcher as requested by on_game_launch setting", None);
+            Logger::info_global(
+                "Minimizing launcher as requested by on_game_launch setting",
+                None,
+            );
             if let Some(app) = app_handle {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.minimize();
                 }
             }
-        },
+        }
         "open_logs" => {
-            Logger::info_global("Opening logs page as requested by on_game_launch setting", None);
+            Logger::info_global(
+                "Opening logs page as requested by on_game_launch setting",
+                None,
+            );
             if let Some(app) = app_handle {
-                let _ = app.emit("navigate-to-logs", serde_json::json!({"reason": "launch_setting"}));
+                let _ = app.emit(
+                    "navigate-to-logs",
+                    serde_json::json!({"reason": "launch_setting"}),
+                );
             }
-        },
+        }
         "ask" => {
             Logger::info_global("Asking user what to do on game launch", None);
             if let Some(app) = app_handle {
-                let _ = app.emit("ask-launch-behavior", serde_json::json!({"options": ["keep_open", "exit", "minimize", "open_logs"]}));
+                let _ = app.emit(
+                    "ask-launch-behavior",
+                    serde_json::json!({"options": ["keep_open", "exit", "minimize", "open_logs"]}),
+                );
             }
-        },
+        }
         "keep_open" => {
-            Logger::info_global("Keeping launcher open as requested by on_game_launch setting", None);
+            Logger::info_global(
+                "Keeping launcher open as requested by on_game_launch setting",
+                None,
+            );
             // Do nothing - default behavior
-        },
+        }
         _ => {
-            Logger::warn_global(&format!("Unknown on_game_launch setting: {}", behavior), None);
+            Logger::warn_global(
+                &format!("Unknown on_game_launch setting: {}", behavior),
+                None,
+            );
         }
     }
 }
 
 /// Handle on_game_close settings behavior
-async fn handle_close_settings(settings: &CategorizedLauncherSettings, app_handle: Option<tauri::AppHandle>, exit_code: i32) {
+async fn handle_close_settings(
+    settings: &CategorizedLauncherSettings,
+    app_handle: Option<tauri::AppHandle>,
+    exit_code: i32,
+) {
     let behavior = &settings.general.on_game_close;
-    Logger::info_global(&format!("Handling on_game_close setting: {} (exit code: {})", behavior, exit_code), None);
-    
+    Logger::info_global(
+        &format!(
+            "Handling on_game_close setting: {} (exit code: {})",
+            behavior, exit_code
+        ),
+        None,
+    );
+
     match behavior.as_str() {
         "open_logs" => {
-            Logger::info_global("Opening logs page as requested by on_game_close setting", None);
+            Logger::info_global(
+                "Opening logs page as requested by on_game_close setting",
+                None,
+            );
             if let Some(app) = app_handle {
-                let _ = app.emit("navigate-to-logs", serde_json::json!({"reason": "close_setting"}));
+                let _ = app.emit(
+                    "navigate-to-logs",
+                    serde_json::json!({"reason": "close_setting"}),
+                );
             }
-        },
+        }
         "open_home" => {
-            Logger::info_global("Navigating to home page as requested by on_game_close setting", None);
+            Logger::info_global(
+                "Navigating to home page as requested by on_game_close setting",
+                None,
+            );
             if let Some(app) = app_handle {
-                let _ = app.emit("navigate-to-home", serde_json::json!({"reason": "close_setting"}));
+                let _ = app.emit(
+                    "navigate-to-home",
+                    serde_json::json!({"reason": "close_setting"}),
+                );
             }
-        },
+        }
         "exit" => {
-            Logger::info_global("Closing launcher as requested by on_game_close setting", None);
+            Logger::info_global(
+                "Closing launcher as requested by on_game_close setting",
+                None,
+            );
             if let Some(app) = app_handle {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.close();
                 }
             }
-        },
+        }
         "minimize" => {
-            Logger::info_global("Minimizing launcher as requested by on_game_close setting", None);
+            Logger::info_global(
+                "Minimizing launcher as requested by on_game_close setting",
+                None,
+            );
             if let Some(app) = app_handle {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.minimize();
                 }
             }
-        },
+        }
         "ask" => {
             Logger::info_global("Asking user what to do on game close", None);
             if let Some(app) = app_handle {
                 let _ = app.emit("ask-close-behavior", serde_json::json!({"options": ["open_logs", "open_home", "exit", "minimize"], "exit_code": exit_code}));
             }
-        },
+        }
         _ => {
-            Logger::warn_global(&format!("Unknown on_game_close setting: {}", behavior), None);
+            Logger::warn_global(
+                &format!("Unknown on_game_close setting: {}", behavior),
+                None,
+            );
         }
     }
 }
 
 /// Handle on_game_crash settings behavior
-async fn handle_crash_settings(settings: &CategorizedLauncherSettings, app_handle: Option<tauri::AppHandle>, exit_code: i32) {
+async fn handle_crash_settings(
+    settings: &CategorizedLauncherSettings,
+    app_handle: Option<tauri::AppHandle>,
+    exit_code: i32,
+) {
     let behavior = &settings.general.on_game_crash;
-    Logger::info_global(&format!("Handling on_game_crash setting: {} (exit code: {})", behavior, exit_code), None);
-    
+    Logger::info_global(
+        &format!(
+            "Handling on_game_crash setting: {} (exit code: {})",
+            behavior, exit_code
+        ),
+        None,
+    );
+
     match behavior.as_str() {
         "restart" => {
-            Logger::info_global("Game restart requested by on_game_crash setting (not implemented yet)", None);
+            Logger::info_global(
+                "Game restart requested by on_game_crash setting (not implemented yet)",
+                None,
+            );
             // TODO: Implement restart functionality - would need to store launch context
             if let Some(app) = app_handle {
-                let _ = app.emit("game-restart-requested", serde_json::json!({"exit_code": exit_code}));
+                let _ = app.emit(
+                    "game-restart-requested",
+                    serde_json::json!({"exit_code": exit_code}),
+                );
             }
-        },
+        }
         "open_logs" => {
-            Logger::info_global("Opening logs page as requested by on_game_crash setting", None);
+            Logger::info_global(
+                "Opening logs page as requested by on_game_crash setting",
+                None,
+            );
             if let Some(app) = app_handle {
-                let _ = app.emit("navigate-to-logs", serde_json::json!({"reason": "crash_setting"}));
+                let _ = app.emit(
+                    "navigate-to-logs",
+                    serde_json::json!({"reason": "crash_setting"}),
+                );
             }
-        },
+        }
         "open_home" => {
-            Logger::info_global("Navigating to home page as requested by on_game_crash setting", None);
+            Logger::info_global(
+                "Navigating to home page as requested by on_game_crash setting",
+                None,
+            );
             if let Some(app) = app_handle {
-                let _ = app.emit("navigate-to-home", serde_json::json!({"reason": "crash_setting"}));
+                let _ = app.emit(
+                    "navigate-to-home",
+                    serde_json::json!({"reason": "crash_setting"}),
+                );
             }
-        },
+        }
         "exit" => {
-            Logger::info_global("Closing launcher as requested by on_game_crash setting", None);
+            Logger::info_global(
+                "Closing launcher as requested by on_game_crash setting",
+                None,
+            );
             if let Some(app) = app_handle {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.close();
                 }
             }
-        },
+        }
         "minimize" => {
-            Logger::info_global("Minimizing launcher as requested by on_game_crash setting", None);
+            Logger::info_global(
+                "Minimizing launcher as requested by on_game_crash setting",
+                None,
+            );
             if let Some(app) = app_handle {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.minimize();
                 }
             }
-        },
+        }
         "ask" => {
             Logger::info_global("Asking user what to do on game crash", None);
             if let Some(app) = app_handle {
                 let _ = app.emit("ask-crash-behavior", serde_json::json!({"options": ["restart", "open_logs", "open_home", "exit", "minimize"], "exit_code": exit_code}));
             }
-        },
+        }
         _ => {
-            Logger::warn_global(&format!("Unknown on_game_crash setting: {}", behavior), None);
+            Logger::warn_global(
+                &format!("Unknown on_game_crash setting: {}", behavior),
+                None,
+            );
         }
     }
 }
@@ -185,7 +281,6 @@ async fn get_launchable_for_installation(
                                                                    // Add more as needed
     }
 }
-
 
 pub async fn launch_installation(
     installation: KableInstallation,
@@ -211,7 +306,12 @@ pub async fn launch_installation(
         }
     };
     // Build context
-    let context = match LaunchContext::new(installation.clone(), settings.clone(), account, minecraft_dir) {
+    let context = match LaunchContext::new(
+        installation.clone(),
+        settings.clone(),
+        account,
+        minecraft_dir,
+    ) {
         Ok(ctx) => ctx,
         Err(e) => {
             Logger::error_global(
@@ -253,7 +353,7 @@ pub async fn launch_installation(
         let mut pids = get_pid_set().lock().unwrap();
         pids.insert(result.pid);
     }
-    
+
     // Handle on_game_launch settings behavior
     let app_handle = if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         handle_guard.as_ref().map(|global| (**global).clone())
@@ -261,7 +361,7 @@ pub async fn launch_installation(
         None
     };
     handle_launch_settings(&settings, app_handle).await;
-    
+
     // Start monitoring the process for exit behavior
     let settings_clone = settings.clone();
     let app_handle_clone = if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
@@ -270,23 +370,26 @@ pub async fn launch_installation(
         None
     };
     let pid = result.pid;
-    
+
     // Spawn a task to monitor the process exit and handle settings
     tauri::async_runtime::spawn(async move {
         // Wait for the process to exit and get exit code
         match wait_for_minecraft_exit(pid).await {
             Ok(exit_code) => {
-                Logger::info_global(&format!("Process {} exited with code {}", pid, exit_code), None);
-                
+                Logger::info_global(
+                    &format!("Process {} exited with code {}", pid, exit_code),
+                    None,
+                );
+
                 // Determine if it was a crash or normal exit
                 let is_crash = exit_code != 0 && exit_code != 130 && exit_code != 143; // 130 = Ctrl+C, 143 = SIGTERM
-                
+
                 if is_crash {
                     handle_crash_settings(&settings_clone, app_handle_clone, exit_code).await;
                 } else {
                     handle_close_settings(&settings_clone, app_handle_clone, exit_code).await;
                 }
-            },
+            }
             Err(e) => {
                 Logger::error_global(&format!("Error waiting for process exit: {}", e), None);
                 // Handle as normal close if we can't determine exit code
@@ -294,7 +397,7 @@ pub async fn launch_installation(
             }
         }
     });
-    
+
     Ok(result)
 }
 
@@ -387,7 +490,7 @@ pub async fn wait_for_minecraft_exit(process_id: u32) -> Result<i32, String> {
         // Process has exited
         let mut pids = get_pid_set().lock().unwrap();
         pids.remove(&process_id);
-        
+
         // Try to get exit code (platform-specific)
         let exit_code = get_process_exit_code(process_id).unwrap_or(-1);
         Ok(exit_code)

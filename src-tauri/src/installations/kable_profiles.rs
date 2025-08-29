@@ -1,17 +1,17 @@
-use std::path::PathBuf;
-use kable_macros::log_result;
-use zip::ZipArchive;
-use std::fs::File;
-use serde_json::Value as JsonValue;
-use toml::Value as TomlValue;
 use crate::profiles::LauncherProfile;
+use kable_macros::log_result;
 use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+use std::fs::File;
+use std::path::PathBuf;
 use std::{
     fs,
     io::{Read, Write},
 };
 use tokio::fs as async_fs;
 use tokio::task;
+use toml::Value as TomlValue;
+use zip::ZipArchive;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KableInstallation {
@@ -69,7 +69,7 @@ impl Default for KableInstallation {
 impl From<LauncherProfile> for KableInstallation {
     fn from(profile: LauncherProfile) -> Self {
         let installation_id = uuid::Uuid::new_v4().to_string();
-        
+
         // Create a temporary installation to check for mod loader-specific folder
         let temp_installation = KableInstallation {
             id: installation_id.clone(),
@@ -84,7 +84,7 @@ impl From<LauncherProfile> for KableInstallation {
                 .last_used
                 .clone()
                 .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-            java_args: vec![], // Temporary, will be set below
+            java_args: vec![],           // Temporary, will be set below
             dedicated_mods_folder: None, // Will be determined below
             dedicated_resource_pack_folder: None,
             dedicated_shaders_folder: None,
@@ -94,7 +94,7 @@ impl From<LauncherProfile> for KableInstallation {
             description: None,
             times_launched: 0,
         };
-        
+
         // Check version manifest for custom mods folder first, fallback to default
         let dedicated_mods_folder = temp_installation
             .get_mods_folder_from_version_manifest()
@@ -103,7 +103,7 @@ impl From<LauncherProfile> for KableInstallation {
                 path.to_string_lossy().to_string()
             })
             .or_else(|| Some(format!("mods/{}", installation_id))); // Fallback to default
-        
+
         KableInstallation {
             id: installation_id.clone(),
             name: profile.name,
@@ -298,7 +298,9 @@ impl KableInstallation {
             if custom_path.is_absolute() {
                 Some(custom_path)
             } else {
-                crate::get_minecraft_kable_dir().ok().map(|dir| dir.join(custom_mods))
+                crate::get_minecraft_kable_dir()
+                    .ok()
+                    .map(|dir| dir.join(custom_mods))
             }
         } else {
             None
@@ -307,9 +309,12 @@ impl KableInstallation {
 
     /// Try to get the mods folder from the version manifest (versions/<version_id>/<version_id>.json)
     fn get_mods_folder_from_version_manifest(&self) -> Option<PathBuf> {
-        use crate::logging::{Logger};
+        use crate::logging::Logger;
         let mc_dir = crate::get_default_minecraft_dir().ok()?;
-        let version_json = mc_dir.join("versions").join(&self.version_id).join(format!("{}.json", &self.version_id));
+        let version_json = mc_dir
+            .join("versions")
+            .join(&self.version_id)
+            .join(format!("{}.json", &self.version_id));
         if !version_json.exists() {
             return None;
         }
@@ -318,9 +323,21 @@ impl KableInstallation {
 
         // 1. Look for -Dfabric.modsFolder=... or -DmodsFolder=... in arguments.jvm array (case-insensitive, robust)
         if let Some(arguments) = json.get("arguments") {
-            Logger::debug_global(&format!("Checking JVM arguments for mods folder in {}", version_json.display()), None);
+            Logger::debug_global(
+                &format!(
+                    "Checking JVM arguments for mods folder in {}",
+                    version_json.display()
+                ),
+                None,
+            );
             if let Some(jvm_args) = arguments.get("jvm") {
-                Logger::debug_global(&format!("Checking JVM arguments for mods folder in {}", version_json.display()), None);
+                Logger::debug_global(
+                    &format!(
+                        "Checking JVM arguments for mods folder in {}",
+                        version_json.display()
+                    ),
+                    None,
+                );
                 if let Some(arr) = jvm_args.as_array() {
                     let re = regex::Regex::new(r"(?i)-d(fabric\.)?modsfolder=(.+)").unwrap();
                     for arg in arr {
@@ -368,17 +385,28 @@ impl KableInstallation {
 
     /// Scans the mods folder for this installation and extracts mod info from each JAR
     pub fn get_mod_info(&self) -> Result<Vec<ModJarInfo>, String> {
-        use crate::logging::{Logger};
-        Logger::debug_global( &format!("🔍 get_mod_info for installation: {} (version_id: {})", self.name, self.version_id), None);
+        use crate::logging::Logger;
+        Logger::debug_global(
+            &format!(
+                "🔍 get_mod_info for installation: {} (version_id: {})",
+                self.name, self.version_id
+            ),
+            None,
+        );
         let mods_dirs = [
             self.get_dedicated_mods_folder_path(),
             self.get_mods_folder_from_version_manifest(),
-            crate::get_minecraft_kable_dir().ok().map(|dir| dir.join("mods").join(&self.id)), // Use installation ID, not version ID
+            crate::get_minecraft_kable_dir()
+                .ok()
+                .map(|dir| dir.join("mods").join(&self.id)), // Use installation ID, not version ID
         ];
         let mut found_dir = None;
         for (i, dir_opt) in mods_dirs.iter().enumerate() {
             if let Some(dir) = dir_opt {
-                Logger::debug_global( &format!("Checking mods dir candidate {}: {}", i, dir.display()), None);
+                Logger::debug_global(
+                    &format!("Checking mods dir candidate {}: {}", i, dir.display()),
+                    None,
+                );
                 if dir.exists() {
                     Logger::debug_global(&format!("✅ Using mods dir: {}", dir.display()), None);
                     found_dir = Some(dir.clone());
@@ -409,7 +437,11 @@ impl KableInstallation {
             };
             let path = entry.path();
             if path.extension().map(|e| e == "jar").unwrap_or(false) {
-                let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                let file_name = path
+                    .file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_string();
                 let mut mod_name = None;
                 let mut mod_version = None;
                 let mut loader = None;
@@ -422,8 +454,14 @@ impl KableInstallation {
                                 let mut buf = String::new();
                                 if f.read_to_string(&mut buf).is_ok() {
                                     if let Ok(json) = serde_json::from_str::<JsonValue>(&buf) {
-                                        mod_name = json.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
-                                        mod_version = json.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                        mod_name = json
+                                            .get("name")
+                                            .and_then(|v| v.as_str())
+                                            .map(|s| s.to_string());
+                                        mod_version = json
+                                            .get("version")
+                                            .and_then(|v| v.as_str())
+                                            .map(|s| s.to_string());
                                         loader = Some("fabric".to_string());
                                         found = true;
                                     }
@@ -434,8 +472,14 @@ impl KableInstallation {
                                     let mut buf = String::new();
                                     if f.read_to_string(&mut buf).is_ok() {
                                         if let Ok(json) = serde_json::from_str::<JsonValue>(&buf) {
-                                            mod_name = json.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
-                                            mod_version = json.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                            mod_name = json
+                                                .get("name")
+                                                .and_then(|v| v.as_str())
+                                                .map(|s| s.to_string());
+                                            mod_version = json
+                                                .get("version")
+                                                .and_then(|v| v.as_str())
+                                                .map(|s| s.to_string());
                                             loader = Some("quilt".to_string());
                                             found = true;
                                         }
@@ -447,10 +491,18 @@ impl KableInstallation {
                                     let mut buf = String::new();
                                     if f.read_to_string(&mut buf).is_ok() {
                                         if let Ok(toml) = toml::from_str::<TomlValue>(&buf) {
-                                            if let Some(arr) = toml.get("mods").and_then(|v| v.as_array()) {
+                                            if let Some(arr) =
+                                                toml.get("mods").and_then(|v| v.as_array())
+                                            {
                                                 if let Some(first) = arr.first() {
-                                                    mod_name = first.get("displayName").and_then(|v| v.as_str()).map(|s| s.to_string());
-                                                    mod_version = first.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                    mod_name = first
+                                                        .get("displayName")
+                                                        .and_then(|v| v.as_str())
+                                                        .map(|s| s.to_string());
+                                                    mod_version = first
+                                                        .get("version")
+                                                        .and_then(|v| v.as_str())
+                                                        .map(|s| s.to_string());
                                                     loader = Some("forge".to_string());
                                                     // found = true; // not needed, last fallback
                                                 }
@@ -461,7 +513,10 @@ impl KableInstallation {
                             }
                         }
                         Err(e) => {
-                            Logger::debug_global(&format!("Failed to open zip for {:?}: {}", path, e), None);
+                            Logger::debug_global(
+                                &format!("Failed to open zip for {:?}: {}", path, e),
+                                None,
+                            );
                             // Skip this JAR
                         }
                     }
@@ -476,12 +531,13 @@ impl KableInstallation {
                 });
             }
         }
-        Logger::debug_global(&format!("Found {} mods in {}", result.len(), mods_dir.display()), None);
+        Logger::debug_global(
+            &format!("Found {} mods in {}", result.len(), mods_dir.display()),
+            None,
+        );
         Ok(result)
     }
-
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModJarInfo {

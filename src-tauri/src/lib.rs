@@ -26,6 +26,13 @@ pub mod logging;
 
 // Re-export public items from modules
 pub use auth::*;
+pub use commands::auth as commands_auth;
+pub use commands::installations as commands_installations;
+pub use commands::launcher as commands_launcher;
+pub use commands::mods as commands_mods;
+pub use commands::skins as commands_skins;
+pub use commands::system as commands_system;
+pub use commands::updater as commands_updater;
 pub use icons::*;
 pub use installations::*;
 pub use launcher::*;
@@ -36,14 +43,6 @@ pub use settings::*;
 pub use shaders::*;
 pub use skins::*;
 pub use window_state::*;
-pub use commands::auth as commands_auth;
-pub use commands::mods as commands_mods;
-pub use commands::installations as commands_installations;
-pub use commands::launcher as commands_launcher;
-pub use commands::skins as commands_skins;
-pub use commands::system as commands_system;
-pub use commands::updater as commands_updater;
-
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -69,6 +68,7 @@ impl From<AppError> for String {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
@@ -160,13 +160,6 @@ pub fn run() {
             icons::validate_icon_template,
             icons::get_icons_directory_path,
             icons::open_icons_directory,
-            // Window state commands
-            window_state::load_window_state,
-            window_state::save_window_state,
-            window_state::get_current_window_state,
-            window_state::apply_window_state,
-            window_state::get_monitor_info,
-            window_state::show_main_window,
             // Logging commands
             logging::export_logs,
             logging::update_logging_config,
@@ -180,44 +173,6 @@ pub fn run() {
             commands_updater::get_current_version
         ])
         .plugin(tauri_plugin_dialog::init())
-        .setup(|app| {
-            // Initialize global logger first
-            logging::init_global_logger(app.handle());
-
-            // Set up window state handlers
-            if let Err(e) = setup_window_state_handlers(app) {
-                Logger::console_log(
-                    LogLevel::Error,
-                    &format!("Failed to setup window state handlers: {}", e),
-                    None,
-                );
-            }
-
-            // Apply window state but don't show the window yet - let frontend trigger it
-            if let Some(window) = app.get_webview_window("main") {
-                // window.show().unwrap(); // Useful for debugging when something crashes,.. shows the window immediately
-                tauri::async_runtime::spawn(async move {
-                    if let Ok(state) = load_window_state().await {
-                        if let Err(e) = apply_window_state(window.clone(), state).await {
-                            Logger::console_log(
-                                LogLevel::Warning,
-                                &format!("Failed to apply window state: {}", e),
-                                None,
-                            );
-                        }
-                    } else {
-                        Logger::console_log(
-                            LogLevel::Warning,
-                            "No saved window state found, using default settings",
-                            None,
-                        );
-                    }
-                    // Window will be shown by frontend after initialization
-                });
-            }
-
-            Ok(())
-        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -225,33 +180,21 @@ pub fn run() {
 /// Get the default Minecraft directory
 #[tauri::command]
 fn get_default_minecraft_dir() -> Result<PathBuf, String> {
-    let possible_paths = vec![
-        // Windows
-        dirs::data_dir().map(|p| p.join(".minecraft")),
-        dirs::home_dir().map(|p| p.join("AppData").join("Roaming").join(".minecraft")),
-        // macOS
-        dirs::home_dir().map(|p| {
-            p.join("Library")
-                .join("Application Support")
-                .join("minecraft")
-        }),
-        // Linux
-        dirs::home_dir().map(|p| p.join(".minecraft")),
-    ];
+    let home_dir = dirs::home_dir().ok_or_else(|| "Could not find home directory".to_string())?;
 
-    for path in possible_paths.into_iter().flatten() {
-        if path.exists() {
-            return Ok(path);
-        }
-    }
+    #[cfg(target_os = "windows")]
+    let minecraft_dir = home_dir.join("AppData").join("Roaming").join(".minecraft");
 
-    // If no existing installation found, return the default path
-    if let Some(appdata) = dirs::data_dir() {
-        let minecraft_dir = appdata.join(".minecraft");
-        Ok(minecraft_dir)
-    } else {
-        Err("Could not determine default Minecraft directory".to_string())
-    }
+    #[cfg(target_os = "macos")]
+    let minecraft_dir = home_dir
+        .join("Library")
+        .join("Application Support")
+        .join("minecraft");
+
+    #[cfg(target_os = "linux")]
+    let minecraft_dir = home_dir.join(".minecraft");
+
+    Ok(minecraft_dir)
 }
 
 /// Gets the kable dir inside the .minecraft folder

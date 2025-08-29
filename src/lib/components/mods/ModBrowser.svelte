@@ -1039,21 +1039,21 @@ onMount(async () => {
   height: 100%;
   background: var(--container);
   border-radius: 0.5rem;
-  border: 1px solid rgba(var(--primary), 0.08);
-  box-shadow: 0 2px 8px rgba(var(--dark-900), 0.04);
+  border: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--dark-900), 4%, transparent);
   overflow: hidden;
 }
 
 // Compact Header
 .browser-header {
   background: linear-gradient(135deg, 
-    rgba(var(--card), 0.95) 0%, 
-    rgba(var(--primary), 0.04) 30%,
-    rgba(var(--secondary), 0.02) 70%,
-    rgba(var(--card), 0.8) 100%
+  color-mix(in srgb, var(--card), 95%, transparent) 0%, 
+  color-mix(in srgb, var(--primary), 4%, transparent) 30%,
+  color-mix(in srgb, var(--secondary), 2%, transparent) 70%,
+  color-mix(in srgb, var(--card), 80%, transparent) 100%
   );
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(var(--primary), 0.15);
+  border-bottom: 1px solid color-mix(in srgb, var(--primary), 15%, transparent);
   padding: 0.75rem 1rem;
   position: relative;
   
@@ -1066,8 +1066,8 @@ onMount(async () => {
     height: 1px;
     background: linear-gradient(90deg, 
       transparent 0%, 
-      rgba(var(--primary), 0.3) 20%, 
-      rgba(var(--secondary), 0.2) 80%, 
+  color-mix(in srgb, var(--primary), 30%, transparent) 20%, 
+  color-mix(in srgb, var(--secondary), 20%, transparent) 80%, 
       transparent 100%
     );
   }
@@ -1092,8 +1092,8 @@ onMount(async () => {
       display: flex;
       align-items: center;
       gap: 0.375rem;
-      background: rgba(var(--primary), 0.08);
-      border: 1px solid rgba(var(--primary), 0.15);
+  background: color-mix(in srgb, var(--primary), 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary), 15%, transparent);
       border-radius: 0.75rem;
       padding: 0.25rem 0.5rem;
       font-size: 0.75em;
@@ -1111,7 +1111,7 @@ onMount(async () => {
       align-items: center;
       gap: 0.375rem;
       padding: 0.375rem 0.75rem;
-      border: 1px solid rgba(var(--primary), 0.15);
+  border: 1px solid color-mix(in srgb, var(--primary), 15%, transparent);
       border-radius: 0.375rem;
       background: var(--card);
       color: var(--text);
@@ -1122,14 +1122,14 @@ onMount(async () => {
       
       &:hover:not(:disabled) {
         border-color: var(--primary);
-        background: rgba(var(--primary), 0.05);
+  background: color-mix(in srgb, var(--primary), 5%, transparent);
       }
       
       &.active {
         background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
         color: white;
         border-color: transparent;
-        box-shadow: 0 2px 6px rgba(var(--primary), 0.25);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--primary), 25%, transparent);
       }
       
       &.disabled {
@@ -1154,9 +1154,9 @@ onMount(async () => {
 // Filters Sidebar
 .filters-sidebar {
   width: 240px;
-  background: linear-gradient(135deg, rgba(var(--container), 0.95) 0%, rgba(var(--card), 0.8) 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--container), 95%, transparent) 0%, color-mix(in srgb, var(--card), 80%, transparent) 100%);
   backdrop-filter: blur(8px);
-  border-right: 1px solid rgba(var(--primary), 0.12);
+  border-right: 1px solid color-mix(in srgb, var(--primary), 12%, transparent);
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
@@ -1187,8 +1187,8 @@ onMount(async () => {
     justify-content: space-between;
     padding: 0.5rem 0.75rem;
     height: 2.6875rem;
-    border-bottom: 1px solid rgba(var(--primary), 0.12);
-    background: linear-gradient(135deg, rgba(var(--primary), 0.06) 0%, rgba(var(--secondary), 0.03) 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--primary), 12%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 6%, transparent) 0%, color-mix(in srgb, var(--secondary), 3%, transparent) 100%);
     backdrop-filter: blur(4px);
     
     h3 {
@@ -1213,7 +1213,7 @@ onMount(async () => {
         transition: all 0.15s;
         
         &:hover {
-          background: rgba(var(--primary), 0.1);
+          background: color-mix(in srgb, var(--primary), 10%, transparent);
           color: var(--primary);
         }
       }
@@ -1262,7 +1262,7 @@ onMount(async () => {
           &:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 2px rgba(var(--primary), 0.1);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary), 10%, transparent);
           }
           
           &::placeholder {
@@ -1282,7 +1282,7 @@ onMount(async () => {
           
           &:hover {
             color: var(--red);
-            background: rgba(var(--red), 0.1);
+            background: color-mix(in srgb, var(--red), 10%, transparent);
           }
         }
       }
@@ -1320,7 +1320,7 @@ onMount(async () => {
           transition: background 0.15s;
           
           &:hover {
-            background: rgba(var(--primary), 0.05);
+            background: color-mix(in srgb, var(--primary), 5%, transparent);
           }
           
           input[type="checkbox"] {
@@ -1354,9 +1354,9 @@ onMount(async () => {
   justify-content: space-between;
   padding: 0.5rem 0.75rem;
   height: 2.6875rem;
-  background: linear-gradient(135deg, var(--container) 0%, rgba(var(--card), 0.6) 100%);
+  background: linear-gradient(135deg, var(--container) 0%, color-mix(in srgb, var(--card), 60%, transparent) 100%);
   backdrop-filter: blur(6px);
-  border-bottom: 1px solid rgba(var(--primary), 0.12);
+  border-bottom: 1px solid color-mix(in srgb, var(--primary), 12%, transparent);
   
   .toolbar-left {
     display: flex;
@@ -1393,9 +1393,9 @@ onMount(async () => {
       
       .page-btn.compact {
         padding: 0.25rem 0.375rem;
-        border: 1px solid rgba(var(--primary), 0.2);
+  border: 1px solid color-mix(in srgb, var(--primary), 20%, transparent);
         border-radius: 0.25rem;
-        background: rgba(var(--card), 0.8);
+  background: color-mix(in srgb, var(--card), 80%, transparent);
         color: var(--text);
         font-size: 0.7em;
         font-weight: 500;
@@ -1409,7 +1409,7 @@ onMount(async () => {
         
         &:hover:not(:disabled) {
           border-color: var(--primary);
-          background: rgba(var(--primary), 0.1);
+          background: color-mix(in srgb, var(--primary), 10%, transparent);
           color: var(--primary);
         }
         
@@ -1417,13 +1417,13 @@ onMount(async () => {
           background: var(--primary);
           color: white;
           border-color: transparent;
-          box-shadow: 0 1px 3px rgba(var(--primary), 0.3);
+          box-shadow: 0 1px 3px color-mix(in srgb, var(--primary), 30%, transparent);
         }
         
         &:disabled {
           opacity: 0.4;
           cursor: not-allowed;
-          background: rgba(var(--card), 0.4);
+          background: color-mix(in srgb, var(--card), 40%, transparent);
         }
       }
       
@@ -1456,7 +1456,7 @@ onMount(async () => {
         transition: all 0.15s;
         
         &:hover {
-          background: rgba(var(--primary), 0.05);
+          background: color-mix(in srgb, var(--primary), 5%, transparent);
           color: var(--text);
         }
         
@@ -1502,16 +1502,16 @@ onMount(async () => {
   }
   
   &::-webkit-scrollbar-track {
-    background: rgba(var(--dark-600), 0.1);
+  background: color-mix(in srgb, var(--dark-600), 10%, transparent);
     border-radius: 4px;
   }
   
   &::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, rgba(var(--primary), 0.6) 0%, rgba(var(--secondary), 0.4) 100%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 60%, transparent) 0%, color-mix(in srgb, var(--secondary), 40%, transparent) 100%);
     border-radius: 4px;
     
     &:hover {
-      background: linear-gradient(135deg, rgba(var(--primary), 0.8) 0%, rgba(var(--secondary), 0.6) 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 80%, transparent) 0%, color-mix(in srgb, var(--secondary), 60%, transparent) 100%);
     }
   }
 }
@@ -1552,7 +1552,7 @@ onMount(async () => {
   padding: 0.5rem 1rem;
   border: 1px solid var(--primary);
   border-radius: 0.375rem;
-  background: rgba(var(--primary), 0.1);
+  background: color-mix(in srgb, var(--primary), 10%, transparent);
   color: var(--primary);
   font-weight: 500;
   font-size: 0.8em;
@@ -1600,8 +1600,8 @@ onMount(async () => {
     width: 100%;
     max-height: 200px;
     border-right: none;
-    border-bottom: 1px solid rgba(var(--primary), 0.15);
-    background: linear-gradient(135deg, rgba(var(--container), 0.9) 0%, rgba(var(--card), 0.7) 100%);
+  border-bottom: 1px solid color-mix(in srgb, var(--primary), 15%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--container), 90%, transparent) 0%, color-mix(in srgb, var(--card), 70%, transparent) 100%);
     
     &.collapsed {
       max-height: 48px;

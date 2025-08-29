@@ -175,7 +175,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 1rem;
-    background: rgba(var(--red), 0.1);
+  background: color-mix(in srgb, var(--red), 10%, transparent);
     border: 1px solid var(--red);
     border-radius: var(--border-radius);
     color: var(--red);
@@ -233,7 +233,7 @@
 
       &:hover {
         border-color: var(--primary);
-        background: rgba(var(--primary), 0.05);
+  background: color-mix(in srgb, var(--primary), 5%, transparent);
       }
 
       input[type="radio"] {
@@ -273,8 +273,8 @@
 
   .device-code-info {
     padding: 1.5rem;
-    background: rgba(var(--primary), 0.05);
-    border: 1px solid rgba(var(--primary), 0.1);
+  background: color-mix(in srgb, var(--primary), 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary), 10%, transparent);
     border-radius: var(--border-radius);
     text-align: center;
     
@@ -317,7 +317,7 @@
         
         .copy-btn {
           background: none;
-          border: 1px solid rgba(var(--primary), 0.3);
+          border: 1px solid color-mix(in srgb, var(--primary), 30%, transparent);
           border-radius: 4px;
           padding: 0.25rem;
           color: var(--primary);
@@ -325,7 +325,7 @@
           transition: all 0.2s ease;
           
           &:hover {
-            background: rgba(var(--primary), 0.1);
+            background: color-mix(in srgb, var(--primary), 10%, transparent);
             border-color: var(--primary);
           }
         }

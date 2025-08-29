@@ -31,8 +31,8 @@ export class AuthService {
     }
   }
   // These are assigned after the class for Svelte compatibility
-  static signIn: typeof AuthService.authenticateWithMicrosoft;
-  static signInWithDeviceCode: typeof AuthService.authenticateWithDeviceCode;
+  static signIn = async () => await this.authenticateWithMicrosoft();
+  static signInWithDeviceCode = async () => await this.authenticateWithDeviceCode();
   private static oauthWindow: WebviewWindow | null = null;
   private static refreshTimer: ReturnType<typeof setInterval> | null = null;
   private static isInitialized = false;

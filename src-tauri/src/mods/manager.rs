@@ -1,6 +1,6 @@
 use crate::installations::kable_profiles::KableInstallation;
-use crate::mods::modrinth::ModrinthInfo;
 use crate::mods::curseforge::CurseForgeInfo;
+use crate::mods::modrinth::ModrinthInfo;
 use serde::{Deserialize, Serialize};
 
 #[async_trait::async_trait]

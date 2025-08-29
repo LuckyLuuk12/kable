@@ -297,7 +297,7 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     align-items: flex-end;
     justify-content: space-between;
     padding: 1.5rem 2rem;
-    background: linear-gradient(to top, var(--container) 40%, rgba(var(--container), 0.6) 80%, rgba(var(--container), 0.15) 90%, transparent 100%);
+  background: linear-gradient(to top, var(--container) 40%, color-mix(in srgb, var(--container), 60%, transparent) 80%, color-mix(in srgb, var(--container), 15%, transparent) 90%, transparent 100%);
     backdrop-filter: blur(0.125rem);
     flex-shrink: 0;
     position: relative;
@@ -484,14 +484,14 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
     padding: 0.75rem 1rem;
     border-radius: 8px;
     font-size: 0.875rem;
-    background: rgba(var(--green), 0.1);
-    color: var(--green);
-    border: 1px solid rgba(var(--green), 0.3);
+  background: color-mix(in srgb, var(--green), 10%, transparent);
+  color: var(--green);
+  border: 1px solid color-mix(in srgb, var(--green), 30%, transparent);
     
     &.error {
-      background: rgba(var(--red), 0.1);
-      color: var(--red);
-      border-color: rgba(var(--red), 0.3);
+  background: color-mix(in srgb, var(--red), 10%, transparent);
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red), 30%, transparent);
     }
   }
 

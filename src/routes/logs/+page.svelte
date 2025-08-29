@@ -710,7 +710,7 @@
         align-items: center;
         gap: 0.25rem;
         padding: 0.25rem 0.75rem;
-        background: rgba(var(--primary), 0.1);
+  background: color-mix(in srgb, var(--primary), 10%, transparent);
         color: var(--primary);
         border-radius: var(--border-radius);
         font-size: 0.875rem;
@@ -792,7 +792,7 @@
           
           &:focus {
             outline: none;
-            box-shadow: inset 0 0 0 2px rgba(var(--primary), 0.3);
+            box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary), 30%, transparent);
           }
         }
       }
@@ -945,12 +945,12 @@
           font-size: 0.85rem;
           font-weight: 600;
           
-          &.success { background: rgba(var(--green), 0.1); color: var(--green); }
-          &.warning { background: rgba(var(--yellow), 0.1); color: var(--yellow); }
-          &.danger { background: rgba(var(--red), 0.1); color: var(--red); }
-          &.info { background: rgba(var(--green), 0.1); color: var(--green-900); }
-          &.secondary { background: rgba(var(--text), 0.2); color: var(--text); }
-          &.muted { background: rgba(var(--dark-300), 0.1); color: var(--text-white); }
+          &.success { background: color-mix(in srgb, var(--green), 10%, transparent); color: var(--green); }
+          &.warning { background: color-mix(in srgb, var(--yellow), 10%, transparent); color: var(--yellow); }
+          &.danger { background: color-mix(in srgb, var(--red), 10%, transparent); color: var(--red); }
+          &.info { background: color-mix(in srgb, var(--green), 10%, transparent); color: var(--green-900); }
+          &.secondary { background: color-mix(in srgb, var(--text), 20%, transparent); color: var(--text); }
+          &.muted { background: color-mix(in srgb, var(--dark-300), 10%, transparent); color: var(--text-white); }
         }
       }
     }
@@ -1025,8 +1025,8 @@
       &.copy-notification-active {
         .log-entries {
           .log-entry {
-            background: rgba(var(--primary), 0.1);
-            border: 1px solid rgba(var(--primary), 0.2);
+            background: color-mix(in srgb, var(--primary), 10%, transparent);
+            border: 1px solid color-mix(in srgb, var(--primary), 20%, transparent);
           }
         }
       }
@@ -1037,7 +1037,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(var(--dark-100), 0.35);
+    background: color-mix(in srgb, var(--dark-100), 35%, transparent);
         backdrop-filter: blur(4px);
         display: flex;
         align-items: center;
@@ -1045,14 +1045,14 @@
         z-index: 1000;
         animation: fadeInOut 1s ease-in-out;
         
-        .copy-notification-content {
+          .copy-notification-content {
           display: flex;
           flex-direction: column;
           align-items: center;
           gap: 0.5rem;
           padding: 2rem;
           background: var(--card);
-          border: 1px solid var(--primary);
+          border: 1px solid color-mix(in srgb, var(--primary), 100%, transparent);
           border-radius: var(--border-radius);
           color: var(--primary);
           font-weight: 600;
@@ -1216,33 +1216,33 @@
   // Badge variants
   .badge {
     &.danger {
-      background: rgba(var(--red), 0.1);
+      background: color-mix(in srgb, var(--red), 10%, transparent);
       color: var(--red);
-      border: 1px solid rgba(var(--red), 0.2);
+      border: 1px solid color-mix(in srgb, var(--red), 20%, transparent);
     }
     
     &.warning {
-      background: rgba(var(--yellow), 0.1);
+      background: color-mix(in srgb, var(--yellow), 10%, transparent);
       color: var(--yellow);
-      border: 1px solid rgba(var(--yellow), 0.2);
+      border: 1px solid color-mix(in srgb, var(--yellow), 20%, transparent);
     }
     
     &.info {
-      background: rgba(var(--blue), 0.1);
+      background: color-mix(in srgb, var(--blue), 10%, transparent);
       color: var(--blue);
-      border: 1px solid rgba(var(--blue), 0.2);
+      border: 1px solid color-mix(in srgb, var(--blue), 20%, transparent);
     }
     
     &.muted {
-      background: rgba(var(--dark-300), 0.1);
+      background: color-mix(in srgb, var(--dark-300), 10%, transparent);
       color: var(--dark-300);
-      border: 1px solid rgba(var(--dark-300), 0.2);
+      border: 1px solid color-mix(in srgb, var(--dark-300), 20%, transparent);
     }
     
     &.secondary {
-      background: rgba(var(--text), 0.1);
+      background: color-mix(in srgb, var(--text), 10%, transparent);
       color: var(--text);
-      border: 1px solid rgba(var(--text), 0.2);
+      border: 1px solid color-mix(in srgb, var(--text), 20%, transparent);
     }
   }
 </style>

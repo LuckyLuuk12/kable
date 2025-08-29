@@ -6,7 +6,6 @@ pub mod skins;
 pub mod system;
 pub mod updater;
 
-
 pub use self::auth::*;
 pub use self::installations::*;
 pub use self::launcher::*;

@@ -1,9 +1,9 @@
 <script lang="ts">
   import '$lib/styles/global.scss';
   import { page } from '$app/stores';
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
-  import { currentAccount, AuthService, SettingsService, InstallationService, Icon, logsService, LogsService, IconService, WindowStateService, settings } from '$lib';
+  import { currentAccount, AuthService, SettingsService, InstallationService, Icon, logsService, LogsService, IconService, settings } from '$lib';
   import type { NavigationEventPayload, BehaviorChoiceEventPayload, GameRestartEventPayload } from '$lib/types';
   
   let isTauriReady = false;
@@ -24,7 +24,6 @@
       // Initialize all services
       LogsService.emitLauncherEvent('Initializing launcher components...', 'info');
       await Promise.all([
-        WindowStateService.initialize(), // Initialize window state first
         SettingsService.initialize(),
         AuthService.initialize(),
         IconService.initialize()
@@ -33,14 +32,7 @@
       await AuthService.refreshCurrentAccount();
       LogsService.emitLauncherEvent('All components initialized successfully', 'info');
       initializationStatus = 'Ready';
-      console.log('Layout initialization complete');
-      // Show the window now that initialization is complete
-      try {
-        const { invoke } = await import('@tauri-apps/api/core');
-        await invoke('show_main_window');
-      } catch (error) {
-        console.error('Failed to show main window:', error);
-      }
+  console.log('Layout initialization complete');
       // Set up settings behavior event listeners
       await setupSettingsEventListeners();
     } catch (error) {
@@ -220,6 +212,97 @@
   }
 
   $: currentPath = $page.url.pathname;
+  $: () => console.log(currentPath)
+
+  // Tooltip element and logic for showing a single tooltip (prevents native title tooltip duplicates)
+  let tooltipEl: HTMLDivElement | null = null;
+  let tooltipTimer: number | null = null;
+
+  function showTooltipForTarget(target: Element | null) {
+    if (!tooltipEl || !target) return;
+    const title = (target as HTMLElement).dataset?.title || (target as HTMLElement).getAttribute('aria-label') || '';
+    if (!title) return;
+
+    tooltipEl.textContent = title;
+    tooltipEl.setAttribute('aria-hidden', 'false');
+    tooltipEl.classList.add('visible');
+
+    // position next to element
+    const rect = target.getBoundingClientRect();
+    const left = rect.right + 8; // 8px gap
+    const top = rect.top + rect.height / 2;
+    tooltipEl.style.left = `${Math.max(8, left)}px`;
+    tooltipEl.style.top = `${top}px`;
+  }
+
+  function hideTooltip() {
+    if (!tooltipEl) return;
+    tooltipEl.setAttribute('aria-hidden', 'true');
+    tooltipEl.classList.remove('visible');
+  }
+
+  function attachTooltipListeners() {
+    // attach to nav-items inside the sidebar
+    const items = document.querySelectorAll('.sidebar .nav-item');
+    items.forEach(item => {
+      // remove possible existing handlers to avoid duplicates
+      item.removeEventListener('mouseenter', itemMouseEnter as EventListener);
+      item.removeEventListener('mouseleave', itemMouseLeave as EventListener);
+      item.removeEventListener('focus', itemFocus as EventListener, true);
+      item.removeEventListener('blur', itemBlur as EventListener, true);
+
+      item.addEventListener('mouseenter', itemMouseEnter as EventListener);
+      item.addEventListener('mouseleave', itemMouseLeave as EventListener);
+      item.addEventListener('focus', itemFocus as EventListener, true);
+      item.addEventListener('blur', itemBlur as EventListener, true);
+    });
+  }
+
+  function itemMouseEnter(e: Event) {
+    const target = e.currentTarget as Element;
+    // delay slightly so quick mouse passes don't flash tooltip
+    tooltipTimer = window.setTimeout(() => showTooltipForTarget(target), 60);
+  }
+
+  function itemMouseLeave() {
+    if (tooltipTimer) { clearTimeout(tooltipTimer); tooltipTimer = null; }
+    hideTooltip();
+  }
+
+  function itemFocus(e: Event) {
+    const target = e.currentTarget as Element;
+    showTooltipForTarget(target);
+  }
+
+  function itemBlur() {
+    hideTooltip();
+  }
+
+  onMount(() => {
+    // create tooltip element if not present
+    if (!tooltipEl) {
+      const el = document.createElement('div');
+      el.className = 'nav-tooltip';
+      el.setAttribute('role', 'tooltip');
+      el.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(el);
+      tooltipEl = el as HTMLDivElement;
+    }
+    attachTooltipListeners();
+  });
+
+  onDestroy(() => {
+    // cleanup
+    const items = document.querySelectorAll('.sidebar .nav-item');
+    items.forEach(item => {
+      item.removeEventListener('mouseenter', itemMouseEnter as EventListener);
+      item.removeEventListener('mouseleave', itemMouseLeave as EventListener);
+      item.removeEventListener('focus', itemFocus as EventListener, true);
+      item.removeEventListener('blur', itemBlur as EventListener, true);
+    });
+    if (tooltipEl && tooltipEl.parentNode) tooltipEl.parentNode.removeChild(tooltipEl);
+    tooltipEl = null;
+  });
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -244,13 +327,13 @@
       </a>
     </div>
 
-    <!-- Hamburger Toggle -->
+  <!-- Hamburger Toggle -->
     <div class="hamburger-section">
       <button 
         class="hamburger-btn" 
         on:click={toggleNavigation} 
-        aria-label={isNavCollapsed ? 'Expand navigation' : 'Collapse navigation'}
-        title={isNavCollapsed ? 'Expand navigation (Ctrl+B)' : 'Collapse navigation (Ctrl+B)'}
+    aria-label={isNavCollapsed ? 'Expand navigation' : 'Collapse navigation'}
+    data-title={isNavCollapsed ? 'Expand navigation (Ctrl+B)' : 'Collapse navigation (Ctrl+B)'}
       >
         <Icon name={isNavCollapsed ? 'arrow-right' : 'arrow-left'} size="lg" forceType="svg" />
       </button>
@@ -263,7 +346,8 @@
           href={item.path} 
           class="nav-item" 
           class:active={currentPath === item.path}
-          title={item.label}
+          data-title={item.label}
+          aria-label={item.label}
         >
           <Icon name={item.icon} size="md" className="nav-icon" />
           {#if !isNavCollapsed}
@@ -279,7 +363,8 @@
         href="/settings" 
         class="nav-item settings-item" 
         class:active={currentPath === '/settings'}
-        title="Settings"
+        data-title="Settings"
+        aria-label="Settings"
       >
         <Icon name="settings" size="md" className="nav-icon" />
         {#if !isNavCollapsed}
@@ -353,7 +438,7 @@
         width: 2.5rem;
         height: 2.5rem;
         border-radius: 40%;
-        background: rgba(var(--primary), 0.1);
+        background: color-mix(in srgb, var(--primary), 10%, transparent);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -368,7 +453,7 @@
         object-fit: cover;
         border-radius: 40%;
         display: block;
-        background: rgba(var(--primary), 0.1);
+        background: color-mix(in srgb, var(--primary), 10%, transparent);
       }
       
       .header-content {
@@ -442,7 +527,7 @@
     }
     
     &.active {
-      background: linear-gradient(155deg, rgba(var(--primary), 0.15), rgba(var(--primary), 0.01));
+      background: linear-gradient(155deg, color-mix(in srgb, var(--primary), 15%, transparent), color-mix(in srgb, var(--primary), 1%, transparent));
       backdrop-filter: blur(15px);
       color: var(--text-white);
     }
@@ -467,30 +552,7 @@
         display: none;
       }
       
-      // Tooltip on hover for collapsed state
-      &::after {
-        content: attr(title);
-        position: absolute;
-        left: 100%;
-        top: 50%;
-        transform: translateY(-50%);
-        background: var(--container);
-        color: var(--text);
-        padding: 0.5rem 0.75rem;
-        border-radius: var(--border-radius);
-        font-size: 0.875rem;
-        white-space: nowrap;
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.2s ease;
-        margin-left: 0.5rem;
-        border: 1px solid var(--dark-600);
-        z-index: 9999;
-      }
-      
-      &:hover::after {
-        opacity: 1;
-      }
+  // tooltip handled by JS-controlled .nav-tooltip element
     }
   }
 
@@ -552,6 +614,31 @@
         pointer-events: auto;
       }
     }
+  }
+
+  /* global tooltip element used by the sidebar for collapsed-state tooltips */
+  :global(.nav-tooltip) {
+    position: fixed;
+    transform: translateY(-50%);
+    left: 0;
+    top: 0;
+    background: var(--container);
+    color: var(--text);
+    padding: 0.375rem 0.6rem;
+    border-radius: calc(var(--border-radius) * 0.85);
+    font-size: 0.875rem;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s ease, transform 0.12s ease;
+    border: 1px solid var(--dark-600);
+    z-index: 2147483647;
+  }
+
+  :global(.nav-tooltip.visible) {
+    opacity: 1;
+    pointer-events: none;
+    transform: translateY(-50%);
   }
 </style>
 

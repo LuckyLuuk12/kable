@@ -7,7 +7,6 @@ pub async fn get_local_skins() -> Result<Vec<AccountSkin>, String> {
 // These commands call the functions in the skins module
 use crate::skins::*;
 
-
 /// Get the full player profile (id, name, skins, capes) from Mojang API
 #[tauri::command]
 pub async fn get_player_profile() -> Result<crate::skins::types::PlayerProfile, String> {
@@ -22,7 +21,12 @@ pub fn remove_skin_by_id(skin_id: String) -> Result<(), String> {
 
 /// Modify a skin entry by its id in launcher_custom_skins.json
 #[tauri::command]
-pub fn modify_skin_by_id(skin_id: String, new_name: Option<String>, new_cape_id: Option<String>, new_slim: Option<bool>) -> Result<(), String> {
+pub fn modify_skin_by_id(
+    skin_id: String,
+    new_name: Option<String>,
+    new_cape_id: Option<String>,
+    new_slim: Option<bool>,
+) -> Result<(), String> {
     crate::skins::modify_skins::modify_skin_by_id(
         &skin_id,
         new_name.as_deref(),
@@ -33,7 +37,9 @@ pub fn modify_skin_by_id(skin_id: String, new_name: Option<String>, new_cape_id:
 
 /// Upload a skin file to the authenticated Microsoft/Mojang account
 #[tauri::command]
-pub async fn upload_skin_to_account(config: SkinUploadConfig) -> Result<SkinUploadResponse, String> {
+pub async fn upload_skin_to_account(
+    config: SkinUploadConfig,
+) -> Result<SkinUploadResponse, String> {
     crate::skins::upload_skin_to_account(config).await
 }
 

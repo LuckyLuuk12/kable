@@ -2,10 +2,7 @@ use crate::installations::kable_profiles::KableInstallation;
 use crate::{mods::*, ModJarInfo};
 
 #[tauri::command]
-pub async fn get_mods(
-    provider: ProviderKind,
-    offset: usize,
-) -> Result<Vec<ModInfoKind>, String> {
+pub async fn get_mods(provider: ProviderKind, offset: usize) -> Result<Vec<ModInfoKind>, String> {
     crate::mods::get_mods(provider, offset).await
 }
 

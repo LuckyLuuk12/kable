@@ -321,8 +321,9 @@ pub async fn poll_microsoft_device_auth(
                 None,
             );
 
-            let encrypted_refresh_token = token.refresh_token()
-                .map(|rt| crate::auth::secure_token::encrypt_token(rt.secret()).unwrap_or_default());
+            let encrypted_refresh_token = token.refresh_token().map(|rt| {
+                crate::auth::secure_token::encrypt_token(rt.secret()).unwrap_or_default()
+            });
             let ms_token = crate::auth::code_flow::MicrosoftToken {
                 access_token: token.access_token().secret().to_string(),
                 expires_at,
