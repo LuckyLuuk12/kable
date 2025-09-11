@@ -62,7 +62,7 @@ pub async fn refresh_microsoft_token(local_id: String) -> Result<LauncherAccount
         .await
         .map_err(|e| format!("Failed to refresh token: {}", e))?;
 
-    let new_access_token = token_result.access_token().secret().to_string();
+    // Compute new Microsoft token expiry
     let new_expires_at = Utc::now()
         + chrono::Duration::seconds(
             token_result
@@ -70,13 +70,38 @@ pub async fn refresh_microsoft_token(local_id: String) -> Result<LauncherAccount
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(3600),
         );
-    let new_encrypted_refresh_token = token_result
-        .refresh_token()
-        .map(|rt| encrypt_token(rt.secret()).unwrap_or_default())
-        .or(account.encrypted_refresh_token.clone());
 
+    // Exchange refreshed Microsoft access token for a Minecraft token
+    let ms_access = token_result.access_token().secret().to_string();
+    let mc_flow = MinecraftAuthorizationFlow::new(Client::new());
+    let mc_token = mc_flow
+        .exchange_microsoft_token(&ms_access)
+        .await
+        .map_err(|e| format!("Failed to exchange Microsoft token for Minecraft token: {}", e))?;
+
+    // Extract Minecraft access token string
+    let mc_access = mc_token.access_token().clone().into_inner();
+
+    // Handle refresh token: encrypt any new refresh token; fail rather than silently storing plaintext
+    let new_encrypted_refresh_token = if let Some(rt) = token_result.refresh_token() {
+        match encrypt_token(rt.secret()) {
+            Ok(enc) => Some(enc),
+            Err(e) => {
+                Logger::console_log(
+                    LogLevel::Error,
+                    &format!("❌ Failed to encrypt refreshed refresh token: {}", e),
+                    None,
+                );
+                return Err(format!("Failed to encrypt refreshed refresh token: {}", e));
+            }
+        }
+    } else {
+        account.encrypted_refresh_token.clone()
+    };
+
+    // Persist the updated account using the Minecraft token and the Microsoft expiry
     let mut updated_account = account.clone();
-    updated_account.access_token = new_access_token;
+    updated_account.access_token = mc_access;
     updated_account.access_token_expires_at = new_expires_at.to_rfc3339();
     updated_account.encrypted_refresh_token = new_encrypted_refresh_token;
 

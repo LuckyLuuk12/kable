@@ -45,6 +45,7 @@ minecraft-msa-auth = "0.3"
 rand = "0.8"
 aes-gcm = "0.10"
 lazy_static = "1.4"
+keyring = "3.6.3"
 strum = { version = "0.27", features = ["derive"] }
 anyhow = "1.0"
 async-trait = "0.1.88"
