@@ -404,17 +404,6 @@
         <Icon name="download" size="sm" />
         Export
       </button>
-      <!-- Debug button for testing macro logging -->
-      {#if import.meta.env.DEV}
-        <button 
-          class="btn btn-primary btn-sm"
-          on:click={testMacroLogging}
-          title="Test enhanced macro logging with Modrinth API"
-        >
-          <Icon name="bug" size="sm" />
-          Test Macros
-        </button>
-      {/if}
     </div>
   </div>
 
@@ -710,7 +699,7 @@
         align-items: center;
         gap: 0.25rem;
         padding: 0.25rem 0.75rem;
-  background: color-mix(in srgb, var(--primary), 10%, transparent);
+        background: color-mix(in srgb, var(--primary), 10%, transparent);
         color: var(--primary);
         border-radius: var(--border-radius);
         font-size: 0.875rem;

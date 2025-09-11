@@ -26,7 +26,7 @@
   onMount(async () => {
     isLoading = true;
     try {
-      availableVersions = await installationsApi.get_all_versions() ?? InstallationService.getFallbackVersions();
+      availableVersions = await installationsApi.getAllVersions() ?? InstallationService.getFallbackVersions();
       loaderOptions = Array.from(new Set(availableVersions.map(v => v.loader)));
       selectedLoader = loaderOptions[0] ?? Loader.Vanilla;
       if (filteredVersions.length > 0) {

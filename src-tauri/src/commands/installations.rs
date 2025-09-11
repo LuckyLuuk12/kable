@@ -53,3 +53,21 @@ pub async fn create_installation(version_id: &str) -> Result<KableInstallation, 
 pub async fn get_mod_info(installation: KableInstallation) -> Result<Vec<ModJarInfo>, String> {
     installation.get_mod_info()
 }
+
+/// Disable a mod by moving the jar into the installation's disabled/ subfolder
+#[tauri::command]
+pub async fn disable_mod(installation: KableInstallation, file_name: String) -> Result<(), String> {
+    installation.disable_mod(&file_name)
+}
+
+/// Enable a mod by moving the jar out of the installation's disabled/ subfolder
+#[tauri::command]
+pub async fn enable_mod(installation: KableInstallation, file_name: String) -> Result<(), String> {
+    installation.enable_mod(&file_name)
+}
+
+/// Toggle the disabled state for a mod; returns the new disabled state (true = disabled)
+#[tauri::command]
+pub async fn toggle_mod_disabled(installation: KableInstallation, file_name: String) -> Result<bool, String> {
+    installation.toggle_mod_disabled(&file_name)
+}

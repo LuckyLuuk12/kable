@@ -1,5 +1,6 @@
 <script lang="ts">
 import { installations, selectedInstallation, InstallationService, Icon, ModsService } from '$lib';
+import * as installationsApi from '$lib/api/installations';
 import { extendedModInfo } from '$lib/stores/mods';
 import { openUrl } from '$lib/api/system';
 import { onMount } from 'svelte';
@@ -127,19 +128,36 @@ function getCarouselScale(currentIndex: number, selectedIndex: number, totalItem
     return { scale: 0, opacity: 0, fontSize: 0, translateY: 0, zIndex: 0, visible: false };
   }
   
-  // More dramatic scaling for centered layout
-  const scaleFactors = [1.0, 0.85, 0.7, 0.55, 0.4]; // Selected, ±1, ±2, ±3, ±4+
-  const opacityFactors = [1.0, 0.8, 0.6, 0.4, 0.2];
-  const fontFactors = [1.0, 0.9, 0.8, 0.7, 0.6];
-  
+  // More dramatic scaling for centered layout, but adapt based on how well items fit
+  // Compute fit ratio using the container height and total required height
+  const containerHeight = installationListContainer ? installationListContainer.clientHeight : (totalItems * 120);
+  const baseItemHeight = 120;
+  const fitRatio = Math.min(1, containerHeight / Math.max(1, totalItems * baseItemHeight)); // 0..1
+
+  // When items fit well (fitRatio ~ 1) we want smaller spacing and less aggressive scale shrink
+  const spacing = 20 * (1 - fitRatio) + 8; // ranges ~8..28
+
+  const baseScaleFactors = [1.0, 0.85, 0.7, 0.55, 0.4];
+  // scaleReduction closer to 0 means less shrink (when fitRatio=1), when fitRatio=0 keep original
+  const scaleReduction = 1 - fitRatio * 0.3; // between 0.7 and 1
+  const scaleFactors = baseScaleFactors.map(s => 1 - (1 - s) * scaleReduction);
+
+  const opacityFactors = [1.0, 0.85, 0.7, 0.55, 0.4].map(o => o * (0.9 + 0.1 * fitRatio));
+  const fontFactors = [1.0, 0.95, 0.9, 0.85, 0.8];
+
   const scale = scaleFactors[Math.min(distance, scaleFactors.length - 1)];
   const opacity = opacityFactors[Math.min(distance, opacityFactors.length - 1)];
   const fontSize = fontFactors[Math.min(distance, fontFactors.length - 1)];
-  
+
   // Calculate vertical offset to center the selected item
-  const itemHeight = 120; // Increased base height for better spacing
-  const spacing = 20; // Increased spacing between items
-  const translateY = relativePosition * (itemHeight * scale + spacing);
+  const itemHeight = baseItemHeight; // base height used for spacing calc
+  // Compress spacing for near neighbors so selected item appears closer
+  const distanceNorm = Math.min(distance, 4) / 4; // 0..1
+  // Use a stronger compression floor so nearest items sit noticeably closer.
+  // compressionFloor controls how much spacing nearest neighbors keep (0.0..1.0)
+  const compressionFloor = 0.5; // previously ~0.6, lower -> tighter grouping
+  const compression = compressionFloor + (1 - compressionFloor) * distanceNorm; // ranges compressionFloor..1.0
+  const translateY = relativePosition * (itemHeight * scale + spacing * compression);
   
   // Z-index for layering (selected item on top)
   const zIndex = 100 - distance;
@@ -269,6 +287,39 @@ async function handleModClick(mod: ModJarInfo) {
       console.error('Failed to open mod page:', error);
     }
   }
+}
+
+// Toggle disabled state via the backend API. If Ctrl/Cmd is held when activating,
+// we open the mod page instead (preserves previous behavior).
+async function toggleModDisabledAction(mod: ModJarInfo) {
+  if (!currentInstallation) return;
+  try {
+    const newDisabled = await installationsApi.toggleModDisabled(currentInstallation, mod.file_name);
+    // Update local list optimistically so UI reacts immediately
+    mods = mods.map(m => (m.file_name === mod.file_name ? { ...m, disabled: newDisabled } : m));
+  } catch (err) {
+    console.error('Failed to toggle disabled state for', mod.file_name, err);
+    // Try reloading mods to resync state
+    try { await loadMods(currentInstallation); } catch (_) {}
+  }
+}
+
+async function onModActivate(event: MouseEvent, mod: ModJarInfo) {
+  // Ctrl/Cmd + click opens mod page
+  if (event.ctrlKey || event.metaKey) {
+    await handleModClick(mod);
+    return;
+  }
+  await toggleModDisabledAction(mod);
+}
+
+async function onModKeyDown(event: KeyboardEvent, mod: ModJarInfo) {
+  if (event.key !== 'Enter') return;
+  if (event.ctrlKey || event.metaKey) {
+    await handleModClick(mod);
+    return;
+  }
+  await toggleModDisabledAction(mod);
 }
 
 function updateTooltipPosition(event: MouseEvent) {
@@ -470,25 +521,30 @@ onMount(() => {
               {error}
             </div>
           {:else if mods.length > 0}
+          <span class="mods-instructions">Click mods to disable/enable them</span>
             <div class="mods-icon-grid">
               {#each filteredMods as mod}
                 {#if $extendedModInfo[mod.file_name]}
                   <div
                     class="mod-icon-link"
                     class:clickable={!!$extendedModInfo[mod.file_name]?.page_uri}
-                    on:click={() => handleModClick(mod)}
-                    on:keydown={(e) => e.key === 'Enter' && handleModClick(mod)}
+                    class:disabled={!!mod.disabled}
+                    on:click={(e) => onModActivate(e as MouseEvent, mod)}
+                    on:keydown={(e) => onModKeyDown(e as KeyboardEvent, mod)}
                     on:mouseenter={updateTooltipPosition}
                     on:mouseleave={resetTooltipPosition}
                     role="button"
                     tabindex="0"
-                    title={$extendedModInfo[mod.file_name]?.mod_jar_info.mod_name || $extendedModInfo[mod.file_name]?.mod_jar_info.file_name}
+                    title=""
+                    aria-label={$extendedModInfo[mod.file_name]?.mod_jar_info.mod_name || $extendedModInfo[mod.file_name]?.mod_jar_info.file_name}
+                    aria-pressed={mod.disabled ? 'true' : 'false'}
                   >
                     {#if $extendedModInfo[mod.file_name]?.icon_uri}
-                      <img class="mod-icon" src={$extendedModInfo[mod.file_name]?.icon_uri} alt="" />
+                      <img class="mod-icon" src={$extendedModInfo[mod.file_name]?.icon_uri} alt="" title=""/>
                     {:else}
                       <Icon name="package" size="lg" />
                     {/if}
+                    
                     <div class="mod-tooltip">
                       <div class="mod-tooltip-title">{$extendedModInfo[mod.file_name]?.mod_jar_info.mod_name || $extendedModInfo[mod.file_name]?.mod_jar_info.file_name}</div>
                       {#if $extendedModInfo[mod.file_name]?.mod_jar_info.mod_version}
@@ -547,16 +603,9 @@ onMount(() => {
 .installation-sidebar {
   width: 320px;
   min-width: 320px;
-  background: 
-    radial-gradient(circle at var(--dot1-x, 25%) var(--dot1-y, 35%), #{'color-mix(in srgb, var(--primary-900), 4%, transparent)'} 0%, transparent 16%),
-    radial-gradient(circle at var(--dot2-x, 75%) var(--dot2-y, 65%), #{'color-mix(in srgb, var(--secondary), 3%, transparent)'} 0%, transparent 14%),
-    radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 15%), #{'color-mix(in srgb, var(--tertiary), 2.5%, transparent)'} 0%, transparent 12%),
-    radial-gradient(circle at var(--dot4-x, 20%) var(--dot4-y, 80%), #{'color-mix(in srgb, var(--quaternary), 3%, transparent)'} 0%, transparent 15%),
-    linear-gradient(135deg, var(--card) 0%, #{'color-mix(in srgb, var(--primary), 2%, transparent)'} 100%);
   border-right: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
   display: flex;
   flex-direction: column;
-  animation: move-dots 28s ease infinite alternate;
   
   h2 {
     margin: 0;
@@ -571,37 +620,20 @@ onMount(() => {
   }
 }
 
-@keyframes move-dots {
-  0% {
-    --dot1-x: 20%; --dot1-y: 30%;
-    --dot2-x: 70%; --dot2-y: 60%;
-    --dot3-x: 55%; --dot3-y: 10%;
-    --dot4-x: 15%; --dot4-y: 75%;
-  }
-  25% {
-    --dot1-x: 25%; --dot1-y: 35%;
-    --dot2-x: 75%; --dot2-y: 65%;
-    --dot3-x: 60%; --dot3-y: 15%;
-    --dot4-x: 20%; --dot4-y: 80%;
-  }
-  50% {
-    --dot1-x: 30%; --dot1-y: 40%;
-    --dot2-x: 80%; --dot2-y: 70%;
-    --dot3-x: 65%; --dot3-y: 20%;
-    --dot4-x: 25%; --dot4-y: 85%;
-  }
-  75% {
-    --dot1-x: 25%; --dot1-y: 35%;
-    --dot2-x: 75%; --dot2-y: 65%;
-    --dot3-x: 60%; --dot3-y: 15%;
-    --dot4-x: 20%; --dot4-y: 80%;
-  }
-  100% {
-    --dot1-x: 35%; --dot1-y: 45%;
-    --dot2-x: 85%; --dot2-y: 75%;
-    --dot3-x: 70%; --dot3-y: 25%;
-    --dot4-x: 30%; --dot4-y: 90%;
-  }
+.mod-icon-link.disabled {
+  border: 2px solid var(--red-600, #d9534f);
+  box-shadow: 0 1px 6px 0 color-mix(in srgb, var(--red), 12%, transparent) !important;
+  filter: grayscale(70%) opacity(0.9);
+}
+
+.mod-icon-link.disabled .mod-tooltip {
+  background: color-mix(in srgb, var(--red), 6%, var(--card));
+  border-color: color-mix(in srgb, var(--red), 20%, var(--card));
+}
+.mods-instructions {
+  font-size: 0.875em;
+  color: var(--placeholder);
+  margin-top: 0.5rem;
 }
 
 .installation-carousel {
@@ -624,8 +656,8 @@ onMount(() => {
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  // align-items: center;
+  // justify-content: center;
   pointer-events: none; // Allow clicks to pass through to individual items
 }
 
@@ -636,7 +668,7 @@ onMount(() => {
   cursor: pointer;
   border: 1px solid transparent;
   position: absolute; // Absolute positioning for custom carousel layout
-  top: 50%; // Center vertically
+  top: 35%; // Center vertically
   left: 50%; // Center horizontally
   transform-origin: center center;
   display: flex;
@@ -934,7 +966,7 @@ onMount(() => {
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
   
-  &:hover, &:focus {
+  &:hover {
     transform: translateY(-1px) scale(1.04);
     box-shadow: 
       0 6px 20px 0 color-mix(in srgb, var(--primary), 18%, transparent),
@@ -946,8 +978,9 @@ onMount(() => {
     
     .mod-tooltip {
       opacity: 1;
-      pointer-events: auto;
+      pointer-events: none;
       transform: translateY(-6px) scale(1.01);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     .mod-icon {
@@ -997,7 +1030,7 @@ onMount(() => {
   opacity: 0;
   pointer-events: none;
   position: absolute;
-  background: linear-gradient(135deg, #{'color-mix(in srgb, var(--container), 98%, transparent)'} 0%, #{'color-mix(in srgb, var(--primary), 5%, transparent)'} 100%);
+  background: var(--card);
   color: var(--text);
   border: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
   border-radius: 0.5rem;

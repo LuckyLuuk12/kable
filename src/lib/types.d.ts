@@ -755,6 +755,8 @@ export interface ModJarInfo {
   mod_name?: string | null;
   mod_version?: string | null;
   loader?: string | null;
+  /** true when the JAR was found in the installation's disabled/ subfolder */
+  disabled?: boolean;
 }
 
 // _____________________________________________________________________________

@@ -383,6 +383,88 @@ impl KableInstallation {
         None
     }
 
+    /// Try to locate the mods directory for this installation using the same
+    /// candidate order as get_mod_info. Returns an Err(String) when no
+    /// directory could be found.
+    fn find_mods_dir(&self) -> Result<PathBuf, String> {
+        use crate::logging::Logger;
+        let mods_dirs = [
+            self.get_dedicated_mods_folder_path(),
+            self.get_mods_folder_from_version_manifest(),
+            crate::get_minecraft_kable_dir()
+                .ok()
+                .map(|dir| dir.join("mods").join(&self.id)), // Use installation ID
+        ];
+        let mut found_dir = None;
+        for (i, dir_opt) in mods_dirs.iter().enumerate() {
+            if let Some(dir) = dir_opt {
+                Logger::debug_global(&format!("Checking mods dir candidate {}: {}", i, dir.display()), None);
+                if dir.exists() {
+                    Logger::debug_global(&format!("✅ Using mods dir: {}", dir.display()), None);
+                    found_dir = Some(dir.clone());
+                    break;
+                }
+            }
+        }
+        match found_dir {
+            Some(d) => Ok(d),
+            None => Err("No mods directory found for installation".to_string()),
+        }
+    }
+
+    /// Move the given mod JAR into the installation's disabled/ subfolder.
+    pub fn disable_mod(&self, file_name: &str) -> Result<(), String> {
+        use crate::logging::Logger;
+        let mods_dir = self.find_mods_dir()?;
+        let disabled_dir = mods_dir.join("disabled");
+        let src = mods_dir.join(file_name);
+        let dst = disabled_dir.join(file_name);
+        if !src.exists() {
+            // Already disabled?
+            if dst.exists() {
+                return Ok(());
+            }
+            return Err(format!("Mod file not found: {}", file_name));
+        }
+        fs::create_dir_all(&disabled_dir).map_err(|e| format!("Failed to create disabled directory: {}", e))?;
+        fs::rename(&src, &dst).map_err(|e| format!("Failed to move mod to disabled: {}", e))?;
+        Logger::debug_global(&format!("Moved {} -> {}", src.display(), dst.display()), None);
+        Ok(())
+    }
+
+    /// Move the given mod JAR out of the installation's disabled/ subfolder back into the active mods folder.
+    pub fn enable_mod(&self, file_name: &str) -> Result<(), String> {
+        let mods_dir = self.find_mods_dir()?;
+        let disabled_dir = mods_dir.join("disabled");
+        let src = disabled_dir.join(file_name);
+        let dst = mods_dir.join(file_name);
+        if !src.exists() {
+            // Already enabled?
+            if dst.exists() {
+                return Ok(());
+            }
+            return Err(format!("Disabled mod not found: {}", file_name));
+        }
+        fs::rename(&src, &dst).map_err(|e| format!("Failed to move mod to enabled: {}", e))?;
+        Ok(())
+    }
+
+    /// Toggle the disabled state of a mod; returns the new disabled state (true = disabled).
+    pub fn toggle_mod_disabled(&self, file_name: &str) -> Result<bool, String> {
+        let mods_dir = self.find_mods_dir()?;
+        let src_active = mods_dir.join(file_name);
+        let src_disabled = mods_dir.join("disabled").join(file_name);
+        if src_active.exists() {
+            self.disable_mod(file_name)?;
+            return Ok(true);
+        }
+        if src_disabled.exists() {
+            self.enable_mod(file_name)?;
+            return Ok(false);
+        }
+        Err(format!("Mod file not found in either active or disabled folders: {}", file_name))
+    }
+
     /// Scans the mods folder for this installation and extracts mod info from each JAR
     pub fn get_mod_info(&self) -> Result<Vec<ModJarInfo>, String> {
         use crate::logging::Logger;
@@ -422,12 +504,13 @@ impl KableInstallation {
             }
         };
         let mut result = Vec::new();
-        let read_dir = std::fs::read_dir(&mods_dir);
+    let read_dir = std::fs::read_dir(&mods_dir);
         if let Err(e) = &read_dir {
             Logger::debug_global(&format!("Failed to read mods dir: {}", e), None);
             return Err(format!("Failed to read mods dir: {}", e));
         }
-        for entry in read_dir.unwrap() {
+    // First, read active mods in the mods_dir
+    for entry in read_dir.unwrap() {
             let entry = match entry {
                 Ok(e) => e,
                 Err(e) => {
@@ -528,7 +611,83 @@ impl KableInstallation {
                     mod_name,
                     mod_version,
                     loader,
+                    disabled: false,
                 });
+            }
+        }
+        // Then, check for a disabled/ subfolder and include those jars with disabled = true
+        let disabled_dir = mods_dir.join("disabled");
+        if disabled_dir.exists() {
+            if let Ok(dis_read) = std::fs::read_dir(&disabled_dir) {
+                for dentry in dis_read {
+                    match dentry {
+                        Ok(e) => {
+                            let path = e.path();
+                            if path.extension().map(|ext| ext == "jar").unwrap_or(false) {
+                                let file_name = path
+                                    .file_name()
+                                    .unwrap_or_default()
+                                    .to_string_lossy()
+                                    .to_string();
+                                let mut mod_name = None;
+                                let mut mod_version = None;
+                                let mut loader = None;
+                                if let Ok(file) = File::open(&path) {
+                                    if let Ok(mut zip) = ZipArchive::new(file) {
+                                        if let Ok(mut f) = zip.by_name("fabric.mod.json") {
+                                            let mut buf = String::new();
+                                            if f.read_to_string(&mut buf).is_ok() {
+                                                if let Ok(json) = serde_json::from_str::<JsonValue>(&buf) {
+                                                    mod_name = json.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                    mod_version = json.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                    loader = Some("fabric".to_string());
+                                                }
+                                            }
+                                        }
+                                        if mod_name.is_none() {
+                                            if let Ok(mut f) = zip.by_name("quilt.mod.json") {
+                                                let mut buf = String::new();
+                                                if f.read_to_string(&mut buf).is_ok() {
+                                                    if let Ok(json) = serde_json::from_str::<JsonValue>(&buf) {
+                                                        mod_name = json.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                        mod_version = json.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                        loader = Some("quilt".to_string());
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        if mod_name.is_none() {
+                                            if let Ok(mut f) = zip.by_name("META-INF/mods.toml") {
+                                                let mut buf = String::new();
+                                                if f.read_to_string(&mut buf).is_ok() {
+                                                    if let Ok(toml) = toml::from_str::<TomlValue>(&buf) {
+                                                        if let Some(arr) = toml.get("mods").and_then(|v| v.as_array()) {
+                                                            if let Some(first) = arr.first() {
+                                                                mod_name = first.get("displayName").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                                mod_version = first.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                                loader = Some("forge".to_string());
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                result.push(ModJarInfo {
+                                    file_name,
+                                    mod_name,
+                                    mod_version,
+                                    loader,
+                                    disabled: true,
+                                });
+                            }
+                        }
+                        Err(e) => {
+                            Logger::debug_global(&format!("Failed to read disabled entry: {}", e), None);
+                        }
+                    }
+                }
             }
         }
         Logger::debug_global(
@@ -545,4 +704,6 @@ pub struct ModJarInfo {
     pub mod_name: Option<String>,
     pub mod_version: Option<String>,
     pub loader: Option<String>,
+    /// true when the JAR was found in the installation's disabled/ subfolder
+    pub disabled: bool,
 }

@@ -94,6 +94,9 @@ pub fn run() {
             commands_installations::delete_installation,
             commands_installations::create_installation,
             commands_installations::get_mod_info,
+            commands_installations::disable_mod,
+            commands_installations::enable_mod,
+            commands_installations::toggle_mod_disabled,
             // Launcher commands
             commands_launcher::launch_installation,
             commands_launcher::kill_minecraft_process,

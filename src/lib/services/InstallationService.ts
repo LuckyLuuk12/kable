@@ -15,8 +15,8 @@ export class InstallationService {
     try {
       // Load installations and versions in parallel
       const [foundInstallations, foundVersions] = await Promise.all([
-        installationsApi.get_installations(),
-        installationsApi.get_all_versions()
+        installationsApi.getInstallations(),
+        installationsApi.getAllVersions()
       ]);
       installations.set(foundInstallations);
       versions.set(foundVersions);
@@ -40,7 +40,7 @@ export class InstallationService {
    * @param version_id The ID of the version to create the installation for.
    */
   static createInstallation(version_id: string): void {
-    installationsApi.create_installation(version_id)
+  installationsApi.createInstallation(version_id)
       .then(() => this.loadInstallations());
   }
 
@@ -57,7 +57,7 @@ export class InstallationService {
       return list;
     });
 
-    installationsApi.modify_installation(id, newInstallation)
+  installationsApi.modifyInstallation(id, newInstallation)
       .then(async () => console.log('Installation updated:', id));
   }
 
@@ -65,7 +65,7 @@ export class InstallationService {
    * Delete an installation by ID.
    */
   static deleteInstallation(id: string): void {
-    installationsApi.delete_installation(id)
+  installationsApi.deleteInstallation(id)
       .then(() => this.loadInstallations());
   }
 
@@ -191,6 +191,6 @@ export class InstallationService {
   }
 
   static async getModInfo(installation: KableInstallation): Promise<ModJarInfo[]> {
-    return await installationsApi.get_mod_info(installation) || [];
+  return await installationsApi.getModInfo(installation) || [];
   }
 }

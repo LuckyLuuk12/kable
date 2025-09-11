@@ -15,9 +15,6 @@
             const modsService = new ModsService(ProviderKind.Modrinth); // Use appropriate provider
             await modsService.downloadMod(modId, versionId || null, installation);
             
-            // Optionally switch to installed tab to show the new mod
-            currentTab = 'installed';
-            
             // Show success message
             console.log(`Successfully downloaded mod ${modId} to ${installation.name}`);
         } catch (error) {
