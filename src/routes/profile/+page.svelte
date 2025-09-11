@@ -63,6 +63,7 @@
         <h2><Icon name="chart" /> Minecraft Statistics</h2>
       </div>
       
+      <!-- TODO: Fav server stat, time played on this fav server, maybe overall kda by using logs to see kills?, #game crashes  -->
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-icon">

@@ -154,7 +154,7 @@
 
   {#if isLoading && limitedInstallations.length === 0}
     <div class="loading-state">
-      <Icon name="refresh" size="md" />
+      <Icon name="refresh" size="md" forceType="svg"/>
       <span>Loading installations...</span>
     </div>
   {:else if limitedInstallations.length === 0}

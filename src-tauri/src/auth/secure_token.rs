@@ -5,6 +5,7 @@
 use aes_gcm::aead::Aead;
 use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce};
 use base64::Engine;
+use keyring::Entry;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::fs::{self, OpenOptions};
@@ -15,8 +16,18 @@ const KEY_FILENAME: &str = "token.key";
 const NONCE_SIZE: usize = 12;
 const KEY_SIZE: usize = 32;
 
-/// Get the path to the key file in the Kable app directory
+/// Get the path to the key file in the Kable app directory.
+///
+/// Prefer the crate helper `get_kable_launcher_dir()` when available so the
+/// location is centralized; fall back to the legacy platform-specific logic
+/// if that helper fails for any reason.
 fn get_key_path() -> PathBuf {
+    // Try to reuse the helper in `lib.rs` which returns the kable launcher dir.
+    if let Ok(dir) = crate::get_kable_launcher_dir() {
+        return dir.join(KEY_FILENAME);
+    }
+
+    // Fallback to the legacy logic if helper isn't available or fails.
     let home_dir = dirs::home_dir().expect("Could not find home directory");
     #[cfg(target_os = "windows")]
     let kable_dir = home_dir
@@ -35,33 +46,60 @@ fn get_key_path() -> PathBuf {
 
 /// Generate and store a new random key if not present
 fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
+    // First try OS keyring for improved security
+    if let Ok(entry) = Entry::new("kable", KEY_FILENAME) {
+        if let Ok(stored) = entry.get_password() {
+            // Stored as base64
+            if let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(&stored) {
+                if decoded.len() == KEY_SIZE {
+                    let mut key = [0u8; KEY_SIZE];
+                    key.copy_from_slice(&decoded);
+                    return Ok(key);
+                }
+            }
+        }
+    }
+
+    // Fallback to file-backed key
     let key_path = get_key_path();
     if key_path.exists() {
         let mut key = [0u8; KEY_SIZE];
         let mut file = OpenOptions::new().read(true).open(&key_path)?;
         file.read_exact(&mut key)?;
-        Ok(key)
-    } else {
-        let mut key = [0u8; KEY_SIZE];
-        OsRng.fill_bytes(&mut key);
-        if let Some(parent) = key_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&key_path)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = file.metadata()?.permissions();
-            perms.set_mode(0o600);
-            file.set_permissions(perms)?;
-        }
-        file.write_all(&key)?;
-        Ok(key)
+        return Ok(key);
     }
+
+    // Generate a new key and attempt to store it in the keyring. If keyring
+    // storage fails, persist to disk as a fallback.
+    let mut key = [0u8; KEY_SIZE];
+    OsRng.fill_bytes(&mut key);
+
+    // Try to store base64-encoded key in OS keyring
+    let encoded = base64::engine::general_purpose::STANDARD.encode(key);
+    if let Ok(entry) = Entry::new("kable", KEY_FILENAME) {
+        if entry.set_password(&encoded).is_ok() {
+            return Ok(key);
+        }
+    }
+
+    // Persist to file as fallback
+    if let Some(parent) = key_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(true)
+        .open(&key_path)?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = file.metadata()?.permissions();
+        perms.set_mode(0o600);
+        file.set_permissions(perms)?;
+    }
+    file.write_all(&key)?;
+    Ok(key)
 }
 
 /// Encrypt a token string
