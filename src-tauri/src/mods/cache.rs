@@ -64,11 +64,30 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de>> ModCache<T> {
 
     pub fn save_to_disk(&self, path: &Path) -> Result<(), String> {
         let data = serde_json::to_vec(self).map_err(|e| format!("Serialize cache: {e}"))?;
-        fs::write(path, data).map_err(|e| format!("Write cache: {e}"))
+        // Use atomic sync writer to avoid partial write issues in sync contexts
+        crate::write_file_atomic_sync(path, &data).map_err(|e| format!("Write cache: {e}"))
+    }
+
+    /// Async version: save the cache to disk using async filesystem APIs and
+    /// ensuring parent directories exist.
+    pub async fn save_to_disk_async(&self, path: &std::path::Path) -> Result<(), String> {
+        let data = serde_json::to_vec(self).map_err(|e| format!("Serialize cache: {e}"))?;
+        crate::ensure_parent_dir_exists_async(path)
+            .await
+            .map_err(|e| format!("Failed to ensure parent dir: {}", e))?;
+        tokio::fs::write(path, data)
+            .await
+            .map_err(|e| format!("Write cache async: {e}"))
     }
 
     pub fn load_from_disk(path: &Path) -> Result<Self, String> {
         let data = fs::read(path).map_err(|e| format!("Read cache: {e}"))?;
+        serde_json::from_slice(&data).map_err(|e| format!("Deserialize cache: {e}"))
+    }
+
+    /// Async version: load the cache using async filesystem APIs.
+    pub async fn load_from_disk_async(path: &std::path::Path) -> Result<Self, String> {
+        let data = tokio::fs::read(path).await.map_err(|e| format!("Read cache async: {e}"))?;
         serde_json::from_slice(&data).map_err(|e| format!("Deserialize cache: {e}"))
     }
 

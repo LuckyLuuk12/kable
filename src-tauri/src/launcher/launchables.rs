@@ -33,7 +33,13 @@ impl LaunchContext {
     }
 
     pub async fn detect_loader_type(&self) -> Result<LoaderType, String> {
-        if let Some(version) = get_version(self.clone().installation.version_id).await {
+        let mut version_id = self.clone().installation.version_id;
+        // Trim whitespace/newlines that might be present from conversion or user data
+        version_id = version_id.trim().to_string();
+        // Diagnostic logging to help understand packaged vs dev behavior
+        crate::logging::Logger::debug_global(&format!("detect_loader_type: version_id='{}'", version_id), None);
+        if let Some(version) = get_version(version_id.clone()).await {
+            crate::logging::Logger::debug_global(&format!("detect_loader_type: found version entry for '{}'", version_id), None);
             match version.loader {
                 LoaderKind::Vanilla => Ok(LoaderType::Vanilla),
                 LoaderKind::Fabric => Ok(LoaderType::Fabric),
@@ -43,7 +49,15 @@ impl LaunchContext {
                 LoaderKind::NeoForge => Ok(LoaderType::NeoForge),
             }
         } else {
-            Err("Failed to detect loader type".into())
+            // Some installation version IDs are special placeholders like "latest-release" or
+            // "latest-snapshot" which don't exist in the versions list; treat these as
+            // Vanilla by default instead of failing detection.
+            crate::logging::Logger::debug_global(&format!("detect_loader_type: no version entry for '{}', checking fallback", version_id), None);
+            if version_id.starts_with("latest") || version_id == "latest-release" || version_id == "latest-snapshot" {
+                Ok(LoaderType::Vanilla)
+            } else {
+                Err("Failed to detect loader type".into())
+            }
         }
     }
 }

@@ -10,6 +10,7 @@ use std::{
 };
 use tokio::fs as async_fs;
 use tokio::task;
+use crate::logging::Logger;
 use toml::Value as TomlValue;
 use zip::ZipArchive;
 
@@ -155,6 +156,15 @@ pub fn read_kable_profiles() -> Result<Vec<KableInstallation>, String> {
 pub async fn read_kable_profiles_async() -> Result<Vec<KableInstallation>, String> {
     let kable_dir = crate::get_minecraft_kable_dir()?;
     let path = kable_dir.join("kable_profiles.json");
+    // Ensure the kable_profiles.json file exists. If missing, create it with an empty array.
+    let default_profiles: Vec<KableInstallation> = Vec::new();
+    let json = serde_json::to_string_pretty(&default_profiles)
+        .map_err(|e| format!("Failed to serialize default kable profiles: {}", e))?;
+    // Atomically create default file if missing
+    if !path.exists() {
+        crate::ensure_parent_dir_exists_async(&path).await?;
+        crate::write_file_atomic_async(&path, json.as_bytes()).await?;
+    }
     let data = async_fs::read_to_string(&path)
         .await
         .map_err(|e| format!("Failed to read kable_profiles.json: {}", e))?;
@@ -172,7 +182,9 @@ pub fn write_kable_profiles(profiles: &[KableInstallation]) -> Result<(), String
     let path = kable_dir.join("kable_profiles.json");
     let json = serde_json::to_string_pretty(profiles)
         .map_err(|e| format!("Failed to serialize kable profiles: {}", e))?;
-    fs::write(&path, json).map_err(|e| format!("Failed to write kable_profiles.json: {}", e))
+    // Use atomic sync writer to avoid partial writes in synchronous calls
+    crate::write_file_atomic_sync(&path, json.as_bytes())
+        .map_err(|e| format!("Failed to write kable_profiles.json: {}", e))
 }
 
 pub async fn write_kable_profiles_async(profiles: &[KableInstallation]) -> Result<(), String> {
@@ -185,7 +197,9 @@ pub async fn write_kable_profiles_async(profiles: &[KableInstallation]) -> Resul
     })
     .await
     .unwrap()?;
-    async_fs::write(&path, json)
+    // Ensure parent directories exist and write the profiles asynchronously
+    crate::ensure_parent_dir_exists_async(&path).await?;
+    crate::write_file_atomic_async(&path, json.as_bytes())
         .await
         .map_err(|e| format!("Failed to write kable_profiles.json: {}", e))
 }
@@ -194,101 +208,397 @@ impl KableInstallation {
     /// Exports this KableInstallation as a bundled zip file containing a kable_export.json with the data
     /// and if applicable, the resource pack and shaders folder.
     /// Returns the path to the exported file.
-    pub fn export(&self) -> Result<String, String> {
-        let kable_dir = crate::get_minecraft_kable_dir()?;
-        let path = kable_dir.join("exports");
-        // Now we make a zip file inside the exports folder
-        fs::create_dir_all(&path)
-            .map_err(|e| format!("Failed to create exports directory: {}", e))?;
-        let export_path = path.join(format!("{}_export.zip", self.id));
-        let file = fs::File::create(&export_path)
-            .map_err(|e| format!("Failed to create export file: {}", e))?;
-        let mut zip = zip::ZipWriter::new(file);
-        let options = zip::write::FileOptions::default()
-            .compression_method(zip::CompressionMethod::Stored)
-            .unix_permissions(0o755);
-        // Write the kable_export.json file
-        zip.start_file("kable_export.json", options)
-            .map_err(|e| format!("Failed to write kable_export.json: {}", e))?;
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| format!("Failed to serialize KableInstallation: {}", e))?;
-        zip.write_all(json.as_bytes())
-            .map_err(|e| format!("Failed to write KableInstallation data: {}", e))?;
-        // If there is a dedicated resource pack folder, add it to the zip
-        if let Some(ref resource_pack) = self.dedicated_resource_pack_folder {
-            let resource_pack_path = kable_dir.join(resource_pack);
-            if resource_pack_path.exists() {
-                zip.start_file("resource_packs.zip", options)
-                    .map_err(|e| format!("Failed to write resource pack: {}", e))?;
-                let mut resource_pack_file = fs::File::open(&resource_pack_path)
-                    .map_err(|e| format!("Failed to open resource pack: {}", e))?;
-                std::io::copy(&mut resource_pack_file, &mut zip)
-                    .map_err(|e| format!("Failed to copy resource pack: {}", e))?;
+    pub async fn export(&self) -> Result<String, String> {
+        let self_owned = self.clone();
+        Logger::debug_global(&format!("Starting export for installation id={}", self_owned.id), None);
+        let res = task::spawn_blocking(move || {
+            let kable_dir = crate::get_minecraft_kable_dir()?;
+            let path = kable_dir.join("exports");
+            // Now we make a zip file inside the exports folder
+            fs::create_dir_all(&path)
+                .map_err(|e| format!("Failed to create exports directory: {}", e))?;
+            let export_path = path.join(format!("{}_export.zip", self_owned.id));
+            // Create a temporary file name in the same directory and write to it,
+            // then atomically rename into place to avoid partial files.
+            let mut tmp_path = path.join(format!("{}.tmp", self_owned.id));
+            // Ensure tmp_path is unique
+            if tmp_path.exists() {
+                tmp_path = path.join(format!("{}_{}.tmp", self_owned.id, uuid::Uuid::new_v4()));
             }
-        }
-        // If there is a dedicated shaders folder, add it to the zip
-        if let Some(ref shaders_folder) = self.dedicated_shaders_folder {
-            let shaders_path = kable_dir.join(shaders_folder);
-            if shaders_path.exists() {
-                zip.start_file("shaders.zip", options)
-                    .map_err(|e| format!("Failed to write shaders folder: {}", e))?;
-                let mut shaders_file = fs::File::open(&shaders_path)
-                    .map_err(|e| format!("Failed to open shaders folder: {}", e))?;
-                std::io::copy(&mut shaders_file, &mut zip)
-                    .map_err(|e| format!("Failed to copy shaders folder: {}", e))?;
+            let tmp_file = fs::File::create(&tmp_path)
+                .map_err(|e| format!("Failed to create temp export file: {}", e))?;
+            let mut zip = zip::ZipWriter::new(tmp_file);
+            let options = zip::write::FileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored)
+                .unix_permissions(0o755);
+            // Prepare an export copy with reset metadata
+            let mut export_install = self_owned.clone();
+            export_install.created = chrono::Utc::now().to_rfc3339();
+            export_install.last_used = chrono::Utc::now().to_rfc3339();
+            export_install.times_launched = 0;
+            export_install.total_time_played_ms = 0;
+            // Write the kable_export.json file
+            zip.start_file("kable_export.json", options)
+                .map_err(|e| format!("Failed to write kable_export.json: {}", e))?;
+            let json = serde_json::to_string_pretty(&export_install)
+                .map_err(|e| format!("Failed to serialize KableInstallation: {}", e))?;
+            zip.write_all(json.as_bytes())
+                .map_err(|e| format!("Failed to write KableInstallation data: {}", e))?;
+            // If there is a dedicated resource pack folder or file, add it to the zip
+            if let Some(ref resource_pack) = self_owned.dedicated_resource_pack_folder {
+                // if resource_pack is absolute, use as-is; otherwise relative to kable_dir
+                let rp_path = PathBuf::from(resource_pack);
+                let resource_pack_path = if rp_path.is_absolute() {
+                    rp_path
+                } else {
+                    kable_dir.join(resource_pack)
+                };
+                if resource_pack_path.exists() {
+                    // If it's a file (zip), copy it directly
+                    if resource_pack_path.is_file() {
+                        zip.start_file("resource_packs.zip", options)
+                            .map_err(|e| format!("Failed to write resource pack: {}", e))?;
+                        let mut resource_pack_file = fs::File::open(&resource_pack_path)
+                            .map_err(|e| format!("Failed to open resource pack: {}", e))?;
+                        std::io::copy(&mut resource_pack_file, &mut zip)
+                            .map_err(|e| format!("Failed to copy resource pack: {}", e))?;
+                    } else if resource_pack_path.is_dir() {
+                        // Create a temporary zip of the directory and copy it into the main zip as resource_packs.zip
+                        let mut tmp = std::env::temp_dir();
+                        tmp.push(format!("resource_packs_{}.zip", export_install.id));
+                        {
+                            let tmp_file = fs::File::create(&tmp)
+                                .map_err(|e| format!("Failed to create temp resource zip: {}", e))?;
+                            let mut tmp_zip = zip::ZipWriter::new(tmp_file);
+                            let walk = walkdir::WalkDir::new(&resource_pack_path);
+                            for entry in walk.into_iter().filter_map(|e| e.ok()) {
+                                let path = entry.path();
+                                if path.is_file() {
+                                    let rel = path.strip_prefix(&resource_pack_path).unwrap();
+                                    let name = format!("{}", rel.to_string_lossy());
+                                    tmp_zip.start_file(name, options)
+                                        .map_err(|e| format!("Failed to add file to tmp resource zip: {}", e))?;
+                                    let mut f = fs::File::open(path)
+                                        .map_err(|e| format!("Failed to open file for tmp zip: {}", e))?;
+                                    std::io::copy(&mut f, &mut tmp_zip)
+                                        .map_err(|e| format!("Failed to copy to tmp resource zip: {}", e))?;
+                                }
+                            }
+                            tmp_zip.finish()
+                                .map_err(|e| format!("Failed to finish tmp resource zip: {}", e))?;
+                        }
+                        // Copy tmp into main zip
+                        let mut tmp_file = fs::File::open(&tmp)
+                            .map_err(|e| format!("Failed to open tmp resource zip: {}", e))?;
+                        zip.start_file("resource_packs.zip", options)
+                            .map_err(|e| format!("Failed to write resource pack: {}", e))?;
+                        std::io::copy(&mut tmp_file, &mut zip)
+                            .map_err(|e| format!("Failed to copy resource pack: {}", e))?;
+                        // Ignore failure to remove temp file
+                        let _ = fs::remove_file(&tmp);
+                    }
+                }
             }
+            // If there is a dedicated shaders folder, add it to the zip
+            if let Some(ref shaders_folder) = self_owned.dedicated_shaders_folder {
+                let sf_path = PathBuf::from(shaders_folder);
+                let shaders_path = if sf_path.is_absolute() { sf_path } else { kable_dir.join(shaders_folder) };
+                if shaders_path.exists() {
+                    if shaders_path.is_file() {
+                        zip.start_file("shaders.zip", options)
+                            .map_err(|e| format!("Failed to write shaders folder: {}", e))?;
+                        let mut shaders_file = fs::File::open(&shaders_path)
+                            .map_err(|e| format!("Failed to open shaders folder: {}", e))?;
+                        std::io::copy(&mut shaders_file, &mut zip)
+                            .map_err(|e| format!("Failed to copy shaders folder: {}", e))?;
+                    } else if shaders_path.is_dir() {
+                        // Zip dir to tmp and copy
+                        let mut tmp = std::env::temp_dir();
+                        tmp.push(format!("shaders_{}.zip", export_install.id));
+                        {
+                            let tmp_file = fs::File::create(&tmp)
+                                .map_err(|e| format!("Failed to create tmp shaders zip: {}", e))?;
+                            let mut tmp_zip = zip::ZipWriter::new(tmp_file);
+                            let walk = walkdir::WalkDir::new(&shaders_path);
+                            for entry in walk.into_iter().filter_map(|e| e.ok()) {
+                                let path = entry.path();
+                                if path.is_file() {
+                                    let rel = path.strip_prefix(&shaders_path).unwrap();
+                                    let name = format!("{}", rel.to_string_lossy());
+                                    tmp_zip.start_file(name, options)
+                                        .map_err(|e| format!("Failed to add file to tmp shaders zip: {}", e))?;
+                                    let mut f = fs::File::open(path)
+                                        .map_err(|e| format!("Failed to open file for tmp shaders zip: {}", e))?;
+                                    std::io::copy(&mut f, &mut tmp_zip)
+                                        .map_err(|e| format!("Failed to copy to tmp shaders zip: {}", e))?;
+                                }
+                            }
+                            tmp_zip.finish()
+                                .map_err(|e| format!("Failed to finish tmp shaders zip: {}", e))?;
+                        }
+                        let mut tmp_file = fs::File::open(&tmp)
+                            .map_err(|e| format!("Failed to open tmp shaders zip: {}", e))?;
+                        zip.start_file("shaders.zip", options)
+                            .map_err(|e| format!("Failed to write shaders folder: {}", e))?;
+                        std::io::copy(&mut tmp_file, &mut zip)
+                            .map_err(|e| format!("Failed to copy shaders folder: {}", e))?;
+                        let _ = fs::remove_file(&tmp);
+                    }
+                }
+            }
+
+            // If there is a dedicated mods folder, add it to the zip
+            if let Some(ref mods_folder) = self_owned.dedicated_mods_folder {
+                let mf_path = PathBuf::from(mods_folder);
+                let mods_path = if mf_path.is_absolute() { mf_path } else { kable_dir.join(mods_folder) };
+                if mods_path.exists() {
+                    if mods_path.is_file() {
+                        zip.start_file("mods.zip", options)
+                            .map_err(|e| format!("Failed to write mods: {}", e))?;
+                        let mut mods_file = fs::File::open(&mods_path)
+                            .map_err(|e| format!("Failed to open mods file: {}", e))?;
+                        std::io::copy(&mut mods_file, &mut zip)
+                            .map_err(|e| format!("Failed to copy mods file: {}", e))?;
+                    } else if mods_path.is_dir() {
+                        // Zip dir to tmp and copy
+                        let mut tmp = std::env::temp_dir();
+                        tmp.push(format!("mods_{}.zip", export_install.id));
+                        {
+                            let tmp_file = fs::File::create(&tmp)
+                                .map_err(|e| format!("Failed to create tmp mods zip: {}", e))?;
+                            let mut tmp_zip = zip::ZipWriter::new(tmp_file);
+                            let walk = walkdir::WalkDir::new(&mods_path);
+                            for entry in walk.into_iter().filter_map(|e| e.ok()) {
+                                let path = entry.path();
+                                if path.is_file() {
+                                    let rel = path.strip_prefix(&mods_path).unwrap();
+                                    let name = format!("{}", rel.to_string_lossy());
+                                    tmp_zip.start_file(name, options)
+                                        .map_err(|e| format!("Failed to add file to tmp mods zip: {}", e))?;
+                                    let mut f = fs::File::open(path)
+                                        .map_err(|e| format!("Failed to open file for tmp mods zip: {}", e))?;
+                                    std::io::copy(&mut f, &mut tmp_zip)
+                                        .map_err(|e| format!("Failed to copy to tmp mods zip: {}", e))?;
+                                }
+                            }
+                            tmp_zip.finish()
+                                .map_err(|e| format!("Failed to finish tmp mods zip: {}", e))?;
+                        }
+                        let mut tmp_file = fs::File::open(&tmp)
+                            .map_err(|e| format!("Failed to open tmp mods zip: {}", e))?;
+                        zip.start_file("mods.zip", options)
+                            .map_err(|e| format!("Failed to write mods: {}", e))?;
+                        std::io::copy(&mut tmp_file, &mut zip)
+                            .map_err(|e| format!("Failed to copy mods: {}", e))?;
+                        let _ = fs::remove_file(&tmp);
+                    }
+                }
+            }
+            zip.finish()
+                .map_err(|e| format!("Failed to finish zip file: {}", e))?;
+            // Atomically move tmp into final location
+            std::fs::rename(&tmp_path, &export_path)
+                .map_err(|e| format!("Failed to move export into place: {}", e))?;
+            Ok::<String, String>(export_path.to_string_lossy().to_string())
+        })
+        .await
+        .map_err(|e| format!("Export task join error: {}", e))?;
+        if let Ok(ref p) = res {
+            Logger::debug_global(&format!("Export completed: {}", p), None);
         }
-        zip.finish()
-            .map_err(|e| format!("Failed to finish zip file: {}", e))?;
-        Ok(export_path.to_string_lossy().to_string())
+        res
     }
 
     /// This import does the opposite of export by extracting the KableInstallation data from a zip file and putting it in the right places.
-    pub fn import(path: &str) -> Result<KableInstallation, String> {
-        let kable_dir = crate::get_minecraft_kable_dir()?;
-        let file =
-            fs::File::open(path).map_err(|e| format!("Failed to open import file: {}", e))?;
-        let mut zip =
-            zip::ZipArchive::new(file).map_err(|e| format!("Failed to read zip file: {}", e))?;
-        let mut installation = KableInstallation::default();
-        // Extract the kable_export.json file
-        if let Ok(mut file) = zip.by_name("kable_export.json") {
-            let mut json = String::new();
-            file.read_to_string(&mut json)
-                .map_err(|e| format!("Failed to read kable_export.json: {}", e))?;
-            installation = serde_json::from_str(&json)
-                .map_err(|e| format!("Failed to parse kable_export.json: {}", e))?;
+    pub async fn import(path: &str) -> Result<KableInstallation, String> {
+        let path_owned = path.to_string();
+        Logger::debug_global(&format!("Starting import from {}", path_owned), None);
+        let res = task::spawn_blocking(move || {
+            let kable_dir = crate::get_minecraft_kable_dir()?;
+            let file =
+                fs::File::open(&path_owned).map_err(|e| format!("Failed to open import file: {}", e))?;
+            let mut zip =
+                zip::ZipArchive::new(file).map_err(|e| format!("Failed to read zip file: {}", e))?;
+            let mut installation = KableInstallation::default();
+            // Extract the kable_export.json file
+            if let Ok(mut file) = zip.by_name("kable_export.json") {
+                let mut json = String::new();
+                file.read_to_string(&mut json)
+                    .map_err(|e| format!("Failed to read kable_export.json: {}", e))?;
+                installation = serde_json::from_str(&json)
+                    .map_err(|e| format!("Failed to parse kable_export.json: {}", e))?;
+            }
+            // Extract the resource pack if it exists (embedded zip) and unpack into destination
+            if let Ok(mut file) = zip.by_name("resource_packs.zip") {
+                // Determine destination: if installation.dedicated_resource_pack_folder is absolute, use it
+                let resource_pack_rel = installation
+                    .dedicated_resource_pack_folder
+                    .as_deref()
+                    .unwrap_or(&installation.id)
+                    .to_string();
+                let rp_path = PathBuf::from(&resource_pack_rel);
+                let dest_dir = if rp_path.is_absolute() {
+                    rp_path
+                } else {
+                    kable_dir.join("resource_packs").join(resource_pack_rel)
+                };
+                fs::create_dir_all(&dest_dir)
+                    .map_err(|e| format!("Failed to create resource pack directory: {}", e))?;
+
+                // Copy the embedded zip to a temp file then extract its entries safely into dest_dir
+                let mut tmp = std::env::temp_dir();
+                tmp.push(format!("resource_packs_{}.zip", installation.id));
+                {
+                    let mut tmp_file = fs::File::create(&tmp)
+                        .map_err(|e| format!("Failed to create tmp resource zip: {}", e))?;
+                    std::io::copy(&mut file, &mut tmp_file)
+                        .map_err(|e| format!("Failed to copy resource pack to tmp: {}", e))?;
+                }
+                // Open tmp as a zip and extract
+                let tmp_file = fs::File::open(&tmp)
+                    .map_err(|e| format!("Failed to open tmp resource zip: {}", e))?;
+                let mut inner_zip = zip::ZipArchive::new(tmp_file)
+                    .map_err(|e| format!("Failed to read inner resource zip: {}", e))?;
+                for i in 0..inner_zip.len() {
+                    let mut entry = inner_zip.by_index(i)
+                        .map_err(|e| format!("Failed to access inner zip entry: {}", e))?;
+                    let name = entry.name();
+                    // Security: skip dangerous paths
+                    if name.contains("..") || name.starts_with('/') {
+                        continue;
+                    }
+                    let out_path = dest_dir.join(name);
+                    if entry.is_dir() {
+                        fs::create_dir_all(&out_path)
+                            .map_err(|e| format!("Failed to create dir during extract: {}", e))?;
+                    } else {
+                        if let Some(p) = out_path.parent() {
+                            fs::create_dir_all(p)
+                                .map_err(|e| format!("Failed to create parent dir during extract: {}", e))?;
+                        }
+                        let mut outfile = fs::File::create(&out_path)
+                            .map_err(|e| format!("Failed to create file during extract: {}", e))?;
+                        std::io::copy(&mut entry, &mut outfile)
+                            .map_err(|e| format!("Failed to write extracted file: {}", e))?;
+                    }
+                }
+                let _ = fs::remove_file(&tmp);
+            }
+            // Extract the shaders folder if it exists (embedded zip) and unpack into destination
+            if let Ok(mut file) = zip.by_name("shaders.zip") {
+                let shaders_rel = installation
+                    .dedicated_shaders_folder
+                    .as_deref()
+                    .unwrap_or(&installation.id)
+                    .to_string();
+                let sf_path = PathBuf::from(&shaders_rel);
+                let dest_dir = if sf_path.is_absolute() {
+                    sf_path
+                } else {
+                    kable_dir.join("shaders").join(shaders_rel)
+                };
+                fs::create_dir_all(&dest_dir)
+                    .map_err(|e| format!("Failed to create shaders directory: {}", e))?;
+
+                // Copy embedded zip to tmp and extract
+                let mut tmp = std::env::temp_dir();
+                tmp.push(format!("shaders_{}.zip", installation.id));
+                {
+                    let mut tmp_file = fs::File::create(&tmp)
+                        .map_err(|e| format!("Failed to create tmp shaders zip: {}", e))?;
+                    std::io::copy(&mut file, &mut tmp_file)
+                        .map_err(|e| format!("Failed to copy shaders to tmp: {}", e))?;
+                }
+                let tmp_file = fs::File::open(&tmp)
+                    .map_err(|e| format!("Failed to open tmp shaders zip: {}", e))?;
+                let mut inner_zip = zip::ZipArchive::new(tmp_file)
+                    .map_err(|e| format!("Failed to read inner shaders zip: {}", e))?;
+                for i in 0..inner_zip.len() {
+                    let mut entry = inner_zip.by_index(i)
+                        .map_err(|e| format!("Failed to access inner zip entry: {}", e))?;
+                    let name = entry.name();
+                    if name.contains("..") || name.starts_with('/') {
+                        continue;
+                    }
+                    let out_path = dest_dir.join(name);
+                    if entry.is_dir() {
+                        fs::create_dir_all(&out_path)
+                            .map_err(|e| format!("Failed to create dir during extract: {}", e))?;
+                    } else {
+                        if let Some(p) = out_path.parent() {
+                            fs::create_dir_all(p)
+                                .map_err(|e| format!("Failed to create parent dir during extract: {}", e))?;
+                        }
+                        let mut outfile = fs::File::create(&out_path)
+                            .map_err(|e| format!("Failed to create file during extract: {}", e))?;
+                        std::io::copy(&mut entry, &mut outfile)
+                            .map_err(|e| format!("Failed to write extracted file: {}", e))?;
+                    }
+                }
+                let _ = fs::remove_file(&tmp);
+            }
+            // Extract mods.zip if present (embedded zip) and unpack into destination
+            if let Ok(mut file) = zip.by_name("mods.zip") {
+                let mods_rel = installation
+                    .dedicated_mods_folder
+                    .as_deref()
+                    .unwrap_or(&installation.id)
+                    .to_string();
+                let mf_path = PathBuf::from(&mods_rel);
+                let dest_dir = if mf_path.is_absolute() {
+                    mf_path
+                } else {
+                    kable_dir.join("mods").join(mods_rel)
+                };
+                fs::create_dir_all(&dest_dir)
+                    .map_err(|e| format!("Failed to create mods directory: {}", e))?;
+
+                // Copy embedded zip to tmp and extract
+                let mut tmp = std::env::temp_dir();
+                tmp.push(format!("mods_{}.zip", installation.id));
+                {
+                    let mut tmp_file = fs::File::create(&tmp)
+                        .map_err(|e| format!("Failed to create tmp mods zip: {}", e))?;
+                    std::io::copy(&mut file, &mut tmp_file)
+                        .map_err(|e| format!("Failed to copy mods to tmp: {}", e))?;
+                }
+                let tmp_file = fs::File::open(&tmp)
+                    .map_err(|e| format!("Failed to open tmp mods zip: {}", e))?;
+                let mut inner_zip = zip::ZipArchive::new(tmp_file)
+                    .map_err(|e| format!("Failed to read inner mods zip: {}", e))?;
+                for i in 0..inner_zip.len() {
+                    let mut entry = inner_zip.by_index(i)
+                        .map_err(|e| format!("Failed to access inner zip entry: {}", e))?;
+                    let name = entry.name();
+                    if name.contains("..") || name.starts_with('/') {
+                        continue;
+                    }
+                    let out_path = dest_dir.join(name);
+                    if entry.is_dir() {
+                        fs::create_dir_all(&out_path)
+                            .map_err(|e| format!("Failed to create dir during extract: {}", e))?;
+                    } else {
+                        if let Some(p) = out_path.parent() {
+                            fs::create_dir_all(p)
+                                .map_err(|e| format!("Failed to create parent dir during extract: {}", e))?;
+                        }
+                        let mut outfile = fs::File::create(&out_path)
+                            .map_err(|e| format!("Failed to create file during extract: {}", e))?;
+                        std::io::copy(&mut entry, &mut outfile)
+                            .map_err(|e| format!("Failed to write extracted file: {}", e))?;
+                    }
+                }
+                let _ = fs::remove_file(&tmp);
+            }
+
+            Ok::<KableInstallation, String>(installation)
+        })
+        .await
+        .map_err(|e| format!("Import task join error: {}", e))?;
+        if let Ok(ref inst) = res {
+            Logger::debug_global(&format!("Import completed: id={} name={}", inst.id, inst.name), None);
         }
-        // Extract the resource pack if it exists
-        if let Ok(mut file) = zip.by_name("resource_packs.zip") {
-            let resource_pack_rel = installation
-                .dedicated_resource_pack_folder
-                .as_deref()
-                .unwrap_or(&installation.id);
-            let resource_pack_path = kable_dir.join("resource_packs").join(resource_pack_rel);
-            fs::create_dir_all(&resource_pack_path)
-                .map_err(|e| format!("Failed to create resource pack directory: {}", e))?;
-            let mut resource_pack_file =
-                fs::File::create(resource_pack_path.join("resource_packs.zip"))
-                    .map_err(|e| format!("Failed to create resource pack file: {}", e))?;
-            std::io::copy(&mut file, &mut resource_pack_file)
-                .map_err(|e| format!("Failed to copy resource pack: {}", e))?;
-        }
-        // Extract the shaders folder if it exists
-        if let Ok(mut file) = zip.by_name("shaders.zip") {
-            let shaders_rel = installation
-                .dedicated_shaders_folder
-                .as_deref()
-                .unwrap_or(&installation.id);
-            let shaders_path = kable_dir.join("shaders").join(shaders_rel);
-            fs::create_dir_all(&shaders_path)
-                .map_err(|e| format!("Failed to create shaders directory: {}", e))?;
-            let mut shaders_file = fs::File::create(shaders_path.join("shaders.zip"))
-                .map_err(|e| format!("Failed to create shaders file: {}", e))?;
-            std::io::copy(&mut file, &mut shaders_file)
-                .map_err(|e| format!("Failed to copy shaders folder: {}", e))?;
-        }
-        Ok(installation)
+        res
     }
 
     /// Try to get the mods folder from the dedicated_mods_folder field.
@@ -695,6 +1005,26 @@ impl KableInstallation {
             None,
         );
         Ok(result)
+    }
+
+    pub fn duplicate(&self) -> Result<Vec<KableInstallation>, String> {
+        let mut new = self.clone();
+        // generate new ID
+        new.id = uuid::Uuid::new_v4().to_string();
+        new.name = format!("{} (copy)", self.name);
+        // Reset stats
+        new.created = chrono::Utc::now().to_rfc3339();
+        new.last_used = chrono::Utc::now().to_rfc3339();
+        new.total_time_played_ms = 0;
+        new.times_launched = 0;
+        // Add to profiles
+        if let Ok(mut profiles) = read_kable_profiles() {
+            profiles.push(new);
+            let _ = write_kable_profiles(&profiles);
+            Ok(profiles)
+        } else {
+            Err("Failed to read Kable profiles".into())
+        }
     }
 }
 

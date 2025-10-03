@@ -32,7 +32,7 @@
       await AuthService.refreshCurrentAccount();
       LogsService.emitLauncherEvent('All components initialized successfully', 'info');
       initializationStatus = 'Ready';
-  console.log('Layout initialization complete');
+      console.log('Layout initialization complete');
       // Set up settings behavior event listeners
       await setupSettingsEventListeners();
     } catch (error) {
@@ -108,6 +108,7 @@
 
   // Show a dialog for user behavior choice
   async function showBehaviorDialog(title: string, message: string, options: string[]): Promise<string | null> {
+    console.log('Showing behavior dialog:', { title, message, options });
     const optionLabels: Record<string, string> = {
       'keep_open': 'Keep Launcher Open',
       'exit': 'Close Launcher',
@@ -188,7 +189,8 @@
     { path: '/', label: 'Home', icon: 'home' },
     { path: '/installations', label: 'Installations', icon: 'minecraft' },
     { path: '/mods', label: 'Mods', icon: 'mods' },
-    { path: '/shaders', label: 'Shaders', icon: 'shaders' },
+    // { path: '/shaders', label: 'Shaders', icon: 'shaders' },
+    // { path: '/resources', label: 'Resources', icon: 'resources' },
     { path: '/maps', label: 'Worlds', icon: 'maps' },
     { path: '/skins', label: 'Skins', icon: 'palette' },
     // Only show logs if enabled in settings (default: true for developers)

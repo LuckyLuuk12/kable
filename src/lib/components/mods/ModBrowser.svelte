@@ -2,6 +2,7 @@
 import { onMount, createEventDispatcher } from 'svelte';
 import { get } from 'svelte/store';
 import { Icon, ModsService, selectedInstallation, InstallationService, installations } from '$lib';
+import Image from '$lib/components/Image.svelte';
 import { modsByProvider, modsLoading, modsError, modsLimit, modsOffset, modsProvider } from '$lib/stores/mods';
 import { ProviderKind } from '$lib/runtimeTypes';
 import type { ModInfoKind, KableInstallation, ModJarInfo } from '$lib';
@@ -773,7 +774,14 @@ onMount(async () => {
           title={provider.description}
         >
         <!-- TODO: Change this to use the providers favicon -->
-          <Icon name={provider.id === ProviderKind.Modrinth ? 'download' : provider.id === ProviderKind.CurseForge ? 'flame' : 'package'} size="sm" forceType="svg" />
+          <!-- Use Image component so users can override icons via config/images/<key>.* or fall back to /img/<key>.png -->
+          {#if provider.id === ProviderKind.Modrinth}
+            <Image key="modrinth" alt="Modrinth" className="provider-icon" width="1.25rem" height="1.25rem" />
+          {:else if provider.id === ProviderKind.CurseForge}
+            <Image key="curseforge" alt="CurseForge" className="provider-icon" width="1.25rem" height="1.25rem" />
+          {:else}
+            <Icon name="package" size="sm" />
+          {/if}
           {provider.name}
           {#if !provider.available}
             <span class="coming-soon">(Soon)</span>

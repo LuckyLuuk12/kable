@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::PathBuf;
+use tokio::fs as async_fs;
 use tauri::command;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -38,7 +38,8 @@ async fn get_icons_dir() -> Result<PathBuf, String> {
 async fn ensure_icons_dir() -> Result<PathBuf, String> {
     let icons_dir = get_icons_dir().await?;
     if !icons_dir.exists() {
-        fs::create_dir_all(&icons_dir)
+        async_fs::create_dir_all(&icons_dir)
+            .await
             .map_err(|e| format!("Failed to create icons directory: {}", e))?;
     }
     Ok(icons_dir)
@@ -55,11 +56,11 @@ pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, Stri
     let mut templates = Vec::new();
 
     // Read all .json and .yml/.yaml files in the icons directory
-    let entries =
-        fs::read_dir(&icons_dir).map_err(|e| format!("Failed to read icons directory: {}", e))?;
+    let mut dir = async_fs::read_dir(&icons_dir)
+        .await
+        .map_err(|e| format!("Failed to read icons directory: {}", e))?;
 
-    for entry in entries {
-        let entry = entry.map_err(|e| format!("Failed to read directory entry: {}", e))?;
+    while let Ok(Some(entry)) = dir.next_entry().await {
         let path = entry.path();
 
         if !path.is_file() {
@@ -70,12 +71,12 @@ pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, Stri
 
         match extension {
             "json" => {
-                if let Ok(template) = load_json_template(&path) {
+                if let Ok(template) = load_json_template(&path).await {
                     templates.push(template);
                 }
             }
             "yml" | "yaml" => {
-                if let Ok(template) = load_yaml_template(&path) {
+                if let Ok(template) = load_yaml_template(&path).await {
                     templates.push(template);
                 }
             }
@@ -86,10 +87,11 @@ pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, Stri
     Ok(templates)
 }
 
-/// Load a JSON icon template
-fn load_json_template(path: &PathBuf) -> Result<CustomIconTemplate, String> {
-    let content =
-        fs::read_to_string(path).map_err(|e| format!("Failed to read template file: {}", e))?;
+/// Load a JSON icon template (async)
+async fn load_json_template(path: &PathBuf) -> Result<CustomIconTemplate, String> {
+    let content = async_fs::read_to_string(path)
+        .await
+        .map_err(|e| format!("Failed to read template file: {}", e))?;
 
     let template: CustomIconTemplate = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse JSON template: {}", e))?;
@@ -97,10 +99,11 @@ fn load_json_template(path: &PathBuf) -> Result<CustomIconTemplate, String> {
     Ok(template)
 }
 
-/// Load a YAML icon template
-fn load_yaml_template(path: &PathBuf) -> Result<CustomIconTemplate, String> {
-    let content =
-        fs::read_to_string(path).map_err(|e| format!("Failed to read template file: {}", e))?;
+/// Load a YAML icon template (async)
+async fn load_yaml_template(path: &PathBuf) -> Result<CustomIconTemplate, String> {
+    let content = async_fs::read_to_string(path)
+        .await
+        .map_err(|e| format!("Failed to read template file: {}", e))?;
 
     let template: CustomIconTemplate = serde_yaml::from_str(&content)
         .map_err(|e| format!("Failed to parse YAML template: {}", e))?;
@@ -117,7 +120,12 @@ pub async fn save_custom_icon_template(template: CustomIconTemplate) -> Result<S
     let json_content = serde_json::to_string_pretty(&template)
         .map_err(|e| format!("Failed to serialize template: {}", e))?;
 
-    fs::write(&file_path, json_content)
+    // Ensure parent and write atomically
+    crate::ensure_parent_dir_exists_async(&file_path)
+        .await
+        .map_err(|e| format!("Failed to ensure icons directory: {}", e))?;
+    crate::write_file_atomic_async(&file_path, json_content.as_bytes())
+        .await
         .map_err(|e| format!("Failed to write template file: {}", e))?;
 
     Ok(file_path.to_string_lossy().to_string())
@@ -135,7 +143,8 @@ pub async fn delete_custom_icon_template(template_name: String) -> Result<(), St
     for ext in &extensions {
         let file_path = icons_dir.join(format!("{}.{}", template_name, ext));
         if file_path.exists() {
-            fs::remove_file(&file_path)
+            tokio::fs::remove_file(&file_path)
+                .await
                 .map_err(|e| format!("Failed to delete template file: {}", e))?;
             found = true;
             break;

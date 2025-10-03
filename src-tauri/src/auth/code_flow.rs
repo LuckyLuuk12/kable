@@ -453,37 +453,97 @@ async fn exchange_auth_code_for_tokens(
         None,
     );
 
+    // Microsoft requires client_id in the request body for public clients using PKCE
+    // Try the oauth2 crate first, then fall back to manual implementation if needed
+    let auth_code_for_fallback = auth_code.clone();
+    let pkce_secret = pkce_verifier.secret().to_string();
+    
     let token_result = client
         .exchange_code(AuthorizationCode::new(auth_code))
         .set_pkce_verifier(pkce_verifier)
-        .add_extra_param("client_id", &client_id) // Explicitly add client_id for Microsoft
+        .add_extra_param("client_id", &client_id)
         .request_async(async_http_client)
-        .await
-        .map_err(|e| {
-            Logger::console_log(
-                LogLevel::Error,
-                &format!("❌ Token exchange failed: {}", e),
-                None,
-            );
-            Logger::console_log(
-                LogLevel::Error,
-                &format!(
-                    "❌ Client configuration - ID: {}, Redirect: {}",
-                    client_id, redirect_uri
-                ),
-                None,
-            );
-            format!("Failed to exchange authorization code: {}", e)
-        })?;
+        .await;
 
-    let encrypted_refresh_token = token_result
+    let final_token_result = match token_result {
+        Ok(result) => result,
+        Err(oauth_err) => {
+            Logger::console_log(
+                LogLevel::Warning,
+                &format!("⚠️ OAuth2 crate failed, trying manual request: {}", oauth_err),
+                None,
+            );
+            
+            // Fallback: Make the request manually using reqwest with exact Microsoft requirements
+            let http_client = reqwest::Client::new();
+            let form_params = [
+                ("grant_type", "authorization_code"),
+                ("client_id", &client_id),
+                ("code", &auth_code_for_fallback),
+                ("redirect_uri", &redirect_uri),
+                ("code_verifier", &pkce_secret),
+            ];
+            
+            let response = http_client
+                .post(MSA_TOKEN_URL)
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .form(&form_params)
+                .send()
+                .await
+                .map_err(|e| format!("Manual token request failed: {}", e))?;
+            
+            if !response.status().is_success() {
+                let status = response.status();
+                let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                Logger::console_log(
+                    LogLevel::Error,
+                    &format!("❌ Manual token request failed with status {}: {}", status, error_text),
+                    None,
+                );
+                return Err(format!("Manual token request failed: {}", error_text));
+            }
+            
+            let token_response: serde_json::Value = response.json().await
+                .map_err(|e| format!("Failed to parse token response: {}", e))?;
+            
+            Logger::console_log(
+                LogLevel::Info,
+                "✅ Manual token request succeeded",
+                None,
+            );
+            
+            // Extract token information and create Microsoft token directly
+            let access_token = token_response["access_token"].as_str()
+                .ok_or_else(|| "Missing access_token in response".to_string())?;
+            let expires_in = token_response["expires_in"].as_u64().unwrap_or(3600);
+            let refresh_token = token_response["refresh_token"].as_str();
+            
+            let expires_at = Utc::now() + chrono::Duration::seconds(expires_in as i64);
+            let encrypted_refresh_token = refresh_token
+                .map(|rt| encrypt_token(rt).unwrap_or_default());
+                
+            let microsoft_token = MicrosoftToken {
+                access_token: access_token.to_string(),
+                expires_at,
+                encrypted_refresh_token,
+            };
+            
+            Logger::console_log(LogLevel::Info, "✅ Microsoft access token obtained via manual request", None);
+            
+            // Skip the normal oauth2 processing and go directly to Minecraft auth
+            complete_minecraft_auth_code(microsoft_token).await?;
+            return Ok(());
+        }
+    };
+
+    let encrypted_refresh_token = final_token_result
         .refresh_token()
         .map(|rt| encrypt_token(rt.secret()).unwrap_or_default());
     let microsoft_token = MicrosoftToken {
-        access_token: token_result.access_token().secret().to_string(),
+        access_token: final_token_result.access_token().secret().to_string(),
         expires_at: Utc::now()
             + chrono::Duration::seconds(
-                token_result
+                final_token_result
                     .expires_in()
                     .map(|d| d.as_secs() as i64)
                     .unwrap_or(3600),

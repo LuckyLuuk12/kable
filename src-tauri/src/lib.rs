@@ -1,5 +1,11 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+// Tokio async fs helpers are used by async helpers below. These helpers
+// allow other modules to ensure parent directories and files exist without
+// blocking the executor. They return Result<T, String> for consistency with
+// other commands in this crate (see get_default_minecraft_dir etc.).
+use tokio::fs as async_fs;
 
 // Re-export procedural macros from the separate kable-macros crate
 // The actual macro implementations are in `../kable-macros/src/lib.rs`
@@ -40,18 +46,28 @@ pub use settings::*;
 pub use shaders::*;
 pub use skins::*;
 
+// !NOTE: READ THIS !!
+// !TODO: Add funny sounds for certain buttons and actions
+// !NOTE: READ THIS !!
+
 /// This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .setup(|app| {
+            // Initialize global logger with the app handle so modules that
+            // use GLOBAL_APP_HANDLE (e.g. launcher utils) can emit events.
+            crate::logging::init_global_logger(app.handle());
+            Ok(())
+        })
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
-            commands_auth::refresh_microsoft_token,
             get_default_minecraft_dir,
             validate_minecraft_directory,
             // Main authentication commands
+            commands_auth::refresh_microsoft_token,
             commands_auth::get_minecraft_account,
             commands_auth::get_launch_auth_account,
             commands_auth::refresh_minecraft_account,
@@ -75,7 +91,7 @@ pub fn run() {
             commands_auth::poll_microsoft_auth_code,
             // Settings commands
             settings::load_settings,
-            settings::save_settings,
+            settings::save_settings_command,
             settings::validate_minecraft_directory,
             settings::load_custom_css,
             settings::set_selected_css_theme,
@@ -97,6 +113,9 @@ pub fn run() {
             commands_installations::disable_mod,
             commands_installations::enable_mod,
             commands_installations::toggle_mod_disabled,
+            commands_installations::import,
+            commands_installations::export,
+            commands_installations::duplicate,
             // Launcher commands
             commands_launcher::launch_installation,
             commands_launcher::kill_minecraft_process,
@@ -139,6 +158,8 @@ pub fn run() {
             icons::validate_icon_template,
             icons::get_icons_directory_path,
             icons::open_icons_directory,
+            // Image helper
+            commands::images::resolve_image_path,
             // Logging commands
             logging::export_logs,
             logging::update_logging_config,
@@ -146,6 +167,7 @@ pub fn run() {
             logging::get_log_stats,
             // System commands
             commands_system::open_url,
+            commands_system::open_path,
             // Updater commands
             commands_updater::check_for_updates,
             commands_updater::install_update,
@@ -196,4 +218,106 @@ fn get_kable_launcher_dir() -> Result<PathBuf, String> {
         fs::create_dir_all(&launcher_dir).map_err(|e| e.to_string())?;
     }
     Ok(launcher_dir)
+}
+
+/// Ensure the parent directory for `path` exists (async). No-op if the
+/// path has no parent. Returns Err when directory creation fails.
+pub async fn ensure_parent_dir_exists_async(path: &Path) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        async_fs::create_dir_all(parent)
+            .await
+            .map_err(|e| format!("failed to create parent directories {}: {}", parent.display(), e))?;
+    }
+    Ok(())
+}
+
+/// Ensure a file exists at `path`. Creates parent directories and the file
+/// if necessary. Returns the provided PathBuf on success.
+pub async fn ensure_file(path: PathBuf) -> Result<PathBuf, String> {
+    ensure_parent_dir_exists_async(&path).await?;
+    // OpenOptions::new().create(true) will create the file if it does not exist
+    async_fs::OpenOptions::new()
+        .create(true).truncate(true)
+        .write(true)
+        .open(&path)
+        .await
+        .map_err(|e| format!("failed to create or open file {}: {}", path.display(), e))?;
+    Ok(path)
+}
+
+/// Ensure a file exists at `path` and, if the file does not already exist,
+/// write `contents` to it. Returns the provided PathBuf on success.
+pub async fn ensure_file_with(path: PathBuf, contents: &str) -> Result<PathBuf, String> {
+    match async_fs::metadata(&path).await {
+        Ok(md) => {
+            if md.is_file() {
+                return Ok(path);
+            }
+            // If it exists but is not a file, return an error.
+            Err(format!("path exists but is not a file: {}", path.display()))
+        }
+        Err(e) => {
+            // If error is NotFound, create parent dirs and write the file.
+            if e.kind() == std::io::ErrorKind::NotFound {
+                ensure_parent_dir_exists_async(&path).await?;
+                async_fs::write(&path, contents.as_bytes())
+                    .await
+                    .map_err(|e| format!("failed to write file {}: {}", path.display(), e))?;
+                return Ok(path);
+            }
+            Err(format!("failed to stat path {}: {}", path.display(), e))
+        }
+    }
+}
+
+/// Atomically write bytes to `path` by creating a temporary file in the same
+/// directory and renaming it into place. This avoids partial file writes.
+pub async fn write_file_atomic_async(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    // Ensure parent exists
+    ensure_parent_dir_exists_async(path).await?;
+
+    // Work with owned PathBufs so we can move them into the blocking task
+    let path_buf = path.to_path_buf();
+    let parent = path_buf
+        .parent()
+        .ok_or_else(|| format!("Path has no parent: {}", path_buf.display()))?
+        .to_path_buf();
+
+    // Create a temp filename in the same directory
+    let mut tmp = parent.clone();
+    let tmp_name = format!(".{}.tmp", uuid::Uuid::new_v4());
+    tmp.push(tmp_name);
+
+    // Write to temp file asynchronously
+    async_fs::write(&tmp, bytes)
+        .await
+        .map_err(|e| format!("failed to write temp file {}: {}", tmp.display(), e))?;
+
+    // Move owned PathBufs into the blocking task and rename
+    let tmp_move = tmp.clone();
+    let final_move = path_buf.clone();
+    tokio::task::spawn_blocking(move || std::fs::rename(&tmp_move, &final_move))
+        .await
+        .map_err(|e| format!("rename join error: {}", e))?
+        .map_err(|e| format!("failed to atomically rename into place: {}", e))?;
+
+    Ok(())
+}
+
+/// Synchronous variant of atomic write: writes bytes to a temp file in the same
+/// directory and renames it into place.
+pub fn write_file_atomic_sync(path: &Path, bytes: &[u8]) -> Result<(), String> {
+    // Ensure parent exists
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("failed to create parent dirs {}: {}", parent.display(), e))?;
+    }
+
+    let parent = path.parent().ok_or_else(|| format!("Path has no parent: {}", path.display()))?;
+    let mut tmp = parent.to_path_buf();
+    let tmp_name = format!(".{}.tmp", uuid::Uuid::new_v4());
+    tmp.push(tmp_name);
+
+    std::fs::write(&tmp, bytes).map_err(|e| format!("failed to write temp file {}: {}", tmp.display(), e))?;
+    std::fs::rename(&tmp, path).map_err(|e| format!("failed to rename temp file into place: {}", e))?;
+    Ok(())
 }

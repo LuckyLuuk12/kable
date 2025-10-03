@@ -329,10 +329,10 @@
       console.error('Failed to copy all logs:', err);
     }
     
-    // Hide notification after delay
+    // Hide notification after a slightly longer delay so users notice it
     setTimeout(() => {
       showCopyNotification = false;
-    }, 1000);
+    }, 3000);
   }
 
   $: sortedInstances = $gameInstances ? Array.from($gameInstances.values()).sort((a: GameInstance, b: GameInstance) => {
@@ -547,14 +547,8 @@
       on:scroll={handleScroll}
       class="log-container {showCopyNotification ? 'copy-notification-active' : ''}"
     >
-      {#if showCopyNotification}
-        <div class="copy-notification">
-          <div class="copy-notification-content">
-            <Icon name="clipboard" size="md" />
-            <span>Copied {filteredLogs.length} log entries</span>
-          </div>
-        </div>
-      {/if}
+      <!-- copy-notification moved out of the scrollable container so it is not clipped
+           and will show reliably for any active tab / sub-tab -->
       
       {#if filteredLogs.length === 0}
         <div class="empty-state">
@@ -611,6 +605,15 @@
         </div>
       {/if}
     </div>
+    <!-- Overlay copy notification placed over the visible log area -->
+    {#if showCopyNotification}
+      <div class="overlay-copy-notification" role="status" aria-live="polite">
+        <div class="overlay-copy-content">
+          <Icon name="clipboard" size="md" />
+          <span>Copied {filteredLogs.length} log entr{filteredLogs.length === 1 ? 'y' : 'ies'}</span>
+        </div>
+      </div>
+    {/if}
   </div>
 
   <!-- Status Bar -->
@@ -657,7 +660,6 @@
 </div>
 
 <style lang="scss">
-  @use '@kablan/clean-ui/scss/variables' as *;
 
   .logs-page {
     height: 100%;
@@ -1020,34 +1022,20 @@
         }
       }
       
-      .copy-notification {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-    background: color-mix(in srgb, var(--dark-100), 35%, transparent);
-        backdrop-filter: blur(4px);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        z-index: 1000;
-        animation: fadeInOut 1s ease-in-out;
-        
-          .copy-notification-content {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 2rem;
-          background: var(--card);
-          border: 1px solid color-mix(in srgb, var(--primary), 100%, transparent);
-          border-radius: var(--border-radius);
-          color: var(--primary);
-          font-weight: 600;
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-        }
-      }
+    .copy-notification {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: color-mix(in srgb, var(--dark-100), 35%, transparent);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeInOut 1s ease-in-out;
+    }
       
       @keyframes fadeInOut {
         0% { opacity: 0; transform: scale(0.9); }
@@ -1170,6 +1158,44 @@
         }
       }
     }
+  }
+
+  /* Full-bleed overlay that blurs the visible log area and centers a message */
+  .overlay-copy-notification {
+    position: absolute;
+    inset: 0; /* fill the log-content area */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none; /* don't block interactions with the rest of the UI */
+    z-index: 1500; /* above log content but below UI chrome */
+    animation: fadeInScale 0.12s ease-out;
+    /* translucent dark layer with blur to visually separate logs */
+    background: rgba(0,0,0,0.28);
+    backdrop-filter: blur(6px) saturate(1.05);
+  }
+
+  .overlay-copy-content {
+    pointer-events: auto; /* allow interaction only on the small content box if needed */
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+    color: var(--text-white);
+    border-radius: calc(var(--border-radius) * 0.7);
+    box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+    font-weight: 800;
+    border: 1px solid rgba(255,255,255,0.06);
+    transform-origin: center;
+    transform: translateY(0);
+    white-space: nowrap;
+    font-size: 1rem;
+  }
+
+  @keyframes fadeInScale {
+    from { opacity: 0; transform: scale(0.96); }
+    to { opacity: 1; transform: scale(1); }
   }
 
   .status-bar {

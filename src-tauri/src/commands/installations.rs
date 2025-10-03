@@ -71,3 +71,18 @@ pub async fn enable_mod(installation: KableInstallation, file_name: String) -> R
 pub async fn toggle_mod_disabled(installation: KableInstallation, file_name: String) -> Result<bool, String> {
     installation.toggle_mod_disabled(&file_name)
 }
+
+#[tauri::command]
+pub async fn import(path: String) -> Result<KableInstallation, String> {
+    KableInstallation::import(&path).await
+}
+
+#[tauri::command]
+pub async fn export(installation: KableInstallation) -> Result<String, String> {
+    installation.export().await
+}
+
+#[tauri::command]
+pub async fn duplicate(installation: KableInstallation) -> Result<Vec<KableInstallation>, String> {
+    installation.duplicate()
+}

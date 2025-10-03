@@ -7,8 +7,8 @@ use crate::logging::{LogLevel, Logger};
  */
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::fs;
 use std::path::PathBuf;
+use tokio::fs as async_fs;
 
 // ...existing code...
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -58,7 +58,7 @@ pub fn get_kable_accounts_path() -> Result<PathBuf, String> {
     let accounts_path = launcher_dir.join("kable_accounts.json");
     // If file does not exist, create it with an empty structure
     if !accounts_path.exists() {
-        // Ensure parent directory exists
+        // Ensure parent directory exists and atomically create the file (sync helper)
         if let Some(parent_dir) = accounts_path.parent() {
             std::fs::create_dir_all(parent_dir)
                 .map_err(|e| format!("Failed to create Kable launcher directory: {}", e))?;
@@ -69,12 +69,9 @@ pub fn get_kable_accounts_path() -> Result<PathBuf, String> {
             "active_account_local_id": "",
             "mojang_client_token": ""
         });
-        std::fs::write(
-            &accounts_path,
-            serde_json::to_string_pretty(&empty)
-                .map_err(|e| format!("Failed to serialize empty accounts: {}", e))?,
-        )
-        .map_err(|e| format!("Failed to create kable_accounts.json: {}", e))?;
+        let content = serde_json::to_string_pretty(&empty)
+            .map_err(|e| format!("Failed to serialize empty accounts: {}", e))?;
+        crate::write_file_atomic_sync(&accounts_path, content.as_bytes())?;
     }
     Ok(accounts_path)
 }
@@ -105,7 +102,8 @@ pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
             mojang_client_token: String::new(),
         });
     }
-    let content = fs::read_to_string(&accounts_path)
+    let content = async_fs::read_to_string(&accounts_path)
+        .await
         .map_err(|e| format!("Failed to read kable_accounts.json: {}", e))?;
     let mut accounts: LauncherAccountsJson = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse kable_accounts.json: {}", e))?;
@@ -141,11 +139,6 @@ pub async fn write_launcher_accounts(mut accounts: LauncherAccountsJson) -> Resu
     Logger::console_log(LogLevel::Info, "💾 Writing Kable accounts to file...", None);
     let accounts_path = get_kable_accounts_path()
         .map_err(|e| format!("Failed to get Kable accounts path: {}", e))?;
-    // Ensure the parent directory exists
-    if let Some(parent_dir) = accounts_path.parent() {
-        fs::create_dir_all(parent_dir)
-            .map_err(|e| format!("Failed to create Kable directory: {}", e))?;
-    }
     // Encrypt access tokens before writing
     for account in accounts.accounts.values_mut() {
         if !account.access_token.is_empty() {
@@ -167,7 +160,13 @@ pub async fn write_launcher_accounts(mut accounts: LauncherAccountsJson) -> Resu
     }
     let content = serde_json::to_string_pretty(&accounts)
         .map_err(|e| format!("Failed to serialize Kable accounts: {}", e))?;
-    fs::write(&accounts_path, content)
+    if let Some(parent_dir) = accounts_path.parent() {
+        crate::ensure_parent_dir_exists_async(parent_dir)
+            .await
+            .map_err(|e| format!("Failed to create Kable directory: {}", e))?;
+    }
+    crate::write_file_atomic_async(&accounts_path, content.as_bytes())
+        .await
         .map_err(|e| format!("Failed to write kable_accounts.json: {}", e))?;
     Logger::console_log(
         LogLevel::Info,

@@ -685,6 +685,7 @@ export interface KableInstallation {
   created: string;
   last_used: string;
   java_args: string[];
+  dedicated_mods_folder?: string | null;
   dedicated_resource_pack_folder?: string | null;
   dedicated_shaders_folder?: string | null;
   favorite: boolean;

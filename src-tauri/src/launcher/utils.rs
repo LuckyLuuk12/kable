@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
+use tokio::fs as async_fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tauri::Emitter;
@@ -11,7 +12,9 @@ use tokio::io::BufReader;
 
 /// Loads a Minecraft version manifest, recursively merging inherited manifests if needed.
 /// Returns the fully merged manifest as serde_json::Value.
-pub fn load_and_merge_manifest_with_instance(
+// Synchronous helper to load and merge manifests. This avoids recursive async functions
+// by doing the recursion in a blocking context.
+fn load_and_merge_manifest_sync(
     minecraft_dir: &str,
     version_id: &str,
     instance_id: Option<&str>,
@@ -44,16 +47,33 @@ pub fn load_and_merge_manifest_with_instance(
             ),
             instance_id,
         );
-        let parent = load_and_merge_manifest_with_instance(minecraft_dir, parent_id, instance_id)?;
+        let parent = load_and_merge_manifest_sync(minecraft_dir, parent_id, instance_id)?;
         manifest = merge_manifests_with_instance(parent, manifest, instance_id);
     }
     Logger::debug_global(&format!("Loaded and merged manifest for version_id: {}", version_id), instance_id);
     Ok(manifest)
 }
 
+pub async fn load_and_merge_manifest_with_instance(
+    minecraft_dir: &str,
+    version_id: &str,
+    instance_id: Option<&str>,
+) -> Result<Value, String> {
+    // Move to a blocking thread to perform recursive file IO and parsing
+    let md = minecraft_dir.to_string();
+    let vid = version_id.to_string();
+    let iid = instance_id.map(|s| s.to_string());
+    
+    tokio::task::spawn_blocking(move || {
+        load_and_merge_manifest_sync(&md, &vid, iid.as_deref())
+    })
+    .await
+    .map_err(|e| format!("Manifest load join error: {}", e))?
+}
+
 // Backwards compatible version for callers that don't have instance_id
-pub fn load_and_merge_manifest(minecraft_dir: &str, version_id: &str) -> Result<Value, String> {
-    load_and_merge_manifest_with_instance(minecraft_dir, version_id, None)
+pub async fn load_and_merge_manifest(minecraft_dir: &str, version_id: &str) -> Result<Value, String> {
+    load_and_merge_manifest_with_instance(minecraft_dir, version_id, None).await
 }
 
 /// Merges two manifests (parent, child), with child values taking precedence.
@@ -536,12 +556,13 @@ pub async fn ensure_version_manifest_and_jar(
     minecraft_dir: &str,
 ) -> Result<(), String> {
     use reqwest::Client;
-    use std::fs;
     use std::path::PathBuf;
     let versions_dir = PathBuf::from(minecraft_dir)
         .join("versions")
         .join(version_id);
-    fs::create_dir_all(&versions_dir).map_err(|e| format!("Failed to create versions dir: {e}"))?;
+    async_fs::create_dir_all(&versions_dir)
+        .await
+        .map_err(|e| format!("Failed to create versions dir: {e}"))?;
     let manifest_path = versions_dir.join(format!("{}.json", version_id));
     let jar_path = versions_dir.join(format!("{}.jar", version_id));
     // Download manifest JSON if missing
@@ -579,12 +600,15 @@ pub async fn ensure_version_manifest_and_jar(
             .text()
             .await
             .map_err(|e| format!("Failed to get manifest text: {e}"))?;
-        fs::write(&manifest_path, manifest_str)
+        crate::ensure_parent_dir_exists_async(&manifest_path).await?;
+        crate::write_file_atomic_async(&manifest_path, manifest_str.as_bytes())
+            .await
             .map_err(|e| format!("Failed to write manifest: {e}"))?;
     }
     // Download JAR if missing
     if !jar_path.exists() {
-        let manifest_str = fs::read_to_string(&manifest_path)
+        let manifest_str = async_fs::read_to_string(&manifest_path)
+            .await
             .map_err(|e| format!("Failed to read manifest: {e}"))?;
         let manifest: serde_json::Value = serde_json::from_str(&manifest_str)
             .map_err(|e| format!("Failed to parse manifest: {e}"))?;
@@ -607,7 +631,10 @@ pub async fn ensure_version_manifest_and_jar(
                 .bytes()
                 .await
                 .map_err(|e| format!("Failed to get jar bytes: {e}"))?;
-            fs::write(&jar_path, &bytes).map_err(|e| format!("Failed to write jar: {e}"))?;
+            crate::ensure_parent_dir_exists_async(&jar_path).await?;
+            crate::write_file_atomic_async(&jar_path, &bytes)
+                .await
+                .map_err(|e| format!("Failed to write jar: {e}"))?;
         } else {
             return Err("No client jar info in manifest".to_string());
         }
@@ -621,7 +648,6 @@ pub async fn ensure_libraries(
     libraries_path: &std::path::Path,
 ) -> Result<(), String> {
     use reqwest::Client;
-    use std::fs;
     let client = Client::new();
     if let Some(libs) = manifest.get("libraries").and_then(|v| v.as_array()) {
         for lib in libs {
@@ -634,8 +660,7 @@ pub async fn ensure_libraries(
                         let jar_path = libraries_path.join(path);
                         if !jar_path.exists() {
                             if !jar_path.parent().unwrap().exists() {
-                                fs::create_dir_all(jar_path.parent().unwrap())
-                                    .map_err(|e| format!("Failed to create lib dir: {e}"))?;
+                    crate::ensure_parent_dir_exists_async(jar_path.parent().unwrap()).await?;
                             }
                             let resp = client
                                 .get(url)
@@ -646,7 +671,8 @@ pub async fn ensure_libraries(
                                 .bytes()
                                 .await
                                 .map_err(|e| format!("Failed to get lib bytes: {e}"))?;
-                            fs::write(&jar_path, &bytes)
+                            crate::write_file_atomic_async(&jar_path, &bytes)
+                                .await
                                 .map_err(|e| format!("Failed to write lib: {e}"))?;
                         }
                     }
@@ -847,7 +873,7 @@ pub fn build_variable_map(
     variables.insert(
         "user_type".to_string(),
         if has_valid_token {
-            "microsoft"
+            "Xbox"
         } else {
             "offline"
         }
@@ -953,16 +979,15 @@ pub async fn spawn_and_log_process(
     }
 
     // --- Emit game-launched event FIRST (before any instance-aware utils are called) ---
-    let app = get_app_handle();
+    let app_handle = get_app_handle();
     let mut patched_profile = profile.clone();
     if let Some(install_name) = installation.get("name") {
         patched_profile["name"] = install_name.clone();
     } else if let Some(id) = profile.get("id") {
         patched_profile["name"] = id.clone();
     }
-    if let Some(ref app) = app {
-        let _ = app.emit_to(
-            "main",
+    if let Some(ref app) = app_handle {
+        let _ = app.emit(
             "game-launched",
             json!({
                 "instanceId": instance_id,
@@ -976,6 +1001,12 @@ pub async fn spawn_and_log_process(
     let mut tokio_cmd = TokioCommand::new(cmd.get_program());
     tokio_cmd.args(cmd.get_args());
     tokio_cmd.current_dir(working_dir);
+    // On Windows, set creation flags to hide the spawned console window
+    #[cfg(target_os = "windows")]
+    {
+        // CREATE_NO_WINDOW = 0x08000000
+        tokio_cmd.creation_flags(0x08000000);
+    }
     tokio_cmd.stdout(Stdio::piped());
     tokio_cmd.stderr(Stdio::piped());
     let mut child = tokio_cmd
@@ -984,9 +1015,8 @@ pub async fn spawn_and_log_process(
     let pid = child.id().unwrap_or(0);
 
     // Emit process started event
-    if let Some(ref app) = app {
-        let _ = app.emit_to(
-            "main",
+    if let Some(ref app) = app_handle {
+        let _ = app.emit(
             "game-process-event",
             json!({
                 "instanceId": instance_id,
@@ -995,7 +1025,7 @@ pub async fn spawn_and_log_process(
             }),
         );
     }
-    if let Some(ref app) = app {
+    if let Some(ref app) = app_handle {
         Logger::log(
             app,
             LogLevel::Info,
@@ -1048,8 +1078,7 @@ pub async fn spawn_and_log_process(
                 }
                 let _ = sender.send(line.clone());
                 if let Some(ref app) = app {
-                    let _ = app.emit_to(
-                        "main",
+                    let _ = app.emit(
                         "game-process-event",
                         json!({
                             "instanceId": &instance_id,
@@ -1078,8 +1107,7 @@ pub async fn spawn_and_log_process(
                 }
                 let _ = sender.send(line.clone());
                 if let Some(ref app) = app {
-                    let _ = app.emit_to(
-                        "main",
+                    let _ = app.emit(
                         "game-process-event",
                         json!({
                             "instanceId": &instance_id,
@@ -1102,7 +1130,7 @@ pub async fn spawn_and_log_process(
                 Some(line) = stdout_receiver.recv(), if !emitted => {
                     if line == "__emit_show_logs_page__" {
                         if let Some(app) = &app_for_show {
-                            let _ = app.emit_to("main", "show-logs-page", serde_json::json!({
+                            let _ = app.emit("show-logs-page", serde_json::json!({
                                 "instanceId": instance_id_for_show,
                                 "installationId": instance_id_for_show,
                                 "reason": "launch"
@@ -1114,7 +1142,7 @@ pub async fn spawn_and_log_process(
                 Some(line) = stderr_receiver.recv(), if !emitted => {
                     if line == "__emit_show_logs_page__" {
                         if let Some(app) = &app_for_show {
-                            let _ = app.emit_to("main", "show-logs-page", serde_json::json!({
+                            let _ = app.emit("show-logs-page", serde_json::json!({
                                 "instanceId": instance_id_for_show,
                                 "installationId": instance_id_for_show,
                                 "reason": "launch"

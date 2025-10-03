@@ -7,6 +7,7 @@ use tokio::task;
 #[serde(rename_all = "camelCase")]
 pub struct LauncherProfile {
     pub created: Option<String>,
+    pub game_dir: Option<String>,
     pub icon: Option<String>,
     pub java_args: Option<String>,
     pub last_used: Option<String>,

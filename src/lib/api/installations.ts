@@ -54,3 +54,19 @@ export async function enableMod(installation: KableInstallation, fileName: strin
 export async function toggleModDisabled(installation: KableInstallation, fileName: string): Promise<boolean> {
   return await invoke('toggle_mod_disabled', { installation, file_name: fileName, fileName });
 }
+
+// Import an installation from a path
+export async function importInstallation(path: string): Promise<KableInstallation> {
+  return await invoke('import', { path });
+}
+
+// Export an installation as a string (serialized)
+export async function exportInstallation(installation: KableInstallation): Promise<string> {
+  return await invoke('export', { installation });
+}
+
+// Duplicate an installation and return the new list of installations
+export async function duplicateInstallation(installation: KableInstallation): Promise<KableInstallation[]> {
+  return await invoke('duplicate', { installation });
+}
+

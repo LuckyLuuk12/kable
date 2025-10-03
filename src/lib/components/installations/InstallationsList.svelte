@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Icon, InstallationService, installations, isLoadingInstallations, isLoadingVersions, Launcher } from '$lib';
-  import { onMount, onDestroy } from 'svelte';
+  import EditInstallationModal from './EditInstallationModal.svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   
   export let isGrid: boolean = false;
   export let isSmall: boolean = false;
@@ -39,6 +40,19 @@
   // Dynamic action display logic
   let useDropdownForActions: { [key: string]: boolean } = {};
   let resizeObserver: ResizeObserver | null = null;
+
+  // Modal control: selected installation and modal open flag
+  let selectedInstallation: any = null; // KableInstallation | null
+  let editModalOpen: boolean = false;
+  // Reactive aliases (exposed as $: variables)
+  $: currentSelected = selectedInstallation;
+  $: isEditOpen = editModalOpen;
+
+  // Clear selected installation once the modal is closed to fully unmount it
+  $: if (!editModalOpen) {
+    // slight delay so we don't clear immediately while closing animation might run
+    selectedInstallation = selectedInstallation && null;
+  }
 
   function checkActionsFit() {
     if (isGrid) return; // Only applies to list view
@@ -144,6 +158,10 @@
 
 </script>
 
+<!-- Global edit modal bound to the selected installation -->
+<EditInstallationModal bind:isOpen={editModalOpen} installation={selectedInstallation} />
+
+
 <div class="installations-list" class:compact={isSmall && !isGrid}>
   {#if error}
     <div class="error-message">
@@ -151,6 +169,35 @@
       {error}
     </div>
   {/if}
+
+    <style>
+      /* Constrain installation-provided icons to the same visual area as the built-in icons */
+      .installation-img {
+        width: 48px;
+        height: 48px;
+        max-width: 48px;
+        max-height: 48px;
+        object-fit: contain;
+        border-radius: 8px;
+        display: block;
+      }
+
+      /* Slightly smaller for list view where icons are more compact */
+      .installation-img.list-img {
+        width: 32px;
+        height: 32px;
+        max-width: 32px;
+        max-height: 32px;
+        border-radius: 6px;
+      }
+
+      /* Ensure the wrapper keeps consistent alignment with icon tooltip */
+      .installation-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    </style>
 
   {#if isLoading && limitedInstallations.length === 0}
     <div class="loading-state">
@@ -162,15 +209,15 @@
       <div class="empty-icon">
         <Icon name="cube" size="xl" />
       </div>
-      <h3>No installations found</h3>
-      <p>Create your first Minecraft installation to get started</p>
-    </div>
-  {:else}
-    <div class={isGrid ? 'installations-grid' : 'installations-flex'}>
-      {#each limitedInstallations as installation, i (installation.id)}
-        {#if isGrid}
-          <!-- Grid Layout - existing card design -->
-          <div class={isSmall ? 'installation-card small' : 'installation-card'} style="background: linear-gradient(135deg, {loaderColors[installation.id]}22 0%, {loaderColors[installation.id]}08 40%); --loader-color: {loaderColors[installation.id]}55; z-index: {(limitedInstallations.length - i) * 2}; position: relative;">
+        <h3>No installations found</h3>
+        <p>Create your first Minecraft installation to get started</p>
+      </div>
+    {:else}
+      <div class={isGrid ? 'installations-grid' : 'installations-flex'}>
+        {#each limitedInstallations as installation, i (installation.id)}
+          {#if isGrid}
+            <!-- Grid Layout - existing card design -->
+            <div class={isSmall ? 'installation-card small' : 'installation-card'} style="background: linear-gradient(135deg, {loaderColors[installation.id]}22 0%, {loaderColors[installation.id]}08 40%); --loader-color: {loaderColors[installation.id]}55; z-index: {(limitedInstallations.length - i) * 2}; position: relative;">
             <div class="card-top-actions">
               <button class="star-btn" title={installation.favorite ? "Unfavorite" : "Favorite"} on:click={async (e) => { e.stopPropagation(); await InstallationService.toggleFavorite(installation); }}>
                 <Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="md" />
@@ -181,7 +228,7 @@
                     <Icon name="more-horizontal" size="sm" />
                   </button>
                   <div class="dropdown-menu" style="z-index: {(limitedInstallations.length - i) * 2 - 1};">
-                    <button on:click={async () => await InstallationService.updateInstallation(installation.id, installation)}>
+                    <button on:click={async () => { selectedInstallation = installation; await tick(); editModalOpen = true; }}>
                       <Icon name="edit" size="sm" />
                       Edit
                     </button>
@@ -189,7 +236,7 @@
                       <Icon name="duplicate" size="sm" />
                       Duplicate
                     </button>
-                    <button on:click={async () => {/* TODO: implement export logic */}}>
+                    <button on:click={async () => { await InstallationService.exportInstallation(installation); }}>
                       <Icon name="download" size="sm" />
                       Export
                     </button>
@@ -208,7 +255,16 @@
             <div class="installation-main">
               <div class="installation-icon-column">
                 <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColors[installation.id]}; background: rgba(0,0,0,0.0);">
-                  <Icon name={loaderIcons[installation.id]} size="lg" />
+                  {#if installation.icon}
+                    {#if typeof installation.icon === 'string' && (installation.icon.startsWith('data:') || installation.icon.startsWith('http') || installation.icon.startsWith('file:') || installation.icon.startsWith('/'))}
+                      <img src={installation.icon} alt="installation icon" class="installation-img" />
+                    {:else}
+                      <!-- For short installation.icon names, prefer the loader-specific icon instead -->
+                      <Icon name={loaderIcons[installation.id]} size="lg" />
+                    {/if}
+                  {:else}
+                    <Icon name={loaderIcons[installation.id]} size="lg" />
+                  {/if}
                   <span class="icon-tooltip">{InstallationService.getVersionData(installation).loader}</span>
                 </div>
                 <button 
@@ -257,7 +313,7 @@
 
             {#if !isSmall}
               <div class="installation-actions">
-                <button class="btn btn-secondary" on:click={async () => await InstallationService.updateInstallation(installation.id, installation)}>
+                <button class="btn btn-secondary" on:click={async () => { selectedInstallation = installation; await tick(); editModalOpen = true; }}>
                   <Icon name="edit" size="sm" />
                   Edit
                 </button>
@@ -265,7 +321,7 @@
                   <Icon name="duplicate" size="sm" />
                   Duplicate
                 </button>
-                <button class="btn btn-secondary" on:click={async () => {/* TODO: implement export logic */}}>
+                <button class="btn btn-secondary" on:click={async () => { await InstallationService.exportInstallation(installation); }}>
                   <Icon name="download" size="sm" />
                   Export
                 </button>
@@ -283,7 +339,15 @@
               <!-- Icon and Play Button -->
               <div class="list-item-icon-section">
                 <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColors[installation.id]};">
-                  <Icon name={loaderIcons[installation.id]} size="md" />
+                  {#if installation.icon}
+                    {#if typeof installation.icon === 'string' && (installation.icon.startsWith('data:') || installation.icon.startsWith('http') || installation.icon.startsWith('file:') || installation.icon.startsWith('/'))}
+                      <img src={installation.icon} alt="installation icon" class="installation-img list-img" />
+                    {:else}
+                      <Icon name={installation.icon} size="md" />
+                    {/if}
+                  {:else}
+                    <Icon name={loaderIcons[installation.id]} size="md" />
+                  {/if}
                   <span class="icon-tooltip">{InstallationService.getVersionData(installation).loader}</span>
                 </div>
                 <button 
@@ -308,7 +372,7 @@
                     
                     <!-- Inline Actions (shown when they fit) -->
                     <div class="list-inline-actions" class:hidden={useDropdownForActions[installation.id]}>
-                      <button class="list-action-btn" on:click={async () => await InstallationService.updateInstallation(installation.id, installation)}>
+                      <button class="list-action-btn" on:click={async () => { selectedInstallation = installation; await tick(); editModalOpen = true; }}>
                         <Icon name="edit" size="sm" />
                         Edit
                       </button>
@@ -332,7 +396,7 @@
                         <Icon name="more-horizontal" size="sm" />
                       </button>
                       <div class="dropdown-menu">
-                        <button on:click={async () => await InstallationService.updateInstallation(installation.id, installation)}>
+                        <button on:click={async () => { selectedInstallation = installation; await tick(); editModalOpen = true; }}>
                           <Icon name="edit" size="sm" />
                           Edit
                         </button>
@@ -1255,3 +1319,5 @@
     }
   }
 </style>
+
+
