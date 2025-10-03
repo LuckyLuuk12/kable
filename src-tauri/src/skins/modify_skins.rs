@@ -9,6 +9,7 @@ use reqwest;
 use serde_json;
 use std::collections::HashMap;
 use std::fs;
+use tokio::fs as async_fs;
 use tauri_plugin_dialog::DialogExt;
 
 /// Modify a skin entry by its id in launcher_custom_skins.json
@@ -22,7 +23,7 @@ pub fn modify_skin_by_id(
     let minecraft_dir = crate::get_default_minecraft_dir()?;
     let skins_path = minecraft_dir.join("launcher_custom_skins.json");
 
-    // Read or create CustomSkinsRoot
+    // Read or create CustomSkinsRoot (sync)
     let mut root: CustomSkinsRoot = if skins_path.exists() {
         match fs::read_to_string(&skins_path) {
             Ok(data) => serde_json::from_str(&data).unwrap_or(CustomSkinsRoot {
@@ -40,11 +41,11 @@ pub fn modify_skin_by_id(
             custom_skins: HashMap::new(),
             version: Some(1),
         };
-        let _ = fs::write(
-            &skins_path,
-            serde_json::to_string_pretty(&empty)
-                .map_err(|e| format!("Serialization error: {}", e))?,
-        );
+        let json = serde_json::to_string_pretty(&empty).map_err(|e| format!("Serialization error: {}", e))?;
+        if let Some(parent) = skins_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
+        }
+        crate::write_file_atomic_sync(&skins_path, json.as_bytes())?;
         empty
     };
 
@@ -74,12 +75,12 @@ pub fn modify_skin_by_id(
     });
     root.custom_skins = sorted.into_iter().collect();
 
-    // Write back to file
-    fs::write(
-        &skins_path,
-        serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?,
-    )
-    .map_err(|e| format!("Failed to write skin file: {}", e))?;
+    // Write back to file (sync atomic)
+    let json = serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?;
+    if let Some(parent) = skins_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
+    }
+    crate::write_file_atomic_sync(&skins_path, json.as_bytes())?;
 
     Logger::console_log(
         LogLevel::Info,
@@ -95,7 +96,7 @@ pub fn remove_skin_by_id(skin_id: &str) -> Result<(), String> {
     let minecraft_dir = crate::get_default_minecraft_dir()?;
     let skins_path = minecraft_dir.join("launcher_custom_skins.json");
 
-    // Read or create CustomSkinsRoot
+    // Read or create CustomSkinsRoot (sync)
     let mut root: CustomSkinsRoot = if skins_path.exists() {
         match fs::read_to_string(&skins_path) {
             Ok(data) => serde_json::from_str(&data).unwrap_or(CustomSkinsRoot {
@@ -113,11 +114,11 @@ pub fn remove_skin_by_id(skin_id: &str) -> Result<(), String> {
             custom_skins: HashMap::new(),
             version: Some(1),
         };
-        let _ = fs::write(
-            &skins_path,
-            serde_json::to_string_pretty(&empty)
-                .map_err(|e| format!("Serialization error: {}", e))?,
-        );
+        let json = serde_json::to_string_pretty(&empty).map_err(|e| format!("Serialization error: {}", e))?;
+        if let Some(parent) = skins_path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
+        }
+        crate::write_file_atomic_sync(&skins_path, json.as_bytes())?;
         empty
     };
 
@@ -136,12 +137,12 @@ pub fn remove_skin_by_id(skin_id: &str) -> Result<(), String> {
     });
     root.custom_skins = sorted.into_iter().collect();
 
-    // Write back to file
-    fs::write(
-        &skins_path,
-        serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?,
-    )
-    .map_err(|e| format!("Failed to write skin file: {}", e))?;
+    // Write back to file (sync) — use sync atomic helper since this function is synchronous
+    let json = serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?;
+    if let Some(parent) = skins_path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
+    }
+    crate::write_file_atomic_sync(&skins_path, json.as_bytes())?;
 
     Logger::console_log(
         LogLevel::Info,
@@ -164,9 +165,10 @@ pub async fn upload_skin_to_account(
         None,
     );
 
-    // Read the skin file
-    let skin_data =
-        fs::read(&config.file_path).map_err(|e| format!("Failed to read skin file: {}", e))?;
+    // Read the skin file (async)
+    let skin_data = tokio::fs::read(&config.file_path)
+        .await
+        .map_err(|e| format!("Failed to read skin file: {}", e))?;
 
     // Validate it's a PNG file
     if !is_valid_skin_file(&skin_data) {
@@ -177,9 +179,9 @@ pub async fn upload_skin_to_account(
     let minecraft_dir = crate::get_default_minecraft_dir()?;
     let skins_path = minecraft_dir.join("launcher_custom_skins.json");
 
-    // Read or create CustomSkinsRoot
+    // Read or create CustomSkinsRoot (async)
     let mut root: CustomSkinsRoot = if skins_path.exists() {
-        match fs::read_to_string(&skins_path) {
+        match async_fs::read_to_string(&skins_path).await {
             Ok(data) => serde_json::from_str(&data).unwrap_or(CustomSkinsRoot {
                 custom_skins: HashMap::new(),
                 version: Some(1),
@@ -246,12 +248,12 @@ pub async fn upload_skin_to_account(
     });
     root.custom_skins = sorted.into_iter().collect();
 
-    // Write back to file
-    fs::write(
-        &skins_path,
-        serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?,
-    )
-    .map_err(|e| format!("Failed to write skin file: {}", e))?;
+    // Write back to file (async)
+    let json = serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?;
+    crate::ensure_parent_dir_exists_async(&skins_path).await?;
+    crate::write_file_atomic_async(&skins_path, json.as_bytes())
+        .await
+        .map_err(|e| format!("Failed to write skin file: {}", e))?;
 
     Logger::console_log(
         LogLevel::Info,

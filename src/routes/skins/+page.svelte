@@ -38,7 +38,6 @@
 </div>
 
 <style lang="scss">
-    @use "@kablan/clean-ui/scss/_variables.scss" as *;
     
     .skins-page {
         max-width: 100vw;

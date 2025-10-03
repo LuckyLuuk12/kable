@@ -112,7 +112,6 @@
 </div>
 
 <style lang="scss">
-  @use '@kablan/clean-ui/scss/variables' as *;
 
   .profile-page {
     width: 100%;

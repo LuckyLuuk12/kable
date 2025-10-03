@@ -416,8 +416,9 @@ impl ModProvider for CurseForgeProvider {
             mc_dir.join("mods").join(&installation.version_id)
         };
 
-        // Ensure the mods directory exists
-        std::fs::create_dir_all(&mods_dir)
+        // Ensure the mods directory exists (async)
+        crate::ensure_parent_dir_exists_async(&mods_dir)
+            .await
             .map_err(|e| format!("Failed to create mods directory: {}", e))?;
 
         let mod_id_u32: u32 = mod_id
@@ -670,9 +671,9 @@ pub async fn download_mod_file(url: &str, save_path: &std::path::Path) -> Result
         .await
         .map_err(|e| format!("CurseForge download bytes failed: {}", e))?;
     if let Some(parent) = save_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create mod dir: {}", e))?;
+        crate::ensure_parent_dir_exists_async(parent).await?;
     }
-    std::fs::write(save_path, &bytes).map_err(|e| format!("Failed to write mod file: {}", e))?;
+    crate::write_file_atomic_async(save_path, &bytes).await?;
     Ok(())
 }
 

@@ -6,7 +6,9 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{sync_channel, SyncSender, TrySendError};
 use tauri::{AppHandle, Emitter};
+use tokio::fs as async_fs;
 
 // Global app handle for logging from anywhere
 /// !NOTE: it should be initialized in the main function of your Tauri app at startup and accessed via the mutex
@@ -52,6 +54,15 @@ impl Default for LogConfig {
 /// Log storage management
 pub struct LogStorage {
     config: LogConfig,
+    sender: SyncSender<LogMessage>,
+}
+
+#[derive(Debug, Clone)]
+struct LogMessage {
+    level: LogLevel,
+    message: String,
+    instance_id: Option<String>,
+    timestamp: DateTime<Utc>,
 }
 
 impl LogStorage {
@@ -84,7 +95,67 @@ impl LogStorage {
             logs_dir,
         };
 
-        Ok(Self { config })
+        // Create a bounded sync channel for log messages and spawn a background thread
+        let (tx, rx) = sync_channel::<LogMessage>(1024);
+        let config_clone = config.clone();
+        std::thread::spawn(move || {
+            // Background thread: consume messages and perform synchronous IO (compression allowed)
+            for msg in rx.iter() {
+                // determine log path
+                let filename = format!("{}-{}.log",
+                    if msg.instance_id.is_some() { "installations" } else { "launcher" },
+                    msg.timestamp.format("%Y-%m-%d")
+                );
+                let log_path = if let Some(ref id) = msg.instance_id {
+                    config_clone
+                        .logs_dir
+                        .join("installations")
+                        .join(id)
+                        .join(&filename)
+                } else {
+                    config_clone.logs_dir.join("launcher").join(&filename)
+                };
+
+                // Ensure dir
+                if let Some(parent) = log_path.parent() {
+                    let _ = std::fs::create_dir_all(parent);
+                }
+
+                // Check for compression
+                if log_path.exists() {
+                    if let Ok(metadata) = std::fs::metadata(&log_path) {
+                        if metadata.len() > (config_clone.size_limit_mb * 1024 * 1024) {
+                            // compress
+                            let _ = (|| -> Result<(), Box<dyn std::error::Error>> {
+                                if !config_clone.enable_compression { return Ok(()); }
+                                let compressed_path = log_path.with_extension("log.7z");
+                                let file_content = std::fs::read(&log_path)?;
+                                let mut archive_file = File::create(&compressed_path)?;
+                                let mut encoder = sevenz_rust::SevenZWriter::new(&mut archive_file)?;
+                                let filename = log_path.file_name().and_then(|n| n.to_str()).unwrap_or("log.txt");
+                                encoder.push_archive_entry(
+                                    sevenz_rust::SevenZArchiveEntry::from_path(filename, filename.to_string()),
+                                    Some(std::io::Cursor::new(file_content)),
+                                )?;
+                                encoder.finish()?;
+                                let _ = std::fs::remove_file(&log_path);
+                                Ok(())
+                            })();
+                        }
+                    }
+                }
+
+                // Append the log line
+                let timestamp = msg.timestamp.format("%Y-%m-%d %H:%M:%S%.3f UTC");
+                let log_line = format!("[{}] {} {}\n", timestamp, msg.level.to_string().to_uppercase(), msg.message);
+                if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
+                    let _ = file.write_all(log_line.as_bytes());
+                    let _ = file.flush();
+                }
+            }
+        });
+
+        Ok(Self { config, sender: tx })
     }
 
     /// Get Minecraft path from app settings or default location
@@ -129,54 +200,46 @@ impl LogStorage {
             return Ok(());
         }
 
-        let timestamp = Utc::now();
-        let log_line = format!(
-            "[{}] {} {}\n",
-            timestamp.format("%Y-%m-%d %H:%M:%S%.3f UTC"),
-            level.to_string().to_uppercase(),
-            message
-        );
-
-        let log_type = if instance_id.is_some() {
-            "installations"
-        } else {
-            "launcher"
-        };
-        let filename = format!("{}-{}.log", log_type, timestamp.format("%Y-%m-%d"));
-
-        let log_path = if let Some(instance_id) = instance_id {
-            self.config
-                .logs_dir
-                .join("installations")
-                .join(instance_id)
-                .join(&filename)
-        } else {
-            self.config.logs_dir.join("launcher").join(&filename)
+        let msg = LogMessage {
+            level: level.clone(),
+            message: message.to_string(),
+            instance_id: instance_id.map(|s| s.to_string()),
+            timestamp: Utc::now(),
         };
 
-        // Ensure directory exists
-        if let Some(parent) = log_path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-
-        // Check if file needs compression before writing
-        if log_path.exists() {
-            let file_size = fs::metadata(&log_path)?.len();
-            if file_size > (self.config.size_limit_mb * 1024 * 1024) {
-                self.compress_log_file(&log_path)?;
+        // Try to enqueue without blocking; if full or disconnected, spawn a thread to write directly
+        match self.sender.try_send(msg.clone()) {
+            Ok(_) => Ok(()),
+            Err(TrySendError::Full(m)) => {
+                let cfg = self.config.clone();
+                std::thread::spawn(move || {
+                    // Best-effort write in background when queue was full
+                    let _ = {
+                        let filename = format!("{}-{}.log",
+                            if m.instance_id.is_some() { "installations" } else { "launcher" },
+                            m.timestamp.format("%Y-%m-%d")
+                        );
+                        let log_path = if let Some(ref id) = m.instance_id {
+                            cfg.logs_dir.join("installations").join(id).join(&filename)
+                        } else {
+                            cfg.logs_dir.join("launcher").join(&filename)
+                        };
+                        if let Some(parent) = log_path.parent() {
+                            let _ = std::fs::create_dir_all(parent);
+                        }
+                        let timestamp = m.timestamp.format("%Y-%m-%d %H:%M:%S%.3f UTC");
+                        let log_line = format!("[{}] {} {}\n", timestamp, m.level.to_string().to_uppercase(), m.message);
+                        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
+                            let _ = file.write_all(log_line.as_bytes());
+                            let _ = file.flush();
+                        }
+                        Ok(()) as Result<(), std::io::Error>
+                    };
+                });
+                Ok(())
             }
+            Err(TrySendError::Disconnected(_)) => Ok(()),
         }
-
-        // Write to file
-        let mut file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&log_path)?;
-
-        file.write_all(log_line.as_bytes())?;
-        file.flush()?;
-
-        Ok(())
     }
 
     /// Compress a log file using 7zip
@@ -460,9 +523,6 @@ macro_rules! log_debug_global {
 /// Export logs to a file for debugging or support purposes
 #[tauri::command]
 pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
-    use std::fs::File;
-    use std::io::Write;
-
     // Get the logs directory from storage or fallback to default
     let logs_dir = if let Ok(storage_guard) = LOG_STORAGE.lock() {
         if let Some(storage) = storage_guard.as_ref() {
@@ -484,9 +544,10 @@ pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
             .join("logs")
     };
 
-    // Create exports directory
+    // Create exports directory (async)
     let exports_dir = logs_dir.join("exports");
-    fs::create_dir_all(&exports_dir)
+    async_fs::create_dir_all(&exports_dir)
+        .await
         .map_err(|e| format!("Failed to create exports directory: {}", e))?;
 
     let log_content = if let Some(ref id) = instance_id {
@@ -505,10 +566,12 @@ pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
     };
 
     let export_path = exports_dir.join(&filename);
-    let mut file =
-        File::create(&export_path).map_err(|e| format!("Failed to create log file: {}", e))?;
+    crate::ensure_parent_dir_exists_async(&export_path)
+        .await
+        .map_err(|e| format!("Failed to create parent for export file: {}", e))?;
 
-    file.write_all(log_content.as_bytes())
+    crate::write_file_atomic_async(&export_path, log_content.as_bytes())
+        .await
         .map_err(|e| format!("Failed to write log file: {}", e))?;
 
     Logger::info_global(
@@ -529,7 +592,11 @@ pub async fn update_logging_config(settings: CategorizedLauncherSettings) -> Res
 /// Clean up old log files
 #[tauri::command]
 pub async fn cleanup_old_logs() -> Result<(), String> {
-    Logger::cleanup_logs()?;
+    // Run the blocking cleanup in a background thread to avoid blocking the async runtime
+    let res = tokio::task::spawn_blocking(Logger::cleanup_logs)
+        .await
+        .map_err(|e| format!("Log cleanup join error: {}", e))?;
+    res?;
     Logger::info_global("Log cleanup completed", None);
     Ok(())
 }

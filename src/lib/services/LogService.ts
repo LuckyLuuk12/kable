@@ -13,6 +13,11 @@ export class LogsService {
     LogsManager.addLauncherLog(message, level, instanceId);
   }
   private listeners: Map<string, UnlistenFn> = new Map();
+  // Small sliding window of recent log lines per instance to make crash detection
+  // less sensitive to single 'error' or stack-trace lines coming from mods/plugins.
+  private crashBuffers: Map<string, string[]> = new Map();
+  // Increase buffer to capture long stack traces and more context for crash summaries
+  private crashBufferSize: number = 1000;
   private static instance: LogsService;
   private isInitialized: boolean = false;
 
@@ -37,6 +42,7 @@ export class LogsService {
     
     // Listen for game launch events
     const launchListener = await listen('game-launched', (event) => {
+      console.log('Received game launch event:', event);
       try {
         const { instanceId, profile, installation } = event.payload as {
           instanceId: string;
@@ -132,6 +138,7 @@ export class LogsService {
 
     // Listen for launcher log events
     const launcherLogListener = await listen('launcher-log', (event) => {
+      
       try {
         const { level, message, instanceId } = event.payload as {
           level: LogEntry['level'];
@@ -148,6 +155,7 @@ export class LogsService {
 
     // Listen for show logs page events
     const showLogsListener = await listen('show-logs-page', (event) => {
+      console.log('Received show logs page event:', event);
       try {
         const { instanceId, installationId, reason } = event.payload as {
           instanceId: string;
@@ -180,6 +188,12 @@ export class LogsService {
     // Update last activity
     LogsManager.updateGameInstance(instanceId, { lastActivity: new Date() });
 
+    // Maintain small per-instance buffer of recent lines for more accurate crash detection
+    const buf = this.crashBuffers.get(instanceId) || [];
+    buf.push(line);
+    if (buf.length > this.crashBufferSize) buf.shift();
+    this.crashBuffers.set(instanceId, buf);
+
     // Determine log level based on content
     let level: LogEntry['level'] = 'info';
     const lowerLine = line.toLowerCase();
@@ -194,50 +208,63 @@ export class LogsService {
 
     LogsManager.addGameLog(instanceId, line, level);
 
-    // Only check for actual crashes, not just any error
-    if (this.isCrashIndicator(line)) {
+    // Only check for actual crashes, not just any error. Use buffered context.
+    if (this.isCrashIndicator(instanceId, line)) {
       // Only update to crashed if not already in a final state
       const instances = get(gameInstances);
       const instance = instances.get(instanceId);
       if (instance && instance.status === 'running') {
         LogsManager.updateGameInstance(instanceId, { status: 'crashed' });
-        LogsManager.addLauncherLog('Game crash detected from output', 'error', instanceId);
+        // Include a short summary of recent log lines to explain why we marked this as crashed
+        const crashSummary = this.getCrashSummary(instanceId);
+        LogsManager.addLauncherLog(`Game crash detected from output:\n${crashSummary}`, 'error', instanceId);
       }
     }
   }
+  private isCrashIndicator(instanceId: string, line: string): boolean {
+    // Gather recent context
+    const buf = this.crashBuffers.get(instanceId) || [];
+    const context = [...buf].join('\n').toLowerCase();
 
-  private isCrashIndicator(line: string): boolean {
-    const crashPatterns = [
+    // Strong indicators that should immediately mark a crash
+    const strongPatterns: RegExp[] = [
+      /---- minecraft crash report ----/i,
+      /a fatal error has been detected by the java runtime environment/i,
       /fatal error/i,
       /segmentation fault/i,
       /access violation/i,
+      /exception_access_violation/i,
+      /sig(segv|ill|abrt|bus)/i,
+      /the game crashed!/i,
+      /crash report saved to/i,
       /out of memory/i,
-      /java\.lang\.OutOfMemoryError/i,
-      /unexpected error/i,
-      /exception in thread "main"/i,
-      /at java\./i // Stack trace
+      /java\.lang\.outofmemoryerror/i,
     ];
 
-    // Be more specific about what constitutes a crash
-    // Exclude common false positives
-    if (line.toLowerCase().includes('crashreport') && line.toLowerCase().includes('generating')) {
-      return false; // Just generating crash reports, not actually crashed
+    for (const p of strongPatterns) {
+      if (p.test(context)) return true;
     }
-    
-    if (line.toLowerCase().includes('error loading class')) {
-      return false; // Class loading errors are often non-fatal
-    }
-    
-    if (line.toLowerCase().includes('warn') || line.toLowerCase().includes('warning')) {
-      return false; // Warnings are not crashes
-    }
-    
-    // Don't treat regular log errors as crashes unless they match specific patterns
-    if (line.toLowerCase().includes('error') && !crashPatterns.some(pattern => pattern.test(line))) {
-      return false; // Regular errors are not crashes
-    }
+    return false;
+  }
 
-    return crashPatterns.some(pattern => pattern.test(line));
+  /**
+   * Return a short, safe summary of recent lines for crash reporting.
+   * We keep this concise to avoid dumping huge logs into the launcher log.
+   */
+  private getCrashSummary(instanceId: string): string {
+    const buf = this.crashBuffers.get(instanceId) || [];
+    if (buf.length === 0) return 'No recent log lines available.';
+
+  // Use the last N lines (increased so developer has more context) and keep the total
+  // length under a larger sensible limit to allow deeper inspection.
+  const lastLines = buf.slice(-200);
+  const joined = lastLines.join('\n');
+  const maxLen = 8000;
+    if (joined.length > maxLen) {
+      // keep the tail (most relevant recent lines)
+      return '... (truncated)\n' + joined.slice(joined.length - maxLen);
+    }
+    return joined;
   }
 
   async exportLogs(instanceId?: string): Promise<void> {

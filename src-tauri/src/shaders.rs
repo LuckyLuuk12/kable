@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
+use tokio::fs as async_fs;
 use std::path::PathBuf;
 
 // Shader management structures
@@ -202,13 +203,14 @@ pub async fn toggle_shader(
 
     // This is a simplified implementation
     // In reality, you'd need to properly parse and modify the OptiFine shaders config
-    if enabled {
-        let content = format!("shaderPack={}\n", shader_file);
-        fs::write(&options_file, content).map_err(|e| e.to_string())?;
+    // Ensure parent dirs and write atomically using async helper
+    let content = if enabled {
+        format!("shaderPack={}\n", shader_file)
     } else {
-        let content = "shaderPack=\n";
-        fs::write(&options_file, content).map_err(|e| e.to_string())?;
-    }
+        "shaderPack=\n".to_string()
+    };
+    crate::ensure_parent_dir_exists_async(&options_file).await?;
+    crate::write_file_atomic_async(&options_file, content.as_bytes()).await?;
 
     Ok(())
 }
@@ -224,7 +226,9 @@ pub async fn delete_shader(minecraft_path: String, shader_file: String) -> Resul
         return Err("Shader file does not exist".to_string());
     }
 
-    fs::remove_file(&shader_path).map_err(|e| format!("Failed to delete shader: {}", e))?;
+    async_fs::remove_file(&shader_path)
+        .await
+        .map_err(|e| format!("Failed to delete shader: {}", e))?;
 
     Ok(())
 }
@@ -242,9 +246,11 @@ pub async fn install_shader_pack(
         return Err("Source shader file does not exist".to_string());
     }
 
-    // Create shaderpacks directory if it doesn't exist
+    // Create shaderpacks directory if it doesn't exist (async)
     if !shaderpacks_dir.exists() {
-        fs::create_dir_all(&shaderpacks_dir).map_err(|e| e.to_string())?;
+        async_fs::create_dir_all(&shaderpacks_dir)
+            .await
+            .map_err(|e| e.to_string())?;
     }
 
     let file_name = source_path
@@ -254,8 +260,9 @@ pub async fn install_shader_pack(
 
     let destination_path = shaderpacks_dir.join(file_name);
 
-    // Copy shader pack to shaderpacks directory
-    fs::copy(&source_path, &destination_path)
+    // Copy shader pack to shaderpacks directory (async)
+    async_fs::copy(&source_path, &destination_path)
+        .await
         .map_err(|e| format!("Failed to install shader: {}", e))?;
 
     Ok(file_name.to_string())

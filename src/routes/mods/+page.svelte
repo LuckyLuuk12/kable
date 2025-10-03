@@ -60,7 +60,6 @@
 </div>
 
 <style lang="scss">
-    @use "@kablan/clean-ui/scss/_variables.scss" as *;
     
     .mods-page {
         max-width: 100vw;

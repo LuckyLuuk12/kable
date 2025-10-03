@@ -29,7 +29,8 @@ impl Launchable for VanillaLaunchable {
             minecraft_dir,
             version_id,
             Some(&_context.installation.id),
-        )?;
+        )
+        .await?;
         let libraries_path = std::path::PathBuf::from(minecraft_dir).join("libraries");
         crate::launcher::utils::ensure_libraries(&manifest, &libraries_path).await?;
         Ok(())
@@ -43,7 +44,8 @@ impl Launchable for VanillaLaunchable {
             &context.minecraft_dir,
             version_id,
             Some(&context.installation.id),
-        )?;
+        )
+        .await?;
 
         // 2. Build classpath (all libraries + version JAR)
         let libraries_path = PathBuf::from(&context.minecraft_dir).join("libraries");

@@ -27,7 +27,6 @@
 </div>
 
 <style lang="scss">
-  @use '@kablan/clean-ui/scss/variables' as *;
 
   .settings-page {
     max-width: 100%;

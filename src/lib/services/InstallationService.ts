@@ -1,4 +1,4 @@
-import { type InstallationForm, type KableInstallation, type VersionData, installations, selectedInstallation, isLoadingInstallations, installationsError, versions, isLoadingVersions, versionsError, type LoaderKind, type ModJarInfo, type ExtendedModInfo } from '$lib';
+import { type InstallationForm, type KableInstallation, type VersionData, installations, selectedInstallation, isLoadingInstallations, installationsError, versions, isLoadingVersions, versionsError, type LoaderKind, type ModJarInfo, type ExtendedModInfo, LogsService, openPath } from '$lib';
 import * as installationsApi from '../api/installations';
 import { get } from 'svelte/store';
 
@@ -32,6 +32,7 @@ export class InstallationService {
       isLoadingVersions.set(false);
     }
     console.log('Installations loaded:', get(installations).length, 'Versions loaded:\n', get(versions));
+    LogsService.emitLauncherEvent(`Loaded ${get(installations).length} installations and ${get(versions).length} versions`, 'debug');
     return get(installations);
   }
 
@@ -159,7 +160,7 @@ export class InstallationService {
       case "Quilt":      return 'quilt';
       case "NeoForge":   return 'neoforge';
       case "IrisFabric": return 'iris';
-      default:                return 'question-mark';
+      default:           return 'question-mark';
     }
   }
   static getLoaderColor(loader: LoaderKind): string {
@@ -170,7 +171,7 @@ export class InstallationService {
       case "Quilt":      return '#9c5aa0'; // Quilt's purple color
       case "NeoForge":   return '#f16436'; // NeoForge's orange color
       case "IrisFabric": return '#4c8cff'; // Iris Fabric's blue color
-      default:                return '#cccccc'; // Default gray for unknown loaders
+      default:           return '#cccccc'; // Default gray for unknown loaders
     }
   }
 
@@ -191,6 +192,41 @@ export class InstallationService {
   }
 
   static async getModInfo(installation: KableInstallation): Promise<ModJarInfo[]> {
-  return await installationsApi.getModInfo(installation) || [];
+    return await installationsApi.getModInfo(installation) || [];
+  }
+
+  static async exportInstallation(installation: KableInstallation) {
+    console.log('Exporting installation:', installation);
+    const path = await installationsApi.exportInstallation(installation);
+    // Open the file location in the system file explorer
+    if (path) {
+      console.log('Exported installation to:', path);
+      LogsService.emitLauncherEvent(`Exported installation ${installation.name} to ${path}`, 'info');
+      await openPath(path);
+    } else {
+      LogsService.emitLauncherEvent(`Failed to export installation ${installation.name}`, 'error');
+    }
+  }
+
+  static async importInstallation(path: string): Promise<void> {
+    try {
+      const newInstallation = await installationsApi.importInstallation(path);
+      console.log('Imported installation from:', path, newInstallation);
+      LogsService.emitLauncherEvent(`Imported installation ${newInstallation.name} from ${path}`, 'info');
+    } catch (error) {
+      console.error('Failed to import installation:', error);
+      LogsService.emitLauncherEvent(`Failed to import installation from ${path}`, 'error');
+    }
+  }
+
+  static async duplicateInstallation(installation: KableInstallation): Promise<void> {
+    try {
+      await installationsApi.duplicateInstallation(installation);
+      console.log('Duplicated installation:', installation);
+      LogsService.emitLauncherEvent(`Duplicated installation ${installation.name}`, 'info');
+    } catch (error) {
+      console.error('Failed to duplicate installation:', error);
+      LogsService.emitLauncherEvent(`Failed to duplicate installation ${installation.name}`, 'error');
+    }
   }
 }

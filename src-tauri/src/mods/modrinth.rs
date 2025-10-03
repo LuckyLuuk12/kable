@@ -349,8 +349,9 @@ impl ModProvider for ModrinthProvider {
             mc_dir.join("mods").join(&installation.version_id)
         };
 
-        // Ensure the mods directory exists
-        std::fs::create_dir_all(&mods_dir)
+        // Ensure the mods directory exists (async)
+        crate::ensure_parent_dir_exists_async(&mods_dir)
+            .await
             .map_err(|e| format!("Failed to create mods directory: {}", e))?;
 
         let versions = get_mod_versions(mod_id).await?;
@@ -542,9 +543,10 @@ pub async fn download_mod_file(url: &str, save_path: &std::path::Path) -> Result
         .await
         .map_err(|e| format!("Modrinth download bytes failed: {e}"))?;
     if let Some(parent) = save_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create mod dir: {e}"))?;
+        crate::ensure_parent_dir_exists_async(parent).await?;
     }
-    std::fs::write(save_path, &bytes).map_err(|e| format!("Failed to write mod file: {e}"))?;
+    // Atomically write downloaded bytes to save_path
+    crate::write_file_atomic_async(save_path, &bytes).await?;
     Ok(())
 }
 

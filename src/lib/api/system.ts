@@ -12,3 +12,7 @@ export async function copyToClipboard(text: string): Promise<void> {
 export async function openUrl(url: string): Promise<void> {
   return await invoke('open_url', { url });
 }
+
+export async function openPath(path: string): Promise<void> {
+  return await invoke('open_path', { path });
+}

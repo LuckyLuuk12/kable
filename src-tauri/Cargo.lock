@@ -2370,7 +2370,7 @@ dependencies = [
 
 [[package]]
 name = "kable"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -2411,6 +2411,7 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
+ "walkdir",
  "windows-sys 0.60.2",
  "zip 0.6.6",
 ]

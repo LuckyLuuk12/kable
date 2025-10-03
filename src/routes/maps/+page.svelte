@@ -268,7 +268,6 @@ import { MapsService, SettingsService, Icon } from '$lib';
 </div>
 
 <style lang="scss">
-  @use '@kablan/clean-ui/scss/variables' as *;
 
   .maps-page {
     max-width: 1200px;

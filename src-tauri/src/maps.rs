@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use tokio::fs as async_fs;
 
 // Map/World management structures
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -95,10 +96,11 @@ pub async fn get_local_worlds(minecraft_path: String) -> Result<Vec<LocalWorld>,
 
     let mut worlds = Vec::new();
 
-    for entry in fs::read_dir(&saves_dir).map_err(|e| e.to_string())? {
-        let entry = entry.map_err(|e| e.to_string())?;
+    let mut dir = async_fs::read_dir(&saves_dir)
+        .await
+        .map_err(|e| e.to_string())?;
+    while let Some(entry) = dir.next_entry().await.map_err(|e| e.to_string())? {
         let world_path = entry.path();
-
         if world_path.is_dir() {
             if let Ok(world) = parse_world_folder(&world_path, &minecraft_path).await {
                 worlds.push(world);
@@ -126,11 +128,16 @@ async fn parse_world_folder(
     let level_dat = world_path.join("level.dat");
     let icon_path = world_path.join("icon.png");
 
-    // Calculate world size
-    let size_mb = calculate_folder_size(world_path).unwrap_or(0) / (1024 * 1024);
+    // Calculate world size using blocking recursive helper in a spawned blocking task
+    let path_clone = world_path.clone();
+    let size_bytes: u64 = tokio::task::spawn_blocking(move || calculate_folder_size(&path_clone))
+        .await
+        .map_err(|e| e.to_string())?
+        .unwrap_or(0);
+    let size_mb = size_bytes / (1024 * 1024);
 
-    // Count backups for this world
-    let backup_count = count_world_backups(minecraft_path, &folder_name);
+    // Count backups for this world (async)
+    let backup_count = count_world_backups_async(minecraft_path, &folder_name).await;
 
     // Default values
     let mut world = LocalWorld {
@@ -156,7 +163,7 @@ async fn parse_world_folder(
 
     // Try to read level.dat for more information
     if level_dat.exists() {
-        if let Ok(level_data) = parse_level_dat(&level_dat) {
+            if let Ok(level_data) = parse_level_dat_async(&level_dat).await {
             if let Some(name) = level_data.level_name {
                 world.name = name;
             }
@@ -209,7 +216,7 @@ async fn parse_world_folder(
 
     // Set creation time from folder metadata if not available
     if world.created == 0 {
-        if let Ok(metadata) = fs::metadata(world_path) {
+        if let Ok(metadata) = async_fs::metadata(world_path).await {
             if let Ok(created) = metadata.created() {
                 if let Ok(duration) = created.duration_since(std::time::UNIX_EPOCH) {
                     world.created = duration.as_secs() as i64;
@@ -218,22 +225,19 @@ async fn parse_world_folder(
         }
     }
 
-    // Count backups for this world
-    world.backup_count = count_world_backups(minecraft_path, &folder_name);
+    // Count backups for this world (async)
+    world.backup_count = count_world_backups_async(minecraft_path, &folder_name).await;
 
     Ok(world)
 }
 
-// Parse level.dat file (simplified NBT parsing)
-fn parse_level_dat(level_dat_path: &PathBuf) -> Result<LevelData, String> {
-    // This is a simplified implementation. In a real scenario, you'd want to use
-    // a proper NBT library like `nbt` crate for parsing Minecraft's NBT format
+// NOTE: removed legacy synchronous `parse_level_dat` in favor of the
+// async variant `parse_level_dat_async` above. Keeping only the async
+// parser avoids unused code and encourages non-blocking file reads.
 
-    // For now, we'll try to read basic information from the file
-    // This is a placeholder implementation that would need proper NBT parsing
-    let _contents = fs::read(level_dat_path).map_err(|e| e.to_string())?;
-
-    // Return default data for now - in real implementation, parse NBT
+// Async variant of the level.dat parser (placeholder that reads file async)
+async fn parse_level_dat_async(level_dat_path: &PathBuf) -> Result<LevelData, String> {
+    let _contents = async_fs::read(level_dat_path).await.map_err(|e| e.to_string())?;
     Ok(LevelData {
         level_name: None,
         game_type: None,
@@ -261,6 +265,8 @@ fn calculate_folder_size(path: &PathBuf) -> Result<u64, std::io::Error> {
     Ok(size)
 }
 
+// (Removed async recursive folder-size helper; use blocking `calculate_folder_size` inside spawn_blocking)
+
 // Delete a world
 #[tauri::command]
 pub async fn delete_world(minecraft_path: String, world_folder: String) -> Result<(), String> {
@@ -279,7 +285,7 @@ pub async fn delete_world(minecraft_path: String, world_folder: String) -> Resul
         return Err(error_msg);
     }
 
-    match fs::remove_dir_all(&world_path) {
+    match async_fs::remove_dir_all(&world_path).await {
         Ok(_) => {
             info(&format!("Successfully deleted world: {}", world_folder));
             Ok(())
@@ -320,7 +326,7 @@ pub async fn backup_world(minecraft_path: String, world_folder: String) -> Resul
             "Creating backups directory: {}",
             backups_dir.display()
         ));
-        fs::create_dir_all(&backups_dir).map_err(|e| {
+        async_fs::create_dir_all(&backups_dir).await.map_err(|e| {
             let error_msg = format!("Failed to create backups directory: {}", e);
             error(&error_msg);
             error_msg
@@ -339,7 +345,7 @@ pub async fn backup_world(minecraft_path: String, world_folder: String) -> Resul
     ));
 
     // Copy world folder to backup location
-    match copy_dir_all(&world_path, &backup_path) {
+    match copy_dir_all_async(world_path.as_path(), backup_path.as_path()).await {
         Ok(_) => {
             info(&format!("Successfully created backup: {}", backup_name));
             Ok(backup_name)
@@ -353,7 +359,7 @@ pub async fn backup_world(minecraft_path: String, world_folder: String) -> Resul
 }
 
 // Helper function to count backups for a world
-fn count_world_backups(minecraft_path: &str, world_folder: &str) -> u32 {
+async fn count_world_backups_async(minecraft_path: &str, world_folder: &str) -> u32 {
     let minecraft_dir = PathBuf::from(minecraft_path);
     let backups_dir = minecraft_dir.join("kable").join("world-backups");
 
@@ -361,32 +367,50 @@ fn count_world_backups(minecraft_path: &str, world_folder: &str) -> u32 {
         return 0;
     }
 
-    let mut count = 0;
-    if let Ok(entries) = fs::read_dir(&backups_dir) {
-        for entry in entries.flatten() {
-            if let Some(file_name) = entry.file_name().to_str() {
-                // Check if the backup file starts with the world folder name
-                if file_name.starts_with(&format!("{}_", world_folder)) {
-                    count += 1;
-                }
+    let mut count = 0u32;
+    let mut dir = match async_fs::read_dir(&backups_dir).await {
+        Ok(d) => d,
+        Err(_) => return 0,
+    };
+    while let Ok(Some(entry)) = dir.next_entry().await {
+        if let Some(file_name) = entry.file_name().to_str() {
+            if file_name.starts_with(&format!("{}_", world_folder)) {
+                count += 1;
             }
         }
     }
-
     count
 }
 
 // Helper function to copy directory recursively
-fn copy_dir_all(src: &PathBuf, dst: &PathBuf) -> Result<(), std::io::Error> {
-    fs::create_dir_all(dst)?;
-    for entry in fs::read_dir(src)? {
-        let entry = entry?;
-        let ty = entry.file_type()?;
-        if ty.is_dir() {
-            copy_dir_all(&entry.path(), &dst.join(entry.file_name()))?;
-        } else {
-            fs::copy(entry.path(), dst.join(entry.file_name()))?;
+async fn copy_dir_all_async(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
+    // For recursive copying, delegate to a blocking task that uses std::fs to avoid
+    // recursive async functions which require boxing.
+    let src = src.to_path_buf();
+    let dst = dst.to_path_buf();
+    tokio::task::spawn_blocking(move || -> Result<(), String> {
+        fn copy_sync(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
+            std::fs::create_dir_all(dst).map_err(|e| e.to_string())?;
+            for entry in std::fs::read_dir(src).map_err(|e| e.to_string())? {
+                let entry = entry.map_err(|e| e.to_string())?;
+                let path = entry.path();
+                let out_path = dst.join(entry.file_name());
+                if path.is_dir() {
+                    copy_sync(&path, &out_path)?;
+                } else {
+                    let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
+                    if let Some(parent) = out_path.parent() {
+                        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                    }
+                    crate::write_file_atomic_sync(&out_path, &bytes)
+                        .map_err(|e| format!("atomic write failed: {}", e))?;
+                }
+            }
+            Ok(())
         }
-    }
+        copy_sync(&src, &dst)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking failed: {}", e))??;
     Ok(())
 }

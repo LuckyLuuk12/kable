@@ -1,6 +1,6 @@
 [package]
 name = "kable"
-version = "0.0.4"
+version = "0.0.5"
 description = "A Minecraft Launcher"
 authors = ["Luuk Kablan"]
 license = ""
@@ -56,6 +56,7 @@ libc = "0.2"
 modrinth-api = "2.7.1"
 tauri-plugin-clipboard-manager = "2"
 toml = "0.9.4"
+walkdir = "2"
 
 # Pin problematic dependencies to avoid edition2024 issues
 base64ct = "=1.6.0"  # Pin to avoid 1.8.0 which uses edition2024

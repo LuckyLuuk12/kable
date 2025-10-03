@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use tauri::Manager;
+use tokio::fs as async_fs;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CategorizedLauncherSettings {
@@ -161,50 +162,49 @@ impl Default for CategorizedLauncherSettings {
 // }
 
 fn get_settings_path() -> Result<PathBuf, String> {
-    // Ok(crate::get_kable_launcher_dir()?.join("settings.json"))
-    let kable_dir = crate::get_kable_launcher_dir().map_err(|e| e.to_string())?;
-    // ensure the file exists
-    let settings_path = kable_dir.join("settings.json");
-    if !settings_path.exists() {
-        fs::create_dir_all(&kable_dir).map_err(|e| e.to_string())?;
-        fs::write(
-            &settings_path,
-            serde_json::to_string_pretty(&CategorizedLauncherSettings::default())
-                .map_err(|e| e.to_string())?,
-        )
-        .map_err(|e| e.to_string())?;
-    }
-    Ok(settings_path)
+    // Return the expected settings path; callers should ensure the file exists
+    Ok(crate::get_kable_launcher_dir()?.join("settings.json"))
 }
 
 // Settings management
 #[tauri::command]
 pub async fn load_settings() -> Result<CategorizedLauncherSettings, String> {
     let settings_path = get_settings_path().map_err(|e| e.to_string())?;
-
-    if settings_path.exists() {
-        let contents = fs::read_to_string(&settings_path).map_err(|e| e.to_string())?;
-        let settings: CategorizedLauncherSettings =
-            serde_json::from_str(&contents).map_err(|e| e.to_string())?;
-        Ok(settings)
-    } else {
-        let default_settings = CategorizedLauncherSettings::default();
-        save_settings(default_settings.clone())?;
-        Ok(default_settings)
+    // Ensure file exists with default contents if missing
+    let default_settings = CategorizedLauncherSettings::default();
+    let default_json = serde_json::to_string_pretty(&default_settings).map_err(|e| e.to_string())?;
+    // Ensure parent dirs exist and atomically create default file if missing
+    if !settings_path.exists() {
+        crate::ensure_parent_dir_exists_async(&settings_path).await?;
+        crate::write_file_atomic_async(&settings_path, default_json.as_bytes()).await?;
     }
+    let contents = async_fs::read_to_string(&settings_path)
+        .await
+        .map_err(|e| e.to_string())?;
+    let settings: CategorizedLauncherSettings =
+        serde_json::from_str(&contents).map_err(|e| e.to_string())?;
+    Ok(settings)
 }
 
-#[tauri::command]
-pub fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), String> {
+pub async fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), String> {
     let settings_path = get_settings_path().map_err(|e| e.to_string())?;
     let contents = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
-    fs::write(&settings_path, contents).map_err(|e| e.to_string())?;
+    crate::ensure_parent_dir_exists_async(&settings_path).await?;
+    crate::write_file_atomic_async(&settings_path, contents.as_bytes()).await?;
     Logger::console_log(
         LogLevel::Info,
         &format!("Settings saved to: {}", settings_path.display()),
         None,
     );
     Ok(())
+}
+
+// Public tauri command wrapper so the generate_handler macro can reference
+// a stable command symbol. This simply forwards to the async save_settings
+// implementation.
+#[tauri::command]
+pub async fn save_settings_command(settings: CategorizedLauncherSettings) -> Result<(), String> {
+    save_settings(settings).await
 }
 
 // Get launcher data directory
@@ -370,7 +370,7 @@ pub async fn load_custom_css(theme_name: String, app: tauri::AppHandle) -> Resul
 pub async fn set_selected_css_theme(theme_name: String) -> Result<(), String> {
     let mut settings = load_settings().await?;
     settings.appearance.selected_css_theme = theme_name;
-    save_settings(settings)?;
+    save_settings(settings).await?;
     Ok(())
 }
 
@@ -613,7 +613,9 @@ pub async fn save_css_theme(theme_name: String, css_content: String) -> Result<S
     let themes_dir = ensure_css_themes_dir().await?;
     let file_path = themes_dir.join(format!("{}.css", theme_name));
 
-    fs::write(&file_path, css_content).map_err(|e| format!("Failed to write theme file: {}", e))?;
+    // Ensure parent and write atomically
+    crate::ensure_parent_dir_exists_async(&file_path).await?;
+    crate::write_file_atomic_async(&file_path, css_content.as_bytes()).await?;
 
     Ok(file_path.to_string_lossy().to_string())
 }
@@ -629,7 +631,9 @@ pub async fn delete_css_theme(theme_name: String) -> Result<(), String> {
     let file_path = themes_dir.join(format!("{}.css", theme_name));
 
     if file_path.exists() {
-        fs::remove_file(&file_path).map_err(|e| format!("Failed to delete theme file: {}", e))?;
+        async_fs::remove_file(&file_path)
+            .await
+            .map_err(|e| format!("Failed to delete theme file: {}", e))?;
     }
 
     Ok(())
@@ -652,8 +656,9 @@ pub async fn load_css_theme(theme_name: String, app: tauri::AppHandle) -> Result
             &format!("Loading custom theme: {}", theme_name),
             None,
         );
-        return fs::read_to_string(&custom_file_path)
-            .map_err(|e| format!("Failed to read custom theme file: {}", e));
+                return async_fs::read_to_string(&custom_file_path)
+                    .await
+                    .map_err(|e| format!("Failed to read custom theme file: {}", e));
     }
 
     // If not found in custom themes, try built-in themes
@@ -677,7 +682,8 @@ pub async fn load_css_theme(theme_name: String, app: tauri::AppHandle) -> Result
                     ),
                     None,
                 );
-                return fs::read_to_string(&builtin_file_path)
+                return async_fs::read_to_string(&builtin_file_path)
+                    .await
                     .map_err(|e| format!("Failed to read built-in theme file: {}", e));
             } else {
                 Logger::console_log(
