@@ -181,7 +181,7 @@
     &:hover:not(:disabled) {
       background: var(--button-hover);
       border-color: var(--primary);
-  box-shadow: 0 0.125rem 0.5rem color-mix(in srgb, var(--primary), 15%, transparent);
+      box-shadow: 0 0.125rem 0.5rem color-mix(in srgb, var(--primary), 15%, transparent);
     }
     
     &:disabled {
@@ -305,7 +305,7 @@
     overflow: hidden;
     
     &.active {
-  background: color-mix(in srgb, var(--primary), 10%, transparent);
+      background: color-mix(in srgb, var(--primary), 10%, transparent);
     }
   }
   

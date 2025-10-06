@@ -78,6 +78,22 @@ fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
     let encoded = base64::engine::general_purpose::STANDARD.encode(key);
     if let Ok(entry) = Entry::new("kable", KEY_FILENAME) {
         if entry.set_password(&encoded).is_ok() {
+            // Also try to persist a file-backed copy so the token.key file exists
+            // (helps debugging and environments where keyring is not accessible).
+            if let Some(parent) = key_path.parent() {
+                if let Err(e) = std::fs::create_dir_all(parent) {
+                    eprintln!("Failed to create key parent dir for fallback write: {}", e);
+                } else if let Ok(mut file) = OpenOptions::new()
+                    .write(true)
+                    .create(true)
+                    .truncate(false)
+                    .open(&key_path)
+                {
+                    if let Err(e) = file.write_all(&key) {
+                        eprintln!("Failed to write fallback key file: {}", e);
+                    }
+                }
+            }
             return Ok(key);
         }
     }
@@ -135,6 +151,6 @@ pub fn decrypt_token(data: &str) -> Result<String, String> {
     let ciphertext = &combined[NONCE_SIZE..];
     let plaintext = cipher
         .decrypt(nonce, ciphertext)
-        .map_err(|e| format!("Decrypt error: {}", e))?;
+        .map_err(|e| format!("Decrypt error: {:?}", e))?;
     String::from_utf8(plaintext).map_err(|e| format!("UTF8 error: {}", e))
 }

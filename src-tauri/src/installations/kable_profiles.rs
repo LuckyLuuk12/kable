@@ -147,6 +147,19 @@ pub fn read_kable_profiles() -> Result<Vec<KableInstallation>, String> {
     // Synchronous version for compatibility
     let kable_dir = crate::get_minecraft_kable_dir()?;
     let path = kable_dir.join("kable_profiles.json");
+    // Ensure the kable_profiles.json file exists. If missing, create it with an empty array.
+    if !path.exists() {
+        let default_profiles: Vec<KableInstallation> = Vec::new();
+        let json = serde_json::to_string_pretty(&default_profiles)
+            .map_err(|e| format!("Failed to serialize default kable profiles: {}", e))?;
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create kable directory: {}", e))?;
+        }
+        crate::write_file_atomic_sync(&path, json.as_bytes())
+            .map_err(|e| format!("Failed to write kable_profiles.json: {}", e))?;
+    }
+
     let data = fs::read_to_string(&path)
         .map_err(|e| format!("Failed to read kable_profiles.json: {}", e))?;
     serde_json::from_str::<Vec<KableInstallation>>(&data)

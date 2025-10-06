@@ -12,8 +12,8 @@ use minecraft_msa_auth::MinecraftAuthorizationFlow;
  * @see https://github.com/minecraft-rs/minecraft-msa-auth/blob/826a6846d4e1109a7acfa1a989aa77533aa01fc9/examples/auth_code_flow.rs
  */
 use oauth2::{
-    basic::BasicClient, reqwest::async_http_client, AuthUrl, AuthorizationCode, ClientId,
-    CsrfToken, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
+    basic::BasicClient, AuthUrl, AuthorizationCode, ClientId, CsrfToken, PkceCodeChallenge,
+    PkceCodeVerifier, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
 use once_cell::sync::Lazy;
 use reqwest::Client;
@@ -41,24 +41,23 @@ pub async fn refresh_microsoft_token(local_id: String) -> Result<LauncherAccount
     let refresh_token = decrypt_token(&encrypted_refresh_token)?;
 
     let client_id = crate::auth::auth_util::get_client_id()?;
-    let client = BasicClient::new(
-        ClientId::new(client_id),
-        None,
-        AuthUrl::new(
-            "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize".to_string(),
+    let client = BasicClient::new(ClientId::new(client_id))
+        .set_auth_uri(
+            AuthUrl::new(
+                "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize".to_string(),
+            )
+            .map_err(|e| format!("Failed to create auth URL: {}", e))?,
         )
-        .map_err(|e| format!("Failed to create auth URL: {}", e))?,
-        Some(
+        .set_token_uri(
             TokenUrl::new(
                 "https://login.microsoftonline.com/consumers/oauth2/v2.0/token".to_string(),
             )
             .map_err(|e| format!("Failed to create token URL: {}", e))?,
-        ),
-    );
+        );
 
     let token_result = client
         .exchange_refresh_token(&oauth2::RefreshToken::new(refresh_token))
-        .request_async(oauth2::reqwest::async_http_client)
+        .request_async(&crate::auth::oauth_helpers::async_http_client)
         .await
         .map_err(|e| format!("Failed to refresh token: {}", e))?;
 
@@ -152,20 +151,19 @@ pub async fn start_microsoft_auth_code() -> Result<AuthCodeResponse, String> {
         None,
     );
 
-    let client = BasicClient::new(
-        ClientId::new(client_id),
-        None,
-        AuthUrl::new(MSA_AUTHORIZE_URL.to_string())
-            .map_err(|e| format!("Failed to create auth URL: {}", e))?,
-        Some(
+    let client = BasicClient::new(ClientId::new(client_id))
+        .set_auth_uri(
+            AuthUrl::new(MSA_AUTHORIZE_URL.to_string())
+                .map_err(|e| format!("Failed to create auth URL: {}", e))?,
+        )
+        .set_token_uri(
             TokenUrl::new(MSA_TOKEN_URL.to_string())
                 .map_err(|e| format!("Failed to create token URL: {}", e))?,
-        ),
-    )
-    .set_redirect_uri(
-        RedirectUrl::new(redirect_uri.clone())
-            .map_err(|e| format!("Failed to create redirect URI: {}", e))?,
-    );
+        )
+        .set_redirect_uri(
+            RedirectUrl::new(redirect_uri.clone())
+                .map_err(|e| format!("Failed to create redirect URI: {}", e))?,
+        );
 
     // Generate PKCE challenge and verifier
     let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
@@ -278,10 +276,15 @@ async fn handle_auth_callback(
         .ok_or("Invalid HTTP request format")?;
 
     // Send success response using callback.html from the SvelteKit app directory
-    use std::fs;
-    let callback_html_path = "src/callback.html"; // SvelteKit's callback.html location
-    let html_content = fs::read_to_string(callback_html_path)
-        .unwrap_or_else(|_| "<html><body><h1>✅ Authentication successful!</h1><p>You can close this window and return to the application.</p><script>window.close();</script></body></html>".to_string());
+    // Ensure the file exists (create with a sensible default if missing) before reading
+    let callback_html_path = std::path::PathBuf::from("src/callback.html"); // SvelteKit's callback.html location
+    let default_html = "<html><body><h1>✅ Authentication successful!</h1><p>You can close this window and return to the application.</p><script>window.close();</script></body></html>";
+    // Try to ensure the file exists with default contents; ignore any write errors and fall back to default
+    let _ = crate::ensure_file_with(callback_html_path.clone(), default_html).await;
+    let html_content = match tokio::fs::read_to_string(&callback_html_path).await {
+        Ok(s) => s,
+        Err(_) => default_html.to_string(),
+    };
     let response = format!(
         "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n{}",
         html_content
@@ -410,20 +413,19 @@ async fn exchange_auth_code_for_tokens(
         None,
     );
 
-    let client = BasicClient::new(
-        ClientId::new(client_id.clone()),
-        None, // No client secret for PKCE flow
-        AuthUrl::new(MSA_AUTHORIZE_URL.to_string())
-            .map_err(|e| format!("Failed to create auth URL: {}", e))?,
-        Some(
+    let client = BasicClient::new(ClientId::new(client_id.clone()))
+        .set_auth_uri(
+            AuthUrl::new(MSA_AUTHORIZE_URL.to_string())
+                .map_err(|e| format!("Failed to create auth URL: {}", e))?,
+        )
+        .set_token_uri(
             TokenUrl::new(MSA_TOKEN_URL.to_string())
                 .map_err(|e| format!("Failed to create token URL: {}", e))?,
-        ),
-    )
-    .set_redirect_uri(
-        RedirectUrl::new(redirect_uri.clone())
-            .map_err(|e| format!("Failed to create redirect URI: {}", e))?,
-    );
+        )
+        .set_redirect_uri(
+            RedirectUrl::new(redirect_uri.clone())
+                .map_err(|e| format!("Failed to create redirect URI: {}", e))?,
+        );
 
     Logger::console_log(
         LogLevel::Debug,
@@ -462,7 +464,7 @@ async fn exchange_auth_code_for_tokens(
         .exchange_code(AuthorizationCode::new(auth_code))
         .set_pkce_verifier(pkce_verifier)
         .add_extra_param("client_id", &client_id)
-        .request_async(async_http_client)
+    .request_async(&crate::auth::oauth_helpers::async_http_client)
         .await;
 
     let final_token_result = match token_result {

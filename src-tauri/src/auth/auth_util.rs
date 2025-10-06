@@ -107,24 +107,46 @@ pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
         .map_err(|e| format!("Failed to read kable_accounts.json: {}", e))?;
     let mut accounts: LauncherAccountsJson = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse kable_accounts.json: {}", e))?;
-    // Decrypt access tokens after reading
+    // Decrypt access tokens after reading. If decryption fails for any token,
+    // clear it and persist the cleaned accounts back to disk so we don't keep
+    // attempting to decrypt a possibly stale/corrupted token on each startup.
+    let mut changed = false;
     for account in accounts.accounts.values_mut() {
         if !account.access_token.is_empty() {
             match decrypt_token(&account.access_token) {
-                Ok(decrypted) => account.access_token = decrypted,
+                Ok(decrypted) => {
+                    account.access_token = decrypted;
+                }
                 Err(e) => {
                     Logger::console_log(
                         LogLevel::Warning,
                         &format!(
-                            "⚠️ Failed to decrypt access token for account {}: {}",
+                            "Failed to decrypt access token for account {}: {}. Clearing stored token.",
                             account.local_id, e
                         ),
                         None,
                     );
                     account.access_token.clear();
+                    changed = true;
                 }
             }
         }
+    }
+
+    // Persist cleaned accounts if any token was cleared due to decryption failure.
+    if changed {
+        // Fire-and-forget: try to write cleaned accounts back to disk. If this fails
+        // we don't want to prevent the caller from continuing to use the app.
+        let accounts_copy = accounts.clone();
+        tokio::spawn(async move {
+            if let Err(e) = crate::auth::write_launcher_accounts(accounts_copy).await {
+                crate::logging::Logger::console_log(
+                    LogLevel::Warning,
+                    &format!("Failed to persist cleaned accounts after decryption errors: {}", e),
+                    None,
+                );
+            }
+        });
     }
     Logger::console_log(
         LogLevel::Info,
