@@ -153,7 +153,7 @@ pub fn read_kable_profiles() -> Result<Vec<KableInstallation>, String> {
         let json = serde_json::to_string_pretty(&default_profiles)
             .map_err(|e| format!("Failed to serialize default kable profiles: {}", e))?;
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)
+            crate::ensure_folder_sync(parent)
                 .map_err(|e| format!("Failed to create kable directory: {}", e))?;
         }
         crate::write_file_atomic_sync(&path, json.as_bytes())
@@ -228,7 +228,7 @@ impl KableInstallation {
             let kable_dir = crate::get_minecraft_kable_dir()?;
             let path = kable_dir.join("exports");
             // Now we make a zip file inside the exports folder
-            fs::create_dir_all(&path)
+            crate::ensure_folder_sync(&path)
                 .map_err(|e| format!("Failed to create exports directory: {}", e))?;
             let export_path = path.join(format!("{}_export.zip", self_owned.id));
             // Create a temporary file name in the same directory and write to it,
@@ -455,7 +455,7 @@ impl KableInstallation {
                 } else {
                     kable_dir.join("resource_packs").join(resource_pack_rel)
                 };
-                fs::create_dir_all(&dest_dir)
+                crate::ensure_folder_sync(&dest_dir)
                     .map_err(|e| format!("Failed to create resource pack directory: {}", e))?;
 
                 // Copy the embedded zip to a temp file then extract its entries safely into dest_dir
@@ -482,11 +482,11 @@ impl KableInstallation {
                     }
                     let out_path = dest_dir.join(name);
                     if entry.is_dir() {
-                        fs::create_dir_all(&out_path)
-                            .map_err(|e| format!("Failed to create dir during extract: {}", e))?;
+                crate::ensure_folder_sync(&out_path)
+                    .map_err(|e| format!("Failed to create dir during extract: {}", e))?;
                     } else {
-                        if let Some(p) = out_path.parent() {
-                            fs::create_dir_all(p)
+                            if let Some(p) = out_path.parent() {
+                            crate::ensure_folder_sync(p)
                                 .map_err(|e| format!("Failed to create parent dir during extract: {}", e))?;
                         }
                         let mut outfile = fs::File::create(&out_path)
@@ -510,7 +510,7 @@ impl KableInstallation {
                 } else {
                     kable_dir.join("shaders").join(shaders_rel)
                 };
-                fs::create_dir_all(&dest_dir)
+                crate::ensure_folder_sync(&dest_dir)
                     .map_err(|e| format!("Failed to create shaders directory: {}", e))?;
 
                 // Copy embedded zip to tmp and extract
@@ -535,11 +535,11 @@ impl KableInstallation {
                     }
                     let out_path = dest_dir.join(name);
                     if entry.is_dir() {
-                        fs::create_dir_all(&out_path)
+                        crate::ensure_folder_sync(&out_path)
                             .map_err(|e| format!("Failed to create dir during extract: {}", e))?;
                     } else {
                         if let Some(p) = out_path.parent() {
-                            fs::create_dir_all(p)
+                            crate::ensure_folder_sync(p)
                                 .map_err(|e| format!("Failed to create parent dir during extract: {}", e))?;
                         }
                         let mut outfile = fs::File::create(&out_path)
@@ -563,7 +563,7 @@ impl KableInstallation {
                 } else {
                     kable_dir.join("mods").join(mods_rel)
                 };
-                fs::create_dir_all(&dest_dir)
+                crate::ensure_folder_sync(&dest_dir)
                     .map_err(|e| format!("Failed to create mods directory: {}", e))?;
 
                 // Copy embedded zip to tmp and extract
@@ -588,11 +588,11 @@ impl KableInstallation {
                     }
                     let out_path = dest_dir.join(name);
                     if entry.is_dir() {
-                        fs::create_dir_all(&out_path)
+                        crate::ensure_folder_sync(&out_path)
                             .map_err(|e| format!("Failed to create dir during extract: {}", e))?;
                     } else {
                         if let Some(p) = out_path.parent() {
-                            fs::create_dir_all(p)
+                            crate::ensure_folder_sync(p)
                                 .map_err(|e| format!("Failed to create parent dir during extract: {}", e))?;
                         }
                         let mut outfile = fs::File::create(&out_path)
@@ -749,7 +749,7 @@ impl KableInstallation {
             }
             return Err(format!("Mod file not found: {}", file_name));
         }
-        fs::create_dir_all(&disabled_dir).map_err(|e| format!("Failed to create disabled directory: {}", e))?;
+    crate::ensure_folder_sync(&disabled_dir).map_err(|e| format!("Failed to create disabled directory: {}", e))?;
         fs::rename(&src, &dst).map_err(|e| format!("Failed to move mod to disabled: {}", e))?;
         Logger::debug_global(&format!("Moved {} -> {}", src.display(), dst.display()), None);
         Ok(())

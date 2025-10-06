@@ -246,12 +246,10 @@ pub async fn install_shader_pack(
         return Err("Source shader file does not exist".to_string());
     }
 
-    // Create shaderpacks directory if it doesn't exist (async)
-    if !shaderpacks_dir.exists() {
-        async_fs::create_dir_all(&shaderpacks_dir)
-            .await
-            .map_err(|e| e.to_string())?;
-    }
+    // Ensure shaderpacks directory exists (use shared async helper)
+    crate::ensure_folder(&shaderpacks_dir)
+        .await
+        .map_err(|e| e.to_string())?;
 
     let file_name = source_path
         .file_name()

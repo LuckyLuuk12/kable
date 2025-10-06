@@ -43,7 +43,7 @@ pub fn modify_skin_by_id(
         };
         let json = serde_json::to_string_pretty(&empty).map_err(|e| format!("Serialization error: {}", e))?;
         if let Some(parent) = skins_path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
+            crate::ensure_folder_sync(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
         }
         crate::write_file_atomic_sync(&skins_path, json.as_bytes())?;
         empty
@@ -78,7 +78,7 @@ pub fn modify_skin_by_id(
     // Write back to file (sync atomic)
     let json = serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?;
     if let Some(parent) = skins_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
+        crate::ensure_folder_sync(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
     }
     crate::write_file_atomic_sync(&skins_path, json.as_bytes())?;
 
@@ -116,7 +116,7 @@ pub fn remove_skin_by_id(skin_id: &str) -> Result<(), String> {
         };
         let json = serde_json::to_string_pretty(&empty).map_err(|e| format!("Serialization error: {}", e))?;
         if let Some(parent) = skins_path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
+            crate::ensure_folder_sync(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
         }
         crate::write_file_atomic_sync(&skins_path, json.as_bytes())?;
         empty
@@ -140,7 +140,7 @@ pub fn remove_skin_by_id(skin_id: &str) -> Result<(), String> {
     // Write back to file (sync) — use sync atomic helper since this function is synchronous
     let json = serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?;
     if let Some(parent) = skins_path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
+        crate::ensure_folder_sync(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
     }
     crate::write_file_atomic_sync(&skins_path, json.as_bytes())?;
 

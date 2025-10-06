@@ -37,21 +37,18 @@ async fn get_icons_dir() -> Result<PathBuf, String> {
 /// Ensure the icons directory exists
 async fn ensure_icons_dir() -> Result<PathBuf, String> {
     let icons_dir = get_icons_dir().await?;
-    if !icons_dir.exists() {
-        async_fs::create_dir_all(&icons_dir)
-            .await
-            .map_err(|e| format!("Failed to create icons directory: {}", e))?;
+    // Use centralized helper to ensure the directory exists and return the path
+    match crate::ensure_folder(&icons_dir).await {
+        Ok(p) => Ok(p),
+        Err(err) => Err(format!("Failed to ensure icons directory exists: {}", err)),
     }
-    Ok(icons_dir)
 }
 
 /// Get all custom icon templates
 #[command]
 pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, String> {
-    let icons_dir = get_icons_dir().await?;
-    if !icons_dir.exists() {
-        return Ok(Vec::new());
-    }
+    // Ensure icons directory exists (creates it if missing)
+    let icons_dir = ensure_icons_dir().await?;
 
     let mut templates = Vec::new();
 
@@ -134,7 +131,7 @@ pub async fn save_custom_icon_template(template: CustomIconTemplate) -> Result<S
 /// Delete a custom icon template
 #[command]
 pub async fn delete_custom_icon_template(template_name: String) -> Result<(), String> {
-    let icons_dir = get_icons_dir().await?;
+    let icons_dir = ensure_icons_dir().await?;
 
     // Try both .json and .yml/.yaml extensions
     let extensions = ["json", "yml", "yaml"];

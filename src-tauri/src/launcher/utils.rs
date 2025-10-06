@@ -560,9 +560,9 @@ pub async fn ensure_version_manifest_and_jar(
     let versions_dir = PathBuf::from(minecraft_dir)
         .join("versions")
         .join(version_id);
-    async_fs::create_dir_all(&versions_dir)
+    crate::ensure_folder(&versions_dir)
         .await
-        .map_err(|e| format!("Failed to create versions dir: {e}"))?;
+        .map_err(|e| format!("Failed to create versions dir: {}", e))?;
     let manifest_path = versions_dir.join(format!("{}.json", version_id));
     let jar_path = versions_dir.join(format!("{}.jar", version_id));
     // Download manifest JSON if missing
@@ -756,7 +756,7 @@ pub fn extract_natives(
         std::fs::remove_dir_all(natives_path)
             .map_err(|e| format!("Failed to clear natives directory: {}", e))?;
     }
-    std::fs::create_dir_all(natives_path)
+    crate::ensure_folder_sync(natives_path)
         .map_err(|e| format!("Failed to create natives directory: {}", e))?;
     let current_os = std::env::consts::OS;
     let natives_classifier = match current_os {
@@ -810,12 +810,12 @@ fn extract_jar(jar_path: &PathBuf, extract_to: &Path) -> Result<(), String> {
             None => continue,
         };
         if file.name().ends_with('/') {
-            std::fs::create_dir_all(&outpath)
+            crate::ensure_folder_sync(&outpath)
                 .map_err(|e| format!("Failed to create directory: {}", e))?;
         } else {
             if let Some(p) = outpath.parent() {
                 if !p.exists() {
-                    std::fs::create_dir_all(p)
+                    crate::ensure_folder_sync(p)
                         .map_err(|e| format!("Failed to create parent directory: {}", e))?;
                 }
             }

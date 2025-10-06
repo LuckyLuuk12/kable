@@ -320,17 +320,15 @@ pub async fn backup_world(minecraft_path: String, world_folder: String) -> Resul
         return Err(error_msg);
     }
 
-    // Create kable and backups directories if they don't exist
-    if !backups_dir.exists() {
-        debug(&format!(
-            "Creating backups directory: {}",
-            backups_dir.display()
-        ));
-        async_fs::create_dir_all(&backups_dir).await.map_err(|e| {
-            let error_msg = format!("Failed to create backups directory: {}", e);
-            error(&error_msg);
-            error_msg
-        })?;
+    // Ensure kable and backups directories exist using centralized helper
+    debug(&format!(
+        "Ensuring backups directory exists: {}",
+        backups_dir.display()
+    ));
+    if let Err(e) = crate::ensure_folder(&backups_dir).await {
+        let error_msg = format!("Failed to create backups directory: {}", e);
+        error(&error_msg);
+        return Err(error_msg);
     }
 
     // Create backup name with timestamp
@@ -390,7 +388,7 @@ async fn copy_dir_all_async(src: &std::path::Path, dst: &std::path::Path) -> Res
     let dst = dst.to_path_buf();
     tokio::task::spawn_blocking(move || -> Result<(), String> {
         fn copy_sync(src: &std::path::Path, dst: &std::path::Path) -> Result<(), String> {
-            std::fs::create_dir_all(dst).map_err(|e| e.to_string())?;
+            crate::ensure_folder_sync(dst).map_err(|e| e.to_string())?;
             for entry in std::fs::read_dir(src).map_err(|e| e.to_string())? {
                 let entry = entry.map_err(|e| e.to_string())?;
                 let path = entry.path();
@@ -400,7 +398,7 @@ async fn copy_dir_all_async(src: &std::path::Path, dst: &std::path::Path) -> Res
                 } else {
                     let bytes = std::fs::read(&path).map_err(|e| e.to_string())?;
                     if let Some(parent) = out_path.parent() {
-                        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                        crate::ensure_folder_sync(parent).map_err(|e| e.to_string())?;
                     }
                     crate::write_file_atomic_sync(&out_path, &bytes)
                         .map_err(|e| format!("atomic write failed: {}", e))?;

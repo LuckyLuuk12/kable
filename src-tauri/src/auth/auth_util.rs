@@ -60,7 +60,7 @@ pub fn get_kable_accounts_path() -> Result<PathBuf, String> {
     if !accounts_path.exists() {
         // Ensure parent directory exists and atomically create the file (sync helper)
         if let Some(parent_dir) = accounts_path.parent() {
-            std::fs::create_dir_all(parent_dir)
+            crate::ensure_folder_sync(parent_dir)
                 .map_err(|e| format!("Failed to create Kable launcher directory: {}", e))?;
         }
         // Write empty structure

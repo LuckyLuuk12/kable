@@ -141,26 +141,6 @@ impl Default for CategorizedLauncherSettings {
     }
 }
 
-// Helper functions
-// pub fn get_kable_launcher_dir() -> Result<PathBuf, AppError> {
-//     let base_dir = if let Some(appdata) = dirs::data_dir() {
-//         appdata
-//     } else {
-//         return Err(AppError::Io(std::io::Error::new(
-//             std::io::ErrorKind::NotFound,
-//             "Could not find data directory"
-//         )));
-//     };
-
-//     let launcher_dir = base_dir.join("kable-launcher");
-
-//     if !launcher_dir.exists() {
-//         fs::create_dir_all(&launcher_dir)?;
-//     }
-
-//     Ok(launcher_dir)
-// }
-
 fn get_settings_path() -> Result<PathBuf, String> {
     // Return the expected settings path; callers should ensure the file exists
     Ok(crate::get_kable_launcher_dir()?.join("settings.json"))
@@ -173,11 +153,8 @@ pub async fn load_settings() -> Result<CategorizedLauncherSettings, String> {
     // Ensure file exists with default contents if missing
     let default_settings = CategorizedLauncherSettings::default();
     let default_json = serde_json::to_string_pretty(&default_settings).map_err(|e| e.to_string())?;
-    // Ensure parent dirs exist and atomically create default file if missing
-    if !settings_path.exists() {
-        crate::ensure_parent_dir_exists_async(&settings_path).await?;
-        crate::write_file_atomic_async(&settings_path, default_json.as_bytes()).await?;
-    }
+    // Use shared helper to ensure the file exists with default contents when missing.
+    crate::ensure_file_with(settings_path.clone(), &default_json).await?;
     let contents = async_fs::read_to_string(&settings_path)
         .await
         .map_err(|e| e.to_string())?;
@@ -206,39 +183,6 @@ pub async fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), 
 pub async fn save_settings_command(settings: CategorizedLauncherSettings) -> Result<(), String> {
     save_settings(settings).await
 }
-
-// Get launcher data directory
-// #[tauri::command]
-// pub async fn get_launcher_directory() -> Result<String, String> {
-//     let launcher_dir = get_kable_launcher_dir().map_err(|e| e.to_string())?;
-//     Ok(launcher_dir.to_string_lossy().to_string())
-// }
-
-// Get default Minecraft directory
-// pub async fn get_default_minecraft_directory() -> Result<String, String> {
-//     let minecraft_dir = if cfg!(target_os = "windows") {
-//         if let Some(appdata) = dirs::data_dir() {
-//             appdata.join(".minecraft")
-//         } else {
-//             return Err("Could not find AppData directory".to_string());
-//         }
-//     } else if cfg!(target_os = "macos") {
-//         if let Some(home) = dirs::home_dir() {
-//             home.join("Library").join("Application Support").join("minecraft")
-//         } else {
-//             return Err("Could not find home directory".to_string());
-//         }
-//     } else {
-//         // Linux
-//         if let Some(home) = dirs::home_dir() {
-//             home.join(".minecraft")
-//         } else {
-//             return Err("Could not find home directory".to_string());
-//         }
-//     };
-
-//     Ok(minecraft_dir.to_string_lossy().to_string())
-// }
 
 // Validate Minecraft directory
 #[tauri::command]
@@ -298,7 +242,7 @@ pub async fn validate_minecraft_directory(path: String) -> Result<MinecraftDirec
     })
 }
 
-// // Helper function to count directories
+// Helper function to count directories
 fn count_directories(path: &PathBuf) -> Result<u32, std::io::Error> {
     let mut count = 0;
     for entry in fs::read_dir(path)? {
@@ -310,7 +254,7 @@ fn count_directories(path: &PathBuf) -> Result<u32, std::io::Error> {
     Ok(count)
 }
 
-// // Helper function to count files with specific extensions
+// Helper function to count files with specific extensions
 fn count_files_with_extensions(path: &PathBuf, extensions: &[&str]) -> Result<u32, std::io::Error> {
     let mut count = 0;
     for entry in fs::read_dir(path)? {
@@ -329,7 +273,7 @@ fn count_files_with_extensions(path: &PathBuf, extensions: &[&str]) -> Result<u3
     Ok(count)
 }
 
-// // Helper function to calculate directory size
+// Helper function to calculate directory size
 fn calculate_directory_size(path: &PathBuf) -> Result<u64, std::io::Error> {
     let mut size = 0;
     if path.is_dir() {
@@ -400,11 +344,18 @@ async fn get_css_themes_dir() -> Result<PathBuf, String> {
 /// Ensure the CSS themes directory exists
 async fn ensure_css_themes_dir() -> Result<PathBuf, String> {
     let themes_dir = get_css_themes_dir().await?;
-    if !themes_dir.exists() {
-        fs::create_dir_all(&themes_dir)
-            .map_err(|e| format!("Failed to create themes directory: {}", e))?;
+    // Ensure directory exists using the centralized helper in lib.rs
+    match crate::ensure_folder(&themes_dir).await {
+        Ok(p) => Ok(p),
+        Err(err) => {
+            Logger::console_log(
+                LogLevel::Debug,
+                &format!("Failed to ensure themes directory exists: {}", err),
+                None,
+            );
+            Ok(themes_dir)
+        }
     }
-    Ok(themes_dir)
 }
 
 /// Get all available CSS themes (built-in + custom)
@@ -417,8 +368,8 @@ pub async fn get_css_themes(app: tauri::AppHandle) -> Result<Vec<String>, String
         themes.extend(builtin_themes);
     }
 
-    // Add custom themes from user directory
-    let themes_dir = get_css_themes_dir().await?;
+    // Add custom themes from user directory (ensure directory exists)
+    let themes_dir = ensure_css_themes_dir().await?;
     if themes_dir.exists() {
         let entries = fs::read_dir(&themes_dir)
             .map_err(|e| format!("Failed to read themes directory: {}", e))?;

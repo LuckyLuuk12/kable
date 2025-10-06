@@ -31,9 +31,9 @@ async fn ensure_dedicated_mods_folder(
             .join("mods")
             .join(&installation.id);
         if !mods_dir.exists() {
-            async_fs::create_dir_all(&mods_dir)
+            crate::ensure_folder(&mods_dir)
                 .await
-                .map_err(|e| format!("Failed to create mods dir: {e}"))?;
+                .map_err(|e| format!("Failed to create mods dir: {}", e))?;
         }
         Ok(true)
     } else {

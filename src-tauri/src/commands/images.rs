@@ -13,9 +13,9 @@ pub async fn resolve_image_path(key: String) -> Result<String, String> {
     let images_dir = launcher_dir.join("config").join("images");
 
     // Ensure the images directory exists so callers and the UI can save files there later
-    if !images_dir.exists() {
-        async_fs::create_dir_all(&images_dir).await.map_err(|e| format!("Failed to create images directory: {}", e))?;
-    }
+    crate::ensure_folder(&images_dir)
+        .await
+        .map_err(|e| format!("Failed to create images directory: {}", e))?;
 
     if images_dir.exists() {
         // If key already points to a filename with extension, check directly

@@ -81,7 +81,7 @@ fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
             // Also try to persist a file-backed copy so the token.key file exists
             // (helps debugging and environments where keyring is not accessible).
             if let Some(parent) = key_path.parent() {
-                if let Err(e) = std::fs::create_dir_all(parent) {
+                if let Err(e) = crate::ensure_folder_sync(parent) {
                     eprintln!("Failed to create key parent dir for fallback write: {}", e);
                 } else if let Ok(mut file) = OpenOptions::new()
                     .write(true)
@@ -100,7 +100,8 @@ fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
 
     // Persist to file as fallback
     if let Some(parent) = key_path.parent() {
-        fs::create_dir_all(parent)?;
+        crate::ensure_folder_sync(parent)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
     }
     let mut file = OpenOptions::new()
         .write(true)
