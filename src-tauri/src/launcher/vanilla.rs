@@ -23,11 +23,12 @@ impl Launchable for VanillaLaunchable {
         // Download manifest and jar, and libraries
         let version_id = &_context.installation.version_id;
         let minecraft_dir = &_context.minecraft_dir;
-        crate::launcher::utils::ensure_version_manifest_and_jar(version_id, minecraft_dir).await?;
-        // Load manifest
+        // ensure_version_manifest_and_jar now returns the resolved concrete version id
+        let resolved = crate::launcher::utils::ensure_version_manifest_and_jar(version_id, minecraft_dir).await?;
+        // Load manifest using the resolved id
         let manifest = crate::launcher::utils::load_and_merge_manifest_with_instance(
             minecraft_dir,
-            version_id,
+            &resolved,
             Some(&_context.installation.id),
         )
         .await?;
@@ -40,9 +41,11 @@ impl Launchable for VanillaLaunchable {
         println!("VANILLA::launch() -> {}", context.installation.name);
         // 1. Load merged manifest (with inheritance)
         let version_id = &context.installation.version_id;
+        // Ensure manifest/jar exist and get resolved id (in case of latest-* placeholders)
+        let resolved = crate::launcher::utils::ensure_version_manifest_and_jar(version_id, &context.minecraft_dir).await?;
         let manifest = crate::launcher::utils::load_and_merge_manifest_with_instance(
             &context.minecraft_dir,
-            version_id,
+            &resolved,
             Some(&context.installation.id),
         )
         .await?;
@@ -51,8 +54,8 @@ impl Launchable for VanillaLaunchable {
         let libraries_path = PathBuf::from(&context.minecraft_dir).join("libraries");
         let version_jar_path = PathBuf::from(&context.minecraft_dir)
             .join("versions")
-            .join(version_id)
-            .join(format!("{}.jar", version_id));
+            .join(&resolved)
+            .join(format!("{}.jar", resolved));
         let classpath = crate::launcher::utils::build_classpath_from_manifest_with_instance(
             &manifest,
             &libraries_path,

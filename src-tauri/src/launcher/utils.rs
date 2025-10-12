@@ -20,17 +20,49 @@ fn load_and_merge_manifest_sync(
     instance_id: Option<&str>,
 ) -> Result<Value, String> {
     Logger::debug_global(&format!("Loading manifest for version_id: {}", version_id), instance_id);
+
+    // If version_id is a placeholder like latest-release/latest-snapshot/latest, resolve it first
+    let effective_version = if version_id == "latest-release" || version_id == "latest-snapshot" || version_id == "latest" {
+        let version_list_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+        let client = reqwest::blocking::Client::new();
+        let resp = client
+            .get(version_list_url)
+            .send()
+            .map_err(|err| format!("Failed to fetch version list: {}", err))?;
+        let manifest_list: Value = resp
+            .json()
+            .map_err(|err| format!("Failed to parse version list: {}", err))?;
+        let resolved_version = if let Some(latest) = manifest_list.get("latest") {
+            if version_id == "latest-snapshot" {
+                latest.get("snapshot").and_then(|v| v.as_str()).map(|s| s.to_string())
+            } else {
+                latest.get("release").and_then(|v| v.as_str()).map(|s| s.to_string())
+            }
+        } else {
+            None
+        };
+        let resolved_version = resolved_version.ok_or_else(|| {
+            format!("Failed to resolve '{}' to a concrete version from version_manifest.json", version_id)
+        })?;
+        Logger::debug_global(&format!("Resolved {} => {}", version_id, resolved_version), instance_id);
+        resolved_version
+    } else {
+        version_id.to_string()
+    };
+
     let manifest_path = PathBuf::from(minecraft_dir)
         .join("versions")
-        .join(version_id)
-        .join(format!("{}.json", version_id));
-    let manifest_str = match fs::read_to_string(&manifest_path) {
-        Ok(s) => s,
-        Err(e) => {
-            Logger::debug_global(&format!("Failed to read manifest: {}", e), instance_id);
-            return Err(format!("Failed to read manifest: {}", e));
-        }
-    };
+        .join(&effective_version)
+        .join(format!("{}.json", effective_version));
+
+    // Read the manifest for the effective version
+    let manifest_str = fs::read_to_string(&manifest_path)
+        .map_err(|e| {
+            Logger::debug_global(&format!("Failed to read manifest: {}. Tried path: {}", e, manifest_path.display()), instance_id);
+            format!("Failed to read manifest: {}", e)
+        })?;
+
+    // Parse the manifest we successfully read for the original (non-placeholder) id
     let mut manifest: Value = match serde_json::from_str(&manifest_str) {
         Ok(m) => m,
         Err(e) => {
@@ -38,6 +70,7 @@ fn load_and_merge_manifest_sync(
             return Err(format!("Failed to parse manifest: {}", e));
         }
     };
+
     // If inheritsFrom, recursively merge
     if let Some(parent_id) = manifest.get("inheritsFrom").and_then(|v| v.as_str()) {
         Logger::debug_global(
@@ -554,20 +587,15 @@ pub fn deduplicate_libraries(libraries: Vec<Library>) -> Vec<Library> {
 pub async fn ensure_version_manifest_and_jar(
     version_id: &str,
     minecraft_dir: &str,
-) -> Result<(), String> {
+) -> Result<String, String> {
     use reqwest::Client;
     use std::path::PathBuf;
-    let versions_dir = PathBuf::from(minecraft_dir)
-        .join("versions")
-        .join(version_id);
-    crate::ensure_folder(&versions_dir)
-        .await
-        .map_err(|e| format!("Failed to create versions dir: {}", e))?;
-    let manifest_path = versions_dir.join(format!("{}.json", version_id));
-    let jar_path = versions_dir.join(format!("{}.jar", version_id));
-    // Download manifest JSON if missing
-    if !manifest_path.exists() {
-        // Fallback: Use version list to get URL
+    use zip::ZipArchive;
+
+    // Resolve "latest-release" / "latest-snapshot" to a concrete version id
+    let mut resolved_version = version_id.to_string();
+    let mut maybe_version_list: Option<serde_json::Value> = None;
+    if version_id == "latest-release" || version_id == "latest-snapshot" || version_id == "latest" {
         let version_list_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
         let client = Client::new();
         let resp = client
@@ -579,18 +607,104 @@ pub async fn ensure_version_manifest_and_jar(
             .json()
             .await
             .map_err(|e| format!("Failed to parse version list: {e}"))?;
-        let versions = manifest
+        maybe_version_list = Some(manifest.clone());
+        if let Some(latest) = manifest.get("latest") {
+            if version_id == "latest-snapshot" {
+                if let Some(snapshot) = latest.get("snapshot").and_then(|v| v.as_str()) {
+                    resolved_version = snapshot.to_string();
+                }
+            } else if let Some(release) = latest.get("release").and_then(|v| v.as_str()) {
+                resolved_version = release.to_string();
+            }
+        }
+        crate::logging::Logger::debug_global(
+            &format!("Resolved {} => {}", version_id, resolved_version),
+            None,
+        );
+    }
+
+    // Ensure versions/<resolved_version> folder exists (create parent 'versions' if needed)
+    let version_subdir = PathBuf::from(minecraft_dir).join("versions").join(&resolved_version);
+    crate::ensure_folder(&version_subdir)
+        .await
+        .map_err(|e| format!("Failed to create versions dir: {}", e))?;
+    let manifest_path = version_subdir.join(format!("{}.json", resolved_version));
+    let jar_path = version_subdir.join(format!("{}.jar", resolved_version));
+
+    // Helper to validate client jar contains the Minecraft main class
+    fn validate_client_jar(jar_path: &Path) -> Result<(), String> {
+        let file = std::fs::File::open(jar_path)
+            .map_err(|e| format!("Failed to open JAR for validation: {}", e))?;
+        let mut archive = ZipArchive::new(file).map_err(|e| format!("Failed to read JAR archive: {}", e))?;
+        for i in 0..archive.len() {
+            if let Ok(entry) = archive.by_index(i) {
+                let name = entry.name();
+                if name == "net/minecraft/client/main/Main.class" {
+                    return Ok(());
+                }
+            }
+        }
+        Err("Client JAR does not contain net.minecraft.client.main.Main".to_string())
+    }
+
+    // If both manifest and jar already exist for the resolved version, validate jar and skip if ok.
+    if manifest_path.exists() && jar_path.exists() {
+        match validate_client_jar(&jar_path) {
+            Ok(_) => {
+                crate::logging::Logger::debug_global(
+                    &format!(
+                        "Version folder already exists for {} ({}) - skipping download",
+                        version_id, resolved_version
+                    ),
+                    None,
+                );
+                return Ok(resolved_version.clone());
+            }
+            Err(e) => {
+                crate::logging::Logger::debug_global(
+                    &format!(
+                        "Existing JAR failed validation for {} ({}): {}. Will re-download.",
+                        version_id, resolved_version, e
+                    ),
+                    None,
+                );
+                // Remove the invalid jar so that download logic proceeds
+                let _ = std::fs::remove_file(&jar_path);
+            }
+        }
+    }
+
+    // Download manifest JSON if missing
+    if !manifest_path.exists() {
+        // If we already fetched the version list (for latest-*), reuse it; otherwise fetch now.
+        let manifest_list = if let Some(v) = maybe_version_list {
+            v
+        } else {
+            let version_list_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+            let client = Client::new();
+            let resp = client
+                .get(version_list_url)
+                .send()
+                .await
+                .map_err(|e| format!("Failed to fetch version list: {e}"))?;
+            resp.json::<serde_json::Value>()
+                .await
+                .map_err(|e| format!("Failed to parse version list: {e}"))?
+        };
+
+        let versions = manifest_list
             .get("versions")
             .and_then(|v| v.as_array())
             .ok_or("No versions array")?;
         let version_obj = versions
             .iter()
-            .find(|v| v.get("id").and_then(|id| id.as_str()) == Some(version_id))
+            .find(|v| v.get("id").and_then(|id| id.as_str()) == Some(resolved_version.as_str()))
             .ok_or("Version not found")?;
         let url = version_obj
             .get("url")
             .and_then(|v| v.as_str())
             .ok_or("No url for version")?;
+        let client = Client::new();
         let resp = client
             .get(url)
             .send()
@@ -605,6 +719,7 @@ pub async fn ensure_version_manifest_and_jar(
             .await
             .map_err(|e| format!("Failed to write manifest: {e}"))?;
     }
+
     // Download JAR if missing
     if !jar_path.exists() {
         let manifest_str = async_fs::read_to_string(&manifest_path)
@@ -639,7 +754,8 @@ pub async fn ensure_version_manifest_and_jar(
             return Err("No client jar info in manifest".to_string());
         }
     }
-    Ok(())
+
+    Ok(resolved_version)
 }
 
 /// Ensures all libraries listed in the manifest exist in libraries_path. Downloads any missing ones.
