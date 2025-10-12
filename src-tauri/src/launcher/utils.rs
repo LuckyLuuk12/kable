@@ -1062,18 +1062,25 @@ pub fn extract_natives(
     natives_path: &PathBuf,
 ) -> Result<(), String> {
     if natives_path.exists() {
-        std::fs::remove_dir_all(natives_path)
-            .map_err(|e| format!("Failed to clear natives directory: {}", e))?;
+        // Try to remove old natives, but don't hard-fail if files are locked by another process
+        if let Err(e) = std::fs::remove_dir_all(natives_path) {
+            crate::logging::Logger::debug_global(&format!("Failed to clear natives directory (will continue): {}", e), None);
+        }
     }
     crate::ensure_folder_sync(natives_path)
         .map_err(|e| format!("Failed to create natives directory: {}", e))?;
     let current_os = std::env::consts::OS;
-    let natives_classifier = match current_os {
-        "windows" => "natives-windows",
-        "macos" => "natives-macos",
-        "linux" => "natives-linux",
-        _ => return Err(format!("Unsupported OS: {}", current_os)),
+    let current_arch = std::env::consts::ARCH; // e.g., "x86", "x86_64", "aarch64"
+
+    // Helper to map Rust arch to common manifest arch strings
+    let arch_tag = match current_arch {
+        "x86" | "i386" => "x86",
+        "x86_64" | "x64" | "amd64" => "x86_64",
+        "aarch64" | "arm64" => "arm64",
+        other => other,
     };
+
+    let os_tag = current_os;
     for library in libraries {
         if let Some(rules) = &library.rules {
             let rules_value = serde_json::to_value(rules)
@@ -1084,10 +1091,37 @@ pub fn extract_natives(
         }
         if let Some(downloads) = &library.downloads {
             if let Some(classifiers) = &downloads.classifiers {
-                if let Some(native_artifact) = classifiers.get(natives_classifier) {
-                    let native_path = libraries_path.join(&native_artifact.path);
-                    if native_path.exists() {
-                        extract_jar(&native_path, natives_path)?;
+                // Choose the best matching classifier key for this host (try os+arch, then os, then any matching natives-<os> variant)
+                let mut chosen: Option<String> = None;
+                // Preferred exact os+arch key, e.g. natives-windows-arm64 or natives-windows-x86
+                let candidate1 = format!("natives-{}-{}", os_tag, arch_tag);
+                if classifiers.contains_key(&candidate1) {
+                    chosen = Some(candidate1);
+                }
+                // Fallback: generic os-only classifier, e.g. natives-windows
+                if chosen.is_none() {
+                    let candidate2 = format!("natives-{}", os_tag);
+                    if classifiers.contains_key(&candidate2) {
+                        chosen = Some(candidate2);
+                    }
+                }
+                // Last resort: pick any classifier that starts with natives-<os>
+                if chosen.is_none() {
+                    for k in classifiers.keys() {
+                        if k.starts_with(&format!("natives-{}", os_tag)) {
+                            chosen = Some(k.clone());
+                            break;
+                        }
+                    }
+                }
+                if let Some(key) = chosen {
+                    if let Some(native_artifact) = classifiers.get(&key) {
+                        let native_path = libraries_path.join(&native_artifact.path);
+                        if native_path.exists() {
+                            extract_jar(&native_path, natives_path)?;
+                        } else {
+                            crate::logging::Logger::debug_global(&format!("Native artifact {} not found at {}", &native_artifact.path, native_path.display()), None);
+                        }
                     }
                 }
             }
