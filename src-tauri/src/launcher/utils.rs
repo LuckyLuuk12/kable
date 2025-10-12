@@ -1130,6 +1130,154 @@ pub fn extract_natives(
     Ok(())
 }
 
+/// Run pre-launch compatibility checks.
+///
+/// 1) Detect Java VM architecture (32/64/arm) and compare with native classifier architecture(s)
+///    referenced in the version manifest. If a hard mismatch (e.g., 32-bit Java vs 64-bit natives)
+///    is detected, return Err with clear actionable instructions.
+/// 2) This is intentionally conservative: if native classifiers are not present in manifests we
+///    don't fail, but will log information. Use `instance_id` to tag logs.
+pub fn pre_launch_java_native_compat_check(
+    java_path: &str,
+    manifest: &serde_json::Value,
+    instance_id: Option<&str>,
+) -> Result<(), String> {
+    use std::process::Command;
+    use crate::logging::Logger;
+
+    // 1) Probe `java -version` and parse arch from output (stderr is commonly used)
+    let output = Command::new(java_path).arg("-version").output();
+    let mut java_info = String::new();
+    match output {
+        Ok(o) => {
+            java_info.push_str(&String::from_utf8_lossy(&o.stdout));
+            java_info.push_str(&String::from_utf8_lossy(&o.stderr));
+        }
+        Err(e) => {
+            Logger::info_global(
+                &format!("Failed to execute '{}' to probe java version: {}", java_path, e),
+                instance_id,
+            );
+            // Don't block launch just because java probe failed; let launch attempt proceed and fail normally.
+            return Ok(());
+        }
+    }
+
+    // Normalize to small set of arch tags used by natives selection
+    let java_arch = if java_info.contains("64-Bit") || java_info.contains("x86_64") || java_info.contains("amd64") {
+        "x86_64"
+    } else if java_info.to_lowercase().contains("arm") || java_info.contains("aarch64") || java_info.contains("arm64") {
+        "arm64"
+    } else if java_info.contains("32-Bit") || java_info.contains("x86") {
+        "x86"
+    } else {
+        // Fallback to host arch if we can't detect from java output
+        std::env::consts::ARCH
+    };
+
+    Logger::debug_global(&format!("Detected Java info: {}", java_info.lines().next().unwrap_or("(no version line)")), instance_id);
+    Logger::debug_global(&format!("Interpreted Java arch as: {}", java_arch), instance_id);
+
+    // 2) Inspect the manifest for native classifier keys
+    let mut required_archs: std::collections::HashSet<String> = std::collections::HashSet::new();
+    if let Some(libs) = manifest.get("libraries").and_then(|v| v.as_array()) {
+        for lib in libs {
+            if let Some(obj) = lib.as_object() {
+                if let Some(downloads) = obj.get("downloads") {
+                    if let Some(classifiers) = downloads.get("classifiers") {
+                        if let Some(map) = classifiers.as_object() {
+                            for key in map.keys() {
+                                if key.starts_with("natives-") {
+                                    // key examples: natives-windows, natives-windows-x86, natives-linux, natives-windows-x86_64
+                                    let parts: Vec<&str> = key.split('-').collect();
+                                    // last part may be arch or os depending on key form
+                                    if parts.len() >= 3 {
+                                        let maybe_arch = parts[parts.len() - 1];
+                                        let arch_tag = match maybe_arch {
+                                            "x86" | "i386" => "x86",
+                                            "x86_64" | "x64" | "amd64" => "x86_64",
+                                            "arm64" | "aarch64" => "arm64",
+                                            _ => {
+                                                // If last part equals the OS name (e.g., natives-windows), then there's no arch encoded.
+                                                // We'll treat that as unspecified and skip.
+                                                continue;
+                                            }
+                                        };
+                                        required_archs.insert(arch_tag.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if required_archs.is_empty() {
+        Logger::debug_global("No explicit native classifier architectures were found in manifest (natives-... keys); skipping strict Java/native compatibility checks", instance_id);
+        return Ok(());
+    }
+
+    // If any required arch explicitly demands 64-bit but java is 32-bit, fail early
+    if required_archs.contains("x86_64") && java_arch == "x86" {
+        let msg = format!("Detected 32-bit Java but native libraries in this version require 64-bit Java. Please install a 64-bit JRE/JDK (e.g., Adoptium/OpenJDK x64) and configure its path in settings. Detected java: '{}'", java_path);
+        Logger::info_global(&msg, instance_id);
+        return Err(msg);
+    }
+
+    // If natives require arm64 but Java is x86_64, that's likely incompatible
+    if required_archs.contains("arm64") && java_arch == "x86_64" {
+        let msg = format!("Detected x86_64 Java but native libraries in this version are arm64-only. Please use an arm64 Java runtime or install a matching version of Minecraft/native libs. Detected java: '{}'", java_path);
+        Logger::info_global(&msg, instance_id);
+        return Err(msg);
+    }
+
+    // If multiple required archs are present (mixed), log and continue
+    if required_archs.len() > 1 {
+        Logger::info_global(&format!("Manifest lists native artifacts for multiple architectures: {:?}. Ensure you're using a matching Java runtime for your platform.", required_archs), instance_id);
+    }
+
+    Logger::debug_global("Java/native compatibility check passed", instance_id);
+    Ok(())
+}
+
+/// Inspect the constructed classpath for multiple LWJGL versions and log a warning if inconsistent versions are detected.
+/// This does not block launch, but surfaces potential runtime issues.
+pub fn check_lwjgl_classpath_consistency(classpath: &str, instance_id: Option<&str>) -> Result<(), String> {
+    use crate::logging::Logger;
+    use regex::Regex;
+
+    let sep = if cfg!(windows) { ";" } else { ":" };
+    let mut versions = std::collections::HashSet::new();
+    // Look for filenames containing 'lwjgl' and try to extract a version-like substring
+    let ver_re = Regex::new(r"(\d+\.[0-9]+(?:\.[0-9]+)*)").unwrap();
+    for entry in classpath.split(sep) {
+        if entry.to_lowercase().contains("lwjgl") {
+            if let Some(name) = std::path::Path::new(entry).file_name().and_then(|s| s.to_str()) {
+                if let Some(cap) = ver_re.captures(name) {
+                    if let Some(m) = cap.get(1) {
+                        versions.insert(m.as_str().to_string());
+                    }
+                } else {
+                    // If no version captured, add a marker to indicate unknown
+                    versions.insert("unknown".to_string());
+                }
+            }
+        }
+    }
+    if versions.len() > 1 {
+        Logger::info_global(&format!("Multiple LWJGL versions detected on classpath: {:?}. This can cause native/JNI conflicts at runtime. Consider ensuring a single LWJGL version is present (check installed libraries).", versions), instance_id);
+    } else if versions.len() == 1 && versions.contains("unknown") {
+        Logger::debug_global("Found LWJGL artifacts on classpath but could not determine version from filenames; ensure LWJGL jars are consistent.", instance_id);
+    } else if versions.len() == 1 {
+        Logger::debug_global(&format!("LWJGL version on classpath appears consistent: {:?}", versions), instance_id);
+    } else {
+        Logger::debug_global("No LWJGL artifacts detected on classpath", instance_id);
+    }
+    Ok(())
+}
+
 /// Extracts all files from a JAR (ZIP) archive to the specified directory.
 ///
 /// Used internally by `extract_natives` for native library extraction.
@@ -1321,24 +1469,12 @@ pub async fn spawn_and_log_process(
         }
     }
 
-    // --- Emit game-launched event FIRST (before any instance-aware utils are called) ---
-    let app_handle = get_app_handle();
-    let mut patched_profile = profile.clone();
-    if let Some(install_name) = installation.get("name") {
-        patched_profile["name"] = install_name.clone();
-    } else if let Some(id) = profile.get("id") {
-        patched_profile["name"] = id.clone();
-    }
-    if let Some(ref app) = app_handle {
-        let _ = app.emit(
-            "game-launched",
-            json!({
-                "instanceId": instance_id,
-                "profile": patched_profile,
-                "installation": installation
-            }),
-        );
-    }
+    // Note: do NOT emit high-level "game-launched" here. The caller is responsible
+    // for emitting a game-started/game-launched event after it has tracked the PID.
+    // This helper will only emit process-level events (started/output/error/exit)
+    // and will return immediately after spawning the child. Exit handling is
+    // performed in a background task so this function does not block until the
+    // game exits.
 
     // Now spawn the process
     let mut tokio_cmd = TokioCommand::new(cmd.get_program());
@@ -1356,6 +1492,38 @@ pub async fn spawn_and_log_process(
         .spawn()
         .map_err(|e| format!("Failed to launch: {e}"))?;
     let pid = child.id().unwrap_or(0);
+
+    // Retrieve global app handle for emitting events/logging
+    let app_handle = get_app_handle();
+
+    // Build a minimal profile object for UI use. Prefer installation.name, then
+    // profile.name, then profile.id, then installation.id, else 'Unknown'.
+    let profile_name_value = if let Some(name) = installation.get("name") {
+        name.clone()
+    } else if let Some(name) = profile.get("name") {
+        name.clone()
+    } else if let Some(id) = profile.get("id") {
+        id.clone()
+    } else if let Some(id) = installation.get("id") {
+        id.clone()
+    } else {
+        json!("Unknown")
+    };
+    let profile_obj = json!({ "name": profile_name_value });
+
+    // Emit a higher-level "game-launched" event for frontend logs/UI to create
+    // a GameInstance and show initial launcher logs. This is separate from the
+    // lower-level process events emitted below.
+    if let Some(ref app) = app_handle {
+        let _ = app.emit(
+            "game-launched",
+            json!({
+                "instanceId": instance_id,
+                "profile": profile_obj,
+                "installation": installation
+            }),
+        );
+    }
 
     // Emit process started event
     if let Some(ref app) = app_handle {
@@ -1499,29 +1667,67 @@ pub async fn spawn_and_log_process(
         }
     });
 
-    // Wait for process to exit
-    // eprintln!("Command:\n{:?}", cmd);
-    let status = child
-        .wait()
-        .await
-        .map_err(|e| format!("Process wait failed: {e}"))?;
-    let exit_code = status.code().unwrap_or(-1);
-    Logger::info_global(
-        &format!("Minecraft process exited with status: {}", exit_code),
-        Some(&instance_id_str),
-    );
-    if let Some(app) = get_app_handle() {
-        let _ = app.emit_to(
-            "main",
-            "game-process-event",
-            json!({
-                "instanceId": &instance_id_str,
-                "type": "exit",
-                "data": { "code": exit_code }
-            }),
+    // Move the child into a background task that will wait for exit and emit exit events.
+    let mut child_for_wait = child;
+    let instance_id_for_wait = instance_id_str.clone();
+    task::spawn(async move {
+        Logger::info_global(
+            &format!("[EXIT TASK] Started waiting for process exit (instanceId: {})", instance_id_for_wait),
+            Some(&instance_id_for_wait),
         );
-    }
+        // Wait for process to exit and emit exit event / log
+        match child_for_wait.wait().await {
+            Ok(status) => {
+                let exit_code = status.code().unwrap_or(-1);
+                Logger::info_global(
+                    &format!("[EXIT TASK] Process exited with code {} (instanceId: {})", exit_code, instance_id_for_wait),
+                    Some(&instance_id_for_wait),
+                );
+                if let Some(app) = get_app_handle() {
+                    Logger::info_global(
+                        &format!("[EXIT TASK] Emitting game-process-event exit for instanceId: {}", instance_id_for_wait),
+                        Some(&instance_id_for_wait),
+                    );
+                    let _ = app.emit(
+                        "game-process-event",
+                        json!({
+                            "instanceId": instance_id_for_wait,
+                            "type": "exit",
+                            "data": { "code": exit_code }
+                        }),
+                    );
+                    Logger::info_global(
+                        "[EXIT TASK] Exit event emitted successfully",
+                        Some(&instance_id_for_wait),
+                    );
+                } else {
+                    Logger::warn_global(
+                        "[EXIT TASK] No app handle - cannot emit exit event",
+                        Some(&instance_id_for_wait),
+                    );
+                }
+            }
+            Err(e) => {
+                Logger::error_global(&format!("[EXIT TASK] Process wait failed: {}", e), Some(&instance_id_for_wait));
+                if let Some(app) = get_app_handle() {
+                    let _ = app.emit(
+                        "game-process-event",
+                        json!({
+                            "instanceId": instance_id_for_wait,
+                            "type": "exit",
+                            "data": { "error": format!("{}", e) }
+                        }),
+                    );
+                }
+            }
+        }
+        Logger::info_global(
+            &format!("[EXIT TASK] Completed (instanceId: {})", instance_id_for_wait),
+            Some(&instance_id_for_wait),
+        );
+    });
 
+    // Return immediately with info about the spawned process so callers can proceed.
     Ok(crate::launcher::LaunchResult {
         pid,
         command: format!("{:?}", cmd),

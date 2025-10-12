@@ -287,9 +287,9 @@ pub async fn launch_installation(
     settings: CategorizedLauncherSettings,
     account: LauncherAccount,
 ) -> Result<LaunchResult, String> {
-    // Use version_id for log grouping
-    let version_id = installation.version_id.as_str();
-    let instance_id = Some(version_id);
+    // Use installation.id for log grouping and event correlation
+    let instance_id = Some(installation.id.as_str());
+    
     Logger::info_global(
         &format!("Launching installation: {}", installation.name),
         None,
@@ -353,31 +353,33 @@ pub async fn launch_installation(
         let mut pids = get_pid_set().lock().unwrap();
         pids.insert(result.pid);
     }
-
-    // Handle on_game_launch settings behavior
+    
+    // Compute app handle so we can emit events (if available)
     let app_handle = if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         handle_guard.as_ref().map(|global| (**global).clone())
     } else {
         None
     };
-    handle_launch_settings(&settings, app_handle).await;
+
+    // Handle on_game_launch settings behavior
+    handle_launch_settings(&settings, app_handle.clone()).await;
 
     // Start monitoring the process for exit behavior
     let settings_clone = settings.clone();
-    let app_handle_clone = if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
-        handle_guard.as_ref().map(|global| (**global).clone())
-    } else {
-        None
-    };
+    let app_handle_clone = app_handle.clone();
     let pid = result.pid;
 
     // Spawn a task to monitor the process exit and handle settings
     tauri::async_runtime::spawn(async move {
+        Logger::info_global(
+            &format!("[SETTINGS TASK] Starting exit monitoring for PID {}", pid),
+            None,
+        );
         // Wait for the process to exit and get exit code
         match wait_for_minecraft_exit(pid).await {
             Ok(exit_code) => {
                 Logger::info_global(
-                    &format!("Process {} exited with code {}", pid, exit_code),
+                    &format!("[SETTINGS TASK] Process {} exited with code {}", pid, exit_code),
                     None,
                 );
 
@@ -385,17 +387,29 @@ pub async fn launch_installation(
                 let is_crash = exit_code != 0 && exit_code != 130 && exit_code != 143; // 130 = Ctrl+C, 143 = SIGTERM
 
                 if is_crash {
+                    Logger::info_global(
+                        &format!("[SETTINGS TASK] Handling crash settings for exit code {}", exit_code),
+                        None,
+                    );
                     handle_crash_settings(&settings_clone, app_handle_clone, exit_code).await;
                 } else {
+                    Logger::info_global(
+                        &format!("[SETTINGS TASK] Handling close settings for exit code {}", exit_code),
+                        None,
+                    );
                     handle_close_settings(&settings_clone, app_handle_clone, exit_code).await;
                 }
             }
             Err(e) => {
-                Logger::error_global(&format!("Error waiting for process exit: {}", e), None);
+                Logger::error_global(&format!("[SETTINGS TASK] Error waiting for process exit: {}", e), None);
                 // Handle as normal close if we can't determine exit code
                 handle_close_settings(&settings_clone, app_handle_clone, 0).await;
             }
         }
+        Logger::info_global(
+            &format!("[SETTINGS TASK] Completed for PID {}", pid),
+            None,
+        );
     });
 
     Ok(result)

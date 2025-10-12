@@ -71,6 +71,19 @@ impl Launchable for VanillaLaunchable {
             Some(&context.installation.id),
         );
 
+        // Run pre-launch Java/native compatibility check. This may return Err to abort launch with
+        // an actionable message (e.g., 32-bit Java vs 64-bit natives). Use configured java path.
+        let java_path = context
+            .settings
+            .general
+            .java_path
+            .clone()
+            .unwrap_or_else(|| "java".to_string());
+        crate::launcher::utils::pre_launch_java_native_compat_check(&java_path, &manifest, Some(&context.installation.id))?;
+
+        // Inspect classpath for LWJGL version consistency and log warnings if needed.
+        let _ = crate::launcher::utils::check_lwjgl_classpath_consistency(&classpath, Some(&context.installation.id));
+
         // 3. Build variable map
         let variables = build_variable_map(
             context,
@@ -117,12 +130,18 @@ impl Launchable for VanillaLaunchable {
         cmd.current_dir(&context.minecraft_dir);
 
         // Use spawn_and_log_process utility
-        let installation_json = serde_json::to_value(&context.installation)
+        let mut installation_json = serde_json::to_value(&context.installation)
             .map_err(|e| format!("Failed to serialize installation: {}", e))?;
+        if let Some(obj) = installation_json.as_object_mut() {
+            obj.insert(
+                "path".to_string(),
+                serde_json::json!(context.installation_path().to_string_lossy().to_string()),
+            );
+        }
         crate::launcher::utils::spawn_and_log_process(
             cmd,
             &context.minecraft_dir,
-            version_id,
+            &context.installation.id,
             &manifest,
             &installation_json,
         )

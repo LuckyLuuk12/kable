@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Icon, InstallationService, installations, isLoadingInstallations, isLoadingVersions, Launcher } from '$lib';
+  import { isLaunching, currentLaunchingInstallation } from '$lib/stores/launcher';
   import EditInstallationModal from './EditInstallationModal.svelte';
   import { onMount, onDestroy, tick } from 'svelte';
   
@@ -271,9 +272,14 @@
                   class="btn btn-primary play-below-icon" 
                   style="background: linear-gradient(90deg, {loaderColors[installation.id] || 'var(--loader-primary)'} 60%, {loaderColors[installation.id] ? `${loaderColors[installation.id]}cc` : 'var(--loader-secondary)'} 100%); color: var(--text-white) !important;"
                   on:click={async () => { await Launcher.launchInstallation(installation); }}
-                  disabled={isLoading}
+                  disabled={$isLaunching}
                 >
-                  Play
+                  {#if $currentLaunchingInstallation && $currentLaunchingInstallation.id === installation.id}
+                    <Icon name="refresh" size="sm" className="spin" forceType="svg" />
+                    <span style="margin-left:0.5rem">Launching...</span>
+                  {:else}
+                    Play
+                  {/if}
                 </button>
               </div>
               <div class="installation-meta">
@@ -354,9 +360,14 @@
                   class="btn btn-primary list-play-btn" 
                   style="background: linear-gradient(90deg, {loaderColors[installation.id] || 'var(--loader-primary)'} 60%, {loaderColors[installation.id] ? `${loaderColors[installation.id]}cc` : 'var(--loader-secondary)'} 100%); color: var(--text-white) !important;"
                   on:click={async () => { await Launcher.launchInstallation(installation); }}
-                  disabled={isLoading}
+                  disabled={$isLaunching}
                 >
-                  Play
+                  {#if $currentLaunchingInstallation && $currentLaunchingInstallation.id === installation.id}
+                    <Icon name="refresh" size="sm" className="spin" forceType="svg" />
+                    <span style="margin-left:0.5rem">Launching...</span>
+                  {:else}
+                    Play
+                  {/if}
                 </button>
               </div>
 

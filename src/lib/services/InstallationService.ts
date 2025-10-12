@@ -3,37 +3,53 @@ import * as installationsApi from '../api/installations';
 import { get } from 'svelte/store';
 
 export class InstallationService {
+  // Coalesce concurrent loadInstallations calls. When non-null, callers await this promise.
+  private static _inflightLoad: Promise<KableInstallation[]> | null = null;
+
   /**
    * Load all installations and update the store. 
    * @returns A snapshot of the loaded installations.
    */
   static async loadInstallations(): Promise<KableInstallation[]> {
-    isLoadingInstallations.set(true);
-    installationsError.set(null);
-    isLoadingVersions.set(true);
-    versionsError.set(null);
-    try {
-      // Load installations and versions in parallel
-      const [foundInstallations, foundVersions] = await Promise.all([
-        installationsApi.getInstallations(),
-        installationsApi.getAllVersions()
-      ]);
-      installations.set(foundInstallations);
-      versions.set(foundVersions);
-      selectedInstallation.set(foundInstallations[0] || null);
-    } catch (error) {
-      installationsError.set(`Failed to load installations: ${error}`);
-      versionsError.set(`Failed to load versions: ${error}`);
-      installations.set([]);
-      versions.set([]);
-      selectedInstallation.set(null);
-    } finally {
-      isLoadingInstallations.set(false);
-      isLoadingVersions.set(false);
+    // If a load is already in-flight, return that promise so we don't trigger duplicate backend calls
+    if (this._inflightLoad) {
+      return this._inflightLoad;
     }
-    console.log('Installations loaded:', get(installations).length, 'Versions loaded:\n', get(versions));
-    LogsService.emitLauncherEvent(`Loaded ${get(installations).length} installations and ${get(versions).length} versions`, 'debug');
-    return get(installations);
+
+    // Start the in-flight promise
+    this._inflightLoad = (async () => {
+      isLoadingInstallations.set(true);
+      installationsError.set(null);
+      isLoadingVersions.set(true);
+      versionsError.set(null);
+      try {
+        // Load installations and versions in parallel
+        const [foundInstallations, foundVersions] = await Promise.all([
+          installationsApi.getInstallations(),
+          installationsApi.getAllVersions()
+        ]);
+        installations.set(foundInstallations);
+        versions.set(foundVersions);
+        selectedInstallation.set(foundInstallations[0] || null);
+        return get(installations);
+      } catch (error) {
+        installationsError.set(`Failed to load installations: ${error}`);
+        versionsError.set(`Failed to load versions: ${error}`);
+        installations.set([]);
+        versions.set([]);
+        selectedInstallation.set(null);
+        return get(installations);
+      } finally {
+        isLoadingInstallations.set(false);
+        isLoadingVersions.set(false);
+        // Clear inflight promise
+        this._inflightLoad = null;
+        console.log('Installations loaded:', get(installations).length, 'Versions loaded:\n', get(versions));
+        LogsService.emitLauncherEvent(`Loaded ${get(installations).length} installations and ${get(versions).length} versions`, 'debug');
+      }
+    })();
+
+    return this._inflightLoad;
   }
 
   /**

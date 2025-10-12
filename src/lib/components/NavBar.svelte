@@ -4,6 +4,8 @@
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { currentAccount, AuthService, SettingsService, InstallationService, Icon, logsService, LogsService, IconService, settings } from '$lib';
+  import { isLaunching, currentLaunchingInstallation, launchTimeoutHandle } from '$lib/stores/launcher';
+  import { get } from 'svelte/store';
   import type { NavigationEventPayload, BehaviorChoiceEventPayload, GameRestartEventPayload } from '$lib/types';
   
   let isTauriReady = false;
@@ -15,24 +17,46 @@
     // Wait a bit for Tauri to fully initialize
     await new Promise(resolve => setTimeout(resolve, 50));
     try {
-      // Test if Tauri is ready by making a simple call
-      await InstallationService.loadInstallations();
+      // Assume Tauri is available once this onMount runs; set ready flag early
       isTauriReady = true;
-      // Initialize logs service first
-      await logsService.initialize();
-      LogsService.emitLauncherEvent('Kable launcher starting up...', 'info');
-      // Initialize all services
-      LogsService.emitLauncherEvent('Initializing launcher components...', 'info');
-      await Promise.all([
-        SettingsService.initialize(),
-        AuthService.initialize(),
-        IconService.initialize()
-      ]);
-      // Refresh token on startup
-      await AuthService.refreshCurrentAccount();
-      LogsService.emitLauncherEvent('All components initialized successfully', 'info');
+
+      // Start all initialization tasks concurrently. We do not want ordering to block startup.
+      const installPromise = InstallationService.loadInstallations();
+      const logsPromise = logsService.initialize();
+      const settingsPromise = SettingsService.initialize();
+      const authInitPromise = AuthService.initialize();
+      const iconPromise = IconService.initialize();
+
+      // Wait for logs service to be ready before emitting any log events that rely on it
+      try {
+        await logsPromise;
+        LogsService.emitLauncherEvent('Kable launcher starting up...', 'info');
+        LogsService.emitLauncherEvent('Initializing launcher components...', 'info');
+      } catch (e) {
+        console.error('Failed to initialize logs service:', e);
+      }
+
+      // Await all other initializations but do not fail fast — collect results
+      const results = await Promise.allSettled([installPromise, settingsPromise, authInitPromise, iconPromise]);
+
+      // If auth initialized successfully, refresh the current account
+      if (results[2] && results[2].status === 'fulfilled') {
+        try {
+          await AuthService.refreshCurrentAccount();
+        } catch (e) {
+          console.error('Failed to refresh auth account after init:', e);
+        }
+      }
+
+      // Emit final status and setup listeners (even if some inits failed) — errors are logged above
+      try {
+        LogsService.emitLauncherEvent('All components initialized successfully', 'info');
+      } catch (e) {
+        console.error('Failed to emit final init log:', e);
+      }
       initializationStatus = 'Ready';
       console.log('Layout initialization complete');
+
       // Set up settings behavior event listeners
       await setupSettingsEventListeners();
     } catch (error) {
@@ -97,6 +121,26 @@
         LogsService.emitLauncherEvent(`Game restart requested due to crash (exit code: ${event.payload.exit_code})`, 'warn');
         // TODO: Implement game restart functionality
         alert('Game restart feature is not implemented yet. Please launch manually.');
+      });
+
+      // Game started event - clear launching UI indicators
+      await listen<{ pid: number; installation_id: string }>('game-started', (event) => {
+        console.log('Game started event received:', event.payload);
+        LogsService.emitLauncherEvent(`Game started (PID: ${event.payload.pid})`, 'info');
+        try {
+          isLaunching.set(false);
+          currentLaunchingInstallation.set(null);
+          // Clear fallback timeout if set
+          try {
+            const prev = get(launchTimeoutHandle);
+            if (prev) clearTimeout(prev);
+            launchTimeoutHandle.set(null);
+          } catch (e) {
+            console.warn('Failed to clear launch timeout handle', e);
+          }
+        } catch (e) {
+          console.warn('Failed to clear launching indicators on game-started event:', e);
+        }
       });
 
       LogsService.emitLauncherEvent('Settings behavior event listeners initialized', 'info');

@@ -9,5 +9,8 @@ export const currentLaunchingInstallation = writable<KableInstallation | null>(n
 export const isLaunching = writable(false);
 export const launchError = writable<string | null>(null);
 
+// Timeout handle used to auto-clear launching UI after a max wait
+export const launchTimeoutHandle = writable<number | null>(null);
+
 // Java state
 export const javaStatus = writable<string>('Checking...');
