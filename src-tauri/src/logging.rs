@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{sync_channel, SyncSender, TrySendError};
 use tauri::{AppHandle, Emitter};
-use tokio::fs as async_fs;
+// tokio::fs not used in this module after refactor
 
 // Global app handle for logging from anywhere
 /// !NOTE: it should be initialized in the main function of your Tauri app at startup and accessed via the mutex
@@ -71,10 +71,10 @@ impl LogStorage {
         let minecraft_path = Self::get_minecraft_path(app)?;
         let logs_dir = minecraft_path.join("kable").join("logs");
 
-        // Create logs directory structure
-        fs::create_dir_all(&logs_dir)?;
-        fs::create_dir_all(logs_dir.join("launcher"))?;
-        fs::create_dir_all(logs_dir.join("installations"))?;
+    // Create logs directory structure using centralized sync helper
+    crate::ensure_folder_sync(&logs_dir)?;
+    crate::ensure_folder_sync(&logs_dir.join("launcher"))?;
+    crate::ensure_folder_sync(&logs_dir.join("installations"))?;
 
         // Load settings to configure logging
         let settings =
@@ -116,9 +116,9 @@ impl LogStorage {
                     config_clone.logs_dir.join("launcher").join(&filename)
                 };
 
-                // Ensure dir
+                // Ensure dir using sync helper
                 if let Some(parent) = log_path.parent() {
-                    let _ = std::fs::create_dir_all(parent);
+                    let _ = crate::ensure_folder_sync(parent);
                 }
 
                 // Check for compression
@@ -225,7 +225,7 @@ impl LogStorage {
                             cfg.logs_dir.join("launcher").join(&filename)
                         };
                         if let Some(parent) = log_path.parent() {
-                            let _ = std::fs::create_dir_all(parent);
+                            let _ = crate::ensure_folder_sync(parent);
                         }
                         let timestamp = m.timestamp.format("%Y-%m-%d %H:%M:%S%.3f UTC");
                         let log_line = format!("[{}] {} {}\n", timestamp, m.level.to_string().to_uppercase(), m.message);
@@ -243,6 +243,7 @@ impl LogStorage {
     }
 
     /// Compress a log file using 7zip
+    #[allow(dead_code)]
     fn compress_log_file(&self, log_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
         if !self.config.enable_compression {
             return Ok(());
@@ -544,11 +545,15 @@ pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
             .join("logs")
     };
 
-    // Create exports directory (async)
+    // Create exports directory (use async helper)
     let exports_dir = logs_dir.join("exports");
-    async_fs::create_dir_all(&exports_dir)
+    crate::ensure_parent_dir_exists_async(&exports_dir)
         .await
-        .map_err(|e| format!("Failed to create exports directory: {}", e))?;
+        .map_err(|e| format!("Failed to create exports directory parent: {}", e))?;
+    // Also ensure the directory itself exists
+    crate::ensure_folder(&exports_dir)
+        .await
+        .map_err(|e| format!("Failed to ensure exports directory exists: {}", e))?;
 
     let log_content = if let Some(ref id) = instance_id {
         format!(

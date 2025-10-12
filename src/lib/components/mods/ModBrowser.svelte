@@ -731,16 +731,8 @@ onMount(async () => {
       selectedInstallation.set(availableInstallations[0]);
       console.log('[ModBrowser] Auto-selected installation:', availableInstallations[0].name);
     } else {
-      // Try to load installations if they haven't been loaded yet
-      try {
-        const loadedInstallations = await InstallationService.loadInstallations();
-        if (loadedInstallations.length > 0) {
-          selectedInstallation.set(loadedInstallations[0]);
-          console.log('[ModBrowser] Loaded and auto-selected installation:', loadedInstallations[0].name);
-        }
-      } catch (error) {
-        console.error('[ModBrowser] Failed to load installations:', error);
-      }
+      // No installations available in store; rely on centralized bootstrap (NavBar) to load them.
+      console.log('[ModBrowser] No installations available yet; waiting for centralized initialization');
     }
   }
   

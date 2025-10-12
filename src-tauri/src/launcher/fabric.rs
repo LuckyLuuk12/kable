@@ -6,7 +6,6 @@ use reqwest::Client;
 /// Returns the fully merged manifest as serde_json::Value.
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use std::fs;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
@@ -277,7 +276,7 @@ impl Launchable for FabricLaunchable {
                 ),
                 Some(&context.installation.id),
             );
-            fs::create_dir_all(&cache_dir)
+            crate::ensure_folder_sync(&cache_dir)
                 .map_err(|e| format!("Failed to create cache dir: {e}"))?;
         }
         let jar_path = cache_dir.join(&jar_name);
@@ -329,7 +328,7 @@ impl Launchable for FabricLaunchable {
                     &format!("Creating version subdir: {}", version_subdir.display()),
                     Some(&context.installation.id),
                 );
-                fs::create_dir_all(&version_subdir)
+                crate::ensure_folder_sync(&version_subdir)
                     .map_err(|e| format!("Failed to create version dir: {e}"))?;
             }
             // Build java command: java -jar <installer> server|client -dir <mcdir> -mcversion <mcver> -noprofile -downloadMinecraft
@@ -492,12 +491,18 @@ impl Launchable for FabricLaunchable {
         cmd.current_dir(&context.minecraft_dir);
 
         // Use spawn_and_log_process utility
-        let installation_json = serde_json::to_value(&context.installation)
+        let mut installation_json = serde_json::to_value(&context.installation)
             .map_err(|e| format!("Failed to serialize installation: {}", e))?;
+        if let Some(obj) = installation_json.as_object_mut() {
+            obj.insert(
+                "path".to_string(),
+                serde_json::json!(context.installation_path().to_string_lossy().to_string()),
+            );
+        }
         crate::launcher::utils::spawn_and_log_process(
             cmd,
             &context.minecraft_dir,
-            version_id,
+            &context.installation.id,
             &manifest,
             &installation_json,
         )

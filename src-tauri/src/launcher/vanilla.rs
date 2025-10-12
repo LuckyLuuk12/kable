@@ -23,16 +23,25 @@ impl Launchable for VanillaLaunchable {
         // Download manifest and jar, and libraries
         let version_id = &_context.installation.version_id;
         let minecraft_dir = &_context.minecraft_dir;
-        crate::launcher::utils::ensure_version_manifest_and_jar(version_id, minecraft_dir).await?;
-        // Load manifest
+        // ensure_version_manifest_and_jar now returns the resolved concrete version id
+        let resolved = crate::launcher::utils::ensure_version_manifest_and_jar(version_id, minecraft_dir).await?;
+        // Load manifest using the resolved id
         let manifest = crate::launcher::utils::load_and_merge_manifest_with_instance(
             minecraft_dir,
-            version_id,
+            &resolved,
             Some(&_context.installation.id),
         )
         .await?;
         let libraries_path = std::path::PathBuf::from(minecraft_dir).join("libraries");
         crate::launcher::utils::ensure_libraries(&manifest, &libraries_path).await?;
+        // Ensure minimal assets + sounds so UI and audio are available
+        crate::launcher::utils::ensure_assets_for_manifest(
+            minecraft_dir,
+            &manifest,
+            crate::launcher::utils::AssetMode::MinimalWithSounds,
+            Some(&_context.installation.id),
+        )
+        .await?;
         Ok(())
     }
 
@@ -40,9 +49,11 @@ impl Launchable for VanillaLaunchable {
         println!("VANILLA::launch() -> {}", context.installation.name);
         // 1. Load merged manifest (with inheritance)
         let version_id = &context.installation.version_id;
+        // Ensure manifest/jar exist and get resolved id (in case of latest-* placeholders)
+        let resolved = crate::launcher::utils::ensure_version_manifest_and_jar(version_id, &context.minecraft_dir).await?;
         let manifest = crate::launcher::utils::load_and_merge_manifest_with_instance(
             &context.minecraft_dir,
-            version_id,
+            &resolved,
             Some(&context.installation.id),
         )
         .await?;
@@ -51,14 +62,27 @@ impl Launchable for VanillaLaunchable {
         let libraries_path = PathBuf::from(&context.minecraft_dir).join("libraries");
         let version_jar_path = PathBuf::from(&context.minecraft_dir)
             .join("versions")
-            .join(version_id)
-            .join(format!("{}.jar", version_id));
+            .join(&resolved)
+            .join(format!("{}.jar", resolved));
         let classpath = crate::launcher::utils::build_classpath_from_manifest_with_instance(
             &manifest,
             &libraries_path,
             &version_jar_path,
             Some(&context.installation.id),
         );
+
+        // Run pre-launch Java/native compatibility check. This may return Err to abort launch with
+        // an actionable message (e.g., 32-bit Java vs 64-bit natives). Use configured java path.
+        let java_path = context
+            .settings
+            .general
+            .java_path
+            .clone()
+            .unwrap_or_else(|| "java".to_string());
+        crate::launcher::utils::pre_launch_java_native_compat_check(&java_path, &manifest, Some(&context.installation.id))?;
+
+        // Inspect classpath for LWJGL version consistency and log warnings if needed.
+        let _ = crate::launcher::utils::check_lwjgl_classpath_consistency(&classpath, Some(&context.installation.id));
 
         // 3. Build variable map
         let variables = build_variable_map(
@@ -106,12 +130,18 @@ impl Launchable for VanillaLaunchable {
         cmd.current_dir(&context.minecraft_dir);
 
         // Use spawn_and_log_process utility
-        let installation_json = serde_json::to_value(&context.installation)
+        let mut installation_json = serde_json::to_value(&context.installation)
             .map_err(|e| format!("Failed to serialize installation: {}", e))?;
+        if let Some(obj) = installation_json.as_object_mut() {
+            obj.insert(
+                "path".to_string(),
+                serde_json::json!(context.installation_path().to_string_lossy().to_string()),
+            );
+        }
         crate::launcher::utils::spawn_and_log_process(
             cmd,
             &context.minecraft_dir,
-            version_id,
+            &context.installation.id,
             &manifest,
             &installation_json,
         )

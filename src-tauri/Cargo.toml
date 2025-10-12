@@ -1,6 +1,6 @@
 [package]
 name = "kable"
-version = "0.0.5"
+version = "0.0.6"
 description = "A Minecraft Launcher"
 authors = ["Luuk Kablan"]
 license = ""
@@ -26,22 +26,24 @@ tauri-plugin-dialog = "2.0"
 tauri-plugin-updater = "2.0"
 tokio = { version = "1.0", features = ["full"] }
 dirs = "5.0"
-reqwest = { version = "0.11", features = ["json", "multipart"] }
+reqwest = { version = "0.12.23", features = ["json", "multipart", "blocking"] }
 uuid = { version = "1.0", features = ["v4"] }
 base64 = "0.21"
 url = "2.4"
 urlencoding = "2.1"
 chrono = { version = "0.4", features = ["serde"] }
-thiserror = "1.0"
+thiserror = "2.0.17"
 tiny_http = "0.12"
 once_cell = "1.17"
 dotenvy = "0.15"
 sha2 = "0.10"
 zip = "0.6"
 sevenz-rust = "0.5"
-regex = "1.0"
-oauth2 = "4.4"
-minecraft-msa-auth = "0.3"
+regex = "1.11.3"
+sha1 = "0.10"
+oauth2 = { version = "5.0.0", features = ["reqwest"] }
+hex = "0.4"
+minecraft-msa-auth = "0.4.0"
 rand = "0.8"
 aes-gcm = "0.10"
 lazy_static = "1.4"

@@ -20,17 +20,49 @@ fn load_and_merge_manifest_sync(
     instance_id: Option<&str>,
 ) -> Result<Value, String> {
     Logger::debug_global(&format!("Loading manifest for version_id: {}", version_id), instance_id);
+
+    // If version_id is a placeholder like latest-release/latest-snapshot/latest, resolve it first
+    let effective_version = if version_id == "latest-release" || version_id == "latest-snapshot" || version_id == "latest" {
+        let version_list_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+        let client = reqwest::blocking::Client::new();
+        let resp = client
+            .get(version_list_url)
+            .send()
+            .map_err(|err| format!("Failed to fetch version list: {}", err))?;
+        let manifest_list: Value = resp
+            .json()
+            .map_err(|err| format!("Failed to parse version list: {}", err))?;
+        let resolved_version = if let Some(latest) = manifest_list.get("latest") {
+            if version_id == "latest-snapshot" {
+                latest.get("snapshot").and_then(|v| v.as_str()).map(|s| s.to_string())
+            } else {
+                latest.get("release").and_then(|v| v.as_str()).map(|s| s.to_string())
+            }
+        } else {
+            None
+        };
+        let resolved_version = resolved_version.ok_or_else(|| {
+            format!("Failed to resolve '{}' to a concrete version from version_manifest.json", version_id)
+        })?;
+        Logger::debug_global(&format!("Resolved {} => {}", version_id, resolved_version), instance_id);
+        resolved_version
+    } else {
+        version_id.to_string()
+    };
+
     let manifest_path = PathBuf::from(minecraft_dir)
         .join("versions")
-        .join(version_id)
-        .join(format!("{}.json", version_id));
-    let manifest_str = match fs::read_to_string(&manifest_path) {
-        Ok(s) => s,
-        Err(e) => {
-            Logger::debug_global(&format!("Failed to read manifest: {}", e), instance_id);
-            return Err(format!("Failed to read manifest: {}", e));
-        }
-    };
+        .join(&effective_version)
+        .join(format!("{}.json", effective_version));
+
+    // Read the manifest for the effective version
+    let manifest_str = fs::read_to_string(&manifest_path)
+        .map_err(|e| {
+            Logger::debug_global(&format!("Failed to read manifest: {}. Tried path: {}", e, manifest_path.display()), instance_id);
+            format!("Failed to read manifest: {}", e)
+        })?;
+
+    // Parse the manifest we successfully read for the original (non-placeholder) id
     let mut manifest: Value = match serde_json::from_str(&manifest_str) {
         Ok(m) => m,
         Err(e) => {
@@ -38,6 +70,7 @@ fn load_and_merge_manifest_sync(
             return Err(format!("Failed to parse manifest: {}", e));
         }
     };
+
     // If inheritsFrom, recursively merge
     if let Some(parent_id) = manifest.get("inheritsFrom").and_then(|v| v.as_str()) {
         Logger::debug_global(
@@ -554,20 +587,15 @@ pub fn deduplicate_libraries(libraries: Vec<Library>) -> Vec<Library> {
 pub async fn ensure_version_manifest_and_jar(
     version_id: &str,
     minecraft_dir: &str,
-) -> Result<(), String> {
+) -> Result<String, String> {
     use reqwest::Client;
     use std::path::PathBuf;
-    let versions_dir = PathBuf::from(minecraft_dir)
-        .join("versions")
-        .join(version_id);
-    async_fs::create_dir_all(&versions_dir)
-        .await
-        .map_err(|e| format!("Failed to create versions dir: {e}"))?;
-    let manifest_path = versions_dir.join(format!("{}.json", version_id));
-    let jar_path = versions_dir.join(format!("{}.jar", version_id));
-    // Download manifest JSON if missing
-    if !manifest_path.exists() {
-        // Fallback: Use version list to get URL
+    use zip::ZipArchive;
+
+    // Resolve "latest-release" / "latest-snapshot" to a concrete version id
+    let mut resolved_version = version_id.to_string();
+    let mut maybe_version_list: Option<serde_json::Value> = None;
+    if version_id == "latest-release" || version_id == "latest-snapshot" || version_id == "latest" {
         let version_list_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
         let client = Client::new();
         let resp = client
@@ -579,18 +607,104 @@ pub async fn ensure_version_manifest_and_jar(
             .json()
             .await
             .map_err(|e| format!("Failed to parse version list: {e}"))?;
-        let versions = manifest
+        maybe_version_list = Some(manifest.clone());
+        if let Some(latest) = manifest.get("latest") {
+            if version_id == "latest-snapshot" {
+                if let Some(snapshot) = latest.get("snapshot").and_then(|v| v.as_str()) {
+                    resolved_version = snapshot.to_string();
+                }
+            } else if let Some(release) = latest.get("release").and_then(|v| v.as_str()) {
+                resolved_version = release.to_string();
+            }
+        }
+        crate::logging::Logger::debug_global(
+            &format!("Resolved {} => {}", version_id, resolved_version),
+            None,
+        );
+    }
+
+    // Ensure versions/<resolved_version> folder exists (create parent 'versions' if needed)
+    let version_subdir = PathBuf::from(minecraft_dir).join("versions").join(&resolved_version);
+    crate::ensure_folder(&version_subdir)
+        .await
+        .map_err(|e| format!("Failed to create versions dir: {}", e))?;
+    let manifest_path = version_subdir.join(format!("{}.json", resolved_version));
+    let jar_path = version_subdir.join(format!("{}.jar", resolved_version));
+
+    // Helper to validate client jar contains the Minecraft main class
+    fn validate_client_jar(jar_path: &Path) -> Result<(), String> {
+        let file = std::fs::File::open(jar_path)
+            .map_err(|e| format!("Failed to open JAR for validation: {}", e))?;
+        let mut archive = ZipArchive::new(file).map_err(|e| format!("Failed to read JAR archive: {}", e))?;
+        for i in 0..archive.len() {
+            if let Ok(entry) = archive.by_index(i) {
+                let name = entry.name();
+                if name == "net/minecraft/client/main/Main.class" {
+                    return Ok(());
+                }
+            }
+        }
+        Err("Client JAR does not contain net.minecraft.client.main.Main".to_string())
+    }
+
+    // If both manifest and jar already exist for the resolved version, validate jar and skip if ok.
+    if manifest_path.exists() && jar_path.exists() {
+        match validate_client_jar(&jar_path) {
+            Ok(_) => {
+                crate::logging::Logger::debug_global(
+                    &format!(
+                        "Version folder already exists for {} ({}) - skipping download",
+                        version_id, resolved_version
+                    ),
+                    None,
+                );
+                return Ok(resolved_version.clone());
+            }
+            Err(e) => {
+                crate::logging::Logger::debug_global(
+                    &format!(
+                        "Existing JAR failed validation for {} ({}): {}. Will re-download.",
+                        version_id, resolved_version, e
+                    ),
+                    None,
+                );
+                // Remove the invalid jar so that download logic proceeds
+                let _ = std::fs::remove_file(&jar_path);
+            }
+        }
+    }
+
+    // Download manifest JSON if missing
+    if !manifest_path.exists() {
+        // If we already fetched the version list (for latest-*), reuse it; otherwise fetch now.
+        let manifest_list = if let Some(v) = maybe_version_list {
+            v
+        } else {
+            let version_list_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+            let client = Client::new();
+            let resp = client
+                .get(version_list_url)
+                .send()
+                .await
+                .map_err(|e| format!("Failed to fetch version list: {e}"))?;
+            resp.json::<serde_json::Value>()
+                .await
+                .map_err(|e| format!("Failed to parse version list: {e}"))?
+        };
+
+        let versions = manifest_list
             .get("versions")
             .and_then(|v| v.as_array())
             .ok_or("No versions array")?;
         let version_obj = versions
             .iter()
-            .find(|v| v.get("id").and_then(|id| id.as_str()) == Some(version_id))
+            .find(|v| v.get("id").and_then(|id| id.as_str()) == Some(resolved_version.as_str()))
             .ok_or("Version not found")?;
         let url = version_obj
             .get("url")
             .and_then(|v| v.as_str())
             .ok_or("No url for version")?;
+        let client = Client::new();
         let resp = client
             .get(url)
             .send()
@@ -605,6 +719,7 @@ pub async fn ensure_version_manifest_and_jar(
             .await
             .map_err(|e| format!("Failed to write manifest: {e}"))?;
     }
+
     // Download JAR if missing
     if !jar_path.exists() {
         let manifest_str = async_fs::read_to_string(&manifest_path)
@@ -639,7 +754,8 @@ pub async fn ensure_version_manifest_and_jar(
             return Err("No client jar info in manifest".to_string());
         }
     }
-    Ok(())
+
+    Ok(resolved_version)
 }
 
 /// Ensures all libraries listed in the manifest exist in libraries_path. Downloads any missing ones.
@@ -680,6 +796,199 @@ pub async fn ensure_libraries(
             }
         }
     }
+    Ok(())
+}
+/// Mode for asset ensuring: Minimal (small set for UI) or Full (all objects)
+pub enum AssetMode {
+    Minimal,
+    /// Minimal but also download sounds referenced by minecraft/sounds.json
+    MinimalWithSounds,
+    Full,
+}
+
+/// Ensures the asset index and required objects for a manifest exist in minecraft_dir.
+/// Minimal mode will fetch a small curated set (panorama + icons). Full will fetch all objects referenced
+/// in the index (can be large).
+pub async fn ensure_assets_for_manifest(
+    minecraft_dir: &str,
+    manifest: &serde_json::Value,
+    mode: AssetMode,
+    instance_id: Option<&str>,
+) -> Result<(), String> {
+    use reqwest::Client;
+    use sha1::{Digest, Sha1};
+
+    // Determine assets index name from manifest
+    let assets_index_name = match manifest.get("assets").and_then(|v| v.as_str()) {
+        Some(n) if !n.is_empty() => n.to_string(),
+        _ => {
+            crate::logging::Logger::debug_global("No assets index in manifest; skipping assets", instance_id);
+            return Ok(());
+        }
+    };
+
+    let indexes_dir = PathBuf::from(minecraft_dir).join("assets").join("indexes");
+    let objects_dir = PathBuf::from(minecraft_dir).join("assets").join("objects");
+    crate::ensure_folder(&indexes_dir).await.map_err(|e| format!("Failed to create indexes dir: {}", e))?;
+    crate::ensure_folder(&objects_dir).await.map_err(|e| format!("Failed to create objects dir: {}", e))?;
+
+    let index_path = indexes_dir.join(format!("{}.json", assets_index_name));
+    let client = Client::new();
+
+    // Fetch index JSON if missing
+    if !index_path.exists() {
+        // Try to find assets index URL via known pattern: Mojang hosts indexes at https://resources.download.minecraft.net/ (indexes are not stored there)
+        // The version manifest may include an 'assetIndex' object, but typical version manifests reference only the name in 'assets'.
+        // We'll try the common URL pattern used by Mojang's manifest entries: https://launchermeta.mojang.com/v1/packages/<assetIndexUrl>
+        // Fallback: try the canonical assets meta at https://launchermeta.mojang.com/mc/assets/ - but these endpoints vary.
+        // Best approach: look for an 'assetIndex' object in the version manifest (manifest may include it when downloaded from Mojang)
+        if let Some(asset_index_obj) = manifest.get("assetIndex").and_then(|v| v.as_object()) {
+            if let Some(url) = asset_index_obj.get("url").and_then(|v| v.as_str()) {
+                let resp = client.get(url).send().await.map_err(|e| format!("Failed to fetch assets index: {e}"))?;
+                let txt = resp.text().await.map_err(|e| format!("Failed to read assets index text: {e}"))?;
+                crate::ensure_parent_dir_exists_async(&index_path).await?;
+                crate::write_file_atomic_async(&index_path, txt.as_bytes()).await.map_err(|e| format!("Failed to write assets index: {e}"))?;
+            } else {
+                crate::logging::Logger::debug_global("No assetIndex.url in manifest; skipping index download", instance_id);
+                return Ok(());
+            }
+        } else {
+            crate::logging::Logger::debug_global("No assetIndex object in manifest; skipping index download", instance_id);
+            return Ok(());
+        }
+    }
+
+    // Parse index JSON
+    let index_str = async_fs::read_to_string(&index_path).await.map_err(|e| format!("Failed to read assets index: {}", e))?;
+    let index_json: serde_json::Value = serde_json::from_str(&index_str).map_err(|e| format!("Failed to parse assets index: {}", e))?;
+    let objects = index_json.get("objects").and_then(|v| v.as_object()).ok_or("No objects in assets index")?;
+
+    // Build list of required object hashes depending on mode
+    let mut required_hashes: Vec<String> = Vec::new();
+    if let AssetMode::Minimal = mode {
+        // Minimal set of paths needed for UI/panorama
+        let minimal_paths = vec![
+            "minecraft/textures/gui/title/background/panorama_0.png",
+            "minecraft/textures/gui/title/background/panorama_1.png",
+            "minecraft/textures/gui/title/background/panorama_2.png",
+            "minecraft/textures/gui/title/background/panorama_3.png",
+            "minecraft/textures/gui/title/background/panorama_4.png",
+            "minecraft/textures/gui/title/background/panorama_5.png",
+            "minecraft/textures/gui/title/background/panorama_blur.png",
+            "icons/icon_16x16.png",
+            "icons/icon_128x128.png",
+        ];
+        for p in minimal_paths {
+            if let Some(obj) = objects.get(p) {
+                if let Some(hash) = obj.get("hash").and_then(|h| h.as_str()) {
+                    required_hashes.push(hash.to_string());
+                }
+            }
+        }
+    } else {
+        // Full: collect all hashes
+        for (_k, v) in objects.iter() {
+            if let Some(hash) = v.get("hash").and_then(|h| h.as_str()) {
+                required_hashes.push(hash.to_string());
+            }
+        }
+    }
+
+    // If MinimalWithSounds, also parse minecraft/sounds.json entry and add referenced .ogg objects
+    if let AssetMode::MinimalWithSounds = mode {
+        if let Some(sounds_entry) = objects.get("minecraft/sounds.json") {
+            if let Some(hash) = sounds_entry.get("hash").and_then(|h| h.as_str()) {
+                // download sounds.json first if missing
+                let prefix = &hash[0..2];
+                let sounds_obj_path = objects_dir.join(prefix).join(hash);
+                if !sounds_obj_path.exists() {
+                    crate::ensure_parent_dir_exists_async(&sounds_obj_path).await?;
+                    let url = format!("https://resources.download.minecraft.net/{}/{}", prefix, hash);
+                    let resp = client.get(&url).send().await.map_err(|e| format!("Failed to download sounds.json {}: {}", hash, e))?;
+                    let bytes = resp.bytes().await.map_err(|e| format!("Failed to read sounds.json bytes {}: {}", hash, e))?;
+                    // Validate sha1
+                    let mut hasher = Sha1::new();
+                    hasher.update(&bytes);
+                    let digest = hasher.finalize();
+                    let hex = hex::encode(digest);
+                    if hex != hash {
+                        return Err(format!("Downloaded sounds.json {} sha1 mismatch ({} != {})", hash, hex, hash));
+                    }
+                    crate::write_file_atomic_async(&sounds_obj_path, &bytes).await.map_err(|e| format!("Failed to write sounds.json {}: {}", hash, e))?;
+                }
+                // Parse sounds.json to collect referenced sound files
+                let sounds_bytes = async_fs::read(&sounds_obj_path).await.map_err(|e| format!("Failed to read cached sounds.json {}: {}", hash, e))?;
+                let sounds_text = String::from_utf8_lossy(&sounds_bytes);
+                if let Ok(sounds_json) = serde_json::from_str::<serde_json::Value>(&sounds_text) {
+                    if let Some(sounds_obj) = sounds_json.as_object() {
+                        for (_name, def) in sounds_obj.iter() {
+                            // Each definition can be an object with 'sounds' array or a direct array
+                            if let Some(sounds_array) = def.get("sounds").and_then(|v| v.as_array()) {
+                                for sound_item in sounds_array {
+                                    if let Some(sound_str) = sound_item.as_str() {
+                                        // Resolve path and look up in index objects
+                                        let logical_path = format!("minecraft/sounds/{}.ogg", sound_str);
+                                        if let Some(obj) = objects.get(&logical_path) {
+                                            if let Some(h) = obj.get("hash").and_then(|h| h.as_str()) {
+                                                if !required_hashes.contains(&h.to_string()) {
+                                                    required_hashes.push(h.to_string());
+                                                }
+                                            }
+                                        }
+                                    } else if let Some(obj_item) = sound_item.as_object() {
+                                        if let Some(name_val) = obj_item.get("name").and_then(|v| v.as_str()) {
+                                            let logical_path = format!("minecraft/sounds/{}.ogg", name_val);
+                                            if let Some(obj) = objects.get(&logical_path) {
+                                                if let Some(h) = obj.get("hash").and_then(|h| h.as_str()) {
+                                                    if !required_hashes.contains(&h.to_string()) {
+                                                        required_hashes.push(h.to_string());
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } else if let Some(sound_str) = def.as_str() {
+                                let logical_path = format!("minecraft/sounds/{}.ogg", sound_str);
+                                if let Some(obj) = objects.get(&logical_path) {
+                                    if let Some(h) = obj.get("hash").and_then(|h| h.as_str()) {
+                                        if !required_hashes.contains(&h.to_string()) {
+                                            required_hashes.push(h.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Download missing objects
+    for hash in required_hashes {
+        if hash.len() < 2 { continue; }
+        let prefix = &hash[0..2];
+        let obj_path = objects_dir.join(prefix).join(&hash);
+        if obj_path.exists() {
+            continue;
+        }
+        crate::ensure_parent_dir_exists_async(&obj_path).await?;
+        let url = format!("https://resources.download.minecraft.net/{}/{}", prefix, hash);
+        let resp = client.get(&url).send().await.map_err(|e| format!("Failed to download asset {}: {}", hash, e))?;
+        let bytes = resp.bytes().await.map_err(|e| format!("Failed to read asset bytes {}: {}", hash, e))?;
+        // Validate sha1
+        let mut hasher = Sha1::new();
+        hasher.update(&bytes);
+        let digest = hasher.finalize();
+        let hex = hex::encode(digest);
+        if hex != hash {
+            return Err(format!("Downloaded asset {} sha1 mismatch ({} != {})", hash, hex, hash));
+        }
+        crate::write_file_atomic_async(&obj_path, &bytes).await.map_err(|e| format!("Failed to write asset {}: {}", hash, e))?;
+        crate::logging::Logger::debug_global(&format!("Downloaded asset {}", hash), instance_id);
+    }
+
     Ok(())
 }
 /// Attempts to find a working Java executable, either from the provided path or common install locations.
@@ -753,18 +1062,25 @@ pub fn extract_natives(
     natives_path: &PathBuf,
 ) -> Result<(), String> {
     if natives_path.exists() {
-        std::fs::remove_dir_all(natives_path)
-            .map_err(|e| format!("Failed to clear natives directory: {}", e))?;
+        // Try to remove old natives, but don't hard-fail if files are locked by another process
+        if let Err(e) = std::fs::remove_dir_all(natives_path) {
+            crate::logging::Logger::debug_global(&format!("Failed to clear natives directory (will continue): {}", e), None);
+        }
     }
-    std::fs::create_dir_all(natives_path)
+    crate::ensure_folder_sync(natives_path)
         .map_err(|e| format!("Failed to create natives directory: {}", e))?;
     let current_os = std::env::consts::OS;
-    let natives_classifier = match current_os {
-        "windows" => "natives-windows",
-        "macos" => "natives-macos",
-        "linux" => "natives-linux",
-        _ => return Err(format!("Unsupported OS: {}", current_os)),
+    let current_arch = std::env::consts::ARCH; // e.g., "x86", "x86_64", "aarch64"
+
+    // Helper to map Rust arch to common manifest arch strings
+    let arch_tag = match current_arch {
+        "x86" | "i386" => "x86",
+        "x86_64" | "x64" | "amd64" => "x86_64",
+        "aarch64" | "arm64" => "arm64",
+        other => other,
     };
+
+    let os_tag = current_os;
     for library in libraries {
         if let Some(rules) = &library.rules {
             let rules_value = serde_json::to_value(rules)
@@ -775,14 +1091,189 @@ pub fn extract_natives(
         }
         if let Some(downloads) = &library.downloads {
             if let Some(classifiers) = &downloads.classifiers {
-                if let Some(native_artifact) = classifiers.get(natives_classifier) {
-                    let native_path = libraries_path.join(&native_artifact.path);
-                    if native_path.exists() {
-                        extract_jar(&native_path, natives_path)?;
+                // Choose the best matching classifier key for this host (try os+arch, then os, then any matching natives-<os> variant)
+                let mut chosen: Option<String> = None;
+                // Preferred exact os+arch key, e.g. natives-windows-arm64 or natives-windows-x86
+                let candidate1 = format!("natives-{}-{}", os_tag, arch_tag);
+                if classifiers.contains_key(&candidate1) {
+                    chosen = Some(candidate1);
+                }
+                // Fallback: generic os-only classifier, e.g. natives-windows
+                if chosen.is_none() {
+                    let candidate2 = format!("natives-{}", os_tag);
+                    if classifiers.contains_key(&candidate2) {
+                        chosen = Some(candidate2);
+                    }
+                }
+                // Last resort: pick any classifier that starts with natives-<os>
+                if chosen.is_none() {
+                    for k in classifiers.keys() {
+                        if k.starts_with(&format!("natives-{}", os_tag)) {
+                            chosen = Some(k.clone());
+                            break;
+                        }
+                    }
+                }
+                if let Some(key) = chosen {
+                    if let Some(native_artifact) = classifiers.get(&key) {
+                        let native_path = libraries_path.join(&native_artifact.path);
+                        if native_path.exists() {
+                            extract_jar(&native_path, natives_path)?;
+                        } else {
+                            crate::logging::Logger::debug_global(&format!("Native artifact {} not found at {}", &native_artifact.path, native_path.display()), None);
+                        }
                     }
                 }
             }
         }
+    }
+    Ok(())
+}
+
+/// Run pre-launch compatibility checks.
+///
+/// 1) Detect Java VM architecture (32/64/arm) and compare with native classifier architecture(s)
+///    referenced in the version manifest. If a hard mismatch (e.g., 32-bit Java vs 64-bit natives)
+///    is detected, return Err with clear actionable instructions.
+/// 2) This is intentionally conservative: if native classifiers are not present in manifests we
+///    don't fail, but will log information. Use `instance_id` to tag logs.
+pub fn pre_launch_java_native_compat_check(
+    java_path: &str,
+    manifest: &serde_json::Value,
+    instance_id: Option<&str>,
+) -> Result<(), String> {
+    use std::process::Command;
+    use crate::logging::Logger;
+
+    // 1) Probe `java -version` and parse arch from output (stderr is commonly used)
+    let output = Command::new(java_path).arg("-version").output();
+    let mut java_info = String::new();
+    match output {
+        Ok(o) => {
+            java_info.push_str(&String::from_utf8_lossy(&o.stdout));
+            java_info.push_str(&String::from_utf8_lossy(&o.stderr));
+        }
+        Err(e) => {
+            Logger::info_global(
+                &format!("Failed to execute '{}' to probe java version: {}", java_path, e),
+                instance_id,
+            );
+            // Don't block launch just because java probe failed; let launch attempt proceed and fail normally.
+            return Ok(());
+        }
+    }
+
+    // Normalize to small set of arch tags used by natives selection
+    let java_arch = if java_info.contains("64-Bit") || java_info.contains("x86_64") || java_info.contains("amd64") {
+        "x86_64"
+    } else if java_info.to_lowercase().contains("arm") || java_info.contains("aarch64") || java_info.contains("arm64") {
+        "arm64"
+    } else if java_info.contains("32-Bit") || java_info.contains("x86") {
+        "x86"
+    } else {
+        // Fallback to host arch if we can't detect from java output
+        std::env::consts::ARCH
+    };
+
+    Logger::debug_global(&format!("Detected Java info: {}", java_info.lines().next().unwrap_or("(no version line)")), instance_id);
+    Logger::debug_global(&format!("Interpreted Java arch as: {}", java_arch), instance_id);
+
+    // 2) Inspect the manifest for native classifier keys
+    let mut required_archs: std::collections::HashSet<String> = std::collections::HashSet::new();
+    if let Some(libs) = manifest.get("libraries").and_then(|v| v.as_array()) {
+        for lib in libs {
+            if let Some(obj) = lib.as_object() {
+                if let Some(downloads) = obj.get("downloads") {
+                    if let Some(classifiers) = downloads.get("classifiers") {
+                        if let Some(map) = classifiers.as_object() {
+                            for key in map.keys() {
+                                if key.starts_with("natives-") {
+                                    // key examples: natives-windows, natives-windows-x86, natives-linux, natives-windows-x86_64
+                                    let parts: Vec<&str> = key.split('-').collect();
+                                    // last part may be arch or os depending on key form
+                                    if parts.len() >= 3 {
+                                        let maybe_arch = parts[parts.len() - 1];
+                                        let arch_tag = match maybe_arch {
+                                            "x86" | "i386" => "x86",
+                                            "x86_64" | "x64" | "amd64" => "x86_64",
+                                            "arm64" | "aarch64" => "arm64",
+                                            _ => {
+                                                // If last part equals the OS name (e.g., natives-windows), then there's no arch encoded.
+                                                // We'll treat that as unspecified and skip.
+                                                continue;
+                                            }
+                                        };
+                                        required_archs.insert(arch_tag.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if required_archs.is_empty() {
+        Logger::debug_global("No explicit native classifier architectures were found in manifest (natives-... keys); skipping strict Java/native compatibility checks", instance_id);
+        return Ok(());
+    }
+
+    // If any required arch explicitly demands 64-bit but java is 32-bit, fail early
+    if required_archs.contains("x86_64") && java_arch == "x86" {
+        let msg = format!("Detected 32-bit Java but native libraries in this version require 64-bit Java. Please install a 64-bit JRE/JDK (e.g., Adoptium/OpenJDK x64) and configure its path in settings. Detected java: '{}'", java_path);
+        Logger::info_global(&msg, instance_id);
+        return Err(msg);
+    }
+
+    // If natives require arm64 but Java is x86_64, that's likely incompatible
+    if required_archs.contains("arm64") && java_arch == "x86_64" {
+        let msg = format!("Detected x86_64 Java but native libraries in this version are arm64-only. Please use an arm64 Java runtime or install a matching version of Minecraft/native libs. Detected java: '{}'", java_path);
+        Logger::info_global(&msg, instance_id);
+        return Err(msg);
+    }
+
+    // If multiple required archs are present (mixed), log and continue
+    if required_archs.len() > 1 {
+        Logger::info_global(&format!("Manifest lists native artifacts for multiple architectures: {:?}. Ensure you're using a matching Java runtime for your platform.", required_archs), instance_id);
+    }
+
+    Logger::debug_global("Java/native compatibility check passed", instance_id);
+    Ok(())
+}
+
+/// Inspect the constructed classpath for multiple LWJGL versions and log a warning if inconsistent versions are detected.
+/// This does not block launch, but surfaces potential runtime issues.
+pub fn check_lwjgl_classpath_consistency(classpath: &str, instance_id: Option<&str>) -> Result<(), String> {
+    use crate::logging::Logger;
+    use regex::Regex;
+
+    let sep = if cfg!(windows) { ";" } else { ":" };
+    let mut versions = std::collections::HashSet::new();
+    // Look for filenames containing 'lwjgl' and try to extract a version-like substring
+    let ver_re = Regex::new(r"(\d+\.[0-9]+(?:\.[0-9]+)*)").unwrap();
+    for entry in classpath.split(sep) {
+        if entry.to_lowercase().contains("lwjgl") {
+            if let Some(name) = std::path::Path::new(entry).file_name().and_then(|s| s.to_str()) {
+                if let Some(cap) = ver_re.captures(name) {
+                    if let Some(m) = cap.get(1) {
+                        versions.insert(m.as_str().to_string());
+                    }
+                } else {
+                    // If no version captured, add a marker to indicate unknown
+                    versions.insert("unknown".to_string());
+                }
+            }
+        }
+    }
+    if versions.len() > 1 {
+        Logger::info_global(&format!("Multiple LWJGL versions detected on classpath: {:?}. This can cause native/JNI conflicts at runtime. Consider ensuring a single LWJGL version is present (check installed libraries).", versions), instance_id);
+    } else if versions.len() == 1 && versions.contains("unknown") {
+        Logger::debug_global("Found LWJGL artifacts on classpath but could not determine version from filenames; ensure LWJGL jars are consistent.", instance_id);
+    } else if versions.len() == 1 {
+        Logger::debug_global(&format!("LWJGL version on classpath appears consistent: {:?}", versions), instance_id);
+    } else {
+        Logger::debug_global("No LWJGL artifacts detected on classpath", instance_id);
     }
     Ok(())
 }
@@ -810,12 +1301,12 @@ fn extract_jar(jar_path: &PathBuf, extract_to: &Path) -> Result<(), String> {
             None => continue,
         };
         if file.name().ends_with('/') {
-            std::fs::create_dir_all(&outpath)
+            crate::ensure_folder_sync(&outpath)
                 .map_err(|e| format!("Failed to create directory: {}", e))?;
         } else {
             if let Some(p) = outpath.parent() {
                 if !p.exists() {
-                    std::fs::create_dir_all(p)
+                    crate::ensure_folder_sync(p)
                         .map_err(|e| format!("Failed to create parent directory: {}", e))?;
                 }
             }
@@ -978,24 +1469,12 @@ pub async fn spawn_and_log_process(
         }
     }
 
-    // --- Emit game-launched event FIRST (before any instance-aware utils are called) ---
-    let app_handle = get_app_handle();
-    let mut patched_profile = profile.clone();
-    if let Some(install_name) = installation.get("name") {
-        patched_profile["name"] = install_name.clone();
-    } else if let Some(id) = profile.get("id") {
-        patched_profile["name"] = id.clone();
-    }
-    if let Some(ref app) = app_handle {
-        let _ = app.emit(
-            "game-launched",
-            json!({
-                "instanceId": instance_id,
-                "profile": patched_profile,
-                "installation": installation
-            }),
-        );
-    }
+    // Note: do NOT emit high-level "game-launched" here. The caller is responsible
+    // for emitting a game-started/game-launched event after it has tracked the PID.
+    // This helper will only emit process-level events (started/output/error/exit)
+    // and will return immediately after spawning the child. Exit handling is
+    // performed in a background task so this function does not block until the
+    // game exits.
 
     // Now spawn the process
     let mut tokio_cmd = TokioCommand::new(cmd.get_program());
@@ -1013,6 +1492,38 @@ pub async fn spawn_and_log_process(
         .spawn()
         .map_err(|e| format!("Failed to launch: {e}"))?;
     let pid = child.id().unwrap_or(0);
+
+    // Retrieve global app handle for emitting events/logging
+    let app_handle = get_app_handle();
+
+    // Build a minimal profile object for UI use. Prefer installation.name, then
+    // profile.name, then profile.id, then installation.id, else 'Unknown'.
+    let profile_name_value = if let Some(name) = installation.get("name") {
+        name.clone()
+    } else if let Some(name) = profile.get("name") {
+        name.clone()
+    } else if let Some(id) = profile.get("id") {
+        id.clone()
+    } else if let Some(id) = installation.get("id") {
+        id.clone()
+    } else {
+        json!("Unknown")
+    };
+    let profile_obj = json!({ "name": profile_name_value });
+
+    // Emit a higher-level "game-launched" event for frontend logs/UI to create
+    // a GameInstance and show initial launcher logs. This is separate from the
+    // lower-level process events emitted below.
+    if let Some(ref app) = app_handle {
+        let _ = app.emit(
+            "game-launched",
+            json!({
+                "instanceId": instance_id,
+                "profile": profile_obj,
+                "installation": installation
+            }),
+        );
+    }
 
     // Emit process started event
     if let Some(ref app) = app_handle {
@@ -1156,29 +1667,67 @@ pub async fn spawn_and_log_process(
         }
     });
 
-    // Wait for process to exit
-    // eprintln!("Command:\n{:?}", cmd);
-    let status = child
-        .wait()
-        .await
-        .map_err(|e| format!("Process wait failed: {e}"))?;
-    let exit_code = status.code().unwrap_or(-1);
-    Logger::info_global(
-        &format!("Minecraft process exited with status: {}", exit_code),
-        Some(&instance_id_str),
-    );
-    if let Some(app) = get_app_handle() {
-        let _ = app.emit_to(
-            "main",
-            "game-process-event",
-            json!({
-                "instanceId": &instance_id_str,
-                "type": "exit",
-                "data": { "code": exit_code }
-            }),
+    // Move the child into a background task that will wait for exit and emit exit events.
+    let mut child_for_wait = child;
+    let instance_id_for_wait = instance_id_str.clone();
+    task::spawn(async move {
+        Logger::info_global(
+            &format!("[EXIT TASK] Started waiting for process exit (instanceId: {})", instance_id_for_wait),
+            Some(&instance_id_for_wait),
         );
-    }
+        // Wait for process to exit and emit exit event / log
+        match child_for_wait.wait().await {
+            Ok(status) => {
+                let exit_code = status.code().unwrap_or(-1);
+                Logger::info_global(
+                    &format!("[EXIT TASK] Process exited with code {} (instanceId: {})", exit_code, instance_id_for_wait),
+                    Some(&instance_id_for_wait),
+                );
+                if let Some(app) = get_app_handle() {
+                    Logger::info_global(
+                        &format!("[EXIT TASK] Emitting game-process-event exit for instanceId: {}", instance_id_for_wait),
+                        Some(&instance_id_for_wait),
+                    );
+                    let _ = app.emit(
+                        "game-process-event",
+                        json!({
+                            "instanceId": instance_id_for_wait,
+                            "type": "exit",
+                            "data": { "code": exit_code }
+                        }),
+                    );
+                    Logger::info_global(
+                        "[EXIT TASK] Exit event emitted successfully",
+                        Some(&instance_id_for_wait),
+                    );
+                } else {
+                    Logger::warn_global(
+                        "[EXIT TASK] No app handle - cannot emit exit event",
+                        Some(&instance_id_for_wait),
+                    );
+                }
+            }
+            Err(e) => {
+                Logger::error_global(&format!("[EXIT TASK] Process wait failed: {}", e), Some(&instance_id_for_wait));
+                if let Some(app) = get_app_handle() {
+                    let _ = app.emit(
+                        "game-process-event",
+                        json!({
+                            "instanceId": instance_id_for_wait,
+                            "type": "exit",
+                            "data": { "error": format!("{}", e) }
+                        }),
+                    );
+                }
+            }
+        }
+        Logger::info_global(
+            &format!("[EXIT TASK] Completed (instanceId: {})", instance_id_for_wait),
+            Some(&instance_id_for_wait),
+        );
+    });
 
+    // Return immediately with info about the spawned process so callers can proceed.
     Ok(crate::launcher::LaunchResult {
         pid,
         command: format!("{:?}", cmd),

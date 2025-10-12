@@ -6,7 +6,6 @@ pub use self::kable_profiles::*;
 pub use self::profiles::*;
 pub use self::versions::*;
 use tokio::sync::OnceCell;
-use tokio::fs as async_fs;
 
 /// Ensures that a modded installation has a dedicated mods folder set and created.
 /// Returns true if the folder was set/created, false otherwise.
@@ -31,9 +30,9 @@ async fn ensure_dedicated_mods_folder(
             .join("mods")
             .join(&installation.id);
         if !mods_dir.exists() {
-            async_fs::create_dir_all(&mods_dir)
+            crate::ensure_folder(&mods_dir)
                 .await
-                .map_err(|e| format!("Failed to create mods dir: {e}"))?;
+                .map_err(|e| format!("Failed to create mods dir: {}", e))?;
         }
         Ok(true)
     } else {

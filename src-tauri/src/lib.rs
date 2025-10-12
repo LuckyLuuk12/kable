@@ -270,6 +270,52 @@ pub async fn ensure_file_with(path: PathBuf, contents: &str) -> Result<PathBuf, 
     }
 }
 
+/// Ensure a directory exists at `path`. If it exists and is a file, return an error.
+/// Creates parent directories as necessary. Returns Ok(()) on success.
+pub async fn ensure_folder(path: &Path) -> Result<PathBuf, String> {
+    match async_fs::metadata(path).await {
+        Ok(md) => {
+            if md.is_dir() {
+                Ok(path.to_path_buf())
+            } else {
+                Err(format!("path exists but is not a directory: {}", path.display()))
+            }
+        }
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                async_fs::create_dir_all(path)
+                    .await
+                    .map_err(|e| format!("failed to create directory {}: {}", path.display(), e))?;
+                Ok(path.to_path_buf())
+            } else {
+                Err(format!("failed to stat path {}: {}", path.display(), e))
+            }
+        }
+    }
+}
+
+/// Synchronous variant of ensure_folder for use in blocking contexts.
+pub fn ensure_folder_sync(path: &Path) -> Result<PathBuf, String> {
+    match std::fs::metadata(path) {
+        Ok(md) => {
+            if md.is_dir() {
+                Ok(path.to_path_buf())
+            } else {
+                Err(format!("path exists but is not a directory: {}", path.display()))
+            }
+        }
+        Err(e) => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                std::fs::create_dir_all(path)
+                    .map_err(|e| format!("failed to create directory {}: {}", path.display(), e))?;
+                Ok(path.to_path_buf())
+            } else {
+                Err(format!("failed to stat path {}: {}", path.display(), e))
+            }
+        }
+    }
+}
+
 /// Atomically write bytes to `path` by creating a temporary file in the same
 /// directory and renaming it into place. This avoids partial file writes.
 pub async fn write_file_atomic_async(path: &Path, bytes: &[u8]) -> Result<(), String> {

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 import { Icon, installations, isLoadingInstallations, installationsError, type KableInstallation, Launcher, InstallationService } from '$lib';
+import { isLaunching, currentLaunchingInstallation } from '$lib/stores/launcher';
     import InstallationsList from '$lib/components/installations/InstallationsList.svelte';
 
 
@@ -8,7 +9,6 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
   let lastPlayedInstallations: KableInstallation[] = [];
   let error: string | null = null;
   let viewMode: 'grid' | 'list' = 'grid';
-  let isLaunching = false;
   let launchStatus = '';
   let openDropdownId: string | null = null;
   
@@ -98,7 +98,7 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
   }
 
   async function handlePlay() {
-    isLaunching = true;
+    isLaunching.set(true);
     launchStatus = 'Preparing to launch...';
     let result;
     
@@ -117,10 +117,6 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
       
       if (result.success) {         
         launchStatus = 'Launched Minecraft!';
-        // Refresh installations to update last played
-        setTimeout(() => {
-          InstallationService.loadInstallations();
-        }, 1000);
       } else {
         launchStatus = `Launch failed: ${result.error || 'Unknown error'}`;
       }
@@ -132,7 +128,7 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
       // Reset the button state quickly since Minecraft is now running independently
       setTimeout(() => {
         launchStatus = '';
-        isLaunching = false;
+        isLaunching.set(false);
       }, result?.success ? 2000 : 5000);
     }
   }
@@ -154,10 +150,7 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
         if (launchButton) {
           launchButton.textContent = 'Launched!';
         }
-        // Refresh installations to update last played
-        setTimeout(() => {
-          InstallationService.loadInstallations();
-        }, 1000);
+        // Installations will be kept in sync by the centralized bootstrap and store updates
       } else {
         alert(`Launch failed: ${result.error || 'Unknown error'}`);
       }
@@ -214,9 +207,14 @@ import { Icon, installations, isLoadingInstallations, installationsError, type K
   <div class="bottom-controls">
     <!-- Play Button (Centered) -->
     <div class="play-section">
-      <button class="play-button" on:click={handlePlay} disabled={isLaunching || lastPlayedInstallations.length === 0}>
-        <Icon name={isLaunching ? "refresh" : "play"} size="md" forceType="svg" />
-        <span>{isLaunching ? 'Launching...' : 'Play Minecraft'}</span>
+      <button class="play-button" on:click={handlePlay} disabled={$isLaunching || lastPlayedInstallations.length === 0}>
+        {#if $isLaunching}
+          <Icon name="refresh" size="md" forceType="svg" className="spin" />
+          <span>{'Launching...'}</span>
+        {:else}
+          <Icon name="play" size="md" forceType="svg" />
+          <span>Play Minecraft</span>
+        {/if}
       </button>
       {#if lastPlayedInstallations.length === 0}
         <p class="no-installations">No installations found. Please check your Minecraft directory in settings.</p>

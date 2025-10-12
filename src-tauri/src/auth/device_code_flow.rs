@@ -10,8 +10,8 @@ use minecraft_msa_auth::MinecraftAuthorizationFlow;
  * @see https://github.com/minecraft-rs/minecraft-msa-auth/blob/826a6846d4e1109a7acfa1a989aa77533aa01fc9/examples/device_flow.rs
  */
 use oauth2::{
-    basic::BasicClient, reqwest::async_http_client, AuthUrl, ClientId, DeviceAuthorizationUrl,
-    Scope, StandardDeviceAuthorizationResponse, TokenResponse, TokenUrl,
+    basic::BasicClient, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope,
+    StandardDeviceAuthorizationResponse, TokenResponse, TokenUrl,
 };
 use once_cell;
 use reqwest::Client;
@@ -86,36 +86,37 @@ pub async fn start_microsoft_device_auth() -> Result<DeviceCodeResponse, String>
         None,
     );
 
-    let client = BasicClient::new(
-        ClientId::new(client_id),
-        None,
-        AuthUrl::new(MSA_AUTHORIZE_URL.to_string()).map_err(|e| {
-            Logger::console_log(
-                LogLevel::Error,
-                &format!("❌ Failed to create auth URL: {}", e),
-                None,
-            );
-            format!("Failed to create auth URL: {}", e)
-        })?,
-        Some(TokenUrl::new(MSA_TOKEN_URL.to_string()).map_err(|e| {
-            Logger::console_log(
-                LogLevel::Error,
-                &format!("❌ Failed to create token URL: {}", e),
-                None,
-            );
-            format!("Failed to create token URL: {}", e)
-        })?),
-    )
-    .set_device_authorization_url(
-        DeviceAuthorizationUrl::new(DEVICE_CODE_URL.to_string()).map_err(|e| {
-            Logger::console_log(
-                LogLevel::Error,
-                &format!("❌ Failed to create device code URL: {}", e),
-                None,
-            );
-            format!("Failed to create device code URL: {}", e)
-        })?,
-    );
+    let client = BasicClient::new(ClientId::new(client_id))
+        .set_auth_uri(
+            AuthUrl::new(MSA_AUTHORIZE_URL.to_string()).map_err(|e| {
+                Logger::console_log(
+                    LogLevel::Error,
+                    &format!("❌ Failed to create auth URL: {}", e),
+                    None,
+                );
+                format!("Failed to create auth URL: {}", e)
+            })?,
+        )
+        .set_token_uri(
+            TokenUrl::new(MSA_TOKEN_URL.to_string()).map_err(|e| {
+                Logger::console_log(
+                    LogLevel::Error,
+                    &format!("❌ Failed to create token URL: {}", e),
+                    None,
+                );
+                format!("Failed to create token URL: {}", e)
+            })?,
+        )
+        .set_device_authorization_url(
+            DeviceAuthorizationUrl::new(DEVICE_CODE_URL.to_string()).map_err(|e| {
+                Logger::console_log(
+                    LogLevel::Error,
+                    &format!("❌ Failed to create device code URL: {}", e),
+                    None,
+                );
+                format!("Failed to create device code URL: {}", e)
+            })?,
+        );
 
     Logger::console_log(
         LogLevel::Debug,
@@ -125,16 +126,8 @@ pub async fn start_microsoft_device_auth() -> Result<DeviceCodeResponse, String>
 
     let details: StandardDeviceAuthorizationResponse = client
         .exchange_device_code()
-        .map_err(|e| {
-            Logger::console_log(
-                LogLevel::Error,
-                &format!("❌ Failed to initiate device code flow: {}", e),
-                None,
-            );
-            format!("Failed to initiate device code flow: {}", e)
-        })?
         .add_scope(Scope::new("XboxLive.signin offline_access".to_string()))
-        .request_async(async_http_client)
+    .request_async(&crate::auth::oauth_helpers::async_http_client)
         .await
         .map_err(|e| {
             Logger::console_log(
@@ -282,27 +275,26 @@ pub async fn poll_microsoft_device_auth(
         None,
     );
 
-    let client = BasicClient::new(
-        ClientId::new(client_id),
-        None,
-        AuthUrl::new(MSA_AUTHORIZE_URL.to_string())
-            .map_err(|e| format!("Failed to create auth URL: {}", e))?,
-        Some(
+    let client = BasicClient::new(ClientId::new(client_id))
+        .set_auth_uri(
+            AuthUrl::new(MSA_AUTHORIZE_URL.to_string())
+                .map_err(|e| format!("Failed to create auth URL: {}", e))?,
+        )
+        .set_token_uri(
             TokenUrl::new(MSA_TOKEN_URL.to_string())
                 .map_err(|e| format!("Failed to create token URL: {}", e))?,
-        ),
-    )
-    .set_device_authorization_url(
-        DeviceAuthorizationUrl::new(DEVICE_CODE_URL.to_string())
-            .map_err(|e| format!("Failed to create device code URL: {}", e))?,
-    );
+        )
+        .set_device_authorization_url(
+            DeviceAuthorizationUrl::new(DEVICE_CODE_URL.to_string())
+                .map_err(|e| format!("Failed to create device code URL: {}", e))?,
+        );
 
     Logger::console_log(LogLevel::Debug, "🌐 Making token exchange request...", None);
 
     // Try to exchange the device code for a token (non-blocking)
     match client
         .exchange_device_access_token(&details)
-        .request_async(async_http_client, tokio::time::sleep, None)
+    .request_async(&crate::auth::oauth_helpers::async_http_client, tokio::time::sleep, None)
         .await
     {
         Ok(token) => {

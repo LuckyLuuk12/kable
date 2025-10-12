@@ -42,13 +42,15 @@ export class LogsService {
     
     // Listen for game launch events
     const launchListener = await listen('game-launched', (event) => {
-      console.log('Received game launch event:', event);
+      console.log('[LogsService] Received game-launched event:', JSON.stringify(event.payload, null, 2));
       try {
         const { instanceId, profile, installation } = event.payload as {
           instanceId: string;
           profile: any;
           installation: any;
         };
+
+        console.log('[LogsService] Extracted data:', { instanceId, profileName: profile?.name, installationPath: installation?.path });
 
         const gameInstance: GameInstance = {
           id: instanceId,
@@ -65,6 +67,7 @@ export class LogsService {
           'info',
           instanceId
         );
+        console.log('[LogsService] Created game instance:', gameInstance);
       } catch (error) {
         console.error('Error handling game launch event:', error);
         LogsManager.addLauncherLog('Error processing game launch event', 'error');
@@ -99,6 +102,7 @@ export class LogsService {
             break;
 
           case 'exit':
+            console.log('[LogsService] Processing exit event for instanceId:', instanceId);
             // Better exit code interpretation
             const exitCode = data.code;
             let status: 'closed' | 'crashed' | 'stopped';
@@ -113,6 +117,7 @@ export class LogsService {
               status = 'stopped'; // Other controlled exits
             }
             
+            console.log('[LogsService] Updating game instance:', { instanceId, status, exitCode });
             LogsManager.updateGameInstance(instanceId, { 
               status,
               exitCode,
@@ -128,6 +133,7 @@ export class LogsService {
               status === 'crashed' ? 'error' : 'info',
               instanceId
             );
+            console.log('[LogsService] Exit event processed successfully');
             break;
         }
       } catch (error) {
