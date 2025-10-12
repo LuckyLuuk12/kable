@@ -798,6 +798,199 @@ pub async fn ensure_libraries(
     }
     Ok(())
 }
+/// Mode for asset ensuring: Minimal (small set for UI) or Full (all objects)
+pub enum AssetMode {
+    Minimal,
+    /// Minimal but also download sounds referenced by minecraft/sounds.json
+    MinimalWithSounds,
+    Full,
+}
+
+/// Ensures the asset index and required objects for a manifest exist in minecraft_dir.
+/// Minimal mode will fetch a small curated set (panorama + icons). Full will fetch all objects referenced
+/// in the index (can be large).
+pub async fn ensure_assets_for_manifest(
+    minecraft_dir: &str,
+    manifest: &serde_json::Value,
+    mode: AssetMode,
+    instance_id: Option<&str>,
+) -> Result<(), String> {
+    use reqwest::Client;
+    use sha1::{Digest, Sha1};
+
+    // Determine assets index name from manifest
+    let assets_index_name = match manifest.get("assets").and_then(|v| v.as_str()) {
+        Some(n) if !n.is_empty() => n.to_string(),
+        _ => {
+            crate::logging::Logger::debug_global("No assets index in manifest; skipping assets", instance_id);
+            return Ok(());
+        }
+    };
+
+    let indexes_dir = PathBuf::from(minecraft_dir).join("assets").join("indexes");
+    let objects_dir = PathBuf::from(minecraft_dir).join("assets").join("objects");
+    crate::ensure_folder(&indexes_dir).await.map_err(|e| format!("Failed to create indexes dir: {}", e))?;
+    crate::ensure_folder(&objects_dir).await.map_err(|e| format!("Failed to create objects dir: {}", e))?;
+
+    let index_path = indexes_dir.join(format!("{}.json", assets_index_name));
+    let client = Client::new();
+
+    // Fetch index JSON if missing
+    if !index_path.exists() {
+        // Try to find assets index URL via known pattern: Mojang hosts indexes at https://resources.download.minecraft.net/ (indexes are not stored there)
+        // The version manifest may include an 'assetIndex' object, but typical version manifests reference only the name in 'assets'.
+        // We'll try the common URL pattern used by Mojang's manifest entries: https://launchermeta.mojang.com/v1/packages/<assetIndexUrl>
+        // Fallback: try the canonical assets meta at https://launchermeta.mojang.com/mc/assets/ - but these endpoints vary.
+        // Best approach: look for an 'assetIndex' object in the version manifest (manifest may include it when downloaded from Mojang)
+        if let Some(asset_index_obj) = manifest.get("assetIndex").and_then(|v| v.as_object()) {
+            if let Some(url) = asset_index_obj.get("url").and_then(|v| v.as_str()) {
+                let resp = client.get(url).send().await.map_err(|e| format!("Failed to fetch assets index: {e}"))?;
+                let txt = resp.text().await.map_err(|e| format!("Failed to read assets index text: {e}"))?;
+                crate::ensure_parent_dir_exists_async(&index_path).await?;
+                crate::write_file_atomic_async(&index_path, txt.as_bytes()).await.map_err(|e| format!("Failed to write assets index: {e}"))?;
+            } else {
+                crate::logging::Logger::debug_global("No assetIndex.url in manifest; skipping index download", instance_id);
+                return Ok(());
+            }
+        } else {
+            crate::logging::Logger::debug_global("No assetIndex object in manifest; skipping index download", instance_id);
+            return Ok(());
+        }
+    }
+
+    // Parse index JSON
+    let index_str = async_fs::read_to_string(&index_path).await.map_err(|e| format!("Failed to read assets index: {}", e))?;
+    let index_json: serde_json::Value = serde_json::from_str(&index_str).map_err(|e| format!("Failed to parse assets index: {}", e))?;
+    let objects = index_json.get("objects").and_then(|v| v.as_object()).ok_or("No objects in assets index")?;
+
+    // Build list of required object hashes depending on mode
+    let mut required_hashes: Vec<String> = Vec::new();
+    if let AssetMode::Minimal = mode {
+        // Minimal set of paths needed for UI/panorama
+        let minimal_paths = vec![
+            "minecraft/textures/gui/title/background/panorama_0.png",
+            "minecraft/textures/gui/title/background/panorama_1.png",
+            "minecraft/textures/gui/title/background/panorama_2.png",
+            "minecraft/textures/gui/title/background/panorama_3.png",
+            "minecraft/textures/gui/title/background/panorama_4.png",
+            "minecraft/textures/gui/title/background/panorama_5.png",
+            "minecraft/textures/gui/title/background/panorama_blur.png",
+            "icons/icon_16x16.png",
+            "icons/icon_128x128.png",
+        ];
+        for p in minimal_paths {
+            if let Some(obj) = objects.get(p) {
+                if let Some(hash) = obj.get("hash").and_then(|h| h.as_str()) {
+                    required_hashes.push(hash.to_string());
+                }
+            }
+        }
+    } else {
+        // Full: collect all hashes
+        for (_k, v) in objects.iter() {
+            if let Some(hash) = v.get("hash").and_then(|h| h.as_str()) {
+                required_hashes.push(hash.to_string());
+            }
+        }
+    }
+
+    // If MinimalWithSounds, also parse minecraft/sounds.json entry and add referenced .ogg objects
+    if let AssetMode::MinimalWithSounds = mode {
+        if let Some(sounds_entry) = objects.get("minecraft/sounds.json") {
+            if let Some(hash) = sounds_entry.get("hash").and_then(|h| h.as_str()) {
+                // download sounds.json first if missing
+                let prefix = &hash[0..2];
+                let sounds_obj_path = objects_dir.join(prefix).join(hash);
+                if !sounds_obj_path.exists() {
+                    crate::ensure_parent_dir_exists_async(&sounds_obj_path).await?;
+                    let url = format!("https://resources.download.minecraft.net/{}/{}", prefix, hash);
+                    let resp = client.get(&url).send().await.map_err(|e| format!("Failed to download sounds.json {}: {}", hash, e))?;
+                    let bytes = resp.bytes().await.map_err(|e| format!("Failed to read sounds.json bytes {}: {}", hash, e))?;
+                    // Validate sha1
+                    let mut hasher = Sha1::new();
+                    hasher.update(&bytes);
+                    let digest = hasher.finalize();
+                    let hex = hex::encode(digest);
+                    if hex != hash {
+                        return Err(format!("Downloaded sounds.json {} sha1 mismatch ({} != {})", hash, hex, hash));
+                    }
+                    crate::write_file_atomic_async(&sounds_obj_path, &bytes).await.map_err(|e| format!("Failed to write sounds.json {}: {}", hash, e))?;
+                }
+                // Parse sounds.json to collect referenced sound files
+                let sounds_bytes = async_fs::read(&sounds_obj_path).await.map_err(|e| format!("Failed to read cached sounds.json {}: {}", hash, e))?;
+                let sounds_text = String::from_utf8_lossy(&sounds_bytes);
+                if let Ok(sounds_json) = serde_json::from_str::<serde_json::Value>(&sounds_text) {
+                    if let Some(sounds_obj) = sounds_json.as_object() {
+                        for (_name, def) in sounds_obj.iter() {
+                            // Each definition can be an object with 'sounds' array or a direct array
+                            if let Some(sounds_array) = def.get("sounds").and_then(|v| v.as_array()) {
+                                for sound_item in sounds_array {
+                                    if let Some(sound_str) = sound_item.as_str() {
+                                        // Resolve path and look up in index objects
+                                        let logical_path = format!("minecraft/sounds/{}.ogg", sound_str);
+                                        if let Some(obj) = objects.get(&logical_path) {
+                                            if let Some(h) = obj.get("hash").and_then(|h| h.as_str()) {
+                                                if !required_hashes.contains(&h.to_string()) {
+                                                    required_hashes.push(h.to_string());
+                                                }
+                                            }
+                                        }
+                                    } else if let Some(obj_item) = sound_item.as_object() {
+                                        if let Some(name_val) = obj_item.get("name").and_then(|v| v.as_str()) {
+                                            let logical_path = format!("minecraft/sounds/{}.ogg", name_val);
+                                            if let Some(obj) = objects.get(&logical_path) {
+                                                if let Some(h) = obj.get("hash").and_then(|h| h.as_str()) {
+                                                    if !required_hashes.contains(&h.to_string()) {
+                                                        required_hashes.push(h.to_string());
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } else if let Some(sound_str) = def.as_str() {
+                                let logical_path = format!("minecraft/sounds/{}.ogg", sound_str);
+                                if let Some(obj) = objects.get(&logical_path) {
+                                    if let Some(h) = obj.get("hash").and_then(|h| h.as_str()) {
+                                        if !required_hashes.contains(&h.to_string()) {
+                                            required_hashes.push(h.to_string());
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Download missing objects
+    for hash in required_hashes {
+        if hash.len() < 2 { continue; }
+        let prefix = &hash[0..2];
+        let obj_path = objects_dir.join(prefix).join(&hash);
+        if obj_path.exists() {
+            continue;
+        }
+        crate::ensure_parent_dir_exists_async(&obj_path).await?;
+        let url = format!("https://resources.download.minecraft.net/{}/{}", prefix, hash);
+        let resp = client.get(&url).send().await.map_err(|e| format!("Failed to download asset {}: {}", hash, e))?;
+        let bytes = resp.bytes().await.map_err(|e| format!("Failed to read asset bytes {}: {}", hash, e))?;
+        // Validate sha1
+        let mut hasher = Sha1::new();
+        hasher.update(&bytes);
+        let digest = hasher.finalize();
+        let hex = hex::encode(digest);
+        if hex != hash {
+            return Err(format!("Downloaded asset {} sha1 mismatch ({} != {})", hash, hex, hash));
+        }
+        crate::write_file_atomic_async(&obj_path, &bytes).await.map_err(|e| format!("Failed to write asset {}: {}", hash, e))?;
+        crate::logging::Logger::debug_global(&format!("Downloaded asset {}", hash), instance_id);
+    }
+
+    Ok(())
+}
 /// Attempts to find a working Java executable, either from the provided path or common install locations.
 ///
 /// Used by all loader modules to locate Java for launching Minecraft.

@@ -34,6 +34,14 @@ impl Launchable for VanillaLaunchable {
         .await?;
         let libraries_path = std::path::PathBuf::from(minecraft_dir).join("libraries");
         crate::launcher::utils::ensure_libraries(&manifest, &libraries_path).await?;
+        // Ensure minimal assets + sounds so UI and audio are available
+        crate::launcher::utils::ensure_assets_for_manifest(
+            minecraft_dir,
+            &manifest,
+            crate::launcher::utils::AssetMode::MinimalWithSounds,
+            Some(&_context.installation.id),
+        )
+        .await?;
         Ok(())
     }
 
