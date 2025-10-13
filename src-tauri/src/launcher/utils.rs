@@ -176,11 +176,9 @@ pub fn build_classpath_from_manifest_with_instance(
                             }
                         }
                     }
-                } else {
-                    if let Some(name_val) = obj.get("name") {
-                        if let Some(name) = name_val.as_str() {
-                            lib_name = Some(name.to_string());
-                        }
+                } else if let Some(name_val) = obj.get("name") {
+                    if let Some(name) = name_val.as_str() {
+                        lib_name = Some(name.to_string());
                     }
                 }
                 if let Some(jar_path) = jar_path_opt {
@@ -263,10 +261,10 @@ fn compare_versions(v1: &str, v2: &str) -> i32 {
     for i in 0..parts1.len().max(parts2.len()) {
         let p1 = parts1.get(i).copied().unwrap_or(0);
         let p2 = parts2.get(i).copied().unwrap_or(0);
-        if p1 > p2 {
-            return 1;
-        } else if p1 < p2 {
-            return -1;
+        match p1.cmp(&p2) {
+            std::cmp::Ordering::Greater => return 1,
+            std::cmp::Ordering::Less => return -1,
+            std::cmp::Ordering::Equal => continue,
         }
     }
     0
