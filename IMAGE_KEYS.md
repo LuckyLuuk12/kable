@@ -166,4 +166,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L829) | <pre><code class="language-html">&lt;Icon name="x" size="sm" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L435) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2025-10-12T22:17:56.965Z_
+_Generated: 2025-10-13T12:13:35.311Z_

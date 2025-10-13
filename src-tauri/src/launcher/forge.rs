@@ -58,6 +58,48 @@ impl Launchable for ForgeLaunchable {
             Some(&context.installation.id),
         );
 
+        // Clear natives folder to prevent version conflicts from previous launches
+        let natives_dir = PathBuf::from(&context.minecraft_dir).join("natives");
+        if natives_dir.exists() {
+            if let Err(e) = std::fs::remove_dir_all(&natives_dir) {
+                crate::logging::Logger::warn_global(
+                    &format!("Failed to clear natives directory (will continue): {}", e),
+                    Some(&context.installation.id),
+                );
+            } else {
+                crate::logging::Logger::debug_global(
+                    "Cleared natives directory to prevent version conflicts",
+                    Some(&context.installation.id),
+                );
+            }
+        }
+        // Recreate empty natives directory
+        if let Err(e) = crate::ensure_folder_sync(&natives_dir) {
+            crate::logging::Logger::warn_global(
+                &format!("Failed to recreate natives directory: {}", e),
+                Some(&context.installation.id),
+            );
+        }
+
+        // Extract native libraries from the manifest
+        if let Some(libs_array) = manifest.get("libraries").and_then(|v| v.as_array()) {
+            let libraries: Vec<crate::launcher::utils::Library> = libs_array
+                .iter()
+                .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                .collect();
+            if let Err(e) = crate::launcher::utils::extract_natives(
+                &libraries,
+                &libraries_path,
+                &natives_dir,
+                Some(&context.installation.id),
+            ) {
+                crate::logging::Logger::warn_global(
+                    &format!("Failed to extract natives: {}", e),
+                    Some(&context.installation.id),
+                );
+            }
+        }
+
         // Build variable map
         let variables = build_variable_map(
             context,
