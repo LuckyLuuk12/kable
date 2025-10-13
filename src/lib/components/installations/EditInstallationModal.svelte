@@ -4,10 +4,12 @@
 
   export let installation: KableInstallation;
   export let isOpen: boolean | undefined = undefined;
-  let edited: KableInstallation = { ...installation };
-  let javaArgsString: string = edited.java_args?.join(' ') || '';
+  
+  // Initialize as undefined, will be set when modal opens
+  let edited: KableInstallation | undefined = undefined;
+  let javaArgsString: string = '';
   // JSON editor for parameters_map
-  let parametersJson: string = JSON.stringify(edited.parameters_map || {}, null, 2);
+  let parametersJson: string = '{}';
   let dialogRef: HTMLDialogElement;
 
   import { tick } from 'svelte';
@@ -20,7 +22,7 @@
     if (isOpen != undefined && isOpen) {
       // Reinitialize edited fields from the current installation when opening
       if (installation) {
-        edited = { ...installation } as KableInstallation;
+        edited = structuredClone(installation);
         javaArgsString = edited.java_args?.join(' ') || '';
         parametersJson = JSON.stringify(edited.parameters_map || {}, null, 2);
       }
@@ -38,6 +40,7 @@
   }
 
   function handleInput(e: Event, field: keyof KableInstallation) {
+    if (!edited) return; // Safety check
     const target = e.target as HTMLInputElement;
     edited = { ...edited, [field]: target.value };
   }
@@ -62,6 +65,7 @@
 
   // Handler for when a folder is selected via the hidden input
   function handleFolderSelect(e: Event, field: keyof KableInstallation) {
+    if (!edited) return; // Safety check
     const target = e.target as HTMLInputElement;
     const files = target.files;
     if (!files || files.length === 0) return;
@@ -90,6 +94,7 @@
 
   // Handler for icon file selection
   function handleIconFileSelect(e: Event) {
+    if (!edited) return; // Safety check
     const target = e.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) return;
@@ -110,6 +115,8 @@
   }
 
   async function confirmEdit() {
+    if (!edited) return; // Safety check
+    
     edited.java_args = javaArgsString.split(' ').filter(arg => arg.length > 0);
     // merge parameters from JSON editor if valid
     try {
@@ -122,6 +129,7 @@
       console.warn('Failed to parse parameters JSON, keeping original map', e);
     }
 
+    console.log('[Modal] About to update installation:', { id: edited.id, edited });
     await InstallationService.updateInstallation(edited.id, edited);
     close();
   }
@@ -133,6 +141,7 @@
 
 <dialog bind:this={dialogRef} class="edit-installation-modal">
   <h2>Edit Installation{#if installation && installation.name} — {installation.name}{/if}</h2>
+  {#if edited}
   <form on:submit|preventDefault={confirmEdit} class="two-column-form">
     <div class="left-column">
       <label>
@@ -205,6 +214,7 @@
       <button type="button" class="btn btn-secondary" on:click={cancelEdit}>Cancel</button>
     </div>
   </form>
+  {/if}
   <!-- Hidden inputs for folder and icon selection (used instead of tauri dialog) -->
   <input id="icon-file-input" type="file" accept="image/png,image/jpeg,image/svg+xml,image/x-icon,image/webp" style="display:none;" on:change={handleIconFileSelect} />
   <!-- Folder inputs: use webkitdirectory to allow picking a folder and read its relative paths -->

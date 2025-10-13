@@ -12,6 +12,11 @@
 
   $: isLoading = $isLoadingInstallations || $isLoadingVersions
 
+  // Debug logging to verify store updates
+  $: {
+    console.log('[InstallationsList] installations changed, count:', $installations.length);
+  }
+
   $: limitedInstallations = $installations
     .slice()
     .sort((a, b) => {

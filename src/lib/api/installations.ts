@@ -23,7 +23,8 @@ export async function getInstallation(id: string): Promise<KableInstallation | n
 
 // Modify an existing Kable installation
 export async function modifyInstallation(id: string, new_installation: KableInstallation): Promise<void> {
-  return await invoke('modify_installation', { id, newInstallation: new_installation });
+  console.log('[API] modifyInstallation called with:', { id, new_installation });
+  return await invoke('modify_installation', { id: id, new_installation: new_installation });
 }
 
 // Delete a Kable installation by id
@@ -31,9 +32,9 @@ export async function deleteInstallation(id: string): Promise<void> {
   return await invoke('delete_installation', { id });
 }
 
-// Create a new Kable installation for a given version_id
-export async function createInstallation(version_id: string): Promise<KableInstallation> {
-  return await invoke('create_installation', { version_id });
+// Create a new Kable installation for a given versionId
+export async function createInstallation(versionId: string): Promise<KableInstallation> {
+  return await invoke('create_installation', { versionId });
 }
 
 export async function getModInfo(installation: KableInstallation): Promise<ModJarInfo[] | null> {

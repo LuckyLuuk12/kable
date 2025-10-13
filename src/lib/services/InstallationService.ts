@@ -28,6 +28,7 @@ export class InstallationService {
           installationsApi.getInstallations(),
           installationsApi.getAllVersions()
         ]);
+        console.log('[InstallationService] Setting installations:', foundInstallations.length, 'items');
         installations.set(foundInstallations);
         versions.set(foundVersions);
         selectedInstallation.set(foundInstallations[0] || null);
@@ -44,7 +45,7 @@ export class InstallationService {
         isLoadingVersions.set(false);
         // Clear inflight promise
         this._inflightLoad = null;
-        console.log('Installations loaded:', get(installations).length, 'Versions loaded:\n', get(versions));
+        console.log('Installations loaded:', get(installations).length, 'Versions loaded:\n', get(versions).length);
         LogsService.emitLauncherEvent(`Loaded ${get(installations).length} installations and ${get(versions).length} versions`, 'debug');
       }
     })();
@@ -56,34 +57,38 @@ export class InstallationService {
    * Create a new installation and update the store.
    * @param version_id The ID of the version to create the installation for.
    */
-  static createInstallation(version_id: string): void {
-  installationsApi.createInstallation(version_id)
-      .then(() => this.loadInstallations());
+  static async createInstallation(version_id: string): Promise<void> {
+    await installationsApi.createInstallation(version_id);
+    await this.loadInstallations();
   }
 
   /**
    * Update an existing installation.
    */
-  static updateInstallation(id: string, newInstallation: KableInstallation): void {
+  static async updateInstallation(id: string, newInstallation: KableInstallation): Promise<void> {
+    console.log('[Service] updateInstallation called with:', { id, newInstallation });
     // first modify store for reactivity
     installations.update(list => {
       const index = list.findIndex(i => i.id === id);
       if (index !== -1) {
-        list[index] = newInstallation;
+        // Create a new array with the updated installation for reactivity
+        const newList = [...list];
+        newList[index] = newInstallation;
+        return newList;
       }
       return list;
     });
 
-  installationsApi.modifyInstallation(id, newInstallation)
-      .then(async () => console.log('Installation updated:', id));
+    await installationsApi.modifyInstallation(id, newInstallation);
+    console.log('Installation updated:', id);
   }
 
   /**
    * Delete an installation by ID.
    */
-  static deleteInstallation(id: string): void {
-  installationsApi.deleteInstallation(id)
-      .then(() => this.loadInstallations());
+  static async deleteInstallation(id: string): Promise<void> {
+    await installationsApi.deleteInstallation(id);
+    await this.loadInstallations();
   }
 
   /**
@@ -191,9 +196,9 @@ export class InstallationService {
     }
   }
 
-  static toggleFavorite(installation: KableInstallation): void {
+  static async toggleFavorite(installation: KableInstallation): Promise<void> {
     const updatedInstallation = { ...installation, favorite: !installation.favorite };
-    this.updateInstallation(installation.id, updatedInstallation);
+    await this.updateInstallation(installation.id, updatedInstallation);
   }
 
   static getVersionData(installation: KableInstallation): VersionData {
@@ -229,6 +234,7 @@ export class InstallationService {
       const newInstallation = await installationsApi.importInstallation(path);
       console.log('Imported installation from:', path, newInstallation);
       LogsService.emitLauncherEvent(`Imported installation ${newInstallation.name} from ${path}`, 'info');
+      await this.loadInstallations();
     } catch (error) {
       console.error('Failed to import installation:', error);
       LogsService.emitLauncherEvent(`Failed to import installation from ${path}`, 'error');
@@ -240,6 +246,7 @@ export class InstallationService {
       await installationsApi.duplicateInstallation(installation);
       console.log('Duplicated installation:', installation);
       LogsService.emitLauncherEvent(`Duplicated installation ${installation.name}`, 'info');
+      await this.loadInstallations();
     } catch (error) {
       console.error('Failed to duplicate installation:', error);
       LogsService.emitLauncherEvent(`Failed to duplicate installation ${installation.name}`, 'error');
