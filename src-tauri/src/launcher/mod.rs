@@ -283,7 +283,7 @@ async fn get_launchable_for_installation(
 }
 
 pub async fn launch_installation(
-    installation: KableInstallation,
+    mut installation: KableInstallation,
     settings: CategorizedLauncherSettings,
     account: LauncherAccount,
 ) -> Result<LaunchResult, String> {
@@ -294,6 +294,21 @@ pub async fn launch_installation(
         &format!("Launching installation: {}", installation.name),
         None,
     );
+    
+    // Update last_used and times_launched before launching
+    installation.last_used = chrono::Utc::now().to_rfc3339();
+    installation.times_launched = installation.times_launched.saturating_add(1);
+    
+    // Save the updated installation to disk
+    let installation_id = installation.id.clone();
+    if let Err(e) = crate::installations::modify_installation(&installation_id, installation.clone()).await {
+        Logger::warn_global(
+            &format!("Failed to update installation last_used: {}", e),
+            instance_id,
+        );
+        // Continue launching even if update fails
+    }
+    
     // Validate installation
     let minecraft_dir = match get_default_minecraft_dir() {
         Ok(dir) => dir.to_string_lossy().to_string(),
@@ -368,6 +383,8 @@ pub async fn launch_installation(
     let settings_clone = settings.clone();
     let app_handle_clone = app_handle.clone();
     let pid = result.pid;
+    let installation_for_tracking = installation.clone();
+    let launch_start_time = std::time::Instant::now();
 
     // Spawn a task to monitor the process exit and handle settings
     tauri::async_runtime::spawn(async move {
@@ -378,6 +395,33 @@ pub async fn launch_installation(
         // Wait for the process to exit and get exit code
         match wait_for_minecraft_exit(pid).await {
             Ok(exit_code) => {
+                // Calculate playtime in milliseconds
+                let playtime_ms = launch_start_time.elapsed().as_millis() as u64;
+                Logger::info_global(
+                    &format!("[SETTINGS TASK] Game session lasted {} ms ({:.1} minutes)", 
+                        playtime_ms, playtime_ms as f64 / 60000.0),
+                    None,
+                );
+                
+                // Update total_time_played_ms
+                let mut updated_installation = installation_for_tracking.clone();
+                updated_installation.total_time_played_ms = 
+                    updated_installation.total_time_played_ms.saturating_add(playtime_ms);
+                
+                let installation_id = updated_installation.id.clone();
+                
+                // Save the updated playtime to disk
+                if let Err(e) = crate::installations::modify_installation(
+                    &installation_id, 
+                    updated_installation
+                ).await {
+                    Logger::warn_global(
+                        &format!("Failed to update installation playtime: {}", e),
+                        None,
+                    );
+                }
+                
+
                 Logger::info_global(
                     &format!("[SETTINGS TASK] Process {} exited with code {}", pid, exit_code),
                     None,

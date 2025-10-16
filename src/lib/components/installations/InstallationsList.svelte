@@ -289,7 +289,12 @@
                   <div class="installation-meta-grid small-meta-grid">
                     <div class="meta-cell small-meta-cell">
                       <span class="meta-key">Total time:</span>
-                      <span class="meta-value last-played small-meta-value"><Icon name="clock" size="sm" /> {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : 'Unknown'}</span>
+                      <span class="meta-value last-played small-meta-value">
+                        <Icon name="clock" size="sm" /> 
+                        {installation.total_time_played_ms 
+                          ? `${Math.floor(installation.total_time_played_ms / 3600000)}h ${Math.floor((installation.total_time_played_ms % 3600000) / 60000)}m`
+                          : '0h 0m'}
+                      </span>
                     </div>
                   </div>
                 {:else}
@@ -304,7 +309,12 @@
                     </div>
                     <div class="meta-cell">
                       <span class="meta-key">Total time:</span>
-                      <span class="meta-value total-time"><Icon name="clock" size="sm" /> {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : '---'}</span>
+                      <span class="meta-value total-time">
+                        <Icon name="clock" size="sm" /> 
+                        {installation.total_time_played_ms 
+                          ? `${Math.floor(installation.total_time_played_ms / 3600000)}h ${Math.floor((installation.total_time_played_ms % 3600000) / 60000)}m`
+                          : '0h 0m'}
+                      </span>
                     </div>
                   </div>
                 {/if}
