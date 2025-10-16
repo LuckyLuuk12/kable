@@ -47,18 +47,8 @@
   let useDropdownForActions: { [key: string]: boolean } = {};
   let resizeObserver: ResizeObserver | null = null;
 
-  // Modal control: selected installation and modal open flag
-  let selectedInstallation: any = null; // KableInstallation | null
-  let editModalOpen: boolean = false;
-  // Reactive aliases (exposed as $: variables)
-  $: currentSelected = selectedInstallation;
-  $: isEditOpen = editModalOpen;
-
-  // Clear selected installation once the modal is closed to fully unmount it
-  $: if (!editModalOpen) {
-    // slight delay so we don't clear immediately while closing animation might run
-    selectedInstallation = selectedInstallation && null;
-  }
+  // Modal control: reference to the modal component
+  let editModal: any = null; // Reference to EditInstallationModal
 
   function checkActionsFit() {
     if (isGrid) return; // Only applies to list view
@@ -164,9 +154,8 @@
 
 </script>
 
-<!-- Global edit modal bound to the selected installation -->
-<EditInstallationModal bind:isOpen={editModalOpen} installation={selectedInstallation} />
-
+<!-- Global edit modal -->
+<EditInstallationModal bind:this={editModal} />
 
 <div class="installations-list" class:compact={isSmall && !isGrid}>
   {#if error}
@@ -234,7 +223,7 @@
                     <Icon name="more-horizontal" size="sm" />
                   </button>
                   <div class="dropdown-menu" style="z-index: {(limitedInstallations.length - i) * 2 - 1};">
-                    <button on:click={async () => { selectedInstallation = installation; await tick(); editModalOpen = true; }}>
+                    <button on:click={() => editModal?.open(installation)}>
                       <Icon name="edit" size="sm" />
                       Edit
                     </button>
@@ -324,7 +313,7 @@
 
             {#if !isSmall}
               <div class="installation-actions">
-                <button class="btn btn-secondary" on:click={async () => { selectedInstallation = installation; await tick(); editModalOpen = true; }}>
+                <button class="btn btn-secondary" on:click={() => editModal?.open(installation)}>
                   <Icon name="edit" size="sm" />
                   Edit
                 </button>
@@ -388,7 +377,7 @@
                     
                     <!-- Inline Actions (shown when they fit) -->
                     <div class="list-inline-actions" class:hidden={useDropdownForActions[installation.id]}>
-                      <button class="list-action-btn" on:click={async () => { selectedInstallation = installation; await tick(); editModalOpen = true; }}>
+                      <button class="list-action-btn" on:click={() => editModal?.open(installation)}>
                         <Icon name="edit" size="sm" />
                         Edit
                       </button>
@@ -412,7 +401,7 @@
                         <Icon name="more-horizontal" size="sm" />
                       </button>
                       <div class="dropdown-menu">
-                        <button on:click={async () => { selectedInstallation = installation; await tick(); editModalOpen = true; }}>
+                        <button on:click={() => editModal?.open(installation)}>
                           <Icon name="edit" size="sm" />
                           Edit
                         </button>

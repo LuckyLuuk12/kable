@@ -23,8 +23,7 @@ export async function getInstallation(id: string): Promise<KableInstallation | n
 
 // Modify an existing Kable installation
 export async function modifyInstallation(id: string, new_installation: KableInstallation): Promise<void> {
-  console.log('[API] modifyInstallation called with:', { id, new_installation });
-  return await invoke('modify_installation', { id: id, new_installation: new_installation });
+  return await invoke('modify_installation', { id: id, newInstallation: new_installation });
 }
 
 // Delete a Kable installation by id

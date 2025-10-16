@@ -1,18 +1,15 @@
 <script lang="ts">
   import { InstallationsList, CreateInstallationModal, EditInstallationModal, Icon, type KableInstallation, InstallationService } from '$lib';
 
-  let showEditModal = false;
-  let editingInstallation: KableInstallation | null = null;
   let createModalRef: CreateInstallationModal;
-  let editModalRef;
+  let editModalRef: EditInstallationModal;
 
   let isSmall = false;
   let isGrid = true;
   let isRefreshing = false;
 
   function editInstallation(installation: KableInstallation) {
-    editingInstallation = installation;
-    showEditModal = true;
+    editModalRef?.open(installation);
   }
 
   function openCreateModal() {
@@ -73,9 +70,7 @@
   <InstallationsList {isGrid} isSmall={isSmall} on:edit={(e) => editInstallation(e.detail)} />
 
   <CreateInstallationModal bind:this={createModalRef} />
-  {#if showEditModal && editingInstallation}
-    <EditInstallationModal bind:this={editModalRef} installation={editingInstallation} on:close={() => { showEditModal = false; editingInstallation = null; }} />
-  {/if}
+  <EditInstallationModal bind:this={editModalRef} />
 </div>
 
 <style lang="scss">
