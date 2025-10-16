@@ -39,10 +39,15 @@
       // Await all other initializations but do not fail fast — collect results
       const results = await Promise.allSettled([installPromise, settingsPromise, authInitPromise, iconPromise]);
 
-      // If auth initialized successfully, refresh the current account
+      // If auth initialized successfully, refresh the current account and all account tokens
       if (results[2] && results[2].status === 'fulfilled') {
         try {
           await AuthService.refreshCurrentAccount();
+          
+          // Refresh tokens for all accounts in background to ensure they're ready to use
+          AuthService.refreshAllAccountTokens().catch(error => {
+            console.error('Failed to refresh all account tokens:', error);
+          });
         } catch (e) {
           console.error('Failed to refresh auth account after init:', e);
         }

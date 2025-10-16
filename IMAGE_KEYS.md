@@ -149,7 +149,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | search | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L499) | <pre><code class="language-html">&lt;Icon name="search" size="sm" /&gt;</code></pre> |
 | search | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L651) | <pre><code class="language-html">&lt;Icon name="search" size="xl" /&gt;</code></pre> |
 | search | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L138) | <pre><code class="language-html">&lt;Icon name="search" size="sm" className="search-icon" /&gt;</code></pre> |
-| settings | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L415) | <pre><code class="language-html">&lt;Icon name="settings" size="md" className="nav-icon" /&gt;</code></pre> |
+| settings | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L420) | <pre><code class="language-html">&lt;Icon name="settings" size="md" className="nav-icon" /&gt;</code></pre> |
 | skull | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L321) | <pre><code class="language-html">&lt;Icon name="skull" size="md" /&gt;</code></pre> |
 | star | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L218) | <pre><code class="language-html">&lt;Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="md" /&gt;</code></pre> |
 | star | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L385) | <pre><code class="language-html">&lt;Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="sm" /&gt;</code></pre> |
@@ -166,7 +166,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | trash | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L482) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L243) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | upload | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L219) | <pre><code class="language-html">&lt;Icon name="upload" size="sm" /&gt;</code></pre> |
-| user | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L364) | <pre><code class="language-html">&lt;Icon name="user" size="lg" /&gt;</code></pre> |
+| user | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L369) | <pre><code class="language-html">&lt;Icon name="user" size="lg" /&gt;</code></pre> |
 | user | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L293) | <pre><code class="language-html">&lt;Icon name="user" size="md" /&gt;</code></pre> |
 | user | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L87) | <pre><code class="language-html">&lt;h2&gt;&lt;Icon name="user" forceType="svg" /&gt; Quick Account Switcher&lt;/h2&gt;</code></pre> |
 | user-plus | [AccountSwitcher](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AccountSwitcher.svelte#L152) | <pre><code class="language-html">&lt;Icon name="user-plus" size="lg" /&gt;</code></pre> |
@@ -177,4 +177,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L829) | <pre><code class="language-html">&lt;Icon name="x" size="sm" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L521) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2025-10-16T17:29:45.936Z_
+_Generated: 2025-10-16T18:14:23.084Z_
