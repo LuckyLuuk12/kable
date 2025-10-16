@@ -252,4 +252,76 @@ export class InstallationService {
       LogsService.emitLauncherEvent(`Failed to duplicate installation ${installation.name}`, 'error');
     }
   }
+
+  static async totalTimePlayed() {
+    // return installations.reduce((total: number, installation: KableInstallation) => total + installation.total_time_played_ms, 0);
+    let total = 0;
+    for (const inst of get(installations)) {
+      total += inst.total_time_played_ms;
+    }
+    return total;
+  }
+
+  /**
+   * Get statistics about all installations
+   */
+  static getStatistics() {
+    const allInstallations = get(installations);
+    
+    // Total playtime in milliseconds
+    const totalPlaytimeMs = allInstallations.reduce((sum, inst) => sum + inst.total_time_played_ms, 0);
+    
+    // Last played installation
+    const lastPlayedInstallation = allInstallations
+      .filter(inst => inst.last_used)
+      .sort((a, b) => new Date(b.last_used).getTime() - new Date(a.last_used).getTime())[0];
+    
+    // Most played installation
+    const mostPlayedInstallation = allInstallations
+      .filter(inst => inst.total_time_played_ms > 0)
+      .sort((a, b) => b.total_time_played_ms - a.total_time_played_ms)[0];
+    
+    // Total launches across all installations
+    const totalLaunches = allInstallations.reduce((sum, inst) => sum + inst.times_launched, 0);
+    
+    // Count installations by loader type
+    const versionsList = get(versions);
+    const loaderCounts: Record<LoaderKind, number> = {
+      Vanilla: 0,
+      Fabric: 0,
+      Forge: 0,
+      Quilt: 0,
+      NeoForge: 0,
+      IrisFabric: 0,
+    };
+    
+    allInstallations.forEach(inst => {
+      const version = versionsList.find(v => v.version_id === inst.version_id);
+      if (version && version.loader in loaderCounts) {
+        loaderCounts[version.loader]++;
+      }
+    });
+    
+    // Find most used loader
+    const mostUsedLoader = Object.entries(loaderCounts)
+      .sort(([, a], [, b]) => b - a)
+      .filter(([, count]) => count > 0)[0]?.[0] as LoaderKind | undefined;
+    
+    return {
+      totalInstallations: allInstallations.length,
+      totalPlaytimeMs,
+      totalPlaytimeHours: Math.floor(totalPlaytimeMs / 3600000),
+      totalPlaytimeMinutes: Math.floor((totalPlaytimeMs % 3600000) / 60000),
+      lastPlayedInstallation,
+      lastPlayedDate: lastPlayedInstallation?.last_used || null,
+      mostPlayedInstallation,
+      totalLaunches,
+      averageLaunchesPerInstallation: allInstallations.length > 0 
+        ? Math.round(totalLaunches / allInstallations.length) 
+        : 0,
+      favoriteCount: allInstallations.filter(inst => inst.favorite).length,
+      loaderCounts,
+      mostUsedLoader,
+    };
+  }
 }

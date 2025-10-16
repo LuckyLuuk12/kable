@@ -58,7 +58,11 @@
   <div class="current-account">
     <div class="account-avatar-container" on:mouseenter={() => showDropdown = true} on:mouseleave={() => showDropdown = false} role="button" tabindex="0">
       <div class="account-avatar minecraft-head" title="{$currentAccount?.minecraft_profile?.name || $currentAccount?.username}'s avatar">
-        <span class="avatar-letter">{($currentAccount?.minecraft_profile?.name || $currentAccount?.username || 'U').charAt(0).toUpperCase()}</span>
+        {#if $currentAccount?.avatar}
+          <img src={$currentAccount.avatar} alt="{$currentAccount.minecraft_profile?.name || $currentAccount.username}'s avatar" class="avatar-image" />
+        {:else}
+          <span class="avatar-letter">{($currentAccount?.minecraft_profile?.name || $currentAccount?.username || 'U').charAt(0).toUpperCase()}</span>
+        {/if}
       </div>
       {#if getAccountStatus($currentAccount) === 'online'}
         <div class="status-indicator online" title="Online"></div>
@@ -95,7 +99,11 @@
           >
             <div class="account-avatar-container">
               <div class="account-avatar minecraft-head" title="{account.minecraft_profile?.name || account.username}'s avatar">
-                <span class="avatar-letter">{(account.minecraft_profile?.name || account.username || 'U').charAt(0).toUpperCase()}</span>
+                {#if account.avatar}
+                  <img src={account.avatar} alt="{account.minecraft_profile?.name || account.username}'s avatar" class="avatar-image" />
+                {:else}
+                  <span class="avatar-letter">{(account.minecraft_profile?.name || account.username || 'U').charAt(0).toUpperCase()}</span>
+                {/if}
               </div>
               {#if getAccountStatus(account) === 'online'}
                 <div class="status-indicator online" title="Online"></div>
@@ -122,7 +130,7 @@
         </div>
       {/each}
       <div class="account-item add-account-item">
-        <button class="account-button add-account-btn" on:click={() => AuthService.signIn()}>
+        <button class="account-button add-account-btn" on:click={() => AuthService.signOut()}>
           <div class="account-avatar-container">
             <div class="account-avatar minecraft-head" title="Add Account">
               <span class="avatar-letter">+</span>
@@ -213,15 +221,23 @@
     font-weight: 600;
     font-size: 1rem;
     color: var(--text);
+    overflow: hidden;
     
     &.minecraft-head {
       background: linear-gradient(135deg, var(--primary), var(--primary-600));
       color: white;
-      border-color: var(--primary);
+      border-color: var(--dark-600);
     }
   
     .avatar-letter {
       user-select: none;
+    }
+
+    .avatar-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
     }
   }
   
@@ -306,6 +322,15 @@
     
     &.active {
       background: color-mix(in srgb, var(--primary), 10%, transparent);
+    }
+
+    &.add-account-item {
+      .account-button {
+        &:hover:not(:disabled) {
+          background: var(--container);
+          transform: none;
+        }
+      }
     }
   }
   
