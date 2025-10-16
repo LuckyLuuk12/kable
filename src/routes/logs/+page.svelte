@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { page } from '$app/stores';
   import { 
     Icon, 
@@ -17,13 +17,32 @@
   let searchTerm = '';
   let searchMode: 'normal' | 'regex' | 'fuzzy' = 'fuzzy';
   
-  // Log level filters
-  $: logLevelFilters = {
-    error: $settings.logging.default_log_levels.indexOf('error') !== -1,
-    warn: $settings.logging.default_log_levels.indexOf('warn') !== -1,
-    info: $settings.logging.default_log_levels.indexOf('info') !== -1,
-    debug: $settings.logging.default_log_levels.indexOf('debug') !== -1,
+  // Virtual scrolling variables
+  const ITEM_HEIGHT = 28; // Approximate height of each log entry in pixels
+  const BUFFER_SIZE = 10; // Number of extra items to render above/below viewport
+  let scrollTop = 0;
+  let containerHeight = 0;
+  let visibleStartIndex = 0;
+  let visibleEndIndex = 50;
+  let isAutoScrolling = false;
+  
+  // Log level filters - use a regular variable instead of reactive to allow manual updates
+  let logLevelFilters = {
+    error: true,
+    warn: true,
+    info: true,
+    debug: true,
   };
+  
+  // Initialize from settings
+  $: if ($settings) {
+    logLevelFilters = {
+      error: $settings.logging.default_log_levels.indexOf('error') !== -1,
+      warn: $settings.logging.default_log_levels.indexOf('warn') !== -1,
+      info: $settings.logging.default_log_levels.indexOf('info') !== -1,
+      debug: $settings.logging.default_log_levels.indexOf('debug') !== -1,
+    };
+  }
   
   let showLogLevelDropdown = false;
   let showCopyNotification = false;
@@ -38,6 +57,17 @@
       // Set the selected instance from the URL parameter
       selectedInstanceId.set(instanceParam);
       console.log(`Auto-selected instance from URL: ${instanceParam}`);
+    }
+    
+    // Initialize container dimensions
+    if (logContainer) {
+      containerHeight = logContainer.clientHeight;
+      visibleEndIndex = Math.min(
+        50,
+        Math.ceil(containerHeight / ITEM_HEIGHT) + BUFFER_SIZE
+      );
+      // Initialize visible range
+      updateVisibleRange();
     }
     
     // Add event listener for clicking outside dropdown
@@ -249,15 +279,46 @@
   }
 
   function scrollToBottom() {
-    if (logContainer && autoScroll) {
-      logContainer.scrollTop = logContainer.scrollHeight;
+    if (logContainer) {
+      isAutoScrolling = true;
+      // For virtual scrolling, scroll to the total height of all items
+      logContainer.scrollTop = totalHeight;
+      
+      // Update visible range immediately for virtual scrolling
+      updateVisibleRange();
+      
+      // Reset flag after a short delay
+      setTimeout(() => {
+        isAutoScrolling = false;
+      }, 100);
     }
+  }
+  
+  function updateVisibleRange() {
+    if (!logContainer) return;
+    
+    const { scrollTop: st, clientHeight } = logContainer;
+    scrollTop = st;
+    containerHeight = clientHeight;
+    
+    // Calculate visible range
+    const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE);
+    const endIndex = Math.min(
+      filteredLogs.length,
+      Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + BUFFER_SIZE
+    );
+    
+    visibleStartIndex = startIndex;
+    visibleEndIndex = endIndex;
   }
 
   function handleScroll() {
-    if (logContainer) {
-      const { scrollTop, scrollHeight, clientHeight } = logContainer;
-      autoScroll = scrollTop + clientHeight >= scrollHeight - 10;
+    if (logContainer && !isAutoScrolling) {
+      updateVisibleRange();
+      
+      // Check if user is at bottom (with small threshold)
+      // For virtual scrolling, check against totalHeight instead of scrollHeight
+      autoScroll = scrollTop + containerHeight >= totalHeight - 50;
     }
   }
 
@@ -275,9 +336,8 @@
     }
   }
 
-  function getEnabledLogLevelsCount(): number {
-    return Object.values(logLevelFilters).filter(Boolean).length;
-  }
+  // Reactive variable for enabled log levels count
+  $: enabledLogLevelsCount = Object.values(logLevelFilters).filter(Boolean).length;
 
   // Close dropdown when clicking outside
   function handleClickOutside(event: MouseEvent) {
@@ -362,13 +422,39 @@
     return matchesSearchTerm && matchesLevelFilter;
   });
 
-  // Auto-scroll when new logs arrive
-  $: if (filteredLogs && filteredLogs.length > 0 && autoScroll) {
-    setTimeout(() => scrollToBottom(), 50);
+  // Virtual scrolling: only render visible logs
+  $: visibleLogs = filteredLogs.slice(visibleStartIndex, visibleEndIndex);
+  $: totalHeight = filteredLogs.length * ITEM_HEIGHT;
+  $: offsetY = visibleStartIndex * ITEM_HEIGHT;
+
+  // Update visible range when filteredLogs changes (tab switch, filters, etc.)
+  $: if (filteredLogs && logContainer) {
+    tick().then(() => {
+      updateVisibleRange();
+    });
+  }
+
+  // Track previous log count to detect new logs
+  let previousLogCount = 0;
+  
+  // Auto-scroll when NEW logs arrive (not on every reactive update)
+  $: {
+    if (filteredLogs && filteredLogs.length > previousLogCount && autoScroll) {
+      const currentCount = filteredLogs.length;
+      tick().then(() => {
+        // Only scroll if count still matches and autoScroll is still enabled
+        if (filteredLogs.length === currentCount && autoScroll && logContainer) {
+          scrollToBottom();
+        }
+      });
+      previousLogCount = currentCount;
+    } else if (filteredLogs) {
+      previousLogCount = filteredLogs.length;
+    }
   }
 
   // Check if any filters are active
-  $: hasActiveFilters = searchTerm || getEnabledLogLevelsCount() < 4;
+  $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
 </script>
 
 <div class="logs-page">
@@ -450,7 +536,7 @@
           on:click={toggleLogLevelDropdown}
           type="button"
         >
-          <span>Log Levels ({getEnabledLogLevelsCount()}/4)</span>
+          <span>Log Levels ({enabledLogLevelsCount}/4)</span>
           <Icon name={showLogLevelDropdown ? 'chevron-up' : 'chevron-down'} size="sm" />
         </button>
         
@@ -466,7 +552,11 @@
                   checked={enabled}
                   on:change={(e) => {
                     const target = e.target as HTMLInputElement;
-                    logLevelFilters[level as keyof typeof logLevelFilters] = target.checked;
+                    // Create a new object to trigger reactivity
+                    logLevelFilters = {
+                      ...logLevelFilters,
+                      [level]: target.checked
+                    };
                   }}
                 />
                 <Icon name={getLogLevelIcon(level)} size="sm" />
@@ -482,6 +572,13 @@
         <input
           type="checkbox"
           bind:checked={autoScroll}
+          on:change={(e) => {
+            const target = e.target as HTMLInputElement;
+            if (target.checked) {
+              // When auto-scroll is enabled, immediately jump to bottom
+              scrollToBottom();
+            }
+          }}
         />
         <span>Auto-scroll</span>
       </label>
@@ -547,9 +644,6 @@
       on:scroll={handleScroll}
       class="log-container {showCopyNotification ? 'copy-notification-active' : ''}"
     >
-      <!-- copy-notification moved out of the scrollable container so it is not clipped
-           and will show reliably for any active tab / sub-tab -->
-      
       {#if filteredLogs.length === 0}
         <div class="empty-state">
           <div class="empty-icon">
@@ -575,33 +669,35 @@
           </p>
         </div>
       {:else}
-        <div class="log-entries">
-          {#each filteredLogs as logEntry, index (logEntry?.timestamp ? (logEntry.timestamp instanceof Date ? logEntry.timestamp.getTime() : new Date(logEntry.timestamp).getTime()) + '-' + index : 'unknown-' + index)}
-            {#if logEntry}
-              <div class="log-entry">
-                <div 
-                  class="log-copy-icon"
-                  on:click={() => copyLogEntry(logEntry)}
-                  title="Copy log entry"
-                  role="button"
-                  tabindex="0"
-                  on:keydown={(e) => e.key === 'Enter' && copyLogEntry(logEntry)}
-                >
-                  <Icon name="clipboard" size="sm" />
+        <div class="log-entries-wrapper" style="height: {totalHeight}px;">
+          <div class="log-entries" style="transform: translateY({offsetY}px);">
+            {#each visibleLogs as logEntry, index (logEntry?.timestamp ? (logEntry.timestamp instanceof Date ? logEntry.timestamp.getTime() : new Date(logEntry.timestamp).getTime()) + '-' + (visibleStartIndex + index) : 'unknown-' + (visibleStartIndex + index))}
+              {#if logEntry}
+                <div class="log-entry" style="height: {ITEM_HEIGHT}px;">
+                  <div 
+                    class="log-copy-icon"
+                    on:click={() => copyLogEntry(logEntry)}
+                    title="Copy log entry"
+                    role="button"
+                    tabindex="0"
+                    on:keydown={(e) => e.key === 'Enter' && copyLogEntry(logEntry)}
+                  >
+                    <Icon name="clipboard" size="sm" />
+                  </div>
+                  <div class="log-timestamp">
+                    {formatTime(logEntry.timestamp)}
+                  </div>
+                  <div class="log-level badge {getLogLevelClass(logEntry.level || 'info')}">
+                    <Icon name={getLogLevelIcon(logEntry.level || 'info')} size="sm" />
+                    {formatLogLevel(logEntry.level || 'info')}
+                  </div>
+                  <div class="log-message">
+                    <pre class="log-message-content"><code>{getDisplayMessage(logEntry)}</code></pre>
+                  </div>
                 </div>
-                <div class="log-timestamp">
-                  {formatTime(logEntry.timestamp)}
-                </div>
-                <div class="log-level badge {getLogLevelClass(logEntry.level || 'info')}">
-                  <Icon name={getLogLevelIcon(logEntry.level || 'info')} size="sm" />
-                  {formatLogLevel(logEntry.level || 'info')}
-                </div>
-                <div class="log-message">
-                  <pre class="log-message-content"><code>{getDisplayMessage(logEntry)}</code></pre>
-                </div>
-              </div>
-            {/if}
-          {/each}
+              {/if}
+            {/each}
+          </div>
         </div>
       {/if}
     </div>
@@ -1014,7 +1110,7 @@
       position: relative;
       
       &.copy-notification-active {
-        .log-entries {
+        .log-entries-wrapper .log-entries {
           .log-entry {
             background: color-mix(in srgb, var(--primary), 10%, transparent);
             border: 1px solid color-mix(in srgb, var(--primary), 20%, transparent);
@@ -1071,8 +1167,18 @@
         }
       }
       
+      .log-entries-wrapper {
+        position: relative;
+        width: 100%;
+      }
+      
       .log-entries {
         padding: 0.25rem;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        will-change: transform;
         
         .log-entry {
           display: flex;
@@ -1082,6 +1188,7 @@
           margin-bottom: 0;
           border-radius: var(--border-radius);
           transition: background-color 0.2s ease;
+          box-sizing: border-box;
           
           &:hover {
             background: var(--card);

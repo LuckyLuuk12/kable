@@ -16,16 +16,16 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 
 | Key | Source | Snippet |
 | --- | --- | --- |
-| activity | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L385) | <pre><code class="language-html">&lt;Icon name="activity" size="sm" /&gt;</code></pre> |
+| activity | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L471) | <pre><code class="language-html">&lt;Icon name="activity" size="sm" /&gt;</code></pre> |
 | alert | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L79) | <pre><code class="language-html">&lt;Icon name="alert" size="sm" /&gt;</code></pre> |
 | alert | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L174) | <pre><code class="language-html">&lt;Icon name="alert" size="sm" /&gt;</code></pre> |
 | alert | [InstallationMods](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstallationMods.svelte#L520) | <pre><code class="language-html">&lt;Icon name="alert" size="sm" /&gt;</code></pre> |
 | alert | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L199) | <pre><code class="language-html">&lt;Icon name="alert" size="sm" /&gt;</code></pre> |
 | alert | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L129) | <pre><code class="language-html">&lt;Icon name="alert" size="sm" /&gt;</code></pre> |
 | alert | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L32) | <pre><code class="language-html">&lt;Icon name="alert" size="sm" /&gt;</code></pre> |
-| archive | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L379) | <pre><code class="language-html">&lt;Icon name="archive" size="md" /&gt;</code></pre> |
-| archive | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L559) | <pre><code class="language-html">&lt;Icon name="archive" size="xl" /&gt;</code></pre> |
-| arrow-down | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L645) | <pre><code class="language-html">&lt;Icon name="arrow-down" size="sm" /&gt;</code></pre> |
+| archive | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L465) | <pre><code class="language-html">&lt;Icon name="archive" size="md" /&gt;</code></pre> |
+| archive | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L653) | <pre><code class="language-html">&lt;Icon name="archive" size="xl" /&gt;</code></pre> |
+| arrow-down | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L741) | <pre><code class="language-html">&lt;Icon name="arrow-down" size="sm" /&gt;</code></pre> |
 | arrow-left | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L918) | <pre><code class="language-html">&lt;Icon name="arrow-left" size="sm" forceType="svg" /&gt;</code></pre> |
 | arrow-right | [AccountSwitcher](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AccountSwitcher.svelte#L150) | <pre><code class="language-html">&lt;Icon name="arrow-right" /&gt;</code></pre> |
 | arrow-right | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L940) | <pre><code class="language-html">&lt;Icon name="arrow-right" size="sm" forceType="svg" /&gt;</code></pre> |
@@ -41,8 +41,8 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | check | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L453) | <pre><code class="language-html">&lt;Icon name="check" size="sm" forceType="svg" /&gt;</code></pre> |
 | check | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L262) | <pre><code class="language-html">&lt;Icon name="check" size="sm" /&gt;</code></pre> |
 | check | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L360) | <pre><code class="language-html">&lt;Icon name="check" size="sm" /&gt;</code></pre> |
-| clipboard | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L590) | <pre><code class="language-html">&lt;Icon name="clipboard" size="sm" /&gt;</code></pre> |
-| clipboard | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L612) | <pre><code class="language-html">&lt;Icon name="clipboard" size="md" /&gt;</code></pre> |
+| clipboard | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L685) | <pre><code class="language-html">&lt;Icon name="clipboard" size="sm" /&gt;</code></pre> |
+| clipboard | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L708) | <pre><code class="language-html">&lt;Icon name="clipboard" size="md" /&gt;</code></pre> |
 | clock | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L303) | <pre><code class="language-html">&lt;span class="meta-value last-played small-meta-value"&gt;&lt;Icon name="clock" size="sm" /&gt; {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : 'Unknown'}&lt;/span&gt;</code></pre> |
 | clock | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L314) | <pre><code class="language-html">&lt;span class="meta-value last-played"&gt;&lt;Icon name="clock" size="sm" /&gt; {installation.last_used ? new Date(installation.last_used).toLocaleDateString() : 'Never'}&lt;/span&gt;</code></pre> |
 | clock | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L318) | <pre><code class="language-html">&lt;span class="meta-value total-time"&gt;&lt;Icon name="clock" size="sm" /&gt; {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : '---'}&lt;/span&gt;</code></pre> |
@@ -50,7 +50,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | clock | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L70) | <pre><code class="language-html">&lt;Icon name="clock" size="md" /&gt;</code></pre> |
 | close | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L266) | <pre><code class="language-html">&lt;Icon name="close" size="sm" /&gt;</code></pre> |
 | close | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L364) | <pre><code class="language-html">&lt;Icon name="close" size="sm" /&gt;</code></pre> |
-| code | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L442) | <pre><code class="language-html">&lt;Icon name="code" size="sm" /&gt;</code></pre> |
+| code | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L528) | <pre><code class="language-html">&lt;Icon name="code" size="sm" /&gt;</code></pre> |
 | cube | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L216) | <pre><code class="language-html">&lt;Icon name="cube" size="xl" /&gt;</code></pre> |
 | cube | [InstallationMods](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstallationMods.svelte#L568) | <pre><code class="language-html">&lt;Icon name="cube" size="xl" /&gt;</code></pre> |
 | delete | [AdvancedSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AdvancedSettingsUI.svelte#L144) | <pre><code class="language-html">&lt;Icon name="delete" forceType="svg" /&gt;</code></pre> |
@@ -65,7 +65,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | download | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L329) | <pre><code class="language-html">&lt;Icon name="download" size="sm" forceType="svg" /&gt;</code></pre> |
 | download | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L403) | <pre><code class="language-html">&lt;Icon name="download" size="sm" forceType="svg" /&gt;</code></pre> |
 | download | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L462) | <pre><code class="language-html">&lt;Icon name="download" size="sm" forceType="svg" /&gt;</code></pre> |
-| download | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L404) | <pre><code class="language-html">&lt;Icon name="download" size="sm" /&gt;</code></pre> |
+| download | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L490) | <pre><code class="language-html">&lt;Icon name="download" size="sm" /&gt;</code></pre> |
 | duplicate | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L105) | <pre><code class="language-html">&lt;Icon name="duplicate" size="sm" /&gt;</code></pre> |
 | duplicate | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L118) | <pre><code class="language-html">&lt;Icon name="duplicate" size="sm" /&gt;</code></pre> |
 | duplicate | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L242) | <pre><code class="language-html">&lt;Icon name="duplicate" size="sm" /&gt;</code></pre> |
@@ -79,8 +79,8 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | edit | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L331) | <pre><code class="language-html">&lt;Icon name="edit" size="sm" /&gt;</code></pre> |
 | filter | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L905) | <pre><code class="language-html">&lt;Icon name="filter" size="sm" /&gt;</code></pre> |
 | folder | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L102) | <pre><code class="language-html">&lt;Icon name="folder" size="md" /&gt;</code></pre> |
-| gamepad | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L535) | <pre><code class="language-html">&lt;Icon name="gamepad" size="sm" /&gt;</code></pre> |
-| globe | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L499) | <pre><code class="language-html">&lt;Icon name="globe" size="sm" /&gt;</code></pre> |
+| gamepad | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L632) | <pre><code class="language-html">&lt;Icon name="gamepad" size="sm" /&gt;</code></pre> |
+| globe | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L596) | <pre><code class="language-html">&lt;Icon name="globe" size="sm" /&gt;</code></pre> |
 | image | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L215) | <pre><code class="language-html">&lt;Icon name="image" size="lg" /&gt;</code></pre> |
 | info | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L95) | <pre><code class="language-html">&lt;Icon name="info" size="sm" /&gt;</code></pre> |
 | info | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L148) | <pre><code class="language-html">&lt;Icon name="info" size="sm" /&gt;</code></pre> |
@@ -131,28 +131,28 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | refresh | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L206) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" /&gt;</code></pre> |
 | refresh | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L212) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" className="spin" /&gt;</code></pre> |
 | refresh | [Installations Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/installations/+page.svelte#L57) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" /&gt;</code></pre> |
-| refresh | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L654) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
+| refresh | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L750) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L163) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L262) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
-| rocket | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L527) | <pre><code class="language-html">&lt;Icon name="rocket" size="sm" /&gt;</code></pre> |
+| rocket | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L624) | <pre><code class="language-html">&lt;Icon name="rocket" size="sm" /&gt;</code></pre> |
 | search | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L808) | <pre><code class="language-html">&lt;Icon name="search" size="sm" /&gt;</code></pre> |
 | search | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L992) | <pre><code class="language-html">&lt;Icon name="search" size="xl" /&gt;</code></pre> |
-| search | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L413) | <pre><code class="language-html">&lt;Icon name="search" size="sm" /&gt;</code></pre> |
-| search | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L557) | <pre><code class="language-html">&lt;Icon name="search" size="xl" /&gt;</code></pre> |
+| search | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L499) | <pre><code class="language-html">&lt;Icon name="search" size="sm" /&gt;</code></pre> |
+| search | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L651) | <pre><code class="language-html">&lt;Icon name="search" size="xl" /&gt;</code></pre> |
 | search | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L138) | <pre><code class="language-html">&lt;Icon name="search" size="sm" className="search-icon" /&gt;</code></pre> |
 | settings | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L415) | <pre><code class="language-html">&lt;Icon name="settings" size="md" className="nav-icon" /&gt;</code></pre> |
 | star | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L229) | <pre><code class="language-html">&lt;Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="md" /&gt;</code></pre> |
 | star | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L386) | <pre><code class="language-html">&lt;Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="sm" /&gt;</code></pre> |
 | star | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L340) | <pre><code class="language-html">&lt;Icon name="star" size="sm" forceType="svg" /&gt;</code></pre> |
 | star | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L414) | <pre><code class="language-html">&lt;Icon name="star" size="sm" forceType="svg" /&gt;</code></pre> |
-| text | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L428) | <pre><code class="language-html">&lt;Icon name="text" size="sm" /&gt;</code></pre> |
+| text | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L514) | <pre><code class="language-html">&lt;Icon name="text" size="sm" /&gt;</code></pre> |
 | trash | [AccountManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AccountManager.svelte#L180) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt; Remove</code></pre> |
 | trash | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L254) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L340) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L404) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L432) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L323) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
-| trash | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L396) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
+| trash | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L482) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L243) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | upload | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L219) | <pre><code class="language-html">&lt;Icon name="upload" size="sm" /&gt;</code></pre> |
 | user | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L364) | <pre><code class="language-html">&lt;Icon name="user" size="lg" /&gt;</code></pre> |
@@ -165,6 +165,6 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | world | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L92) | <pre><code class="language-html">&lt;Icon name="world" size="md" /&gt;</code></pre> |
 | x | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L122) | <pre><code class="language-html">&lt;Icon name="x" size="sm" /&gt;</code></pre> |
 | x | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L829) | <pre><code class="language-html">&lt;Icon name="x" size="sm" /&gt;</code></pre> |
-| zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L435) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
+| zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L521) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2025-10-13T20:36:17.420Z_
+_Generated: 2025-10-16T14:58:33.765Z_
