@@ -72,3 +72,15 @@ pub async fn get_all_account_skins() -> Result<Vec<AccountSkin>, String> {
 pub async fn apply_account_skin(skin_id: String) -> Result<SkinUploadResponse, String> {
     crate::skins::apply_account_skin(skin_id).await
 }
+
+/// Get the currently active cape for the authenticated user
+#[tauri::command]
+pub async fn get_active_cape() -> Result<Option<crate::skins::types::AccountCape>, String> {
+    crate::skins::get_active_cape().await
+}
+
+/// Apply a cape to the authenticated user's profile (or remove it if None)
+#[tauri::command]
+pub async fn apply_cape(cape_id: Option<String>) -> Result<String, String> {
+    crate::skins::apply_cape(cape_id).await
+}

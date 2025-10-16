@@ -151,6 +151,8 @@ pub fn run() {
             commands_skins::remove_skin_by_id,
             commands_skins::modify_skin_by_id,
             commands_skins::get_player_profile,
+            commands_skins::get_active_cape,
+            commands_skins::apply_cape,
             // Icons commands
             icons::get_custom_icon_templates,
             icons::save_custom_icon_template,

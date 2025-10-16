@@ -86,3 +86,18 @@ export async function getAllAccountSkins(): Promise<AccountSkin[]> {
 export async function applyAccountSkin(skinId: string): Promise<SkinUploadResponse> {
   return await invoke('apply_account_skin', { skinId });
 }
+
+/**
+ * Get the currently active cape for the authenticated user
+ */
+export async function getActiveCape(): Promise<import('../types').AccountCape | null> {
+  return await invoke('get_active_cape');
+}
+
+/**
+ * Apply a cape to the authenticated user's profile
+ * @param capeId The ID of the cape to apply, or null to remove the current cape
+ */
+export async function applyCape(capeId: string | null): Promise<string> {
+  return await invoke('apply_cape', { capeId });
+}

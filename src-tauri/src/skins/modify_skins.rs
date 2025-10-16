@@ -498,3 +498,72 @@ pub async fn apply_account_skin(skin_id: String) -> Result<SkinUploadResponse, S
     // 2. Re-upload it to set as current
     Err("Online skin history management not yet implemented".to_string())
 }
+
+/// Apply a cape to the authenticated user's profile
+pub async fn apply_cape(cape_id: Option<String>) -> Result<String, String> {
+    Logger::console_log(
+        LogLevel::Info,
+        &format!("🎽 Applying cape: {:?}", cape_id),
+        None,
+    );
+
+    // Get the authenticated account
+    let account = get_minecraft_account(Some(AuthMethod::DeviceCodeFlow))
+        .await
+        .map_err(|e| format!("Authentication required to apply cape: {}", e))?;
+
+    let client = reqwest::Client::new();
+    
+    // Mojang API endpoint for changing active cape
+    let url = if cape_id.is_some() {
+        // Apply specific cape
+        "https://api.minecraftservices.com/minecraft/profile/capes/active".to_string()
+    } else {
+        // Remove cape (hide)
+        "https://api.minecraftservices.com/minecraft/profile/capes/active".to_string()
+    };
+
+    let response = if let Some(id) = &cape_id {
+        // PUT request with cape ID in body
+        let body = serde_json::json!({
+            "capeId": id
+        });
+        
+        client
+            .put(&url)
+            .header("Authorization", format!("Bearer {}", account.access_token))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to apply cape: {}", e))?
+    } else {
+        // DELETE request to remove cape
+        client
+            .delete(&url)
+            .header("Authorization", format!("Bearer {}", account.access_token))
+            .send()
+            .await
+            .map_err(|e| format!("Failed to remove cape: {}", e))?
+    };
+
+    if response.status() == reqwest::StatusCode::OK || response.status() == reqwest::StatusCode::NO_CONTENT {
+        let message = if cape_id.is_some() {
+            "✅ Cape applied successfully".to_string()
+        } else {
+            "✅ Cape removed successfully".to_string()
+        };
+        
+        Logger::console_log(LogLevel::Info, &message, None);
+        Ok(message)
+    } else {
+        let error_body = response
+            .text()
+            .await
+            .unwrap_or_else(|_| "Unknown error".to_string());
+        Err(format!(
+            "Cape operation failed with status: {}",
+            error_body
+        ))
+    }
+}
