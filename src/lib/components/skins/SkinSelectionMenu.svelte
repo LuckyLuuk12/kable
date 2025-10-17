@@ -30,20 +30,40 @@
     await loadData();
   });
 
-  async function loadData() {
+  async function loadData(skipCapes = false) {
     loading = true;
     error = '';
     try {
-      const [skinsRes, capesRes, activeCapeRes] = await Promise.allSettled([
+      // Fetch skins and active cape
+      const [skinsRes, activeCapeRes] = await Promise.allSettled([
         SkinsService.getAllSkins(),
-        SkinsService.getCapes(),
         SkinsService.getActiveCape()
       ]);
 
-      if (skinsRes.status === 'fulfilled') accountSkins = skinsRes.value;
-      if (capesRes.status === 'fulfilled') capes = capesRes.value;
-      if (activeCapeRes.status === 'fulfilled') activeCape = activeCapeRes.value;
+      if (skinsRes.status === 'fulfilled') {
+        accountSkins = skinsRes.value;
+      } else {
+        console.error('Failed to load skins:', skinsRes.reason);
+        error = 'Failed to load skins. Please try again.';
+      }
+
+      if (activeCapeRes.status === 'fulfilled') {
+        activeCape = activeCapeRes.value;
+      } else {
+        console.warn('Failed to load active cape:', activeCapeRes.reason);
+      }
+
+      // Only fetch capes list if we don't have it yet (and not skipping)
+      if (!skipCapes && capes.length === 0) {
+        try {
+          capes = await SkinsService.getCapes();
+        } catch (err: any) {
+          console.warn('Failed to load capes list:', err);
+          // Don't show error for capes - it's not critical
+        }
+      }
     } catch (err: any) {
+      console.error('Failed to load data:', err);
       error = `Failed to load: ${err?.message || err}`;
     } finally {
       loading = false;
@@ -55,7 +75,8 @@
     error = '';
     try {
       await SkinsService.applySkin(skinId);
-      await loadData();
+      // Only reload skins and active cape, skip refetching capes list
+      await loadData(true);
     } catch (err: any) {
       error = `Failed to apply skin: ${err?.message || err}`;
     } finally {
@@ -68,8 +89,24 @@
     error = '';
     try {
       await SkinsService.applyCape(capeId);
-      await loadData();
-      } catch (err: any) {
+      
+      // Update active cape locally without refetching everything
+      if (capeId === null) {
+        activeCape = null;
+      } else {
+        const found = capes.find(c => c.id === capeId);
+        if (found) activeCape = found;
+      }
+      
+      // Only verify the active cape status, don't reload all capes
+      try {
+        const updatedCape = await SkinsService.getActiveCape();
+        activeCape = updatedCape;
+      } catch (err) {
+        console.warn('Failed to verify active cape:', err);
+        // Keep local state if verification fails
+      }
+    } catch (err: any) {
       error = `Failed to apply cape: ${err?.message || err}`;
     } finally {
       loading = false;
@@ -89,7 +126,8 @@
     loading = true;
     try {
       await SkinsService.modifySkin(editingSkin.id, editName, editCapeId, editSlim);
-      await loadData();
+      // Only reload skins, skip refetching capes
+      await loadData(true);
       showEditModal = false;
       editingSkin = null;
     } catch (err: any) {
@@ -105,7 +143,8 @@
     loading = true;
     try {
       await SkinsService.removeSkin(skinId);
-      await loadData();
+      // Only reload skins, skip refetching capes
+      await loadData(true);
     } catch (err: any) {
       error = `Failed to remove: ${err?.message || err}`;
     } finally {
@@ -140,7 +179,8 @@
         await SkinsService.modifySkin(newSkin.id, addName, addCapeId, addSlim);
       }
       
-      await loadData();
+      // Only reload skins, skip refetching capes
+      await loadData(true);
       showAddModal = false;
     } catch (err: any) {
       error = `Failed to upload: ${err?.message || err}`;
@@ -183,7 +223,7 @@
     {#if capes.length > 0}
       <section>
         <div class="section-header">
-          <h2> Capes</h2>
+          <h2>🎽 Capes</h2>
           <span class="count">{capes.length}</span>
         </div>
         <div class="capes-grid">
@@ -207,7 +247,7 @@
 
     <section>
       <div class="section-header">
-        <h2> Skins</h2>
+        <h2>🖼️ Skins</h2>
         <span class="count">{accountSkins.length}</span>
       </div>
       {#if accountSkins.length === 0}

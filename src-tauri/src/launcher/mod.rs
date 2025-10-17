@@ -435,16 +435,6 @@ pub async fn launch_installation(
                         &format!("[SETTINGS TASK] Handling crash settings for exit code {}", exit_code),
                         None,
                     );
-                    Logger::error_global(
-                        &format!("=== CRASH DIAGNOSTIC INFO (Exit Code: {}) ===", exit_code),
-                        None,
-                    );
-                    Logger::error_global(
-                        &format!("Java Path: {:?}", settings_clone.general.java_path),
-                        None,
-                    );
-                    Logger::error_global("=== END CRASH DIAGNOSTIC ===", None);
-                    handle_crash_settings(&settings_clone, app_handle_clone, exit_code).await;
                 } else {
                     Logger::info_global(
                         &format!("[SETTINGS TASK] Handling close settings for exit code {}", exit_code),

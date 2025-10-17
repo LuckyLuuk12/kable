@@ -17,14 +17,19 @@
   let searchTerm = '';
   let searchMode: 'normal' | 'regex' | 'fuzzy' = 'fuzzy';
   
-  // Virtual scrolling variables
-  const ITEM_HEIGHT = 28; // Approximate height of each log entry in pixels
-  const BUFFER_SIZE = 10; // Number of extra items to render above/below viewport
+  // Virtual scrolling variables with dynamic heights
+  const MIN_ITEM_HEIGHT = 28; // Minimum height for a single-line log
+  const BUFFER_SIZE = 20; // Number of extra items to render above/below viewport
   let scrollTop = 0;
   let containerHeight = 0;
   let visibleStartIndex = 0;
   let visibleEndIndex = 50;
   let isAutoScrolling = false;
+  
+  // Track measured heights for each log entry
+  let logHeights = new Map<string, number>();
+  let logElements: Record<string, HTMLElement> = {};
+  let heightsNeedRecalculation = false;
   
   // Log level filters - use a regular variable instead of reactive to allow manual updates
   let logLevelFilters = {
@@ -64,7 +69,7 @@
       containerHeight = logContainer.clientHeight;
       visibleEndIndex = Math.min(
         50,
-        Math.ceil(containerHeight / ITEM_HEIGHT) + BUFFER_SIZE
+        Math.ceil(containerHeight / MIN_ITEM_HEIGHT) + BUFFER_SIZE
       );
       // Initialize visible range
       updateVisibleRange();
@@ -74,6 +79,8 @@
     document.addEventListener('click', handleClickOutside);
     // Add event listener for Ctrl+A override
     document.addEventListener('keydown', handleKeyDown);
+    // Add window resize listener to recalculate heights when width changes
+    window.addEventListener('resize', handleResize);
   });
 
   onDestroy(() => {
@@ -81,6 +88,7 @@
     // Remove event listeners
     document.removeEventListener('click', handleClickOutside);
     document.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('resize', handleResize);
   });
 
   function selectInstance(instanceId: string | 'global') {
@@ -160,20 +168,6 @@
   async function exportCurrentLogs() {
     const instanceId = $selectedInstanceId;
     await logsService.exportLogs(instanceId === 'global' ? undefined : instanceId);
-  }
-
-  async function testMacroLogging() {
-    try {
-      // Import the invoke function from Tauri
-      const { invoke } = await import('@tauri-apps/api/core');
-      console.log('Triggering macro logging test...');
-      const result = await invoke('test_macro_logging');
-      console.log('Macro test result:', result);
-      alert(`Macro test completed! Check the logs for entries with "macro_debug:" prefix.`);
-    } catch (error) {
-      console.error('Failed to run macro test:', error);
-      alert(`Failed to run macro test: ${error}`);
-    }
   }
 
   async function copyLogEntry(logEntry: any) {
@@ -278,14 +272,44 @@
     }
   }
 
+  function getLogKey(logEntry: any, index: number): string {
+    if (!logEntry) return `unknown-${index}`;
+    const timestamp = logEntry.timestamp instanceof Date 
+      ? logEntry.timestamp.getTime() 
+      : new Date(logEntry.timestamp).getTime();
+    return `${timestamp}-${index}`;
+  }
+  
+  function getLogHeight(key: string): number {
+    return logHeights.get(key) || MIN_ITEM_HEIGHT;
+  }
+  
+  function measureLogHeights() {
+    // Measure all currently rendered log elements
+    Object.entries(logElements).forEach(([key, element]) => {
+      if (element) {
+        const height = element.offsetHeight;
+        if (height > 0) {
+          logHeights.set(key, height);
+        }
+      }
+    });
+    heightsNeedRecalculation = false;
+  }
+  
   function scrollToBottom() {
     if (logContainer) {
       isAutoScrolling = true;
-      // For virtual scrolling, scroll to the total height of all items
-      logContainer.scrollTop = totalHeight;
+      // For virtual scrolling, scroll to the maximum scrollable position
+      // scrollTop can't exceed scrollHeight - clientHeight
+      const maxScroll = Math.max(0, totalHeight - logContainer.clientHeight);
+      logContainer.scrollTop = maxScroll;
       
       // Update visible range immediately for virtual scrolling
       updateVisibleRange();
+      
+      // Update autoScroll flag
+      autoScroll = true;
       
       // Reset flag after a short delay
       setTimeout(() => {
@@ -295,18 +319,41 @@
   }
   
   function updateVisibleRange() {
-    if (!logContainer) return;
+    if (!logContainer || filteredLogs.length === 0) return;
     
     const { scrollTop: st, clientHeight } = logContainer;
     scrollTop = st;
     containerHeight = clientHeight;
     
-    // Calculate visible range
-    const startIndex = Math.max(0, Math.floor(scrollTop / ITEM_HEIGHT) - BUFFER_SIZE);
-    const endIndex = Math.min(
-      filteredLogs.length,
-      Math.ceil((scrollTop + containerHeight) / ITEM_HEIGHT) + BUFFER_SIZE
-    );
+    // Calculate visible range using accumulated heights
+    let accumulatedHeight = 0;
+    let startIndex = 0;
+    let endIndex = filteredLogs.length;
+    
+    // Find start index
+    for (let i = 0; i < filteredLogs.length; i++) {
+      const key = getLogKey(filteredLogs[i], i);
+      const height = getLogHeight(key);
+      
+      if (accumulatedHeight + height > scrollTop - BUFFER_SIZE * MIN_ITEM_HEIGHT) {
+        startIndex = Math.max(0, i);
+        break;
+      }
+      accumulatedHeight += height;
+    }
+    
+    // Find end index
+    accumulatedHeight = 0;
+    for (let i = 0; i < filteredLogs.length; i++) {
+      const key = getLogKey(filteredLogs[i], i);
+      const height = getLogHeight(key);
+      accumulatedHeight += height;
+      
+      if (accumulatedHeight > scrollTop + containerHeight + BUFFER_SIZE * MIN_ITEM_HEIGHT) {
+        endIndex = Math.min(filteredLogs.length, i + 1);
+        break;
+      }
+    }
     
     visibleStartIndex = startIndex;
     visibleEndIndex = endIndex;
@@ -318,7 +365,8 @@
       
       // Check if user is at bottom (with small threshold)
       // For virtual scrolling, check against totalHeight instead of scrollHeight
-      autoScroll = scrollTop + containerHeight >= totalHeight - 50;
+      const maxScroll = Math.max(0, totalHeight - containerHeight);
+      autoScroll = scrollTop >= maxScroll - 50;
     }
   }
 
@@ -360,6 +408,22 @@
       event.preventDefault();
       selectAllCurrentLogs();
     }
+  }
+
+  // Handle window resize - recalculate heights when width changes
+  let resizeTimeout: number;
+  function handleResize() {
+    // Debounce resize to avoid excessive recalculations
+    clearTimeout(resizeTimeout);
+    resizeTimeout = window.setTimeout(() => {
+      // Clear all measured heights to force remeasurement
+      logHeights.clear();
+      heightsNeedRecalculation = true;
+      tick().then(() => {
+        measureLogHeights();
+        updateVisibleRange();
+      });
+    }, 150);
   }
 
   // Function to select all logs in the current tab
@@ -424,13 +488,36 @@
 
   // Virtual scrolling: only render visible logs
   $: visibleLogs = filteredLogs.slice(visibleStartIndex, visibleEndIndex);
-  $: totalHeight = filteredLogs.length * ITEM_HEIGHT;
-  $: offsetY = visibleStartIndex * ITEM_HEIGHT;
+  
+  // Calculate total height and offset using measured heights
+  $: totalHeight = filteredLogs.reduce((sum, log, index) => {
+    const key = getLogKey(log, index);
+    return sum + getLogHeight(key);
+  }, 0);
+  
+  $: offsetY = filteredLogs.slice(0, visibleStartIndex).reduce((sum, log, index) => {
+    const key = getLogKey(log, index);
+    return sum + getLogHeight(key);
+  }, 0);
 
   // Update visible range when filteredLogs changes (tab switch, filters, etc.)
   $: if (filteredLogs && logContainer) {
+    // Mark heights for recalculation when logs change
+    heightsNeedRecalculation = true;
     tick().then(() => {
+      measureLogHeights();
       updateVisibleRange();
+    });
+  }
+  
+  // Measure heights after rendering new visible logs
+  $: if (visibleLogs && visibleLogs.length > 0) {
+    tick().then(() => {
+      if (heightsNeedRecalculation) {
+        measureLogHeights();
+        // Update visible range with new measurements
+        updateVisibleRange();
+      }
     });
   }
 
@@ -671,9 +758,13 @@
       {:else}
         <div class="log-entries-wrapper" style="height: {totalHeight}px;">
           <div class="log-entries" style="transform: translateY({offsetY}px);">
-            {#each visibleLogs as logEntry, index (logEntry?.timestamp ? (logEntry.timestamp instanceof Date ? logEntry.timestamp.getTime() : new Date(logEntry.timestamp).getTime()) + '-' + (visibleStartIndex + index) : 'unknown-' + (visibleStartIndex + index))}
+            {#each visibleLogs as logEntry, index (getLogKey(logEntry, visibleStartIndex + index))}
               {#if logEntry}
-                <div class="log-entry" style="height: {ITEM_HEIGHT}px;">
+                {@const logKey = getLogKey(logEntry, visibleStartIndex + index)}
+                <div 
+                  class="log-entry"
+                  bind:this={logElements[logKey]}
+                >
                   <div 
                     class="log-copy-icon"
                     on:click={() => copyLogEntry(logEntry)}
@@ -1182,13 +1273,14 @@
         
         .log-entry {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           gap: 0.5rem;
-          padding: 0.05rem;
+          padding: 0.25rem 0.5rem;
           margin-bottom: 0;
           border-radius: var(--border-radius);
           transition: background-color 0.2s ease;
           box-sizing: border-box;
+          min-height: 28px;
           
           &:hover {
             background: var(--card);
@@ -1226,6 +1318,7 @@
             font-size: 0.75rem;
             color: var(--placeholder);
             min-width: 3rem;
+            padding-top: 0.15rem;
           }
           
           .log-level {
@@ -1239,6 +1332,8 @@
             min-width: 5.5rem;
             max-width: 5.5rem;
             border-radius: var(--border-radius-small);
+            align-self: flex-start;
+            margin-top: 0.05rem;
           }
           
           .log-message {
