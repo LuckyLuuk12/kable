@@ -9,6 +9,7 @@ import { MapsService, SettingsService, Icon } from '$lib';
   let localWorlds: LocalWorld[] = [];
   let filteredWorlds: LocalWorld[] = [];
   let isLoading = false;
+  let isRefreshing = false;
   let error: string | null = null;
   
   // Categories based on actual game modes and world types
@@ -28,25 +29,28 @@ import { MapsService, SettingsService, Icon } from '$lib';
 
   async function loadWorlds() {
     isLoading = true;
+    isRefreshing = true;
     error = null;
     try {
       localWorlds = await MapsService.getLocalWorlds();
-      updateFilteredWorlds();
+      // filteredWorlds will update automatically via reactive statement
     } catch (err) {
       console.error('Failed to load worlds:', err);
       error = `Failed to load worlds: ${err}`;
     } finally {
       isLoading = false;
+      isRefreshing = false;
     }
   }
 
-  function updateFilteredWorlds() {
+  // Reactive filtering - automatically updates when dependencies change
+  $: filteredWorlds = (() => {
     let filtered = [...localWorlds];
 
-    // Filter by category
+    // Filter by category (game mode)
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(world => 
-        world.game_mode?.toLowerCase() === selectedCategory
+        world.game_mode?.toLowerCase() === selectedCategory.toLowerCase()
       );
     }
 
@@ -63,7 +67,7 @@ import { MapsService, SettingsService, Icon } from '$lib';
     filtered.sort((a, b) => {
       switch (sortBy) {
         case 'recent':
-          return new Date(b.last_played || 0).getTime() - new Date(a.last_played || 0).getTime();
+          return (b.last_played || 0) - (a.last_played || 0);
         case 'name':
           return a.name.localeCompare(b.name);
         case 'size':
@@ -73,12 +77,8 @@ import { MapsService, SettingsService, Icon } from '$lib';
       }
     });
 
-    filteredWorlds = filtered;
-  }
-
-  $: {
-    updateFilteredWorlds();
-  }
+    return filtered;
+  })();
 
   async function deleteWorld(worldName: string) {
     if (!confirm(`Are you sure you want to delete the world "${worldName}"? This action cannot be undone.`)) {
@@ -119,9 +119,33 @@ import { MapsService, SettingsService, Icon } from '$lib';
 </script>
 
 <div class="maps-page">
+  <!-- Page Header -->
   <div class="page-header">
-    <h1>Local Worlds</h1>
-    <p>Manage your Minecraft worlds and save files</p>
+    <div class="header-left">
+      <h1>
+        <Icon name="map" size="md" />
+        Minecraft Worlds
+      </h1>
+      <div class="header-meta">
+        <p>Manage your Minecraft worlds and save files</p>
+        {#if !isLoading && localWorlds.length > 0}
+          <div class="stat-badge">
+            <Icon name="folder" size="sm" />
+            {localWorlds.length} world{localWorlds.length !== 1 ? 's' : ''} found
+          </div>
+        {/if}
+      </div>
+    </div>
+    <div class="header-actions">
+      <button 
+        on:click={loadWorlds} 
+        class="btn btn-secondary {isRefreshing ? 'spinning' : ''}"
+        disabled={isLoading}
+        title="Refresh worlds list"
+      >
+        <Icon name="refresh" size="sm" />
+      </button>
+    </div>
   </div>
 
   {#if error}
@@ -132,50 +156,50 @@ import { MapsService, SettingsService, Icon } from '$lib';
   {/if}
 
   <!-- Search and Filters -->
-  <section class="search-section">
-    <div class="search-bar">
-      <div class="search-input-wrapper">
-        <Icon name="search" size="sm" className="search-icon" />
-        <input 
-          type="text" 
-          placeholder="Search worlds..." 
-          bind:value={searchQuery}
-          class="search-input"
-        />
-      </div>
+  <div class="filters-section">
+    <div class="search-container">
+      <Icon name="search" size="sm" />
+      <input
+        type="text"
+        placeholder="Search worlds by name or game mode..."
+        bind:value={searchQuery}
+        class="search-input"
+      />
+    </div>
+    <div class="filter-controls">
+      <select bind:value={selectedCategory} class="filter-select">
+        {#each categories as category}
+          <option value={category.id}>
+            {category.name}
+          </option>
+        {/each}
+      </select>
       
-      <div class="filter-controls">
-        <select bind:value={selectedCategory} class="category-select">
-          {#each categories as category}
-            <option value={category.id}>
-              {category.name}
-            </option>
-          {/each}
-        </select>
-        
-        <select bind:value={sortBy} class="sort-select">
-          <option value="recent">Recently Played</option>
-          <option value="name">Name (A-Z)</option>
-          <option value="size">File Size</option>
-        </select>
-        
-        <button on:click={loadWorlds} class="btn btn-secondary btn-sm" disabled={isLoading}>
-          <Icon name="refresh" size="sm" />
-          {isLoading ? 'Loading...' : 'Refresh'}
-        </button>
-      </div>
+      <select bind:value={sortBy} class="filter-select">
+        <option value="recent">Recently Played</option>
+        <option value="name">Name (A-Z)</option>
+        <option value="size">File Size</option>
+      </select>
     </div>
-  </section>
+  </div>
 
-  <!-- Local Worlds Grid -->
-  <section class="worlds-section">
-    <div class="section-header">
-      <h2>Your Worlds ({filteredWorlds.length})</h2>
-    </div>
+  <!-- Results Header -->
+  <div class="results-header">
+    <h2>
+      {#if searchQuery.trim() || selectedCategory !== 'all'}
+        Filtered Results
+      {:else}
+        All Worlds
+      {/if}
+      <span class="count">({filteredWorlds.length})</span>
+    </h2>
+  </div>
 
+  <!-- Worlds Grid -->
+  <div class="worlds-content">
     {#if isLoading}
       <div class="loading-state">
-        <Icon name="loader" size="lg" />
+        <Icon name="loader" size="xl" />
         <p>Loading worlds...</p>
       </div>
     {:else if filteredWorlds.length > 0}
@@ -183,62 +207,69 @@ import { MapsService, SettingsService, Icon } from '$lib';
         {#each filteredWorlds as world}
           <div class="world-card">
             <div class="world-header">
-              <Icon name="map" size="md" />
-              <h3 class="world-name">{world.name}</h3>
+              <div class="world-icon">
+                <Icon name={world.game_mode?.toLowerCase() === 'hardcore' ? 'skull' : 'map'} size="lg" />
+              </div>
+              <div class="world-info">
+                <h3 class="world-name">{world.name}</h3>
+                <div class="world-meta">
+                  <span class="badge badge-{world.game_mode?.toLowerCase() || 'survival'}">
+                    <Icon name={categories.find(c => c.id === world.game_mode?.toLowerCase())?.icon || 'map'} size="sm" />
+                    {world.game_mode || 'Unknown'}
+                  </span>
+                  {#if world.version}
+                    <span class="world-version">{world.version}</span>
+                  {/if}
+                </div>
+              </div>
             </div>
             
-            <div class="world-details">
-              <div class="detail-row">
-                <span class="label">Game Mode:</span>
-                <span class="value">{world.game_mode || 'Unknown'}</span>
-              </div>
-              
-              {#if world.version}
-                <div class="detail-row">
-                  <span class="label">Version:</span>
-                  <span class="value">{world.version}</span>
-                </div>
-              {/if}
-              
+            <div class="world-stats">
               {#if world.last_played}
-                <div class="detail-row">
-                  <span class="label">Last Played:</span>
-                  <span class="value">{new Date(world.last_played).toLocaleDateString()}</span>
+                <div class="stat-item">
+                  <Icon name="clock" size="sm" />
+                  <span class="stat-label">Last Played:</span>
+                  <span class="stat-value">{new Date(world.last_played).toLocaleDateString()}</span>
                 </div>
               {/if}
               
               {#if world.size_mb}
-                <div class="detail-row">
-                  <span class="label">Size:</span>
-                  <span class="value">{formatFileSize(world.size_mb * 1024 * 1024)}</span>
+                <div class="stat-item">
+                  <Icon name="hard-drive" size="sm" />
+                  <span class="stat-label">Size:</span>
+                  <span class="stat-value">{formatFileSize(world.size_mb * 1024 * 1024)}</span>
                 </div>
               {/if}
               
               {#if world.difficulty}
-                <div class="detail-row">
-                  <span class="label">Difficulty:</span>
-                  <span class="value">{world.difficulty || 'Unknown'}</span>
+                <div class="stat-item">
+                  <Icon name="shield" size="sm" />
+                  <span class="stat-label">Difficulty:</span>
+                  <span class="stat-value">{world.difficulty}</span>
                 </div>
               {/if}
               
-              <div class="detail-row">
-                <span class="label">Backups:</span>
-                <span class="value">{world.backup_count || 0}</span>
+              <div class="stat-item">
+                <Icon name="archive" size="sm" />
+                <span class="stat-label">Backups:</span>
+                <span class="stat-value">{world.backup_count || 0}</span>
               </div>
             </div>
             
             <div class="world-actions">
               <button 
                 on:click={() => backupWorld(world.name)}
-                class="action-btn secondary-btn"
+                class="btn btn-secondary btn-sm"
+                title="Create backup"
               >
-                <Icon name="backup" size="sm" />
+                <Icon name="archive" size="sm" />
                 Backup
               </button>
               
               <button 
                 on:click={() => deleteWorld(world.name)}
-                class="action-btn danger-btn"
+                class="btn btn-danger btn-sm"
+                title="Delete world"
               >
                 <Icon name="trash" size="sm" />
                 Delete
@@ -249,8 +280,20 @@ import { MapsService, SettingsService, Icon } from '$lib';
       </div>
     {:else}
       <div class="empty-state">
-        <Icon name="map" size="xl" className="empty-icon" />
-        <h3>No worlds found</h3>
+        <div class="empty-icon">
+          {#if searchQuery.trim() || selectedCategory !== 'all'}
+            <Icon name="search" size="xl" />
+          {:else}
+            <Icon name="map" size="xl" />
+          {/if}
+        </div>
+        <h3>
+          {#if searchQuery.trim() || selectedCategory !== 'all'}
+            No worlds found
+          {:else}
+            No Minecraft worlds
+          {/if}
+        </h3>
         <p>
           {#if searchQuery.trim() || selectedCategory !== 'all'}
             No worlds match your current filters. Try adjusting your search or category.
@@ -264,143 +307,180 @@ import { MapsService, SettingsService, Icon } from '$lib';
         </button>
       </div>
     {/if}
-  </section>
+  </div>
 </div>
 
 <style lang="scss">
-
   .maps-page {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 1rem;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
   }
 
   .page-header {
-    text-align: center;
-    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    gap: 2rem;
     
-    h1 {
-      margin: 0 0 0.5rem 0;
-      color: var(--text);
-      font-size: 2.5rem;
-      font-weight: 700;
+    .header-left {
+      flex: 1;
+      
+      h1 {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0 0 0.75rem 0;
+        font-size: 2rem;
+        font-weight: 700;
+      }
+      
+      .header-meta {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+        
+        p {
+          margin: 0;
+          color: var(--placeholder);
+          font-size: 1.1rem;
+        }
+        
+        .stat-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 0.25rem;
+          padding: 0.25rem 0.75rem;
+          background: color-mix(in srgb, var(--primary), 10%, transparent);
+          color: var(--primary);
+          border-radius: var(--border-radius);
+          font-size: 0.875rem;
+          font-weight: 500;
+        }
+      }
     }
     
-    p {
-      margin: 0;
-      color: var(--placeholder);
-      font-size: 1.1rem;
+    .header-actions {
+      display: flex;
+      gap: 0.5rem;
+      
+      .spinning {
+        animation: spin 1s linear infinite;
+      }
     }
   }
 
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
   .error-message {
-  background: color-mix(in srgb, var(--red), 10%, transparent);
+    background: color-mix(in srgb, var(--red), 10%, transparent);
     color: var(--red);
     padding: 1rem;
-    border-radius: 0.5rem;
+    border-radius: var(--border-radius);
     margin-bottom: 1rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-weight: 500;
+    border: 1px solid var(--dark-200);
   }
 
-  .search-section {
-    background: var(--card);
-    border: 1px solid var(--dark-600);
-    border-radius: 1rem;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-  }
-
-  .search-bar {
+  .filters-section {
     display: flex;
     gap: 1rem;
-    flex-wrap: wrap;
     align-items: center;
-    
-    @media (max-width: 768px) {
-      flex-direction: column;
-    }
-  }
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: var(--container);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--dark-200);
 
-  .search-input-wrapper {
-    flex: 1;
-    position: relative;
-    min-width: 250px;
-    
-    :global(.search-icon) {
-      position: absolute;
-      left: 1rem;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--placeholder);
+    .search-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      
+      .search-input {
+        flex: 1;
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+        background: var(--card);
+        border: 1px solid var(--dark-200);
+        border-radius: var(--border-radius-small);
+        color: var(--text);
+        
+        &:focus {
+          outline: none;
+          border-color: var(--primary);
+        }
+        
+        &::placeholder {
+          color: var(--placeholder);
+        }
+      }
     }
     
-    .search-input {
-      width: 100%;
-      padding: 0.75rem 1rem 0.75rem 2.5rem;
-      border: 1px solid var(--dark-600);
-      border-radius: 0.75rem;
-      background: var(--input);
-      color: var(--text);
-      font-size: 1rem;
+    .filter-controls {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
       
-      &:focus {
-        outline: none;
-        border-color: var(--primary);
+      .filter-select {
+        padding: 0.5rem 0.75rem;
+        background: var(--card);
+        border: 1px solid var(--dark-200);
+        border-radius: var(--border-radius-small);
+        color: var(--text);
+        font-size: 0.9rem;
+        cursor: pointer;
+        
+        &:focus {
+          outline: none;
+          border-color: var(--primary);
+        }
       }
     }
   }
 
-  .filter-controls {
-    display: flex;
-    gap: 0.75rem;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .category-select, .sort-select {
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--dark-600);
-    border-radius: 0.75rem;
-    background: var(--input);
-    color: var(--text);
-    font-size: 0.9rem;
-    cursor: pointer;
-    
-    &:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-  }
-
-  .worlds-section {
-    background: var(--card);
-    border: 1px solid var(--dark-600);
-    border-radius: 1rem;
-    padding: 2rem;
-  }
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 2rem;
+  .results-header {
+    margin-bottom: 1rem;
     
     h2 {
       margin: 0;
-      color: var(--text);
-      font-size: 1.5rem;
+      font-size: 1.25rem;
       font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      
+      .count {
+        color: var(--placeholder);
+        font-weight: 400;
+      }
     }
   }
 
+  .worlds-content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
   .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 1rem;
     text-align: center;
-    padding: 3rem 1rem;
     
-    :global(.loader) {
+    :global(svg) {
       color: var(--primary);
       margin-bottom: 1rem;
       animation: spin 1s linear infinite;
@@ -409,70 +489,140 @@ import { MapsService, SettingsService, Icon } from '$lib';
     p {
       color: var(--placeholder);
       font-size: 1.1rem;
+      margin: 0;
     }
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
   }
 
   .worlds-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 1rem;
+    padding-bottom: 1rem;
   }
 
   .world-card {
     background: var(--container);
-    border: 1px solid var(--dark-600);
-    border-radius: 0.75rem;
-    padding: 1.5rem;
+    border: 1px solid var(--dark-200);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
     transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
     
     &:hover {
       border-color: var(--primary);
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
     
     .world-header {
       display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      margin-bottom: 1rem;
+      align-items: flex-start;
+      gap: 1rem;
       
-      .world-name {
-        margin: 0;
-        color: var(--text);
-        font-size: 1.25rem;
-        font-weight: 600;
-        flex: 1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+      .world-icon {
+        flex-shrink: 0;
+        width: 3rem;
+        height: 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: color-mix(in srgb, var(--primary), 10%, transparent);
+        border-radius: var(--border-radius);
+        color: var(--primary);
       }
       
-
-    }
-    
-    .world-details {
-      margin-bottom: 1.5rem;
-      
-      .detail-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 0.5rem;
+      .world-info {
+        flex: 1;
+        min-width: 0;
         
-        .label {
-          color: var(--placeholder);
-          font-size: 0.875rem;
-          font-weight: 500;
+        .world-name {
+          margin: 0 0 0.5rem 0;
+          font-size: 1.125rem;
+          font-weight: 600;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
         
-        .value {
+        .world-meta {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+          
+          .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: var(--border-radius-small);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: capitalize;
+            
+            &.badge-survival {
+              background: color-mix(in srgb, var(--green), 10%, transparent);
+              color: var(--green);
+            }
+            
+            &.badge-creative {
+              background: color-mix(in srgb, var(--blue), 10%, transparent);
+              color: var(--blue);
+            }
+            
+            &.badge-adventure {
+              background: color-mix(in srgb, var(--purple), 10%, transparent);
+              color: var(--purple);
+            }
+            
+            &.badge-spectator {
+              background: color-mix(in srgb, var(--text), 10%, transparent);
+              color: var(--text);
+            }
+            
+            &.badge-hardcore {
+              background: color-mix(in srgb, var(--red), 10%, transparent);
+              color: var(--red);
+            }
+          }
+          
+          .world-version {
+            font-size: 0.75rem;
+            color: var(--placeholder);
+            font-weight: 500;
+          }
+        }
+      }
+    }
+    
+    .world-stats {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      padding: 0.75rem;
+      background: var(--card);
+      border-radius: var(--border-radius-small);
+      
+      .stat-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.875rem;
+        
+        :global(svg) {
+          flex-shrink: 0;
+          color: var(--placeholder);
+        }
+        
+        .stat-label {
+          color: var(--placeholder);
+          min-width: 5rem;
+        }
+        
+        .stat-value {
           color: var(--text);
-          font-size: 0.875rem;
           font-weight: 500;
         }
       }
@@ -480,47 +630,36 @@ import { MapsService, SettingsService, Icon } from '$lib';
     
     .world-actions {
       display: flex;
-      gap: 0.75rem;
+      gap: 0.5rem;
       
-      .action-btn {
+      button {
         flex: 1;
-        padding: 0.75rem;
-        border-radius: 0.5rem;
-        font-weight: 600;
-        font-size: 0.875rem;
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 0.5rem;
-        border: none;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        
-        &.danger-btn {
-          background: var(--red);
-          color: var(--text-white);
-          
-          &:hover {
-            background: var(--red-600);
-          }
-        }
+        padding: 0.5rem 1rem;
       }
     }
   }
 
   .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 1rem;
     text-align: center;
-    padding: 3rem 1rem;
     
-    :global(.empty-icon) {
+    .empty-icon {
       color: var(--placeholder);
+      opacity: 0.5;
       margin-bottom: 1rem;
     }
     
     h3 {
       margin: 0 0 0.5rem 0;
-      color: var(--text);
-      font-size: 1.25rem;
+      font-size: 1.5rem;
       font-weight: 600;
     }
     
@@ -529,19 +668,21 @@ import { MapsService, SettingsService, Icon } from '$lib';
       color: var(--placeholder);
       font-size: 1rem;
       max-width: 500px;
-      margin-left: auto;
-      margin-right: auto;
     }
   }
 
-  // Responsive design
   @media (max-width: 768px) {
-    .worlds-grid {
-      grid-template-columns: 1fr;
+    .filters-section {
+      flex-direction: column;
+      align-items: stretch;
+      
+      .filter-controls {
+        flex-wrap: wrap;
+      }
     }
     
-    .world-actions {
-      flex-direction: column;
+    .worlds-grid {
+      grid-template-columns: 1fr;
     }
   }
 </style>

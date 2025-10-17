@@ -214,17 +214,18 @@ export interface MinecraftDirectoryInfo {
 export interface LocalWorld {
   id: string;
   name: string;
-  path: string;
-  last_played?: number;  // Changed to number (timestamp)
-  size?: number;
-  size_mb: number;  // Size in MB for compatibility
-  version?: string;
-  game_mode?: string;
-  hardcore?: boolean;
-  difficulty?: string;  // Added difficulty for world stats
-  folder_name: string;  // Folder name for searching
-  created: number;  // Creation timestamp
-  backup_count: number;  // Number of backups for this world
+  folder_name: string;
+  game_mode: 'Survival' | 'Creative' | 'Adventure' | 'Spectator';
+  difficulty: 'Peaceful' | 'Easy' | 'Normal' | 'Hard';
+  version: string;
+  size_mb: number;
+  last_played: number;  // Unix timestamp in milliseconds
+  created: number;  // Unix timestamp in milliseconds
+  seed: string | null;
+  icon: string | null;
+  backup_count: number;
+  has_cheats: boolean;
+  world_type: string;
 }
 
 export interface WorldDownload {

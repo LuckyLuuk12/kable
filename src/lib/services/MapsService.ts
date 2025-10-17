@@ -145,7 +145,9 @@ export class MapsService {
       const mostCommonGameMode = Object.entries(gameModeCounts)
         .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
 
-      const hardcoreCount = worlds.filter(w => w.hardcore).length;
+      // Note: Hardcore is typically Survival mode with hardcore flag in older versions
+      // In modern Minecraft, it's a separate game mode, but we can check for cheats disabled
+      const hardcoreCount = worlds.filter(w => !w.has_cheats && w.game_mode === 'Survival').length;
 
       return {
         totalWorlds,

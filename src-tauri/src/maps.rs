@@ -1,7 +1,10 @@
 use crate::logging::{debug, error, info};
+use fastnbt::from_bytes;
+use flate2::read::GzDecoder;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
+use std::io::Read;
 use std::path::PathBuf;
 use tokio::fs as async_fs;
 
@@ -65,24 +68,36 @@ pub enum Difficulty {
 }
 
 // NBT data structure for level.dat parsing
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
+struct LevelDatRoot {
+    #[serde(rename = "Data")]
+    pub data: Option<LevelData>,
+}
+
+#[derive(Debug, Deserialize)]
 struct LevelData {
     #[serde(rename = "LevelName")]
     pub level_name: Option<String>,
     #[serde(rename = "GameType")]
     pub game_type: Option<i32>,
     #[serde(rename = "Difficulty")]
-    pub difficulty: Option<i32>,
+    pub difficulty: Option<i8>,
     #[serde(rename = "LastPlayed")]
     pub last_played: Option<i64>,
     #[serde(rename = "RandomSeed")]
     pub random_seed: Option<i64>,
     #[serde(rename = "allowCommands")]
-    pub allow_commands: Option<bool>,
+    pub allow_commands: Option<i8>,
     #[serde(rename = "generatorName")]
     pub generator_name: Option<String>,
     #[serde(rename = "Version")]
-    pub version: Option<HashMap<String, serde_json::Value>>,
+    pub version: Option<VersionData>,
+}
+
+#[derive(Debug, Deserialize)]
+struct VersionData {
+    #[serde(rename = "Name")]
+    pub name: Option<String>,
 }
 
 // Get all local worlds from the saves directory
@@ -197,7 +212,7 @@ async fn parse_world_folder(
             }
 
             if let Some(cheats) = level_data.allow_commands {
-                world.has_cheats = cheats;
+                world.has_cheats = cheats != 0;
             }
 
             if let Some(generator) = level_data.generator_name {
@@ -205,10 +220,8 @@ async fn parse_world_folder(
             }
 
             if let Some(version_data) = level_data.version {
-                if let Some(version_name) = version_data.get("Name") {
-                    if let Some(version_str) = version_name.as_str() {
-                        world.version = version_str.to_string();
-                    }
+                if let Some(version_str) = version_data.name {
+                    world.version = version_str;
                 }
             }
         }
@@ -235,19 +248,30 @@ async fn parse_world_folder(
 // async variant `parse_level_dat_async` above. Keeping only the async
 // parser avoids unused code and encourages non-blocking file reads.
 
-// Async variant of the level.dat parser (placeholder that reads file async)
+// Async variant of the level.dat parser - reads and parses NBT data
 async fn parse_level_dat_async(level_dat_path: &PathBuf) -> Result<LevelData, String> {
-    let _contents = async_fs::read(level_dat_path).await.map_err(|e| e.to_string())?;
-    Ok(LevelData {
-        level_name: None,
-        game_type: None,
-        difficulty: None,
-        last_played: None,
-        random_seed: None,
-        allow_commands: None,
-        generator_name: None,
-        version: None,
+    // Read the file in a blocking task since NBT parsing is CPU-bound
+    let path = level_dat_path.clone();
+    
+    tokio::task::spawn_blocking(move || {
+        // Read the gzipped NBT file
+        let file = fs::File::open(&path)
+            .map_err(|e| format!("Failed to open level.dat: {}", e))?;
+        
+        let mut decoder = GzDecoder::new(file);
+        let mut contents = Vec::new();
+        decoder
+            .read_to_end(&mut contents)
+            .map_err(|e| format!("Failed to decompress level.dat: {}", e))?;
+        
+        // Parse NBT data
+        let root: LevelDatRoot = from_bytes(&contents)
+            .map_err(|e| format!("Failed to parse NBT data: {}", e))?;
+        
+        root.data.ok_or_else(|| "No Data tag found in level.dat".to_string())
     })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
 }
 
 // Calculate folder size recursively
