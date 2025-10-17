@@ -12,6 +12,11 @@
 
   $: isLoading = $isLoadingInstallations || $isLoadingVersions
 
+  // Debug logging to verify store updates
+  $: {
+    console.log('[InstallationsList] installations changed, count:', $installations.length);
+  }
+
   $: limitedInstallations = $installations
     .slice()
     .sort((a, b) => {
@@ -42,18 +47,8 @@
   let useDropdownForActions: { [key: string]: boolean } = {};
   let resizeObserver: ResizeObserver | null = null;
 
-  // Modal control: selected installation and modal open flag
-  let selectedInstallation: any = null; // KableInstallation | null
-  let editModalOpen: boolean = false;
-  // Reactive aliases (exposed as $: variables)
-  $: currentSelected = selectedInstallation;
-  $: isEditOpen = editModalOpen;
-
-  // Clear selected installation once the modal is closed to fully unmount it
-  $: if (!editModalOpen) {
-    // slight delay so we don't clear immediately while closing animation might run
-    selectedInstallation = selectedInstallation && null;
-  }
+  // Modal control: reference to the modal component
+  let editModal: any = null; // Reference to EditInstallationModal
 
   function checkActionsFit() {
     if (isGrid) return; // Only applies to list view
@@ -159,9 +154,8 @@
 
 </script>
 
-<!-- Global edit modal bound to the selected installation -->
-<EditInstallationModal bind:isOpen={editModalOpen} installation={selectedInstallation} />
-
+<!-- Global edit modal -->
+<EditInstallationModal bind:this={editModal} />
 
 <div class="installations-list" class:compact={isSmall && !isGrid}>
   {#if error}
@@ -229,7 +223,7 @@
                     <Icon name="more-horizontal" size="sm" />
                   </button>
                   <div class="dropdown-menu" style="z-index: {(limitedInstallations.length - i) * 2 - 1};">
-                    <button on:click={async () => { selectedInstallation = installation; await tick(); editModalOpen = true; }}>
+                    <button on:click={() => editModal?.open(installation)}>
                       <Icon name="edit" size="sm" />
                       Edit
                     </button>
@@ -295,7 +289,12 @@
                   <div class="installation-meta-grid small-meta-grid">
                     <div class="meta-cell small-meta-cell">
                       <span class="meta-key">Total time:</span>
-                      <span class="meta-value last-played small-meta-value"><Icon name="clock" size="sm" /> {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : 'Unknown'}</span>
+                      <span class="meta-value last-played small-meta-value">
+                        <Icon name="clock" size="sm" /> 
+                        {installation.total_time_played_ms 
+                          ? `${Math.floor(installation.total_time_played_ms / 3600000)}h ${Math.floor((installation.total_time_played_ms % 3600000) / 60000)}m`
+                          : '0h 0m'}
+                      </span>
                     </div>
                   </div>
                 {:else}
@@ -310,7 +309,12 @@
                     </div>
                     <div class="meta-cell">
                       <span class="meta-key">Total time:</span>
-                      <span class="meta-value total-time"><Icon name="clock" size="sm" /> {installation.total_time_played_ms ? new Date(installation.total_time_played_ms).toLocaleDateString() : '---'}</span>
+                      <span class="meta-value total-time">
+                        <Icon name="clock" size="sm" /> 
+                        {installation.total_time_played_ms 
+                          ? `${Math.floor(installation.total_time_played_ms / 3600000)}h ${Math.floor((installation.total_time_played_ms % 3600000) / 60000)}m`
+                          : '0h 0m'}
+                      </span>
                     </div>
                   </div>
                 {/if}
@@ -319,7 +323,7 @@
 
             {#if !isSmall}
               <div class="installation-actions">
-                <button class="btn btn-secondary" on:click={async () => { selectedInstallation = installation; await tick(); editModalOpen = true; }}>
+                <button class="btn btn-secondary" on:click={() => editModal?.open(installation)}>
                   <Icon name="edit" size="sm" />
                   Edit
                 </button>
@@ -383,7 +387,7 @@
                     
                     <!-- Inline Actions (shown when they fit) -->
                     <div class="list-inline-actions" class:hidden={useDropdownForActions[installation.id]}>
-                      <button class="list-action-btn" on:click={async () => { selectedInstallation = installation; await tick(); editModalOpen = true; }}>
+                      <button class="list-action-btn" on:click={() => editModal?.open(installation)}>
                         <Icon name="edit" size="sm" />
                         Edit
                       </button>
@@ -407,7 +411,7 @@
                         <Icon name="more-horizontal" size="sm" />
                       </button>
                       <div class="dropdown-menu">
-                        <button on:click={async () => { selectedInstallation = installation; await tick(); editModalOpen = true; }}>
+                        <button on:click={() => editModal?.open(installation)}>
                           <Icon name="edit" size="sm" />
                           Edit
                         </button>

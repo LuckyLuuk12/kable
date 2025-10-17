@@ -28,6 +28,7 @@ export class InstallationService {
           installationsApi.getInstallations(),
           installationsApi.getAllVersions()
         ]);
+        console.log('[InstallationService] Setting installations:', foundInstallations.length, 'items');
         installations.set(foundInstallations);
         versions.set(foundVersions);
         selectedInstallation.set(foundInstallations[0] || null);
@@ -44,7 +45,7 @@ export class InstallationService {
         isLoadingVersions.set(false);
         // Clear inflight promise
         this._inflightLoad = null;
-        console.log('Installations loaded:', get(installations).length, 'Versions loaded:\n', get(versions));
+        console.log('Installations loaded:', get(installations).length, 'Versions loaded:\n', get(versions).length);
         LogsService.emitLauncherEvent(`Loaded ${get(installations).length} installations and ${get(versions).length} versions`, 'debug');
       }
     })();
@@ -56,34 +57,38 @@ export class InstallationService {
    * Create a new installation and update the store.
    * @param version_id The ID of the version to create the installation for.
    */
-  static createInstallation(version_id: string): void {
-  installationsApi.createInstallation(version_id)
-      .then(() => this.loadInstallations());
+  static async createInstallation(version_id: string): Promise<void> {
+    await installationsApi.createInstallation(version_id);
+    await this.loadInstallations();
   }
 
   /**
    * Update an existing installation.
    */
-  static updateInstallation(id: string, newInstallation: KableInstallation): void {
+  static async updateInstallation(id: string, newInstallation: KableInstallation): Promise<void> {
+    console.log('[Service] updateInstallation called with:', { id, newInstallation });
     // first modify store for reactivity
     installations.update(list => {
       const index = list.findIndex(i => i.id === id);
       if (index !== -1) {
-        list[index] = newInstallation;
+        // Create a new array with the updated installation for reactivity
+        const newList = [...list];
+        newList[index] = newInstallation;
+        return newList;
       }
       return list;
     });
 
-  installationsApi.modifyInstallation(id, newInstallation)
-      .then(async () => console.log('Installation updated:', id));
+    await installationsApi.modifyInstallation(id, newInstallation);
+    console.log('Installation updated:', id);
   }
 
   /**
    * Delete an installation by ID.
    */
-  static deleteInstallation(id: string): void {
-  installationsApi.deleteInstallation(id)
-      .then(() => this.loadInstallations());
+  static async deleteInstallation(id: string): Promise<void> {
+    await installationsApi.deleteInstallation(id);
+    await this.loadInstallations();
   }
 
   /**
@@ -191,9 +196,9 @@ export class InstallationService {
     }
   }
 
-  static toggleFavorite(installation: KableInstallation): void {
+  static async toggleFavorite(installation: KableInstallation): Promise<void> {
     const updatedInstallation = { ...installation, favorite: !installation.favorite };
-    this.updateInstallation(installation.id, updatedInstallation);
+    await this.updateInstallation(installation.id, updatedInstallation);
   }
 
   static getVersionData(installation: KableInstallation): VersionData {
@@ -229,6 +234,7 @@ export class InstallationService {
       const newInstallation = await installationsApi.importInstallation(path);
       console.log('Imported installation from:', path, newInstallation);
       LogsService.emitLauncherEvent(`Imported installation ${newInstallation.name} from ${path}`, 'info');
+      await this.loadInstallations();
     } catch (error) {
       console.error('Failed to import installation:', error);
       LogsService.emitLauncherEvent(`Failed to import installation from ${path}`, 'error');
@@ -240,9 +246,82 @@ export class InstallationService {
       await installationsApi.duplicateInstallation(installation);
       console.log('Duplicated installation:', installation);
       LogsService.emitLauncherEvent(`Duplicated installation ${installation.name}`, 'info');
+      await this.loadInstallations();
     } catch (error) {
       console.error('Failed to duplicate installation:', error);
       LogsService.emitLauncherEvent(`Failed to duplicate installation ${installation.name}`, 'error');
     }
+  }
+
+  static async totalTimePlayed() {
+    // return installations.reduce((total: number, installation: KableInstallation) => total + installation.total_time_played_ms, 0);
+    let total = 0;
+    for (const inst of get(installations)) {
+      total += inst.total_time_played_ms;
+    }
+    return total;
+  }
+
+  /**
+   * Get statistics about all installations
+   */
+  static getStatistics() {
+    const allInstallations = get(installations);
+    
+    // Total playtime in milliseconds
+    const totalPlaytimeMs = allInstallations.reduce((sum, inst) => sum + inst.total_time_played_ms, 0);
+    
+    // Last played installation
+    const lastPlayedInstallation = allInstallations
+      .filter(inst => inst.last_used)
+      .sort((a, b) => new Date(b.last_used).getTime() - new Date(a.last_used).getTime())[0];
+    
+    // Most played installation
+    const mostPlayedInstallation = allInstallations
+      .filter(inst => inst.total_time_played_ms > 0)
+      .sort((a, b) => b.total_time_played_ms - a.total_time_played_ms)[0];
+    
+    // Total launches across all installations
+    const totalLaunches = allInstallations.reduce((sum, inst) => sum + inst.times_launched, 0);
+    
+    // Count installations by loader type
+    const versionsList = get(versions);
+    const loaderCounts: Record<LoaderKind, number> = {
+      Vanilla: 0,
+      Fabric: 0,
+      Forge: 0,
+      Quilt: 0,
+      NeoForge: 0,
+      IrisFabric: 0,
+    };
+    
+    allInstallations.forEach(inst => {
+      const version = versionsList.find(v => v.version_id === inst.version_id);
+      if (version && version.loader in loaderCounts) {
+        loaderCounts[version.loader]++;
+      }
+    });
+    
+    // Find most used loader
+    const mostUsedLoader = Object.entries(loaderCounts)
+      .sort(([, a], [, b]) => b - a)
+      .filter(([, count]) => count > 0)[0]?.[0] as LoaderKind | undefined;
+    
+    return {
+      totalInstallations: allInstallations.length,
+      totalPlaytimeMs,
+      totalPlaytimeHours: Math.floor(totalPlaytimeMs / 3600000),
+      totalPlaytimeMinutes: Math.floor((totalPlaytimeMs % 3600000) / 60000),
+      lastPlayedInstallation,
+      lastPlayedDate: lastPlayedInstallation?.last_used || null,
+      mostPlayedInstallation,
+      totalLaunches,
+      averageLaunchesPerInstallation: allInstallations.length > 0 
+        ? Math.round(totalLaunches / allInstallations.length) 
+        : 0,
+      favoriteCount: allInstallations.filter(inst => inst.favorite).length,
+      loaderCounts,
+      mostUsedLoader,
+    };
   }
 }

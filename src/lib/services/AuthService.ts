@@ -111,6 +111,64 @@ export class AuthService {
   }
 
   /**
+   * Refresh tokens for all available accounts if they're expired or expiring soon
+   * This is called during initialization to ensure all accounts are ready to use
+   */
+  static async refreshAllAccountTokens(): Promise<void> {
+    try {
+      const accounts = await this.getAllAccounts();
+      if (!accounts || accounts.length === 0) return;
+
+      console.log(`🔄 Checking tokens for ${accounts.length} account(s)...`);
+      
+      // Use Promise.allSettled to handle partial failures
+      const results = await Promise.allSettled(
+        accounts.map(async (account) => {
+          // Skip if no expiry time
+          if (!account.access_token_expires_at) return;
+          
+          // Skip if no refresh token available
+          if (!account.encrypted_refresh_token) {
+            console.warn(`⚠️ Cannot refresh ${account.username}: no refresh token`);
+            return;
+          }
+
+          const expiresAt = new Date(account.access_token_expires_at);
+          const now = new Date();
+          const timeUntilExpiry = expiresAt.getTime() - now.getTime();
+          
+          // If token is expired or will expire soon (within 10 minutes), refresh it
+          if (timeUntilExpiry < 10 * 60 * 1000) {
+            console.log(`🔄 Refreshing token for ${account.username}...`);
+            try {
+              await authApi.refreshMicrosoftToken(account.local_id);
+              console.log(`✅ Token refreshed for ${account.username}`);
+            } catch (error) {
+              console.error(`❌ Failed to refresh token for ${account.username}:`, error);
+              throw error;
+            }
+          }
+        })
+      );
+
+      // Log summary
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      
+      if (failed > 0) {
+        console.warn(`⚠️ Token refresh completed: ${successful} successful, ${failed} failed`);
+      } else if (successful > 0) {
+        console.log(`✅ All tokens refreshed successfully (${successful} account(s))`);
+      }
+
+      // Refresh the available accounts list to update UI
+      await this.refreshAvailableAccounts();
+    } catch (error) {
+      console.error('❌ Error during bulk token refresh:', error);
+    }
+  }
+
+  /**
    * Start Microsoft Authorization Code Flow authentication
    * This is the recommended method for desktop apps (no manual code entry)
    */
@@ -385,6 +443,33 @@ export class AuthService {
 
   static async switchAccount(accountId: string): Promise<LauncherAccount> {
     try {
+      // First, get the account to check if token needs refresh
+      const accounts = await this.getAllAccounts();
+      const targetAccount = accounts.find(acc => acc.local_id === accountId);
+      
+      if (!targetAccount) {
+        throw new Error('Account not found');
+      }
+
+      // Check if token is expired or will expire soon (within 10 minutes)
+      if (targetAccount.access_token_expires_at) {
+        const expiresAt = new Date(targetAccount.access_token_expires_at);
+        const now = new Date();
+        const timeUntilExpiry = expiresAt.getTime() - now.getTime();
+        
+        // If token is expired or will expire soon, refresh it first
+        if (timeUntilExpiry < 10 * 60 * 1000) {
+          console.log('🔄 Token expired or expiring soon, refreshing before switch...');
+          try {
+            await authApi.refreshMicrosoftToken(accountId);
+            console.log('✅ Token refreshed successfully');
+          } catch (error) {
+            console.error('❌ Failed to refresh token before switch:', error);
+            // Continue with switch anyway - backend will handle it
+          }
+        }
+      }
+
       await authApi.setActiveLauncherAccount(accountId);
       const account = await authApi.getMinecraftAccount();
       currentAccount.set(account);

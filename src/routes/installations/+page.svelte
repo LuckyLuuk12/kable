@@ -1,18 +1,28 @@
 <script lang="ts">
-  import { InstallationsList, CreateInstallationModal, EditInstallationModal, Icon, type KableInstallation } from '$lib';
+  import { InstallationsList, CreateInstallationModal, EditInstallationModal, Icon, type KableInstallation, InstallationService } from '$lib';
 
-  let showCreateModal = false;
-  let showEditModal = false;
-  let editingInstallation: KableInstallation | null = null;
-  let createModalRef;
-  let editModalRef;
+  let createModalRef: CreateInstallationModal;
+  let editModalRef: EditInstallationModal;
 
   let isSmall = false;
   let isGrid = true;
+  let isRefreshing = false;
 
   function editInstallation(installation: KableInstallation) {
-    editingInstallation = installation;
-    showEditModal = true;
+    editModalRef?.open(installation);
+  }
+
+  function openCreateModal() {
+    createModalRef?.open();
+  }
+
+  async function refreshInstallations() {
+    isRefreshing = true;
+    try {
+      await InstallationService.loadInstallations();
+    } finally {
+      isRefreshing = false;
+    }
   }
 </script>
 
@@ -29,12 +39,20 @@
   <div class="controls-container">
     <button 
       class="btn btn-primary new-installation-btn"
-      on:click={() => showCreateModal = true}
+      on:click={openCreateModal}
     >
       <Icon name="plus" size="md" forceType="svg" />
       New Installation
     </button>
     <div class="view-controls">
+      <button 
+        class="btn btn-secondary {isRefreshing ? 'spinning' : ''}" 
+        on:click={refreshInstallations}
+        disabled={isRefreshing}
+        title="Refresh installations list"
+      >
+        <Icon name="refresh" size="md" forceType="svg" />
+      </button>
       <button 
         class="btn btn-secondary" 
         on:click={() => isGrid = !isGrid} 
@@ -51,12 +69,8 @@
 
   <InstallationsList {isGrid} isSmall={isSmall} on:edit={(e) => editInstallation(e.detail)} />
 
-  {#if showCreateModal}
-    <CreateInstallationModal bind:this={createModalRef} on:close={() => showCreateModal = false} />
-  {/if}
-  {#if showEditModal && editingInstallation}
-    <EditInstallationModal bind:this={editModalRef} installation={editingInstallation} on:close={() => { showEditModal = false; editingInstallation = null; }} />
-  {/if}
+  <CreateInstallationModal bind:this={createModalRef} />
+  <EditInstallationModal bind:this={editModalRef} />
 </div>
 
 <style lang="scss">
@@ -148,6 +162,19 @@
           outline: none;
         }
       }
+    }
+  }
+
+  :global(.spinning) {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
     }
   }
 </style>

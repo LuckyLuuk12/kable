@@ -113,4 +113,65 @@ export class MapsService {
     const date = new Date(timestamp);
     return date.toLocaleString();
   }
+
+  static async getStatistics() {
+    try {
+      const worlds = await this.getLocalWorlds();
+      
+      const totalWorlds = worlds.length;
+      const totalBackups = worlds.reduce((sum, world) => sum + (world.backup_count || 0), 0);
+      const totalSizeMB = worlds.reduce((sum, world) => sum + (world.size_mb || 0), 0);
+      
+      const averageBackupsPerWorld = totalWorlds > 0 
+        ? Math.round((totalBackups / totalWorlds) * 10) / 10 
+        : 0;
+
+      const lastPlayedWorld = worlds
+        .filter(world => world.last_played && world.last_played > 0)
+        .sort((a, b) => (b.last_played || 0) - (a.last_played || 0))[0];
+
+      const largestWorld = worlds.length > 0
+        ? worlds.reduce((largest, world) => 
+            world.size_mb > largest.size_mb ? world : largest
+          , worlds[0])
+        : null;
+
+      const gameModeCounts = worlds.reduce((counts, world) => {
+        const mode = world.game_mode || 'Unknown';
+        counts[mode] = (counts[mode] || 0) + 1;
+        return counts;
+      }, {} as Record<string, number>);
+
+      const mostCommonGameMode = Object.entries(gameModeCounts)
+        .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
+
+      const hardcoreCount = worlds.filter(w => w.hardcore).length;
+
+      return {
+        totalWorlds,
+        totalBackups,
+        totalSizeMB,
+        averageBackupsPerWorld,
+        lastPlayedWorld,
+        largestWorld,
+        gameModeCounts,
+        mostCommonGameMode,
+        hardcoreCount
+      };
+    } catch (error) {
+      console.error('Failed to get world statistics:', error);
+      // Return empty stats on error
+      return {
+        totalWorlds: 0,
+        totalBackups: 0,
+        totalSizeMB: 0,
+        averageBackupsPerWorld: 0,
+        lastPlayedWorld: null,
+        largestWorld: null,
+        gameModeCounts: {},
+        mostCommonGameMode: null,
+        hardcoreCount: 0
+      };
+    }
+  }
 }

@@ -131,7 +131,11 @@
         <div class="account-avatar-details-row">
           <div class="account-avatar-container">
             <div class="account-avatar minecraft-head large" title="{$currentAccount.minecraft_profile?.name || $currentAccount.username}'s avatar">
-              <span class="avatar-letter">{($currentAccount.minecraft_profile?.name || $currentAccount.username || 'U').charAt(0).toUpperCase()}</span>
+              {#if $currentAccount.avatar}
+                <img src={$currentAccount.avatar} alt="{$currentAccount.minecraft_profile?.name || $currentAccount.username}'s avatar" class="avatar-image" />
+              {:else}
+                <span class="avatar-letter">{($currentAccount.minecraft_profile?.name || $currentAccount.username || 'U').charAt(0).toUpperCase()}</span>
+              {/if}
             </div>
             {#if getAccountStatus($currentAccount) === 'online'}
               <div class="status-indicator online" title="Online"></div>
@@ -313,10 +317,11 @@
     color: white;
     border: 3px solid var(--dark-600);
     transition: border-color 0.2s ease;
+    overflow: hidden;
     
     &.minecraft-head {
       background: linear-gradient(135deg, var(--primary), var(--primary-600));
-      border-color: var(--primary);
+      border-color: var(--dark-600);
     }
     
     &.large {
@@ -331,6 +336,13 @@
     
     .avatar-letter {
       user-select: none;
+    }
+
+    .avatar-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
     }
   }
   

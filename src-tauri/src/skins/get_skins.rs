@@ -493,3 +493,19 @@ pub async fn download_skin_from_url(url: &str) -> Result<Vec<u8>, String> {
 
     Ok(data.to_vec())
 }
+
+/// Get the currently active cape for the authenticated user
+pub async fn get_active_cape() -> Result<Option<AccountCape>, String> {
+    Logger::console_log(
+        LogLevel::Info,
+        "🎽 Fetching active cape",
+        None,
+    );
+
+    let profile = get_player_profile().await?;
+    
+    // Find the active cape (state = "ACTIVE")
+    let active_cape = profile.capes.into_iter().find(|cape| cape.state == "ACTIVE");
+    
+    Ok(active_cape)
+}

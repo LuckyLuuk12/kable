@@ -144,13 +144,14 @@ pub fn build_classpath_from_manifest_with_instance(
     instance_id: Option<&str>,
 ) -> String {
     Logger::debug_global("Building classpath from manifest", instance_id);
-    // Deduplicate by group:artifact (or full name for natives), keeping only the last occurrence (child overrides parent)
-    let mut dedup_map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    // Deduplicate by group:artifact, preferring the HIGHEST version to avoid conflicts
+    let mut dedup_map: std::collections::HashMap<String, (String, String)> = std::collections::HashMap::new();
     if let Some(libs) = manifest.get("libraries").and_then(|v| v.as_array()) {
         Logger::debug_global(&format!("Found {} libraries", libs.len()), instance_id);
         for lib in libs {
             if let Some(obj) = lib.as_object() {
                 let mut jar_path_opt = None;
+                let mut lib_name: Option<String> = None;
                 if let Some(downloads) = obj.get("downloads") {
                     if let Some(artifact) = downloads.get("artifact") {
                         if let Some(path) = artifact.get("path").and_then(|v| v.as_str()) {
@@ -162,6 +163,7 @@ pub fn build_classpath_from_manifest_with_instance(
                 if jar_path_opt.is_none() {
                     if let Some(name_val) = obj.get("name") {
                         if let Some(name) = name_val.as_str() {
+                            lib_name = Some(name.to_string());
                             if let Some(jar_path) =
                                 crate::launcher::utils::try_find_library_manually(
                                     name,
@@ -174,33 +176,62 @@ pub fn build_classpath_from_manifest_with_instance(
                             }
                         }
                     }
+                } else if let Some(name_val) = obj.get("name") {
+                    if let Some(name) = name_val.as_str() {
+                        lib_name = Some(name.to_string());
+                    }
                 }
                 if let Some(jar_path) = jar_path_opt {
-                    // Deduplication key: group:artifact for normal, full name for natives
-                    let dedup_key = if let Some(name_val) = obj.get("name") {
-                        if let Some(name) = name_val.as_str() {
-                            if name.contains(":natives-") {
-                                name.to_string()
+                    if let Some(full_name) = lib_name {
+                        // Deduplication key: group:artifact for normal, full name for natives
+                        let (dedup_key, version) = if full_name.contains(":natives-") {
+                            (full_name.clone(), String::new())
+                        } else {
+                            let parts: Vec<&str> = full_name.split(':').collect();
+                            if parts.len() >= 3 {
+                                let key = format!("{}:{}", parts[0], parts[1]);
+                                let ver = parts[2].to_string();
+                                (key, ver)
+                            } else if parts.len() >= 2 {
+                                (format!("{}:{}", parts[0], parts[1]), String::new())
                             } else {
-                                let parts: Vec<&str> = name.split(':').collect();
-                                if parts.len() >= 2 {
-                                    format!("{}:{}", parts[0], parts[1])
+                                (full_name.clone(), String::new())
+                            }
+                        };
+                        
+                        // If we already have this library, keep the one with higher version
+                        if let Some((_existing_path, existing_version)) = dedup_map.get(&dedup_key) {
+                            if !version.is_empty() && !existing_version.is_empty() {
+                                // Compare versions: prefer higher version
+                                if compare_versions(&version, existing_version) > 0 {
+                                    Logger::debug_global(
+                                        &format!("Preferring {} v{} over v{}", dedup_key, version, existing_version),
+                                        instance_id,
+                                    );
+                                    dedup_map.insert(dedup_key, (jar_path, version));
                                 } else {
-                                    name.to_string()
+                                    Logger::debug_global(
+                                        &format!("Keeping {} v{} (skipping v{})", dedup_key, existing_version, version),
+                                        instance_id,
+                                    );
                                 }
+                            } else {
+                                // No version info, keep last one (existing behavior)
+                                dedup_map.insert(dedup_key, (jar_path, version));
                             }
                         } else {
-                            jar_path.clone()
+                            dedup_map.insert(dedup_key, (jar_path, version));
                         }
                     } else {
-                        jar_path.clone()
-                    };
-                    dedup_map.insert(dedup_key, jar_path);
+                        // Fallback: use jar path as key if no name available
+                        let key = jar_path.clone();
+                        dedup_map.insert(key.clone(), (jar_path, String::new()));
+                    }
                 }
             }
         }
     }
-    let mut entries: Vec<String> = dedup_map.into_values().collect();
+    let mut entries: Vec<String> = dedup_map.into_values().map(|(path, _)| path).collect();
     entries.push(version_jar_path.to_string_lossy().to_string());
     let sep = if cfg!(windows) { ";" } else { ":" };
     let classpath = entries.join(sep);
@@ -208,7 +239,35 @@ pub fn build_classpath_from_manifest_with_instance(
         &format!("Classpath built: {} entries", entries.len()),
         instance_id,
     );
+    
+    // Log LWJGL versions in classpath for debugging
+    for entry in &entries {
+        if entry.contains("lwjgl") {
+            Logger::debug_global(&format!("Classpath LWJGL: {}", entry), instance_id);
+        }
+    }
+    
     classpath
+}
+
+/// Compare two version strings, returning:
+/// - positive if v1 > v2
+/// - negative if v1 < v2  
+/// - zero if equal
+fn compare_versions(v1: &str, v2: &str) -> i32 {
+    let parts1: Vec<u32> = v1.split('.').filter_map(|s| s.parse().ok()).collect();
+    let parts2: Vec<u32> = v2.split('.').filter_map(|s| s.parse().ok()).collect();
+    
+    for i in 0..parts1.len().max(parts2.len()) {
+        let p1 = parts1.get(i).copied().unwrap_or(0);
+        let p2 = parts2.get(i).copied().unwrap_or(0);
+        match p1.cmp(&p2) {
+            std::cmp::Ordering::Greater => return 1,
+            std::cmp::Ordering::Less => return -1,
+            std::cmp::Ordering::Equal => continue,
+        }
+    }
+    0
 }
 
 pub fn build_classpath_from_manifest(
@@ -1002,8 +1061,18 @@ pub async fn ensure_assets_for_manifest(
 /// Ok(path to Java executable) or Err if not found.
 pub fn find_java_executable(java_path: Option<&String>) -> Result<String, String> {
     if let Some(path) = java_path {
-        if PathBuf::from(path).exists() {
-            return Ok(path.clone());
+        // Validate that the path is not empty or whitespace
+        let trimmed = path.trim();
+        if !trimmed.is_empty() {
+            if PathBuf::from(trimmed).exists() {
+                return Ok(trimmed.to_string());
+            }
+            // If a non-empty path was specified but doesn't exist, log a warning
+            // but continue to auto-detection (user might have deleted/moved Java)
+            crate::logging::Logger::warn_global(
+                &format!("Specified Java path does not exist: '{}'. Attempting auto-detection.", trimmed),
+                None,
+            );
         }
     }
     let java_candidates = if cfg!(windows) {
@@ -1053,6 +1122,7 @@ pub fn get_java_path(java_path: Option<String>) -> Result<String, String> {
 /// * `libraries` - List of Library structs (from version JSONs).
 /// * `libraries_path` - Path to the root of the libraries directory.
 /// * `natives_path` - Path to the directory where natives should be extracted.
+/// * `instance_id` - Optional instance ID for logging correlation.
 ///
 /// # Returns
 /// Ok(()) if successful, Err if extraction fails.
@@ -1060,6 +1130,7 @@ pub fn extract_natives(
     libraries: &[Library],
     libraries_path: &Path,
     natives_path: &PathBuf,
+    instance_id: Option<&str>,
 ) -> Result<(), String> {
     if natives_path.exists() {
         // Try to remove old natives, but don't hard-fail if files are locked by another process
@@ -1081,6 +1152,11 @@ pub fn extract_natives(
     };
 
     let os_tag = current_os;
+    
+    // Deduplicate natives by group:artifact, keeping only the highest version
+    // Map: group:artifact -> (native_jar_path, version)
+    let mut dedup_map: std::collections::HashMap<String, (PathBuf, String)> = std::collections::HashMap::new();
+    
     for library in libraries {
         if let Some(rules) = &library.rules {
             let rules_value = serde_json::to_value(rules)
@@ -1091,21 +1167,18 @@ pub fn extract_natives(
         }
         if let Some(downloads) = &library.downloads {
             if let Some(classifiers) = &downloads.classifiers {
-                // Choose the best matching classifier key for this host (try os+arch, then os, then any matching natives-<os> variant)
+                // Choose the best matching classifier key for this host
                 let mut chosen: Option<String> = None;
-                // Preferred exact os+arch key, e.g. natives-windows-arm64 or natives-windows-x86
                 let candidate1 = format!("natives-{}-{}", os_tag, arch_tag);
                 if classifiers.contains_key(&candidate1) {
                     chosen = Some(candidate1);
                 }
-                // Fallback: generic os-only classifier, e.g. natives-windows
                 if chosen.is_none() {
                     let candidate2 = format!("natives-{}", os_tag);
                     if classifiers.contains_key(&candidate2) {
                         chosen = Some(candidate2);
                     }
                 }
-                // Last resort: pick any classifier that starts with natives-<os>
                 if chosen.is_none() {
                     for k in classifiers.keys() {
                         if k.starts_with(&format!("natives-{}", os_tag)) {
@@ -1118,7 +1191,40 @@ pub fn extract_natives(
                     if let Some(native_artifact) = classifiers.get(&key) {
                         let native_path = libraries_path.join(&native_artifact.path);
                         if native_path.exists() {
-                            extract_jar(&native_path, natives_path)?;
+                            // Extract group:artifact and version from library name
+                            let (dedup_key, version) = {
+                                let parts: Vec<&str> = library.name.split(':').collect();
+                                if parts.len() >= 3 {
+                                    let key = format!("{}:{}", parts[0], parts[1]);
+                                    let ver = parts[2].to_string();
+                                    (key, ver)
+                                } else {
+                                    (library.name.clone(), String::new())
+                                }
+                            };
+                            
+                            // Check if we already have this library
+                            if let Some((_existing_path, existing_version)) = dedup_map.get(&dedup_key) {
+                                if !version.is_empty() && !existing_version.is_empty() {
+                                    if compare_versions(&version, existing_version) > 0 {
+                                        crate::logging::Logger::debug_global(
+                                            &format!("Natives: Preferring {} v{} over v{}", dedup_key, version, existing_version),
+                                            None,
+                                        );
+                                        dedup_map.insert(dedup_key, (native_path, version));
+                                    } else {
+                                        crate::logging::Logger::debug_global(
+                                            &format!("Natives: Keeping {} v{} (skipping v{})", dedup_key, existing_version, version),
+                                            None,
+                                        );
+                                    }
+                                } else {
+                                    // No version info, keep last one
+                                    dedup_map.insert(dedup_key, (native_path, version));
+                                }
+                            } else {
+                                dedup_map.insert(dedup_key, (native_path, version));
+                            }
                         } else {
                             crate::logging::Logger::debug_global(&format!("Native artifact {} not found at {}", &native_artifact.path, native_path.display()), None);
                         }
@@ -1127,6 +1233,30 @@ pub fn extract_natives(
             }
         }
     }
+    
+    // Log what natives we're about to extract
+    Logger::debug_global(
+        &format!("Extracting {} unique native libraries", dedup_map.len()),
+        instance_id,
+    );
+    for (dedup_key, (_, version)) in &dedup_map {
+        if dedup_key.contains("lwjgl") {
+            Logger::debug_global(
+                &format!("Native LWJGL: {} v{}", dedup_key, version),
+                instance_id,
+            );
+        }
+    }
+    
+    // Now extract natives from the deduplicated set
+    for (dedup_key, (native_path, version)) in dedup_map {
+        crate::logging::Logger::debug_global(
+            &format!("Extracting natives from {} v{}", dedup_key, if version.is_empty() { "unknown" } else { &version }),
+            None,
+        );
+        extract_jar(&native_path, natives_path)?;
+    }
+    
     Ok(())
 }
 
@@ -1145,8 +1275,19 @@ pub fn pre_launch_java_native_compat_check(
     use std::process::Command;
     use crate::logging::Logger;
 
+    // Validate Java path is not empty or whitespace
+    let trimmed_path = java_path.trim();
+    if trimmed_path.is_empty() {
+        Logger::warn_global(
+            "Java path is empty or whitespace. Cannot perform pre-launch compatibility check.",
+            instance_id,
+        );
+        // Don't block launch - let it fail naturally if Java is truly missing
+        return Ok(());
+    }
+
     // 1) Probe `java -version` and parse arch from output (stderr is commonly used)
-    let output = Command::new(java_path).arg("-version").output();
+    let output = Command::new(trimmed_path).arg("-version").output();
     let mut java_info = String::new();
     match output {
         Ok(o) => {
@@ -1155,7 +1296,7 @@ pub fn pre_launch_java_native_compat_check(
         }
         Err(e) => {
             Logger::info_global(
-                &format!("Failed to execute '{}' to probe java version: {}", java_path, e),
+                &format!("Failed to execute '{}' to probe java version: {}", trimmed_path, e),
                 instance_id,
             );
             // Don't block launch just because java probe failed; let launch attempt proceed and fail normally.

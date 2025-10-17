@@ -1,10 +1,8 @@
 <script lang="ts">
-    import SkinSelectionMenu from "$lib/components/skins/SkinSelectionMenu.svelte";
+	import { SkinSelectionMenu } from '$lib/components/skins';
 
-    let currentTab: 'selection' | 'editor' = 'selection';
-</script>
-
-<div class="skins-page">
+	let currentTab: 'selection' | 'editor' = 'selection';
+</script><div class="skins-page">
     <!-- Tab Navigation -->
     <div class="tab-navigation">
         <button 

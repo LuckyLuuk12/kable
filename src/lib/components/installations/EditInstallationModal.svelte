@@ -2,44 +2,50 @@
   import { InstallationService } from '$lib/services/InstallationService';
   import type { KableInstallation } from '$lib/types';
 
-  export let installation: KableInstallation;
-  export let isOpen: boolean | undefined = undefined;
-  let edited: KableInstallation = { ...installation };
-  let javaArgsString: string = edited.java_args?.join(' ') || '';
-  // JSON editor for parameters_map
-  let parametersJson: string = JSON.stringify(edited.parameters_map || {}, null, 2);
-  let dialogRef: HTMLDialogElement;
-
   import { tick } from 'svelte';
+
+  // Working copy of the installation being edited
+  let installation: KableInstallation | null = null;
+  let originalInstallation: KableInstallation | null = null;
+  
+  let javaArgsString: string = '';
+  let parametersJson: string = '{}';
+  let dialogRef: HTMLDialogElement;
   let showOptional = false;
 
-  // Watch isOpen and ensure dialogRef is bound before showing/closing the dialog
-  $: (async () => {
-    // wait for DOM updates so dialogRef is available
+  // Exported function to open the modal with an installation
+  export async function open(installationToEdit: KableInstallation) {
+    // Clone the installation to work with
+    installation = structuredClone(installationToEdit);
+    originalInstallation = structuredClone(installationToEdit);
+    
+    // Initialize fields
+    javaArgsString = installation.java_args?.join(' ') || '';
+    parametersJson = JSON.stringify(installation.parameters_map || {}, null, 2);
+    showOptional = false;
+    
+    // Wait for DOM to update
     await tick();
-    if (isOpen != undefined && isOpen) {
-      // Reinitialize edited fields from the current installation when opening
-      if (installation) {
-        edited = { ...installation } as KableInstallation;
-        javaArgsString = edited.java_args?.join(' ') || '';
-        parametersJson = JSON.stringify(edited.parameters_map || {}, null, 2);
-      }
-      showOptional = false;
-      showDialog();
-    } else if (isOpen != undefined && !isOpen) {
-      close();
+    
+    // Show the dialog
+    if (dialogRef) {
+      dialogRef.showModal();
     }
-  })();
-  function showDialog() {
-    dialogRef?.showModal();
   }
+
   function close() {
     dialogRef?.close();
+    // Clear the installation after closing
+    setTimeout(() => {
+      installation = null;
+      originalInstallation = null;
+    }, 300); // Wait for close animation
   }
 
   function handleInput(e: Event, field: keyof KableInstallation) {
+    if (!installation) return;
     const target = e.target as HTMLInputElement;
-    edited = { ...edited, [field]: target.value };
+    installation = { ...installation, [field]: target.value };
   }
 
   function handleJavaArgsInput(e: Event) {
@@ -62,6 +68,7 @@
 
   // Handler for when a folder is selected via the hidden input
   function handleFolderSelect(e: Event, field: keyof KableInstallation) {
+    if (!installation) return;
     const target = e.target as HTMLInputElement;
     const files = target.files;
     if (!files || files.length === 0) return;
@@ -83,13 +90,14 @@
       if (parts.length > 0) folderPath = parts[0];
     }
     if (!folderPath) folderPath = first.name || null;
-    if (folderPath) edited = { ...edited, [field]: folderPath } as KableInstallation;
+    if (folderPath) installation = { ...installation, [field]: folderPath } as KableInstallation;
     // clear the input value so re-selecting the same folder triggers change
     target.value = '';
   }
 
   // Handler for icon file selection
   function handleIconFileSelect(e: Event) {
+    if (!installation) return;
     const target = e.target as HTMLInputElement;
     const file = target.files?.[0];
     if (!file) return;
@@ -98,7 +106,7 @@
     reader.onload = () => {
       const result = reader.result as string | null;
       if (result) {
-        edited = { ...edited, icon: result } as KableInstallation;
+        installation = { ...installation, icon: result } as KableInstallation;
       }
     };
     reader.onerror = (err) => {
@@ -110,52 +118,61 @@
   }
 
   async function confirmEdit() {
-    edited.java_args = javaArgsString.split(' ').filter(arg => arg.length > 0);
+    if (!installation) return;
+    
+    // Update java_args and parameters from the string fields
+    installation.java_args = javaArgsString.split(' ').filter(arg => arg.length > 0);
+    
     // merge parameters from JSON editor if valid
     try {
       const parsed = JSON.parse(parametersJson || '{}');
       if (parsed && typeof parsed === 'object') {
-        edited.parameters_map = parsed;
+        installation.parameters_map = parsed;
       }
     } catch (e) {
       // if parsing fails, keep existing map and log
       console.warn('Failed to parse parameters JSON, keeping original map', e);
     }
 
-    await InstallationService.updateInstallation(edited.id, edited);
+    console.log('[Modal] About to update installation:', { id: installation.id, installation });
+    await InstallationService.updateInstallation(installation.id, installation);
+    
+    // Close the modal after successful save
     close();
   }
 
   function cancelEdit() {
+    // Just close without saving changes
     close();
   }
 </script>
 
 <dialog bind:this={dialogRef} class="edit-installation-modal">
-  <h2>Edit Installation{#if installation && installation.name} — {installation.name}{/if}</h2>
+  <h2>Edit Installation{#if installation?.name} — {installation.name}{/if}</h2>
+  {#if installation}
   <form on:submit|preventDefault={confirmEdit} class="two-column-form">
     <div class="left-column">
       <label>
         Name:
-        <input type="text" bind:value={edited.name} placeholder={installation?.name || ''} on:input={(e) => handleInput(e, 'name')} />
+        <input type="text" bind:value={installation.name} on:input={(e) => handleInput(e, 'name')} />
       </label>
 
       <label>
         Icon:
         <div class="file-row">
-          <input type="text" bind:value={edited.icon} placeholder={installation?.icon || ''} on:input={(e) => handleInput(e, 'icon')} />
+          <input type="text" bind:value={installation.icon} on:input={(e) => handleInput(e, 'icon')} />
           <button type="button" class="btn" on:click={pickIconFile}>Choose...</button>
         </div>
       </label>
 
       <label>
         Description (optional):
-        <textarea bind:value={edited.description} placeholder={installation?.description || ''}></textarea>
+        <textarea bind:value={installation.description}></textarea>
       </label>
 
       <label class="favorite-row">
         <span>Favorite:</span>
-        <input type="checkbox" bind:checked={edited.favorite} />
+        <input type="checkbox" bind:checked={installation.favorite} />
       </label>
     </div>
 
@@ -171,7 +188,7 @@
           <label>
             Dedicated Mods Folder (optional):
             <div class="file-row">
-              <input type="text" bind:value={edited.dedicated_mods_folder} on:input={(e) => handleInput(e, 'dedicated_mods_folder')} />
+              <input type="text" bind:value={installation.dedicated_mods_folder} on:input={(e) => handleInput(e, 'dedicated_mods_folder')} />
               <button type="button" class="btn" on:click={() => pickFolder('dedicated_mods_folder')}>Browse...</button>
             </div>
           </label>
@@ -179,7 +196,7 @@
           <label>
             Dedicated Resource Pack Folder (optional):
             <div class="file-row">
-              <input type="text" bind:value={edited.dedicated_resource_pack_folder} on:input={(e) => handleInput(e, 'dedicated_resource_pack_folder')} />
+              <input type="text" bind:value={installation.dedicated_resource_pack_folder} on:input={(e) => handleInput(e, 'dedicated_resource_pack_folder')} />
               <button type="button" class="btn" on:click={() => pickFolder('dedicated_resource_pack_folder')}>Browse...</button>
             </div>
           </label>
@@ -187,7 +204,7 @@
           <label>
             Dedicated Shaders Folder (optional):
             <div class="file-row">
-              <input type="text" bind:value={edited.dedicated_shaders_folder} on:input={(e) => handleInput(e, 'dedicated_shaders_folder')} />
+              <input type="text" bind:value={installation.dedicated_shaders_folder} on:input={(e) => handleInput(e, 'dedicated_shaders_folder')} />
               <button type="button" class="btn" on:click={() => pickFolder('dedicated_shaders_folder')}>Browse...</button>
             </div>
           </label>
@@ -205,6 +222,7 @@
       <button type="button" class="btn btn-secondary" on:click={cancelEdit}>Cancel</button>
     </div>
   </form>
+  {/if}
   <!-- Hidden inputs for folder and icon selection (used instead of tauri dialog) -->
   <input id="icon-file-input" type="file" accept="image/png,image/jpeg,image/svg+xml,image/x-icon,image/webp" style="display:none;" on:change={handleIconFileSelect} />
   <!-- Folder inputs: use webkitdirectory to allow picking a folder and read its relative paths -->

@@ -32,9 +32,9 @@ export function defaultGeneralSettings(): GeneralSettings {
   return {
     java_path: undefined,
     game_directory: undefined,
-    on_game_close: 'exit',
-    on_game_crash: 'restart',
-    on_game_launch: 'keep_open',
+    on_game_close: 'open_home',
+    on_game_crash: 'open_logs',
+    on_game_launch: 'open_logs',
     auto_update_launcher: true,
     show_ads: true,
   };

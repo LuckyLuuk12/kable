@@ -88,9 +88,9 @@ impl Default for CategorizedLauncherSettings {
             general: GeneralSettings {
                 java_path: None,
                 game_directory: None,
-                on_game_close: "exit".to_string(),
-                on_game_crash: "restart".to_string(),
-                on_game_launch: "keep_open".to_string(),
+                on_game_close: "open_home".to_string(),
+                on_game_crash: "open_logs".to_string(),
+                on_game_launch: "open_logs".to_string(),
                 auto_update_launcher: true,
                 show_ads: false,
             },

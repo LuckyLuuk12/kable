@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { page } from '$app/stores';
   import { 
     Icon, 
@@ -17,13 +17,37 @@
   let searchTerm = '';
   let searchMode: 'normal' | 'regex' | 'fuzzy' = 'fuzzy';
   
-  // Log level filters
-  $: logLevelFilters = {
-    error: $settings.logging.default_log_levels.indexOf('error') !== -1,
-    warn: $settings.logging.default_log_levels.indexOf('warn') !== -1,
-    info: $settings.logging.default_log_levels.indexOf('info') !== -1,
-    debug: $settings.logging.default_log_levels.indexOf('debug') !== -1,
+  // Virtual scrolling variables with dynamic heights
+  const MIN_ITEM_HEIGHT = 28; // Minimum height for a single-line log
+  const BUFFER_SIZE = 20; // Number of extra items to render above/below viewport
+  let scrollTop = 0;
+  let containerHeight = 0;
+  let visibleStartIndex = 0;
+  let visibleEndIndex = 50;
+  let isAutoScrolling = false;
+  
+  // Track measured heights for each log entry
+  let logHeights = new Map<string, number>();
+  let logElements: Record<string, HTMLElement> = {};
+  let heightsNeedRecalculation = false;
+  
+  // Log level filters - use a regular variable instead of reactive to allow manual updates
+  let logLevelFilters = {
+    error: true,
+    warn: true,
+    info: true,
+    debug: true,
   };
+  
+  // Initialize from settings
+  $: if ($settings) {
+    logLevelFilters = {
+      error: $settings.logging.default_log_levels.indexOf('error') !== -1,
+      warn: $settings.logging.default_log_levels.indexOf('warn') !== -1,
+      info: $settings.logging.default_log_levels.indexOf('info') !== -1,
+      debug: $settings.logging.default_log_levels.indexOf('debug') !== -1,
+    };
+  }
   
   let showLogLevelDropdown = false;
   let showCopyNotification = false;
@@ -40,10 +64,23 @@
       console.log(`Auto-selected instance from URL: ${instanceParam}`);
     }
     
+    // Initialize container dimensions
+    if (logContainer) {
+      containerHeight = logContainer.clientHeight;
+      visibleEndIndex = Math.min(
+        50,
+        Math.ceil(containerHeight / MIN_ITEM_HEIGHT) + BUFFER_SIZE
+      );
+      // Initialize visible range
+      updateVisibleRange();
+    }
+    
     // Add event listener for clicking outside dropdown
     document.addEventListener('click', handleClickOutside);
     // Add event listener for Ctrl+A override
     document.addEventListener('keydown', handleKeyDown);
+    // Add window resize listener to recalculate heights when width changes
+    window.addEventListener('resize', handleResize);
   });
 
   onDestroy(() => {
@@ -51,6 +88,7 @@
     // Remove event listeners
     document.removeEventListener('click', handleClickOutside);
     document.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('resize', handleResize);
   });
 
   function selectInstance(instanceId: string | 'global') {
@@ -130,20 +168,6 @@
   async function exportCurrentLogs() {
     const instanceId = $selectedInstanceId;
     await logsService.exportLogs(instanceId === 'global' ? undefined : instanceId);
-  }
-
-  async function testMacroLogging() {
-    try {
-      // Import the invoke function from Tauri
-      const { invoke } = await import('@tauri-apps/api/core');
-      console.log('Triggering macro logging test...');
-      const result = await invoke('test_macro_logging');
-      console.log('Macro test result:', result);
-      alert(`Macro test completed! Check the logs for entries with "macro_debug:" prefix.`);
-    } catch (error) {
-      console.error('Failed to run macro test:', error);
-      alert(`Failed to run macro test: ${error}`);
-    }
   }
 
   async function copyLogEntry(logEntry: any) {
@@ -248,16 +272,101 @@
     }
   }
 
+  function getLogKey(logEntry: any, index: number): string {
+    if (!logEntry) return `unknown-${index}`;
+    const timestamp = logEntry.timestamp instanceof Date 
+      ? logEntry.timestamp.getTime() 
+      : new Date(logEntry.timestamp).getTime();
+    return `${timestamp}-${index}`;
+  }
+  
+  function getLogHeight(key: string): number {
+    return logHeights.get(key) || MIN_ITEM_HEIGHT;
+  }
+  
+  function measureLogHeights() {
+    // Measure all currently rendered log elements
+    Object.entries(logElements).forEach(([key, element]) => {
+      if (element) {
+        const height = element.offsetHeight;
+        if (height > 0) {
+          logHeights.set(key, height);
+        }
+      }
+    });
+    heightsNeedRecalculation = false;
+  }
+  
   function scrollToBottom() {
-    if (logContainer && autoScroll) {
-      logContainer.scrollTop = logContainer.scrollHeight;
+    if (logContainer) {
+      isAutoScrolling = true;
+      // For virtual scrolling, scroll to the maximum scrollable position
+      // scrollTop can't exceed scrollHeight - clientHeight
+      const maxScroll = Math.max(0, totalHeight - logContainer.clientHeight);
+      logContainer.scrollTop = maxScroll;
+      
+      // Update visible range immediately for virtual scrolling
+      updateVisibleRange();
+      
+      // Update autoScroll flag
+      autoScroll = true;
+      
+      // Reset flag after a short delay
+      setTimeout(() => {
+        isAutoScrolling = false;
+      }, 100);
     }
+  }
+  
+  function updateVisibleRange() {
+    if (!logContainer || filteredLogs.length === 0) return;
+    
+    const { scrollTop: st, clientHeight } = logContainer;
+    scrollTop = st;
+    containerHeight = clientHeight;
+    
+    // Calculate visible range using accumulated heights
+    let accumulatedHeight = 0;
+    let startIndex = 0;
+    let endIndex = filteredLogs.length;
+    
+    // Find start index
+    for (let i = 0; i < filteredLogs.length; i++) {
+      const key = getLogKey(filteredLogs[i], i);
+      const height = getLogHeight(key);
+      
+      if (accumulatedHeight + height > scrollTop - BUFFER_SIZE * MIN_ITEM_HEIGHT) {
+        startIndex = Math.max(0, i);
+        break;
+      }
+      accumulatedHeight += height;
+    }
+    
+    // Find end index
+    accumulatedHeight = 0;
+    for (let i = 0; i < filteredLogs.length; i++) {
+      const key = getLogKey(filteredLogs[i], i);
+      const height = getLogHeight(key);
+      accumulatedHeight += height;
+      
+      if (accumulatedHeight > scrollTop + containerHeight + BUFFER_SIZE * MIN_ITEM_HEIGHT) {
+        endIndex = Math.min(filteredLogs.length, i + 1);
+        break;
+      }
+    }
+    
+    visibleStartIndex = startIndex;
+    visibleEndIndex = endIndex;
   }
 
   function handleScroll() {
-    if (logContainer) {
-      const { scrollTop, scrollHeight, clientHeight } = logContainer;
-      autoScroll = scrollTop + clientHeight >= scrollHeight - 10;
+    if (logContainer && !isAutoScrolling) {
+      updateVisibleRange();
+      
+      // Check if user is at bottom (with small threshold)
+      // For virtual scrolling, check against totalHeight instead of scrollHeight
+      const maxScroll = Math.max(0, totalHeight - containerHeight);
+      autoScroll = scrollTop >= maxScroll - 50;
     }
   }
 
@@ -275,9 +384,8 @@
     }
   }
 
-  function getEnabledLogLevelsCount(): number {
-    return Object.values(logLevelFilters).filter(Boolean).length;
-  }
+  // Reactive variable for enabled log levels count
+  $: enabledLogLevelsCount = Object.values(logLevelFilters).filter(Boolean).length;
 
   // Close dropdown when clicking outside
   function handleClickOutside(event: MouseEvent) {
@@ -300,6 +408,22 @@
       event.preventDefault();
       selectAllCurrentLogs();
     }
+  }
+
+  // Handle window resize - recalculate heights when width changes
+  let resizeTimeout: number;
+  function handleResize() {
+    // Debounce resize to avoid excessive recalculations
+    clearTimeout(resizeTimeout);
+    resizeTimeout = window.setTimeout(() => {
+      // Clear all measured heights to force remeasurement
+      logHeights.clear();
+      heightsNeedRecalculation = true;
+      tick().then(() => {
+        measureLogHeights();
+        updateVisibleRange();
+      });
+    }, 150);
   }
 
   // Function to select all logs in the current tab
@@ -362,13 +486,62 @@
     return matchesSearchTerm && matchesLevelFilter;
   });
 
-  // Auto-scroll when new logs arrive
-  $: if (filteredLogs && filteredLogs.length > 0 && autoScroll) {
-    setTimeout(() => scrollToBottom(), 50);
+  // Virtual scrolling: only render visible logs
+  $: visibleLogs = filteredLogs.slice(visibleStartIndex, visibleEndIndex);
+  
+  // Calculate total height and offset using measured heights
+  $: totalHeight = filteredLogs.reduce((sum, log, index) => {
+    const key = getLogKey(log, index);
+    return sum + getLogHeight(key);
+  }, 0);
+  
+  $: offsetY = filteredLogs.slice(0, visibleStartIndex).reduce((sum, log, index) => {
+    const key = getLogKey(log, index);
+    return sum + getLogHeight(key);
+  }, 0);
+
+  // Update visible range when filteredLogs changes (tab switch, filters, etc.)
+  $: if (filteredLogs && logContainer) {
+    // Mark heights for recalculation when logs change
+    heightsNeedRecalculation = true;
+    tick().then(() => {
+      measureLogHeights();
+      updateVisibleRange();
+    });
+  }
+  
+  // Measure heights after rendering new visible logs
+  $: if (visibleLogs && visibleLogs.length > 0) {
+    tick().then(() => {
+      if (heightsNeedRecalculation) {
+        measureLogHeights();
+        // Update visible range with new measurements
+        updateVisibleRange();
+      }
+    });
+  }
+
+  // Track previous log count to detect new logs
+  let previousLogCount = 0;
+  
+  // Auto-scroll when NEW logs arrive (not on every reactive update)
+  $: {
+    if (filteredLogs && filteredLogs.length > previousLogCount && autoScroll) {
+      const currentCount = filteredLogs.length;
+      tick().then(() => {
+        // Only scroll if count still matches and autoScroll is still enabled
+        if (filteredLogs.length === currentCount && autoScroll && logContainer) {
+          scrollToBottom();
+        }
+      });
+      previousLogCount = currentCount;
+    } else if (filteredLogs) {
+      previousLogCount = filteredLogs.length;
+    }
   }
 
   // Check if any filters are active
-  $: hasActiveFilters = searchTerm || getEnabledLogLevelsCount() < 4;
+  $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
 </script>
 
 <div class="logs-page">
@@ -450,7 +623,7 @@
           on:click={toggleLogLevelDropdown}
           type="button"
         >
-          <span>Log Levels ({getEnabledLogLevelsCount()}/4)</span>
+          <span>Log Levels ({enabledLogLevelsCount}/4)</span>
           <Icon name={showLogLevelDropdown ? 'chevron-up' : 'chevron-down'} size="sm" />
         </button>
         
@@ -466,7 +639,11 @@
                   checked={enabled}
                   on:change={(e) => {
                     const target = e.target as HTMLInputElement;
-                    logLevelFilters[level as keyof typeof logLevelFilters] = target.checked;
+                    // Create a new object to trigger reactivity
+                    logLevelFilters = {
+                      ...logLevelFilters,
+                      [level]: target.checked
+                    };
                   }}
                 />
                 <Icon name={getLogLevelIcon(level)} size="sm" />
@@ -482,6 +659,13 @@
         <input
           type="checkbox"
           bind:checked={autoScroll}
+          on:change={(e) => {
+            const target = e.target as HTMLInputElement;
+            if (target.checked) {
+              // When auto-scroll is enabled, immediately jump to bottom
+              scrollToBottom();
+            }
+          }}
         />
         <span>Auto-scroll</span>
       </label>
@@ -547,9 +731,6 @@
       on:scroll={handleScroll}
       class="log-container {showCopyNotification ? 'copy-notification-active' : ''}"
     >
-      <!-- copy-notification moved out of the scrollable container so it is not clipped
-           and will show reliably for any active tab / sub-tab -->
-      
       {#if filteredLogs.length === 0}
         <div class="empty-state">
           <div class="empty-icon">
@@ -575,33 +756,39 @@
           </p>
         </div>
       {:else}
-        <div class="log-entries">
-          {#each filteredLogs as logEntry, index (logEntry?.timestamp ? (logEntry.timestamp instanceof Date ? logEntry.timestamp.getTime() : new Date(logEntry.timestamp).getTime()) + '-' + index : 'unknown-' + index)}
-            {#if logEntry}
-              <div class="log-entry">
+        <div class="log-entries-wrapper" style="height: {totalHeight}px;">
+          <div class="log-entries" style="transform: translateY({offsetY}px);">
+            {#each visibleLogs as logEntry, index (getLogKey(logEntry, visibleStartIndex + index))}
+              {#if logEntry}
+                {@const logKey = getLogKey(logEntry, visibleStartIndex + index)}
                 <div 
-                  class="log-copy-icon"
-                  on:click={() => copyLogEntry(logEntry)}
-                  title="Copy log entry"
-                  role="button"
-                  tabindex="0"
-                  on:keydown={(e) => e.key === 'Enter' && copyLogEntry(logEntry)}
+                  class="log-entry"
+                  bind:this={logElements[logKey]}
                 >
-                  <Icon name="clipboard" size="sm" />
+                  <div 
+                    class="log-copy-icon"
+                    on:click={() => copyLogEntry(logEntry)}
+                    title="Copy log entry"
+                    role="button"
+                    tabindex="0"
+                    on:keydown={(e) => e.key === 'Enter' && copyLogEntry(logEntry)}
+                  >
+                    <Icon name="clipboard" size="sm" />
+                  </div>
+                  <div class="log-timestamp">
+                    {formatTime(logEntry.timestamp)}
+                  </div>
+                  <div class="log-level badge {getLogLevelClass(logEntry.level || 'info')}">
+                    <Icon name={getLogLevelIcon(logEntry.level || 'info')} size="sm" />
+                    {formatLogLevel(logEntry.level || 'info')}
+                  </div>
+                  <div class="log-message">
+                    <pre class="log-message-content"><code>{getDisplayMessage(logEntry)}</code></pre>
+                  </div>
                 </div>
-                <div class="log-timestamp">
-                  {formatTime(logEntry.timestamp)}
-                </div>
-                <div class="log-level badge {getLogLevelClass(logEntry.level || 'info')}">
-                  <Icon name={getLogLevelIcon(logEntry.level || 'info')} size="sm" />
-                  {formatLogLevel(logEntry.level || 'info')}
-                </div>
-                <div class="log-message">
-                  <pre class="log-message-content"><code>{getDisplayMessage(logEntry)}</code></pre>
-                </div>
-              </div>
-            {/if}
-          {/each}
+              {/if}
+            {/each}
+          </div>
         </div>
       {/if}
     </div>
@@ -1014,7 +1201,7 @@
       position: relative;
       
       &.copy-notification-active {
-        .log-entries {
+        .log-entries-wrapper .log-entries {
           .log-entry {
             background: color-mix(in srgb, var(--primary), 10%, transparent);
             border: 1px solid color-mix(in srgb, var(--primary), 20%, transparent);
@@ -1071,17 +1258,29 @@
         }
       }
       
+      .log-entries-wrapper {
+        position: relative;
+        width: 100%;
+      }
+      
       .log-entries {
         padding: 0.25rem;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        will-change: transform;
         
         .log-entry {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           gap: 0.5rem;
-          padding: 0.05rem;
+          padding: 0.25rem 0.5rem;
           margin-bottom: 0;
           border-radius: var(--border-radius);
           transition: background-color 0.2s ease;
+          box-sizing: border-box;
+          min-height: 28px;
           
           &:hover {
             background: var(--card);
@@ -1119,6 +1318,7 @@
             font-size: 0.75rem;
             color: var(--placeholder);
             min-width: 3rem;
+            padding-top: 0.15rem;
           }
           
           .log-level {
@@ -1132,6 +1332,8 @@
             min-width: 5.5rem;
             max-width: 5.5rem;
             border-radius: var(--border-radius-small);
+            align-self: flex-start;
+            margin-top: 0.05rem;
           }
           
           .log-message {
