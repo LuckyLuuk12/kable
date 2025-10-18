@@ -24,7 +24,9 @@ impl Launchable for VanillaLaunchable {
         let version_id = &_context.installation.version_id;
         let minecraft_dir = &_context.minecraft_dir;
         // ensure_version_manifest_and_jar now returns the resolved concrete version id
-        let resolved = crate::launcher::utils::ensure_version_manifest_and_jar(version_id, minecraft_dir).await?;
+        let resolved =
+            crate::launcher::utils::ensure_version_manifest_and_jar(version_id, minecraft_dir)
+                .await?;
         // Load manifest using the resolved id
         let manifest = crate::launcher::utils::load_and_merge_manifest_with_instance(
             minecraft_dir,
@@ -50,7 +52,11 @@ impl Launchable for VanillaLaunchable {
         // 1. Load merged manifest (with inheritance)
         let version_id = &context.installation.version_id;
         // Ensure manifest/jar exist and get resolved id (in case of latest-* placeholders)
-        let resolved = crate::launcher::utils::ensure_version_manifest_and_jar(version_id, &context.minecraft_dir).await?;
+        let resolved = crate::launcher::utils::ensure_version_manifest_and_jar(
+            version_id,
+            &context.minecraft_dir,
+        )
+        .await?;
         let manifest = crate::launcher::utils::load_and_merge_manifest_with_instance(
             &context.minecraft_dir,
             &resolved,
@@ -79,10 +85,17 @@ impl Launchable for VanillaLaunchable {
             .java_path
             .clone()
             .unwrap_or_else(|| "java".to_string());
-        crate::launcher::utils::pre_launch_java_native_compat_check(&java_path, &manifest, Some(&context.installation.id))?;
+        crate::launcher::utils::pre_launch_java_native_compat_check(
+            &java_path,
+            &manifest,
+            Some(&context.installation.id),
+        )?;
 
         // Inspect classpath for LWJGL version consistency and log warnings if needed.
-        let _ = crate::launcher::utils::check_lwjgl_classpath_consistency(&classpath, Some(&context.installation.id));
+        let _ = crate::launcher::utils::check_lwjgl_classpath_consistency(
+            &classpath,
+            Some(&context.installation.id),
+        );
 
         // Clear natives folder to prevent version conflicts from previous launches
         let natives_dir = PathBuf::from(&context.minecraft_dir).join("natives");

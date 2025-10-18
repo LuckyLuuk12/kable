@@ -152,7 +152,8 @@ pub async fn load_settings() -> Result<CategorizedLauncherSettings, String> {
     let settings_path = get_settings_path().map_err(|e| e.to_string())?;
     // Ensure file exists with default contents if missing
     let default_settings = CategorizedLauncherSettings::default();
-    let default_json = serde_json::to_string_pretty(&default_settings).map_err(|e| e.to_string())?;
+    let default_json =
+        serde_json::to_string_pretty(&default_settings).map_err(|e| e.to_string())?;
     // Use shared helper to ensure the file exists with default contents when missing.
     crate::ensure_file_with(settings_path.clone(), &default_json).await?;
     let contents = async_fs::read_to_string(&settings_path)
@@ -607,9 +608,9 @@ pub async fn load_css_theme(theme_name: String, app: tauri::AppHandle) -> Result
             &format!("Loading custom theme: {}", theme_name),
             None,
         );
-                return async_fs::read_to_string(&custom_file_path)
-                    .await
-                    .map_err(|e| format!("Failed to read custom theme file: {}", e));
+        return async_fs::read_to_string(&custom_file_path)
+            .await
+            .map_err(|e| format!("Failed to read custom theme file: {}", e));
     }
 
     // If not found in custom themes, try built-in themes

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tokio::fs as async_fs;
 use tauri::command;
+use tokio::fs as async_fs;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CustomIconTemplate {

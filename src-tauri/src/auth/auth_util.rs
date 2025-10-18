@@ -142,7 +142,10 @@ pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
             if let Err(e) = crate::auth::write_launcher_accounts(accounts_copy).await {
                 crate::logging::Logger::console_log(
                     LogLevel::Warning,
-                    &format!("Failed to persist cleaned accounts after decryption errors: {}", e),
+                    &format!(
+                        "Failed to persist cleaned accounts after decryption errors: {}",
+                        e
+                    ),
                     None,
                 );
             }

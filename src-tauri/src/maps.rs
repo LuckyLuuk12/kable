@@ -178,7 +178,7 @@ async fn parse_world_folder(
 
     // Try to read level.dat for more information
     if level_dat.exists() {
-            if let Ok(level_data) = parse_level_dat_async(&level_dat).await {
+        if let Ok(level_data) = parse_level_dat_async(&level_dat).await {
             if let Some(name) = level_data.level_name {
                 world.name = name;
             }
@@ -252,23 +252,23 @@ async fn parse_world_folder(
 async fn parse_level_dat_async(level_dat_path: &PathBuf) -> Result<LevelData, String> {
     // Read the file in a blocking task since NBT parsing is CPU-bound
     let path = level_dat_path.clone();
-    
+
     tokio::task::spawn_blocking(move || {
         // Read the gzipped NBT file
-        let file = fs::File::open(&path)
-            .map_err(|e| format!("Failed to open level.dat: {}", e))?;
-        
+        let file = fs::File::open(&path).map_err(|e| format!("Failed to open level.dat: {}", e))?;
+
         let mut decoder = GzDecoder::new(file);
         let mut contents = Vec::new();
         decoder
             .read_to_end(&mut contents)
             .map_err(|e| format!("Failed to decompress level.dat: {}", e))?;
-        
+
         // Parse NBT data
-        let root: LevelDatRoot = from_bytes(&contents)
-            .map_err(|e| format!("Failed to parse NBT data: {}", e))?;
-        
-        root.data.ok_or_else(|| "No Data tag found in level.dat".to_string())
+        let root: LevelDatRoot =
+            from_bytes(&contents).map_err(|e| format!("Failed to parse NBT data: {}", e))?;
+
+        root.data
+            .ok_or_else(|| "No Data tag found in level.dat".to_string())
     })
     .await
     .map_err(|e| format!("Task join error: {}", e))?

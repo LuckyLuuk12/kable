@@ -177,96 +177,6 @@ async fn handle_close_settings(
     }
 }
 
-/// Handle on_game_crash settings behavior
-async fn handle_crash_settings(
-    settings: &CategorizedLauncherSettings,
-    app_handle: Option<tauri::AppHandle>,
-    exit_code: i32,
-) {
-    let behavior = &settings.general.on_game_crash;
-    Logger::info_global(
-        &format!(
-            "Handling on_game_crash setting: {} (exit code: {})",
-            behavior, exit_code
-        ),
-        None,
-    );
-
-    match behavior.as_str() {
-        "restart" => {
-            Logger::info_global(
-                "Game restart requested by on_game_crash setting (not implemented yet)",
-                None,
-            );
-            // TODO: Implement restart functionality - would need to store launch context
-            if let Some(app) = app_handle {
-                let _ = app.emit(
-                    "game-restart-requested",
-                    serde_json::json!({"exit_code": exit_code}),
-                );
-            }
-        }
-        "open_logs" => {
-            Logger::info_global(
-                "Opening logs page as requested by on_game_crash setting",
-                None,
-            );
-            if let Some(app) = app_handle {
-                let _ = app.emit(
-                    "navigate-to-logs",
-                    serde_json::json!({"reason": "crash_setting"}),
-                );
-            }
-        }
-        "open_home" => {
-            Logger::info_global(
-                "Navigating to home page as requested by on_game_crash setting",
-                None,
-            );
-            if let Some(app) = app_handle {
-                let _ = app.emit(
-                    "navigate-to-home",
-                    serde_json::json!({"reason": "crash_setting"}),
-                );
-            }
-        }
-        "exit" => {
-            Logger::info_global(
-                "Closing launcher as requested by on_game_crash setting",
-                None,
-            );
-            if let Some(app) = app_handle {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.close();
-                }
-            }
-        }
-        "minimize" => {
-            Logger::info_global(
-                "Minimizing launcher as requested by on_game_crash setting",
-                None,
-            );
-            if let Some(app) = app_handle {
-                if let Some(window) = app.get_webview_window("main") {
-                    let _ = window.minimize();
-                }
-            }
-        }
-        "ask" => {
-            Logger::info_global("Asking user what to do on game crash", None);
-            if let Some(app) = app_handle {
-                let _ = app.emit("ask-crash-behavior", serde_json::json!({"options": ["restart", "open_logs", "open_home", "exit", "minimize"], "exit_code": exit_code}));
-            }
-        }
-        _ => {
-            Logger::warn_global(
-                &format!("Unknown on_game_crash setting: {}", behavior),
-                None,
-            );
-        }
-    }
-}
-
 async fn get_launchable_for_installation(
     context: &LaunchContext,
 ) -> Result<Box<dyn Launchable>, String> {
@@ -289,26 +199,28 @@ pub async fn launch_installation(
 ) -> Result<LaunchResult, String> {
     // Use installation.id for log grouping and event correlation
     let instance_id = Some(installation.id.as_str());
-    
+
     Logger::info_global(
         &format!("Launching installation: {}", installation.name),
         None,
     );
-    
+
     // Update last_used and times_launched before launching
     installation.last_used = chrono::Utc::now().to_rfc3339();
     installation.times_launched = installation.times_launched.saturating_add(1);
-    
+
     // Save the updated installation to disk
     let installation_id = installation.id.clone();
-    if let Err(e) = crate::installations::modify_installation(&installation_id, installation.clone()).await {
+    if let Err(e) =
+        crate::installations::modify_installation(&installation_id, installation.clone()).await
+    {
         Logger::warn_global(
             &format!("Failed to update installation last_used: {}", e),
             instance_id,
         );
         // Continue launching even if update fails
     }
-    
+
     // Validate installation
     let minecraft_dir = match get_default_minecraft_dir() {
         Ok(dir) => dir.to_string_lossy().to_string(),
@@ -368,7 +280,7 @@ pub async fn launch_installation(
         let mut pids = get_pid_set().lock().unwrap();
         pids.insert(result.pid);
     }
-    
+
     // Compute app handle so we can emit events (if available)
     let app_handle = if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         handle_guard.as_ref().map(|global| (**global).clone())
@@ -398,32 +310,40 @@ pub async fn launch_installation(
                 // Calculate playtime in milliseconds
                 let playtime_ms = launch_start_time.elapsed().as_millis() as u64;
                 Logger::info_global(
-                    &format!("[SETTINGS TASK] Game session lasted {} ms ({:.1} minutes)", 
-                        playtime_ms, playtime_ms as f64 / 60000.0),
+                    &format!(
+                        "[SETTINGS TASK] Game session lasted {} ms ({:.1} minutes)",
+                        playtime_ms,
+                        playtime_ms as f64 / 60000.0
+                    ),
                     None,
                 );
-                
+
                 // Update total_time_played_ms
                 let mut updated_installation = installation_for_tracking.clone();
-                updated_installation.total_time_played_ms = 
-                    updated_installation.total_time_played_ms.saturating_add(playtime_ms);
-                
+                updated_installation.total_time_played_ms = updated_installation
+                    .total_time_played_ms
+                    .saturating_add(playtime_ms);
+
                 let installation_id = updated_installation.id.clone();
-                
+
                 // Save the updated playtime to disk
                 if let Err(e) = crate::installations::modify_installation(
-                    &installation_id, 
-                    updated_installation
-                ).await {
+                    &installation_id,
+                    updated_installation,
+                )
+                .await
+                {
                     Logger::warn_global(
                         &format!("Failed to update installation playtime: {}", e),
                         None,
                     );
                 }
-                
 
                 Logger::info_global(
-                    &format!("[SETTINGS TASK] Process {} exited with code {}", pid, exit_code),
+                    &format!(
+                        "[SETTINGS TASK] Process {} exited with code {}",
+                        pid, exit_code
+                    ),
                     None,
                 );
 
@@ -432,27 +352,33 @@ pub async fn launch_installation(
 
                 if is_crash {
                     Logger::info_global(
-                        &format!("[SETTINGS TASK] Handling crash settings for exit code {}", exit_code),
+                        &format!(
+                            "[SETTINGS TASK] Handling crash settings for exit code {}",
+                            exit_code
+                        ),
                         None,
                     );
                 } else {
                     Logger::info_global(
-                        &format!("[SETTINGS TASK] Handling close settings for exit code {}", exit_code),
+                        &format!(
+                            "[SETTINGS TASK] Handling close settings for exit code {}",
+                            exit_code
+                        ),
                         None,
                     );
                     handle_close_settings(&settings_clone, app_handle_clone, exit_code).await;
                 }
             }
             Err(e) => {
-                Logger::error_global(&format!("[SETTINGS TASK] Error waiting for process exit: {}", e), None);
+                Logger::error_global(
+                    &format!("[SETTINGS TASK] Error waiting for process exit: {}", e),
+                    None,
+                );
                 // Handle as normal close if we can't determine exit code
                 handle_close_settings(&settings_clone, app_handle_clone, 0).await;
             }
         }
-        Logger::info_global(
-            &format!("[SETTINGS TASK] Completed for PID {}", pid),
-            None,
-        );
+        Logger::info_global(&format!("[SETTINGS TASK] Completed for PID {}", pid), None);
     });
 
     Ok(result)

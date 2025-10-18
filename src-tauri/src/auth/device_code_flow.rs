@@ -87,26 +87,22 @@ pub async fn start_microsoft_device_auth() -> Result<DeviceCodeResponse, String>
     );
 
     let client = BasicClient::new(ClientId::new(client_id))
-        .set_auth_uri(
-            AuthUrl::new(MSA_AUTHORIZE_URL.to_string()).map_err(|e| {
-                Logger::console_log(
-                    LogLevel::Error,
-                    &format!("❌ Failed to create auth URL: {}", e),
-                    None,
-                );
-                format!("Failed to create auth URL: {}", e)
-            })?,
-        )
-        .set_token_uri(
-            TokenUrl::new(MSA_TOKEN_URL.to_string()).map_err(|e| {
-                Logger::console_log(
-                    LogLevel::Error,
-                    &format!("❌ Failed to create token URL: {}", e),
-                    None,
-                );
-                format!("Failed to create token URL: {}", e)
-            })?,
-        )
+        .set_auth_uri(AuthUrl::new(MSA_AUTHORIZE_URL.to_string()).map_err(|e| {
+            Logger::console_log(
+                LogLevel::Error,
+                &format!("❌ Failed to create auth URL: {}", e),
+                None,
+            );
+            format!("Failed to create auth URL: {}", e)
+        })?)
+        .set_token_uri(TokenUrl::new(MSA_TOKEN_URL.to_string()).map_err(|e| {
+            Logger::console_log(
+                LogLevel::Error,
+                &format!("❌ Failed to create token URL: {}", e),
+                None,
+            );
+            format!("Failed to create token URL: {}", e)
+        })?)
         .set_device_authorization_url(
             DeviceAuthorizationUrl::new(DEVICE_CODE_URL.to_string()).map_err(|e| {
                 Logger::console_log(
@@ -127,7 +123,7 @@ pub async fn start_microsoft_device_auth() -> Result<DeviceCodeResponse, String>
     let details: StandardDeviceAuthorizationResponse = client
         .exchange_device_code()
         .add_scope(Scope::new("XboxLive.signin offline_access".to_string()))
-    .request_async(&crate::auth::oauth_helpers::async_http_client)
+        .request_async(&crate::auth::oauth_helpers::async_http_client)
         .await
         .map_err(|e| {
             Logger::console_log(
@@ -294,7 +290,11 @@ pub async fn poll_microsoft_device_auth(
     // Try to exchange the device code for a token (non-blocking)
     match client
         .exchange_device_access_token(&details)
-    .request_async(&crate::auth::oauth_helpers::async_http_client, tokio::time::sleep, None)
+        .request_async(
+            &crate::auth::oauth_helpers::async_http_client,
+            tokio::time::sleep,
+            None,
+        )
         .await
     {
         Ok(token) => {

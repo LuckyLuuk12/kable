@@ -5,9 +5,9 @@ pub mod versions;
 pub use self::kable_profiles::*;
 pub use self::profiles::*;
 pub use self::versions::*;
-use tokio::sync::RwLock;
-use std::sync::Arc;
 use once_cell::sync::Lazy;
+use std::sync::Arc;
+use tokio::sync::RwLock;
 
 /// Ensures that a modded installation has a dedicated mods folder set and created.
 /// Returns true if the folder was set/created, false otherwise.
@@ -43,13 +43,16 @@ async fn ensure_dedicated_mods_folder(
 }
 
 // Internal cache for installations using RwLock for read/write access
-static INSTALLATIONS_CACHE: Lazy<Arc<RwLock<Option<Vec<KableInstallation>>>>> = 
+static INSTALLATIONS_CACHE: Lazy<Arc<RwLock<Option<Vec<KableInstallation>>>>> =
     Lazy::new(|| Arc::new(RwLock::new(None)));
 
 /// Builds the list of installations by merging kable_profiles and converted launcher_profiles.
 async fn build_installations_async() -> Result<Vec<KableInstallation>, String> {
     let mut installations = kable_profiles::read_kable_profiles_async().await?;
-    crate::logging::debug(&format!("Read {} installations from kable_profiles.json", installations.len()));
+    crate::logging::debug(&format!(
+        "Read {} installations from kable_profiles.json",
+        installations.len()
+    ));
     match profiles::read_launcher_profiles_async().await {
         Ok(launcher_profiles) => {
             // Use a tuple of (name, last_version_id, created) for deduplication, all as String
@@ -78,13 +81,16 @@ async fn build_installations_async() -> Result<Vec<KableInstallation>, String> {
             );
         }
     }
-    crate::logging::debug(&format!("Total installations after merging: {}", installations.len()));
+    crate::logging::debug(&format!(
+        "Total installations after merging: {}",
+        installations.len()
+    ));
     Ok(installations)
 }
 
 // !NOTE: Public API:
 
-static VERSIONS_CACHE: Lazy<Arc<RwLock<Option<Versions>>>> = 
+static VERSIONS_CACHE: Lazy<Arc<RwLock<Option<Versions>>>> =
     Lazy::new(|| Arc::new(RwLock::new(None)));
 
 /// Gets all versions, either from cache or by building them, does not modify the cache
@@ -95,7 +101,7 @@ pub async fn get_versions() -> Versions {
             return cached.clone();
         }
     }
-    
+
     // Cache miss - build and cache versions
     let versions = build_versions().await;
     {
@@ -132,18 +138,24 @@ pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
     {
         let cache_read = INSTALLATIONS_CACHE.read().await;
         if let Some(cached) = cache_read.as_ref() {
-            crate::logging::debug(&format!("Using cached installations: {} items", cached.len()));
+            crate::logging::debug(&format!(
+                "Using cached installations: {} items",
+                cached.len()
+            ));
             return Ok(cached.clone());
         }
     }
-    
+
     // Cache miss - build and cache installations
     let installations = build_installations_async().await?;
     {
         let mut cache_write = INSTALLATIONS_CACHE.write().await;
         *cache_write = Some(installations.clone());
     }
-    crate::logging::debug(&format!("Built installations: {} items", installations.len()));
+    crate::logging::debug(&format!(
+        "Built installations: {} items",
+        installations.len()
+    ));
     Ok(installations)
 }
 
@@ -158,7 +170,10 @@ pub async fn delete_installation(id: &str) -> Result<(), String> {
     let orig_len = installations.len();
     installations.retain(|i| i.id != id);
     if installations.len() == orig_len {
-    crate::logging::Logger::warn_global(&format!("No Kable installation found with id: {}", id), None);
+        crate::logging::Logger::warn_global(
+            &format!("No Kable installation found with id: {}", id),
+            None,
+        );
         return Err(format!("No Kable installation found with id: {}", id));
     }
     let result = kable_profiles::write_kable_profiles_async(&installations).await;
@@ -191,11 +206,16 @@ pub async fn modify_installation(
         }
         match &result {
             Ok(_) => crate::logging::info(&format!("Installation '{}' modified successfully.", id)),
-            Err(e) => crate::logging::error(&format!("Failed to modify installation '{}': {}", id, e)),
+            Err(e) => {
+                crate::logging::error(&format!("Failed to modify installation '{}': {}", id, e))
+            }
         }
         result
     } else {
-    crate::logging::Logger::warn_global(&format!("No Kable installation found with id: {}", id), None);
+        crate::logging::Logger::warn_global(
+            &format!("No Kable installation found with id: {}", id),
+            None,
+        );
         Err(format!("No Kable installation found with id: {}", id))
     }
 }
@@ -234,8 +254,14 @@ pub async fn create_installation(version_id: &str) -> Result<KableInstallation, 
         *cache_write = Some(installations.clone());
     }
     match &result {
-        Ok(_) => crate::logging::info(&format!("Installation '{}' created successfully.", new_installation.name)),
-        Err(e) => crate::logging::error(&format!("Failed to create installation '{}': {}", new_installation.name, e)),
+        Ok(_) => crate::logging::info(&format!(
+            "Installation '{}' created successfully.",
+            new_installation.name
+        )),
+        Err(e) => crate::logging::error(&format!(
+            "Failed to create installation '{}': {}",
+            new_installation.name, e
+        )),
     }
     result?;
     Ok(new_installation)

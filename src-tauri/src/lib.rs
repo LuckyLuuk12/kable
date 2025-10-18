@@ -33,6 +33,7 @@ pub use commands::auth as commands_auth;
 pub use commands::installations as commands_installations;
 pub use commands::launcher as commands_launcher;
 pub use commands::mods as commands_mods;
+pub use commands::shaders as commands_shaders;
 pub use commands::skins as commands_skins;
 pub use commands::system as commands_system;
 pub use commands::updater as commands_updater;
@@ -135,11 +136,14 @@ pub fn run() {
             commands_mods::purge_stale_provider_cache,
             commands_mods::get_extended_mod_info,
             // Shaders commands
-            shaders::get_installed_shaders,
-            shaders::toggle_shader,
-            shaders::delete_shader,
-            shaders::install_shader_pack,
-            shaders::get_shader_info,
+            commands_shaders::get_installed_shaders,
+            commands_shaders::toggle_shader,
+            commands_shaders::delete_shader,
+            commands_shaders::install_shader_pack,
+            commands_shaders::get_shader_info,
+            commands_shaders::search_modrinth_shaders,
+            commands_shaders::get_modrinth_shader_details,
+            commands_shaders::download_and_install_shader,
             // Skins commands
             commands_skins::upload_skin_to_account,
             commands_skins::change_skin_model,
@@ -226,9 +230,13 @@ fn get_kable_launcher_dir() -> Result<PathBuf, String> {
 /// path has no parent. Returns Err when directory creation fails.
 pub async fn ensure_parent_dir_exists_async(path: &Path) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        async_fs::create_dir_all(parent)
-            .await
-            .map_err(|e| format!("failed to create parent directories {}: {}", parent.display(), e))?;
+        async_fs::create_dir_all(parent).await.map_err(|e| {
+            format!(
+                "failed to create parent directories {}: {}",
+                parent.display(),
+                e
+            )
+        })?;
     }
     Ok(())
 }
@@ -239,7 +247,8 @@ pub async fn ensure_file(path: PathBuf) -> Result<PathBuf, String> {
     ensure_parent_dir_exists_async(&path).await?;
     // OpenOptions::new().create(true) will create the file if it does not exist
     async_fs::OpenOptions::new()
-        .create(true).truncate(true)
+        .create(true)
+        .truncate(true)
         .write(true)
         .open(&path)
         .await
@@ -280,7 +289,10 @@ pub async fn ensure_folder(path: &Path) -> Result<PathBuf, String> {
             if md.is_dir() {
                 Ok(path.to_path_buf())
             } else {
-                Err(format!("path exists but is not a directory: {}", path.display()))
+                Err(format!(
+                    "path exists but is not a directory: {}",
+                    path.display()
+                ))
             }
         }
         Err(e) => {
@@ -303,7 +315,10 @@ pub fn ensure_folder_sync(path: &Path) -> Result<PathBuf, String> {
             if md.is_dir() {
                 Ok(path.to_path_buf())
             } else {
-                Err(format!("path exists but is not a directory: {}", path.display()))
+                Err(format!(
+                    "path exists but is not a directory: {}",
+                    path.display()
+                ))
             }
         }
         Err(e) => {
@@ -357,15 +372,20 @@ pub async fn write_file_atomic_async(path: &Path, bytes: &[u8]) -> Result<(), St
 pub fn write_file_atomic_sync(path: &Path, bytes: &[u8]) -> Result<(), String> {
     // Ensure parent exists
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| format!("failed to create parent dirs {}: {}", parent.display(), e))?;
+        std::fs::create_dir_all(parent)
+            .map_err(|e| format!("failed to create parent dirs {}: {}", parent.display(), e))?;
     }
 
-    let parent = path.parent().ok_or_else(|| format!("Path has no parent: {}", path.display()))?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| format!("Path has no parent: {}", path.display()))?;
     let mut tmp = parent.to_path_buf();
     let tmp_name = format!(".{}.tmp", uuid::Uuid::new_v4());
     tmp.push(tmp_name);
 
-    std::fs::write(&tmp, bytes).map_err(|e| format!("failed to write temp file {}: {}", tmp.display(), e))?;
-    std::fs::rename(&tmp, path).map_err(|e| format!("failed to rename temp file into place: {}", e))?;
+    std::fs::write(&tmp, bytes)
+        .map_err(|e| format!("failed to write temp file {}: {}", tmp.display(), e))?;
+    std::fs::rename(&tmp, path)
+        .map_err(|e| format!("failed to rename temp file into place: {}", e))?;
     Ok(())
 }

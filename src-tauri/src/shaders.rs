@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use tokio::fs as async_fs;
 use std::path::PathBuf;
+use tokio::fs as async_fs;
 
 // Shader management structures
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -25,9 +25,10 @@ pub struct ShaderPack {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum ShaderLoader {
-    OptiFine,
+    Canvas,
     Iris,
-    Sodium,
+    OptiFine,
+    Vanilla,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -74,8 +75,46 @@ pub enum ShaderSource {
     Other(String),
 }
 
-// Get all installed shaders from the shaderpacks directory
-#[tauri::command]
+#[derive(Debug, Deserialize)]
+struct ModrinthSearchResponse {
+    hits: Vec<ModrinthProject>,
+    total_hits: u32,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthProject {
+    project_id: String,
+    slug: String,
+    title: String,
+    description: String,
+    author: String,
+    icon_url: Option<String>,
+    downloads: u64,
+    versions: Vec<String>,
+    #[serde(default)]
+    categories: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthVersion {
+    id: String,
+    project_id: String,
+    name: String,
+    version_number: String,
+    game_versions: Vec<String>,
+    loaders: Vec<String>,
+    files: Vec<ModrinthFile>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ModrinthFile {
+    url: String,
+    filename: String,
+    size: u64,
+    primary: bool,
+}
+
+/// Get all installed shaders from the shaderpacks directory
 pub async fn get_installed_shaders(minecraft_path: String) -> Result<Vec<ShaderPack>, String> {
     let shaderpacks_dir = PathBuf::from(minecraft_path).join("shaderpacks");
 
@@ -106,7 +145,7 @@ pub async fn get_installed_shaders(minecraft_path: String) -> Result<Vec<ShaderP
     Ok(shaders)
 }
 
-// Parse shader pack file
+/// Parse shader pack file
 async fn parse_shader_pack(shader_path: &PathBuf) -> Result<ShaderPack, String> {
     let file_name = shader_path
         .file_name()
@@ -144,22 +183,20 @@ async fn parse_shader_pack(shader_path: &PathBuf) -> Result<ShaderPack, String> 
         file_path: shader_path.to_string_lossy().to_string(),
         file_name,
         file_size,
-        compatible_versions: vec!["1.20".to_string(), "1.19".to_string()], // Default compatibility
-        enabled: false, // Would need to check against options.txt or similar
+        compatible_versions: vec!["1.20".to_string(), "1.19".to_string()],
+        enabled: false,
         source_url: None,
         thumbnail: None,
-        shader_loader: ShaderLoader::OptiFine, // Default to OptiFine
+        shader_loader: ShaderLoader::OptiFine,
         installed_date,
         last_used: None,
     })
 }
 
-// Extract shader name from filename
+/// Extract shader name from filename
 fn extract_shader_name(filename: &str) -> String {
-    // Remove file extension
     let name_without_ext = filename.trim_end_matches(".zip").trim_end_matches(".jar");
 
-    // Try to extract name before version indicators
     let version_indicators = ["_v", "_V", "-v", "-V", "_", "-"];
 
     for indicator in &version_indicators {
@@ -171,15 +208,13 @@ fn extract_shader_name(filename: &str) -> String {
         }
     }
 
-    // If no version indicator found, use the whole name
     name_without_ext.replace("_", " ").replace("-", " ")
 }
 
-// Extract version from filename
+/// Extract version from filename
 fn extract_shader_version(filename: &str) -> String {
     let name_without_ext = filename.trim_end_matches(".zip").trim_end_matches(".jar");
 
-    // Simple version extraction - look for patterns like v1.0, 1.0, etc.
     if let Some(v_pos) = name_without_ext.find('v') {
         let after_v = &name_without_ext[v_pos + 1..];
         if let Some(space_pos) = after_v.find(' ') {
@@ -192,8 +227,7 @@ fn extract_shader_version(filename: &str) -> String {
     "Unknown".to_string()
 }
 
-// Enable/disable shader pack
-#[tauri::command]
+/// Enable/disable shader pack
 pub async fn toggle_shader(
     minecraft_path: String,
     shader_file: String,
@@ -201,9 +235,6 @@ pub async fn toggle_shader(
 ) -> Result<(), String> {
     let options_file = PathBuf::from(minecraft_path).join("optionsshaders.txt");
 
-    // This is a simplified implementation
-    // In reality, you'd need to properly parse and modify the OptiFine shaders config
-    // Ensure parent dirs and write atomically using async helper
     let content = if enabled {
         format!("shaderPack={}\n", shader_file)
     } else {
@@ -215,8 +246,7 @@ pub async fn toggle_shader(
     Ok(())
 }
 
-// Delete shader pack
-#[tauri::command]
+/// Delete shader pack
 pub async fn delete_shader(minecraft_path: String, shader_file: String) -> Result<(), String> {
     let shader_path = PathBuf::from(minecraft_path)
         .join("shaderpacks")
@@ -233,8 +263,7 @@ pub async fn delete_shader(minecraft_path: String, shader_file: String) -> Resul
     Ok(())
 }
 
-// Install shader pack from file
-#[tauri::command]
+/// Install shader pack from file
 pub async fn install_shader_pack(
     minecraft_path: String,
     shader_file_path: String,
@@ -246,7 +275,6 @@ pub async fn install_shader_pack(
         return Err("Source shader file does not exist".to_string());
     }
 
-    // Ensure shaderpacks directory exists (use shared async helper)
     crate::ensure_folder(&shaderpacks_dir)
         .await
         .map_err(|e| e.to_string())?;
@@ -258,7 +286,6 @@ pub async fn install_shader_pack(
 
     let destination_path = shaderpacks_dir.join(file_name);
 
-    // Copy shader pack to shaderpacks directory (async)
     async_fs::copy(&source_path, &destination_path)
         .await
         .map_err(|e| format!("Failed to install shader: {}", e))?;
@@ -266,8 +293,7 @@ pub async fn install_shader_pack(
     Ok(file_name.to_string())
 }
 
-// Get shader pack info
-#[tauri::command]
+/// Get shader pack info
 pub async fn get_shader_info(
     minecraft_path: String,
     shader_file: String,
@@ -283,4 +309,192 @@ pub async fn get_shader_info(
     parse_shader_pack(&shader_path)
         .await
         .map_err(|e| e.to_string())
+}
+
+/// Search for shader packs on Modrinth
+pub async fn search_modrinth_shaders(
+    query: String,
+    minecraft_version: Option<String>,
+    limit: u32,
+    offset: u32,
+) -> Result<Vec<ShaderDownload>, String> {
+    let client = reqwest::Client::new();
+    let mut url = format!(
+        "https://api.modrinth.com/v2/search?query={}&facets=[[\"project_type:shader\"]]&limit={}&offset={}",
+        urlencoding::encode(&query),
+        limit,
+        offset
+    );
+
+    if let Some(version) = minecraft_version {
+        url.push_str(&format!(
+            ",[[\"versions:{}\"]]",
+            urlencoding::encode(&version)
+        ));
+    }
+
+    let response = client
+        .get(&url)
+        .header("User-Agent", "kable-launcher")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to search Modrinth: {}", e))?;
+
+    let search_result: ModrinthSearchResponse = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Modrinth response: {}", e))?;
+
+    let mut shaders = Vec::new();
+    for project in search_result.hits {
+        // Fetch project versions to get download info
+        let version_url = format!(
+            "https://api.modrinth.com/v2/project/{}/version",
+            project.project_id
+        );
+
+        let version_response = client
+            .get(&version_url)
+            .header("User-Agent", "kable-launcher")
+            .send()
+            .await;
+
+        if let Ok(response) = version_response {
+            if let Ok(versions) = response.json::<Vec<ModrinthVersion>>().await {
+                if let Some(latest_version) = versions.first() {
+                    if let Some(primary_file) = latest_version.files.iter().find(|f| f.primary) {
+                        let loader = if latest_version.loaders.contains(&"iris".to_string()) {
+                            ShaderLoader::Iris
+                        } else if latest_version.loaders.contains(&"optifine".to_string()) {
+                            ShaderLoader::OptiFine
+                        } else if latest_version.loaders.contains(&"canvas".to_string()) {
+                            ShaderLoader::Canvas
+                        } else if latest_version.loaders.contains(&"vanilla".to_string()) {
+                            ShaderLoader::Vanilla
+                        } else {
+                            ShaderLoader::OptiFine
+                        };
+
+                        shaders.push(ShaderDownload {
+                            id: project.project_id.clone(),
+                            name: project.title,
+                            author: project.author,
+                            description: project.description,
+                            download_url: primary_file.url.clone(),
+                            thumbnail: project.icon_url,
+                            tags: project.categories,
+                            minecraft_versions: latest_version.game_versions.clone(),
+                            shader_loader: loader,
+                            rating: 0.0,
+                            downloads: project.downloads,
+                            size_mb: primary_file.size / (1024 * 1024),
+                            source: ShaderSource::Modrinth,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(shaders)
+}
+
+/// Get shader pack details from Modrinth
+pub async fn get_modrinth_shader_details(project_id: String) -> Result<ShaderDownload, String> {
+    let client = reqwest::Client::new();
+
+    let project_url = format!("https://api.modrinth.com/v2/project/{}", project_id);
+    let project_response = client
+        .get(&project_url)
+        .header("User-Agent", "kable-launcher")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch project: {}", e))?;
+
+    let project: ModrinthProject = project_response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse project: {}", e))?;
+
+    let version_url = format!("https://api.modrinth.com/v2/project/{}/version", project_id);
+    let version_response = client
+        .get(&version_url)
+        .header("User-Agent", "kable-launcher")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch versions: {}", e))?;
+
+    let versions: Vec<ModrinthVersion> = version_response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse versions: {}", e))?;
+
+    let latest_version = versions.first().ok_or("No versions found")?;
+    let primary_file = latest_version
+        .files
+        .iter()
+        .find(|f| f.primary)
+        .ok_or("No primary file found")?;
+
+    let loader = if latest_version.loaders.contains(&"iris".to_string()) {
+        ShaderLoader::Iris
+    } else if latest_version.loaders.contains(&"optifine".to_string()) {
+        ShaderLoader::OptiFine
+    } else if latest_version.loaders.contains(&"canvas".to_string()) {
+        ShaderLoader::Canvas
+    } else if latest_version.loaders.contains(&"vanilla".to_string()) {
+        ShaderLoader::Vanilla
+    } else {
+        ShaderLoader::OptiFine
+    };
+
+    Ok(ShaderDownload {
+        id: project.project_id,
+        name: project.title,
+        author: project.author,
+        description: project.description,
+        download_url: primary_file.url.clone(),
+        thumbnail: project.icon_url,
+        tags: project.categories,
+        minecraft_versions: latest_version.game_versions.clone(),
+        shader_loader: loader,
+        rating: 0.0,
+        downloads: project.downloads,
+        size_mb: primary_file.size / (1024 * 1024),
+        source: ShaderSource::Modrinth,
+    })
+}
+
+/// Download and install shader from Modrinth
+pub async fn download_and_install_shader(
+    minecraft_path: String,
+    download_url: String,
+    filename: String,
+) -> Result<String, String> {
+    let shaderpacks_dir = PathBuf::from(&minecraft_path).join("shaderpacks");
+
+    crate::ensure_folder(&shaderpacks_dir)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let destination = shaderpacks_dir.join(&filename);
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&download_url)
+        .header("User-Agent", "kable-launcher")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to download shader: {}", e))?;
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read shader data: {}", e))?;
+
+    async_fs::write(&destination, bytes)
+        .await
+        .map_err(|e| format!("Failed to write shader file: {}", e))?;
+
+    Ok(filename)
 }

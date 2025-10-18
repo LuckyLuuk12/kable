@@ -1,3 +1,4 @@
+use crate::logging::Logger;
 use crate::profiles::LauncherProfile;
 use kable_macros::log_result;
 use serde::{Deserialize, Serialize};
@@ -10,7 +11,6 @@ use std::{
 };
 use tokio::fs as async_fs;
 use tokio::task;
-use crate::logging::Logger;
 use toml::Value as TomlValue;
 use zip::ZipArchive;
 
@@ -223,7 +223,10 @@ impl KableInstallation {
     /// Returns the path to the exported file.
     pub async fn export(&self) -> Result<String, String> {
         let self_owned = self.clone();
-        Logger::debug_global(&format!("Starting export for installation id={}", self_owned.id), None);
+        Logger::debug_global(
+            &format!("Starting export for installation id={}", self_owned.id),
+            None,
+        );
         let res = task::spawn_blocking(move || {
             let kable_dir = crate::get_minecraft_kable_dir()?;
             let path = kable_dir.join("exports");
@@ -280,8 +283,9 @@ impl KableInstallation {
                         let mut tmp = std::env::temp_dir();
                         tmp.push(format!("resource_packs_{}.zip", export_install.id));
                         {
-                            let tmp_file = fs::File::create(&tmp)
-                                .map_err(|e| format!("Failed to create temp resource zip: {}", e))?;
+                            let tmp_file = fs::File::create(&tmp).map_err(|e| {
+                                format!("Failed to create temp resource zip: {}", e)
+                            })?;
                             let mut tmp_zip = zip::ZipWriter::new(tmp_file);
                             let walk = walkdir::WalkDir::new(&resource_pack_path);
                             for entry in walk.into_iter().filter_map(|e| e.ok()) {
@@ -289,15 +293,19 @@ impl KableInstallation {
                                 if path.is_file() {
                                     let rel = path.strip_prefix(&resource_pack_path).unwrap();
                                     let name = format!("{}", rel.to_string_lossy());
-                                    tmp_zip.start_file(name, options)
-                                        .map_err(|e| format!("Failed to add file to tmp resource zip: {}", e))?;
-                                    let mut f = fs::File::open(path)
-                                        .map_err(|e| format!("Failed to open file for tmp zip: {}", e))?;
-                                    std::io::copy(&mut f, &mut tmp_zip)
-                                        .map_err(|e| format!("Failed to copy to tmp resource zip: {}", e))?;
+                                    tmp_zip.start_file(name, options).map_err(|e| {
+                                        format!("Failed to add file to tmp resource zip: {}", e)
+                                    })?;
+                                    let mut f = fs::File::open(path).map_err(|e| {
+                                        format!("Failed to open file for tmp zip: {}", e)
+                                    })?;
+                                    std::io::copy(&mut f, &mut tmp_zip).map_err(|e| {
+                                        format!("Failed to copy to tmp resource zip: {}", e)
+                                    })?;
                                 }
                             }
-                            tmp_zip.finish()
+                            tmp_zip
+                                .finish()
                                 .map_err(|e| format!("Failed to finish tmp resource zip: {}", e))?;
                         }
                         // Copy tmp into main zip
@@ -315,7 +323,11 @@ impl KableInstallation {
             // If there is a dedicated shaders folder, add it to the zip
             if let Some(ref shaders_folder) = self_owned.dedicated_shaders_folder {
                 let sf_path = PathBuf::from(shaders_folder);
-                let shaders_path = if sf_path.is_absolute() { sf_path } else { kable_dir.join(shaders_folder) };
+                let shaders_path = if sf_path.is_absolute() {
+                    sf_path
+                } else {
+                    kable_dir.join(shaders_folder)
+                };
                 if shaders_path.exists() {
                     if shaders_path.is_file() {
                         zip.start_file("shaders.zip", options)
@@ -338,15 +350,19 @@ impl KableInstallation {
                                 if path.is_file() {
                                     let rel = path.strip_prefix(&shaders_path).unwrap();
                                     let name = format!("{}", rel.to_string_lossy());
-                                    tmp_zip.start_file(name, options)
-                                        .map_err(|e| format!("Failed to add file to tmp shaders zip: {}", e))?;
-                                    let mut f = fs::File::open(path)
-                                        .map_err(|e| format!("Failed to open file for tmp shaders zip: {}", e))?;
-                                    std::io::copy(&mut f, &mut tmp_zip)
-                                        .map_err(|e| format!("Failed to copy to tmp shaders zip: {}", e))?;
+                                    tmp_zip.start_file(name, options).map_err(|e| {
+                                        format!("Failed to add file to tmp shaders zip: {}", e)
+                                    })?;
+                                    let mut f = fs::File::open(path).map_err(|e| {
+                                        format!("Failed to open file for tmp shaders zip: {}", e)
+                                    })?;
+                                    std::io::copy(&mut f, &mut tmp_zip).map_err(|e| {
+                                        format!("Failed to copy to tmp shaders zip: {}", e)
+                                    })?;
                                 }
                             }
-                            tmp_zip.finish()
+                            tmp_zip
+                                .finish()
                                 .map_err(|e| format!("Failed to finish tmp shaders zip: {}", e))?;
                         }
                         let mut tmp_file = fs::File::open(&tmp)
@@ -363,7 +379,11 @@ impl KableInstallation {
             // If there is a dedicated mods folder, add it to the zip
             if let Some(ref mods_folder) = self_owned.dedicated_mods_folder {
                 let mf_path = PathBuf::from(mods_folder);
-                let mods_path = if mf_path.is_absolute() { mf_path } else { kable_dir.join(mods_folder) };
+                let mods_path = if mf_path.is_absolute() {
+                    mf_path
+                } else {
+                    kable_dir.join(mods_folder)
+                };
                 if mods_path.exists() {
                     if mods_path.is_file() {
                         zip.start_file("mods.zip", options)
@@ -386,15 +406,19 @@ impl KableInstallation {
                                 if path.is_file() {
                                     let rel = path.strip_prefix(&mods_path).unwrap();
                                     let name = format!("{}", rel.to_string_lossy());
-                                    tmp_zip.start_file(name, options)
-                                        .map_err(|e| format!("Failed to add file to tmp mods zip: {}", e))?;
-                                    let mut f = fs::File::open(path)
-                                        .map_err(|e| format!("Failed to open file for tmp mods zip: {}", e))?;
-                                    std::io::copy(&mut f, &mut tmp_zip)
-                                        .map_err(|e| format!("Failed to copy to tmp mods zip: {}", e))?;
+                                    tmp_zip.start_file(name, options).map_err(|e| {
+                                        format!("Failed to add file to tmp mods zip: {}", e)
+                                    })?;
+                                    let mut f = fs::File::open(path).map_err(|e| {
+                                        format!("Failed to open file for tmp mods zip: {}", e)
+                                    })?;
+                                    std::io::copy(&mut f, &mut tmp_zip).map_err(|e| {
+                                        format!("Failed to copy to tmp mods zip: {}", e)
+                                    })?;
                                 }
                             }
-                            tmp_zip.finish()
+                            tmp_zip
+                                .finish()
                                 .map_err(|e| format!("Failed to finish tmp mods zip: {}", e))?;
                         }
                         let mut tmp_file = fs::File::open(&tmp)
@@ -428,10 +452,10 @@ impl KableInstallation {
         Logger::debug_global(&format!("Starting import from {}", path_owned), None);
         let res = task::spawn_blocking(move || {
             let kable_dir = crate::get_minecraft_kable_dir()?;
-            let file =
-                fs::File::open(&path_owned).map_err(|e| format!("Failed to open import file: {}", e))?;
-            let mut zip =
-                zip::ZipArchive::new(file).map_err(|e| format!("Failed to read zip file: {}", e))?;
+            let file = fs::File::open(&path_owned)
+                .map_err(|e| format!("Failed to open import file: {}", e))?;
+            let mut zip = zip::ZipArchive::new(file)
+                .map_err(|e| format!("Failed to read zip file: {}", e))?;
             let mut installation = KableInstallation::default();
             // Extract the kable_export.json file
             if let Ok(mut file) = zip.by_name("kable_export.json") {
@@ -473,7 +497,8 @@ impl KableInstallation {
                 let mut inner_zip = zip::ZipArchive::new(tmp_file)
                     .map_err(|e| format!("Failed to read inner resource zip: {}", e))?;
                 for i in 0..inner_zip.len() {
-                    let mut entry = inner_zip.by_index(i)
+                    let mut entry = inner_zip
+                        .by_index(i)
                         .map_err(|e| format!("Failed to access inner zip entry: {}", e))?;
                     let name = entry.name();
                     // Security: skip dangerous paths
@@ -482,12 +507,13 @@ impl KableInstallation {
                     }
                     let out_path = dest_dir.join(name);
                     if entry.is_dir() {
-                crate::ensure_folder_sync(&out_path)
-                    .map_err(|e| format!("Failed to create dir during extract: {}", e))?;
+                        crate::ensure_folder_sync(&out_path)
+                            .map_err(|e| format!("Failed to create dir during extract: {}", e))?;
                     } else {
-                            if let Some(p) = out_path.parent() {
-                            crate::ensure_folder_sync(p)
-                                .map_err(|e| format!("Failed to create parent dir during extract: {}", e))?;
+                        if let Some(p) = out_path.parent() {
+                            crate::ensure_folder_sync(p).map_err(|e| {
+                                format!("Failed to create parent dir during extract: {}", e)
+                            })?;
                         }
                         let mut outfile = fs::File::create(&out_path)
                             .map_err(|e| format!("Failed to create file during extract: {}", e))?;
@@ -527,7 +553,8 @@ impl KableInstallation {
                 let mut inner_zip = zip::ZipArchive::new(tmp_file)
                     .map_err(|e| format!("Failed to read inner shaders zip: {}", e))?;
                 for i in 0..inner_zip.len() {
-                    let mut entry = inner_zip.by_index(i)
+                    let mut entry = inner_zip
+                        .by_index(i)
                         .map_err(|e| format!("Failed to access inner zip entry: {}", e))?;
                     let name = entry.name();
                     if name.contains("..") || name.starts_with('/') {
@@ -539,8 +566,9 @@ impl KableInstallation {
                             .map_err(|e| format!("Failed to create dir during extract: {}", e))?;
                     } else {
                         if let Some(p) = out_path.parent() {
-                            crate::ensure_folder_sync(p)
-                                .map_err(|e| format!("Failed to create parent dir during extract: {}", e))?;
+                            crate::ensure_folder_sync(p).map_err(|e| {
+                                format!("Failed to create parent dir during extract: {}", e)
+                            })?;
                         }
                         let mut outfile = fs::File::create(&out_path)
                             .map_err(|e| format!("Failed to create file during extract: {}", e))?;
@@ -580,7 +608,8 @@ impl KableInstallation {
                 let mut inner_zip = zip::ZipArchive::new(tmp_file)
                     .map_err(|e| format!("Failed to read inner mods zip: {}", e))?;
                 for i in 0..inner_zip.len() {
-                    let mut entry = inner_zip.by_index(i)
+                    let mut entry = inner_zip
+                        .by_index(i)
                         .map_err(|e| format!("Failed to access inner zip entry: {}", e))?;
                     let name = entry.name();
                     if name.contains("..") || name.starts_with('/') {
@@ -592,8 +621,9 @@ impl KableInstallation {
                             .map_err(|e| format!("Failed to create dir during extract: {}", e))?;
                     } else {
                         if let Some(p) = out_path.parent() {
-                            crate::ensure_folder_sync(p)
-                                .map_err(|e| format!("Failed to create parent dir during extract: {}", e))?;
+                            crate::ensure_folder_sync(p).map_err(|e| {
+                                format!("Failed to create parent dir during extract: {}", e)
+                            })?;
                         }
                         let mut outfile = fs::File::create(&out_path)
                             .map_err(|e| format!("Failed to create file during extract: {}", e))?;
@@ -609,7 +639,10 @@ impl KableInstallation {
         .await
         .map_err(|e| format!("Import task join error: {}", e))?;
         if let Ok(ref inst) = res {
-            Logger::debug_global(&format!("Import completed: id={} name={}", inst.id, inst.name), None);
+            Logger::debug_global(
+                &format!("Import completed: id={} name={}", inst.id, inst.name),
+                None,
+            );
         }
         res
     }
@@ -721,7 +754,10 @@ impl KableInstallation {
         let mut found_dir = None;
         for (i, dir_opt) in mods_dirs.iter().enumerate() {
             if let Some(dir) = dir_opt {
-                Logger::debug_global(&format!("Checking mods dir candidate {}: {}", i, dir.display()), None);
+                Logger::debug_global(
+                    &format!("Checking mods dir candidate {}: {}", i, dir.display()),
+                    None,
+                );
                 if dir.exists() {
                     Logger::debug_global(&format!("✅ Using mods dir: {}", dir.display()), None);
                     found_dir = Some(dir.clone());
@@ -749,9 +785,13 @@ impl KableInstallation {
             }
             return Err(format!("Mod file not found: {}", file_name));
         }
-    crate::ensure_folder_sync(&disabled_dir).map_err(|e| format!("Failed to create disabled directory: {}", e))?;
+        crate::ensure_folder_sync(&disabled_dir)
+            .map_err(|e| format!("Failed to create disabled directory: {}", e))?;
         fs::rename(&src, &dst).map_err(|e| format!("Failed to move mod to disabled: {}", e))?;
-        Logger::debug_global(&format!("Moved {} -> {}", src.display(), dst.display()), None);
+        Logger::debug_global(
+            &format!("Moved {} -> {}", src.display(), dst.display()),
+            None,
+        );
         Ok(())
     }
 
@@ -785,7 +825,10 @@ impl KableInstallation {
             self.enable_mod(file_name)?;
             return Ok(false);
         }
-        Err(format!("Mod file not found in either active or disabled folders: {}", file_name))
+        Err(format!(
+            "Mod file not found in either active or disabled folders: {}",
+            file_name
+        ))
     }
 
     /// Scans the mods folder for this installation and extracts mod info from each JAR
@@ -827,13 +870,13 @@ impl KableInstallation {
             }
         };
         let mut result = Vec::new();
-    let read_dir = std::fs::read_dir(&mods_dir);
+        let read_dir = std::fs::read_dir(&mods_dir);
         if let Err(e) = &read_dir {
             Logger::debug_global(&format!("Failed to read mods dir: {}", e), None);
             return Err(format!("Failed to read mods dir: {}", e));
         }
-    // First, read active mods in the mods_dir
-    for entry in read_dir.unwrap() {
+        // First, read active mods in the mods_dir
+        for entry in read_dir.unwrap() {
             let entry = match entry {
                 Ok(e) => e,
                 Err(e) => {
@@ -960,9 +1003,17 @@ impl KableInstallation {
                                         if let Ok(mut f) = zip.by_name("fabric.mod.json") {
                                             let mut buf = String::new();
                                             if f.read_to_string(&mut buf).is_ok() {
-                                                if let Ok(json) = serde_json::from_str::<JsonValue>(&buf) {
-                                                    mod_name = json.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
-                                                    mod_version = json.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                if let Ok(json) =
+                                                    serde_json::from_str::<JsonValue>(&buf)
+                                                {
+                                                    mod_name = json
+                                                        .get("name")
+                                                        .and_then(|v| v.as_str())
+                                                        .map(|s| s.to_string());
+                                                    mod_version = json
+                                                        .get("version")
+                                                        .and_then(|v| v.as_str())
+                                                        .map(|s| s.to_string());
                                                     loader = Some("fabric".to_string());
                                                 }
                                             }
@@ -971,9 +1022,17 @@ impl KableInstallation {
                                             if let Ok(mut f) = zip.by_name("quilt.mod.json") {
                                                 let mut buf = String::new();
                                                 if f.read_to_string(&mut buf).is_ok() {
-                                                    if let Ok(json) = serde_json::from_str::<JsonValue>(&buf) {
-                                                        mod_name = json.get("name").and_then(|v| v.as_str()).map(|s| s.to_string());
-                                                        mod_version = json.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                    if let Ok(json) =
+                                                        serde_json::from_str::<JsonValue>(&buf)
+                                                    {
+                                                        mod_name = json
+                                                            .get("name")
+                                                            .and_then(|v| v.as_str())
+                                                            .map(|s| s.to_string());
+                                                        mod_version = json
+                                                            .get("version")
+                                                            .and_then(|v| v.as_str())
+                                                            .map(|s| s.to_string());
                                                         loader = Some("quilt".to_string());
                                                     }
                                                 }
@@ -983,11 +1042,22 @@ impl KableInstallation {
                                             if let Ok(mut f) = zip.by_name("META-INF/mods.toml") {
                                                 let mut buf = String::new();
                                                 if f.read_to_string(&mut buf).is_ok() {
-                                                    if let Ok(toml) = toml::from_str::<TomlValue>(&buf) {
-                                                        if let Some(arr) = toml.get("mods").and_then(|v| v.as_array()) {
+                                                    if let Ok(toml) =
+                                                        toml::from_str::<TomlValue>(&buf)
+                                                    {
+                                                        if let Some(arr) = toml
+                                                            .get("mods")
+                                                            .and_then(|v| v.as_array())
+                                                        {
                                                             if let Some(first) = arr.first() {
-                                                                mod_name = first.get("displayName").and_then(|v| v.as_str()).map(|s| s.to_string());
-                                                                mod_version = first.get("version").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                                                mod_name = first
+                                                                    .get("displayName")
+                                                                    .and_then(|v| v.as_str())
+                                                                    .map(|s| s.to_string());
+                                                                mod_version = first
+                                                                    .get("version")
+                                                                    .and_then(|v| v.as_str())
+                                                                    .map(|s| s.to_string());
                                                                 loader = Some("forge".to_string());
                                                             }
                                                         }
@@ -1007,7 +1077,10 @@ impl KableInstallation {
                             }
                         }
                         Err(e) => {
-                            Logger::debug_global(&format!("Failed to read disabled entry: {}", e), None);
+                            Logger::debug_global(
+                                &format!("Failed to read disabled entry: {}", e),
+                                None,
+                            );
                         }
                     }
                 }

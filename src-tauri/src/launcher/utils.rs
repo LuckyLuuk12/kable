@@ -1,13 +1,13 @@
 use crate::launchables::LaunchContext;
-use crate::logging::{Logger};
+use crate::logging::Logger;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
-use tokio::fs as async_fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tauri::Emitter;
+use tokio::fs as async_fs;
 use tokio::io::BufReader;
 
 /// Loads a Minecraft version manifest, recursively merging inherited manifests if needed.
@@ -19,10 +19,16 @@ fn load_and_merge_manifest_sync(
     version_id: &str,
     instance_id: Option<&str>,
 ) -> Result<Value, String> {
-    Logger::debug_global(&format!("Loading manifest for version_id: {}", version_id), instance_id);
+    Logger::debug_global(
+        &format!("Loading manifest for version_id: {}", version_id),
+        instance_id,
+    );
 
     // If version_id is a placeholder like latest-release/latest-snapshot/latest, resolve it first
-    let effective_version = if version_id == "latest-release" || version_id == "latest-snapshot" || version_id == "latest" {
+    let effective_version = if version_id == "latest-release"
+        || version_id == "latest-snapshot"
+        || version_id == "latest"
+    {
         let version_list_url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
         let client = reqwest::blocking::Client::new();
         let resp = client
@@ -34,17 +40,29 @@ fn load_and_merge_manifest_sync(
             .map_err(|err| format!("Failed to parse version list: {}", err))?;
         let resolved_version = if let Some(latest) = manifest_list.get("latest") {
             if version_id == "latest-snapshot" {
-                latest.get("snapshot").and_then(|v| v.as_str()).map(|s| s.to_string())
+                latest
+                    .get("snapshot")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
             } else {
-                latest.get("release").and_then(|v| v.as_str()).map(|s| s.to_string())
+                latest
+                    .get("release")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
             }
         } else {
             None
         };
         let resolved_version = resolved_version.ok_or_else(|| {
-            format!("Failed to resolve '{}' to a concrete version from version_manifest.json", version_id)
+            format!(
+                "Failed to resolve '{}' to a concrete version from version_manifest.json",
+                version_id
+            )
         })?;
-        Logger::debug_global(&format!("Resolved {} => {}", version_id, resolved_version), instance_id);
+        Logger::debug_global(
+            &format!("Resolved {} => {}", version_id, resolved_version),
+            instance_id,
+        );
         resolved_version
     } else {
         version_id.to_string()
@@ -56,11 +74,17 @@ fn load_and_merge_manifest_sync(
         .join(format!("{}.json", effective_version));
 
     // Read the manifest for the effective version
-    let manifest_str = fs::read_to_string(&manifest_path)
-        .map_err(|e| {
-            Logger::debug_global(&format!("Failed to read manifest: {}. Tried path: {}", e, manifest_path.display()), instance_id);
-            format!("Failed to read manifest: {}", e)
-        })?;
+    let manifest_str = fs::read_to_string(&manifest_path).map_err(|e| {
+        Logger::debug_global(
+            &format!(
+                "Failed to read manifest: {}. Tried path: {}",
+                e,
+                manifest_path.display()
+            ),
+            instance_id,
+        );
+        format!("Failed to read manifest: {}", e)
+    })?;
 
     // Parse the manifest we successfully read for the original (non-placeholder) id
     let mut manifest: Value = match serde_json::from_str(&manifest_str) {
@@ -83,7 +107,10 @@ fn load_and_merge_manifest_sync(
         let parent = load_and_merge_manifest_sync(minecraft_dir, parent_id, instance_id)?;
         manifest = merge_manifests_with_instance(parent, manifest, instance_id);
     }
-    Logger::debug_global(&format!("Loaded and merged manifest for version_id: {}", version_id), instance_id);
+    Logger::debug_global(
+        &format!("Loaded and merged manifest for version_id: {}", version_id),
+        instance_id,
+    );
     Ok(manifest)
 }
 
@@ -96,16 +123,17 @@ pub async fn load_and_merge_manifest_with_instance(
     let md = minecraft_dir.to_string();
     let vid = version_id.to_string();
     let iid = instance_id.map(|s| s.to_string());
-    
-    tokio::task::spawn_blocking(move || {
-        load_and_merge_manifest_sync(&md, &vid, iid.as_deref())
-    })
-    .await
-    .map_err(|e| format!("Manifest load join error: {}", e))?
+
+    tokio::task::spawn_blocking(move || load_and_merge_manifest_sync(&md, &vid, iid.as_deref()))
+        .await
+        .map_err(|e| format!("Manifest load join error: {}", e))?
 }
 
 // Backwards compatible version for callers that don't have instance_id
-pub async fn load_and_merge_manifest(minecraft_dir: &str, version_id: &str) -> Result<Value, String> {
+pub async fn load_and_merge_manifest(
+    minecraft_dir: &str,
+    version_id: &str,
+) -> Result<Value, String> {
     load_and_merge_manifest_with_instance(minecraft_dir, version_id, None).await
 }
 
@@ -145,7 +173,8 @@ pub fn build_classpath_from_manifest_with_instance(
 ) -> String {
     Logger::debug_global("Building classpath from manifest", instance_id);
     // Deduplicate by group:artifact, preferring the HIGHEST version to avoid conflicts
-    let mut dedup_map: std::collections::HashMap<String, (String, String)> = std::collections::HashMap::new();
+    let mut dedup_map: std::collections::HashMap<String, (String, String)> =
+        std::collections::HashMap::new();
     if let Some(libs) = manifest.get("libraries").and_then(|v| v.as_array()) {
         Logger::debug_global(&format!("Found {} libraries", libs.len()), instance_id);
         for lib in libs {
@@ -198,20 +227,27 @@ pub fn build_classpath_from_manifest_with_instance(
                                 (full_name.clone(), String::new())
                             }
                         };
-                        
+
                         // If we already have this library, keep the one with higher version
-                        if let Some((_existing_path, existing_version)) = dedup_map.get(&dedup_key) {
+                        if let Some((_existing_path, existing_version)) = dedup_map.get(&dedup_key)
+                        {
                             if !version.is_empty() && !existing_version.is_empty() {
                                 // Compare versions: prefer higher version
                                 if compare_versions(&version, existing_version) > 0 {
                                     Logger::debug_global(
-                                        &format!("Preferring {} v{} over v{}", dedup_key, version, existing_version),
+                                        &format!(
+                                            "Preferring {} v{} over v{}",
+                                            dedup_key, version, existing_version
+                                        ),
                                         instance_id,
                                     );
                                     dedup_map.insert(dedup_key, (jar_path, version));
                                 } else {
                                     Logger::debug_global(
-                                        &format!("Keeping {} v{} (skipping v{})", dedup_key, existing_version, version),
+                                        &format!(
+                                            "Keeping {} v{} (skipping v{})",
+                                            dedup_key, existing_version, version
+                                        ),
                                         instance_id,
                                     );
                                 }
@@ -239,14 +275,14 @@ pub fn build_classpath_from_manifest_with_instance(
         &format!("Classpath built: {} entries", entries.len()),
         instance_id,
     );
-    
+
     // Log LWJGL versions in classpath for debugging
     for entry in &entries {
         if entry.contains("lwjgl") {
             Logger::debug_global(&format!("Classpath LWJGL: {}", entry), instance_id);
         }
     }
-    
+
     classpath
 }
 
@@ -257,7 +293,7 @@ pub fn build_classpath_from_manifest_with_instance(
 fn compare_versions(v1: &str, v2: &str) -> i32 {
     let parts1: Vec<u32> = v1.split('.').filter_map(|s| s.parse().ok()).collect();
     let parts2: Vec<u32> = v2.split('.').filter_map(|s| s.parse().ok()).collect();
-    
+
     for i in 0..parts1.len().max(parts2.len()) {
         let p1 = parts1.get(i).copied().unwrap_or(0);
         let p2 = parts2.get(i).copied().unwrap_or(0);
@@ -284,10 +320,7 @@ pub fn build_jvm_and_game_args_with_instance(
     variables: &std::collections::HashMap<String, String>,
     instance_id: Option<&str>,
 ) -> (Vec<String>, Vec<String>) {
-    Logger::debug_global(
-        &format!("Variables: {:?}", variables),
-        instance_id,
-    );
+    Logger::debug_global(&format!("Variables: {:?}", variables), instance_id);
     let arguments = manifest
         .get("arguments")
         .and_then(|v| v.as_object())
@@ -683,7 +716,9 @@ pub async fn ensure_version_manifest_and_jar(
     }
 
     // Ensure versions/<resolved_version> folder exists (create parent 'versions' if needed)
-    let version_subdir = PathBuf::from(minecraft_dir).join("versions").join(&resolved_version);
+    let version_subdir = PathBuf::from(minecraft_dir)
+        .join("versions")
+        .join(&resolved_version);
     crate::ensure_folder(&version_subdir)
         .await
         .map_err(|e| format!("Failed to create versions dir: {}", e))?;
@@ -694,7 +729,8 @@ pub async fn ensure_version_manifest_and_jar(
     fn validate_client_jar(jar_path: &Path) -> Result<(), String> {
         let file = std::fs::File::open(jar_path)
             .map_err(|e| format!("Failed to open JAR for validation: {}", e))?;
-        let mut archive = ZipArchive::new(file).map_err(|e| format!("Failed to read JAR archive: {}", e))?;
+        let mut archive =
+            ZipArchive::new(file).map_err(|e| format!("Failed to read JAR archive: {}", e))?;
         for i in 0..archive.len() {
             if let Ok(entry) = archive.by_index(i) {
                 let name = entry.name();
@@ -835,7 +871,8 @@ pub async fn ensure_libraries(
                         let jar_path = libraries_path.join(path);
                         if !jar_path.exists() {
                             if !jar_path.parent().unwrap().exists() {
-                    crate::ensure_parent_dir_exists_async(jar_path.parent().unwrap()).await?;
+                                crate::ensure_parent_dir_exists_async(jar_path.parent().unwrap())
+                                    .await?;
                             }
                             let resp = client
                                 .get(url)
@@ -881,15 +918,22 @@ pub async fn ensure_assets_for_manifest(
     let assets_index_name = match manifest.get("assets").and_then(|v| v.as_str()) {
         Some(n) if !n.is_empty() => n.to_string(),
         _ => {
-            crate::logging::Logger::debug_global("No assets index in manifest; skipping assets", instance_id);
+            crate::logging::Logger::debug_global(
+                "No assets index in manifest; skipping assets",
+                instance_id,
+            );
             return Ok(());
         }
     };
 
     let indexes_dir = PathBuf::from(minecraft_dir).join("assets").join("indexes");
     let objects_dir = PathBuf::from(minecraft_dir).join("assets").join("objects");
-    crate::ensure_folder(&indexes_dir).await.map_err(|e| format!("Failed to create indexes dir: {}", e))?;
-    crate::ensure_folder(&objects_dir).await.map_err(|e| format!("Failed to create objects dir: {}", e))?;
+    crate::ensure_folder(&indexes_dir)
+        .await
+        .map_err(|e| format!("Failed to create indexes dir: {}", e))?;
+    crate::ensure_folder(&objects_dir)
+        .await
+        .map_err(|e| format!("Failed to create objects dir: {}", e))?;
 
     let index_path = indexes_dir.join(format!("{}.json", assets_index_name));
     let client = Client::new();
@@ -903,24 +947,45 @@ pub async fn ensure_assets_for_manifest(
         // Best approach: look for an 'assetIndex' object in the version manifest (manifest may include it when downloaded from Mojang)
         if let Some(asset_index_obj) = manifest.get("assetIndex").and_then(|v| v.as_object()) {
             if let Some(url) = asset_index_obj.get("url").and_then(|v| v.as_str()) {
-                let resp = client.get(url).send().await.map_err(|e| format!("Failed to fetch assets index: {e}"))?;
-                let txt = resp.text().await.map_err(|e| format!("Failed to read assets index text: {e}"))?;
+                let resp = client
+                    .get(url)
+                    .send()
+                    .await
+                    .map_err(|e| format!("Failed to fetch assets index: {e}"))?;
+                let txt = resp
+                    .text()
+                    .await
+                    .map_err(|e| format!("Failed to read assets index text: {e}"))?;
                 crate::ensure_parent_dir_exists_async(&index_path).await?;
-                crate::write_file_atomic_async(&index_path, txt.as_bytes()).await.map_err(|e| format!("Failed to write assets index: {e}"))?;
+                crate::write_file_atomic_async(&index_path, txt.as_bytes())
+                    .await
+                    .map_err(|e| format!("Failed to write assets index: {e}"))?;
             } else {
-                crate::logging::Logger::debug_global("No assetIndex.url in manifest; skipping index download", instance_id);
+                crate::logging::Logger::debug_global(
+                    "No assetIndex.url in manifest; skipping index download",
+                    instance_id,
+                );
                 return Ok(());
             }
         } else {
-            crate::logging::Logger::debug_global("No assetIndex object in manifest; skipping index download", instance_id);
+            crate::logging::Logger::debug_global(
+                "No assetIndex object in manifest; skipping index download",
+                instance_id,
+            );
             return Ok(());
         }
     }
 
     // Parse index JSON
-    let index_str = async_fs::read_to_string(&index_path).await.map_err(|e| format!("Failed to read assets index: {}", e))?;
-    let index_json: serde_json::Value = serde_json::from_str(&index_str).map_err(|e| format!("Failed to parse assets index: {}", e))?;
-    let objects = index_json.get("objects").and_then(|v| v.as_object()).ok_or("No objects in assets index")?;
+    let index_str = async_fs::read_to_string(&index_path)
+        .await
+        .map_err(|e| format!("Failed to read assets index: {}", e))?;
+    let index_json: serde_json::Value = serde_json::from_str(&index_str)
+        .map_err(|e| format!("Failed to parse assets index: {}", e))?;
+    let objects = index_json
+        .get("objects")
+        .and_then(|v| v.as_object())
+        .ok_or("No objects in assets index")?;
 
     // Build list of required object hashes depending on mode
     let mut required_hashes: Vec<String> = Vec::new();
@@ -962,43 +1027,68 @@ pub async fn ensure_assets_for_manifest(
                 let sounds_obj_path = objects_dir.join(prefix).join(hash);
                 if !sounds_obj_path.exists() {
                     crate::ensure_parent_dir_exists_async(&sounds_obj_path).await?;
-                    let url = format!("https://resources.download.minecraft.net/{}/{}", prefix, hash);
-                    let resp = client.get(&url).send().await.map_err(|e| format!("Failed to download sounds.json {}: {}", hash, e))?;
-                    let bytes = resp.bytes().await.map_err(|e| format!("Failed to read sounds.json bytes {}: {}", hash, e))?;
+                    let url = format!(
+                        "https://resources.download.minecraft.net/{}/{}",
+                        prefix, hash
+                    );
+                    let resp =
+                        client.get(&url).send().await.map_err(|e| {
+                            format!("Failed to download sounds.json {}: {}", hash, e)
+                        })?;
+                    let bytes = resp
+                        .bytes()
+                        .await
+                        .map_err(|e| format!("Failed to read sounds.json bytes {}: {}", hash, e))?;
                     // Validate sha1
                     let mut hasher = Sha1::new();
                     hasher.update(&bytes);
                     let digest = hasher.finalize();
                     let hex = hex::encode(digest);
                     if hex != hash {
-                        return Err(format!("Downloaded sounds.json {} sha1 mismatch ({} != {})", hash, hex, hash));
+                        return Err(format!(
+                            "Downloaded sounds.json {} sha1 mismatch ({} != {})",
+                            hash, hex, hash
+                        ));
                     }
-                    crate::write_file_atomic_async(&sounds_obj_path, &bytes).await.map_err(|e| format!("Failed to write sounds.json {}: {}", hash, e))?;
+                    crate::write_file_atomic_async(&sounds_obj_path, &bytes)
+                        .await
+                        .map_err(|e| format!("Failed to write sounds.json {}: {}", hash, e))?;
                 }
                 // Parse sounds.json to collect referenced sound files
-                let sounds_bytes = async_fs::read(&sounds_obj_path).await.map_err(|e| format!("Failed to read cached sounds.json {}: {}", hash, e))?;
+                let sounds_bytes = async_fs::read(&sounds_obj_path)
+                    .await
+                    .map_err(|e| format!("Failed to read cached sounds.json {}: {}", hash, e))?;
                 let sounds_text = String::from_utf8_lossy(&sounds_bytes);
                 if let Ok(sounds_json) = serde_json::from_str::<serde_json::Value>(&sounds_text) {
                     if let Some(sounds_obj) = sounds_json.as_object() {
                         for (_name, def) in sounds_obj.iter() {
                             // Each definition can be an object with 'sounds' array or a direct array
-                            if let Some(sounds_array) = def.get("sounds").and_then(|v| v.as_array()) {
+                            if let Some(sounds_array) = def.get("sounds").and_then(|v| v.as_array())
+                            {
                                 for sound_item in sounds_array {
                                     if let Some(sound_str) = sound_item.as_str() {
                                         // Resolve path and look up in index objects
-                                        let logical_path = format!("minecraft/sounds/{}.ogg", sound_str);
+                                        let logical_path =
+                                            format!("minecraft/sounds/{}.ogg", sound_str);
                                         if let Some(obj) = objects.get(&logical_path) {
-                                            if let Some(h) = obj.get("hash").and_then(|h| h.as_str()) {
+                                            if let Some(h) =
+                                                obj.get("hash").and_then(|h| h.as_str())
+                                            {
                                                 if !required_hashes.contains(&h.to_string()) {
                                                     required_hashes.push(h.to_string());
                                                 }
                                             }
                                         }
                                     } else if let Some(obj_item) = sound_item.as_object() {
-                                        if let Some(name_val) = obj_item.get("name").and_then(|v| v.as_str()) {
-                                            let logical_path = format!("minecraft/sounds/{}.ogg", name_val);
+                                        if let Some(name_val) =
+                                            obj_item.get("name").and_then(|v| v.as_str())
+                                        {
+                                            let logical_path =
+                                                format!("minecraft/sounds/{}.ogg", name_val);
                                             if let Some(obj) = objects.get(&logical_path) {
-                                                if let Some(h) = obj.get("hash").and_then(|h| h.as_str()) {
+                                                if let Some(h) =
+                                                    obj.get("hash").and_then(|h| h.as_str())
+                                                {
                                                     if !required_hashes.contains(&h.to_string()) {
                                                         required_hashes.push(h.to_string());
                                                     }
@@ -1026,25 +1116,42 @@ pub async fn ensure_assets_for_manifest(
 
     // Download missing objects
     for hash in required_hashes {
-        if hash.len() < 2 { continue; }
+        if hash.len() < 2 {
+            continue;
+        }
         let prefix = &hash[0..2];
         let obj_path = objects_dir.join(prefix).join(&hash);
         if obj_path.exists() {
             continue;
         }
         crate::ensure_parent_dir_exists_async(&obj_path).await?;
-        let url = format!("https://resources.download.minecraft.net/{}/{}", prefix, hash);
-        let resp = client.get(&url).send().await.map_err(|e| format!("Failed to download asset {}: {}", hash, e))?;
-        let bytes = resp.bytes().await.map_err(|e| format!("Failed to read asset bytes {}: {}", hash, e))?;
+        let url = format!(
+            "https://resources.download.minecraft.net/{}/{}",
+            prefix, hash
+        );
+        let resp = client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to download asset {}: {}", hash, e))?;
+        let bytes = resp
+            .bytes()
+            .await
+            .map_err(|e| format!("Failed to read asset bytes {}: {}", hash, e))?;
         // Validate sha1
         let mut hasher = Sha1::new();
         hasher.update(&bytes);
         let digest = hasher.finalize();
         let hex = hex::encode(digest);
         if hex != hash {
-            return Err(format!("Downloaded asset {} sha1 mismatch ({} != {})", hash, hex, hash));
+            return Err(format!(
+                "Downloaded asset {} sha1 mismatch ({} != {})",
+                hash, hex, hash
+            ));
         }
-        crate::write_file_atomic_async(&obj_path, &bytes).await.map_err(|e| format!("Failed to write asset {}: {}", hash, e))?;
+        crate::write_file_atomic_async(&obj_path, &bytes)
+            .await
+            .map_err(|e| format!("Failed to write asset {}: {}", hash, e))?;
         crate::logging::Logger::debug_global(&format!("Downloaded asset {}", hash), instance_id);
     }
 
@@ -1070,7 +1177,10 @@ pub fn find_java_executable(java_path: Option<&String>) -> Result<String, String
             // If a non-empty path was specified but doesn't exist, log a warning
             // but continue to auto-detection (user might have deleted/moved Java)
             crate::logging::Logger::warn_global(
-                &format!("Specified Java path does not exist: '{}'. Attempting auto-detection.", trimmed),
+                &format!(
+                    "Specified Java path does not exist: '{}'. Attempting auto-detection.",
+                    trimmed
+                ),
                 None,
             );
         }
@@ -1135,7 +1245,10 @@ pub fn extract_natives(
     if natives_path.exists() {
         // Try to remove old natives, but don't hard-fail if files are locked by another process
         if let Err(e) = std::fs::remove_dir_all(natives_path) {
-            crate::logging::Logger::debug_global(&format!("Failed to clear natives directory (will continue): {}", e), None);
+            crate::logging::Logger::debug_global(
+                &format!("Failed to clear natives directory (will continue): {}", e),
+                None,
+            );
         }
     }
     crate::ensure_folder_sync(natives_path)
@@ -1152,11 +1265,12 @@ pub fn extract_natives(
     };
 
     let os_tag = current_os;
-    
+
     // Deduplicate natives by group:artifact, keeping only the highest version
     // Map: group:artifact -> (native_jar_path, version)
-    let mut dedup_map: std::collections::HashMap<String, (PathBuf, String)> = std::collections::HashMap::new();
-    
+    let mut dedup_map: std::collections::HashMap<String, (PathBuf, String)> =
+        std::collections::HashMap::new();
+
     for library in libraries {
         if let Some(rules) = &library.rules {
             let rules_value = serde_json::to_value(rules)
@@ -1202,19 +1316,27 @@ pub fn extract_natives(
                                     (library.name.clone(), String::new())
                                 }
                             };
-                            
+
                             // Check if we already have this library
-                            if let Some((_existing_path, existing_version)) = dedup_map.get(&dedup_key) {
+                            if let Some((_existing_path, existing_version)) =
+                                dedup_map.get(&dedup_key)
+                            {
                                 if !version.is_empty() && !existing_version.is_empty() {
                                     if compare_versions(&version, existing_version) > 0 {
                                         crate::logging::Logger::debug_global(
-                                            &format!("Natives: Preferring {} v{} over v{}", dedup_key, version, existing_version),
+                                            &format!(
+                                                "Natives: Preferring {} v{} over v{}",
+                                                dedup_key, version, existing_version
+                                            ),
                                             None,
                                         );
                                         dedup_map.insert(dedup_key, (native_path, version));
                                     } else {
                                         crate::logging::Logger::debug_global(
-                                            &format!("Natives: Keeping {} v{} (skipping v{})", dedup_key, existing_version, version),
+                                            &format!(
+                                                "Natives: Keeping {} v{} (skipping v{})",
+                                                dedup_key, existing_version, version
+                                            ),
                                             None,
                                         );
                                     }
@@ -1226,14 +1348,21 @@ pub fn extract_natives(
                                 dedup_map.insert(dedup_key, (native_path, version));
                             }
                         } else {
-                            crate::logging::Logger::debug_global(&format!("Native artifact {} not found at {}", &native_artifact.path, native_path.display()), None);
+                            crate::logging::Logger::debug_global(
+                                &format!(
+                                    "Native artifact {} not found at {}",
+                                    &native_artifact.path,
+                                    native_path.display()
+                                ),
+                                None,
+                            );
                         }
                     }
                 }
             }
         }
     }
-    
+
     // Log what natives we're about to extract
     Logger::debug_global(
         &format!("Extracting {} unique native libraries", dedup_map.len()),
@@ -1247,16 +1376,24 @@ pub fn extract_natives(
             );
         }
     }
-    
+
     // Now extract natives from the deduplicated set
     for (dedup_key, (native_path, version)) in dedup_map {
         crate::logging::Logger::debug_global(
-            &format!("Extracting natives from {} v{}", dedup_key, if version.is_empty() { "unknown" } else { &version }),
+            &format!(
+                "Extracting natives from {} v{}",
+                dedup_key,
+                if version.is_empty() {
+                    "unknown"
+                } else {
+                    &version
+                }
+            ),
             None,
         );
         extract_jar(&native_path, natives_path)?;
     }
-    
+
     Ok(())
 }
 
@@ -1272,8 +1409,8 @@ pub fn pre_launch_java_native_compat_check(
     manifest: &serde_json::Value,
     instance_id: Option<&str>,
 ) -> Result<(), String> {
-    use std::process::Command;
     use crate::logging::Logger;
+    use std::process::Command;
 
     // Validate Java path is not empty or whitespace
     let trimmed_path = java_path.trim();
@@ -1296,7 +1433,10 @@ pub fn pre_launch_java_native_compat_check(
         }
         Err(e) => {
             Logger::info_global(
-                &format!("Failed to execute '{}' to probe java version: {}", trimmed_path, e),
+                &format!(
+                    "Failed to execute '{}' to probe java version: {}",
+                    trimmed_path, e
+                ),
                 instance_id,
             );
             // Don't block launch just because java probe failed; let launch attempt proceed and fail normally.
@@ -1305,9 +1445,15 @@ pub fn pre_launch_java_native_compat_check(
     }
 
     // Normalize to small set of arch tags used by natives selection
-    let java_arch = if java_info.contains("64-Bit") || java_info.contains("x86_64") || java_info.contains("amd64") {
+    let java_arch = if java_info.contains("64-Bit")
+        || java_info.contains("x86_64")
+        || java_info.contains("amd64")
+    {
         "x86_64"
-    } else if java_info.to_lowercase().contains("arm") || java_info.contains("aarch64") || java_info.contains("arm64") {
+    } else if java_info.to_lowercase().contains("arm")
+        || java_info.contains("aarch64")
+        || java_info.contains("arm64")
+    {
         "arm64"
     } else if java_info.contains("32-Bit") || java_info.contains("x86") {
         "x86"
@@ -1316,8 +1462,17 @@ pub fn pre_launch_java_native_compat_check(
         std::env::consts::ARCH
     };
 
-    Logger::debug_global(&format!("Detected Java info: {}", java_info.lines().next().unwrap_or("(no version line)")), instance_id);
-    Logger::debug_global(&format!("Interpreted Java arch as: {}", java_arch), instance_id);
+    Logger::debug_global(
+        &format!(
+            "Detected Java info: {}",
+            java_info.lines().next().unwrap_or("(no version line)")
+        ),
+        instance_id,
+    );
+    Logger::debug_global(
+        &format!("Interpreted Java arch as: {}", java_arch),
+        instance_id,
+    );
 
     // 2) Inspect the manifest for native classifier keys
     let mut required_archs: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -1385,7 +1540,10 @@ pub fn pre_launch_java_native_compat_check(
 
 /// Inspect the constructed classpath for multiple LWJGL versions and log a warning if inconsistent versions are detected.
 /// This does not block launch, but surfaces potential runtime issues.
-pub fn check_lwjgl_classpath_consistency(classpath: &str, instance_id: Option<&str>) -> Result<(), String> {
+pub fn check_lwjgl_classpath_consistency(
+    classpath: &str,
+    instance_id: Option<&str>,
+) -> Result<(), String> {
     use crate::logging::Logger;
     use regex::Regex;
 
@@ -1395,7 +1553,10 @@ pub fn check_lwjgl_classpath_consistency(classpath: &str, instance_id: Option<&s
     let ver_re = Regex::new(r"(\d+\.[0-9]+(?:\.[0-9]+)*)").unwrap();
     for entry in classpath.split(sep) {
         if entry.to_lowercase().contains("lwjgl") {
-            if let Some(name) = std::path::Path::new(entry).file_name().and_then(|s| s.to_str()) {
+            if let Some(name) = std::path::Path::new(entry)
+                .file_name()
+                .and_then(|s| s.to_str())
+            {
                 if let Some(cap) = ver_re.captures(name) {
                     if let Some(m) = cap.get(1) {
                         versions.insert(m.as_str().to_string());
@@ -1412,7 +1573,13 @@ pub fn check_lwjgl_classpath_consistency(classpath: &str, instance_id: Option<&s
     } else if versions.len() == 1 && versions.contains("unknown") {
         Logger::debug_global("Found LWJGL artifacts on classpath but could not determine version from filenames; ensure LWJGL jars are consistent.", instance_id);
     } else if versions.len() == 1 {
-        Logger::debug_global(&format!("LWJGL version on classpath appears consistent: {:?}", versions), instance_id);
+        Logger::debug_global(
+            &format!(
+                "LWJGL version on classpath appears consistent: {:?}",
+                versions
+            ),
+            instance_id,
+        );
     } else {
         Logger::debug_global("No LWJGL artifacts detected on classpath", instance_id);
     }
@@ -1504,12 +1671,7 @@ pub fn build_variable_map(
     );
     variables.insert(
         "user_type".to_string(),
-        if has_valid_token {
-            "Xbox"
-        } else {
-            "offline"
-        }
-        .to_string(),
+        if has_valid_token { "Xbox" } else { "offline" }.to_string(),
     );
     variables.insert("clientid".to_string(), uuid::Uuid::new_v4().to_string());
     // Version info
@@ -1813,7 +1975,10 @@ pub async fn spawn_and_log_process(
     let instance_id_for_wait = instance_id_str.clone();
     task::spawn(async move {
         Logger::info_global(
-            &format!("[EXIT TASK] Started waiting for process exit (instanceId: {})", instance_id_for_wait),
+            &format!(
+                "[EXIT TASK] Started waiting for process exit (instanceId: {})",
+                instance_id_for_wait
+            ),
             Some(&instance_id_for_wait),
         );
         // Wait for process to exit and emit exit event / log
@@ -1821,12 +1986,18 @@ pub async fn spawn_and_log_process(
             Ok(status) => {
                 let exit_code = status.code().unwrap_or(-1);
                 Logger::info_global(
-                    &format!("[EXIT TASK] Process exited with code {} (instanceId: {})", exit_code, instance_id_for_wait),
+                    &format!(
+                        "[EXIT TASK] Process exited with code {} (instanceId: {})",
+                        exit_code, instance_id_for_wait
+                    ),
                     Some(&instance_id_for_wait),
                 );
                 if let Some(app) = get_app_handle() {
                     Logger::info_global(
-                        &format!("[EXIT TASK] Emitting game-process-event exit for instanceId: {}", instance_id_for_wait),
+                        &format!(
+                            "[EXIT TASK] Emitting game-process-event exit for instanceId: {}",
+                            instance_id_for_wait
+                        ),
                         Some(&instance_id_for_wait),
                     );
                     let _ = app.emit(
@@ -1849,7 +2020,10 @@ pub async fn spawn_and_log_process(
                 }
             }
             Err(e) => {
-                Logger::error_global(&format!("[EXIT TASK] Process wait failed: {}", e), Some(&instance_id_for_wait));
+                Logger::error_global(
+                    &format!("[EXIT TASK] Process wait failed: {}", e),
+                    Some(&instance_id_for_wait),
+                );
                 if let Some(app) = get_app_handle() {
                     let _ = app.emit(
                         "game-process-event",
@@ -1863,7 +2037,10 @@ pub async fn spawn_and_log_process(
             }
         }
         Logger::info_global(
-            &format!("[EXIT TASK] Completed (instanceId: {})", instance_id_for_wait),
+            &format!(
+                "[EXIT TASK] Completed (instanceId: {})",
+                instance_id_for_wait
+            ),
             Some(&instance_id_for_wait),
         );
     });

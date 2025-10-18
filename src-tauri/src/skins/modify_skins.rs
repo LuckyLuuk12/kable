@@ -9,8 +9,8 @@ use reqwest;
 use serde_json;
 use std::collections::HashMap;
 use std::fs;
-use tokio::fs as async_fs;
 use tauri_plugin_dialog::DialogExt;
+use tokio::fs as async_fs;
 
 /// Modify a skin entry by its id in launcher_custom_skins.json
 pub fn modify_skin_by_id(
@@ -41,9 +41,11 @@ pub fn modify_skin_by_id(
             custom_skins: HashMap::new(),
             version: Some(1),
         };
-        let json = serde_json::to_string_pretty(&empty).map_err(|e| format!("Serialization error: {}", e))?;
+        let json = serde_json::to_string_pretty(&empty)
+            .map_err(|e| format!("Serialization error: {}", e))?;
         if let Some(parent) = skins_path.parent() {
-            crate::ensure_folder_sync(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
+            crate::ensure_folder_sync(parent)
+                .map_err(|e| format!("Failed to create skins dir: {}", e))?;
         }
         crate::write_file_atomic_sync(&skins_path, json.as_bytes())?;
         empty
@@ -76,9 +78,11 @@ pub fn modify_skin_by_id(
     root.custom_skins = sorted.into_iter().collect();
 
     // Write back to file (sync atomic)
-    let json = serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?;
+    let json =
+        serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?;
     if let Some(parent) = skins_path.parent() {
-        crate::ensure_folder_sync(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
+        crate::ensure_folder_sync(parent)
+            .map_err(|e| format!("Failed to create skins dir: {}", e))?;
     }
     crate::write_file_atomic_sync(&skins_path, json.as_bytes())?;
 
@@ -114,9 +118,11 @@ pub fn remove_skin_by_id(skin_id: &str) -> Result<(), String> {
             custom_skins: HashMap::new(),
             version: Some(1),
         };
-        let json = serde_json::to_string_pretty(&empty).map_err(|e| format!("Serialization error: {}", e))?;
+        let json = serde_json::to_string_pretty(&empty)
+            .map_err(|e| format!("Serialization error: {}", e))?;
         if let Some(parent) = skins_path.parent() {
-            crate::ensure_folder_sync(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
+            crate::ensure_folder_sync(parent)
+                .map_err(|e| format!("Failed to create skins dir: {}", e))?;
         }
         crate::write_file_atomic_sync(&skins_path, json.as_bytes())?;
         empty
@@ -138,9 +144,11 @@ pub fn remove_skin_by_id(skin_id: &str) -> Result<(), String> {
     root.custom_skins = sorted.into_iter().collect();
 
     // Write back to file (sync) — use sync atomic helper since this function is synchronous
-    let json = serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?;
+    let json =
+        serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?;
     if let Some(parent) = skins_path.parent() {
-        crate::ensure_folder_sync(parent).map_err(|e| format!("Failed to create skins dir: {}", e))?;
+        crate::ensure_folder_sync(parent)
+            .map_err(|e| format!("Failed to create skins dir: {}", e))?;
     }
     crate::write_file_atomic_sync(&skins_path, json.as_bytes())?;
 
@@ -249,7 +257,8 @@ pub async fn upload_skin_to_account(
     root.custom_skins = sorted.into_iter().collect();
 
     // Write back to file (async)
-    let json = serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?;
+    let json =
+        serde_json::to_string_pretty(&root).map_err(|e| format!("Serialization error: {}", e))?;
     crate::ensure_parent_dir_exists_async(&skins_path).await?;
     crate::write_file_atomic_async(&skins_path, json.as_bytes())
         .await
@@ -513,7 +522,7 @@ pub async fn apply_cape(cape_id: Option<String>) -> Result<String, String> {
         .map_err(|e| format!("Authentication required to apply cape: {}", e))?;
 
     let client = reqwest::Client::new();
-    
+
     // Mojang API endpoint for changing active cape
     let url = if cape_id.is_some() {
         // Apply specific cape
@@ -528,7 +537,7 @@ pub async fn apply_cape(cape_id: Option<String>) -> Result<String, String> {
         let body = serde_json::json!({
             "capeId": id
         });
-        
+
         client
             .put(&url)
             .header("Authorization", format!("Bearer {}", account.access_token))
@@ -547,13 +556,15 @@ pub async fn apply_cape(cape_id: Option<String>) -> Result<String, String> {
             .map_err(|e| format!("Failed to remove cape: {}", e))?
     };
 
-    if response.status() == reqwest::StatusCode::OK || response.status() == reqwest::StatusCode::NO_CONTENT {
+    if response.status() == reqwest::StatusCode::OK
+        || response.status() == reqwest::StatusCode::NO_CONTENT
+    {
         let message = if cape_id.is_some() {
             "✅ Cape applied successfully".to_string()
         } else {
             "✅ Cape removed successfully".to_string()
         };
-        
+
         Logger::console_log(LogLevel::Info, &message, None);
         Ok(message)
     } else {
@@ -561,9 +572,6 @@ pub async fn apply_cape(cape_id: Option<String>) -> Result<String, String> {
             .text()
             .await
             .unwrap_or_else(|_| "Unknown error".to_string());
-        Err(format!(
-            "Cape operation failed with status: {}",
-            error_body
-        ))
+        Err(format!("Cape operation failed with status: {}", error_body))
     }
 }
