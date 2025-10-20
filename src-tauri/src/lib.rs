@@ -144,6 +144,10 @@ pub fn run() {
             commands_shaders::search_modrinth_shaders,
             commands_shaders::get_modrinth_shader_details,
             commands_shaders::download_and_install_shader,
+            commands_shaders::download_and_install_shader_to_dedicated,
+            commands_shaders::setup_shader_symlink,
+            commands_shaders::remove_shader_symlink,
+            commands_shaders::delete_shader_from_dedicated,
             // Skins commands
             commands_skins::upload_skin_to_account,
             commands_skins::change_skin_model,
@@ -387,5 +391,129 @@ pub fn write_file_atomic_sync(path: &Path, bytes: &[u8]) -> Result<(), String> {
         .map_err(|e| format!("failed to write temp file {}: {}", tmp.display(), e))?;
     std::fs::rename(&tmp, path)
         .map_err(|e| format!("failed to rename temp file into place: {}", e))?;
+    Ok(())
+}
+
+/// Ensure Minecraft allows symbolic links by writing to allowed_symlinks.txt
+pub async fn ensure_symlinks_enabled(minecraft_path: &Path) -> Result<(), String> {
+    let allowed_symlinks_file = minecraft_path.join("allowed_symlinks.txt");
+    let required_line = "[regex].*";
+
+    // Check if file exists and contains the required line
+    if allowed_symlinks_file.exists() {
+        let content = async_fs::read_to_string(&allowed_symlinks_file)
+            .await
+            .map_err(|e| format!("Failed to read allowed_symlinks.txt: {}", e))?;
+
+        if content.lines().any(|line| line.trim() == required_line) {
+            return Ok(());
+        }
+
+        // File exists but doesn't have the line, append it
+        let mut new_content = content;
+        if !new_content.ends_with('\n') {
+            new_content.push('\n');
+        }
+        new_content.push_str(required_line);
+        new_content.push('\n');
+
+        write_file_atomic_async(&allowed_symlinks_file, new_content.as_bytes()).await?;
+    } else {
+        // File doesn't exist, create it with the required line
+        ensure_parent_dir_exists_async(&allowed_symlinks_file).await?;
+        let content = format!("{}\n", required_line);
+        write_file_atomic_async(&allowed_symlinks_file, content.as_bytes()).await?;
+    }
+
+    Ok(())
+}
+
+/// Create a symbolic link from source to target directory
+#[cfg(windows)]
+pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<(), String> {
+    use std::os::windows::fs::symlink_dir;
+    
+    if target.exists() {
+        if target.is_symlink() {
+            // Remove existing symlink
+            async_fs::remove_dir(target)
+                .await
+                .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
+        } else {
+            return Err(format!("Target path exists and is not a symlink: {}", target.display()));
+        }
+    }
+
+    ensure_parent_dir_exists_async(target).await?;
+
+    tokio::task::spawn_blocking({
+        let source = source.to_path_buf();
+        let target = target.to_path_buf();
+        move || {
+            symlink_dir(&source, &target)
+                .map_err(|e| format!("Failed to create symlink: {}", e))
+        }
+    })
+    .await
+    .map_err(|e| format!("Symlink creation task failed: {}", e))??;
+
+    Ok(())
+}
+
+#[cfg(unix)]
+pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<(), String> {
+    use std::os::unix::fs::symlink;
+    
+    if target.exists() {
+        if target.is_symlink() {
+            // Remove existing symlink
+            async_fs::remove_file(target)
+                .await
+                .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
+        } else {
+            return Err(format!("Target path exists and is not a symlink: {}", target.display()));
+        }
+    }
+
+    ensure_parent_dir_exists_async(target).await?;
+
+    tokio::task::spawn_blocking({
+        let source = source.to_path_buf();
+        let target = target.to_path_buf();
+        move || {
+            symlink(&source, &target)
+                .map_err(|e| format!("Failed to create symlink: {}", e))
+        }
+    })
+    .await
+    .map_err(|e| format!("Symlink creation task failed: {}", e))??;
+
+    Ok(())
+}
+
+/// Remove a symbolic link if it exists
+pub async fn remove_symlink_if_exists(path: &Path) -> Result<(), String> {
+    if !path.exists() {
+        return Ok(());
+    }
+
+    if !path.is_symlink() {
+        return Err(format!("Path is not a symlink: {}", path.display()));
+    }
+
+    #[cfg(windows)]
+    {
+        async_fs::remove_dir(path)
+            .await
+            .map_err(|e| format!("Failed to remove symlink: {}", e))?;
+    }
+
+    #[cfg(unix)]
+    {
+        async_fs::remove_file(path)
+            .await
+            .map_err(|e| format!("Failed to remove symlink: {}", e))?;
+    }
+
     Ok(())
 }

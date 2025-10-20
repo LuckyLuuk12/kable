@@ -240,32 +240,47 @@ export interface WorldDownload {
 export interface ShaderPack {
   id: string;
   name: string;
-  path: string;
-  version?: string;
-  description?: string;
-  compatible_versions?: string[];
-  // Additional properties for shader management
-  file_size: number;  // File size in bytes
-  enabled: boolean;  // Whether shader is enabled
-  shader_loader: string;  // Shader loader type (OptiFine, Iris, etc.)
-  installed_date: number;  // Installation timestamp
-  author: string;  // Author name
-  file_name: string;  // File name for searching
+  version: string;
+  author: string;
+  description: string | null;
+  file_path: string;
+  file_name: string;
+  file_size: number;
+  compatible_versions: string[];
+  enabled: boolean;
+  source_url: string | null;
+  thumbnail: string | null;
+  shader_loader: 'Canvas' | 'Iris' | 'OptiFine' | 'Vanilla';
+  installed_date: number;
+  last_used: number | null;
 }
 
 export interface ShaderDownload {
   id: string;
   name: string;
-  url: string;
-  description?: string;
-  compatible_versions?: string[];
+  author: string;
+  description: string;
+  download_url: string;
+  thumbnail: string | null;
+  gallery: string[] | null;
+  featured_gallery: string | null;
+  tags: string[];
+  minecraft_versions: string[];
+  shader_loader: 'Canvas' | 'Iris' | 'OptiFine' | 'Vanilla';
+  rating: number;
+  downloads: number;
+  size_mb: number;
+  source: 'Modrinth' | 'CurseForge' | { Other: string };
 }
 
 export interface ShaderSettings {
-  enabled: boolean;
-  current_pack?: string;
-  quality_preset?: string;
-  enable_caching?: boolean;
+  quality: 'Low' | 'Medium' | 'High' | 'Ultra' | 'Custom';
+  shadows: boolean;
+  shadow_resolution: number;
+  anti_aliasing: boolean;
+  bloom: boolean;
+  motion_blur: boolean;
+  custom_settings: Record<string, any>;
 }
 
 export interface MinecraftSkin {

@@ -70,3 +70,44 @@ pub async fn download_and_install_shader(
 ) -> Result<String, String> {
     shaders::download_and_install_shader(minecraft_path, download_url, filename).await
 }
+
+/// Download and install shader from Modrinth to a dedicated folder
+#[tauri::command]
+pub async fn download_and_install_shader_to_dedicated(
+    minecraft_path: String,
+    dedicated_folder: String,
+    download_url: String,
+    filename: String,
+) -> Result<String, String> {
+    shaders::download_and_install_shader_to_dedicated(minecraft_path, dedicated_folder, download_url, filename).await
+}
+
+/// Setup symbolic link from dedicated shader folder to .minecraft/shaderpacks
+#[tauri::command]
+pub async fn setup_shader_symlink(
+    minecraft_path: String,
+    dedicated_folder: String,
+    symlink_name: String,
+) -> Result<(), String> {
+    shaders::setup_shader_symlink(minecraft_path, dedicated_folder, symlink_name).await
+}
+
+/// Remove symbolic link from .minecraft/shaderpacks
+#[tauri::command]
+pub async fn remove_shader_symlink(
+    minecraft_path: String,
+    symlink_name: String,
+) -> Result<(), String> {
+    shaders::remove_shader_symlink(minecraft_path, symlink_name).await
+}
+
+/// Delete shader pack from dedicated folder and clean up symlink
+#[tauri::command]
+pub async fn delete_shader_from_dedicated(
+    minecraft_path: String,
+    dedicated_folder: String,
+    shader_file: String,
+    symlink_name: Option<String>,
+) -> Result<(), String> {
+    shaders::delete_shader_from_dedicated(minecraft_path, dedicated_folder, shader_file, symlink_name).await
+}

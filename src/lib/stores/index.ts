@@ -8,4 +8,5 @@ export * from './installation';
 
 export * from './logs';
 export * from './mods';
+export * from './shaders';
 export * from './settings';

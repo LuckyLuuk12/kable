@@ -238,7 +238,7 @@
     { path: '/', label: 'Home', icon: 'home' },
     { path: '/installations', label: 'Installations', icon: 'minecraft' },
     { path: '/mods', label: 'Mods', icon: 'mods' },
-    // { path: '/shaders', label: 'Shaders', icon: 'shaders' },
+    { path: '/shaders', label: 'Shaders', icon: 'shaders' },
     // { path: '/resources', label: 'Resources', icon: 'resources' },
     { path: '/maps', label: 'Worlds', icon: 'maps' },
     { path: '/skins', label: 'Skins', icon: 'palette' },

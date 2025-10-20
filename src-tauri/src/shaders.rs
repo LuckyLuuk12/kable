@@ -59,6 +59,8 @@ pub struct ShaderDownload {
     pub description: String,
     pub download_url: String,
     pub thumbnail: Option<String>,
+    pub gallery: Option<Vec<String>>,
+    pub featured_gallery: Option<String>,
     pub tags: Vec<String>,
     pub minecraft_versions: Vec<String>,
     pub shader_loader: ShaderLoader,
@@ -89,6 +91,8 @@ struct ModrinthProject {
     description: String,
     author: String,
     icon_url: Option<String>,
+    gallery: Option<Vec<String>>,
+    featured_gallery: Option<String>,
     downloads: u64,
     versions: Vec<String>,
     #[serde(default)]
@@ -347,6 +351,20 @@ pub async fn search_modrinth_shaders(
 
     let mut shaders = Vec::new();
     for project in search_result.hits {
+        // Fetch full project details to get gallery images
+        let project_url = format!("https://api.modrinth.com/v2/project/{}", project.project_id);
+        let project_response = client
+            .get(&project_url)
+            .header("User-Agent", "kable-launcher")
+            .send()
+            .await;
+
+        let full_project = if let Ok(response) = project_response {
+            response.json::<ModrinthProject>().await.ok()
+        } else {
+            None
+        };
+
         // Fetch project versions to get download info
         let version_url = format!(
             "https://api.modrinth.com/v2/project/{}/version",
@@ -375,6 +393,13 @@ pub async fn search_modrinth_shaders(
                             ShaderLoader::OptiFine
                         };
 
+                        // Use gallery from full project details if available, otherwise fall back to search result
+                        let (gallery, featured_gallery) = if let Some(ref full) = full_project {
+                            (full.gallery.clone(), full.featured_gallery.clone())
+                        } else {
+                            (project.gallery.clone(), project.featured_gallery.clone())
+                        };
+
                         shaders.push(ShaderDownload {
                             id: project.project_id.clone(),
                             name: project.title,
@@ -382,6 +407,8 @@ pub async fn search_modrinth_shaders(
                             description: project.description,
                             download_url: primary_file.url.clone(),
                             thumbnail: project.icon_url,
+                            gallery,
+                            featured_gallery,
                             tags: project.categories,
                             minecraft_versions: latest_version.game_versions.clone(),
                             shader_loader: loader,
@@ -455,6 +482,8 @@ pub async fn get_modrinth_shader_details(project_id: String) -> Result<ShaderDow
         description: project.description,
         download_url: primary_file.url.clone(),
         thumbnail: project.icon_url,
+        gallery: project.gallery,
+        featured_gallery: project.featured_gallery,
         tags: project.categories,
         minecraft_versions: latest_version.game_versions.clone(),
         shader_loader: loader,
@@ -497,4 +526,123 @@ pub async fn download_and_install_shader(
         .map_err(|e| format!("Failed to write shader file: {}", e))?;
 
     Ok(filename)
+}
+
+/// Download and install shader from Modrinth to a dedicated folder
+pub async fn download_and_install_shader_to_dedicated(
+    minecraft_path: String,
+    dedicated_folder: String,
+    download_url: String,
+    filename: String,
+) -> Result<String, String> {
+    let kable_dir = crate::get_minecraft_kable_dir()?;
+    let dedicated_path = PathBuf::from(&dedicated_folder);
+    
+    let shaders_dir = if dedicated_path.is_absolute() {
+        dedicated_path
+    } else {
+        kable_dir.join("shaderpacks").join(&dedicated_folder)
+    };
+
+    crate::ensure_folder(&shaders_dir)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let destination = shaders_dir.join(&filename);
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get(&download_url)
+        .header("User-Agent", "kable-launcher")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to download shader: {}", e))?;
+
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read shader data: {}", e))?;
+
+    async_fs::write(&destination, bytes)
+        .await
+        .map_err(|e| format!("Failed to write shader file: {}", e))?;
+
+    Ok(filename)
+}
+
+/// Setup symbolic link from dedicated shader folder to .minecraft/shaderpacks
+pub async fn setup_shader_symlink(
+    minecraft_path: String,
+    dedicated_folder: String,
+    symlink_name: String,
+) -> Result<(), String> {
+    let minecraft_dir = PathBuf::from(&minecraft_path);
+    let kable_dir = crate::get_minecraft_kable_dir()?;
+    
+    // Ensure symlinks are allowed in Minecraft
+    crate::ensure_symlinks_enabled(&minecraft_dir).await?;
+
+    let dedicated_path = PathBuf::from(&dedicated_folder);
+    let source_dir = if dedicated_path.is_absolute() {
+        dedicated_path
+    } else {
+        kable_dir.join("shaderpacks").join(&dedicated_folder)
+    };
+
+    // Ensure the dedicated folder exists
+    crate::ensure_folder(&source_dir).await?;
+
+    let target_link = minecraft_dir.join("shaderpacks").join(symlink_name);
+
+    // Create the symlink
+    crate::create_directory_symlink(&source_dir, &target_link).await?;
+
+    Ok(())
+}
+
+/// Remove symbolic link from .minecraft/shaderpacks
+pub async fn remove_shader_symlink(
+    minecraft_path: String,
+    symlink_name: String,
+) -> Result<(), String> {
+    let minecraft_dir = PathBuf::from(&minecraft_path);
+    let target_link = minecraft_dir.join("shaderpacks").join(symlink_name);
+
+    crate::remove_symlink_if_exists(&target_link).await?;
+
+    Ok(())
+}
+
+/// Delete shader pack from dedicated folder and clean up symlink
+pub async fn delete_shader_from_dedicated(
+    minecraft_path: String,
+    dedicated_folder: String,
+    shader_file: String,
+    symlink_name: Option<String>,
+) -> Result<(), String> {
+    let kable_dir = crate::get_minecraft_kable_dir()?;
+    let dedicated_path = PathBuf::from(&dedicated_folder);
+    
+    let shaders_dir = if dedicated_path.is_absolute() {
+        dedicated_path
+    } else {
+        kable_dir.join("shaderpacks").join(&dedicated_folder)
+    };
+
+    let shader_path = shaders_dir.join(&shader_file);
+
+    if !shader_path.exists() {
+        return Err("Shader file does not exist".to_string());
+    }
+
+    async_fs::remove_file(&shader_path)
+        .await
+        .map_err(|e| format!("Failed to delete shader: {}", e))?;
+
+    // If a symlink name was provided, try to remove it
+    if let Some(link_name) = symlink_name {
+        let _ = remove_shader_symlink(minecraft_path, link_name).await;
+    }
+
+    Ok(())
 }
