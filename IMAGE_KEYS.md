@@ -237,4 +237,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [ShaderGalleryModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderGalleryModal.svelte#L85) | <pre><code class="language-html">&lt;Icon name="x" size="lg" forceType="svg" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L608) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2025-10-22T22:32:05.161Z_
+_Generated: 2025-10-22T23:48:35.804Z_

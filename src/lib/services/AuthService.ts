@@ -355,7 +355,7 @@ export class AuthService {
       console.log('🔄 Manually refreshing current account token...');
       const refreshed = await authApi.refreshMicrosoftToken(account.local_id);
       currentAccount.set(refreshed);
-      await this.refreshAvailableAccounts();
+      // Note: refreshAvailableAccounts() will be called by refreshAllAccountTokens() in NavBar
       console.log('✅ Token manually refreshed');
       return refreshed;
     } catch (error) {
