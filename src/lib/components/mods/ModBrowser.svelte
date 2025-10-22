@@ -5,7 +5,7 @@ import { Icon, ModsService, selectedInstallation, InstallationService, installat
 import Image from '$lib/components/Image.svelte';
 import { modsByProvider, modsLoading, modsError, modsLimit, modsOffset, modsProvider } from '$lib/stores/mods';
 import { ProviderKind } from '$lib/runtimeTypes';
-import type { ModInfoKind, KableInstallation, ModJarInfo } from '$lib';
+import type { ModInfoKind, KableInstallation, ModJarInfo, FilterFacets } from '$lib';
 import ModCard from './ModCard.svelte';
 
 type ViewMode = 'grid' | 'list' | 'compact';
@@ -21,13 +21,21 @@ let searchQuery = '';
 let currentInstallation: KableInstallation | null = null;
 let showFilters = true;
 
-// Filter state
+// Filter state with include/exclude support
+type FilterMode = 'include' | 'exclude';
+type FilterItem = { value: string; mode: FilterMode };
+
 let filters = {
-  clientSide: 'all', // all, required, optional, unsupported
-  serverSide: 'all', // all, required, optional, unsupported
-  projectType: 'all', // all, mod, plugin, datapack, shader
-  categories: [] as string[],
-  gameVersions: [] as string[]
+  categories: [] as FilterItem[],
+  environment: [] as FilterItem[],
+  license: [] as FilterItem[]
+};
+
+// Collapsible filter sections
+let collapsedSections = {
+  categories: false,
+  environment: false,
+  license: false
 };
 
 // Pagination state
@@ -70,25 +78,26 @@ const viewModes = [
 // Page size options
 const pageSizeOptions = [10, 20, 50, 100];
 
-// Filter options
-const clientServerOptions = [
-  { value: 'all', label: 'All' },
-  { value: 'required', label: 'Required' },
-  { value: 'optional', label: 'Optional' },
-  { value: 'unsupported', label: 'Unsupported' }
-];
-
-const projectTypeOptions = [
-  { value: 'all', label: 'All Types' },
-  { value: 'mod', label: 'Mods' },
-  { value: 'plugin', label: 'Plugins' },
-  { value: 'datapack', label: 'Data Packs' },
-  { value: 'shader', label: 'Shaders' }
-];
-
-const commonCategories = [
-  'technology', 'adventure', 'magic', 'utility', 'decoration', 
-  'food', 'mobs', 'equipment', 'transportation', 'worldgen'
+// Filter configuration
+const filterSections = [
+  {
+    id: 'environment' as const,
+    label: 'Environment',
+    collapsedKey: 'environment' as const,
+    options: ['Client', 'Server']
+  },
+  {
+    id: 'categories' as const,
+    label: 'Categories',
+    collapsedKey: 'categories' as const,
+    options: ['Adventure', 'Cursed', 'Decoration', 'Economy', 'Equipment', 'Food', 'Game Mechanics', 'Library', 'Magic', 'Management', 'Minigame', 'Mobs', 'Optimization', 'Social', 'Storage', 'Technology', 'Transportation', 'Utility', 'World Generation']
+  },
+  {
+    id: 'license' as const,
+    label: 'License',
+    collapsedKey: 'license' as const,
+    options: ['Open Source']
+  }
 ];
 
 // Reactive statements
@@ -96,10 +105,9 @@ $: currentInstallation = $selectedInstallation;
 $: mods = $modsByProvider[currentProvider] || [];
 $: loading = $modsLoading;
 $: error = $modsError;
-$: filteredMods = applyFilters(mods);
-// For backend pagination, we show all loaded mods (no client-side slicing)
-$: paginatedMods = filteredMods;
-$: totalMods = filteredMods.length;
+// Don't apply client-side filters - let backend handle it
+$: paginatedMods = mods;
+$: totalMods = mods.length;
 
 // Load installed mods when installation changes
 $: if (currentInstallation) {
@@ -107,7 +115,94 @@ $: if (currentInstallation) {
   loadInstalledMods(currentInstallation);
 }
 
-// Apply client-side filters
+// Handle filter changes - debounced to avoid too many API calls
+let filterChangeTimeout: number | null = null;
+function handleFiltersChange() {
+  if (filterChangeTimeout) clearTimeout(filterChangeTimeout);
+  filterChangeTimeout = window.setTimeout(async () => {
+    await applyFiltersToBackend();
+  }, 300);
+}
+
+// Apply filters to backend
+async function applyFiltersToBackend() {
+  if (!modsService) return;
+  
+  // Build filter object for backend
+  const includeCategories = filters.categories.filter(f => f.mode === 'include').map(f => f.value);
+  const excludeCategories = filters.categories.filter(f => f.mode === 'exclude').map(f => f.value);
+  const includeEnvironments = filters.environment.filter(f => f.mode === 'include').map(f => f.value);
+  const excludeEnvironments = filters.environment.filter(f => f.mode === 'exclude').map(f => f.value);
+  const openSource = filters.license.some(f => f.mode === 'include' && f.value === 'Open Source');
+  
+  // If no filters and no search, clear filters
+  if (!searchQuery && includeCategories.length === 0 && excludeCategories.length === 0 &&
+      includeEnvironments.length === 0 && excludeEnvironments.length === 0 && !openSource) {
+    currentPage = 1;
+    modsOffset.set(0);
+    await modsService.setFilter(null, currentInstallation);
+    return;
+  }
+  
+  // Build filter facets for Modrinth (backend expects specific format)
+  // Note: FilterFacets uses tuples [operation, value] for filters
+  // Operations: ':' or '=' for include, '!=' for exclude
+  // See: https://docs.modrinth.com/api/operations/searchprojects/
+  
+  // Each filter is AND'd together - put each in separate array
+  // To OR filters together, put them in the same array
+  // Example: [["categories:adventure"], ["categories!=equipment"]] = adventure AND (not equipment)
+  // Example: [["categories:adventure", "categories:magic"]] = adventure OR magic
+  
+  const includeCategoryFilters: [string, string][] = 
+    includeCategories.map(c => [':', c.toLowerCase()] as [string, string]);
+  const excludeCategoryFilters: [string, string][] = 
+    excludeCategories.map(c => ['!=', c.toLowerCase()] as [string, string]);
+  
+  // Each filter is its own entry (AND'd together)
+  const categoryFilters = [...includeCategoryFilters, ...excludeCategoryFilters];
+  
+  const filterFacets: FilterFacets = {
+    query: searchQuery || undefined,
+    categories: categoryFilters.length > 0 ? categoryFilters : undefined,
+    // For environment, handle both include and exclude
+    // If both Client include and exclude, prioritize exclude (!=)
+    client_side: excludeEnvironments.includes('Client') 
+      ? ['!=', 'required']
+      : includeEnvironments.includes('Client') 
+        ? [':', 'required'] 
+        : undefined,
+    server_side: excludeEnvironments.includes('Server')
+      ? ['!=', 'required']
+      : includeEnvironments.includes('Server')
+        ? [':', 'required']
+        : undefined,
+    index: undefined,
+    open_source: openSource || undefined,
+    license: undefined,
+    downloads: undefined
+  };
+  
+  // Wrap in ModFilter discriminated union based on current provider
+  // Rust enum format uses externally tagged representation: { "Modrinth": {...} }
+  const modFilter = currentProvider === ProviderKind.Modrinth 
+    ? { Modrinth: filterFacets }
+    : { CurseForge: filterFacets }; // TODO: Implement proper CurseForge filter format
+  
+  console.log('[ModBrowser] Applying filters to backend:', JSON.stringify(modFilter, null, 2));
+  
+  // Reset to first page when filters change
+  currentPage = 1;
+  modsOffset.set(0);
+  
+  try {
+    await modsService.setFilter(modFilter, currentInstallation);
+  } catch (e) {
+    console.error('[ModBrowser] Failed to apply filters:', e);
+  }
+}
+
+// Client-side filtering for display (now only used for exclude filters that backend doesn't support)
 function applyFilters(modsList: ModInfoKind[]) {
   if (!modsList || modsList.length === 0) return [];
   
@@ -127,46 +222,131 @@ function applyFilters(modsList: ModInfoKind[]) {
       }
     }
     
-    // Client side filter
-    if (filters.clientSide !== 'all' && info.client_side !== filters.clientSide) {
-      return false;
+    // Include filters (must match at least one if specified)
+    const includeCategories = filters.categories.filter(f => f.mode === 'include').map(f => f.value.toLowerCase());
+    if (includeCategories.length > 0) {
+      const modCategories = info.categories.map(c => c.toLowerCase());
+      if (!includeCategories.some(cat => modCategories.includes(cat))) {
+        return false;
+      }
     }
     
-    // Server side filter
-    if (filters.serverSide !== 'all' && info.server_side !== filters.serverSide) {
-      return false;
+    const includeEnvironments = filters.environment.filter(f => f.mode === 'include').map(f => f.value.toLowerCase());
+    if (includeEnvironments.length > 0) {
+      const clientMatch = includeEnvironments.includes('client') && info.client_side && info.client_side !== 'unsupported';
+      const serverMatch = includeEnvironments.includes('server') && info.server_side && info.server_side !== 'unsupported';
+      if (!clientMatch && !serverMatch) {
+        return false;
+      }
     }
     
-    // Project type filter
-    if (filters.projectType !== 'all' && info.project_type !== filters.projectType) {
-      return false;
+    const includeLicenses = filters.license.filter(f => f.mode === 'include').map(f => f.value.toLowerCase());
+    if (includeLicenses.length > 0) {
+      // Check if mod has open source license
+      if (includeLicenses.includes('open source')) {
+        const license = info.license?.toLowerCase() || '';
+        const isOpenSource = license.includes('mit') || license.includes('gpl') || 
+                           license.includes('apache') || license.includes('bsd') ||
+                           license.includes('cc0') || license.includes('unlicense') ||
+                           license.includes('lgpl') || license.includes('mpl');
+        if (!isOpenSource) {
+          return false;
+        }
+      }
     }
     
-    // Categories filter
-    if (filters.categories.length > 0) {
-      const hasCategory = filters.categories.some(cat => 
-        info.categories.includes(cat)
-      );
-      if (!hasCategory) return false;
+    // Exclude filters (must not match any)
+    const excludeCategories = filters.categories.filter(f => f.mode === 'exclude').map(f => f.value.toLowerCase());
+    if (excludeCategories.length > 0) {
+      const modCategories = info.categories.map(c => c.toLowerCase());
+      if (excludeCategories.some(cat => modCategories.includes(cat))) {
+        return false;
+      }
+    }
+    
+    const excludeEnvironments = filters.environment.filter(f => f.mode === 'exclude').map(f => f.value.toLowerCase());
+    if (excludeEnvironments.length > 0) {
+      const clientMatch = excludeEnvironments.includes('client') && info.client_side && info.client_side !== 'unsupported';
+      const serverMatch = excludeEnvironments.includes('server') && info.server_side && info.server_side !== 'unsupported';
+      if (clientMatch || serverMatch) {
+        return false;
+      }
     }
     
     return true;
   });
 }
 
+// Handle search query changes
+async function handleSearch() {
+  if (!modsService) return;
+  await applyFiltersToBackend();
+}
+
+// Filter helper functions
+function toggleFilter(category: 'categories' | 'environment' | 'license', value: string) {
+  const existing = filters[category].find(f => f.value === value);
+  if (existing) {
+    if (existing.mode === 'include') {
+      // Include -> None (remove the filter)
+      filters[category] = filters[category].filter(f => f.value !== value);
+    } else {
+      // Exclude -> Include (switch mode by creating new array)
+      filters[category] = filters[category].map(f => 
+        f.value === value ? { ...f, mode: 'include' as const } : f
+      );
+    }
+  } else {
+    // None -> Include (add as include filter)
+    filters[category] = [...filters[category], { value, mode: 'include' as const }];
+  }
+  // Trigger reactivity and backend update
+  filters = { ...filters };
+  handleSearch();
+}
+
+function toggleFilterExclude(category: 'categories' | 'environment' | 'license', value: string) {
+  const existing = filters[category].find(f => f.value === value);
+  if (existing) {
+    if (existing.mode === 'exclude') {
+      // Exclude -> None (remove the filter)
+      filters[category] = filters[category].filter(f => f.value !== value);
+    } else {
+      // Include -> Exclude (switch mode by creating new array)
+      filters[category] = filters[category].map(f => 
+        f.value === value ? { ...f, mode: 'exclude' as const } : f
+      );
+    }
+  } else {
+    // None -> Exclude (add as exclude filter)
+    filters[category] = [...filters[category], { value, mode: 'exclude' as const }];
+  }
+  // Trigger reactivity and backend update
+  filters = { ...filters };
+  handleSearch();
+}
+
+function getFilterState(category: 'categories' | 'environment' | 'license', value: string): FilterMode | null {
+  const filter = filters[category].find(f => f.value === value);
+  return filter ? filter.mode : null;
+}
+
+function toggleSection(section: keyof typeof collapsedSections) {
+  collapsedSections[section] = !collapsedSections[section];
+}
+
 function resetFilters() {
   filters = {
-    clientSide: 'all',
-    serverSide: 'all', 
-    projectType: 'all',
     categories: [],
-    gameVersions: []
+    environment: [],
+    license: []
   };
+  searchQuery = '';
   currentPage = 1;
   // Don't reset visitedPages or maxPageReached - keep pagination history
   modsOffset.set(0);
   if (modsService) {
-    modsService.loadMods();
+    modsService.setFilter(null, currentInstallation);
   }
 }
 
@@ -477,18 +657,6 @@ function generatePageNumbers(): (number | 'ellipsis')[] {
   return pages;
 }
 
-function toggleCategory(category: string) {
-  if (filters.categories.includes(category)) {
-    filters.categories = filters.categories.filter(c => c !== category);
-  } else {
-    filters.categories = [...filters.categories, category];
-  }
-  currentPage = 1;
-  // Don't reset pagination history for filters
-  modsOffset.set(0);
-  if (modsService) modsService.loadMods();
-}
-
 function handleModDownload(mod: ModInfoKind) {
   if (!currentInstallation) {
     alert('Please select an installation first');
@@ -589,6 +757,7 @@ function getModDisplayInfo(mod: ModInfoKind): {
   client_side?: string;
   server_side?: string;
   game_versions: string[];
+  loaders?: string[];
   source_url?: string;
   wiki_url?: string;
   license?: string;
@@ -612,6 +781,7 @@ function getModDisplayInfo(mod: ModInfoKind): {
       client_side: modrinthData.client_side,
       server_side: modrinthData.server_side,
       game_versions: modrinthData.game_versions || [] as string[],
+      loaders: modrinthData.loaders,
       source_url: modrinthData.source_url,
       wiki_url: modrinthData.wiki_url,
       license: modrinthData.license,
@@ -637,6 +807,7 @@ function getModDisplayInfo(mod: ModInfoKind): {
       client_side: undefined, // CurseForge doesn't have this concept
       server_side: undefined, // CurseForge doesn't have this concept
       game_versions: curseforgeData.latest_files_indexes?.map(file => file.game_version) || [] as string[],
+      loaders: undefined, // CurseForge doesn't expose loaders in the same format
       source_url: curseforgeData.links?.source_url,
       wiki_url: curseforgeData.links?.wiki_url,
       license: undefined, // CurseForge doesn't expose license in the same way
@@ -662,6 +833,7 @@ function getModDisplayInfo(mod: ModInfoKind): {
       client_side: mod.data.client_side,
       server_side: mod.data.server_side,
       game_versions: mod.data.game_versions || [] as string[],
+      loaders: mod.data.loaders,
       source_url: mod.data.source_url,
       wiki_url: mod.data.wiki_url,
       license: mod.data.license,
@@ -687,6 +859,7 @@ function getModDisplayInfo(mod: ModInfoKind): {
       client_side: undefined, // CurseForge doesn't have this concept
       server_side: undefined, // CurseForge doesn't have this concept
       game_versions: mod.data.latest_files_indexes?.map(file => file.game_version) || [] as string[],
+      loaders: undefined, // CurseForge doesn't expose loaders in the same format
       source_url: mod.data.links?.source_url,
       wiki_url: mod.data.links?.wiki_url,
       license: undefined, // CurseForge doesn't expose license in the same way
@@ -810,21 +983,14 @@ onMount(async () => {
                 type="text"
                 placeholder="Search mods..."
                 bind:value={searchQuery}
-                on:input={() => { 
-                  currentPage = 1; 
-                  // Don't reset pagination history for search
-                  modsOffset.set(0);
-                  if (modsService) modsService.loadMods();
-                }}
+                on:input={handleSearch}
+                on:keydown={(e) => { if (e.key === 'Enter') handleSearch(); }}
                 class="search-input"
               />
               {#if searchQuery}
                 <button class="clear-btn" on:click={() => { 
                   searchQuery = ''; 
-                  currentPage = 1; 
-                  // Don't reset pagination history
-                  modsOffset.set(0);
-                  if (modsService) modsService.loadMods();
+                  handleSearch();
                 }}>
                   <Icon name="x" size="sm" />
                 </button>
@@ -832,66 +998,41 @@ onMount(async () => {
             </div>
           </div>
 
-          <!-- Client/Server Side -->
-          <div class="filter-section">
-            <label class="filter-label" for="client-side">Client Side</label>
-            <select id="client-side" bind:value={filters.clientSide} on:change={() => { 
-              currentPage = 1; 
-              // Don't reset pagination history for filters
-              modsOffset.set(0);
-              if (modsService) modsService.loadMods();
-            }} class="filter-select">
-              {#each clientServerOptions as option}
-                <option value={option.value}>{option.label}</option>
-              {/each}
-            </select>
-          </div>
+          <!-- Dynamic Filter Sections -->
+          {#each filterSections as section}
+            <div class="filter-section">
+              <button class="filter-header" on:click={() => toggleSection(section.collapsedKey)}>
+                <span class="filter-label">{section.label}</span>
+                <Icon name={collapsedSections[section.collapsedKey] ? 'chevron-down' : 'chevron-up'} size="md" forceType="svg" />
+              </button>
 
-          <div class="filter-section">
-            <label class="filter-label" for="server-side">Server Side</label>
-            <select id="server-side" bind:value={filters.serverSide} on:change={() => { 
-              currentPage = 1; 
-              // Don't reset pagination history for filters
-              modsOffset.set(0);
-              if (modsService) modsService.loadMods();
-            }} class="filter-select">
-              {#each clientServerOptions as option}
-                <option value={option.value}>{option.label}</option>
-              {/each}
-            </select>
-          </div>
-
-          <!-- Project Type -->
-          <div class="filter-section">
-            <label class="filter-label" for="project-type">Type</label>
-            <select id="project-type" bind:value={filters.projectType} on:change={() => { 
-              currentPage = 1; 
-              // Don't reset pagination history for filters
-              modsOffset.set(0);
-              if (modsService) modsService.loadMods();
-            }} class="filter-select">
-              {#each projectTypeOptions as option}
-                <option value={option.value}>{option.label}</option>
-              {/each}
-            </select>
-          </div>
-
-          <!-- Categories -->
-          <div class="filter-section">
-            <label class="filter-label" for="categories">Categories</label>
-            <div class="checkbox-group">
-              {#each commonCategories as category}
-                <label class="checkbox-item">
-                  <input 
-                    type="checkbox" 
-                    checked={filters.categories.includes(category)}
-                    on:change={() => toggleCategory(category)}
-                  />
-                  <span class="checkbox-label">{category}</span>
-                </label>
-              {/each}
+              {#if !collapsedSections[section.collapsedKey]}
+                <div class="filter-options">
+                  {#each section.options as option}
+                    <div class="filter-option" 
+                         class:included={getFilterState(section.id, option) === 'include'}
+                         class:excluded={getFilterState(section.id, option) === 'exclude'}>
+                      <button class="filter-option-btn include-btn" 
+                              class:active={getFilterState(section.id, option) === 'include'}
+                              on:click={() => toggleFilter(section.id, option)}>
+                        <span class="option-label">{option}</span>
+                        {#if getFilterState(section.id, option) === 'include'}
+                          <Icon name="x" size="sm" forceType="svg" />
+                        {:else}
+                          <Icon name="check" size="sm" forceType="svg" />
+                        {/if}
+                      </button>
+                      <button class="filter-option-btn exclude-btn" 
+                              class:active={getFilterState(section.id, option) === 'exclude'}
+                              on:click={() => toggleFilterExclude(section.id, option)}>
+                        <Icon name="trash" size="sm" forceType="svg" />
+                      </button>
+                    </div>
+                  {/each}
+                </div>
+              {/if}
             </div>
-          </div>
+          {/each}
         </div>
       {/if}
     </div>
@@ -999,10 +1140,10 @@ onMount(async () => {
               {/if}
             </p>
             
-            {#if filteredMods.length !== mods.length}
+            {#if filters.categories.length > 0 || filters.environment.length > 0 || filters.license.length > 0 || searchQuery}
               <button class="clear-filters-btn" on:click={resetFilters}>
                 <Icon name="refresh" size="sm" />
-                Clear Filters ({mods.length} total mods)
+                Clear Filters & Search
               </button>
             {/if}
           </div>
@@ -1226,16 +1367,40 @@ onMount(async () => {
     padding: 0.5rem;
     
     .filter-section {
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
       
       .filter-label {
         display: block;
-        font-size: 0.75em;
+        font-size: 0.95em;
         font-weight: 600;
         color: var(--text);
         margin-bottom: 0.375rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+      }
+      
+      .filter-header {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.375rem 0.5rem;
+        background: #{'color-mix(in srgb, var(--primary), 5%, transparent)'};
+        border: 1px solid #{'color-mix(in srgb, var(--primary), 12%, transparent)'};
+        border-radius: 0.25rem;
+        cursor: pointer;
+        transition: all 0.15s;
+        margin-bottom: 0.375rem;
+        
+        &:hover {
+          background: #{'color-mix(in srgb, var(--primary), 8%, transparent)'};
+          border-color: #{'color-mix(in srgb, var(--primary), 20%, transparent)'};
+        }
+        
+        .filter-label {
+          margin: 0;
+          font-size: 0.8em;
+        }
       }
       
       .search-input-wrapper {
@@ -1251,13 +1416,14 @@ onMount(async () => {
         }
         
         .search-input {
-          width: 100%;
+          width: 90%;
           padding: 0.5rem 0.5rem 0.5rem 2rem;
-          border: 1px solid var(--dark-600);
+          border: 1px solid #{'color-mix(in srgb, var(--primary), 15%, transparent)'};
           border-radius: 0.375rem;
           background: var(--input);
           color: var(--text);
           font-size: 0.8em;
+          transition: all 0.15s;
           
           &:focus {
             outline: none;
@@ -1279,6 +1445,7 @@ onMount(async () => {
           cursor: pointer;
           padding: 0.125rem;
           border-radius: 0.125rem;
+          transition: all 0.15s;
           
           &:hover {
             color: var(--red);
@@ -1287,51 +1454,101 @@ onMount(async () => {
         }
       }
       
-      .filter-select {
-        width: 100%;
-        padding: 0.375rem 0.5rem;
-        border: 1px solid var(--dark-600);
-        border-radius: 0.375rem;
-        background: var(--card);
-        color: var(--text);
-        font-size: 0.8em;
-        cursor: pointer;
-        
-        &:focus {
-          outline: none;
-          border-color: var(--primary);
-        }
-      }
-      
-      .checkbox-group {
+      .filter-options {
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
-        max-height: 120px;
-        overflow-y: auto;
         
-        .checkbox-item {
+        .filter-option {
           display: flex;
-          align-items: center;
-          gap: 0.375rem;
-          padding: 0.25rem;
           border-radius: 0.25rem;
-          cursor: pointer;
-          transition: background 0.15s;
+          overflow: hidden;
+          border: 1px solid var(--dark-600);
+          transition: all 0.15s;
           
           &:hover {
-            background: #{'color-mix(in srgb, var(--primary), 5%, transparent)'};
+            border-color: var(--dark-400);
           }
           
-          input[type="checkbox"] {
-            margin: 0;
-            accent-color: var(--primary);
+          &.included {
+            border-color: var(--green);
+            background: #{'color-mix(in srgb, var(--green), 5%, transparent)'};
           }
           
-          .checkbox-label {
-            font-size: 0.75em;
+          &.excluded {
+            border-color: var(--red);
+            background: #{'color-mix(in srgb, var(--red), 5%, transparent)'};
+          }
+          
+          .filter-option-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.5rem 0.625rem;
+            background: transparent;
+            border: none;
             color: var(--text);
-            text-transform: capitalize;
+            cursor: pointer;
+            transition: all 0.15s;
+            
+            &:hover {
+              background: #{'color-mix(in srgb, var(--primary), 3%, transparent)'};
+            }
+            
+            .option-label {
+              font-size: 0.75em;
+              font-weight: 500;
+              text-align: left;
+              text-transform: capitalize;
+              flex: 1;
+            }
+            
+            :global(.icon) {
+              color: var(--placeholder);
+              transition: color 0.15s;
+            }
+            
+            &.include-btn {
+              flex: 1;
+              gap: 0.5rem;
+              
+              &:hover {
+                background: #{'color-mix(in srgb, var(--green), 8%, transparent)'};
+                
+                :global(.icon) {
+                  color: var(--green);
+                }
+              }
+              
+              &.active {
+                background: #{'color-mix(in srgb, var(--green), 12%, transparent)'};
+                color: var(--green);
+                
+                :global(.icon) {
+                  color: var(--green);
+                }
+              }
+            }
+            
+            &.exclude-btn {
+              padding: 0.5rem;
+              
+              &:hover {
+                background: #{'color-mix(in srgb, var(--red), 8%, transparent)'};
+                
+                :global(.icon) {
+                  color: var(--red);
+                }
+              }
+              
+              &.active {
+                background: #{'color-mix(in srgb, var(--red), 12%, transparent)'};
+                
+                :global(.icon) {
+                  color: var(--red);
+                }
+              }
+            }
           }
         }
       }

@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { get } from 'svelte/store';
-import type { ShaderPack, ShaderDownload, KableInstallation } from '../types';
+import type { ShaderPack, ShaderDownload, KableInstallation, ShaderFilterFacets } from '../types';
 import { settings } from '../stores/settings';
 import { shaderDownloads, shadersLoading, shadersError, shadersLimit, shadersOffset, shadersInstallation, shadersInstallMode } from '../stores/shaders';
 import * as ShadersAPI from '../api/shaders';
@@ -16,6 +16,7 @@ export interface ShaderFilter {
 
 export class ShadersService {
   private static minecraftPath: string | null = null;
+  private currentFilter: ShaderFilterFacets | null = null;
   initialized = false;
 
   constructor() {
@@ -41,8 +42,10 @@ export class ShadersService {
     console.log(`[ShadersService] Loading shaders (offset: ${offset}, limit: ${limit})`);
 
     try {
-      // Search Modrinth for shaders
-      const shaders = await ShadersAPI.searchModrinthShaders('', null, limit, offset);
+      // Search Modrinth for shaders with current filter
+      const shaders = this.currentFilter
+        ? await ShadersAPI.searchModrinthShadersWithFacets('', null, this.currentFilter, limit, offset)
+        : await ShadersAPI.searchModrinthShaders('', null, limit, offset);
       console.log(`[ShadersService] Successfully loaded ${shaders.length} shaders`);
       shaderDownloads.set(shaders);
     } catch (e: any) {
@@ -51,6 +54,13 @@ export class ShadersService {
     } finally {
       shadersLoading.set(false);
     }
+  }
+
+  async setFilter(filter: ShaderFilterFacets | null) {
+    this.currentFilter = filter;
+    console.log('[ShadersService] Setting shader filter:', JSON.stringify(filter, null, 2));
+    shadersOffset.set(0); // Reset to first page
+    await this.loadShaders();
   }
 
   async setLimit(limit: number) {
@@ -87,7 +97,9 @@ export class ShadersService {
     console.log(`[ShadersService] Searching shaders: "${query}"`);
 
     try {
-      const shaders = await ShadersAPI.searchModrinthShaders(query, null, limit, 0);
+      const shaders = this.currentFilter
+        ? await ShadersAPI.searchModrinthShadersWithFacets(query, null, this.currentFilter, limit, 0)
+        : await ShadersAPI.searchModrinthShaders(query, null, limit, 0);
       console.log(`[ShadersService] Found ${shaders.length} shaders matching "${query}"`);
       shaderDownloads.set(shaders);
       shadersOffset.set(0); // Reset to first page on new search

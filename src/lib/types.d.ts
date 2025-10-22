@@ -819,15 +819,16 @@ export type ModInfoKind =
 
 
 /** Discriminated union for mod filters for each provider.
+ * Uses Rust externally tagged enum format for serde compatibility.
  * ```ts
  * export type ModFilter =
- *   | { kind: 'Modrinth'; facets: FilterFacets }
- *   | { kind: 'CurseForge'; facets: CurseForgeFilter };
+ *   | { Modrinth: FilterFacets }
+ *   | { CurseForge: CurseForgeFilter };
  * ```
  */
 export type ModFilter =
-  | { kind: 'Modrinth'; facets: FilterFacets }
-  | { kind: 'CurseForge'; facets: CurseForgeFilter };
+  | { Modrinth: FilterFacets }
+  | { CurseForge: CurseForgeFilter };
 
 
 /** Modrinth filter facets for searching mods.
@@ -861,6 +862,27 @@ export interface FilterFacets {
   license?: [string, string];
   /** Downloads filter as [facet, minDownloads] */
   downloads?: [string, number];
+}
+
+/** Modrinth filter facets for searching shaders.
+ * ```ts
+ * export interface ShaderFilterFacets {
+ *   query?: string;
+ *   loaders?: [string, string][];
+ *   categories?: [string, string][];
+ *   game_versions?: string[];
+ * }
+ * ```
+ */
+export interface ShaderFilterFacets {
+  /** Free-text search query */
+  query?: string;
+  /** Array of [operation, value] pairs for loaders (iris, optifine, canvas, vanilla) */
+  loaders?: [string, string][];
+  /** Array of [operation, value] pairs for categories (performance, features, style) */
+  categories?: [string, string][];
+  /** Game versions to filter by */
+  game_versions?: string[];
 }
 
 

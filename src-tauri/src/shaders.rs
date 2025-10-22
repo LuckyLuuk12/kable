@@ -1,7 +1,60 @@
+use kable_macros::log_result;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 use tokio::fs as async_fs;
+
+// Filter structure for shader searching
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct ShaderFilterFacets {
+    pub query: Option<String>,                      // User search string
+    pub loaders: Option<Vec<(String, String)>>,     // (operation, value) - each AND'd
+    pub categories: Option<Vec<(String, String)>>,  // (operation, value) - each AND'd
+    pub game_versions: Option<Vec<String>>,         // From installation
+    // Note: Performance and features are Modrinth categories/tags
+}
+
+impl ShaderFilterFacets {
+    /// Build facets array for Modrinth API from ShaderFilterFacets + installation info
+    /// Returns Vec<Vec<String>> where:
+    /// - Each inner Vec is OR'd together
+    /// - Outer Vec items are AND'd together
+    ///   Each filter is AND'd as separate array
+    pub fn to_modrinth_facets(&self, mc_version: Option<&str>) -> Vec<Vec<String>> {
+        let mut facets: Vec<Vec<String>> = Vec::new();
+
+        // Categories - each filter is AND'd (separate array per filter)
+        if let Some(ref cats) = self.categories {
+            for (op, val) in cats {
+                facets.push(vec![format!("categories{}{}", op, val)]);
+            }
+        }
+
+        // Loaders - each filter is AND'd (separate array per filter)
+        if let Some(ref loaders) = self.loaders {
+            for (op, val) in loaders {
+                facets.push(vec![format!("categories{}{}", op, val)]);
+            }
+        }
+
+        // MC Version from installation - AND (separate array)
+        if let Some(mc_version) = mc_version {
+            facets.push(vec![format!("versions:{}", mc_version)]);
+        }
+
+        // Game versions - each AND'd
+        if let Some(ref versions) = self.game_versions {
+            for version in versions {
+                facets.push(vec![format!("versions:{}", version)]);
+            }
+        }
+
+        // Project type - always shader
+        facets.push(vec!["project_type:shader".to_string()]);
+
+        facets
+    }
+}
 
 // Shader management structures
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -119,6 +172,7 @@ struct ModrinthFile {
 }
 
 /// Get all installed shaders from the shaderpacks directory
+#[log_result(log_values = true, max_length = 100)]
 pub async fn get_installed_shaders(minecraft_path: String) -> Result<Vec<ShaderPack>, String> {
     let shaderpacks_dir = PathBuf::from(minecraft_path).join("shaderpacks");
 
@@ -232,6 +286,7 @@ fn extract_shader_version(filename: &str) -> String {
 }
 
 /// Enable/disable shader pack
+#[log_result]
 pub async fn toggle_shader(
     minecraft_path: String,
     shader_file: String,
@@ -251,6 +306,7 @@ pub async fn toggle_shader(
 }
 
 /// Delete shader pack
+#[log_result]
 pub async fn delete_shader(minecraft_path: String, shader_file: String) -> Result<(), String> {
     let shader_path = PathBuf::from(minecraft_path)
         .join("shaderpacks")
@@ -268,6 +324,7 @@ pub async fn delete_shader(minecraft_path: String, shader_file: String) -> Resul
 }
 
 /// Install shader pack from file
+#[log_result]
 pub async fn install_shader_pack(
     minecraft_path: String,
     shader_file_path: String,
@@ -298,6 +355,7 @@ pub async fn install_shader_pack(
 }
 
 /// Get shader pack info
+#[log_result]
 pub async fn get_shader_info(
     minecraft_path: String,
     shader_file: String,
@@ -316,117 +374,170 @@ pub async fn get_shader_info(
 }
 
 /// Search for shader packs on Modrinth
+#[log_result(log_values = true, max_length = 100, debug_only = false)]
 pub async fn search_modrinth_shaders(
     query: String,
     minecraft_version: Option<String>,
     limit: u32,
     offset: u32,
 ) -> Result<Vec<ShaderDownload>, String> {
+    search_modrinth_shaders_with_facets(query, minecraft_version, None, limit, offset).await
+}
+
+/// Search for shader packs on Modrinth with custom filter facets
+#[log_result(log_values = true, max_length = 100, debug_only = false)]
+pub async fn search_modrinth_shaders_with_facets(
+    query: String,
+    minecraft_version: Option<String>,
+    facets: Option<ShaderFilterFacets>,
+    limit: u32,
+    offset: u32,
+) -> Result<Vec<ShaderDownload>, String> {
     let client = reqwest::Client::new();
     let mut url = format!(
-        "https://api.modrinth.com/v2/search?query={}&facets=[[\"project_type:shader\"]]&limit={}&offset={}",
-        urlencoding::encode(&query),
-        limit,
-        offset
+        "https://api.modrinth.com/v2/search?limit={}&offset={}&facets=[[\"project_type:shader\"]]",
+        limit, offset
     );
 
-    if let Some(version) = minecraft_version {
+    // Add query if present
+    if !query.is_empty() {
+        let encoded = query.replace(' ', "%20").replace('&', "%26");
+        url.push_str(&format!("&query={}", encoded));
+    }
+
+    // Build facets if custom filters provided
+    if let Some(filter_facets) = facets {
+        let facet_arrays = filter_facets.to_modrinth_facets(minecraft_version.as_deref());
+        if !facet_arrays.is_empty() {
+            let facets_json: Vec<String> = facet_arrays
+                .iter()
+                .map(|inner_array| {
+                    let items: Vec<String> = inner_array
+                        .iter()
+                        .map(|item| format!("\"{}\"", item))
+                        .collect();
+                    format!("[{}]", items.join(","))
+                })
+                .collect();
+            // Replace the default facets with our custom ones
+            let facets_param = format!("&facets=[{}]", facets_json.join(","));
+            // Remove default facets and add custom ones
+            url = url.replace("&facets=[[\"project_type:shader\"]]", &facets_param);
+        }
+    } else if let Some(version) = minecraft_version {
+        // Simple version filter without custom facets
         url.push_str(&format!(
-            ",[[\"versions:{}\"]]",
-            urlencoding::encode(&version)
+            "&facets=[[\"versions:{}\"]]",
+            version
         ));
     }
 
+    println!("[ModrinthAPI] Calling shader search URL: {}", url);
+
     let response = client
         .get(&url)
-        .header("User-Agent", "kable-launcher")
         .send()
         .await
-        .map_err(|e| format!("Failed to search Modrinth: {}", e))?;
+        .map_err(|e| format!("Failed to search Modrinth shaders: {}", e))?;
 
     let search_result: ModrinthSearchResponse = response
         .json()
         .await
-        .map_err(|e| format!("Failed to parse Modrinth response: {}", e))?;
+        .map_err(|e| format!("Failed to parse Modrinth shader search response: {}", e))?;
 
     let mut shaders = Vec::new();
     for project in search_result.hits {
-        // Fetch full project details to get gallery images
-        let project_url = format!("https://api.modrinth.com/v2/project/{}", project.project_id);
-        let project_response = client
-            .get(&project_url)
-            .header("User-Agent", "kable-launcher")
-            .send()
-            .await;
-
-        let full_project = if let Ok(response) = project_response {
-            response.json::<ModrinthProject>().await.ok()
-        } else {
-            None
-        };
-
-        // Fetch project versions to get download info
+        // Get version details
         let version_url = format!(
             "https://api.modrinth.com/v2/project/{}/version",
             project.project_id
         );
-
-        let version_response = client
-            .get(&version_url)
-            .header("User-Agent", "kable-launcher")
-            .send()
-            .await;
-
-        if let Ok(response) = version_response {
-            if let Ok(versions) = response.json::<Vec<ModrinthVersion>>().await {
-                if let Some(latest_version) = versions.first() {
-                    if let Some(primary_file) = latest_version.files.iter().find(|f| f.primary) {
-                        let loader = if latest_version.loaders.contains(&"iris".to_string()) {
-                            ShaderLoader::Iris
-                        } else if latest_version.loaders.contains(&"optifine".to_string()) {
-                            ShaderLoader::OptiFine
-                        } else if latest_version.loaders.contains(&"canvas".to_string()) {
-                            ShaderLoader::Canvas
-                        } else if latest_version.loaders.contains(&"vanilla".to_string()) {
-                            ShaderLoader::Vanilla
-                        } else {
-                            ShaderLoader::OptiFine
-                        };
-
-                        // Use gallery from full project details if available, otherwise fall back to search result
-                        let (gallery, featured_gallery) = if let Some(ref full) = full_project {
-                            (full.gallery.clone(), full.featured_gallery.clone())
-                        } else {
-                            (project.gallery.clone(), project.featured_gallery.clone())
-                        };
-
-                        shaders.push(ShaderDownload {
-                            id: project.project_id.clone(),
-                            name: project.title,
-                            author: project.author,
-                            description: project.description,
-                            download_url: primary_file.url.clone(),
-                            thumbnail: project.icon_url,
-                            gallery,
-                            featured_gallery,
-                            tags: project.categories,
-                            minecraft_versions: latest_version.game_versions.clone(),
-                            shader_loader: loader,
-                            rating: 0.0,
-                            downloads: project.downloads,
-                            size_mb: primary_file.size / (1024 * 1024),
-                            source: ShaderSource::Modrinth,
-                        });
-                    }
-                }
+        let version_response = match client.get(&version_url).send().await {
+            Ok(resp) => resp,
+            Err(e) => {
+                println!(
+                    "[ModrinthAPI] Failed to fetch versions for shader {}: {}",
+                    project.project_id, e
+                );
+                continue;
             }
-        }
+        };
+
+        let versions: Vec<ModrinthVersion> = match version_response.json().await {
+            Ok(v) => v,
+            Err(e) => {
+                println!(
+                    "[ModrinthAPI] Failed to parse versions for shader {}: {}",
+                    project.project_id, e
+                );
+                continue;
+            }
+        };
+
+        let latest_version = match versions.first() {
+            Some(v) => v,
+            None => {
+                println!(
+                    "[ModrinthAPI] No versions found for shader {}",
+                    project.project_id
+                );
+                continue;
+            }
+        };
+
+        let primary_file = match latest_version
+            .files
+            .iter()
+            .find(|f| f.primary)
+            .or_else(|| latest_version.files.first())
+        {
+            Some(f) => f,
+            None => {
+                println!(
+                    "[ModrinthAPI] No files found for shader {} version {}",
+                    project.project_id, latest_version.id
+                );
+                continue;
+            }
+        };
+
+        let loader = if latest_version.loaders.contains(&"iris".to_string()) {
+            ShaderLoader::Iris
+        } else if latest_version.loaders.contains(&"optifine".to_string()) {
+            ShaderLoader::OptiFine
+        } else if latest_version.loaders.contains(&"canvas".to_string()) {
+            ShaderLoader::Canvas
+        } else if latest_version.loaders.contains(&"vanilla".to_string()) {
+            ShaderLoader::Vanilla
+        } else {
+            ShaderLoader::Iris // Default to Iris
+        };
+
+        shaders.push(ShaderDownload {
+            id: project.project_id,
+            name: project.title,
+            author: project.author,
+            description: project.description,
+            download_url: primary_file.url.clone(),
+            thumbnail: project.icon_url,
+            gallery: project.gallery,
+            featured_gallery: project.featured_gallery,
+            tags: project.categories,
+            minecraft_versions: latest_version.game_versions.clone(),
+            shader_loader: loader,
+            rating: 0.0,
+            downloads: project.downloads,
+            size_mb: primary_file.size / 1024 / 1024,
+            source: ShaderSource::Modrinth,
+        });
     }
 
+    println!("[ModrinthAPI] Received {} shaders from API", shaders.len());
     Ok(shaders)
 }
 
 /// Get shader pack details from Modrinth
+#[log_result(log_values = true, max_length = 100)]
 pub async fn get_modrinth_shader_details(project_id: String) -> Result<ShaderDownload, String> {
     let client = reqwest::Client::new();
 
@@ -495,6 +606,7 @@ pub async fn get_modrinth_shader_details(project_id: String) -> Result<ShaderDow
 }
 
 /// Download and install shader from Modrinth
+#[log_result]
 pub async fn download_and_install_shader(
     minecraft_path: String,
     download_url: String,
@@ -529,6 +641,7 @@ pub async fn download_and_install_shader(
 }
 
 /// Download and install shader from Modrinth to a dedicated folder
+#[log_result]
 pub async fn download_and_install_shader_to_dedicated(
     minecraft_path: String,
     dedicated_folder: String,
@@ -571,6 +684,7 @@ pub async fn download_and_install_shader_to_dedicated(
 }
 
 /// Setup symbolic link from dedicated shader folder to .minecraft/shaderpacks
+#[log_result]
 pub async fn setup_shader_symlink(
     minecraft_path: String,
     dedicated_folder: String,

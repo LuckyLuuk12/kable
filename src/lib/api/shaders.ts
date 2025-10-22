@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { ShaderPack, ShaderDownload } from '$lib';
+import type { ShaderPack, ShaderDownload, ShaderFilterFacets } from '$lib';
 
 export async function getInstalledShaders(minecraftPath: string): Promise<ShaderPack[]> {
   return invoke('get_installed_shaders', { minecraftPath });
@@ -28,6 +28,16 @@ export async function searchModrinthShaders(
   offset: number
 ): Promise<ShaderDownload[]> {
   return invoke('search_modrinth_shaders', { query, minecraftVersion, limit, offset });
+}
+
+export async function searchModrinthShadersWithFacets(
+  query: string,
+  minecraftVersion: string | null,
+  facets: ShaderFilterFacets | null,
+  limit: number,
+  offset: number
+): Promise<ShaderDownload[]> {
+  return invoke('search_modrinth_shaders_with_facets', { query, minecraftVersion, facets, limit, offset });
 }
 
 export async function getModrinthShaderDetails(projectId: string): Promise<ShaderDownload> {

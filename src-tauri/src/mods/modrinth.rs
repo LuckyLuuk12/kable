@@ -2,53 +2,77 @@ use crate::{kable_profiles::KableInstallation, mods::cache::ModCache, mods::mana
 use kable_macros::log_result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct FilterFacets {
     pub query: Option<String>,                     // User search string
-    pub categories: Option<Vec<(String, String)>>, // (operation, value)
+    pub categories: Option<Vec<(String, String)>>, // (operation, value) - OR'd together
     pub client_side: Option<(String, String)>,     // (operation, value)
     pub server_side: Option<(String, String)>,     // (operation, value)
-    pub index: Option<String>,                     // sort order
     pub open_source: Option<bool>,                 // Open source flag
     pub license: Option<(String, String)>,         // (operation, value)
     pub downloads: Option<(String, u64)>,          // (operation, value)
-                                                   // ...other fields that are NOT available in KableInstallation
+    // Note: loader and game_versions come from installation, not user filters
 }
 
-impl fmt::Display for FilterFacets {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl FilterFacets {
+    /// Build facets array for Modrinth API from FilterFacets + installation info
+    /// Returns Vec<Vec<String>> where:
+    /// - Each inner Vec is OR'd together
+    /// - Outer Vec items are AND'd together
+    /// Each user filter (category, environment, etc.) is AND'd as separate array
+    pub fn to_modrinth_facets(
+        &self,
+        loader: Option<&str>,
+        mc_version: Option<&str>,
+    ) -> Vec<Vec<String>> {
         let mut facets: Vec<Vec<String>> = Vec::new();
+
+        // Categories - each filter is AND'd (separate array per filter)
         if let Some(ref cats) = self.categories {
-            let arr: Vec<String> = cats
-                .iter()
-                .map(|(op, val)| format!("categories{}{}", op, val))
-                .collect();
-            if !arr.is_empty() {
-                facets.push(arr);
+            for (op, val) in cats {
+                facets.push(vec![format!("categories{}{}", op, val)]);
             }
         }
+
+        // Loader from installation - AND (separate array)
+        if let Some(loader) = loader {
+            facets.push(vec![format!("categories:{}", loader)]);
+        }
+
+        // MC Version from installation - AND (separate array)
+        if let Some(mc_version) = mc_version {
+            facets.push(vec![format!("versions:{}", mc_version)]);
+        }
+
+        // Client side - AND (separate array)
         if let Some((op, val)) = &self.client_side {
             facets.push(vec![format!("client_side{}{}", op, val)]);
         }
+
+        // Server side - AND (separate array)
         if let Some((op, val)) = &self.server_side {
             facets.push(vec![format!("server_side{}{}", op, val)]);
         }
+
+        // License - AND (separate array)
         if let Some((op, val)) = &self.license {
             facets.push(vec![format!("license{}{}", op, val)]);
         }
+
+        // Downloads - AND (separate array)
         if let Some((op, val)) = &self.downloads {
             facets.push(vec![format!("downloads{}{}", op, val)]);
         }
-        // You can add more fields here as needed
-        // Example: always AND mod and modpack types
+
+        // Project type - always OR mod and modpack (single array = OR)
         facets.push(vec![
             "project_type:mod".to_string(),
             "project_type:modpack".to_string(),
         ]);
-        write!(f, "{}", serde_json::to_string(&facets).unwrap_or_default())
+
+        facets
     }
 }
 
@@ -177,12 +201,12 @@ pub struct ModrinthFile {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModrinthProvider {
     pub limit: usize,
-    pub category: Option<String>,
-    pub loader: Option<String>,
-    pub mc_version: Option<String>,
+    pub loader: Option<String>,        // From installation
+    pub mc_version: Option<String>,    // From installation
+    pub user_filters: Option<FilterFacets>, // User-defined filters
     pub cache: ModCache<Vec<ModrinthInfo>>,
     pub cache_path: PathBuf,
-    pub index: Option<String>, // For sorting/filtering
+    pub index: Option<String>, // For sorting
 }
 
 impl Default for ModrinthProvider {
@@ -194,12 +218,12 @@ impl Default for ModrinthProvider {
         let cache = ModCache::load_from_disk(&cache_path).unwrap_or_else(|_| ModCache::new(3600));
         Self {
             limit: 20,
-            category: None,
             loader: None,
             mc_version: None,
+            user_filters: None,
             cache,
             cache_path,
-            index: None, // Default to no sorting
+            index: None,
         }
     }
 }
@@ -211,11 +235,12 @@ impl ModProvider for ModrinthProvider {
     }
     #[log_result(log_values = true, max_length = 150)]
     async fn get(&mut self, offset: usize) -> Result<Vec<ModInfoKind>, String> {
+        // Generate cache key from user filters + installation context
         let cache_key = format!(
-            "offset:{}:index:{}:category:{}:loader:{}:mc_version:{}",
+            "offset:{}:index:{}:filters:{:?}:loader:{}:mc_version:{}",
             offset,
             self.index.as_deref().unwrap_or(""),
-            self.category.as_deref().unwrap_or(""),
+            self.user_filters,
             self.loader.as_deref().unwrap_or(""),
             self.mc_version.as_deref().unwrap_or("")
         );
@@ -246,18 +271,30 @@ impl ModProvider for ModrinthProvider {
             );
         }
 
-        let mods = if self.category.is_some() || self.loader.is_some() || self.mc_version.is_some()
-        {
-            println!("[ModrinthProvider] Making filtered API call");
-            get_mods_filtered_with_index(
-                self.category.as_deref(),
+        // Build facets using the new method
+        let mods = if let Some(ref user_filters) = self.user_filters {
+            println!("[ModrinthProvider] Making filtered API call with user filters");
+            let facets = user_filters.to_modrinth_facets(
                 self.loader.as_deref(),
                 self.mc_version.as_deref(),
+            );
+            get_mods_with_facets(
+                &facets,
                 offset,
                 self.limit,
                 self.index.as_deref(),
+                user_filters.query.as_deref(),
             )
             .await?
+        } else if self.loader.is_some() || self.mc_version.is_some() {
+            println!("[ModrinthProvider] Making filtered API call (installation only)");
+            // Even without user filters, build facets from installation
+            let empty_filters = FilterFacets::default();
+            let facets = empty_filters.to_modrinth_facets(
+                self.loader.as_deref(),
+                self.mc_version.as_deref(),
+            );
+            get_mods_with_facets(&facets, offset, self.limit, self.index.as_deref(), None).await?
         } else {
             println!("[ModrinthProvider] Making unfiltered API call");
             get_all_mods_with_index(offset, self.limit, self.index.as_deref()).await?
@@ -278,52 +315,43 @@ impl ModProvider for ModrinthProvider {
             filter
         );
 
+        // Store user-defined filters
         if let Some(crate::mods::manager::ModFilter::Modrinth(facets)) = filter {
-            // Example: extract loader, mc_version, category from FilterFacets if present
-            if let Some(ref cats) = facets.categories {
-                // Just use the first category for now
-                if let Some((_, val)) = cats.first() {
-                    self.category = Some(val.clone());
-                    println!("[ModrinthProvider] Set category filter: {}", val);
-                }
-            }
-            // Loader and mc_version could be encoded in categories or other fields, adapt as needed
-            // For demonstration, not extracting loader/mc_version from facets
+            self.user_filters = Some(facets);
+            println!("[ModrinthProvider] Set user filters: {:?}", self.user_filters);
         }
+
+        // Extract installation-specific context
         if let Some(installation) = installation {
             // Extract loader from version_id if present
-            if self.loader.is_none() {
-                if let Some(loader) = extract_loader_from_version_id(&installation.version_id) {
-                    self.loader = Some(loader.clone());
-                    println!(
-                        "[ModrinthProvider] Set loader filter from installation: {}",
-                        loader
-                    );
-                }
+            if let Some(loader) = extract_loader_from_version_id(&installation.version_id) {
+                self.loader = Some(loader.clone());
+                println!(
+                    "[ModrinthProvider] Set loader from installation: {}",
+                    loader
+                );
             }
 
             // Extract Minecraft version from version_id
-            if self.mc_version.is_none() {
-                if let Some(mc_version) = extract_minecraft_version(&installation.version_id) {
-                    self.mc_version = Some(mc_version.clone());
-                    println!(
-                        "[ModrinthProvider] Set mc_version filter from installation: {}",
-                        mc_version
-                    );
-                } else {
-                    // Fallback: use the version_id as-is if we can't extract a proper version
-                    self.mc_version = Some(installation.version_id.clone());
-                    println!(
-                        "[ModrinthProvider] Set mc_version filter (fallback) from installation: {}",
-                        installation.version_id
-                    );
-                }
+            if let Some(mc_version) = extract_minecraft_version(&installation.version_id) {
+                self.mc_version = Some(mc_version.clone());
+                println!(
+                    "[ModrinthProvider] Set mc_version from installation: {}",
+                    mc_version
+                );
+            } else {
+                // Fallback: use the version_id as-is if we can't extract a proper version
+                self.mc_version = Some(installation.version_id.clone());
+                println!(
+                    "[ModrinthProvider] Set mc_version (fallback) from installation: {}",
+                    installation.version_id
+                );
             }
         }
 
         println!(
-            "[ModrinthProvider] Current filters - category: {:?}, loader: {:?}, mc_version: {:?}",
-            self.category, self.loader, self.mc_version
+            "[ModrinthProvider] Current state - loader: {:?}, mc_version: {:?}, user_filters: {:?}",
+            self.loader, self.mc_version, self.user_filters
         );
     }
 
@@ -414,6 +442,78 @@ pub async fn get_all_mods_with_index(
         .filter_map(|hit| serde_json::from_value(hit.clone()).ok())
         .collect();
     println!("[ModrinthAPI] Received {} mods from API", mods.len());
+    Ok(mods)
+}
+
+/// Fetch mods with properly structured facets array
+#[log_result(log_values = true, max_length = 100, debug_only = false)]
+pub async fn get_mods_with_facets(
+    facets: &[Vec<String>],
+    offset: usize,
+    limit: usize,
+    index: Option<&str>,
+    query: Option<&str>,
+) -> Result<Vec<ModrinthInfo>, String> {
+    let client = Client::new();
+    let mut url = format!(
+        "https://api.modrinth.com/v2/search?limit={}&offset={}",
+        limit, offset
+    );
+
+    // Add query if present
+    if let Some(q) = query {
+        if !q.is_empty() {
+            // Simple URL encoding for query
+            let encoded = q.replace(' ', "%20").replace('&', "%26");
+            url.push_str(&format!("&query={}", encoded));
+        }
+    }
+
+    // Build facets parameter
+    if !facets.is_empty() {
+        let facets_json: Vec<String> = facets
+            .iter()
+            .map(|inner_array| {
+                let items: Vec<String> = inner_array
+                    .iter()
+                    .map(|item| format!("\"{}\"", item))
+                    .collect();
+                format!("[{}]", items.join(","))
+            })
+            .collect();
+        url.push_str(&format!("&facets=[{}]", facets_json.join(",")));
+    }
+
+    // Add index if present
+    if let Some(index) = index {
+        if !index.is_empty() {
+            url.push_str(&format!("&index={}", index));
+        }
+    }
+
+    println!("[ModrinthAPI] Calling URL with facets: {}", url);
+
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth get mods with facets failed: {e}"))?;
+    let json: serde_json::Value = resp
+        .json()
+        .await
+        .map_err(|e| format!("Modrinth get mods with facets parse failed: {e}"))?;
+    let hits = json
+        .get("hits")
+        .and_then(|v| v.as_array())
+        .ok_or("No hits in Modrinth response")?;
+    let mods: Vec<ModrinthInfo> = hits
+        .iter()
+        .filter_map(|hit| serde_json::from_value(hit.clone()).ok())
+        .collect();
+    println!(
+        "[ModrinthAPI] Received {} mods with facets from API",
+        mods.len()
+    );
     Ok(mods)
 }
 

@@ -3,7 +3,7 @@ import { onMount, createEventDispatcher } from 'svelte';
 import { get } from 'svelte/store';
 import { Icon, ShadersService, selectedInstallation, installations, GLOBAL_INSTALLATION, ShaderCard, ShaderGalleryModal } from '$lib';
 import { shaderDownloads, shadersLoading, shadersError, shadersLimit, shadersOffset, shadersInstallMode } from '$lib/stores/shaders';
-import type { ShaderDownload, KableInstallation } from '$lib';
+import type { ShaderDownload, KableInstallation, ShaderFilterFacets } from '$lib';
 
 type ViewMode = 'grid' | 'list' | 'compact';
 type InstallMode = 'dedicated' | 'global';
@@ -30,16 +30,12 @@ type FilterItem = { value: string; mode: FilterMode };
 
 let filters = {
   loader: [] as FilterItem[],
-  performanceImpact: [] as FilterItem[],
-  features: [] as FilterItem[],
   categories: [] as FilterItem[]
 };
 
 // Collapsible filter sections
 let collapsedSections = {
   loader: false,
-  performance: false,
-  features: false,
   categories: false
 };
 
@@ -62,7 +58,7 @@ const viewModes = [
 // Page size options
 const pageSizeOptions = [10, 20, 50, 100];
 
-// Filter configuration
+// Filter configuration - Performance/Features/Categories all map to Modrinth tags/categories
 const filterSections = [
   {
     id: 'loader' as const,
@@ -71,22 +67,17 @@ const filterSections = [
     options: ['Canvas', 'Iris', 'OptiFine', 'Vanilla']
   },
   {
-    id: 'performanceImpact' as const,
-    label: 'Performance',
-    collapsedKey: 'performance' as const,
-    options: ['High', 'Low', 'Medium', 'Potato', 'Screenshot']
-  },
-  {
-    id: 'features' as const,
-    label: 'Features',
-    collapsedKey: 'features' as const,
-    options: ['Atmosphere', 'Bloom', 'Colored Lighting', 'Foliage', 'Path Tracing', 'PBR', 'Reflections', 'Shadows']
-  },
-  {
     id: 'categories' as const,
-    label: 'Category',
+    label: 'Tags',
     collapsedKey: 'categories' as const,
-    options: ['Cartoon', 'Cursed', 'Fantasy', 'Realistic', 'Semi-realistic', 'Vanilla-like']
+    options: [
+      // Performance
+      'High', 'Low', 'Medium', 'Potato', 'Screenshot',
+      // Features
+      'Atmosphere', 'Bloom', 'Colored Lighting', 'Foliage', 'Path Tracing', 'PBR', 'Reflections', 'Shadows',
+      // Style Categories
+      'Cartoon', 'Cursed', 'Fantasy', 'Realistic', 'Semi-realistic', 'Vanilla-like'
+    ]
   }
 ];
 
@@ -107,76 +98,129 @@ $: {
 $: shaders = $shaderDownloads || [];
 $: loading = $shadersLoading;
 $: error = $shadersError;
-$: filteredShaders = shadersService ? ShadersService.filterShaderDownloads(shaders, {
-  loader: filters.loader.filter(f => f.mode === 'include').map(f => f.value).length > 0 
-    ? filters.loader.filter(f => f.mode === 'include').map(f => f.value) as any 
-    : undefined,
-  performanceImpact: filters.performanceImpact.filter(f => f.mode === 'include').map(f => f.value).length > 0 
-    ? filters.performanceImpact.filter(f => f.mode === 'include').map(f => f.value) as any 
-    : undefined,
-  features: filters.features.filter(f => f.mode === 'include').map(f => f.value).length > 0 
-    ? filters.features.filter(f => f.mode === 'include').map(f => f.value) as any 
-    : undefined,
-  categories: filters.categories.filter(f => f.mode === 'include').map(f => f.value).length > 0 
-    ? filters.categories.filter(f => f.mode === 'include').map(f => f.value) as any 
-    : undefined,
-  searchTerm: searchQuery || undefined
-}).filter(shader => {
-  // Apply exclude filters client-side
-  const excludedLoaders = filters.loader.filter(f => f.mode === 'exclude').map(f => f.value);
-  if (excludedLoaders.length > 0 && excludedLoaders.includes(shader.shader_loader)) {
-    return false;
-  }
-  
-  // Filter out excluded categories
-  const excludedCategories = filters.categories.filter(f => f.mode === 'exclude').map(f => f.value);
-  if (excludedCategories.length > 0 && shader.tags.some(tag => excludedCategories.includes(tag))) {
-    return false;
-  }
-  
-  return true;
-}) : shaders;
-$: totalShaders = filteredShaders.length;
+// Don't apply client-side filters - let backend handle it
+$: paginatedShaders = shaders;
+$: totalShaders = shaders.length;
 
 // Update install mode in store
 $: shadersInstallMode.set(installMode);
 
-// Functions
-function toggleFilter(category: 'loader' | 'performanceImpact' | 'features' | 'categories', value: string) {
-  const existing = filters[category].find(f => f.value === value);
-  if (existing) {
-    // Cycle through: include -> exclude -> none
-    if (existing.mode === 'include') {
-      existing.mode = 'exclude';
-      filters[category] = [...filters[category]];
-    } else {
-      // Remove the filter (exclude -> none)
-      filters[category] = filters[category].filter(f => f.value !== value);
-    }
-  } else {
-    // Add as include filter (none -> include)
-    filters[category] = [...filters[category], { value, mode: 'include' }];
-  }
-  // Trigger reactivity
-  filters = { ...filters };
-  currentPage = 1;
-  shadersOffset.set(0);
+// Handle filter changes - debounced to avoid too many API calls
+let filterChangeTimeout: number | null = null;
+function handleFiltersChange() {
+  if (filterChangeTimeout) clearTimeout(filterChangeTimeout);
+  filterChangeTimeout = window.setTimeout(async () => {
+    await applyFiltersToBackend();
+  }, 300);
 }
 
-function toggleFilterMode(category: 'loader' | 'performanceImpact' | 'features' | 'categories', value: string) {
-  const existing = filters[category].find(f => f.value === value);
-  if (existing) {
-    // Toggle between include and exclude
-    existing.mode = existing.mode === 'include' ? 'exclude' : 'include';
-    filters[category] = [...filters[category]];
-    // Trigger reactivity
-    filters = { ...filters };
+// Apply filters to backend
+async function applyFiltersToBackend() {
+  if (!shadersService) return;
+  
+  // Build filter object for backend
+  const includeLoaders = filters.loader.filter(f => f.mode === 'include').map(f => f.value);
+  const excludeLoaders = filters.loader.filter(f => f.mode === 'exclude').map(f => f.value);
+  const includeCategories = filters.categories.filter(f => f.mode === 'include').map(f => f.value);
+  const excludeCategories = filters.categories.filter(f => f.mode === 'exclude').map(f => f.value);
+  
+  // If no filters and no search, clear filters
+  if (!searchQuery && includeLoaders.length === 0 && excludeLoaders.length === 0 &&
+      includeCategories.length === 0 && excludeCategories.length === 0) {
     currentPage = 1;
     shadersOffset.set(0);
+    await shadersService.setFilter(null);
+    return;
+  }
+  
+  // Build filter facets for Modrinth
+  // Each filter is AND'd together - put each in separate array
+  // Operations: ':' for include, '!=' for exclude
+  
+  const includeLoaderFilters: [string, string][] = 
+    includeLoaders.map(l => [':', l.toLowerCase()] as [string, string]);
+  const excludeLoaderFilters: [string, string][] = 
+    excludeLoaders.map(l => ['!=', l.toLowerCase()] as [string, string]);
+  
+  const loaderFilters = [...includeLoaderFilters, ...excludeLoaderFilters];
+  
+  const includeCategoryFilters: [string, string][] = 
+    includeCategories.map(c => [':', c.toLowerCase()] as [string, string]);
+  const excludeCategoryFilters: [string, string][] = 
+    excludeCategories.map(c => ['!=', c.toLowerCase()] as [string, string]);
+  
+  const categoryFilters = [...includeCategoryFilters, ...excludeCategoryFilters];
+  
+  const filterFacets: ShaderFilterFacets = {
+    query: searchQuery || undefined,
+    loaders: loaderFilters.length > 0 ? loaderFilters : undefined,
+    categories: categoryFilters.length > 0 ? categoryFilters : undefined,
+    game_versions: undefined
+  };
+  
+  console.log('[ShaderBrowser] Applying filters to backend:', JSON.stringify(filterFacets, null, 2));
+  
+  // Reset to first page when filters change
+  currentPage = 1;
+  shadersOffset.set(0);
+  
+  try {
+    await shadersService.setFilter(filterFacets);
+  } catch (e) {
+    console.error('[ShaderBrowser] Failed to apply filters:', e);
   }
 }
 
-function getFilterState(category: 'loader' | 'performanceImpact' | 'features' | 'categories', value: string): FilterMode | null {
+// Handle search query changes
+async function handleSearch() {
+  if (!shadersService) return;
+  await applyFiltersToBackend();
+}
+
+// Functions
+function toggleFilter(category: 'loader' | 'categories', value: string) {
+  const existing = filters[category].find(f => f.value === value);
+  if (existing) {
+    if (existing.mode === 'include') {
+      // Include -> None (remove the filter)
+      filters[category] = filters[category].filter(f => f.value !== value);
+    } else {
+      // Exclude -> Include (switch mode by creating new array)
+      filters[category] = filters[category].map(f => 
+        f.value === value ? { ...f, mode: 'include' as const } : f
+      );
+    }
+  } else {
+    // None -> Include (add as include filter)
+    filters[category] = [...filters[category], { value, mode: 'include' as const }];
+  }
+  // Trigger reactivity and backend update
+  filters = { ...filters };
+  handleFiltersChange();
+}
+
+function toggleFilterExclude(category: 'loader' | 'categories', value: string) {
+  const existing = filters[category].find(f => f.value === value);
+  if (existing) {
+    if (existing.mode === 'exclude') {
+      // Exclude -> None (remove the filter)
+      filters[category] = filters[category].filter(f => f.value !== value);
+    } else {
+      // Include -> Exclude (switch mode by creating new array)
+      filters[category] = filters[category].map(f => 
+        f.value === value ? { ...f, mode: 'exclude' as const } : f
+      );
+    }
+  } else {
+    // None -> Exclude (add as exclude filter)
+    filters[category] = [...filters[category], { value, mode: 'exclude' as const }];
+  }
+  // Trigger reactivity and backend update
+  filters = { ...filters };
+  handleFiltersChange();
+}
+
+function getFilterState(category: 'loader' | 'categories', value: string): FilterMode | null {
   const filter = filters[category].find(f => f.value === value);
   return filter ? filter.mode : null;
 }
@@ -185,8 +229,6 @@ function resetFilters() {
   // Create new object to trigger reactivity
   filters = {
     loader: [],
-    performanceImpact: [],
-    features: [],
     categories: []
   };
   searchQuery = '';
@@ -195,7 +237,7 @@ function resetFilters() {
   // Force reactivity update
   filters = { ...filters };
   if (shadersService) {
-    shadersService.loadShaders();
+    shadersService.setFilter(null);
   }
 }
 
@@ -277,21 +319,6 @@ async function nextPage() {
 
 async function previousPage() {
   await goToPage(currentPage - 1);
-}
-
-async function handleSearch() {
-  currentPage = 1;
-  visitedPages = new Set([1]);
-  maxPageReached = 1;
-  shadersOffset.set(0);
-  
-  if (shadersService) {
-    if (searchQuery.trim()) {
-      await shadersService.searchShaders(searchQuery);
-    } else {
-      await shadersService.loadShaders();
-    }
-  }
 }
 
 async function loadShaders() {
@@ -411,24 +438,7 @@ onMount(async () => {
                       <button 
                         class="filter-option-btn include-btn"
                         class:active={getFilterState(section.id, option) === 'include'}
-                        on:click={() => {
-                          const state = getFilterState(section.id, option);
-                          if (state === 'include') {
-                            // Click on active include -> remove filter
-                            filters[section.id] = filters[section.id].filter(f => f.value !== option);
-                          } else if (state === 'exclude') {
-                            // Click on active exclude -> switch to include
-                            const existing = filters[section.id].find(f => f.value === option);
-                            if (existing) existing.mode = 'include';
-                            filters[section.id] = [...filters[section.id]];
-                          } else {
-                            // Click on none -> add as include
-                            filters[section.id] = [...filters[section.id], { value: option, mode: 'include' }];
-                          }
-                          filters = { ...filters };
-                          currentPage = 1;
-                          shadersOffset.set(0);
-                        }}
+                        on:click={() => toggleFilter(section.id, option)}
                         title={getFilterState(section.id, option) === 'include' ? 'Remove filter' : 'Include filter'}
                       >
                         <span class="option-label">{option}</span>
@@ -441,24 +451,7 @@ onMount(async () => {
                       <button 
                         class="filter-option-btn exclude-btn"
                         class:active={getFilterState(section.id, option) === 'exclude'}
-                        on:click={() => {
-                          const state = getFilterState(section.id, option);
-                          if (state === 'exclude') {
-                            // Click on active exclude -> remove filter
-                            filters[section.id] = filters[section.id].filter(f => f.value !== option);
-                          } else if (state === 'include') {
-                            // Click on active include -> switch to exclude
-                            const existing = filters[section.id].find(f => f.value === option);
-                            if (existing) existing.mode = 'exclude';
-                            filters[section.id] = [...filters[section.id]];
-                          } else {
-                            // Click on none -> add as exclude
-                            filters[section.id] = [...filters[section.id], { value: option, mode: 'exclude' }];
-                          }
-                          filters = { ...filters };
-                          currentPage = 1;
-                          shadersOffset.set(0);
-                        }}
+                        on:click={() => toggleFilterExclude(section.id, option)}
                         title={getFilterState(section.id, option) === 'exclude' ? 'Remove exclusion' : 'Exclude filter'}
                       >
                         <Icon name="trash" size="sm" forceType="svg" />
@@ -483,10 +476,10 @@ onMount(async () => {
               Loading...
             {:else if error}
               Error: {error}
-            {:else if filteredShaders.length === 0}
+            {:else if paginatedShaders.length === 0}
               No shaders found
             {:else}
-              Showing {filteredShaders.length} shader{filteredShaders.length !== 1 ? 's' : ''}
+              Showing {paginatedShaders.length} shader{paginatedShaders.length !== 1 ? 's' : ''}
             {/if}
           </p>
           
@@ -568,12 +561,12 @@ onMount(async () => {
               Retry
             </button>
           </div>
-        {:else if filteredShaders.length === 0}
+        {:else if paginatedShaders.length === 0}
           <div class="empty-state">
             <Icon name="inbox" size="xl" />
             <h3>No Shaders Found</h3>
             <p>Try adjusting your search or filters</p>
-            {#if searchQuery || filters.loader.length > 0 || filters.categories.length > 0 || filters.features.length > 0 || filters.performanceImpact.length > 0}
+            {#if searchQuery || filters.loader.length > 0 || filters.categories.length > 0}
               <button class="clear-filters-btn" on:click={resetFilters}>
                 <Icon name="refresh" size="sm" />
                 Clear Filters
@@ -583,7 +576,7 @@ onMount(async () => {
         {:else}
           <!-- Shaders Grid/List -->
           <div class="shaders-container" class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} class:compact={viewMode === 'compact'}>
-            {#each filteredShaders as shader}
+            {#each paginatedShaders as shader}
               <ShaderCard 
                 {shader} 
                 {viewMode} 
