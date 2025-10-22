@@ -161,8 +161,10 @@ export class AuthService {
         console.log(`✅ All tokens refreshed successfully (${successful} account(s))`);
       }
 
-      // Refresh the available accounts list to update UI
-      await this.refreshAvailableAccounts();
+      // Only refresh the available accounts list if we actually refreshed any tokens
+      if (successful > 0 || failed > 0) {
+        await this.refreshAvailableAccounts();
+      }
     } catch (error) {
       console.error('❌ Error during bulk token refresh:', error);
     }

@@ -97,12 +97,14 @@ pub enum ResourcePackSource {
 #[derive(Debug, Deserialize)]
 struct ModrinthSearchResponse {
     hits: Vec<ModrinthProject>,
+    #[allow(dead_code)]
     total_hits: u32,
 }
 
 #[derive(Debug, Deserialize)]
 struct ModrinthProject {
     project_id: String,
+    #[allow(dead_code)]
     slug: String,
     title: String,
     description: String,
@@ -111,6 +113,7 @@ struct ModrinthProject {
     gallery: Option<Vec<String>>,
     featured_gallery: Option<String>,
     downloads: u64,
+    #[allow(dead_code)]
     versions: Vec<String>,
     #[serde(default)]
     categories: Vec<String>,
@@ -119,10 +122,14 @@ struct ModrinthProject {
 #[derive(Debug, Deserialize)]
 struct ModrinthVersion {
     id: String,
+    #[allow(dead_code)]
     project_id: String,
+    #[allow(dead_code)]
     name: String,
+    #[allow(dead_code)]
     version_number: String,
     game_versions: Vec<String>,
+    #[allow(dead_code)]
     loaders: Vec<String>,
     files: Vec<ModrinthFile>,
 }
@@ -130,6 +137,7 @@ struct ModrinthVersion {
 #[derive(Debug, Deserialize)]
 struct ModrinthFile {
     url: String,
+    #[allow(dead_code)]
     filename: String,
     size: u64,
     primary: bool,
@@ -573,7 +581,7 @@ pub async fn download_and_install_resourcepack(
 /// Download and install resource pack from Modrinth to a dedicated folder
 #[log_result]
 pub async fn download_and_install_resourcepack_to_dedicated(
-    minecraft_path: String,
+    _minecraft_path: String,
     dedicated_folder: String,
     download_url: String,
     filename: String,

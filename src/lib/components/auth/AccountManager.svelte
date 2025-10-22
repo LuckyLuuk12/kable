@@ -64,8 +64,8 @@
 
   onMount(async () => {
     // Initialize authentication and load accounts
+    // Note: AuthService.initialize() already loads accounts into the store
     await AuthService.initialize();
-    await AuthService.refreshAvailableAccounts();
     // Start interval to update expiry display every second
     expiryInterval = setInterval(() => {
       tokenExpiryDisplay = formatTokenExpiry($currentAccount);
