@@ -2,7 +2,6 @@ use crate::logging::{debug, error, info};
 use fastnbt::from_bytes;
 use flate2::read::GzDecoder;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
@@ -249,9 +248,9 @@ async fn parse_world_folder(
 // parser avoids unused code and encourages non-blocking file reads.
 
 // Async variant of the level.dat parser - reads and parses NBT data
-async fn parse_level_dat_async(level_dat_path: &PathBuf) -> Result<LevelData, String> {
+async fn parse_level_dat_async(level_dat_path: &std::path::Path) -> Result<LevelData, String> {
     // Read the file in a blocking task since NBT parsing is CPU-bound
-    let path = level_dat_path.clone();
+    let path = level_dat_path.to_path_buf();
 
     tokio::task::spawn_blocking(move || {
         // Read the gzipped NBT file

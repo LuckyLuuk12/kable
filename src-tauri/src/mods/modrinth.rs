@@ -21,7 +21,7 @@ impl FilterFacets {
     /// Returns Vec<Vec<String>> where:
     /// - Each inner Vec is OR'd together
     /// - Outer Vec items are AND'd together
-    /// Each user filter (category, environment, etc.) is AND'd as separate array
+    ///   Each user filter (category, environment, etc.) is AND'd as separate array
     pub fn to_modrinth_facets(
         &self,
         loader: Option<&str>,

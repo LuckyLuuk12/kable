@@ -53,6 +53,18 @@ pub async fn search_modrinth_shaders(
     shaders::search_modrinth_shaders(query, minecraft_version, limit, offset).await
 }
 
+/// Search for shader packs on Modrinth with custom filter facets
+#[tauri::command]
+pub async fn search_modrinth_shaders_with_facets(
+    query: String,
+    minecraft_version: Option<String>,
+    facets: Option<shaders::ShaderFilterFacets>,
+    limit: u32,
+    offset: u32,
+) -> Result<Vec<shaders::ShaderDownload>, String> {
+    shaders::search_modrinth_shaders_with_facets(query, minecraft_version, facets, limit, offset).await
+}
+
 /// Get shader pack details from Modrinth
 #[tauri::command]
 pub async fn get_modrinth_shader_details(

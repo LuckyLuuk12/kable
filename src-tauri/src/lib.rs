@@ -20,6 +20,7 @@ pub mod launcher;
 pub mod maps;
 pub mod mods;
 pub mod profile;
+pub mod resourcepacks;
 pub mod settings;
 pub mod shaders;
 pub mod skins;
@@ -33,6 +34,7 @@ pub use commands::auth as commands_auth;
 pub use commands::installations as commands_installations;
 pub use commands::launcher as commands_launcher;
 pub use commands::mods as commands_mods;
+pub use commands::resourcepacks as commands_resourcepacks;
 pub use commands::shaders as commands_shaders;
 pub use commands::skins as commands_skins;
 pub use commands::system as commands_system;
@@ -43,6 +45,7 @@ pub use launcher::*;
 pub use logging::*;
 pub use maps::*;
 pub use mods::*;
+pub use resourcepacks::*;
 pub use settings::*;
 pub use shaders::*;
 pub use skins::*;
@@ -148,6 +151,20 @@ pub fn run() {
             commands_shaders::setup_shader_symlink,
             commands_shaders::remove_shader_symlink,
             commands_shaders::delete_shader_from_dedicated,
+            commands_shaders::search_modrinth_shaders_with_facets,
+            // Resource packs commands
+            commands_resourcepacks::get_installed_resourcepacks,
+            commands_resourcepacks::delete_resourcepack,
+            commands_resourcepacks::install_resourcepack,
+            commands_resourcepacks::get_resourcepack_info,
+            commands_resourcepacks::search_modrinth_resourcepacks,
+            commands_resourcepacks::search_modrinth_resourcepacks_with_facets,
+            commands_resourcepacks::get_modrinth_resourcepack_details,
+            commands_resourcepacks::download_and_install_resourcepack,
+            commands_resourcepacks::download_and_install_resourcepack_to_dedicated,
+            commands_resourcepacks::setup_resourcepack_symlink,
+            commands_resourcepacks::remove_resourcepack_symlink,
+            commands_resourcepacks::delete_resourcepack_from_dedicated,
             // Skins commands
             commands_skins::upload_skin_to_account,
             commands_skins::change_skin_model,

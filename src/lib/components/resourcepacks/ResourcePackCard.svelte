@@ -1,0 +1,501 @@
+<script lang="ts">
+import { createEventDispatcher } from 'svelte';
+import { Icon } from '$lib';
+import type { ResourcePackDownload, KableInstallation } from '$lib';
+
+export let resourcepack: ResourcePackDownload;
+export let viewMode: 'grid' | 'list' | 'compact' = 'grid';
+export let installation: KableInstallation | null = null;
+export let loading = false;
+export let isInstalled = false;
+
+const dispatch = createEventDispatcher<{
+  download: { resourcepack: ResourcePackDownload; installation: KableInstallation | null };
+  viewGallery: { resourcepack: ResourcePackDownload };
+}>();
+
+$: hasGallery = (resourcepack.gallery && resourcepack.gallery.length > 0) || !!resourcepack.featured_gallery;
+
+// Debug logging
+$: if (resourcepack) {
+  console.log(`[ResourcePackCard] ${resourcepack.name}:`, {
+    hasGallery,
+    gallery: resourcepack.gallery,
+    featured_gallery: resourcepack.featured_gallery,
+    galleryLength: resourcepack.gallery?.length ?? 0
+  });
+}
+
+// Format download count
+function formatDownloads(count: number): string {
+  if (count >= 1_000_000) {
+    return `${(count / 1_000_000).toFixed(1)}M`;
+  } else if (count >= 1_000) {
+    return `${(count / 1_000).toFixed(1)}K`;
+  }
+  return count.toString();
+}
+
+// Get resolution badge color
+function getResolutionColor(resolution: string | null): string {
+  if (!resolution) return '#95A5A6';
+  
+  const resolutionColors: Record<string, string> = {
+    '16x': '#2ECC71',
+    '32x': '#3498DB',
+    '64x': '#9B59B6',
+    '128x': '#E67E22',
+    '256x': '#E74C3C',
+    '512x': '#C0392B',
+    '1024x': '#8E44AD'
+  };
+  return resolutionColors[resolution] || '#95A5A6';
+}
+
+// Handle download
+function handleDownload() {
+  dispatch('download', { resourcepack, installation });
+}
+
+// Handle gallery view
+function handleViewGallery(e: MouseEvent) {
+  e.stopPropagation();
+  if (hasGallery) {
+    dispatch('viewGallery', { resourcepack });
+  }
+}
+</script>
+
+<div 
+  class="resourcepack-card" 
+  class:grid={viewMode === 'grid'} 
+  class:list={viewMode === 'list'} 
+  class:compact={viewMode === 'compact'}
+  class:installed={isInstalled}
+>
+  <!-- Thumbnail -->
+  {#if viewMode !== 'compact'}
+    <div class="resourcepack-thumbnail">
+      {#if resourcepack.thumbnail}
+        <img src={resourcepack.thumbnail} alt={resourcepack.name} />
+      {:else}
+        <div class="placeholder-thumbnail">
+          <Icon name="image" size="xl" />
+        </div>
+      {/if}
+      
+      {#if hasGallery}
+        <button class="gallery-overlay" on:click={handleViewGallery} title="View gallery">
+          <Icon name="images" size="lg" forceType="svg" />
+          <span>View Gallery</span>
+        </button>
+      {/if}
+      
+      {#if isInstalled}
+        <div class="installed-badge">
+          <Icon name="check-circle" size="sm" />
+          <span>Installed</span>
+        </div>
+      {/if}
+    </div>
+  {/if}
+
+  <!-- Content -->
+  <div class="resourcepack-content">
+    <!-- Header -->
+    <div class="resourcepack-header">
+      <h3 class="resourcepack-title" title={resourcepack.name}>{resourcepack.name}</h3>
+      
+      {#if resourcepack.author}
+        <p class="resourcepack-author">by {resourcepack.author}</p>
+      {/if}
+    </div>
+
+    <!-- Description -->
+    {#if viewMode !== 'compact' && resourcepack.description}
+      <p class="resourcepack-description">{resourcepack.description}</p>
+    {/if}
+
+    <!-- Footer -->
+    <div class="resourcepack-footer">
+      <div class="resourcepack-meta">
+        <!-- Resolution -->
+        {#if resourcepack.resolution}
+          <div class="resourcepack-resolution">
+            <span class="resolution-badge" style="background-color: {getResolutionColor(resourcepack.resolution)}">
+              {resourcepack.resolution}
+            </span>
+          </div>
+        {/if}
+        
+        <!-- Downloads -->
+        <div class="resourcepack-stats">
+          <Icon name="download" size="sm" />
+          <span>{formatDownloads(resourcepack.downloads)}</span>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <button 
+        class="download-btn" 
+        class:loading 
+        disabled={loading || isInstalled}
+        on:click={handleDownload}
+        title={isInstalled ? 'Already installed' : installation ? `Install to ${installation.name}` : 'Install globally'}
+      >
+        {#if loading}
+          <Icon name="loader" size="sm" forceType="svg" />
+        {:else if isInstalled}
+          <Icon name="check" size="sm" forceType="svg" />
+        {:else}
+          <Icon name="download" size="sm" forceType="svg" />
+        {/if}
+        
+        {#if viewMode !== 'compact'}
+          <span>{isInstalled ? 'Installed' : 'Install'}</span>
+        {/if}
+      </button>
+    </div>
+  </div>
+</div>
+
+<style lang="scss">
+@use "@kablan/clean-ui/scss/_variables.scss" as *;
+@use "sass:color";
+
+.resourcepack-card {
+  display: flex;
+  background: linear-gradient(135deg, var(--card) 0%, #{'color-mix(in srgb, var(--container), 80%, transparent)'} 100%);
+  backdrop-filter: blur(8px);
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, 
+      transparent 0%, 
+      #{'color-mix(in srgb, var(--primary), 40%, transparent)'} 50%, 
+      transparent 100%
+    );
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  
+  &:hover {
+    border: 1px solid var(--secondary);
+    box-shadow: 0 4px 12px #{'color-mix(in srgb, var(--primary), 15%, transparent)'};
+    transform: translateY(-2px);
+    
+    &::before {
+      opacity: 1;
+    }
+  }
+  
+  &.installed {
+    border-color: var(--green);
+    background: linear-gradient(135deg, #{'color-mix(in srgb, var(--green), 5%, transparent)'} 0%, var(--card) 100%);
+  }
+
+  // Grid Layout
+  &.grid {
+    flex-direction: column;
+    
+    .resourcepack-thumbnail {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+    }
+    
+    .resourcepack-content {
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+    }
+    
+    .resourcepack-footer {
+      margin-top: auto;
+    }
+  }
+
+  // List Layout
+  &.list {
+    flex-direction: row;
+    
+    .resourcepack-thumbnail {
+      width: 160px;
+      min-width: 160px;
+      aspect-ratio: 16 / 9;
+    }
+    
+    .resourcepack-content {
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      flex: 1;
+    }
+    
+    .resourcepack-footer {
+      margin-top: auto;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+    }
+    
+    .resourcepack-meta {
+      flex-direction: row;
+      gap: 0.75rem;
+    }
+  }
+
+  // Compact Layout
+  &.compact {
+    flex-direction: row;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+    min-width: 240px;
+    max-width: 300px;
+    
+    .resourcepack-content {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .resourcepack-header {
+      margin-bottom: 0;
+    }
+    
+    .resourcepack-title {
+      font-size: 0.85em;
+      margin-bottom: 0;
+    }
+    
+    .resourcepack-author {
+      display: none;
+    }
+    
+    .resourcepack-footer {
+      flex-direction: row;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    
+    .resourcepack-meta {
+      flex-direction: row;
+      gap: 0.375rem;
+    }
+    
+    .download-btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75em;
+    }
+  }
+}
+
+// Thumbnail
+.resourcepack-thumbnail {
+  position: relative;
+  background: var(--dark-700);
+  overflow: hidden;
+  
+  :global(img) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  
+  .placeholder-thumbnail {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, var(--dark-700) 0%, var(--dark-600) 100%);
+    color: var(--dark-400);
+  }
+
+  .gallery-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
+    color: white;
+    border: none;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    font-size: 0.875rem;
+    font-weight: 500;
+
+    &:hover {
+      opacity: 1;
+      background: rgba(0, 0, 0, 0.85);
+    }
+  }
+
+  &:hover .gallery-overlay {
+    opacity: 1;
+  }
+  
+  .installed-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: var(--green);
+    color: white;
+    border-radius: 0.25rem;
+    font-size: 0.7em;
+    font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+  }
+}
+
+// Content
+.resourcepack-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.resourcepack-header {
+  margin-bottom: 0.5rem;
+  
+  .resourcepack-title {
+    margin: 0 0 0.25rem 0;
+    font-size: 1em;
+    font-weight: 600;
+    color: var(--text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .resourcepack-author {
+    margin: 0;
+    font-size: 0.75em;
+    color: var(--placeholder);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.resourcepack-description {
+  margin: 0;
+  font-size: 0.8em;
+  color: var(--text);
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+}
+
+// Footer
+.resourcepack-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.resourcepack-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  
+  .resourcepack-resolution {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    
+    .resolution-badge {
+      padding: 0.125rem 0.375rem;
+      border-radius: 0.25rem;
+      color: white;
+      font-size: 0.65em;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+  }
+  
+  .resourcepack-stats {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--placeholder);
+    font-size: 0.75em;
+    
+    span {
+      font-weight: 500;
+    }
+  }
+}
+
+// Download Button
+.download-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  border: 0px solid transparent;
+  border-radius: 0.375rem;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  color: white;
+  font-weight: 600;
+  font-size: 0.8em;
+  cursor: pointer;
+  transition: all 0.15s;
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px #{'color-mix(in srgb, var(--primary), 25%, transparent)'};
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  &.loading {
+    :global(.icon) {
+      animation: spin 1s linear infinite;
+    }
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+</style>

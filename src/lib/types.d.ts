@@ -885,6 +885,63 @@ export interface ShaderFilterFacets {
   game_versions?: string[];
 }
 
+// Resource Pack Types
+
+export interface ResourcePack {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string | null;
+  file_path: string;
+  file_name: string;
+  file_size: number;
+  compatible_versions: string[];
+  pack_format: number;
+  enabled: boolean;
+  source_url: string | null;
+  thumbnail: string | null;
+  installed_date: number;
+  last_used: number | null;
+}
+
+export interface ResourcePackDownload {
+  id: string;
+  name: string;
+  author: string;
+  description: string;
+  download_url: string;
+  thumbnail: string | null;
+  gallery: string[] | null;
+  featured_gallery: string | null;
+  tags: string[];
+  minecraft_versions: string[];
+  resolution: string | null;
+  rating: number;
+  downloads: number;
+  size_mb: number;
+  source: 'Modrinth' | 'CurseForge' | { Other: string };
+}
+
+/** Modrinth filter facets for searching resource packs.
+ * ```ts
+ * export interface ResourcePackFilterFacets {
+ *   query?: string;
+ *   categories?: [string, string][];
+ *   game_versions?: string[];
+ * }
+ * ```
+ */
+export interface ResourcePackFilterFacets {
+  /** Free-text search query */
+  query?: string;
+  /** Array of [operation, value] pairs for categories (resolutions, styles, etc) */
+  categories?: [string, string][];
+  /** Game versions to filter by */
+  game_versions?: string[];
+}
+
+
 
 /** Modrinth mod project info.
  * ```ts

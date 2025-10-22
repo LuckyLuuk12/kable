@@ -143,7 +143,7 @@ import { MapsService, SettingsService, Icon } from '$lib';
         disabled={isLoading}
         title="Refresh worlds list"
       >
-        <Icon name="refresh" size="sm" />
+        <Icon name="refresh" size="sm" forceType="svg" />
       </button>
     </div>
   </div>
@@ -208,7 +208,7 @@ import { MapsService, SettingsService, Icon } from '$lib';
           <div class="world-card">
             <div class="world-header">
               <div class="world-icon">
-                <Icon name={world.game_mode?.toLowerCase() === 'hardcore' ? 'skull' : 'map'} size="lg" />
+                <Icon name={world.game_mode?.toLowerCase() === 'hardcore' ? 'skull' : 'world'} size="lg" />
               </div>
               <div class="world-info">
                 <h3 class="world-name">{world.name}</h3>
@@ -235,7 +235,7 @@ import { MapsService, SettingsService, Icon } from '$lib';
               
               {#if world.size_mb}
                 <div class="stat-item">
-                  <Icon name="hard-drive" size="sm" />
+                  <Icon name="folder" size="sm" />
                   <span class="stat-label">Size:</span>
                   <span class="stat-value">{formatFileSize(world.size_mb * 1024 * 1024)}</span>
                 </div>
@@ -243,7 +243,7 @@ import { MapsService, SettingsService, Icon } from '$lib';
               
               {#if world.difficulty}
                 <div class="stat-item">
-                  <Icon name="shield" size="sm" />
+                  <Icon name="gamepad" size="sm" />
                   <span class="stat-label">Difficulty:</span>
                   <span class="stat-value">{world.difficulty}</span>
                 </div>
