@@ -74,6 +74,9 @@ pub struct AdvancedSettings {
     pub default_memory: u32,
     pub separate_logs_window: bool,
     pub auto_save_interval: u32, // in seconds, 0 means no auto save
+    pub show_advanced_page: bool,
+    #[serde(default)]
+    pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -132,6 +135,8 @@ impl Default for CategorizedLauncherSettings {
                 default_memory: 2048,
                 separate_logs_window: false,
                 auto_save_interval: 30, // in seconds, 0 means no auto save
+                show_advanced_page: false,
+                extra: serde_json::Map::new(),
             },
             misc: MiscSettings {
                 use_titlebar: true,

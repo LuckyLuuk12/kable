@@ -100,6 +100,19 @@
       </div>
     </div>
 
+    <div class="setting-item">
+      <div class="setting-info">
+        <label for="show-advanced-page">Show Advanced Page</label>
+        <p class="setting-description">Display the Advanced page in the navigation bar</p>
+      </div>
+      <div class="setting-control">
+        <label class="toggle-switch">
+          <input type="checkbox" id="show-advanced-page" bind:checked={$settings.advanced.show_advanced_page} />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
 
     <div class="setting-item advanced-extra-item">
       <div class="setting-info">

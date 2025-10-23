@@ -204,19 +204,12 @@ export class ShadersService {
     const filename = shader.download_url.split('/').pop() || `${shader.name}.zip`;
     
     // Download to dedicated folder
+    // Note: Symlinks are managed dynamically by symlink_manager when launching the game
     await ShadersAPI.downloadAndInstallShaderToDedicated(
       this.minecraftPath,
       dedicatedFolder,
       shader.download_url,
       filename
-    );
-
-    // Setup symlink
-    const symlinkName = installation.id;
-    await ShadersAPI.setupShaderSymlink(
-      this.minecraftPath,
-      dedicatedFolder,
-      symlinkName
     );
 
     return filename;

@@ -39,8 +39,9 @@ pub struct KableInstallation {
 
 impl Default for KableInstallation {
     fn default() -> Self {
+        let id = uuid::Uuid::new_v4().to_string();
         KableInstallation {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: id.clone(),
             name: String::new(),
             icon: None,
             version_id: String::new(),
@@ -56,8 +57,8 @@ impl Default for KableInstallation {
                 "-XX:G1HeapRegionSize=32M".to_string(),
             ],
             dedicated_mods_folder: None,
-            dedicated_resource_pack_folder: None,
-            dedicated_shaders_folder: None,
+            dedicated_resource_pack_folder: Some(format!("resourcepacks/{}", id.clone())),
+            dedicated_shaders_folder: Some(format!("shaderpacks/{}", id.clone())),
             favorite: false,
             total_time_played_ms: 0,
             parameters_map: std::collections::HashMap::new(),
@@ -87,8 +88,8 @@ impl From<LauncherProfile> for KableInstallation {
                 .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
             java_args: vec![],           // Temporary, will be set below
             dedicated_mods_folder: None, // Will be determined below
-            dedicated_resource_pack_folder: None,
-            dedicated_shaders_folder: None,
+            dedicated_resource_pack_folder: Some(format!("resourcepacks/{}", installation_id.clone())),
+            dedicated_shaders_folder: Some(format!("shaderpacks/{}", installation_id.clone())),
             favorite: false,
             total_time_played_ms: 0,
             parameters_map: std::collections::HashMap::new(),
@@ -131,8 +132,8 @@ impl From<LauncherProfile> for KableInstallation {
                 ],
             },
             dedicated_mods_folder,
-            dedicated_resource_pack_folder: None,
-            dedicated_shaders_folder: None,
+            dedicated_resource_pack_folder: Some(format!("resourcepacks/{}", installation_id.clone())),
+            dedicated_shaders_folder: Some(format!("shaderpacks/{}", installation_id.clone())),
             favorite: false,
             total_time_played_ms: 0,
             parameters_map: std::collections::HashMap::new(),
@@ -477,7 +478,7 @@ impl KableInstallation {
                 let dest_dir = if rp_path.is_absolute() {
                     rp_path
                 } else {
-                    kable_dir.join("resource_packs").join(resource_pack_rel)
+                    kable_dir.join("resourcepacks").join(resource_pack_rel)
                 };
                 crate::ensure_folder_sync(&dest_dir)
                     .map_err(|e| format!("Failed to create resource pack directory: {}", e))?;
@@ -534,7 +535,7 @@ impl KableInstallation {
                 let dest_dir = if sf_path.is_absolute() {
                     sf_path
                 } else {
-                    kable_dir.join("shaders").join(shaders_rel)
+                    kable_dir.join("shaderpacks").join(shaders_rel)
                 };
                 crate::ensure_folder_sync(&dest_dir)
                     .map_err(|e| format!("Failed to create shaders directory: {}", e))?;

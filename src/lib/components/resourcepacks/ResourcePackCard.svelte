@@ -54,6 +54,7 @@ function getResolutionColor(resolution: string | null): string {
 
 // Handle download
 function handleDownload() {
+  console.log('[ResourcePackCard] Download clicked:', resourcepack.name, 'installation:', installation?.name || 'none');
   dispatch('download', { resourcepack, installation });
 }
 

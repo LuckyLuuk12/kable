@@ -244,7 +244,9 @@
     { path: '/maps', label: 'Worlds', icon: 'world' },
     { path: '/skins', label: 'Skins', icon: 'palette' },
     // Only show logs if enabled in settings (default: true for developers)
-    ...($settings?.logging.show_logs_page_in_nav !== false ? [{ path: '/logs', label: 'Logs', icon: 'terminal' }] : [])
+    ...($settings?.logging.show_logs_page_in_nav !== false ? [{ path: '/logs', label: 'Logs', icon: 'terminal' }] : []),
+    // Only show advanced page if enabled in settings (default: false)
+    ...($settings?.advanced.show_advanced_page === true ? [{ path: '/advanced', label: 'Advanced', icon: 'wrench' }] : [])
   ];
 
   // State for navigation collapse

@@ -620,6 +620,8 @@ export interface AdvancedSettings {
   separate_logs_window: boolean;
   /** How frequently to auto save the settings */
   auto_save_interval: number | 'disabled'; // in seconds, 'disabled' means no auto save
+  /** Whether to show the advanced page in the navigation bar */
+  show_advanced_page: boolean;
   /** A map with string keys and any type of values for really advanced stuff */
   extra?: Record<string, any>;
 }

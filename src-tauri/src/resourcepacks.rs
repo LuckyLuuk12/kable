@@ -589,10 +589,11 @@ pub async fn download_and_install_resourcepack_to_dedicated(
     let kable_dir = crate::get_minecraft_kable_dir()?;
     let dedicated_path = PathBuf::from(&dedicated_folder);
     
+    // Support both absolute paths and relative paths from .minecraft/kable
     let packs_dir = if dedicated_path.is_absolute() {
         dedicated_path
     } else {
-        kable_dir.join("resourcepacks").join(&dedicated_folder)
+        kable_dir.join(&dedicated_folder)
     };
 
     crate::ensure_folder(&packs_dir)
@@ -635,10 +636,11 @@ pub async fn setup_resourcepack_symlink(
     crate::ensure_symlinks_enabled(&minecraft_dir).await?;
 
     let dedicated_path = PathBuf::from(&dedicated_folder);
+    // Support both absolute paths and relative paths from .minecraft/kable
     let source_dir = if dedicated_path.is_absolute() {
         dedicated_path
     } else {
-        kable_dir.join("resourcepacks").join(&dedicated_folder)
+        kable_dir.join(&dedicated_folder)
     };
 
     // Ensure the dedicated folder exists
@@ -675,10 +677,11 @@ pub async fn delete_resourcepack_from_dedicated(
     let kable_dir = crate::get_minecraft_kable_dir()?;
     let dedicated_path = PathBuf::from(&dedicated_folder);
     
+    // Support both absolute paths and relative paths from .minecraft/kable
     let packs_dir = if dedicated_path.is_absolute() {
         dedicated_path
     } else {
-        kable_dir.join("resourcepacks").join(&dedicated_folder)
+        kable_dir.join(&dedicated_folder)
     };
 
     let pack_path = packs_dir.join(&pack_file);

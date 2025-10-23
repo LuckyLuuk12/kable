@@ -202,19 +202,12 @@ export class ResourcepacksService {
     const filename = pack.download_url.split('/').pop() || `${pack.name}.zip`;
     
     // Download to dedicated folder
+    // Note: Symlinks are managed dynamically by symlink_manager when launching the game
     await ResourcepacksAPI.downloadAndInstallResourcepackToDedicated(
       this.minecraftPath,
       dedicatedFolder,
       pack.download_url,
       filename
-    );
-
-    // Setup symlink
-    const symlinkName = installation.id;
-    await ResourcepacksAPI.setupResourcepackSymlink(
-      this.minecraftPath,
-      dedicatedFolder,
-      symlinkName
     );
 
     return filename;

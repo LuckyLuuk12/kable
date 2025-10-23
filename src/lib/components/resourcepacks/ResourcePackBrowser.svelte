@@ -307,7 +307,23 @@ async function loadResourcepacks() {
   }
 }
 
-function handleDownload(event: CustomEvent<{ resourcepack: ResourcePackDownload; installation: KableInstallation | null }>) {
+async function handleDownload(event: CustomEvent<{ resourcepack: ResourcePackDownload; installation: KableInstallation | null }>) {
+  console.log('[ResourcePackBrowser] Download button clicked:', event.detail);
+  
+  if (!resourcepacksService) {
+    console.error('[ResourcePackBrowser] ResourcepacksService not initialized');
+    return;
+  }
+  
+  try {
+    const { resourcepack, installation } = event.detail;
+    console.log('[ResourcePackBrowser] Downloading resourcepack:', resourcepack.name, 'to:', installation?.name || 'global');
+    await resourcepacksService.downloadResourcepack(resourcepack, installation);
+    console.log('[ResourcePackBrowser] Download complete:', resourcepack.name);
+  } catch (error) {
+    console.error('[ResourcePackBrowser] Download failed:', error);
+  }
+  
   dispatch('download', event.detail);
 }
 

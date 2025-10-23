@@ -14,6 +14,7 @@ pub use kable_macros::*;
 // Module declarations
 pub mod auth;
 pub mod commands;
+pub mod custom_symlinks;
 pub mod icons;
 pub mod installations;
 pub mod launcher;
@@ -24,6 +25,7 @@ pub mod resourcepacks;
 pub mod settings;
 pub mod shaders;
 pub mod skins;
+pub mod symlink_manager;
 
 #[macro_use]
 pub mod logging;
@@ -37,8 +39,10 @@ pub use commands::mods as commands_mods;
 pub use commands::resourcepacks as commands_resourcepacks;
 pub use commands::shaders as commands_shaders;
 pub use commands::skins as commands_skins;
+pub use commands::symlinks as commands_symlinks;
 pub use commands::system as commands_system;
 pub use commands::updater as commands_updater;
+pub use custom_symlinks::*;
 pub use icons::*;
 pub use installations::*;
 pub use launcher::*;
@@ -62,7 +66,43 @@ pub fn run() {
             // Initialize global logger with the app handle so modules that
             // use GLOBAL_APP_HANDLE (e.g. launcher utils) can emit events.
             crate::logging::init_global_logger(app.handle());
+            
+            // Clean up any leftover symlinks from previous crashes/exits
+            tauri::async_runtime::spawn(async {
+                if let Ok(minecraft_dir) = get_default_minecraft_dir() {
+                    let symlink_manager = crate::symlink_manager::SymlinkManager::new(minecraft_dir);
+                    if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
+                        Logger::warn_global(
+                            &format!("[STARTUP] Failed to cleanup leftover symlinks: {}", e),
+                            None,
+                        );
+                    } else {
+                        Logger::info_global("[STARTUP] Cleaned up leftover symlinks from previous session", None);
+                    }
+                }
+            });
+            
             Ok(())
+        })
+        .on_window_event(|window, event| {
+            // Clean up symlinks when the main window is closed
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                if window.label() == "main" {
+                    tauri::async_runtime::spawn(async {
+                        if let Ok(minecraft_dir) = get_default_minecraft_dir() {
+                            let symlink_manager = crate::symlink_manager::SymlinkManager::new(minecraft_dir);
+                            if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
+                                Logger::warn_global(
+                                    &format!("[SHUTDOWN] Failed to cleanup symlinks: {}", e),
+                                    None,
+                                );
+                            } else {
+                                Logger::info_global("[SHUTDOWN] Cleaned up all symlinks on app close", None);
+                            }
+                        }
+                    });
+                }
+            }
         })
         .plugin(tauri_plugin_window_state::Builder::new().build())
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -178,6 +218,14 @@ pub fn run() {
             commands_skins::get_player_profile,
             commands_skins::get_active_cape,
             commands_skins::apply_cape,
+            // Symlinks commands
+            commands_symlinks::list_symlinks,
+            commands_symlinks::create_custom_symlink,
+            commands_symlinks::remove_symlink,
+            commands_symlinks::toggle_symlink_disabled,
+            commands_symlinks::update_symlink,
+            commands_symlinks::select_file_for_symlink,
+            commands_symlinks::select_folder_for_symlink,
             // Icons commands
             icons::get_custom_icon_templates,
             icons::save_custom_icon_template,
@@ -477,6 +525,37 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
     Ok(())
 }
 
+#[cfg(windows)]
+pub async fn create_file_symlink(source: &Path, target: &Path) -> Result<(), String> {
+    use std::os::windows::fs::symlink_file;
+    
+    if target.exists() {
+        if target.is_symlink() {
+            // Remove existing symlink
+            async_fs::remove_file(target)
+                .await
+                .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
+        } else {
+            return Err(format!("Target path exists and is not a symlink: {}", target.display()));
+        }
+    }
+
+    ensure_parent_dir_exists_async(target).await?;
+
+    tokio::task::spawn_blocking({
+        let source = source.to_path_buf();
+        let target = target.to_path_buf();
+        move || {
+            symlink_file(&source, &target)
+                .map_err(|e| format!("Failed to create file symlink: {}", e))
+        }
+    })
+    .await
+    .map_err(|e| format!("File symlink creation task failed: {}", e))??;
+
+    Ok(())
+}
+
 #[cfg(unix)]
 pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<(), String> {
     use std::os::unix::fs::symlink;
@@ -508,6 +587,12 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
     Ok(())
 }
 
+#[cfg(unix)]
+pub async fn create_file_symlink(source: &Path, target: &Path) -> Result<(), String> {
+    // On Unix, symlink works for both files and directories
+    create_directory_symlink(source, target).await
+}
+
 /// Remove a symbolic link if it exists
 pub async fn remove_symlink_if_exists(path: &Path) -> Result<(), String> {
     if !path.exists() {
@@ -520,9 +605,36 @@ pub async fn remove_symlink_if_exists(path: &Path) -> Result<(), String> {
 
     #[cfg(windows)]
     {
-        async_fs::remove_dir(path)
-            .await
-            .map_err(|e| format!("Failed to remove symlink: {}", e))?;
+        // On Windows, directory and file symlinks require different removal methods
+        // Try to read the symlink to determine if the target is a directory or file
+        let is_dir_symlink = match std::fs::read_link(path) {
+            Ok(target) => {
+                // Check if the target (when it exists) is a directory
+                target.is_dir()
+            },
+            Err(_) => {
+                // If we can't read the link, try metadata as fallback
+                match tokio::fs::symlink_metadata(path).await {
+                    Ok(metadata) => metadata.is_dir(),
+                    Err(_) => false,
+                }
+            }
+        };
+        
+        // Try the appropriate removal method first, with fallback to the other method
+        if is_dir_symlink {
+            if let Err(e) = async_fs::remove_dir(path).await {
+                // Directory removal failed, try file removal
+                async_fs::remove_file(path)
+                    .await
+                    .map_err(|_| format!("Failed to remove directory symlink: {}", e))?;
+            }
+        } else if let Err(e) = async_fs::remove_file(path).await {
+            // File removal failed, try directory removal
+            async_fs::remove_dir(path)
+                .await
+                .map_err(|_| format!("Failed to remove file symlink: {}", e))?;
+        }
     }
 
     #[cfg(unix)]

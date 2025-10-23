@@ -415,20 +415,20 @@
           }
 
           &.primary {
-            background: var(--dark-800);
+            background: #230f2c;
             color: var(--text);
 
             &:hover {
-              background: var(--dark-700);
+              background: rgba(#230f2c, 0.7);
             }
           }
 
           &.secondary {
-            background: #c3a313;
+            background: #db8b12;
             color: var(--text);
 
             &:hover {
-              background: rgba(#c3a313, 0.7);
+              background: rgba(#db8b12, 0.7);
             }
           }
 
@@ -486,6 +486,7 @@
     overflow-y: auto;
     padding-bottom: 2rem;
     margin-bottom: -2rem;
+    z-index: 1;
   }
 
   .bottom-controls {
@@ -493,12 +494,13 @@
     align-items: flex-end;
     justify-content: space-between;
     padding: 1.5rem 2rem;
-  background: linear-gradient(to top, var(--container) 40%, color-mix(in srgb, var(--container), 60%, transparent) 80%, color-mix(in srgb, var(--container), 15%, transparent) 90%, transparent 100%);
+    background: linear-gradient(to top, var(--container) 40%, color-mix(in srgb, var(--container), 60%, transparent) 80%, color-mix(in srgb, var(--container), 15%, transparent) 90%, transparent 100%);
     backdrop-filter: blur(0.125rem);
     flex-shrink: 0;
     position: relative;
     z-index: 10;
     min-height: 5rem;
+    z-index: 2;
   }
 
   .play-section {

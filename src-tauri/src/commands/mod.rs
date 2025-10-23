@@ -6,6 +6,7 @@ pub mod mods;
 pub mod resourcepacks;
 pub mod shaders;
 pub mod skins;
+pub mod symlinks;
 pub mod system;
 pub mod updater;
 
