@@ -1,8 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-import { Icon, installations, isLoadingInstallations, installationsError, type KableInstallation, Launcher, InstallationService } from '$lib';
-import { isLaunching, currentLaunchingInstallation } from '$lib/stores/launcher';
-    import InstallationsList from '$lib/components/installations/InstallationsList.svelte';
+  import { Icon, Image, installations, isLoadingInstallations, installationsError, type KableInstallation, Launcher, InstallationService, settings } from '$lib';
+  import { isLaunching, currentLaunchingInstallation } from '$lib/stores/launcher';
+  import InstallationsList from '$lib/components/installations/InstallationsList.svelte';
+  import { openUrl } from '$lib/api/system';
 
 
   // State variables
@@ -50,6 +51,9 @@ import { isLaunching, currentLaunchingInstallation } from '$lib/stores/launcher'
       }
     }
   }
+
+  // Check if ads should be shown from settings
+  $: showAds = $settings?.general?.show_ads ?? false;
 
   // Subscribe to loading and error states
   $: isLoading = $isLoadingInstallations;
@@ -194,9 +198,53 @@ import { isLaunching, currentLaunchingInstallation } from '$lib/stores/launcher'
     }
     return `${mb}MB`;
   }
+
+  // Handle advertisement link clicks
+  async function handleAdClick(url: string) {
+    try {
+      await openUrl(url);
+    } catch (err) {
+      console.error('Failed to open URL:', err);
+    }
+  }
 </script>
 
 <div class="page-wrapper">
+
+  <!-- Personal advertisement (which users can disable in settings) -->
+  {#if showAds}
+    <div class="advertisement-banner">
+      <div class="banner-background">
+        <Image key="advertisement-banner" alt="Banner" className="banner-image" width="100%" height="100%" />
+      </div>
+      <div class="banner-overlay"></div>
+      <div class="banner-content">
+        <div class="banner-actions">
+          <button class="banner-button primary" on:click={() => handleAdClick('https://kablan.nl')}>
+            <Image key="kablan-logo" alt="Kablan" className="button-image" width="auto" height="2.5rem" />
+            <span>Kablan.nl</span>
+          </button>
+          
+          <button class="banner-button secondary" on:click={() => handleAdClick('https://modrinth.com/mod/luckybindings')}>
+            <Image key="luckybindings-logo" alt="LuckyBindings" className="button-image" width="auto" height="2.5rem" />
+            <span>LuckyBindings Mod</span>
+          </button>
+          
+          <button class="banner-button kofi" on:click={() => handleAdClick('https://ko-fi.com/luckyluuk')}>
+            <Image key="kofi-logo" alt="Ko-fi" className="button-image" width="auto" height="2.5rem" />
+            <span>Support me on Ko-fi</span>
+          </button>
+        </div>
+        
+        <div class="artist-recruitment">
+          <span class="recruitment-text">Are you an artist, willing to improve my tools? </span>
+          <button class="recruitment-link" on:click={() => handleAdClick('https://discord.gg/qRTevFvHbx')}>
+            Get in contact with me
+          </button>
+        </div>
+      </div>
+    </div>
+  {/if}
 
   <!-- Installations List Section -->
   <div class="installations-section">
@@ -281,6 +329,156 @@ import { isLaunching, currentLaunchingInstallation } from '$lib/stores/launcher'
     background: var(--container);
     overflow: hidden;
     border-radius: var(--border-radius);
+  }
+
+  .advertisement-banner {
+    background: transparent !important;
+    position: relative;
+    height: 250px;
+    margin: -1.5rem;
+    border-radius: 1rem;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    margin-bottom: 0.5rem;
+
+    .banner-background {
+      position: absolute;
+      inset: 0;
+      
+      :global(.banner-image) {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+    }
+
+    .banner-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        to bottom,
+        rgba(0, 0, 0, 0.3) 0%,
+        rgba(0, 0, 0, 0.5) 100%
+      );
+    }
+
+    .banner-content {
+      position: relative;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1;
+
+      .banner-actions {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        width: 100%;
+        max-width: 1200px;
+        padding: 0 2rem;
+        justify-items: center;
+
+        .banner-button {
+          font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: center;
+          gap: 0.75rem;
+          padding: 0.5rem 1rem;
+          border-radius: 0.5rem;
+          font-weight: 900;
+          text-decoration: none;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          backdrop-filter: blur(2px);
+          border: none;
+          cursor: pointer;
+          font-size: 1rem;
+          max-width: fit-content;
+
+          :global(.button-image) {
+            flex-shrink: 0;
+            height: 40px;
+            width: auto;
+            object-fit: contain;
+          }
+
+          &:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+          }
+
+          &:active {
+            transform: translateY(0);
+          }
+
+          &.primary {
+            background: var(--dark-800);
+            color: var(--text);
+
+            &:hover {
+              background: var(--dark-700);
+            }
+          }
+
+          &.secondary {
+            background: #c3a313;
+            color: var(--text);
+
+            &:hover {
+              background: rgba(#c3a313, 0.7);
+            }
+          }
+
+          &.kofi {
+            background: #13C3A8;
+            color: var(--text);
+            border: 1px solid color-mix(in srgb, #13C3A8, 70%, transparent);
+
+            &:hover {
+              background: rgba(#13C3A8, 0.7);
+            }
+          }
+
+          span {
+            white-space: nowrap;
+          }
+        }
+      }
+
+      .artist-recruitment {
+        position: absolute;
+        bottom: 1rem;
+        left: 2rem;
+        font-size: 0.75rem;
+        color: color-mix(in srgb, var(--text), 70%, transparent);
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+
+        .recruitment-text {
+          font-weight: 400;
+        }
+
+        .recruitment-link {
+          background: none;
+          border: none;
+          color: var(--text);
+          text-decoration: underline;
+          cursor: pointer;
+          font-size: 0.75rem;
+          font-weight: 500;
+          padding: 0;
+          transition: color 0.2s ease;
+
+          &:hover {
+            color: var(--primary);
+          }
+        }
+      }
+    }
   }
 
   .installations-section {
@@ -482,14 +680,14 @@ import { isLaunching, currentLaunchingInstallation } from '$lib/stores/launcher'
     padding: 0.75rem 1rem;
     border-radius: 8px;
     font-size: 0.875rem;
-  background: color-mix(in srgb, var(--green), 10%, transparent);
-  color: var(--green);
-  border: 1px solid color-mix(in srgb, var(--green), 30%, transparent);
+    background: color-mix(in srgb, var(--green), 10%, transparent);
+    color: var(--green);
+    border: 1px solid color-mix(in srgb, var(--green), 30%, transparent);
     
     &.error {
-  background: color-mix(in srgb, var(--red), 10%, transparent);
-  color: var(--red);
-  border-color: color-mix(in srgb, var(--red), 30%, transparent);
+      background: color-mix(in srgb, var(--red), 10%, transparent);
+      color: var(--red);
+      border-color: color-mix(in srgb, var(--red), 30%, transparent);
     }
   }
 

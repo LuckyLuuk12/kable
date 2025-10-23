@@ -8,7 +8,11 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 
 | Key | Source | Snippet |
 | --- | --- | --- |
+| advertisement-banner | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L208) | <pre><code class="language-html">&lt;Image key="advertisement-banner" alt="Banner" className="banner-image" width="100%" height="100%" /&gt;</code></pre> |
 | curseforge | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L946) | <pre><code class="language-html">&lt;Image key="curseforge" alt="CurseForge" className="provider-icon" width="1.25rem" height="1.25rem" /&gt;</code></pre> |
+| kablan-logo | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L214) | <pre><code class="language-html">&lt;Image key="kablan-logo" alt="Kablan" className="button-image" width="auto" height="24px" /&gt;</code></pre> |
+| kofi-logo | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L224) | <pre><code class="language-html">&lt;Image key="kofi-logo" alt="Ko-fi" className="button-image" width="auto" height="24px" /&gt;</code></pre> |
+| luckybindings-logo | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L219) | <pre><code class="language-html">&lt;Image key="luckybindings-logo" alt="LuckyBindings" className="button-image" width="auto" height="24px" /&gt;</code></pre> |
 | modrinth | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L944) | <pre><code class="language-html">&lt;Image key="modrinth" alt="Modrinth" className="provider-icon" width="1.25rem" height="1.25rem" /&gt;</code></pre> |
 | profile-avatar | [Image](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/Image.svelte#L12) | <pre><code class="language-html">&lt;Image key="profile-avatar" alt="User Avatar" className="avatar" width="100px" height="100px" /&gt;</code></pre> |
 
@@ -162,7 +166,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | package | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L284) | <pre><code class="language-html">&lt;Icon name="package" size="md" /&gt;</code></pre> |
 | package | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L379) | <pre><code class="language-html">&lt;Icon name="package" size="lg" /&gt;</code></pre> |
 | package | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L383) | <pre><code class="language-html">&lt;Icon name="package" size="lg" /&gt;</code></pre> |
-| play | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L215) | <pre><code class="language-html">&lt;Icon name="play" size="md" forceType="svg" /&gt;</code></pre> |
+| play | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L246) | <pre><code class="language-html">&lt;Icon name="play" size="md" forceType="svg" /&gt;</code></pre> |
 | play | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L184) | <pre><code class="language-html">&lt;Icon name="play" size="md" /&gt;</code></pre> |
 | plus | [Installations Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/installations/+page.svelte#L44) | <pre><code class="language-html">&lt;Icon name="plus" size="md" forceType="svg" /&gt;</code></pre> |
 | qr-code | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L153) | <pre><code class="language-html">&lt;Icon name="qr-code" size="sm" /&gt;</code></pre> |
@@ -183,7 +187,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | refresh | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L560) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L571) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L219) | <pre><code class="language-html">&lt;Icon name="refresh" size="lg" /&gt;</code></pre> |
-| refresh | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L212) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" className="spin" /&gt;</code></pre> |
+| refresh | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L243) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" className="spin" /&gt;</code></pre> |
 | refresh | [Installations Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/installations/+page.svelte#L54) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" /&gt;</code></pre> |
 | refresh | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L841) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L146) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" forceType="svg" /&gt;</code></pre> |
@@ -237,4 +241,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [ShaderGalleryModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderGalleryModal.svelte#L85) | <pre><code class="language-html">&lt;Icon name="x" size="lg" forceType="svg" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L608) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2025-10-22T23:48:35.804Z_
+_Generated: 2025-10-23T12:39:27.755Z_

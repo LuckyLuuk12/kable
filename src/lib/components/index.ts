@@ -8,6 +8,7 @@ export * from './shaders';
 export * from './skins';
 
 export { default as Icon } from './Icon.svelte';
+export { default as Image } from './Image.svelte';
 
 export { default as NavBar } from './NavBar.svelte';
 export { default as TitleBar } from './TitleBar.svelte';
