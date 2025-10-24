@@ -1,5 +1,5 @@
+use oauth2::http::{Error as HttpError, Response as RawResponse};
 use oauth2::{HttpRequest, HttpResponse};
-use oauth2::http::{Response as RawResponse, Error as HttpError};
 
 /// Concrete error type for the OAuth HTTP adapter.
 /// We need a sized, concrete error type so oauth2's generic bounds are satisfied.
@@ -22,9 +22,7 @@ impl std::error::Error for OAuthRequestError {}
 
 /// Small adapter that sends oauth2 HttpRequest using reqwest and returns oauth2 HttpResponse.
 /// Returns a concrete error type so it satisfies oauth2's request_async expected bounds.
-pub async fn async_http_client(
-    request: HttpRequest,
-) -> Result<HttpResponse, OAuthRequestError> {
+pub async fn async_http_client(request: HttpRequest) -> Result<HttpResponse, OAuthRequestError> {
     let client = reqwest::Client::new();
 
     // Build reqwest request using the http::Request accessors
@@ -42,7 +40,10 @@ pub async fn async_http_client(
         req_builder = req_builder.header(name.as_str(), value.to_str().unwrap_or_default());
     }
 
-    let resp = req_builder.send().await.map_err(OAuthRequestError::Reqwest)?;
+    let resp = req_builder
+        .send()
+        .await
+        .map_err(OAuthRequestError::Reqwest)?;
     let status = resp.status().as_u16();
     let bytes = resp.bytes().await.map_err(OAuthRequestError::Reqwest)?;
 

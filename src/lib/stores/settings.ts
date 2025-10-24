@@ -90,6 +90,8 @@ export function defaultAdvancedSettings(): AdvancedSettings {
     default_memory: 2048,
     separate_logs_window: false,
     auto_save_interval: 10,
+    show_advanced_page: false,
+    extra: {},
   };
 }
 

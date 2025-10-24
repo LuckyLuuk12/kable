@@ -1,17 +1,22 @@
 pub mod auth;
+pub mod images;
 pub mod installations;
 pub mod launcher;
 pub mod mods;
+pub mod resourcepacks;
+pub mod shaders;
 pub mod skins;
+pub mod symlinks;
 pub mod system;
 pub mod updater;
-pub mod images;
 
 pub use self::auth::*;
+pub use self::images::*;
 pub use self::installations::*;
 pub use self::launcher::*;
 pub use self::mods::*;
+pub use self::resourcepacks::*;
+pub use self::shaders::*;
 pub use self::skins::*;
 pub use self::system::*;
 pub use self::updater::*;
-pub use self::images::*;

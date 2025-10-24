@@ -68,7 +68,10 @@ pub async fn enable_mod(installation: KableInstallation, file_name: String) -> R
 
 /// Toggle the disabled state for a mod; returns the new disabled state (true = disabled)
 #[tauri::command]
-pub async fn toggle_mod_disabled(installation: KableInstallation, file_name: String) -> Result<bool, String> {
+pub async fn toggle_mod_disabled(
+    installation: KableInstallation,
+    file_name: String,
+) -> Result<bool, String> {
     installation.toggle_mod_disabled(&file_name)
 }
 

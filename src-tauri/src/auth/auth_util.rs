@@ -8,7 +8,11 @@ use crate::logging::{LogLevel, Logger};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::RwLock;
 use tokio::fs as async_fs;
+
+// In-memory cache for accounts to avoid redundant disk reads
+static ACCOUNTS_CACHE: RwLock<Option<LauncherAccountsJson>> = RwLock::new(None);
 
 // ...existing code...
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -76,8 +80,33 @@ pub fn get_kable_accounts_path() -> Result<PathBuf, String> {
     Ok(accounts_path)
 }
 
-/// Read all accounts from kable_accounts.json
+/// Invalidate the accounts cache (should be called after write operations)
+fn invalidate_accounts_cache() {
+    if let Ok(mut cache) = ACCOUNTS_CACHE.write() {
+        *cache = None;
+        Logger::console_log(
+            LogLevel::Debug,
+            "🔄 Accounts cache invalidated",
+            None,
+        );
+    }
+}
+
+/// Read all accounts from kable_accounts.json with caching
 pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
+    // Try to use cached data first
+    if let Ok(cache) = ACCOUNTS_CACHE.read() {
+        if let Some(cached_accounts) = cache.as_ref() {
+            Logger::console_log(
+                LogLevel::Debug,
+                "💾 Using cached accounts data",
+                None,
+            );
+            return Ok(cached_accounts.clone());
+        }
+    }
+    
+    // Cache miss - read from disk
     Logger::console_log(
         LogLevel::Info,
         "📖 Reading Kable accounts from file...",
@@ -96,11 +125,16 @@ pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
             "⚠️ kable_accounts.json not found, returning empty structure",
             None,
         );
-        return Ok(LauncherAccountsJson {
+        let empty_accounts = LauncherAccountsJson {
             accounts: HashMap::new(),
             active_account_local_id: String::new(),
             mojang_client_token: String::new(),
-        });
+        };
+        // Cache the empty structure
+        if let Ok(mut cache) = ACCOUNTS_CACHE.write() {
+            *cache = Some(empty_accounts.clone());
+        }
+        return Ok(empty_accounts);
     }
     let content = async_fs::read_to_string(&accounts_path)
         .await
@@ -142,7 +176,10 @@ pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
             if let Err(e) = crate::auth::write_launcher_accounts(accounts_copy).await {
                 crate::logging::Logger::console_log(
                     LogLevel::Warning,
-                    &format!("Failed to persist cleaned accounts after decryption errors: {}", e),
+                    &format!(
+                        "Failed to persist cleaned accounts after decryption errors: {}",
+                        e
+                    ),
                     None,
                 );
             }
@@ -153,6 +190,12 @@ pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
         &format!("✅ Successfully read {} accounts", accounts.accounts.len()),
         None,
     );
+    
+    // Cache the accounts before returning
+    if let Ok(mut cache) = ACCOUNTS_CACHE.write() {
+        *cache = Some(accounts.clone());
+    }
+    
     Ok(accounts)
 }
 
@@ -198,6 +241,10 @@ pub async fn write_launcher_accounts(mut accounts: LauncherAccountsJson) -> Resu
         ),
         None,
     );
+    
+    // Invalidate cache after write
+    invalidate_accounts_cache();
+    
     Ok(())
 }
 

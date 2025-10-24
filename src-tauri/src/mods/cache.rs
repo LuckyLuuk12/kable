@@ -87,7 +87,9 @@ impl<T: Clone + Serialize + for<'de> Deserialize<'de>> ModCache<T> {
 
     /// Async version: load the cache using async filesystem APIs.
     pub async fn load_from_disk_async(path: &std::path::Path) -> Result<Self, String> {
-        let data = tokio::fs::read(path).await.map_err(|e| format!("Read cache async: {e}"))?;
+        let data = tokio::fs::read(path)
+            .await
+            .map_err(|e| format!("Read cache async: {e}"))?;
         serde_json::from_slice(&data).map_err(|e| format!("Deserialize cache: {e}"))
     }
 

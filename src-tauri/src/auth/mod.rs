@@ -6,8 +6,8 @@
 pub mod auth_util;
 pub mod code_flow;
 pub mod device_code_flow;
-pub mod secure_token;
 pub mod oauth_helpers;
+pub mod secure_token;
 
 // Re-export the auth_util functions and types for convenience
 pub use auth_util::*;

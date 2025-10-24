@@ -161,8 +161,10 @@ export class AuthService {
         console.log(`✅ All tokens refreshed successfully (${successful} account(s))`);
       }
 
-      // Refresh the available accounts list to update UI
-      await this.refreshAvailableAccounts();
+      // Only refresh the available accounts list if we actually refreshed any tokens
+      if (successful > 0 || failed > 0) {
+        await this.refreshAvailableAccounts();
+      }
     } catch (error) {
       console.error('❌ Error during bulk token refresh:', error);
     }
@@ -353,7 +355,7 @@ export class AuthService {
       console.log('🔄 Manually refreshing current account token...');
       const refreshed = await authApi.refreshMicrosoftToken(account.local_id);
       currentAccount.set(refreshed);
-      await this.refreshAvailableAccounts();
+      // Note: refreshAvailableAccounts() will be called by refreshAllAccountTokens() in NavBar
       console.log('✅ Token manually refreshed');
       return refreshed;
     } catch (error) {

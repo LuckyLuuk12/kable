@@ -214,17 +214,18 @@ export interface MinecraftDirectoryInfo {
 export interface LocalWorld {
   id: string;
   name: string;
-  path: string;
-  last_played?: number;  // Changed to number (timestamp)
-  size?: number;
-  size_mb: number;  // Size in MB for compatibility
-  version?: string;
-  game_mode?: string;
-  hardcore?: boolean;
-  difficulty?: string;  // Added difficulty for world stats
-  folder_name: string;  // Folder name for searching
-  created: number;  // Creation timestamp
-  backup_count: number;  // Number of backups for this world
+  folder_name: string;
+  game_mode: 'Survival' | 'Creative' | 'Adventure' | 'Spectator';
+  difficulty: 'Peaceful' | 'Easy' | 'Normal' | 'Hard';
+  version: string;
+  size_mb: number;
+  last_played: number;  // Unix timestamp in milliseconds
+  created: number;  // Unix timestamp in milliseconds
+  seed: string | null;
+  icon: string | null;
+  backup_count: number;
+  has_cheats: boolean;
+  world_type: string;
 }
 
 export interface WorldDownload {
@@ -239,32 +240,47 @@ export interface WorldDownload {
 export interface ShaderPack {
   id: string;
   name: string;
-  path: string;
-  version?: string;
-  description?: string;
-  compatible_versions?: string[];
-  // Additional properties for shader management
-  file_size: number;  // File size in bytes
-  enabled: boolean;  // Whether shader is enabled
-  shader_loader: string;  // Shader loader type (OptiFine, Iris, etc.)
-  installed_date: number;  // Installation timestamp
-  author: string;  // Author name
-  file_name: string;  // File name for searching
+  version: string;
+  author: string;
+  description: string | null;
+  file_path: string;
+  file_name: string;
+  file_size: number;
+  compatible_versions: string[];
+  enabled: boolean;
+  source_url: string | null;
+  thumbnail: string | null;
+  shader_loader: 'Canvas' | 'Iris' | 'OptiFine' | 'Vanilla';
+  installed_date: number;
+  last_used: number | null;
 }
 
 export interface ShaderDownload {
   id: string;
   name: string;
-  url: string;
-  description?: string;
-  compatible_versions?: string[];
+  author: string;
+  description: string;
+  download_url: string;
+  thumbnail: string | null;
+  gallery: string[] | null;
+  featured_gallery: string | null;
+  tags: string[];
+  minecraft_versions: string[];
+  shader_loader: 'Canvas' | 'Iris' | 'OptiFine' | 'Vanilla';
+  rating: number;
+  downloads: number;
+  size_mb: number;
+  source: 'Modrinth' | 'CurseForge' | { Other: string };
 }
 
 export interface ShaderSettings {
-  enabled: boolean;
-  current_pack?: string;
-  quality_preset?: string;
-  enable_caching?: boolean;
+  quality: 'Low' | 'Medium' | 'High' | 'Ultra' | 'Custom';
+  shadows: boolean;
+  shadow_resolution: number;
+  anti_aliasing: boolean;
+  bloom: boolean;
+  motion_blur: boolean;
+  custom_settings: Record<string, any>;
 }
 
 export interface MinecraftSkin {
@@ -604,6 +620,8 @@ export interface AdvancedSettings {
   separate_logs_window: boolean;
   /** How frequently to auto save the settings */
   auto_save_interval: number | 'disabled'; // in seconds, 'disabled' means no auto save
+  /** Whether to show the advanced page in the navigation bar */
+  show_advanced_page: boolean;
   /** A map with string keys and any type of values for really advanced stuff */
   extra?: Record<string, any>;
 }
@@ -803,15 +821,16 @@ export type ModInfoKind =
 
 
 /** Discriminated union for mod filters for each provider.
+ * Uses Rust externally tagged enum format for serde compatibility.
  * ```ts
  * export type ModFilter =
- *   | { kind: 'Modrinth'; facets: FilterFacets }
- *   | { kind: 'CurseForge'; facets: CurseForgeFilter };
+ *   | { Modrinth: FilterFacets }
+ *   | { CurseForge: CurseForgeFilter };
  * ```
  */
 export type ModFilter =
-  | { kind: 'Modrinth'; facets: FilterFacets }
-  | { kind: 'CurseForge'; facets: CurseForgeFilter };
+  | { Modrinth: FilterFacets }
+  | { CurseForge: CurseForgeFilter };
 
 
 /** Modrinth filter facets for searching mods.
@@ -846,6 +865,84 @@ export interface FilterFacets {
   /** Downloads filter as [facet, minDownloads] */
   downloads?: [string, number];
 }
+
+/** Modrinth filter facets for searching shaders.
+ * ```ts
+ * export interface ShaderFilterFacets {
+ *   query?: string;
+ *   loaders?: [string, string][];
+ *   categories?: [string, string][];
+ *   game_versions?: string[];
+ * }
+ * ```
+ */
+export interface ShaderFilterFacets {
+  /** Free-text search query */
+  query?: string;
+  /** Array of [operation, value] pairs for loaders (iris, optifine, canvas, vanilla) */
+  loaders?: [string, string][];
+  /** Array of [operation, value] pairs for categories (performance, features, style) */
+  categories?: [string, string][];
+  /** Game versions to filter by */
+  game_versions?: string[];
+}
+
+// Resource Pack Types
+
+export interface ResourcePack {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string | null;
+  file_path: string;
+  file_name: string;
+  file_size: number;
+  compatible_versions: string[];
+  pack_format: number;
+  enabled: boolean;
+  source_url: string | null;
+  thumbnail: string | null;
+  installed_date: number;
+  last_used: number | null;
+}
+
+export interface ResourcePackDownload {
+  id: string;
+  name: string;
+  author: string;
+  description: string;
+  download_url: string;
+  thumbnail: string | null;
+  gallery: string[] | null;
+  featured_gallery: string | null;
+  tags: string[];
+  minecraft_versions: string[];
+  resolution: string | null;
+  rating: number;
+  downloads: number;
+  size_mb: number;
+  source: 'Modrinth' | 'CurseForge' | { Other: string };
+}
+
+/** Modrinth filter facets for searching resource packs.
+ * ```ts
+ * export interface ResourcePackFilterFacets {
+ *   query?: string;
+ *   categories?: [string, string][];
+ *   game_versions?: string[];
+ * }
+ * ```
+ */
+export interface ResourcePackFilterFacets {
+  /** Free-text search query */
+  query?: string;
+  /** Array of [operation, value] pairs for categories (resolutions, styles, etc) */
+  categories?: [string, string][];
+  /** Game versions to filter by */
+  game_versions?: string[];
+}
+
 
 
 /** Modrinth mod project info.

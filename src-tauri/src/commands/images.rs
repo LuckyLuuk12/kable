@@ -1,6 +1,6 @@
+use base64::Engine;
 use tauri::command;
 use tokio::fs as async_fs;
-use base64::Engine;
 
 /// Resolve an image key to a filesystem path (user-provided) or fallback static path
 #[command]

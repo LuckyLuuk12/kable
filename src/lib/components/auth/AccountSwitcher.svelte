@@ -29,9 +29,8 @@
   }
 
   onMount(async () => {
-    if ($availableAccounts.length === 0) {
-      await AuthService.refreshAvailableAccounts();
-    }
+    // Accounts are already loaded by AuthService.initialize() in NavBar
+    // No need to refresh again - just use the store data
   });
 
   async function switchAccount(account: LauncherAccount) {

@@ -76,7 +76,12 @@ pub async fn refresh_microsoft_token(local_id: String) -> Result<LauncherAccount
     let mc_token = mc_flow
         .exchange_microsoft_token(&ms_access)
         .await
-        .map_err(|e| format!("Failed to exchange Microsoft token for Minecraft token: {}", e))?;
+        .map_err(|e| {
+            format!(
+                "Failed to exchange Microsoft token for Minecraft token: {}",
+                e
+            )
+        })?;
 
     // Extract Minecraft access token string
     let mc_access = mc_token.access_token().clone().into_inner();
@@ -459,12 +464,12 @@ async fn exchange_auth_code_for_tokens(
     // Try the oauth2 crate first, then fall back to manual implementation if needed
     let auth_code_for_fallback = auth_code.clone();
     let pkce_secret = pkce_verifier.secret().to_string();
-    
+
     let token_result = client
         .exchange_code(AuthorizationCode::new(auth_code))
         .set_pkce_verifier(pkce_verifier)
         .add_extra_param("client_id", &client_id)
-    .request_async(&crate::auth::oauth_helpers::async_http_client)
+        .request_async(&crate::auth::oauth_helpers::async_http_client)
         .await;
 
     let final_token_result = match token_result {
@@ -472,10 +477,13 @@ async fn exchange_auth_code_for_tokens(
         Err(oauth_err) => {
             Logger::console_log(
                 LogLevel::Warning,
-                &format!("⚠️ OAuth2 crate failed, trying manual request: {}", oauth_err),
+                &format!(
+                    "⚠️ OAuth2 crate failed, trying manual request: {}",
+                    oauth_err
+                ),
                 None,
             );
-            
+
             // Fallback: Make the request manually using reqwest with exact Microsoft requirements
             let http_client = reqwest::Client::new();
             let form_params = [
@@ -485,7 +493,7 @@ async fn exchange_auth_code_for_tokens(
                 ("redirect_uri", &redirect_uri),
                 ("code_verifier", &pkce_secret),
             ];
-            
+
             let response = http_client
                 .post(MSA_TOKEN_URL)
                 .header("Content-Type", "application/x-www-form-urlencoded")
@@ -493,45 +501,54 @@ async fn exchange_auth_code_for_tokens(
                 .send()
                 .await
                 .map_err(|e| format!("Manual token request failed: {}", e))?;
-            
+
             if !response.status().is_success() {
                 let status = response.status();
-                let error_text = response.text().await.unwrap_or_else(|_| "Unknown error".to_string());
+                let error_text = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|_| "Unknown error".to_string());
                 Logger::console_log(
                     LogLevel::Error,
-                    &format!("❌ Manual token request failed with status {}: {}", status, error_text),
+                    &format!(
+                        "❌ Manual token request failed with status {}: {}",
+                        status, error_text
+                    ),
                     None,
                 );
                 return Err(format!("Manual token request failed: {}", error_text));
             }
-            
-            let token_response: serde_json::Value = response.json().await
+
+            let token_response: serde_json::Value = response
+                .json()
+                .await
                 .map_err(|e| format!("Failed to parse token response: {}", e))?;
-            
-            Logger::console_log(
-                LogLevel::Info,
-                "✅ Manual token request succeeded",
-                None,
-            );
-            
+
+            Logger::console_log(LogLevel::Info, "✅ Manual token request succeeded", None);
+
             // Extract token information and create Microsoft token directly
-            let access_token = token_response["access_token"].as_str()
+            let access_token = token_response["access_token"]
+                .as_str()
                 .ok_or_else(|| "Missing access_token in response".to_string())?;
             let expires_in = token_response["expires_in"].as_u64().unwrap_or(3600);
             let refresh_token = token_response["refresh_token"].as_str();
-            
+
             let expires_at = Utc::now() + chrono::Duration::seconds(expires_in as i64);
-            let encrypted_refresh_token = refresh_token
-                .map(|rt| encrypt_token(rt).unwrap_or_default());
-                
+            let encrypted_refresh_token =
+                refresh_token.map(|rt| encrypt_token(rt).unwrap_or_default());
+
             let microsoft_token = MicrosoftToken {
                 access_token: access_token.to_string(),
                 expires_at,
                 encrypted_refresh_token,
             };
-            
-            Logger::console_log(LogLevel::Info, "✅ Microsoft access token obtained via manual request", None);
-            
+
+            Logger::console_log(
+                LogLevel::Info,
+                "✅ Microsoft access token obtained via manual request",
+                None,
+            );
+
             // Skip the normal oauth2 processing and go directly to Minecraft auth
             complete_minecraft_auth_code(microsoft_token).await?;
             return Ok(());

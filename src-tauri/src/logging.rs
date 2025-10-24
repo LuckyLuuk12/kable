@@ -5,8 +5,8 @@ use std::fmt;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{sync_channel, SyncSender, TrySendError};
+use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
 // tokio::fs not used in this module after refactor
 
@@ -71,10 +71,10 @@ impl LogStorage {
         let minecraft_path = Self::get_minecraft_path(app)?;
         let logs_dir = minecraft_path.join("kable").join("logs");
 
-    // Create logs directory structure using centralized sync helper
-    crate::ensure_folder_sync(&logs_dir)?;
-    crate::ensure_folder_sync(&logs_dir.join("launcher"))?;
-    crate::ensure_folder_sync(&logs_dir.join("installations"))?;
+        // Create logs directory structure using centralized sync helper
+        crate::ensure_folder_sync(&logs_dir)?;
+        crate::ensure_folder_sync(&logs_dir.join("launcher"))?;
+        crate::ensure_folder_sync(&logs_dir.join("installations"))?;
 
         // Load settings to configure logging
         let settings =
@@ -102,8 +102,13 @@ impl LogStorage {
             // Background thread: consume messages and perform synchronous IO (compression allowed)
             for msg in rx.iter() {
                 // determine log path
-                let filename = format!("{}-{}.log",
-                    if msg.instance_id.is_some() { "installations" } else { "launcher" },
+                let filename = format!(
+                    "{}-{}.log",
+                    if msg.instance_id.is_some() {
+                        "installations"
+                    } else {
+                        "launcher"
+                    },
                     msg.timestamp.format("%Y-%m-%d")
                 );
                 let log_path = if let Some(ref id) = msg.instance_id {
@@ -127,14 +132,23 @@ impl LogStorage {
                         if metadata.len() > (config_clone.size_limit_mb * 1024 * 1024) {
                             // compress
                             let _ = (|| -> Result<(), Box<dyn std::error::Error>> {
-                                if !config_clone.enable_compression { return Ok(()); }
+                                if !config_clone.enable_compression {
+                                    return Ok(());
+                                }
                                 let compressed_path = log_path.with_extension("log.7z");
                                 let file_content = std::fs::read(&log_path)?;
                                 let mut archive_file = File::create(&compressed_path)?;
-                                let mut encoder = sevenz_rust::SevenZWriter::new(&mut archive_file)?;
-                                let filename = log_path.file_name().and_then(|n| n.to_str()).unwrap_or("log.txt");
+                                let mut encoder =
+                                    sevenz_rust::SevenZWriter::new(&mut archive_file)?;
+                                let filename = log_path
+                                    .file_name()
+                                    .and_then(|n| n.to_str())
+                                    .unwrap_or("log.txt");
                                 encoder.push_archive_entry(
-                                    sevenz_rust::SevenZArchiveEntry::from_path(filename, filename.to_string()),
+                                    sevenz_rust::SevenZArchiveEntry::from_path(
+                                        filename,
+                                        filename.to_string(),
+                                    ),
                                     Some(std::io::Cursor::new(file_content)),
                                 )?;
                                 encoder.finish()?;
@@ -147,7 +161,12 @@ impl LogStorage {
 
                 // Append the log line
                 let timestamp = msg.timestamp.format("%Y-%m-%d %H:%M:%S%.3f UTC");
-                let log_line = format!("[{}] {} {}\n", timestamp, msg.level.to_string().to_uppercase(), msg.message);
+                let log_line = format!(
+                    "[{}] {} {}\n",
+                    timestamp,
+                    msg.level.to_string().to_uppercase(),
+                    msg.message
+                );
                 if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
                     let _ = file.write_all(log_line.as_bytes());
                     let _ = file.flush();
@@ -215,8 +234,13 @@ impl LogStorage {
                 std::thread::spawn(move || {
                     // Best-effort write in background when queue was full
                     let _ = {
-                        let filename = format!("{}-{}.log",
-                            if m.instance_id.is_some() { "installations" } else { "launcher" },
+                        let filename = format!(
+                            "{}-{}.log",
+                            if m.instance_id.is_some() {
+                                "installations"
+                            } else {
+                                "launcher"
+                            },
                             m.timestamp.format("%Y-%m-%d")
                         );
                         let log_path = if let Some(ref id) = m.instance_id {
@@ -228,8 +252,15 @@ impl LogStorage {
                             let _ = crate::ensure_folder_sync(parent);
                         }
                         let timestamp = m.timestamp.format("%Y-%m-%d %H:%M:%S%.3f UTC");
-                        let log_line = format!("[{}] {} {}\n", timestamp, m.level.to_string().to_uppercase(), m.message);
-                        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
+                        let log_line = format!(
+                            "[{}] {} {}\n",
+                            timestamp,
+                            m.level.to_string().to_uppercase(),
+                            m.message
+                        );
+                        if let Ok(mut file) =
+                            OpenOptions::new().create(true).append(true).open(&log_path)
+                        {
                             let _ = file.write_all(log_line.as_bytes());
                             let _ = file.flush();
                         }

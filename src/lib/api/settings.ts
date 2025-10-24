@@ -11,7 +11,7 @@ export async function loadSettings(): Promise<CategorizedLauncherSettings> {
 }
 
 export async function saveSettings(settings: CategorizedLauncherSettings): Promise<void> {
-  return await invoke('save_settings', { settings });
+  return await invoke('save_settings_command', { settings });
 }
 
 export async function loadCustomCss(themeName: string): Promise<string> {
