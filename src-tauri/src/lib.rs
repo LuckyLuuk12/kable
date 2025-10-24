@@ -14,7 +14,6 @@ pub use kable_macros::*;
 // Module declarations
 pub mod auth;
 pub mod commands;
-pub mod custom_symlinks;
 pub mod icons;
 pub mod installations;
 pub mod launcher;
@@ -42,7 +41,6 @@ pub use commands::skins as commands_skins;
 pub use commands::symlinks as commands_symlinks;
 pub use commands::system as commands_system;
 pub use commands::updater as commands_updater;
-pub use custom_symlinks::*;
 pub use icons::*;
 pub use installations::*;
 pub use launcher::*;

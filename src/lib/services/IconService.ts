@@ -235,7 +235,8 @@ export class IconService {
         chart: '📊',
         palette: '🎨',
         compass: '🧭',
-        eye: '👁️'
+        eye: '👁️',
+        link: '🔗'
       }
     });
     

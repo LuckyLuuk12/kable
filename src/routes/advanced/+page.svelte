@@ -237,7 +237,7 @@
 
       {#if loading}
         <div class="loading-state">
-          <Icon name="spinner" />
+          <Icon name="load" />
           <p>Loading symlinks...</p>
         </div>
       {:else if error}
@@ -611,7 +611,7 @@
         font-size: 0.8rem;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        color: var(--text-secondary);
+        color: var(--placeholder);
         white-space: nowrap;
 
         &:first-child {
@@ -651,7 +651,43 @@
       td {
         padding: 0.75rem 1rem;
         vertical-align: middle;
+
+        // Fit-content columns for short data
+        &:nth-child(1),  // Type
+        &:nth-child(4),  // Scope
+        &:nth-child(5),  // Installation
+        &:nth-child(6),  // Status
+        &:nth-child(7) { // Actions
+          width: fit-content;
+          white-space: nowrap;
+        }
       }
+    }
+
+    // Column width adjustments
+    th:nth-child(1),  // Type
+    td:nth-child(1) {
+      width: fit-content;
+    }
+
+    th:nth-child(4),  // Scope
+    td:nth-child(4) {
+      width: fit-content;
+    }
+
+    th:nth-child(5),  // Installation
+    td:nth-child(5) {
+      width: fit-content;
+    }
+
+    th:nth-child(6),  // Status
+    td:nth-child(6) {
+      width: fit-content;
+    }
+
+    th:nth-child(7),  // Actions
+    td:nth-child(7) {
+      width: fit-content;
     }
   }
 
@@ -664,7 +700,8 @@
   .path-cell {
     font-family: 'Courier New', monospace;
     font-size: 0.8rem;
-    max-width: 300px;
+    max-width: none;
+    min-width: 250px;
 
     span {
       display: block;
