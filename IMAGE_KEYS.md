@@ -150,6 +150,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | list | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L232) | <pre><code class="language-html">&lt;Icon name="list" size="sm" /&gt;</code></pre> |
 | list | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L304) | <pre><code class="language-html">&lt;Icon name="list" size="sm" /&gt;</code></pre> |
 | list | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L429) | <pre><code class="language-html">&lt;Icon name="list" size="sm" /&gt;</code></pre> |
+| load | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L240) | <pre><code class="language-html">&lt;Icon name="load" /&gt;</code></pre> |
 | loader | [ResourcePackBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/ResourcePackBrowser.svelte#L547) | <pre><code class="language-html">&lt;Icon name="loader" size="xl" /&gt;</code></pre> |
 | loader | [ResourcePackCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/ResourcePackCard.svelte#L148) | <pre><code class="language-html">&lt;Icon name="loader" size="sm" forceType="svg" /&gt;</code></pre> |
 | loader | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L551) | <pre><code class="language-html">&lt;Icon name="loader" size="xl" /&gt;</code></pre> |
@@ -219,7 +220,6 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | settings | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L196) | <pre><code class="language-html">&lt;Icon name="settings" /&gt;</code></pre> |
 | settings | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L218) | <pre><code class="language-html">&lt;Icon name="settings" /&gt;</code></pre> |
 | skull | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L321) | <pre><code class="language-html">&lt;Icon name="skull" size="md" /&gt;</code></pre> |
-| spinner | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L240) | <pre><code class="language-html">&lt;Icon name="spinner" /&gt;</code></pre> |
 | star | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L218) | <pre><code class="language-html">&lt;Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="md" /&gt;</code></pre> |
 | star | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L385) | <pre><code class="language-html">&lt;Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="sm" /&gt;</code></pre> |
 | star | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L340) | <pre><code class="language-html">&lt;Icon name="star" size="sm" forceType="svg" /&gt;</code></pre> |
@@ -260,4 +260,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L406) | <pre><code class="language-html">&lt;Icon name="x" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L608) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2025-10-24T00:24:11.625Z_
+_Generated: 2025-10-24T00:54:29.468Z_
