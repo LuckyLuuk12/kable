@@ -6,7 +6,7 @@ use once_cell::sync::Lazy;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const DISCORD_APP_ID: &str = "1432139549592649738"; // Replace with actual Discord application ID
+const DISCORD_APP_ID: &str = "1432139549592649738";
 
 /// Priority levels for different activities
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
