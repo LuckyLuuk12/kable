@@ -51,9 +51,6 @@
       </div>
     </div>
   </form>
-  
-  <!-- Auto-updater section -->
-  <AutoUpdater />
 </div>
 
 <style lang="scss">

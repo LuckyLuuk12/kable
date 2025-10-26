@@ -7,6 +7,7 @@ export * from './settings';
 export * from './shaders';
 export * from './skins';
 
+export { default as AutoUpdater } from './AutoUpdater.svelte';
 export { default as Icon } from './Icon.svelte';
 export { default as Image } from './Image.svelte';
 

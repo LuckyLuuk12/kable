@@ -1,6 +1,6 @@
 
 <script>
-  import { settings } from "$lib/stores";
+  import { settings, AutoUpdater } from "$lib";
   import { onMount } from 'svelte';
 
   let isWideScreen = true;
@@ -142,6 +142,8 @@
       </div>
     </div>
   </form>
+  <!-- Auto-updater section -->
+  <AutoUpdater />
 </div>
 
 <style lang="scss">
