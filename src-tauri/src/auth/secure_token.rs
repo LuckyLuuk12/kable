@@ -101,7 +101,7 @@ fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
     // Persist to file as fallback
     if let Some(parent) = key_path.parent() {
         crate::ensure_folder_sync(parent)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(std::io::Error::other)?;
     }
     let mut file = OpenOptions::new()
         .write(true)
