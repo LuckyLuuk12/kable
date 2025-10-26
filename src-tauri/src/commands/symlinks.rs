@@ -27,7 +27,10 @@ pub async fn remove_symlink(destination: String, id: Option<String>) -> Result<(
 
 /// Toggle symlink disabled state
 #[tauri::command]
-pub async fn toggle_symlink_disabled(destination: String, id: Option<String>) -> Result<bool, String> {
+pub async fn toggle_symlink_disabled(
+    destination: String,
+    id: Option<String>,
+) -> Result<bool, String> {
     crate::symlink_manager::toggle_symlink_disabled(destination, id).await
 }
 
@@ -40,7 +43,14 @@ pub async fn update_symlink(
     new_destination_parent: String,
     new_installation_id: Option<Option<String>>,
 ) -> Result<(), String> {
-    crate::symlink_manager::update_symlink(id, old_destination, new_source, new_destination_parent, new_installation_id).await
+    crate::symlink_manager::update_symlink(
+        id,
+        old_destination,
+        new_source,
+        new_destination_parent,
+        new_installation_id,
+    )
+    .await
 }
 
 /// Select a file using the system file dialog
@@ -78,5 +88,3 @@ pub async fn select_folder_for_symlink(app: tauri::AppHandle) -> Result<Option<S
         None => Ok(None), // User cancelled
     }
 }
-
-

@@ -84,11 +84,7 @@ pub fn get_kable_accounts_path() -> Result<PathBuf, String> {
 fn invalidate_accounts_cache() {
     if let Ok(mut cache) = ACCOUNTS_CACHE.write() {
         *cache = None;
-        Logger::console_log(
-            LogLevel::Debug,
-            "🔄 Accounts cache invalidated",
-            None,
-        );
+        Logger::console_log(LogLevel::Debug, "🔄 Accounts cache invalidated", None);
     }
 }
 
@@ -97,15 +93,11 @@ pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
     // Try to use cached data first
     if let Ok(cache) = ACCOUNTS_CACHE.read() {
         if let Some(cached_accounts) = cache.as_ref() {
-            Logger::console_log(
-                LogLevel::Debug,
-                "💾 Using cached accounts data",
-                None,
-            );
+            Logger::console_log(LogLevel::Debug, "💾 Using cached accounts data", None);
             return Ok(cached_accounts.clone());
         }
     }
-    
+
     // Cache miss - read from disk
     Logger::console_log(
         LogLevel::Info,
@@ -190,12 +182,12 @@ pub async fn read_launcher_accounts() -> Result<LauncherAccountsJson, String> {
         &format!("✅ Successfully read {} accounts", accounts.accounts.len()),
         None,
     );
-    
+
     // Cache the accounts before returning
     if let Ok(mut cache) = ACCOUNTS_CACHE.write() {
         *cache = Some(accounts.clone());
     }
-    
+
     Ok(accounts)
 }
 
@@ -241,10 +233,10 @@ pub async fn write_launcher_accounts(mut accounts: LauncherAccountsJson) -> Resu
         ),
         None,
     );
-    
+
     // Invalidate cache after write
     invalidate_accounts_cache();
-    
+
     Ok(())
 }
 

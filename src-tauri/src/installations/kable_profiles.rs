@@ -245,7 +245,7 @@ impl KableInstallation {
             let tmp_file = fs::File::create(&tmp_path)
                 .map_err(|e| format!("Failed to create temp export file: {}", e))?;
             let mut zip = zip::ZipWriter::new(tmp_file);
-            let options = zip::write::FileOptions::default()
+            let options= zip::write::FullFileOptions::default()
                 .compression_method(zip::CompressionMethod::Stored)
                 .unix_permissions(0o755);
             // Prepare an export copy with reset metadata
@@ -255,7 +255,7 @@ impl KableInstallation {
             export_install.times_launched = 0;
             export_install.total_time_played_ms = 0;
             // Write the kable_export.json file
-            zip.start_file("kable_export.json", options)
+            zip.start_file("kable_export.json", options.clone())
                 .map_err(|e| format!("Failed to write kable_export.json: {}", e))?;
             let json = serde_json::to_string_pretty(&export_install)
                 .map_err(|e| format!("Failed to serialize KableInstallation: {}", e))?;
@@ -272,8 +272,8 @@ impl KableInstallation {
                 };
                 if resource_pack_path.exists() {
                     // If it's a file (zip), copy it directly
-                    if resource_pack_path.is_file() {
-                        zip.start_file("resource_packs.zip", options)
+                        if resource_pack_path.is_file() {
+                        zip.start_file("resource_packs.zip", options.clone())
                             .map_err(|e| format!("Failed to write resource pack: {}", e))?;
                         let mut resource_pack_file = fs::File::open(&resource_pack_path)
                             .map_err(|e| format!("Failed to open resource pack: {}", e))?;
@@ -294,7 +294,7 @@ impl KableInstallation {
                                 if path.is_file() {
                                     let rel = path.strip_prefix(&resource_pack_path).unwrap();
                                     let name = format!("{}", rel.to_string_lossy());
-                                    tmp_zip.start_file(name, options).map_err(|e| {
+                                    tmp_zip.start_file(name, options.clone()).map_err(|e| {
                                         format!("Failed to add file to tmp resource zip: {}", e)
                                     })?;
                                     let mut f = fs::File::open(path).map_err(|e| {
@@ -312,7 +312,7 @@ impl KableInstallation {
                         // Copy tmp into main zip
                         let mut tmp_file = fs::File::open(&tmp)
                             .map_err(|e| format!("Failed to open tmp resource zip: {}", e))?;
-                        zip.start_file("resource_packs.zip", options)
+                        zip.start_file("resource_packs.zip", options.clone())
                             .map_err(|e| format!("Failed to write resource pack: {}", e))?;
                         std::io::copy(&mut tmp_file, &mut zip)
                             .map_err(|e| format!("Failed to copy resource pack: {}", e))?;
@@ -330,8 +330,8 @@ impl KableInstallation {
                     kable_dir.join(shaders_folder)
                 };
                 if shaders_path.exists() {
-                    if shaders_path.is_file() {
-                        zip.start_file("shaders.zip", options)
+                        if shaders_path.is_file() {
+                        zip.start_file("shaders.zip", options.clone())
                             .map_err(|e| format!("Failed to write shaders folder: {}", e))?;
                         let mut shaders_file = fs::File::open(&shaders_path)
                             .map_err(|e| format!("Failed to open shaders folder: {}", e))?;
@@ -351,7 +351,7 @@ impl KableInstallation {
                                 if path.is_file() {
                                     let rel = path.strip_prefix(&shaders_path).unwrap();
                                     let name = format!("{}", rel.to_string_lossy());
-                                    tmp_zip.start_file(name, options).map_err(|e| {
+                                    tmp_zip.start_file(name, options.clone()).map_err(|e| {
                                         format!("Failed to add file to tmp shaders zip: {}", e)
                                     })?;
                                     let mut f = fs::File::open(path).map_err(|e| {
@@ -368,7 +368,7 @@ impl KableInstallation {
                         }
                         let mut tmp_file = fs::File::open(&tmp)
                             .map_err(|e| format!("Failed to open tmp shaders zip: {}", e))?;
-                        zip.start_file("shaders.zip", options)
+                        zip.start_file("shaders.zip", options.clone())
                             .map_err(|e| format!("Failed to write shaders folder: {}", e))?;
                         std::io::copy(&mut tmp_file, &mut zip)
                             .map_err(|e| format!("Failed to copy shaders folder: {}", e))?;
@@ -386,8 +386,8 @@ impl KableInstallation {
                     kable_dir.join(mods_folder)
                 };
                 if mods_path.exists() {
-                    if mods_path.is_file() {
-                        zip.start_file("mods.zip", options)
+                        if mods_path.is_file() {
+                        zip.start_file("mods.zip", options.clone())
                             .map_err(|e| format!("Failed to write mods: {}", e))?;
                         let mut mods_file = fs::File::open(&mods_path)
                             .map_err(|e| format!("Failed to open mods file: {}", e))?;
@@ -407,7 +407,7 @@ impl KableInstallation {
                                 if path.is_file() {
                                     let rel = path.strip_prefix(&mods_path).unwrap();
                                     let name = format!("{}", rel.to_string_lossy());
-                                    tmp_zip.start_file(name, options).map_err(|e| {
+                                    tmp_zip.start_file(name, options.clone()).map_err(|e| {
                                         format!("Failed to add file to tmp mods zip: {}", e)
                                     })?;
                                     let mut f = fs::File::open(path).map_err(|e| {
@@ -424,7 +424,7 @@ impl KableInstallation {
                         }
                         let mut tmp_file = fs::File::open(&tmp)
                             .map_err(|e| format!("Failed to open tmp mods zip: {}", e))?;
-                        zip.start_file("mods.zip", options)
+                        zip.start_file("mods.zip", options.clone())
                             .map_err(|e| format!("Failed to write mods: {}", e))?;
                         std::io::copy(&mut tmp_file, &mut zip)
                             .map_err(|e| format!("Failed to copy mods: {}", e))?;

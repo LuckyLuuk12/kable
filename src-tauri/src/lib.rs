@@ -64,22 +64,26 @@ pub fn run() {
             // Initialize global logger with the app handle so modules that
             // use GLOBAL_APP_HANDLE (e.g. launcher utils) can emit events.
             crate::logging::init_global_logger(app.handle());
-            
+
             // Clean up any leftover symlinks from previous crashes/exits
             tauri::async_runtime::spawn(async {
                 if let Ok(minecraft_dir) = get_default_minecraft_dir() {
-                    let symlink_manager = crate::symlink_manager::SymlinkManager::new(minecraft_dir);
+                    let symlink_manager =
+                        crate::symlink_manager::SymlinkManager::new(minecraft_dir);
                     if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
                         Logger::warn_global(
                             &format!("[STARTUP] Failed to cleanup leftover symlinks: {}", e),
                             None,
                         );
                     } else {
-                        Logger::info_global("[STARTUP] Cleaned up leftover symlinks from previous session", None);
+                        Logger::info_global(
+                            "[STARTUP] Cleaned up leftover symlinks from previous session",
+                            None,
+                        );
                     }
                 }
             });
-            
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -88,14 +92,18 @@ pub fn run() {
                 if window.label() == "main" {
                     tauri::async_runtime::spawn(async {
                         if let Ok(minecraft_dir) = get_default_minecraft_dir() {
-                            let symlink_manager = crate::symlink_manager::SymlinkManager::new(minecraft_dir);
+                            let symlink_manager =
+                                crate::symlink_manager::SymlinkManager::new(minecraft_dir);
                             if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
                                 Logger::warn_global(
                                     &format!("[SHUTDOWN] Failed to cleanup symlinks: {}", e),
                                     None,
                                 );
                             } else {
-                                Logger::info_global("[SHUTDOWN] Cleaned up all symlinks on app close", None);
+                                Logger::info_global(
+                                    "[SHUTDOWN] Cleaned up all symlinks on app close",
+                                    None,
+                                );
                             }
                         }
                     });
@@ -495,7 +503,7 @@ pub async fn ensure_symlinks_enabled(minecraft_path: &Path) -> Result<(), String
 #[cfg(windows)]
 pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<(), String> {
     use std::os::windows::fs::symlink_dir;
-    
+
     if target.exists() {
         if target.is_symlink() {
             // Remove existing symlink
@@ -503,7 +511,10 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
                 .await
                 .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
         } else {
-            return Err(format!("Target path exists and is not a symlink: {}", target.display()));
+            return Err(format!(
+                "Target path exists and is not a symlink: {}",
+                target.display()
+            ));
         }
     }
 
@@ -513,8 +524,7 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
         let source = source.to_path_buf();
         let target = target.to_path_buf();
         move || {
-            symlink_dir(&source, &target)
-                .map_err(|e| format!("Failed to create symlink: {}", e))
+            symlink_dir(&source, &target).map_err(|e| format!("Failed to create symlink: {}", e))
         }
     })
     .await
@@ -526,7 +536,7 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
 #[cfg(windows)]
 pub async fn create_file_symlink(source: &Path, target: &Path) -> Result<(), String> {
     use std::os::windows::fs::symlink_file;
-    
+
     if target.exists() {
         if target.is_symlink() {
             // Remove existing symlink
@@ -534,7 +544,10 @@ pub async fn create_file_symlink(source: &Path, target: &Path) -> Result<(), Str
                 .await
                 .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
         } else {
-            return Err(format!("Target path exists and is not a symlink: {}", target.display()));
+            return Err(format!(
+                "Target path exists and is not a symlink: {}",
+                target.display()
+            ));
         }
     }
 
@@ -557,7 +570,7 @@ pub async fn create_file_symlink(source: &Path, target: &Path) -> Result<(), Str
 #[cfg(unix)]
 pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<(), String> {
     use std::os::unix::fs::symlink;
-    
+
     if target.exists() {
         if target.is_symlink() {
             // Remove existing symlink
@@ -565,7 +578,10 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
                 .await
                 .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
         } else {
-            return Err(format!("Target path exists and is not a symlink: {}", target.display()));
+            return Err(format!(
+                "Target path exists and is not a symlink: {}",
+                target.display()
+            ));
         }
     }
 
@@ -574,10 +590,7 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
     tokio::task::spawn_blocking({
         let source = source.to_path_buf();
         let target = target.to_path_buf();
-        move || {
-            symlink(&source, &target)
-                .map_err(|e| format!("Failed to create symlink: {}", e))
-        }
+        move || symlink(&source, &target).map_err(|e| format!("Failed to create symlink: {}", e))
     })
     .await
     .map_err(|e| format!("Symlink creation task failed: {}", e))??;
@@ -609,7 +622,7 @@ pub async fn remove_symlink_if_exists(path: &Path) -> Result<(), String> {
             Ok(target) => {
                 // Check if the target (when it exists) is a directory
                 target.is_dir()
-            },
+            }
             Err(_) => {
                 // If we can't read the link, try metadata as fallback
                 match tokio::fs::symlink_metadata(path).await {
@@ -618,7 +631,7 @@ pub async fn remove_symlink_if_exists(path: &Path) -> Result<(), String> {
                 }
             }
         };
-        
+
         // Try the appropriate removal method first, with fallback to the other method
         if is_dir_symlink {
             if let Err(e) = async_fs::remove_dir(path).await {

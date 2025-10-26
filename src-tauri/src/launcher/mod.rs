@@ -249,18 +249,22 @@ pub async fn launch_installation(
             return Err(format!("Failed to build launch context: {}", e));
         }
     };
-    
+
     // Setup dynamic symlinks for this installation before launching
     Logger::info_global(
-        &format!("Setting up dynamic symlinks for installation: {}", installation.id),
+        &format!(
+            "Setting up dynamic symlinks for installation: {}",
+            installation.id
+        ),
         instance_id,
     );
-    let symlink_manager = crate::symlink_manager::SymlinkManager::new(PathBuf::from(&minecraft_dir));
-    if let Err(e) = symlink_manager.setup_for_installation(&installation.id).await {
-        Logger::warn_global(
-            &format!("Failed to setup symlinks: {}", e),
-            instance_id,
-        );
+    let symlink_manager =
+        crate::symlink_manager::SymlinkManager::new(PathBuf::from(&minecraft_dir));
+    if let Err(e) = symlink_manager
+        .setup_for_installation(&installation.id)
+        .await
+    {
+        Logger::warn_global(&format!("Failed to setup symlinks: {}", e), instance_id);
         // Continue launching even if symlink setup fails
     }
     // Detect loader and get Launchable
@@ -324,18 +328,17 @@ pub async fn launch_installation(
         match wait_for_minecraft_exit(pid).await {
             Ok(exit_code) => {
                 // Clean up symlinks after game closes
-                Logger::info_global(
-                    "[SETTINGS TASK] Cleaning up symlinks after game exit",
-                    None,
-                );
-                let symlink_manager = crate::symlink_manager::SymlinkManager::new(PathBuf::from(&minecraft_dir_clone));
+                Logger::info_global("[SETTINGS TASK] Cleaning up symlinks after game exit", None);
+                let symlink_manager = crate::symlink_manager::SymlinkManager::new(PathBuf::from(
+                    &minecraft_dir_clone,
+                ));
                 if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
                     Logger::warn_global(
                         &format!("[SETTINGS TASK] Failed to cleanup symlinks: {}", e),
                         None,
                     );
                 }
-                
+
                 // Calculate playtime in milliseconds
                 let playtime_ms = launch_start_time.elapsed().as_millis() as u64;
                 Logger::info_global(

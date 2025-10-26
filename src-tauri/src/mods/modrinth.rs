@@ -13,7 +13,7 @@ pub struct FilterFacets {
     pub open_source: Option<bool>,                 // Open source flag
     pub license: Option<(String, String)>,         // (operation, value)
     pub downloads: Option<(String, u64)>,          // (operation, value)
-    // Note: loader and game_versions come from installation, not user filters
+                                                   // Note: loader and game_versions come from installation, not user filters
 }
 
 impl FilterFacets {
@@ -201,8 +201,8 @@ pub struct ModrinthFile {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModrinthProvider {
     pub limit: usize,
-    pub loader: Option<String>,        // From installation
-    pub mc_version: Option<String>,    // From installation
+    pub loader: Option<String>,             // From installation
+    pub mc_version: Option<String>,         // From installation
     pub user_filters: Option<FilterFacets>, // User-defined filters
     pub cache: ModCache<Vec<ModrinthInfo>>,
     pub cache_path: PathBuf,
@@ -274,10 +274,8 @@ impl ModProvider for ModrinthProvider {
         // Build facets using the new method
         let mods = if let Some(ref user_filters) = self.user_filters {
             println!("[ModrinthProvider] Making filtered API call with user filters");
-            let facets = user_filters.to_modrinth_facets(
-                self.loader.as_deref(),
-                self.mc_version.as_deref(),
-            );
+            let facets =
+                user_filters.to_modrinth_facets(self.loader.as_deref(), self.mc_version.as_deref());
             get_mods_with_facets(
                 &facets,
                 offset,
@@ -290,10 +288,8 @@ impl ModProvider for ModrinthProvider {
             println!("[ModrinthProvider] Making filtered API call (installation only)");
             // Even without user filters, build facets from installation
             let empty_filters = FilterFacets::default();
-            let facets = empty_filters.to_modrinth_facets(
-                self.loader.as_deref(),
-                self.mc_version.as_deref(),
-            );
+            let facets = empty_filters
+                .to_modrinth_facets(self.loader.as_deref(), self.mc_version.as_deref());
             get_mods_with_facets(&facets, offset, self.limit, self.index.as_deref(), None).await?
         } else {
             println!("[ModrinthProvider] Making unfiltered API call");
@@ -318,7 +314,10 @@ impl ModProvider for ModrinthProvider {
         // Store user-defined filters
         if let Some(crate::mods::manager::ModFilter::Modrinth(facets)) = filter {
             self.user_filters = Some(facets);
-            println!("[ModrinthProvider] Set user filters: {:?}", self.user_filters);
+            println!(
+                "[ModrinthProvider] Set user filters: {:?}",
+                self.user_filters
+            );
         }
 
         // Extract installation-specific context
