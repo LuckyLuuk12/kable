@@ -300,6 +300,15 @@ pub async fn launch_installation(
         pids.insert(result.pid);
     }
 
+    // Update Discord Rich Presence with playing status
+    if let Err(e) = crate::discord::set_playing(
+        &installation.name,
+        &installation.version_id,
+        installation.get_loader_type(),
+    ) {
+        Logger::warn_global(&format!("Failed to update Discord presence: {}", e), None);
+    }
+
     // Compute app handle so we can emit events (if available)
     let app_handle = if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         handle_guard.as_ref().map(|global| (**global).clone())
@@ -400,6 +409,14 @@ pub async fn launch_installation(
                     );
                     handle_close_settings(&settings_clone, app_handle_clone, exit_code).await;
                 }
+
+                // Clear Discord Rich Presence when game exits
+                if let Err(e) = crate::discord::clear_playing() {
+                    Logger::warn_global(
+                        &format!("Failed to clear Discord presence: {}", e),
+                        None,
+                    );
+                }
             }
             Err(e) => {
                 Logger::error_global(
@@ -408,6 +425,14 @@ pub async fn launch_installation(
                 );
                 // Handle as normal close if we can't determine exit code
                 handle_close_settings(&settings_clone, app_handle_clone, 0).await;
+
+                // Clear Discord Rich Presence
+                if let Err(e) = crate::discord::clear_playing() {
+                    Logger::warn_global(
+                        &format!("Failed to clear Discord presence: {}", e),
+                        None,
+                    );
+                }
             }
         }
         Logger::info_global(&format!("[SETTINGS TASK] Completed for PID {}", pid), None);

@@ -1094,6 +1094,17 @@ impl KableInstallation {
         Ok(result)
     }
 
+    /// See if the version_id contains a known mod loader identifier, and return it.
+    pub fn get_loader_type(&self) -> Option<&str> {
+        match self.version_id.as_str() {
+            id if id.contains("fabric-loader") => Some("fabric"),
+            id if id.contains("forge") => Some("forge"),
+            id if id.contains("quilt-loader") => Some("quilt"),
+            id if id.contains("neoforge") => Some("neoforge"),
+            _ => Some("vanilla"),
+        }
+    }
+
     pub fn duplicate(&self) -> Result<Vec<KableInstallation>, String> {
         let mut new = self.clone();
         // generate new ID

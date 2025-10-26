@@ -14,6 +14,7 @@ pub use kable_macros::*;
 // Module declarations
 pub mod auth;
 pub mod commands;
+pub mod discord;
 pub mod icons;
 pub mod installations;
 pub mod launcher;
@@ -32,6 +33,7 @@ pub mod logging;
 // Re-export public items from modules
 pub use auth::*;
 pub use commands::auth as commands_auth;
+pub use commands::discord as commands_discord;
 pub use commands::installations as commands_installations;
 pub use commands::launcher as commands_launcher;
 pub use commands::mods as commands_mods;
@@ -65,6 +67,18 @@ pub fn run() {
             // use GLOBAL_APP_HANDLE (e.g. launcher utils) can emit events.
             crate::logging::init_global_logger(app.handle());
 
+            // Initialize Discord Rich Presence
+            tauri::async_runtime::spawn(async {
+                if let Err(e) = crate::discord::initialize() {
+                    Logger::warn_global(
+                        &format!("[STARTUP] Failed to initialize Discord RPC: {}", e),
+                        None,
+                    );
+                } else {
+                    Logger::info_global("[STARTUP] Discord Rich Presence initialized", None);
+                }
+            });
+
             // Clean up any leftover symlinks from previous crashes/exits
             tauri::async_runtime::spawn(async {
                 if let Ok(minecraft_dir) = get_default_minecraft_dir() {
@@ -91,6 +105,14 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 if window.label() == "main" {
                     tauri::async_runtime::spawn(async {
+                        // Disconnect Discord RPC
+                        if let Err(e) = crate::discord::disconnect() {
+                            Logger::warn_global(
+                                &format!("[SHUTDOWN] Failed to disconnect Discord RPC: {}", e),
+                                None,
+                            );
+                        }
+
                         if let Ok(minecraft_dir) = get_default_minecraft_dir() {
                             let symlink_manager =
                                 crate::symlink_manager::SymlinkManager::new(minecraft_dir);
@@ -211,6 +233,10 @@ pub fn run() {
             commands_resourcepacks::setup_resourcepack_symlink,
             commands_resourcepacks::remove_resourcepack_symlink,
             commands_resourcepacks::delete_resourcepack_from_dedicated,
+            // Discord commands
+            commands_discord::discord_set_browsing,
+            commands_discord::discord_set_enabled,
+            commands_discord::discord_clear,
             // Skins commands
             commands_skins::upload_skin_to_account,
             commands_skins::change_skin_model,

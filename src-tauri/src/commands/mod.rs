@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod discord;
 pub mod images;
 pub mod installations;
 pub mod launcher;
@@ -11,6 +12,7 @@ pub mod system;
 pub mod updater;
 
 pub use self::auth::*;
+pub use self::discord::*;
 pub use self::images::*;
 pub use self::installations::*;
 pub use self::launcher::*;
