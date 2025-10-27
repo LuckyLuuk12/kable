@@ -1,3 +1,15 @@
+<!--
+@component
+TitleBar - Custom window title bar with minimize, maximize, and close controls
+
+Provides window controls for the Tauri application window with custom styling.
+Handles window state changes and provides standard window management functionality.
+
+@example
+```svelte
+<TitleBar />
+```
+-->
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getCurrentWindow } from '@tauri-apps/api/window';

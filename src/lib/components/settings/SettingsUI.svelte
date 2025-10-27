@@ -1,7 +1,22 @@
+<!--
+@component
+SettingsUI - Main settings interface with tabbed navigation
+
+Container component that manages all settings panels with smooth scrolling
+navigation and responsive mini-nav sidebar.
+
+@example
+```svelte
+<SettingsUI />
+```
+-->
+<!-- @component
+no description yet
+-->
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { GeneralSettingsUI, AppearanceSettingsUI, ContentSettingsUI, LoggingSettingsUI, AdvancedSettingsUI, MiscSettingsUI, NetworkSettingsUI } from '.';
-import { settings, SettingsService } from '$lib';
+  import { settings, SettingsService } from '$lib';
   import { writable } from 'svelte/store';
 
   const sections = ['general', 'appearance', 'logging', 'content', 'network', 'advanced', 'misc'];

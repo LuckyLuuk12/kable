@@ -1,3 +1,24 @@
+<!--
+@component
+ShaderCard - Displays shader pack information in various view modes
+
+Reusable card component for showing shader pack details including title, description,
+author, downloads, and gallery preview. Supports grid, list, and compact views.
+
+@prop {ShaderDownload} shader - The shader pack data to display
+@prop {'grid' | 'list' | 'compact'} [viewMode='grid'] - Display mode
+@prop {KableInstallation | null} [installation=null] - Target installation
+@prop {boolean} [loading=false] - Whether pack is being downloaded
+@prop {boolean} [isInstalled=false] - Whether pack is already installed
+
+@event download - Fires when download button is clicked
+@event viewGallery - Fires when gallery preview button is clicked
+
+@example
+```svelte
+<ShaderCard {shader} viewMode="grid" on:download={handleDownload} />
+```
+-->
 <script lang="ts">
 import { createEventDispatcher } from 'svelte';
 import { Icon } from '$lib';

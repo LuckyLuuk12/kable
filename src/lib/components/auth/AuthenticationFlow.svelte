@@ -1,3 +1,16 @@
+<!--
+@component
+AuthenticationFlow - Microsoft authentication flow UI component
+
+Provides interface for authenticating with Microsoft using either:
+- Authorization Code Flow (recommended) - Opens browser for login
+- Device Code Flow (fallback) - Displays code for manual entry
+
+@example
+```svelte
+<AuthenticationFlow />
+```
+-->
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { AuthService , Icon, isAuthenticating } from '$lib';

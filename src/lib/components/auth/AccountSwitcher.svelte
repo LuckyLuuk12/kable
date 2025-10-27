@@ -1,3 +1,15 @@
+<!--
+@component
+AccountSwitcher - Dropdown menu for switching between multiple Microsoft accounts
+
+Displays all available accounts with their status (online/offline/expired).
+Allows quick switching between accounts and shows account health indicators.
+
+@example
+```svelte
+<AccountSwitcher />
+```
+-->
 <script lang="ts">
   import { onMount } from 'svelte';
   import { AuthService, currentAccount, availableAccounts, type LauncherAccount, Icon } from '$lib';

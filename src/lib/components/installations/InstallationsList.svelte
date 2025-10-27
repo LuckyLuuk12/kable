@@ -1,3 +1,20 @@
+<!--
+@component
+InstallationsList - Displays list or grid of Minecraft installations
+
+Shows all available installations with options to launch, edit, duplicate, delete, and favorite.
+Supports both grid and list view modes with sorting and filtering.
+
+@prop {boolean} [isGrid=false] - Display installations in grid layout
+@prop {boolean} [isSmall=false] - Use compact display mode
+@prop {string | null} [error=null] - Error message to display
+@prop {number | null} [limit=null] - Maximum number of installations to display
+
+@example
+```svelte
+<InstallationsList isGrid={true} limit={10} />
+```
+-->
 <script lang="ts">
   import { Icon, InstallationService, installations, isLoadingInstallations, isLoadingVersions, Launcher } from '$lib';
   import { isLaunching, currentLaunchingInstallation } from '$lib/stores/launcher';

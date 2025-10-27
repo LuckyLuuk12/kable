@@ -1,3 +1,24 @@
+<!--
+@component
+ModCard - Displays mod information in various view modes
+
+Reusable card component for showing mod details including title, description,
+author, downloads, and installation status. Supports grid, list, and compact views.
+
+@prop {ModInfoKind} mod - The mod data to display
+@prop {'grid' | 'list' | 'compact'} [viewMode='grid'] - Display mode
+@prop {KableInstallation | null} [currentInstallation=null] - Current installation context
+@prop {boolean} [loading=false] - Whether mod is being downloaded
+@prop {boolean} [isInstalled=false] - Whether mod is already installed
+
+@event downloadMod - Fires when download button is clicked
+@event infoMod - Fires when info button is clicked
+
+@example
+```svelte
+<ModCard {mod} viewMode="grid" on:downloadMod={handleDownload} />
+```
+-->
 <script lang="ts">
 import { createEventDispatcher } from 'svelte';
 import { Icon } from '$lib';

@@ -1,3 +1,16 @@
+<!--
+@component
+CreateInstallationModal - Modal dialog for creating new Minecraft installations
+
+Allows users to select a Minecraft version, mod loader (Vanilla, Fabric, Forge, etc.),
+and configure installation settings. Supports searching and filtering versions.
+
+@example
+```svelte
+<CreateInstallationModal bind:this={createModal} />
+<button on:click={() => createModal.open()}>Create Installation</button>
+```
+-->
 <script lang="ts">
   import { type VersionData, Loader, InstallationService, type LoaderKind } from '$lib';
   import { onMount } from 'svelte';

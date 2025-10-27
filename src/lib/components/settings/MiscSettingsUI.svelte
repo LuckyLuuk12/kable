@@ -1,3 +1,15 @@
+<!--
+@component
+MiscSettingsUI - Miscellaneous settings panel
+
+Additional settings including titlebar preferences, auto-updates,
+and other general launcher features.
+
+@example
+```svelte
+<MiscSettingsUI />
+```
+-->
 <script lang="ts">
   import { settings } from "$lib/stores";
   import { onMount } from 'svelte';

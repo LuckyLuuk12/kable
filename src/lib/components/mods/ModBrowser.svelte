@@ -1,3 +1,20 @@
+<!--
+@component
+ModBrowser - Browse and search for mods from Modrinth and other providers
+
+Provides interface for discovering, searching, and filtering mods with support for:
+- Multiple view modes (grid, list, compact)
+- Advanced filtering (categories, loaders, versions)
+- Pagination and infinite scroll
+- Provider switching
+
+@event downloadMod - Fires when user clicks to download a mod
+
+@example
+```svelte
+<ModBrowser on:downloadMod={handleDownload} />
+```
+-->
 <script lang="ts">
 import { onMount, createEventDispatcher } from 'svelte';
 import { get } from 'svelte/store';

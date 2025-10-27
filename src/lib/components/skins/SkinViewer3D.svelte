@@ -1,3 +1,21 @@
+<!--
+@component
+SkinViewer3D - 3D Minecraft skin viewer using skinview3d
+
+Renders an interactive 3D preview of Minecraft skins with customizable
+animations and models (slim/classic).
+
+@prop {string} [skinUrl=''] - URL to the skin texture
+@prop {number} [width=200] - Canvas width in pixels
+@prop {number} [height=200] - Canvas height in pixels
+@prop {'auto' | 'slim' | 'classic'} [model='auto'] - Skin model type
+@prop {'idle' | 'walk' | 'run' | 'fly'} [animation='idle'] - Character animation
+
+@example
+```svelte
+<SkinViewer3D skinUrl="/skins/steve.png" width={300} height={400} animation="walk" />
+```
+-->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import * as skinview3d from 'skinview3d';

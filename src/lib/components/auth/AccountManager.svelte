@@ -1,3 +1,15 @@
+<!--
+@component
+AccountManager - Manages Microsoft account authentication and account operations
+
+Provides UI for account login, logout, refresh, and management.
+Displays current account status and allows switching between authentication flows.
+
+@example
+```svelte
+<AccountManager />
+```
+-->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { Icon, AuthService, currentAccount, type LauncherAccount, AuthenticationFlow } from '$lib';

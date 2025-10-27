@@ -1,3 +1,16 @@
+<!--
+@component
+EditInstallationModal - Modal dialog for editing existing Minecraft installations
+
+Provides interface for modifying installation settings including name, version,
+Java arguments, resolution, memory allocation, and advanced parameters.
+
+@example
+```svelte
+<EditInstallationModal bind:this={editModal} />
+<button on:click={() => editModal.open(installation)}>Edit Installation</button>
+```
+-->
 <script lang="ts">
   import { InstallationService } from '$lib/services/InstallationService';
   import type { KableInstallation } from '$lib/types';
