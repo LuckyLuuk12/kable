@@ -181,6 +181,7 @@ pub fn run() {
             commands_installations::modify_installation,
             commands_installations::delete_installation,
             commands_installations::create_installation,
+            commands_installations::create_installation_from_existing,
             commands_installations::get_mod_info,
             commands_installations::disable_mod,
             commands_installations::enable_mod,

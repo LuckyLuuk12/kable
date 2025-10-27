@@ -63,6 +63,30 @@ export class InstallationService {
   }
 
   /**
+   * Create a new installation by copying from an existing one.
+   * Optionally copies mods (with version updates), resource packs, and shaders.
+   * @param version_id The ID of the version to create the new installation for.
+   * @param sourceInstallation The source installation to copy from.
+   * @param options Copy options for mods, resource packs, and shaders.
+   */
+  static async createInstallationFromExisting(
+    version_id: string,
+    sourceInstallation: KableInstallation,
+    options: {
+      copyMods: boolean;
+      copyResourcePacks: boolean;
+      copyShaders: boolean;
+    }
+  ): Promise<void> {
+    await installationsApi.createInstallationFromExisting(
+      version_id,
+      sourceInstallation.id,
+      options
+    );
+    await this.loadInstallations();
+  }
+
+  /**
    * Update an existing installation.
    */
   static async updateInstallation(id: string, newInstallation: KableInstallation): Promise<void> {

@@ -762,7 +762,7 @@ fn compare_version_strings(a: &str, b: &str) -> std::cmp::Ordering {
     use std::cmp::Ordering;
     
     let parse_version_parts = |s: &str| -> Vec<u32> {
-        s.split(|c: char| c == '.' || c == '-' || c == '+')
+        s.split(['.', '-', '+'])
             .filter_map(|part| part.parse::<u32>().ok())
             .collect()
     };

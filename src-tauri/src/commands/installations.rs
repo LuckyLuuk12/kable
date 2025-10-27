@@ -49,6 +49,26 @@ pub async fn create_installation(version_id: &str) -> Result<KableInstallation, 
     crate::installations::create_installation(version_id).await
 }
 
+/// Creates a new KableInstallation by copying from an existing one
+/// Optionally copies mods (with version updates), resource packs, and shaders
+#[tauri::command]
+pub async fn create_installation_from_existing(
+    version_id: &str,
+    source_installation_id: &str,
+    copy_mods: bool,
+    copy_resource_packs: bool,
+    copy_shaders: bool,
+) -> Result<KableInstallation, String> {
+    crate::installations::create_installation_from_existing(
+        version_id,
+        source_installation_id,
+        copy_mods,
+        copy_resource_packs,
+        copy_shaders,
+    )
+    .await
+}
+
 #[tauri::command]
 pub async fn get_mod_info(installation: KableInstallation) -> Result<Vec<ModJarInfo>, String> {
     installation.get_mod_info()

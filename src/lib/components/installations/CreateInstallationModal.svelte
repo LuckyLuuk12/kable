@@ -1,19 +1,22 @@
-<!--
+<!-- @component
+◄!--
 @component
 CreateInstallationModal - Modal dialog for creating new Minecraft installations
 
 Allows users to select a Minecraft version, mod loader (Vanilla, Fabric, Forge, etc.),
 and configure installation settings. Supports searching and filtering versions.
+Optionally copy mods/resourcepacks/shaders from an existing installation.
 
 @example
 ```svelte
-<CreateInstallationModal bind:this={createModal} />
-<button on:click={() => createModal.open()}>Create Installation</button>
+◄CreateInstallationModal bind:this={createModal} /►
+◄button on:click={() =► createModal.open()}►Create Installation◄/button►
 ```
 -->
 <script lang="ts">
-  import { type VersionData, Loader, InstallationService, type LoaderKind } from '$lib';
+  import { type VersionData, Loader, InstallationService, type LoaderKind, type KableInstallation } from '$lib';
   import { onMount } from 'svelte';
+  import { installations } from '$lib/stores/installation';
   import * as installationsApi from '$lib/api/installations';
   import Icon from '../Icon.svelte';
 
@@ -27,9 +30,42 @@ and configure installation settings. Supports searching and filtering versions.
   let error: string | null = null;
   let versionListRef: HTMLSelectElement;
   
+  // Copy from existing installation
+  let sourceInstallationId: string | null = null;
+  let copyMods = false;
+  let copyResourcePacks = false;
+  let copyShaders = false;
+  let showCopySection = false;
+  
   const INITIAL_DISPLAY_COUNT = 50;
   const LOAD_MORE_COUNT = 50;
   let displayCount = INITIAL_DISPLAY_COUNT;
+
+  // Get available installations for copying
+  $: availableInstallations = $installations;
+  
+  // Toggle all copy options
+  $: allCopyOptionsSelected = copyMods && copyResourcePacks && copyShaders;
+  $: someCopyOptionsSelected = copyMods || copyResourcePacks || copyShaders;
+  
+  function toggleAllCopyOptions() {
+    if (allCopyOptionsSelected) {
+      copyMods = false;
+      copyResourcePacks = false;
+      copyShaders = false;
+    } else {
+      copyMods = true;
+      copyResourcePacks = true;
+      copyShaders = true;
+    }
+  }
+  
+  // Reset copy options when source installation changes
+  $: if (sourceInstallationId === null) {
+    copyMods = false;
+    copyResourcePacks = false;
+    copyShaders = false;
+  }
 
   // Create a map of loader -> versions for O(1) lookup instead of filtering every time
   $: versionsByLoader = availableVersions.reduce((map, version) => {
@@ -79,6 +115,13 @@ and configure installation settings. Supports searching and filtering versions.
   }
 
   export function open() {
+    // Reset copy options
+    sourceInstallationId = null;
+    copyMods = false;
+    copyResourcePacks = false;
+    copyShaders = false;
+    showCopySection = false;
+    
     dialogRef?.showModal();
   }
   
@@ -105,11 +148,34 @@ and configure installation settings. Supports searching and filtering versions.
   async function confirmCreate() {
     if (!selectedVersionId) return;
     isLoading = true;
+    error = null;
+    
     try {
-      await InstallationService.createInstallation(selectedVersionId);
+      // Check if we're copying from an existing installation
+      if (sourceInstallationId && (copyMods || copyResourcePacks || copyShaders)) {
+        const sourceInstallation = availableInstallations.find(i => i.id === sourceInstallationId);
+        
+        if (sourceInstallation) {
+          await InstallationService.createInstallationFromExisting(
+            selectedVersionId,
+            sourceInstallation,
+            {
+              copyMods,
+              copyResourcePacks,
+              copyShaders
+            }
+          );
+        } else {
+          throw new Error('Source installation not found');
+        }
+      } else {
+        // Regular installation creation
+        await InstallationService.createInstallation(selectedVersionId);
+      }
+      
       close();
     } catch (e) {
-      error = 'Failed to create installation.';
+      error = e instanceof Error ? e.message : 'Failed to create installation.';
     } finally {
       isLoading = false;
     }
@@ -185,8 +251,95 @@ and configure installation settings. Supports searching and filtering versions.
         <div class="no-results">No versions found matching "{searchQuery}"</div>
       {/if}
     </div>
+    
+    <!-- Copy from existing installation (optional) -->
+    <details class="copy-section" bind:open={showCopySection}>
+      <summary>
+        <Icon name="copy" size="sm" />
+        Copy from existing installation (optional)
+      </summary>
+      <div class="copy-content">
+        <label for="source-installation">
+          Source Installation:
+          <select 
+            id="source-installation"
+            bind:value={sourceInstallationId}
+            class="source-select"
+          >
+            <option value={null}>None - Start fresh</option>
+            {#each availableInstallations as installation}
+              <option value={installation.id}>{installation.name} ({installation.version_id})</option>
+            {/each}
+          </select>
+        </label>
+        
+        {#if sourceInstallationId}
+          <div class="copy-options">
+            <div class="copy-option-header">
+              <label class="copy-option toggle-all">
+                <input 
+                  type="checkbox" 
+                  checked={allCopyOptionsSelected}
+                  indeterminate={someCopyOptionsSelected && !allCopyOptionsSelected}
+                  on:change={toggleAllCopyOptions}
+                />
+                <span>Select All</span>
+              </label>
+            </div>
+            
+            <div class="copy-option-list">
+              <label class="copy-option">
+                <input type="checkbox" bind:checked={copyMods} />
+                <div class="option-content">
+                  <Icon name="package" size="sm" />
+                  <div class="option-text">
+                    <span class="option-label">Copy Mods</span>
+                    <span class="option-description">Mods will be updated/downgraded to match the new version</span>
+                  </div>
+                </div>
+              </label>
+              
+              <label class="copy-option">
+                <input type="checkbox" bind:checked={copyResourcePacks} />
+                <div class="option-content">
+                  <Icon name="image" size="sm" />
+                  <div class="option-text">
+                    <span class="option-label">Copy Resource Packs</span>
+                    <span class="option-description">Resource packs will be copied as-is</span>
+                  </div>
+                </div>
+              </label>
+              
+              <label class="copy-option">
+                <input type="checkbox" bind:checked={copyShaders} />
+                <div class="option-content">
+                  <Icon name="sun" size="sm" />
+                  <div class="option-text">
+                    <span class="option-label">Copy Shaders</span>
+                    <span class="option-description">Shaders will be copied as-is</span>
+                  </div>
+                </div>
+              </label>
+            </div>
+          </div>
+        {:else}
+          <div class="copy-hint">
+            <Icon name="info" size="sm" />
+            <span>Select a source installation to copy mods, resource packs, and shaders</span>
+          </div>
+        {/if}
+      </div>
+    </details>
+    
     <div class="actions">
-      <button type="submit" class="btn btn-primary" disabled={isLoading}>Create</button>
+      <button type="submit" class="btn btn-primary" disabled={isLoading}>
+        {#if isLoading}
+          <Icon name="refresh" size="sm" className="spin" />
+          Creating...
+        {:else}
+          Create
+        {/if}
+      </button>
       <button type="button" class="btn btn-secondary" on:click={cancelCreate} disabled={isLoading}>Cancel</button>
     </div>
   </form>
@@ -325,6 +478,132 @@ and configure installation settings. Supports searching and filtering versions.
         font-style: italic;
       }
     }
+    
+    .copy-section {
+      border: 1px solid var(--dark-300);
+      border-radius: var(--border-radius);
+      padding: 1rem;
+      background: var(--card);
+      
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        user-select: none;
+        
+        &:hover {
+          color: var(--primary);
+        }
+      }
+      
+      .copy-content {
+        margin-top: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        
+        .source-select {
+          width: 100%;
+          padding: 0.6rem;
+          border-radius: var(--border-radius);
+          border: 1px solid var(--dark-300);
+          background: var(--input);
+          color: var(--text);
+          font-size: 0.95rem;
+          
+          &:focus {
+            outline: none;
+            border-color: var(--primary);
+          }
+        }
+        
+        .copy-options {
+          display: flex;
+          flex-direction: column;
+          gap: 0.75rem;
+          
+          .copy-option-header {
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--dark-300);
+            
+            .toggle-all {
+              font-weight: 600;
+              color: var(--primary);
+            }
+          }
+          
+          .copy-option-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+          }
+          
+          .copy-option {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: var(--border-radius);
+            background: var(--container);
+            border: 1px solid var(--dark-300);
+            cursor: pointer;
+            transition: all 0.2s;
+            
+            &:hover {
+              border-color: var(--primary);
+              background: color-mix(in srgb, var(--primary), 5%, transparent);
+            }
+            
+            input[type="checkbox"] {
+              margin-top: 0.125rem;
+              cursor: pointer;
+              width: 1.125rem;
+              height: 1.125rem;
+            }
+            
+            .option-content {
+              display: flex;
+              align-items: flex-start;
+              gap: 0.5rem;
+              flex: 1;
+              
+              .option-text {
+                display: flex;
+                flex-direction: column;
+                gap: 0.25rem;
+                
+                .option-label {
+                  font-weight: 500;
+                  color: var(--text);
+                  font-size: 0.95rem;
+                }
+                
+                .option-description {
+                  font-size: 0.8rem;
+                  color: var(--placeholder);
+                  line-height: 1.3;
+                }
+              }
+            }
+          }
+        }
+        
+        .copy-hint {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          padding: 0.75rem;
+          border-radius: var(--border-radius);
+          background: color-mix(in srgb, var(--primary), 5%, transparent);
+          color: var(--placeholder);
+          font-size: 0.85rem;
+        }
+      }
+    }
+    
     .actions {
       display: flex;
       gap: 1rem;

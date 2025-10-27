@@ -36,6 +36,25 @@ export async function createInstallation(versionId: string): Promise<KableInstal
   return await invoke('create_installation', { versionId });
 }
 
+// Create a new Kable installation by copying from an existing one
+export async function createInstallationFromExisting(
+  versionId: string,
+  sourceInstallationId: string,
+  options: {
+    copyMods: boolean;
+    copyResourcePacks: boolean;
+    copyShaders: boolean;
+  }
+): Promise<KableInstallation> {
+  return await invoke('create_installation_from_existing', {
+    versionId,
+    sourceInstallationId,
+    copyMods: options.copyMods,
+    copyResourcePacks: options.copyResourcePacks,
+    copyShaders: options.copyShaders
+  });
+}
+
 export async function getModInfo(installation: KableInstallation): Promise<ModJarInfo[] | null> {
   return await invoke('get_mod_info', { installation });
 }
