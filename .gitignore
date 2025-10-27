@@ -1,5 +1,8 @@
 node_modules
 
+# Rust
+target/
+
 # Output
 .output
 .vercel
