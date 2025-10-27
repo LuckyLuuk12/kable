@@ -1,4 +1,5 @@
-<!--
+<!-- @component
+◄!--
 @component
 ModBrowser - Browse and search for mods from Modrinth and other providers
 
@@ -12,7 +13,7 @@ Provides interface for discovering, searching, and filtering mods with support f
 
 @example
 ```svelte
-<ModBrowser on:downloadMod={handleDownload} />
+◄ModBrowser on:downloadMod={handleDownload} /►
 ```
 -->
 <script lang="ts">
@@ -24,6 +25,7 @@ import { modsByProvider, modsLoading, modsError, modsLimit, modsOffset, modsProv
 import { ProviderKind } from '$lib/runtimeTypes';
 import type { ModInfoKind, KableInstallation, ModJarInfo, FilterFacets } from '$lib';
 import ModCard from './ModCard.svelte';
+import * as systemApi from '$lib/api/system';
 
 type ViewMode = 'grid' | 'list' | 'compact';
 
@@ -460,96 +462,124 @@ function findBestMatch(target: string, candidates: string[], threshold: number =
   return bestMatch ? { match: bestMatch, score: bestScore } : null;
 }
 
-// Check if a mod is already installed
-function isModInstalled(mod: ModInfoKind): boolean {
+// Check if a mod is already installed and return version info
+function getInstalledModInfo(mod: ModInfoKind): { isInstalled: boolean; version: string | null } {
   // Don't check if installed mods haven't been loaded yet
   if (!installedModsLoaded) {
-    return false;
+    return { isInstalled: false, version: null };
   }
 
   const displayInfo = getModDisplayInfo(mod);
   
   // Skip if mod info is unavailable
   if (!displayInfo) {
-    return false;
+    return { isInstalled: false, version: null };
   }
   
-  // First try exact matches for performance
-  const modTitle = displayInfo.title.toLowerCase();
-  if (installedModsMap.has(modTitle)) {
-    return true;
-  }
-  
-  // For Modrinth mods, also check by project ID or slug
-  let modrinthData: any = null;
-  if ('Modrinth' in mod) {
-    modrinthData = mod.Modrinth;
-  } else if ('kind' in mod && mod.kind === 'Modrinth') {
-    modrinthData = mod.data;
-  }
-  
-  if (modrinthData) {
-    if (modrinthData.project_id && installedModsMap.has(modrinthData.project_id.toLowerCase())) {
-      return true;
+  // Helper to find installed mod by various identifiers
+  const findInstalledMod = (): ModJarInfo | null => {
+    // First try exact matches for performance
+    const modTitle = displayInfo.title.toLowerCase();
+    const titleMatch = installedModsMap.get(modTitle);
+    if (titleMatch) return titleMatch;
+    
+    // For Modrinth mods, also check by project ID or slug
+    let modrinthData: any = null;
+    if ('Modrinth' in mod) {
+      modrinthData = mod.Modrinth;
+    } else if ('kind' in mod && mod.kind === 'Modrinth') {
+      modrinthData = mod.data;
     }
-    if (modrinthData.slug && installedModsMap.has(modrinthData.slug.toLowerCase())) {
-      return true;
+    
+    if (modrinthData) {
+      if (modrinthData.project_id) {
+        const idMatch = installedModsMap.get(modrinthData.project_id.toLowerCase());
+        if (idMatch) return idMatch;
+      }
+      if (modrinthData.slug) {
+        const slugMatch = installedModsMap.get(modrinthData.slug.toLowerCase());
+        if (slugMatch) return slugMatch;
+      }
     }
-  }
 
-  // For CurseForge mods, also check by mod ID or slug
-  let curseforgeData: any = null;
-  if ('CurseForge' in mod) {
-    curseforgeData = mod.CurseForge;
-  } else if ('kind' in mod && mod.kind === 'CurseForge') {
-    curseforgeData = mod.data;
-  }
-  
-  if (curseforgeData) {
-    if (curseforgeData.id && installedModsMap.has(curseforgeData.id.toString().toLowerCase())) {
-      return true;
+    // For CurseForge mods, also check by mod ID or slug
+    let curseforgeData: any = null;
+    if ('CurseForge' in mod) {
+      curseforgeData = mod.CurseForge;
+    } else if ('kind' in mod && mod.kind === 'CurseForge') {
+      curseforgeData = mod.data;
     }
-    if (curseforgeData.slug && installedModsMap.has(curseforgeData.slug.toLowerCase())) {
-      return true;
+    
+    if (curseforgeData) {
+      if (curseforgeData.id) {
+        const idMatch = installedModsMap.get(curseforgeData.id.toString().toLowerCase());
+        if (idMatch) return idMatch;
+      }
+      if (curseforgeData.slug) {
+        const slugMatch = installedModsMap.get(curseforgeData.slug.toLowerCase());
+        if (slugMatch) return slugMatch;
+      }
     }
-  }
-  
-  // If no exact match, try fuzzy matching
-  const candidateNames: string[] = [];
-  
-  installedMods.forEach(installedMod => {
-    if (installedMod.mod_name) candidateNames.push(installedMod.mod_name.toLowerCase());
-    if (installedMod.file_name) {
-      candidateNames.push(installedMod.file_name.toLowerCase());
-      // Also add filename without extension
-      const nameWithoutExt = installedMod.file_name.replace(/\.(jar|zip)$/i, '').toLowerCase();
-      candidateNames.push(nameWithoutExt);
+    
+    // If no exact match, try fuzzy matching
+    const candidateNames: string[] = [];
+    const candidateMap = new Map<string, ModJarInfo>();
+    
+    installedMods.forEach(installedMod => {
+      if (installedMod.mod_name) {
+        const key = installedMod.mod_name.toLowerCase();
+        candidateNames.push(key);
+        candidateMap.set(key, installedMod);
+      }
+      if (installedMod.file_name) {
+        const key = installedMod.file_name.toLowerCase();
+        candidateNames.push(key);
+        candidateMap.set(key, installedMod);
+        // Also add filename without extension
+        const nameWithoutExt = installedMod.file_name.replace(/\.(jar|zip)$/i, '').toLowerCase();
+        candidateNames.push(nameWithoutExt);
+        candidateMap.set(nameWithoutExt, installedMod);
+      }
+    });
+    
+    // Try fuzzy matching against mod title
+    const titleFuzzy = findBestMatch(displayInfo.title.toLowerCase(), candidateNames, 0.7);
+    if (titleFuzzy) {
+      return candidateMap.get(titleFuzzy.match) || null;
     }
-  });
-  
-  // Try fuzzy matching against mod title with lower threshold first
-  const titleMatch = findBestMatch(displayInfo.title.toLowerCase(), candidateNames, 0.7);
-  if (titleMatch) {
-    return true;
-  }
-  
-  // Also try fuzzy matching against slug if available
-  if (modrinthData?.slug) {
-    const slugMatch = findBestMatch(modrinthData.slug.toLowerCase(), candidateNames, 0.7);
-    if (slugMatch) {
-      return true;
+    
+    // Also try fuzzy matching against slug if available
+    if (modrinthData?.slug) {
+      const slugFuzzy = findBestMatch(modrinthData.slug.toLowerCase(), candidateNames, 0.7);
+      if (slugFuzzy) {
+        return candidateMap.get(slugFuzzy.match) || null;
+      }
     }
-  }
 
-  // Also try fuzzy matching against CurseForge slug if available
-  if (curseforgeData?.slug) {
-    const slugMatch = findBestMatch(curseforgeData.slug.toLowerCase(), candidateNames, 0.7);
-    if (slugMatch) {
-      return true;
+    if (curseforgeData?.slug) {
+      const slugFuzzy = findBestMatch(curseforgeData.slug.toLowerCase(), candidateNames, 0.7);
+      if (slugFuzzy) {
+        return candidateMap.get(slugFuzzy.match) || null;
+      }
     }
+    
+    return null;
+  };
+  
+  const installedMod = findInstalledMod();
+  if (installedMod) {
+    return {
+      isInstalled: true,
+      version: installedMod.mod_version || null
+    };
   }
   
-  return false;
+  return { isInstalled: false, version: null };
+}
+
+// Legacy function for backward compatibility
+function isModInstalled(mod: ModInfoKind): boolean {
+  return getInstalledModInfo(mod).isInstalled;
 }
 
 // Initialize service when provider changes
@@ -716,19 +746,59 @@ function handleModDownload(mod: ModInfoKind) {
   });
 }
 
+function handleDownloadVersion(event: CustomEvent<{ mod: ModInfoKind; versionId: string; versionNumber: string }>) {
+  const { mod, versionId } = event.detail;
+  
+  if (!currentInstallation) {
+    alert('Please select an installation first');
+    return;
+  }
+  
+  let modId: string;
+  
+  // Handle Modrinth - Rust enum format
+  if ('Modrinth' in mod) {
+    modId = mod.Modrinth.project_id;
+  }
+  // Handle Modrinth - TypeScript discriminated union format
+  else if ('kind' in mod && mod.kind === 'Modrinth') {
+    modId = mod.data.project_id;
+  }
+  // Handle CurseForge - Rust enum format
+  else if ('CurseForge' in mod) {
+    modId = mod.CurseForge.id.toString();
+  }
+  // Handle CurseForge - TypeScript discriminated union format
+  else if ('kind' in mod && mod.kind === 'CurseForge') {
+    modId = mod.data.id.toString();
+  }
+  // Unknown provider
+  else {
+    console.error('[ModBrowser] Unknown mod provider format:', mod);
+    return;
+  }
+  
+  // Dispatch with specific version ID
+  dispatch('downloadMod', {
+    modId,
+    versionId,
+    installation: currentInstallation
+  });
+}
+
 function handleModInfo(mod: ModInfoKind) {
   // Handle Modrinth - Rust enum format
   if ('Modrinth' in mod) {
     const url = mod.Modrinth.source_url || mod.Modrinth.wiki_url || `https://modrinth.com/mod/${mod.Modrinth.slug}`;
     if (url) {
-      window.open(url, '_blank');
+      systemApi.openUrl(url);
     }
   }
   // Handle Modrinth - TypeScript discriminated union format
   else if ('kind' in mod && mod.kind === 'Modrinth') {
     const url = mod.data.source_url || mod.data.wiki_url || `https://modrinth.com/mod/${mod.data.slug}`;
     if (url) {
-      window.open(url, '_blank');
+      systemApi.openUrl(url);
     }
   }
   // Handle CurseForge - Rust enum format
@@ -738,7 +808,7 @@ function handleModInfo(mod: ModInfoKind) {
                mod.CurseForge.links?.wiki_url || 
                `https://www.curseforge.com/minecraft/mc-mods/${mod.CurseForge.slug}`;
     if (url) {
-      window.open(url, '_blank');
+      systemApi.openUrl(url);
     }
   }
   // Handle CurseForge - TypeScript discriminated union format
@@ -748,7 +818,7 @@ function handleModInfo(mod: ModInfoKind) {
                mod.data.links?.wiki_url || 
                `https://www.curseforge.com/minecraft/mc-mods/${mod.data.slug}`;
     if (url) {
-      window.open(url, '_blank');
+      systemApi.openUrl(url);
     }
   }
 }
@@ -1168,14 +1238,16 @@ onMount(async () => {
           <!-- Mods Grid/List -->
           <div class="mods-container" class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} class:compact={viewMode === 'compact'}>
             {#each paginatedMods as mod}
-              {@const installed = currentInstallation && installedModsLoaded ? isModInstalled(mod) : false}
+              {@const installedInfo = currentInstallation && installedModsLoaded ? getInstalledModInfo(mod) : { isInstalled: false, version: null }}
               <ModCard 
                 {mod} 
                 {viewMode} 
                 {currentInstallation}
                 loading={false}
-                isInstalled={installed}
+                isInstalled={installedInfo.isInstalled}
+                installedVersion={installedInfo.version}
                 on:downloadMod={handleDownloadMod}
+                on:downloadVersion={handleDownloadVersion}
                 on:infoMod={handleInfoMod}
               />
             {/each}
@@ -1185,7 +1257,6 @@ onMount(async () => {
     </div>
   </div>
 </div>
-
 
 <style lang="scss">
 @use "@kablan/clean-ui/scss/_variables.scss" as *;

@@ -381,19 +381,65 @@ impl ModProvider for ModrinthProvider {
             .await
             .map_err(|e| format!("Failed to create mods directory: {}", e))?;
 
-        let versions = get_mod_versions(mod_id).await?;
-        let version = if let Some(version_id) = version_id {
-            versions.into_iter().find(|v| v.id == version_id)
+        // If specific version_id provided, download that version
+        if let Some(version_id) = version_id {
+            let versions = get_mod_versions(mod_id).await?;
+            let version = versions
+                .into_iter()
+                .find(|v| v.id == version_id)
+                .ok_or("Specified mod version not found")?;
+            
+            let mut files_iter = version.files.into_iter();
+            let file = files_iter
+                .clone()
+                .find(|f| f.primary)
+                .or_else(|| files_iter.next())
+                .ok_or("No mod file found")?;
+            
+            return download_mod_file(&file.url, &mods_dir.join(&file.filename)).await;
+        }
+
+        // Otherwise, intelligently find best matching version
+        let loader = extract_loader_from_version_id(&installation.version_id);
+        let mc_version = extract_minecraft_version(&installation.version_id);
+
+        println!(
+            "[ModrinthProvider] Finding best version for installation: loader={:?}, mc_version={:?}",
+            loader, mc_version
+        );
+
+        // Fetch filtered versions for better performance
+        let versions = if loader.is_some() || mc_version.is_some() {
+            get_project_versions_filtered(
+                mod_id,
+                loader.clone().map(|l| vec![l]),
+                mc_version.clone().map(|v| vec![v]),
+            )
+            .await?
         } else {
-            versions.into_iter().next()
+            get_mod_versions(mod_id).await?
         };
-        let version = version.ok_or("Mod version not found")?;
+
+        if versions.is_empty() {
+            return Err("No compatible mod versions found for this installation".to_string());
+        }
+
+        // Find the best version using our smart selection logic
+        let version = find_best_version(&versions, loader.as_deref(), mc_version.as_deref())
+            .ok_or("No compatible mod version found for this installation")?;
+
+        println!(
+            "[ModrinthProvider] Selected version: {} ({})",
+            version.version_number, version.id
+        );
+
         let mut files_iter = version.files.into_iter();
         let file = files_iter
             .clone()
             .find(|f| f.primary)
             .or_else(|| files_iter.next())
             .ok_or("No mod file found")?;
+        
         download_mod_file(&file.url, &mods_dir.join(&file.filename)).await
     }
 
@@ -626,6 +672,113 @@ pub async fn get_mod_versions(mod_id: &str) -> Result<Vec<ModrinthVersion>, Stri
         .await
         .map_err(|e| format!("Modrinth get versions parse failed: {e}"))?;
     Ok(versions)
+}
+
+/// Get versions for a Modrinth project filtered by loaders and game versions
+/// See: https://docs.modrinth.com/api/operations/getprojectversions/
+#[log_result]
+pub async fn get_project_versions_filtered(
+    project_id: &str,
+    loaders: Option<Vec<String>>,
+    game_versions: Option<Vec<String>>,
+) -> Result<Vec<ModrinthVersion>, String> {
+    let client = Client::new();
+    let mut url = format!("https://api.modrinth.com/v2/project/{}/version", project_id);
+    
+    let mut params = Vec::new();
+    
+    // Add loaders parameter (e.g., ["fabric", "forge"])
+    if let Some(loaders) = loaders {
+        if !loaders.is_empty() {
+            let loaders_json = serde_json::to_string(&loaders)
+                .map_err(|e| format!("Failed to serialize loaders: {e}"))?;
+            params.push(format!("loaders={}", urlencoding::encode(&loaders_json)));
+        }
+    }
+    
+    // Add game_versions parameter (e.g., ["1.20.1", "1.20.2"])
+    if let Some(game_versions) = game_versions {
+        if !game_versions.is_empty() {
+            let game_versions_json = serde_json::to_string(&game_versions)
+                .map_err(|e| format!("Failed to serialize game_versions: {e}"))?;
+            params.push(format!("game_versions={}", urlencoding::encode(&game_versions_json)));
+        }
+    }
+    
+    if !params.is_empty() {
+        url.push('?');
+        url.push_str(&params.join("&"));
+    }
+    
+    println!("[ModrinthAPI] Fetching filtered versions from: {}", url);
+    
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth get filtered versions failed: {e}"))?;
+    
+    let versions: Vec<ModrinthVersion> = resp
+        .json()
+        .await
+        .map_err(|e| format!("Modrinth get filtered versions parse failed: {e}"))?;
+    
+    println!("[ModrinthAPI] Received {} filtered versions", versions.len());
+    Ok(versions)
+}
+
+/// Find the best matching version from a list of versions
+/// Returns the version with the highest version_number that matches the criteria
+pub fn find_best_version(
+    versions: &[ModrinthVersion],
+    preferred_loader: Option<&str>,
+    preferred_game_version: Option<&str>,
+) -> Option<ModrinthVersion> {
+    let mut candidates: Vec<&ModrinthVersion> = versions.iter().collect();
+    
+    // Filter by loader if specified
+    if let Some(loader) = preferred_loader {
+        candidates.retain(|v| v.loaders.iter().any(|l| l.eq_ignore_ascii_case(loader)));
+    }
+    
+    // Filter by game version if specified
+    if let Some(game_version) = preferred_game_version {
+        candidates.retain(|v| v.game_versions.contains(&game_version.to_string()));
+    }
+    
+    if candidates.is_empty() {
+        return None;
+    }
+    
+    // Sort by version number (reverse semver-like comparison)
+    candidates.sort_by(|a, b| compare_version_strings(&b.version_number, &a.version_number));
+    
+    candidates.first().map(|v| (*v).clone())
+}
+
+/// Compare two version strings in a semver-like manner
+/// Returns Ordering: Greater if a > b, Less if a < b, Equal if a == b
+fn compare_version_strings(a: &str, b: &str) -> std::cmp::Ordering {
+    use std::cmp::Ordering;
+    
+    let parse_version_parts = |s: &str| -> Vec<u32> {
+        s.split(|c: char| c == '.' || c == '-' || c == '+')
+            .filter_map(|part| part.parse::<u32>().ok())
+            .collect()
+    };
+    
+    let a_parts = parse_version_parts(a);
+    let b_parts = parse_version_parts(b);
+    
+    for (a_part, b_part) in a_parts.iter().zip(b_parts.iter()) {
+        match a_part.cmp(b_part) {
+            Ordering::Equal => continue,
+            other => return other,
+        }
+    }
+    
+    // If all parts are equal, compare by length (more parts = more specific)
+    a_parts.len().cmp(&b_parts.len())
 }
 
 /// Download a mod file from Modrinth and save to the given path

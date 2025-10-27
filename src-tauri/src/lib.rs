@@ -201,6 +201,7 @@ pub fn run() {
             // Mods commands
             commands_mods::get_mods,
             commands_mods::download_mod,
+            commands_mods::get_project_versions,
             commands_mods::set_provider_filter,
             commands_mods::set_provider_limit,
             commands_mods::clear_provider_cache,

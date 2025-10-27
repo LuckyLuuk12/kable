@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { ExtendedModInfo, KableInstallation, ModFilter, ModInfoKind, ModJarInfo, ProviderKind } from '$lib';
+import type { ExtendedModInfo, KableInstallation, ModFilter, ModInfoKind, ModJarInfo, ModrinthVersion, ProviderKind } from '$lib';
 
 export async function getMods(provider: ProviderKind, offset: number): Promise<ModInfoKind[]> {
   console.log(`[ModsAPI] Calling get_mods with provider: ${provider}, offset: ${offset}`);
@@ -10,6 +10,23 @@ export async function getMods(provider: ProviderKind, offset: number): Promise<M
 
 export async function downloadMod(provider: ProviderKind, modId: string, versionId: string | null, installation: KableInstallation): Promise<void> {
   return invoke('download_mod', { provider, modId, versionId, installation });
+}
+
+export async function getProjectVersions(
+  provider: ProviderKind,
+  projectId: string,
+  loaders?: string[],
+  gameVersions?: string[]
+): Promise<ModrinthVersion[]> {
+  console.log(`[ModsAPI] Calling get_project_versions with provider: ${provider}, projectId: ${projectId}, loaders:`, loaders, 'gameVersions:', gameVersions);
+  const result = await invoke('get_project_versions', { 
+    provider, 
+    projectId, 
+    loaders: loaders || null,
+    gameVersions: gameVersions || null 
+  }) as ModrinthVersion[];
+  console.log(`[ModsAPI] get_project_versions returned ${result.length} versions`);
+  return result;
 }
 
 export async function setProviderFilter(provider: ProviderKind, installation: KableInstallation | null, filter: ModFilter | null): Promise<void> {
