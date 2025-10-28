@@ -91,20 +91,23 @@ export class InstallationService {
    */
   static async updateInstallation(id: string, newInstallation: KableInstallation): Promise<void> {
     console.log('[Service] updateInstallation called with:', { id, newInstallation });
-    // first modify store for reactivity
+    
+    // Update store first for immediate UI feedback
     installations.update(list => {
       const index = list.findIndex(i => i.id === id);
       if (index !== -1) {
         // Create a new array with the updated installation for reactivity
         const newList = [...list];
-        newList[index] = newInstallation;
+        newList[index] = { ...newInstallation }; // Ensure new object reference
+        console.log('[Service] Updated installation in store:', newList[index]);
         return newList;
       }
       return list;
     });
 
+    // Then persist to backend
     await installationsApi.modifyInstallation(id, newInstallation);
-    console.log('Installation updated:', id);
+    console.log('Installation updated in backend:', id);
   }
 
   /**
