@@ -248,12 +248,47 @@ impl KableInstallation {
             let options= zip::write::FullFileOptions::default()
                 .compression_method(zip::CompressionMethod::Stored)
                 .unix_permissions(0o755);
-            // Prepare an export copy with reset metadata
+            // Prepare an export copy with reset metadata and placeholders for paths
             let mut export_install = self_owned.clone();
             export_install.created = chrono::Utc::now().to_rfc3339();
             export_install.last_used = chrono::Utc::now().to_rfc3339();
             export_install.times_launched = 0;
             export_install.total_time_played_ms = 0;
+            
+            // Convert all paths to use placeholders to ensure portability
+            // Store mods folder as relative path with placeholder
+            if let Some(ref mods) = export_install.dedicated_mods_folder {
+                let mods_path = PathBuf::from(mods);
+                if mods_path.is_absolute() {
+                    // Convert absolute paths to relative with placeholder
+                    export_install.dedicated_mods_folder = Some("mods/{{INSTALLATION_ID}}".to_string());
+                } else if mods.contains(&self_owned.id) {
+                    // Replace existing ID with placeholder
+                    export_install.dedicated_mods_folder = Some(mods.replace(&self_owned.id, "{{INSTALLATION_ID}}"));
+                }
+            }
+            
+            if let Some(ref rp) = export_install.dedicated_resource_pack_folder {
+                let rp_path = PathBuf::from(rp);
+                if rp_path.is_absolute() {
+                    export_install.dedicated_resource_pack_folder = Some("resourcepacks/{{INSTALLATION_ID}}".to_string());
+                } else if rp.contains(&self_owned.id) {
+                    export_install.dedicated_resource_pack_folder = Some(rp.replace(&self_owned.id, "{{INSTALLATION_ID}}"));
+                }
+            }
+            
+            if let Some(ref shaders) = export_install.dedicated_shaders_folder {
+                let shaders_path = PathBuf::from(shaders);
+                if shaders_path.is_absolute() {
+                    export_install.dedicated_shaders_folder = Some("shaderpacks/{{INSTALLATION_ID}}".to_string());
+                } else if shaders.contains(&self_owned.id) {
+                    export_install.dedicated_shaders_folder = Some(shaders.replace(&self_owned.id, "{{INSTALLATION_ID}}"));
+                }
+            }
+            
+            // Use placeholder for ID in export
+            export_install.id = "{{INSTALLATION_ID}}".to_string();
+            
             // Write the kable_export.json file
             zip.start_file("kable_export.json", options.clone())
                 .map_err(|e| format!("Failed to write kable_export.json: {}", e))?;
@@ -457,35 +492,47 @@ impl KableInstallation {
                 .map_err(|e| format!("Failed to open import file: {}", e))?;
             let mut zip = zip::ZipArchive::new(file)
                 .map_err(|e| format!("Failed to read zip file: {}", e))?;
+            
+            // Generate a new unique ID for this import
+            let new_id = uuid::Uuid::new_v4().to_string();
+            
             let mut installation = KableInstallation::default();
             // Extract the kable_export.json file
             if let Ok(mut file) = zip.by_name("kable_export.json") {
                 let mut json = String::new();
                 file.read_to_string(&mut json)
                     .map_err(|e| format!("Failed to read kable_export.json: {}", e))?;
+                
+                // Replace all placeholders with the new ID
+                json = json.replace("{{INSTALLATION_ID}}", &new_id);
+                
                 installation = serde_json::from_str(&json)
                     .map_err(|e| format!("Failed to parse kable_export.json: {}", e))?;
+                
+                // Ensure the ID is set to the new one (in case replacement didn't work)
+                installation.id = new_id.clone();
             }
             // Extract the resource pack if it exists (embedded zip) and unpack into destination
             if let Ok(mut file) = zip.by_name("resource_packs.zip") {
-                // Determine destination: if installation.dedicated_resource_pack_folder is absolute, use it
+                // Use the new ID for the destination path
                 let resource_pack_rel = installation
                     .dedicated_resource_pack_folder
                     .as_deref()
-                    .unwrap_or(&installation.id)
+                    .unwrap_or(&new_id)
                     .to_string();
                 let rp_path = PathBuf::from(&resource_pack_rel);
+                // Always use relative path from kable_dir
                 let dest_dir = if rp_path.is_absolute() {
                     rp_path
                 } else {
-                    kable_dir.join("resourcepacks").join(resource_pack_rel)
+                    kable_dir.join(&resource_pack_rel)
                 };
                 crate::ensure_folder_sync(&dest_dir)
                     .map_err(|e| format!("Failed to create resource pack directory: {}", e))?;
 
                 // Copy the embedded zip to a temp file then extract its entries safely into dest_dir
                 let mut tmp = std::env::temp_dir();
-                tmp.push(format!("resource_packs_{}.zip", installation.id));
+                tmp.push(format!("resource_packs_{}.zip", new_id));
                 {
                     let mut tmp_file = fs::File::create(&tmp)
                         .map_err(|e| format!("Failed to create tmp resource zip: {}", e))?;
@@ -529,20 +576,21 @@ impl KableInstallation {
                 let shaders_rel = installation
                     .dedicated_shaders_folder
                     .as_deref()
-                    .unwrap_or(&installation.id)
+                    .unwrap_or(&new_id)
                     .to_string();
                 let sf_path = PathBuf::from(&shaders_rel);
+                // Always use relative path from kable_dir
                 let dest_dir = if sf_path.is_absolute() {
                     sf_path
                 } else {
-                    kable_dir.join("shaderpacks").join(shaders_rel)
+                    kable_dir.join(&shaders_rel)
                 };
                 crate::ensure_folder_sync(&dest_dir)
                     .map_err(|e| format!("Failed to create shaders directory: {}", e))?;
 
                 // Copy embedded zip to tmp and extract
                 let mut tmp = std::env::temp_dir();
-                tmp.push(format!("shaders_{}.zip", installation.id));
+                tmp.push(format!("shaders_{}.zip", new_id));
                 {
                     let mut tmp_file = fs::File::create(&tmp)
                         .map_err(|e| format!("Failed to create tmp shaders zip: {}", e))?;
@@ -584,20 +632,21 @@ impl KableInstallation {
                 let mods_rel = installation
                     .dedicated_mods_folder
                     .as_deref()
-                    .unwrap_or(&installation.id)
+                    .unwrap_or(&new_id)
                     .to_string();
                 let mf_path = PathBuf::from(&mods_rel);
+                // Always use relative path from kable_dir
                 let dest_dir = if mf_path.is_absolute() {
                     mf_path
                 } else {
-                    kable_dir.join("mods").join(mods_rel)
+                    kable_dir.join(&mods_rel)
                 };
                 crate::ensure_folder_sync(&dest_dir)
                     .map_err(|e| format!("Failed to create mods directory: {}", e))?;
 
                 // Copy embedded zip to tmp and extract
                 let mut tmp = std::env::temp_dir();
-                tmp.push(format!("mods_{}.zip", installation.id));
+                tmp.push(format!("mods_{}.zip", new_id));
                 {
                     let mut tmp_file = fs::File::create(&tmp)
                         .map_err(|e| format!("Failed to create tmp mods zip: {}", e))?;
