@@ -27,6 +27,7 @@ pub struct KableInstallation {
     pub dedicated_mods_folder: Option<String>,
     pub dedicated_resource_pack_folder: Option<String>,
     pub dedicated_shaders_folder: Option<String>,
+    pub dedicated_config_folder: Option<String>,
     pub favorite: bool,
     pub total_time_played_ms: u64,
     /// User-overridable parameters for advanced use cases
@@ -59,6 +60,7 @@ impl Default for KableInstallation {
             dedicated_mods_folder: None,
             dedicated_resource_pack_folder: Some(format!("resourcepacks/{}", id.clone())),
             dedicated_shaders_folder: Some(format!("shaderpacks/{}", id.clone())),
+            dedicated_config_folder: Some(format!("config/{}", id.clone())),
             favorite: false,
             total_time_played_ms: 0,
             parameters_map: std::collections::HashMap::new(),
@@ -90,6 +92,7 @@ impl From<LauncherProfile> for KableInstallation {
             dedicated_mods_folder: None, // Will be determined below
             dedicated_resource_pack_folder: Some(format!("resourcepacks/{}", installation_id.clone())),
             dedicated_shaders_folder: Some(format!("shaderpacks/{}", installation_id.clone())),
+            dedicated_config_folder: Some(format!("config/{}", installation_id.clone())),
             favorite: false,
             total_time_played_ms: 0,
             parameters_map: std::collections::HashMap::new(),
@@ -134,6 +137,7 @@ impl From<LauncherProfile> for KableInstallation {
             dedicated_mods_folder,
             dedicated_resource_pack_folder: Some(format!("resourcepacks/{}", installation_id.clone())),
             dedicated_shaders_folder: Some(format!("shaderpacks/{}", installation_id.clone())),
+            dedicated_config_folder: Some(format!("config/{}", installation_id.clone())),
             favorite: false,
             total_time_played_ms: 0,
             parameters_map: std::collections::HashMap::new(),
@@ -163,8 +167,27 @@ pub fn read_kable_profiles() -> Result<Vec<KableInstallation>, String> {
 
     let data = fs::read_to_string(&path)
         .map_err(|e| format!("Failed to read kable_profiles.json: {}", e))?;
-    serde_json::from_str::<Vec<KableInstallation>>(&data)
-        .map_err(|e| format!("Failed to parse kable_profiles.json: {}", e))
+    let mut installations = serde_json::from_str::<Vec<KableInstallation>>(&data)
+        .map_err(|e| format!("Failed to parse kable_profiles.json: {}", e))?;
+    
+    // Ensure backward compatibility: add default dedicated_config_folder if missing
+    let mut needs_update = false;
+    for installation in installations.iter_mut() {
+        if installation.dedicated_config_folder.is_none() {
+            installation.dedicated_config_folder = Some(format!("config/{}", installation.id));
+            needs_update = true;
+        }
+    }
+    
+    // Write back if we added defaults
+    if needs_update {
+        let json = serde_json::to_string_pretty(&installations)
+            .map_err(|e| format!("Failed to serialize kable profiles: {}", e))?;
+        crate::write_file_atomic_sync(&path, json.as_bytes())
+            .map_err(|e| format!("Failed to write kable_profiles.json: {}", e))?;
+    }
+    
+    Ok(installations)
 }
 
 pub async fn read_kable_profiles_async() -> Result<Vec<KableInstallation>, String> {
@@ -182,14 +205,29 @@ pub async fn read_kable_profiles_async() -> Result<Vec<KableInstallation>, Strin
     let data = async_fs::read_to_string(&path)
         .await
         .map_err(|e| format!("Failed to read kable_profiles.json: {}", e))?;
-    task::spawn_blocking(move || {
+    let mut installations = task::spawn_blocking(move || {
         serde_json::from_str::<Vec<KableInstallation>>(&data)
             .map_err(|e| format!("Failed to parse kable_profiles.json: {}", e))
     })
     .await
-    .unwrap()
+    .unwrap()?;
+    
+    // Ensure backward compatibility: add default dedicated_config_folder if missing
+    let mut needs_update = false;
+    for installation in installations.iter_mut() {
+        if installation.dedicated_config_folder.is_none() {
+            installation.dedicated_config_folder = Some(format!("config/{}", installation.id));
+            needs_update = true;
+        }
+    }
+    
+    // Write back if we added defaults
+    if needs_update {
+        write_kable_profiles_async(&installations).await?;
+    }
+    
+    Ok(installations)
 }
-
 pub fn write_kable_profiles(profiles: &[KableInstallation]) -> Result<(), String> {
     // Synchronous version for compatibility
     let kable_dir = crate::get_minecraft_kable_dir()?;
@@ -807,6 +845,34 @@ impl KableInstallation {
                     installation.dedicated_shaders_folder = Some(format!("shaderpacks/{}", installation.id));
                 }
                 
+                // Copy config folder if it exists
+                let source_config = minecraft_path.join("config");
+                if source_config.exists() && source_config.is_dir() {
+                    let dest_config = kable_dir.join("config").join(&installation.id);
+                    crate::ensure_folder_sync(&dest_config)
+                        .map_err(|e| format!("Failed to create config directory: {}", e))?;
+                    
+                    // Copy all config files and directories
+                    if let Ok(entries) = std::fs::read_dir(&source_config) {
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            let file_name = path.file_name().unwrap();
+                            let dest = dest_config.join(file_name);
+                            
+                            if path.is_file() {
+                                std::fs::copy(&path, &dest)
+                                    .map_err(|e| format!("Failed to copy config file: {}", e))?;
+                            } else if path.is_dir() {
+                                // Recursively copy directory
+                                crate::copy_dir_recursive_sync(&path, &dest)
+                                    .map_err(|e| format!("Failed to copy config directory: {}", e))?;
+                            }
+                        }
+                    }
+                    
+                    installation.dedicated_config_folder = Some(format!("config/{}", installation.id));
+                }
+                
                 Logger::debug_global(&format!("Created installation from profile: {}", installation.name), None);
                 new_installations.push(installation);
             }
@@ -828,6 +894,160 @@ impl KableInstallation {
         }
         
         res
+    }
+
+    /// Setup config folder for this installation before launch.
+    /// This function:
+    /// 1. Backs up global configs to .minecraft/config/kable_global if not already done
+    /// 2. If this installation has a dedicated_config_folder with content, symlinks it to .minecraft/config
+    /// 3. If dedicated_config_folder is None or empty, uses global configs (does nothing)
+    pub async fn setup_config_folder(&self) -> Result<(), String> {
+        use crate::logging::Logger;
+        
+        let mc_dir = crate::get_default_minecraft_dir()?;
+        let global_config_dir = mc_dir.join("config");
+        let global_backup_dir = mc_dir.join("config").join("kable_global");
+        
+        // If no dedicated config folder is set, use global configs (do nothing)
+        let dedicated_config = match &self.dedicated_config_folder {
+            Some(path) if !path.is_empty() => path,
+            _ => {
+                Logger::debug_global(
+                    &format!("Installation {} has no dedicated config folder, using global configs", self.name),
+                    None,
+                );
+                return Ok(());
+            }
+        };
+        
+        // Resolve the dedicated config path
+        let kable_dir = crate::get_minecraft_kable_dir()?;
+        let dedicated_path = PathBuf::from(dedicated_config);
+        let dedicated_config_path = if dedicated_path.is_absolute() {
+            dedicated_path
+        } else {
+            kable_dir.join(dedicated_config)
+        };
+        
+        // If dedicated folder doesn't exist or is empty, use global configs
+        if !dedicated_config_path.exists() {
+            Logger::debug_global(
+                &format!("Dedicated config folder doesn't exist for {}, using global configs", self.name),
+                None,
+            );
+            return Ok(());
+        }
+        
+        // Check if dedicated folder is empty
+        let is_empty = std::fs::read_dir(&dedicated_config_path)
+            .map(|mut entries| entries.next().is_none())
+            .unwrap_or(true);
+        
+        if is_empty {
+            Logger::debug_global(
+                &format!("Dedicated config folder is empty for {}, using global configs", self.name),
+                None,
+            );
+            return Ok(());
+        }
+        
+        Logger::debug_global(
+            &format!("Setting up dedicated config folder for installation: {}", self.name),
+            None,
+        );
+        
+        // Step 1: Backup global configs if not already done
+        if !global_backup_dir.exists() {
+            Logger::debug_global("Backing up global configs to kable_global", None);
+            if global_config_dir.exists() {
+                crate::ensure_folder_sync(&global_backup_dir)?;
+                
+                // Move all items from config to config/kable_global
+                if let Ok(entries) = std::fs::read_dir(&global_config_dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        let file_name = path.file_name().unwrap();
+                        
+                        // Skip the kable_global folder itself
+                        if file_name == "kable_global" {
+                            continue;
+                        }
+                        
+                        let dest = global_backup_dir.join(file_name);
+                        if let Err(e) = std::fs::rename(&path, &dest) {
+                            Logger::debug_global(
+                                &format!("Failed to move {} to backup: {}", path.display(), e),
+                                None,
+                            );
+                        }
+                    }
+                }
+            } else {
+                // Create empty backup dir
+                crate::ensure_folder_sync(&global_backup_dir)?;
+            }
+        }
+        
+        // Step 2: Remove existing config symlink if present
+        if global_config_dir.exists() && global_config_dir.is_symlink() {
+            crate::remove_symlink_if_exists(&global_config_dir).await?;
+        }
+        
+        // Step 3: Create symlink from dedicated config to .minecraft/config
+        crate::create_directory_symlink(&dedicated_config_path, &global_config_dir).await?;
+        
+        Logger::debug_global(
+            &format!("Symlinked {} -> {}", dedicated_config_path.display(), global_config_dir.display()),
+            None,
+        );
+        
+        Ok(())
+    }
+
+    /// Restore global configs after game closes.
+    /// This removes the symlink and ensures kable_global contents are available in .minecraft/config
+    pub async fn restore_global_configs() -> Result<(), String> {
+        use crate::logging::Logger;
+        
+        let mc_dir = crate::get_default_minecraft_dir()?;
+        let global_config_dir = mc_dir.join("config");
+        let global_backup_dir = mc_dir.join("config").join("kable_global");
+        
+        Logger::debug_global("Restoring global configs", None);
+        
+        // Remove symlink if it exists
+        if global_config_dir.exists() && global_config_dir.is_symlink() {
+            crate::remove_symlink_if_exists(&global_config_dir).await?;
+            Logger::debug_global("Removed config symlink", None);
+        }
+        
+        // Restore global configs from backup
+        if global_backup_dir.exists() {
+            // Ensure config directory exists
+            crate::ensure_folder(&global_config_dir).await?;
+            
+            // Move items from kable_global back to config
+            if let Ok(entries) = std::fs::read_dir(&global_backup_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let file_name = path.file_name().unwrap();
+                    let dest = global_config_dir.join(file_name);
+                    
+                    // Only restore if not already present
+                    if !dest.exists() {
+                        if let Err(e) = std::fs::rename(&path, &dest) {
+                            Logger::debug_global(
+                                &format!("Failed to restore {} from backup: {}", path.display(), e),
+                                None,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        
+        Logger::debug_global("Global configs restored", None);
+        Ok(())
     }
 
     /// Try to get the mods folder from the dedicated_mods_folder field.

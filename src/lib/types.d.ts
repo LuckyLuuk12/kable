@@ -706,6 +706,7 @@ export interface KableInstallation {
   dedicated_mods_folder?: string | null;
   dedicated_resource_pack_folder?: string | null;
   dedicated_shaders_folder?: string | null;
+  dedicated_config_folder?: string | null;
   favorite: boolean;
   total_time_played_ms: number;
   parameters_map: Record<string, string>;

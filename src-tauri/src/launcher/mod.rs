@@ -267,6 +267,20 @@ pub async fn launch_installation(
         Logger::warn_global(&format!("Failed to setup symlinks: {}", e), instance_id);
         // Continue launching even if symlink setup fails
     }
+
+    // Setup dedicated config folder (if configured)
+    Logger::info_global(
+        "Setting up dedicated config folder for installation",
+        instance_id,
+    );
+    if let Err(e) = installation.setup_config_folder().await {
+        Logger::warn_global(
+            &format!("Failed to setup dedicated config folder: {}", e),
+            instance_id,
+        );
+        // Continue launching even if config folder setup fails
+    }
+
     // Detect loader and get Launchable
     let launchable = match get_launchable_for_installation(&context).await {
         Ok(l) => l,
@@ -344,6 +358,21 @@ pub async fn launch_installation(
                 if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
                     Logger::warn_global(
                         &format!("[SETTINGS TASK] Failed to cleanup symlinks: {}", e),
+                        None,
+                    );
+                }
+
+                // Restore global configs after game closes
+                Logger::info_global(
+                    "[SETTINGS TASK] Restoring global configs after game exit",
+                    None,
+                );
+                if let Err(e) =
+                    crate::installations::kable_profiles::KableInstallation::restore_global_configs()
+                        .await
+                {
+                    Logger::warn_global(
+                        &format!("[SETTINGS TASK] Failed to restore global configs: {}", e),
                         None,
                     );
                 }
