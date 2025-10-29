@@ -243,9 +243,12 @@ pub fn run() {
             commands_installations::enable_mod,
             commands_installations::toggle_mod_disabled,
             commands_installations::import,
+            commands_installations::import_from_minecraft_folder,
             commands_installations::export,
             commands_installations::duplicate,
             commands_installations::create_shortcut,
+            commands_installations::select_installation_zip,
+            commands_installations::select_minecraft_folder,
             // Launcher commands
             commands_launcher::launch_installation,
             commands_launcher::kill_minecraft_process,
@@ -491,6 +494,68 @@ pub fn ensure_folder_sync(path: &Path) -> Result<PathBuf, String> {
             }
         }
     }
+}
+
+/// Recursively copy a directory and all its contents (async version)
+pub async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+    async_fs::create_dir_all(dst)
+        .await
+        .map_err(|e| format!("Failed to create directory {}: {}", dst.display(), e))?;
+    
+    let mut entries = async_fs::read_dir(src)
+        .await
+        .map_err(|e| format!("Failed to read directory {}: {}", src.display(), e))?;
+    
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| format!("Failed to read entry: {}", e))?
+    {
+        let src_path = entry.path();
+        let file_name = src_path
+            .file_name()
+            .ok_or_else(|| "Invalid file name".to_string())?;
+        let dst_path = dst.join(file_name);
+        
+        let metadata = async_fs::metadata(&src_path)
+            .await
+            .map_err(|e| format!("Failed to get metadata: {}", e))?;
+        
+        if metadata.is_dir() {
+            Box::pin(copy_dir_recursive(&src_path, &dst_path)).await?;
+        } else {
+            async_fs::copy(&src_path, &dst_path)
+                .await
+                .map_err(|e| format!("Failed to copy file from {} to {}: {}", src_path.display(), dst_path.display(), e))?;
+        }
+    }
+    
+    Ok(())
+}
+
+/// Synchronous variant of copy_dir_recursive for use in blocking contexts
+pub fn copy_dir_recursive_sync(src: &Path, dst: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(dst)
+        .map_err(|e| format!("Failed to create directory {}: {}", dst.display(), e))?;
+    
+    let entries = std::fs::read_dir(src)
+        .map_err(|e| format!("Failed to read directory {}: {}", src.display(), e))?;
+    
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+        let ty = entry.file_type().map_err(|e| format!("Failed to get file type: {}", e))?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        
+        if ty.is_dir() {
+            copy_dir_recursive_sync(&src_path, &dst_path)?;
+        } else {
+            std::fs::copy(&src_path, &dst_path)
+                .map_err(|e| format!("Failed to copy file from {} to {}: {}", src_path.display(), dst_path.display(), e))?;
+        }
+    }
+    
+    Ok(())
 }
 
 /// Atomically write bytes to `path` by creating a temporary file in the same

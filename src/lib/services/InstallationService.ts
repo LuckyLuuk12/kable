@@ -265,6 +265,20 @@ export class InstallationService {
     } catch (error) {
       console.error('Failed to import installation:', error);
       LogsService.emitLauncherEvent(`Failed to import installation from ${path}`, 'error');
+      throw error;
+    }
+  }
+
+  static async importFromMinecraftFolder(path: string): Promise<void> {
+    try {
+      const newInstallations = await installationsApi.importFromMinecraftFolder(path);
+      console.log('Imported installations from .minecraft folder:', path, newInstallations);
+      LogsService.emitLauncherEvent(`Imported ${newInstallations.length} installation(s) from ${path}`, 'info');
+      await this.loadInstallations();
+    } catch (error) {
+      console.error('Failed to import from .minecraft folder:', error);
+      LogsService.emitLauncherEvent(`Failed to import from .minecraft folder: ${path}`, 'error');
+      throw error;
     }
   }
 

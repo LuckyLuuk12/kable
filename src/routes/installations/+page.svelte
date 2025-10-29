@@ -1,5 +1,6 @@
 <script lang="ts">
   import { InstallationsList, CreateInstallationModal, EditInstallationModal, Icon, type KableInstallation, InstallationService } from '$lib';
+  import * as installationsApi from '$lib/api/installations';
 
   let createModalRef: CreateInstallationModal;
   let editModalRef: EditInstallationModal;
@@ -7,6 +8,7 @@
   let isSmall = false;
   let isGrid = true;
   let isRefreshing = false;
+  let isImporting = false;
 
   function editInstallation(installation: KableInstallation) {
     editModalRef?.open(installation);
@@ -24,6 +26,36 @@
       isRefreshing = false;
     }
   }
+
+  async function importKableInstallation() {
+    try {
+      isImporting = true;
+      const path = await installationsApi.selectInstallationZip();
+      
+      if (path) {
+        await InstallationService.importInstallation(path);
+      }
+    } catch (error) {
+      console.error('Failed to import installation:', error);
+    } finally {
+      isImporting = false;
+    }
+  }
+
+  async function importFromMinecraftFolder() {
+    try {
+      isImporting = true;
+      const path = await installationsApi.selectMinecraftFolder();
+      
+      if (path) {
+        await InstallationService.importFromMinecraftFolder(path);
+      }
+    } catch (error) {
+      console.error('Failed to import from .minecraft folder:', error);
+    } finally {
+      isImporting = false;
+    }
+  }
 </script>
 
 <div class="installations-page">
@@ -37,13 +69,33 @@
 
 
   <div class="controls-container">
-    <button 
-      class="btn btn-primary new-installation-btn"
-      on:click={openCreateModal}
-    >
-      <Icon name="plus" size="md" forceType="svg" />
-      New Installation
-    </button>
+    <div class="left-controls">
+      <button 
+        class="btn btn-primary new-installation-btn"
+        on:click={openCreateModal}
+      >
+        <Icon name="plus" size="md" forceType="svg" />
+        New Installation
+      </button>
+      <button 
+        class="btn btn-secondary import-btn"
+        on:click={importKableInstallation}
+        disabled={isImporting}
+        title="Import Kable Installation from ZIP file"
+      >
+        <Icon name="download" size="md" forceType="svg" />
+        Import Kable Installation
+      </button>
+      <button 
+        class="btn btn-secondary import-btn"
+        on:click={importFromMinecraftFolder}
+        disabled={isImporting}
+        title="Import from existing .minecraft folder"
+      >
+        <Icon name="folder" size="md" forceType="svg" />
+        Import from .minecraft
+      </button>
+    </div>
     <div class="view-controls">
       <button 
         class="btn btn-secondary {isRefreshing ? 'spinning' : ''}" 
@@ -110,6 +162,7 @@
   .controls-container {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 1rem;
     margin-bottom: 1.5rem;
     flex-wrap: wrap;
@@ -131,9 +184,38 @@
         border-color: var(--primary-700);
       }
     }
+    .import-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.65rem 1.25rem;
+      font-size: 1rem;
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--dark-500);
+      border-radius: var(--border-radius);
+      font-weight: 500;
+      transition: background 0.13s, color 0.13s, border-color 0.13s;
+      &:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--primary), 10%, transparent);
+        color: var(--primary-900);
+        border-color: var(--primary-800);
+      }
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+    .left-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
     .view-controls {
       display: flex;
       gap: 0.5rem;
+      margin-left: auto;
       button {
         display: flex;
         align-items: center;

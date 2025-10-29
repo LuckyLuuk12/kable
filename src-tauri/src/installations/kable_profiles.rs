@@ -697,6 +697,139 @@ impl KableInstallation {
         res
     }
 
+    /// Import installations from a .minecraft folder without overwriting the actual .minecraft folder.
+    /// This reads launcher_profiles.json from the provided folder and creates Kable installations
+    /// by copying mods, resourcepacks, and shaderpacks to dedicated folders.
+    pub async fn import_from_minecraft_folder(minecraft_folder: &str) -> Result<Vec<KableInstallation>, String> {
+        use crate::logging::Logger;
+        
+        let minecraft_path = PathBuf::from(minecraft_folder);
+        Logger::debug_global(&format!("Starting import from .minecraft folder: {}", minecraft_path.display()), None);
+        
+        let res = task::spawn_blocking(move || {
+            // Verify it's a valid .minecraft folder
+            let launcher_profiles_path = minecraft_path.join("launcher_profiles.json");
+            if !launcher_profiles_path.exists() {
+                return Err("Invalid .minecraft folder: launcher_profiles.json not found".to_string());
+            }
+            
+            // Read launcher profiles from the provided folder
+            let data = std::fs::read_to_string(&launcher_profiles_path)
+                .map_err(|e| format!("Failed to read launcher_profiles.json: {}", e))?;
+            
+            let json: serde_json::Value = serde_json::from_str(&data)
+                .map_err(|e| format!("Failed to parse launcher_profiles.json: {}", e))?;
+            
+            let profiles = json
+                .get("profiles")
+                .and_then(|p| p.as_object())
+                .ok_or("No 'profiles' object found in launcher_profiles.json")?;
+            
+            let mut new_installations = Vec::new();
+            let kable_dir = crate::get_minecraft_kable_dir()?;
+            
+            for profile_value in profiles.values() {
+                let profile: LauncherProfile = serde_json::from_value(profile_value.clone())
+                    .map_err(|e| format!("Failed to parse a profile: {}", e))?;
+                
+                // Create a new Kable installation from this profile
+                let mut installation = KableInstallation::from(profile.clone());
+                
+                // Copy mods folder if it exists
+                let source_mods = minecraft_path.join("mods");
+                if source_mods.exists() && source_mods.is_dir() {
+                    let dest_mods = kable_dir.join("mods").join(&installation.id);
+                    crate::ensure_folder_sync(&dest_mods)
+                        .map_err(|e| format!("Failed to create mods folder: {}", e))?;
+                    
+                    // Copy all mod files
+                    if let Ok(entries) = std::fs::read_dir(&source_mods) {
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            if path.extension().map(|e| e == "jar").unwrap_or(false) {
+                                let file_name = path.file_name().unwrap();
+                                let dest_file = dest_mods.join(file_name);
+                                let _ = std::fs::copy(&path, &dest_file);
+                            }
+                        }
+                    }
+                    
+                    installation.dedicated_mods_folder = Some(format!("mods/{}", installation.id));
+                }
+                
+                // Copy resourcepacks folder if it exists
+                let source_resourcepacks = minecraft_path.join("resourcepacks");
+                if source_resourcepacks.exists() && source_resourcepacks.is_dir() {
+                    let dest_resourcepacks = kable_dir.join("resourcepacks").join(&installation.id);
+                    crate::ensure_folder_sync(&dest_resourcepacks)
+                        .map_err(|e| format!("Failed to create resourcepacks folder: {}", e))?;
+                    
+                    // Copy all resourcepack files
+                    if let Ok(entries) = std::fs::read_dir(&source_resourcepacks) {
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            let file_name = path.file_name().unwrap();
+                            let dest_file = dest_resourcepacks.join(file_name);
+                            
+                            if path.is_file() {
+                                let _ = std::fs::copy(&path, &dest_file);
+                            } else if path.is_dir() {
+                                let _ = crate::copy_dir_recursive_sync(&path, &dest_file);
+                            }
+                        }
+                    }
+                    
+                    installation.dedicated_resource_pack_folder = Some(format!("resourcepacks/{}", installation.id));
+                }
+                
+                // Copy shaderpacks folder if it exists
+                let source_shaderpacks = minecraft_path.join("shaderpacks");
+                if source_shaderpacks.exists() && source_shaderpacks.is_dir() {
+                    let dest_shaderpacks = kable_dir.join("shaderpacks").join(&installation.id);
+                    crate::ensure_folder_sync(&dest_shaderpacks)
+                        .map_err(|e| format!("Failed to create shaderpacks folder: {}", e))?;
+                    
+                    // Copy all shader files
+                    if let Ok(entries) = std::fs::read_dir(&source_shaderpacks) {
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            let file_name = path.file_name().unwrap();
+                            let dest_file = dest_shaderpacks.join(file_name);
+                            
+                            if path.is_file() {
+                                let _ = std::fs::copy(&path, &dest_file);
+                            } else if path.is_dir() {
+                                let _ = crate::copy_dir_recursive_sync(&path, &dest_file);
+                            }
+                        }
+                    }
+                    
+                    installation.dedicated_shaders_folder = Some(format!("shaderpacks/{}", installation.id));
+                }
+                
+                Logger::debug_global(&format!("Created installation from profile: {}", installation.name), None);
+                new_installations.push(installation);
+            }
+            
+            // Add all new installations to kable_profiles.json
+            if !new_installations.is_empty() {
+                let mut existing = read_kable_profiles().unwrap_or_default();
+                existing.extend(new_installations.clone());
+                write_kable_profiles(&existing)?;
+            }
+            
+            Ok::<Vec<KableInstallation>, String>(new_installations)
+        })
+        .await
+        .map_err(|e| format!("Import task join error: {}", e))?;
+        
+        if let Ok(ref installations) = res {
+            Logger::debug_global(&format!("Imported {} installations from .minecraft folder", installations.len()), None);
+        }
+        
+        res
+    }
+
     /// Try to get the mods folder from the dedicated_mods_folder field.
     fn get_dedicated_mods_folder_path(&self) -> Option<PathBuf> {
         if let Some(ref custom_mods) = self.dedicated_mods_folder {
