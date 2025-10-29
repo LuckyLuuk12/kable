@@ -74,41 +74,6 @@ impl From<LauncherProfile> for KableInstallation {
     fn from(profile: LauncherProfile) -> Self {
         let installation_id = uuid::Uuid::new_v4().to_string();
 
-        // Create a temporary installation to check for mod loader-specific folder
-        let temp_installation = KableInstallation {
-            id: installation_id.clone(),
-            name: profile.name.clone(),
-            icon: profile.icon.clone(),
-            version_id: profile.last_version_id.clone(),
-            created: profile
-                .created
-                .clone()
-                .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-            last_used: profile
-                .last_used
-                .clone()
-                .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-            java_args: vec![],           // Temporary, will be set below
-            dedicated_mods_folder: None, // Will be determined below
-            dedicated_resource_pack_folder: Some(format!("resourcepacks/{}", installation_id.clone())),
-            dedicated_shaders_folder: Some(format!("shaderpacks/{}", installation_id.clone())),
-            dedicated_config_folder: Some(format!("config/{}", installation_id.clone())),
-            favorite: false,
-            total_time_played_ms: 0,
-            parameters_map: std::collections::HashMap::new(),
-            description: None,
-            times_launched: 0,
-        };
-
-        // Check version manifest for custom mods folder first, fallback to default
-        let dedicated_mods_folder = temp_installation
-            .get_mods_folder_from_version_manifest()
-            .map(|path| {
-                // Store the full absolute path as-is if specified in manifest
-                path.to_string_lossy().to_string()
-            })
-            .or_else(|| Some(format!("mods/{}", installation_id))); // Fallback to default
-
         KableInstallation {
             id: installation_id.clone(),
             name: profile.name,
@@ -134,7 +99,8 @@ impl From<LauncherProfile> for KableInstallation {
                     "-XX:G1HeapRegionSize=32M".to_string(),
                 ],
             },
-            dedicated_mods_folder,
+            // Use default mods folder - will be auto-detected at launch time if needed
+            dedicated_mods_folder: Some(format!("mods/{}", installation_id)),
             dedicated_resource_pack_folder: Some(format!("resourcepacks/{}", installation_id.clone())),
             dedicated_shaders_folder: Some(format!("shaderpacks/{}", installation_id.clone())),
             dedicated_config_folder: Some(format!("config/{}", installation_id.clone())),
@@ -221,7 +187,10 @@ pub async fn read_kable_profiles_async() -> Result<Vec<KableInstallation>, Strin
         }
     }
     
-    // Write back if we added defaults
+    // Sort by last_used (most recent first) for faster loading of relevant installations
+    installations.sort_by(|a, b| b.last_used.cmp(&a.last_used));
+    
+    // Write back if we added defaults OR if order changed
     if needs_update {
         write_kable_profiles_async(&installations).await?;
     }

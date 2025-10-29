@@ -16,7 +16,7 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
 <script lang="ts">
   import { type VersionData, Loader, InstallationService, type LoaderKind, type KableInstallation } from '$lib';
   import { onMount } from 'svelte';
-  import { installations } from '$lib/stores/installation';
+  import { installations, versions } from '$lib/stores/installation';
   import * as installationsApi from '$lib/api/installations';
   import Icon from '../Icon.svelte';
 
@@ -132,7 +132,14 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
   onMount(async () => {
     isLoading = true;
     try {
-      availableVersions = await installationsApi.getAllVersions() ?? InstallationService.getFallbackVersions();
+      // Use versions from store if available, otherwise load them
+      if ($versions.length > 0) {
+        availableVersions = $versions;
+      } else {
+        // Load versions if not already loaded (this will update the store too)
+        availableVersions = await InstallationService.loadVersions();
+      }
+      
       loaderOptions = Array.from(new Set(availableVersions.map(v => v.loader)));
       selectedLoader = loaderOptions[0] ?? Loader.Vanilla;
       if (filteredVersions.length > 0) {

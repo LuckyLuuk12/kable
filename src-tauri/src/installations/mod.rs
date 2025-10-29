@@ -10,6 +10,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tauri::Emitter;
 use tokio::fs as async_fs;
 use tokio::sync::RwLock;
 use tokio::task;
@@ -60,6 +61,17 @@ async fn build_installations_async() -> Result<Vec<KableInstallation>, String> {
         "Read {} installations from kable_profiles.json",
         installations.len()
     ));
+    
+    // Emit initial installations immediately (sorted by last_used)
+    if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+        if let Some(app_handle) = handle_guard.as_ref() {
+            let _ = app_handle.emit("installations-chunk-loaded", InstallationsChunk {
+                installations: installations.clone(),
+                is_complete: false,
+            });
+        }
+    }
+    
     match profiles::read_launcher_profiles_async().await {
         Ok(launcher_profiles) => {
             // Use a tuple of (name, last_version_id, created) for deduplication, all as String
@@ -67,16 +79,40 @@ async fn build_installations_async() -> Result<Vec<KableInstallation>, String> {
                 .iter()
                 .map(|i| (i.name.clone(), i.version_id.clone(), i.created.clone()))
                 .collect();
+            
+            // IMPORTANT: Filter BEFORE converting to avoid expensive get_mods_folder_from_version_manifest() calls
             let mut new_converted: Vec<KableInstallation> = launcher_profiles
                 .into_iter()
-                .map(|lp| lp.into())
-                .filter(|ki: &KableInstallation| {
-                    let key = (ki.name.clone(), ki.version_id.clone(), ki.created.clone());
+                .filter(|lp| {
+                    let key = (
+                        lp.name.clone(),
+                        lp.last_version_id.clone(),
+                        lp.created.clone().unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+                    );
                     !kable_keys.contains(&key)
                 })
+                .map(|lp| lp.into())
                 .collect();
-            installations.append(&mut new_converted);
-            kable_profiles::write_kable_profiles_async(&installations).await?;
+            
+            if !new_converted.is_empty() {
+                installations.append(&mut new_converted);
+                
+                // Sort again after adding new installations
+                installations.sort_by(|a, b| b.last_used.cmp(&a.last_used));
+                
+                // Only write if we actually added new installations
+                kable_profiles::write_kable_profiles_async(&installations).await?;
+                
+                // Emit updated installations with new ones
+                if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+                    if let Some(app_handle) = handle_guard.as_ref() {
+                        let _ = app_handle.emit("installations-chunk-loaded", InstallationsChunk {
+                            installations: installations.clone(),
+                            is_complete: false,
+                        });
+                    }
+                }
+            }
         }
         Err(e) => {
             crate::logging::Logger::warn_global(
@@ -88,11 +124,32 @@ async fn build_installations_async() -> Result<Vec<KableInstallation>, String> {
             );
         }
     }
+    
+    // Emit completion event
+    if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+        if let Some(app_handle) = handle_guard.as_ref() {
+            let _ = app_handle.emit("installations-loading-complete", InstallationsComplete {
+                total_count: installations.len(),
+            });
+        }
+    }
+    
     crate::logging::debug(&format!(
         "Total installations after merging: {}",
         installations.len()
     ));
     Ok(installations)
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct InstallationsChunk {
+    pub installations: Vec<KableInstallation>,
+    pub is_complete: bool,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct InstallationsComplete {
+    pub total_count: usize,
 }
 
 // !NOTE: Public API:
@@ -109,8 +166,8 @@ pub async fn get_versions() -> Versions {
         }
     }
 
-    // Cache miss - build and cache versions
-    let versions = build_versions().await;
+    // Cache miss - build and cache versions (don't force refresh)
+    let versions = build_versions(false).await;
     {
         let mut cache_write = VERSIONS_CACHE.write().await;
         *cache_write = Some(versions.clone());
@@ -122,7 +179,7 @@ pub async fn get_versions() -> Versions {
 /// Gets all versions, either from cache or by building them
 pub async fn get_all_versions(force: bool) -> Versions {
     if force {
-        let versions = build_versions().await;
+        let versions = build_versions(true).await;
         crate::logging::debug(&format!("Fetched versions: {} items", versions.len()));
         {
             let mut cache_write = VERSIONS_CACHE.write().await;

@@ -6,6 +6,11 @@ export async function getAllVersions(force = false): Promise<VersionData[]> {
   return await invoke('get_all_versions', { force });
 }
 
+// Force refresh version manifests from the network
+export async function refreshVersionManifests(): Promise<VersionData[]> {
+  return await invoke('refresh_version_manifests');
+}
+
 // Get a single version by id
 export async function getVersion(version_id: string): Promise<VersionData | null> {
   return await invoke('get_version', { version_id });
