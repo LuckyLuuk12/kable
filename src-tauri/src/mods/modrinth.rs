@@ -381,6 +381,9 @@ impl ModProvider for ModrinthProvider {
             .await
             .map_err(|e| format!("Failed to create mods directory: {}", e))?;
 
+        // Disable any existing versions of this mod (same project_id)
+        disable_old_mod_versions(&mods_dir, mod_id).await?;
+
         // If specific version_id provided, download that version
         if let Some(version_id) = version_id {
             let versions = get_mod_versions(mod_id).await?;
@@ -396,7 +399,13 @@ impl ModProvider for ModrinthProvider {
                 .or_else(|| files_iter.next())
                 .ok_or("No mod file found")?;
             
-            return download_mod_file(&file.url, &mods_dir.join(&file.filename)).await;
+            // Download the file
+            download_mod_file(&file.url, &mods_dir.join(&file.filename)).await?;
+            
+            // Save metadata
+            save_mod_metadata(&mods_dir, &file.filename, mod_id, &version.version_number).await?;
+            
+            return Ok(());
         }
 
         // Otherwise, intelligently find best matching version
@@ -440,7 +449,13 @@ impl ModProvider for ModrinthProvider {
             .or_else(|| files_iter.next())
             .ok_or("No mod file found")?;
         
-        download_mod_file(&file.url, &mods_dir.join(&file.filename)).await
+        // Download the file
+        download_mod_file(&file.url, &mods_dir.join(&file.filename)).await?;
+        
+        // Save metadata
+        save_mod_metadata(&mods_dir, &file.filename, mod_id, &version.version_number).await?;
+        
+        Ok(())
     }
 
     fn set_index(&mut self, index: Option<String>) {
@@ -868,4 +883,87 @@ fn extract_loader_from_version_id(version_id: &str) -> Option<String> {
     }
 
     loader
+}
+
+/// Remove old versions of a mod before downloading a new version
+/// Checks for mods with the same project_id and removes them completely
+async fn disable_old_mod_versions(mods_dir: &std::path::Path, project_id: &str) -> Result<(), String> {
+    use tokio::fs;
+    
+    // Read all files in the mods directory
+    let mut entries = fs::read_dir(mods_dir)
+        .await
+        .map_err(|e| format!("Failed to read mods directory: {}", e))?;
+    
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| format!("Failed to read directory entry: {}", e))?
+    {
+        let path = entry.path();
+        
+        // Check for .kable_metadata.json files
+        if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+            if file_name.ends_with(".kable_metadata.json") {
+                // Read the metadata file
+                if let Ok(metadata_content) = fs::read_to_string(&path).await {
+                    if let Ok(metadata) = serde_json::from_str::<serde_json::Value>(&metadata_content) {
+                        // Check if this metadata belongs to the same project
+                        if let Some(stored_project_id) = metadata.get("project_id").and_then(|v| v.as_str()) {
+                            if stored_project_id == project_id {
+                                // Get the associated jar file name
+                                if let Some(jar_file) = metadata.get("file_name").and_then(|v| v.as_str()) {
+                                    let jar_path = mods_dir.join(jar_file);
+                                    
+                                    // Delete the old jar file completely
+                                    if jar_path.exists() {
+                                        fs::remove_file(&jar_path)
+                                            .await
+                                            .map_err(|e| format!("Failed to remove old mod version: {}", e))?;
+                                        
+                                        println!(
+                                            "[ModrinthProvider] Removed old version: {} (project: {})",
+                                            jar_file, project_id
+                                        );
+                                    }
+                                    
+                                    // Also remove the metadata file
+                                    let _ = fs::remove_file(&path).await;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok(())
+}
+
+/// Save metadata for a downloaded mod
+async fn save_mod_metadata(
+    mods_dir: &std::path::Path,
+    file_name: &str,
+    project_id: &str,
+    version_number: &str,
+) -> Result<(), String> {
+    use tokio::fs;
+    
+    let metadata = serde_json::json!({
+        "project_id": project_id,
+        "file_name": file_name,
+        "version_number": version_number,
+        "download_time": chrono::Utc::now().to_rfc3339(),
+    });
+    
+    let metadata_path = mods_dir.join(format!("{}.kable_metadata.json", file_name));
+    let metadata_content = serde_json::to_string_pretty(&metadata)
+        .map_err(|e| format!("Failed to serialize metadata: {}", e))?;
+    
+    fs::write(&metadata_path, metadata_content)
+        .await
+        .map_err(|e| format!("Failed to write metadata file: {}", e))?;
+    
+    Ok(())
 }
