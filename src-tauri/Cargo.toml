@@ -1,6 +1,6 @@
 [package]
 name = "kable"
-version = "0.0.8"
+version = "0.0.9"
 description = "A Minecraft Launcher"
 authors = ["Luuk Kablan"]
 license = ""
