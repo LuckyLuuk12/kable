@@ -17,7 +17,7 @@ Supports both grid and list view modes with sorting and filtering.
 ```
 -->
 <script lang="ts">
-  import { Icon, InstallationService, installations, isLoadingInstallations, isLoadingVersions, Launcher } from '$lib';
+  import { Icon, InstallationService, installations, versions, isLoadingInstallations, isLoadingVersions, Launcher } from '$lib';
   import { isLaunching, currentLaunchingInstallation } from '$lib/stores/launcher';
   import EditInstallationModal from './EditInstallationModal.svelte';
   import { onMount, onDestroy, tick } from 'svelte';
@@ -61,18 +61,28 @@ Supports both grid and list view modes with sorting and filtering.
       });
     }
   }
-  $: loaderIcons = Object.fromEntries(
-    $installations.map(installation => [
-      installation.id,
-      InstallationService.getLoaderIcon(InstallationService.getVersionData(installation).loader)
-    ])
-  );
-  $: loaderColors = Object.fromEntries(
-    $installations.map(installation => [
-      installation.id,
-      InstallationService.getLoaderColor(InstallationService.getVersionData(installation).loader)
-    ])
-  );
+  // Make reactive to BOTH $installations AND $versions for progressive loading
+  $: loaderIcons = (() => {
+    // Force reactive dependency on versions store
+    const currentVersions = $versions;
+    return Object.fromEntries(
+      $installations.map(installation => [
+        installation.id,
+        InstallationService.getLoaderIcon(InstallationService.getVersionData(installation).loader)
+      ])
+    );
+  })();
+  
+  $: loaderColors = (() => {
+    // Force reactive dependency on versions store
+    const currentVersions = $versions;
+    return Object.fromEntries(
+      $installations.map(installation => [
+        installation.id,
+        InstallationService.getLoaderColor(InstallationService.getVersionData(installation).loader)
+      ])
+    );
+  })();
 
   // Dynamic action display logic
   let useDropdownForActions: { [key: string]: boolean } = {};

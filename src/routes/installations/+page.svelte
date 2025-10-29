@@ -8,6 +8,7 @@
   let isSmall = false;
   let isGrid = true;
   let isRefreshing = false;
+  let isRefreshingVersions = false;
   let isImporting = false;
 
   function editInstallation(installation: KableInstallation) {
@@ -24,6 +25,15 @@
       await InstallationService.loadInstallations();
     } finally {
       isRefreshing = false;
+    }
+  }
+
+  async function refreshVersionManifests() {
+    isRefreshingVersions = true;
+    try {
+      await InstallationService.refreshVersionManifests();
+    } finally {
+      isRefreshingVersions = false;
     }
   }
 
@@ -104,6 +114,15 @@
         title="Refresh installations list"
       >
         <Icon name="refresh" size="md" forceType="svg" />
+      </button>
+      <button 
+        class="btn btn-secondary {isRefreshingVersions ? 'spinning' : ''}" 
+        on:click={refreshVersionManifests}
+        disabled={isRefreshingVersions}
+        title="Force refresh version manifests from network (useful for new snapshots)"
+      >
+        <Icon name="sync" size="md" forceType="svg" />
+        Refresh Versions
       </button>
       <button 
         class="btn btn-secondary" 

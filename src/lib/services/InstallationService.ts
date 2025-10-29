@@ -1,13 +1,73 @@
 import { type InstallationForm, type KableInstallation, type VersionData, installations, selectedInstallation, isLoadingInstallations, installationsError, versions, isLoadingVersions, versionsError, type LoaderKind, type ModJarInfo, type ExtendedModInfo, LogsService, openPath } from '$lib';
 import * as installationsApi from '../api/installations';
 import { get } from 'svelte/store';
+import { listen } from '@tauri-apps/api/event';
 
 export class InstallationService {
   // Coalesce concurrent loadInstallations calls. When non-null, callers await this promise.
   private static _inflightLoad: Promise<KableInstallation[]> | null = null;
+  private static _versionsListenerUnsubscribe: (() => void) | null = null;
+  private static _installationsListenerUnsubscribe: (() => void) | null = null;
+
+  /**
+   * Initialize event listeners for progressive loading
+   */
+  static async initializeProgressiveLoading() {
+    // Listen for version chunks
+    if (!this._versionsListenerUnsubscribe) {
+      const unsubscribe1 = await listen('versions-chunk-loaded', (event: any) => {
+        const chunk = event.payload;
+        console.log(`[Versions] Loaded chunk for ${chunk.loader}:`, chunk.versions.length, 'versions');
+        
+        // Append new versions to existing ones
+        const currentVersions = get(versions);
+        const newVersions = [...currentVersions, ...chunk.versions];
+        versions.set(newVersions);
+      });
+      
+      const unsubscribe2 = await listen('versions-loading-complete', (event: any) => {
+        const complete = event.payload;
+        console.log(`[Versions] Loading complete! Total:`, complete.total_count);
+        isLoadingVersions.set(false);
+        LogsService.emitLauncherEvent(`Loaded ${complete.total_count} versions`, 'debug');
+      });
+      
+      this._versionsListenerUnsubscribe = () => {
+        unsubscribe1();
+        unsubscribe2();
+      };
+    }
+    
+    // Listen for installation chunks
+    if (!this._installationsListenerUnsubscribe) {
+      const unsubscribe1 = await listen('installations-chunk-loaded', (event: any) => {
+        const chunk = event.payload;
+        console.log(`[Installations] Loaded chunk:`, chunk.installations.length, 'installations');
+        
+        // Replace installations with the latest chunk (already sorted by last_used)
+        installations.set(chunk.installations);
+        if (chunk.installations.length > 0 && !get(selectedInstallation)) {
+          selectedInstallation.set(chunk.installations[0]);
+        }
+      });
+      
+      const unsubscribe2 = await listen('installations-loading-complete', (event: any) => {
+        const complete = event.payload;
+        console.log(`[Installations] Loading complete! Total:`, complete.total_count);
+        isLoadingInstallations.set(false);
+        LogsService.emitLauncherEvent(`Loaded ${complete.total_count} installations`, 'debug');
+      });
+      
+      this._installationsListenerUnsubscribe = () => {
+        unsubscribe1();
+        unsubscribe2();
+      };
+    }
+  }
 
   /**
    * Load all installations and update the store. 
+   * Versions are loaded separately on-demand.
    * @returns A snapshot of the loaded installations.
    */
   static async loadInstallations(): Promise<KableInstallation[]> {
@@ -20,37 +80,76 @@ export class InstallationService {
     this._inflightLoad = (async () => {
       isLoadingInstallations.set(true);
       installationsError.set(null);
-      isLoadingVersions.set(true);
-      versionsError.set(null);
       try {
-        // Load installations and versions in parallel
-        const [foundInstallations, foundVersions] = await Promise.all([
-          installationsApi.getInstallations(),
-          installationsApi.getAllVersions()
-        ]);
+        // Load ONLY installations - versions will be loaded on-demand when needed
+        const foundInstallations = await installationsApi.getInstallations();
         console.log('[InstallationService] Setting installations:', foundInstallations.length, 'items');
         installations.set(foundInstallations);
-        versions.set(foundVersions);
         selectedInstallation.set(foundInstallations[0] || null);
         return get(installations);
       } catch (error) {
         installationsError.set(`Failed to load installations: ${error}`);
-        versionsError.set(`Failed to load versions: ${error}`);
         installations.set([]);
-        versions.set([]);
         selectedInstallation.set(null);
         return get(installations);
       } finally {
         isLoadingInstallations.set(false);
-        isLoadingVersions.set(false);
         // Clear inflight promise
         this._inflightLoad = null;
-        console.log('Installations loaded:', get(installations).length, 'Versions loaded:\n', get(versions).length);
-        LogsService.emitLauncherEvent(`Loaded ${get(installations).length} installations and ${get(versions).length} versions`, 'debug');
+        console.log('Installations loaded:', get(installations).length);
+        LogsService.emitLauncherEvent(`Loaded ${get(installations).length} installations`, 'debug');
       }
     })();
 
     return this._inflightLoad;
+  }
+
+  /**
+   * Load all versions and update the store.
+   * This is called separately from loadInstallations to avoid blocking.
+   * @returns A snapshot of the loaded versions.
+   */
+  static async loadVersions(): Promise<VersionData[]> {
+    isLoadingVersions.set(true);
+    versionsError.set(null);
+    try {
+      const foundVersions = await installationsApi.getAllVersions();
+      versions.set(foundVersions);
+      console.log('Versions loaded:', get(versions).length);
+      LogsService.emitLauncherEvent(`Loaded ${get(versions).length} versions`, 'debug');
+      return get(versions);
+    } catch (error) {
+      versionsError.set(`Failed to load versions: ${error}`);
+      versions.set([]);
+      return get(versions);
+    } finally {
+      isLoadingVersions.set(false);
+    }
+  }
+
+  /**
+   * Force refresh version manifests from the network, ignoring cache.
+   * This is useful for getting the latest snapshots and new versions.
+   * @returns A snapshot of the refreshed versions.
+   */
+  static async refreshVersionManifests(): Promise<VersionData[]> {
+    isLoadingVersions.set(true);
+    versionsError.set(null);
+    try {
+      // Clear existing versions to show we're refreshing
+      versions.set([]);
+      const foundVersions = await installationsApi.refreshVersionManifests();
+      versions.set(foundVersions);
+      console.log('Version manifests refreshed:', get(versions).length);
+      LogsService.emitLauncherEvent(`Refreshed ${get(versions).length} versions from network`, 'info');
+      return get(versions);
+    } catch (error) {
+      versionsError.set(`Failed to refresh version manifests: ${error}`);
+      versions.set([]);
+      return get(versions);
+    } finally {
+      isLoadingVersions.set(false);
+    }
   }
 
   /**

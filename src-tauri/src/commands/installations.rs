@@ -13,6 +13,12 @@ pub async fn get_all_versions(force: bool) -> Versions {
     crate::installations::get_all_versions(force).await
 }
 
+/// Force refresh version manifests from the network
+#[tauri::command]
+pub async fn refresh_version_manifests() -> Versions {
+    crate::installations::get_all_versions(true).await
+}
+
 #[tauri::command]
 pub async fn get_version(version_id: String) -> Option<VersionData> {
     crate::installations::get_version(version_id).await

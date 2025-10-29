@@ -1,4 +1,5 @@
-<!--
+<!-- @component
+◄!--
 @component
 NavBar - Main navigation bar for the Kable launcher
 
@@ -8,7 +9,7 @@ Initializes all required services on mount.
 
 @example
 ```svelte
-<NavBar />
+◄NavBar /►
 ```
 -->
 <script lang="ts">
@@ -33,6 +34,9 @@ Initializes all required services on mount.
       // Assume Tauri is available once this onMount runs; set ready flag early
       isTauriReady = true;
 
+      // Initialize progressive loading listeners FIRST
+      await InstallationService.initializeProgressiveLoading();
+
       // Start all initialization tasks concurrently. We do not want ordering to block startup.
       const installPromise = InstallationService.loadInstallations();
       const logsPromise = logsService.initialize();
@@ -48,6 +52,11 @@ Initializes all required services on mount.
       } catch (e) {
         console.error('Failed to initialize logs service:', e);
       }
+
+      // Load versions in the background AFTER installations start loading
+      InstallationService.loadVersions().catch(e => {
+        console.error('Failed to load versions:', e);
+      });
 
       // Await all other initializations but do not fail fast — collect results
       const results = await Promise.allSettled([installPromise, settingsPromise, authInitPromise, iconPromise]);
