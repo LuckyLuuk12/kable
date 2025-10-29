@@ -1,4 +1,16 @@
-﻿<script lang="ts">
+﻿<!--
+@component
+SkinSelectionMenu - Manages Minecraft account skins and capes
+
+Provides interface for viewing, adding, editing, and applying skins and capes
+to the current Microsoft account. Includes 3D preview and management tools.
+
+@example
+```svelte
+<SkinSelectionMenu />
+```
+-->
+<script lang="ts">
   import { onMount } from 'svelte';
   import { Icon, SkinViewer3D } from '$lib/components';
   import { SkinsService } from '$lib/services';

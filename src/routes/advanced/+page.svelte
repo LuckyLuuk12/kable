@@ -24,6 +24,10 @@
   let modalError: string | null = null;
   let editError: string | null = null;
 
+  // Copy notification state
+  let copiedPath: string | null = null;
+  let copyTimeout: number | null = null;
+
   onMount(async () => {
     await Promise.all([loadSymlinks(), loadInstallations()]);
   });
@@ -188,6 +192,49 @@
       default: return type;
     }
   }
+
+  function truncatePath(path: string, maxLength = 40): string {
+    if (path.length <= maxLength) return path;
+    
+    const separator = path.includes('/') ? '/' : '\\';
+    const parts = path.split(separator);
+    
+    // If path is very short, just truncate from the left
+    if (parts.length <= 2) {
+      return '...' + path.slice(-(maxLength - 3));
+    }
+    
+    const fileName = parts[parts.length - 1];
+    const parentFolder = parts[parts.length - 2];
+    
+    // Prioritize showing the last two parts (parent folder and filename)
+    const endPart = parentFolder + separator + fileName;
+    
+    if (endPart.length >= maxLength - 3) {
+      // If even the end is too long, just show from the right
+      return '...' + path.slice(-(maxLength - 3));
+    }
+    
+    // Show "...\" + parent folder + filename
+    return '...' + separator + endPart;
+  }
+
+  async function copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      copiedPath = text;
+      
+      if (copyTimeout) clearTimeout(copyTimeout);
+      
+      copyTimeout = setTimeout(() => {
+        copiedPath = null;
+        copyTimeout = null;
+      }, 2000);
+    } catch (e) {
+      console.error('Failed to copy to clipboard:', e);
+    }
+  }
+
 </script>
 
 <div class="advanced-page">
@@ -257,23 +304,26 @@
           <table>
             <thead>
               <tr>
-                <th>Type</th>
+                <th>Status</th>
                 <th>Source</th>
                 <th>Destination</th>
                 <th>Scope</th>
                 <th>Installation</th>
-                <th>Status</th>
                 <th>Actions</th>
+                <th>Type</th>
               </tr>
             </thead>
             <tbody>
               {#each symlinks as symlink}
                 <tr class:disabled={symlink.is_disabled} class:editing={editingSymlink === symlink}>
                   <td>
-                    <div class="type-cell">
-                      <Icon name={getSymlinkTypeIcon(symlink.symlink_type)} />
-                      <span>{getSymlinkTypeLabel(symlink.symlink_type)}</span>
-                    </div>
+                    {#if symlink.is_disabled}
+                      <span class="status-badge status-disabled">Disabled</span>
+                    {:else if symlink.exists}
+                      <span class="status-badge status-active">Active</span>
+                    {:else}
+                      <span class="status-badge status-missing">Missing</span>
+                    {/if}
                   </td>
                   <td class="path-cell">
                     {#if editingSymlink === symlink}
@@ -292,7 +342,13 @@
                         </button>
                       </div>
                     {:else}
-                      <span title={symlink.source}>{symlink.source}</span>
+                      <button 
+                        class="path-button" 
+                        title="Click to copy: {symlink.source}"
+                        on:click={() => copyToClipboard(symlink.source)}
+                      >
+                        {truncatePath(symlink.source)}
+                      </button>
                     {/if}
                   </td>
                   <td class="path-cell">
@@ -309,7 +365,13 @@
                         </button>
                       </div>
                     {:else}
-                      <span title={symlink.destination}>{symlink.destination}</span>
+                      <button 
+                        class="path-button" 
+                        title="Click to copy: {symlink.destination}"
+                        on:click={() => copyToClipboard(symlink.destination)}
+                      >
+                        {truncatePath(symlink.destination)}
+                      </button>
                     {/if}
                   </td>
                   <td>
@@ -331,15 +393,6 @@
                       <span class="installation-name">
                         {getInstallationName(symlink.installation_id)}
                       </span>
-                    {/if}
-                  </td>
-                  <td>
-                    {#if symlink.is_disabled}
-                      <span class="status-badge status-disabled">Disabled</span>
-                    {:else if symlink.exists}
-                      <span class="status-badge status-active">Active</span>
-                    {:else}
-                      <span class="status-badge status-missing">Missing</span>
                     {/if}
                   </td>
                   <td>
@@ -382,6 +435,11 @@
                       {/if}
                     </div>
                   </td>
+                  <td>
+                    <div class="type-cell" title={getSymlinkTypeLabel(symlink.symlink_type)}>
+                      <Icon name={getSymlinkTypeIcon(symlink.symlink_type)} />
+                    </div>
+                  </td>
                 </tr>
               {/each}
             </tbody>
@@ -391,6 +449,14 @@
     </div>
   {/if}
 </div>
+
+<!-- Copy Notification -->
+{#if copiedPath}
+  <div class="copy-notification">
+    <Icon name="check" size="sm" />
+    <span>Path copied to clipboard</span>
+  </div>
+{/if}
 
 <!-- Create Symlink Modal -->
 {#if showCreateModal}
@@ -591,7 +657,8 @@
   }
 
   .symlinks-table {
-    overflow-x: auto;
+    max-width: 100%;
+    overflow-x: scroll;
     background: var(--container);
     border-radius: var(--border-radius);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -605,7 +672,7 @@
       background: var(--dark-700);
 
       th {
-        padding: 0.65rem 0.95rem;
+        padding: 0.5rem 0.25rem;
         text-align: left;
         font-weight: 600;
         font-size: 0.8rem;
@@ -649,65 +716,64 @@
       }
 
       td {
-        padding: 0.75rem 1rem;
+        padding: 0.5rem 0.25rem;
         vertical-align: middle;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
 
         // Fit-content columns for short data
-        &:nth-child(1),  // Type
+        &:nth-child(1),  // Status
         &:nth-child(4),  // Scope
         &:nth-child(5),  // Installation
-        &:nth-child(6),  // Status
-        &:nth-child(7) { // Actions
+        &:nth-child(6),  // Actions
+        &:nth-child(7) { // Type
           width: fit-content;
           white-space: nowrap;
         }
       }
     }
 
-    // Column width adjustments
-    th:nth-child(1),  // Type
-    td:nth-child(1) {
-      width: fit-content;
-    }
-
-    th:nth-child(4),  // Scope
-    td:nth-child(4) {
-      width: fit-content;
-    }
-
-    th:nth-child(5),  // Installation
-    td:nth-child(5) {
-      width: fit-content;
-    }
-
-    th:nth-child(6),  // Status
-    td:nth-child(6) {
-      width: fit-content;
-    }
-
-    th:nth-child(7),  // Actions
-    td:nth-child(7) {
-      width: fit-content;
-    }
   }
 
   .type-cell {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    justify-content: center;
+    overflow: hidden;
+    cursor: help;
   }
 
   .path-cell {
     font-family: 'Courier New', monospace;
     font-size: 0.8rem;
-    max-width: none;
-    min-width: 250px;
+    max-width: 100%;
+    overflow: hidden;
+  }
 
-    span {
-      display: block;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+  .path-button {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-family: 'Courier New', monospace;
+    font-size: 0.8rem;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    border-radius: 4px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &:hover {
+      background: var(--dark-600);
+      color: var(--primary);
+    }
+
+    &:active {
+      transform: scale(0.98);
     }
   }
 
@@ -758,9 +824,9 @@
 
   .badge {
     display: inline-block;
-    padding: 0.25rem 0.75rem;
+    padding: 0.2rem 0.6rem;
     border-radius: 1rem;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
 
     &.badge-global {
@@ -776,13 +842,18 @@
 
   .installation-name {
     font-weight: 500;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.85rem;
   }
 
   .status-badge {
     display: inline-block;
-    padding: 0.25rem 0.75rem;
+    padding: 0.2rem 0.6rem;
     border-radius: 0.25rem;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     font-weight: 600;
 
     &.status-active {
@@ -803,11 +874,11 @@
 
   .actions {
     display: flex;
-    gap: 0.5rem;
+    gap: 0.35rem;
   }
 
   .btn-icon {
-    padding: 0.5rem;
+    padding: 0.4rem;
     background: var(--dark-600);
     border: none;
     border-radius: var(--border-radius);
@@ -1010,5 +1081,45 @@
     0%, 100% { transform: translateX(0); }
     25% { transform: translateX(-5px); }
     75% { transform: translateX(5px); }
+  }
+
+  .copy-notification {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: rgba(34, 197, 94, 0.95);
+    color: white;
+    border-radius: var(--border-radius);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    font-weight: 600;
+    font-size: 0.9rem;
+    z-index: 1001;
+    animation: slideIn 0.2s ease-out, slideOut 0.2s ease-in 1.8s;
+
+    @keyframes slideIn {
+      from {
+        transform: translateY(100px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes slideOut {
+      from {
+        transform: translateY(0);
+        opacity: 1;
+      }
+      to {
+        transform: translateY(100px);
+        opacity: 0;
+      }
+    }
   }
 </style>

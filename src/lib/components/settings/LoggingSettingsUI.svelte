@@ -1,3 +1,15 @@
+<!--
+@component
+LoggingSettingsUI - Logging configuration settings panel
+
+Manages logging levels, file size limits, retention policies,
+and log visibility in the navigation.
+
+@example
+```svelte
+<LoggingSettingsUI />
+```
+-->
 <script lang="ts">
   import { settings } from "$lib/stores";
   import { SettingsService } from "$lib/services/SettingsService";

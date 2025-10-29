@@ -1,7 +1,34 @@
+<!-- @component
+◄!--
+@component
+ModCard - Displays mod information in various view modes
+
+Reusable card component for showing mod details including title, description,
+author, downloads, and installation status. Supports grid, list, and compact views.
+
+@prop {ModInfoKind} mod - The mod data to display
+@prop {'grid' | 'list' | 'compact'} [viewMode='grid'] - Display mode
+@prop {KableInstallation | null} [currentInstallation=null] - Current installation context
+@prop {boolean} [loading=false] - Whether mod is being downloaded
+@prop {boolean} [isInstalled=false] - Whether mod is already installed
+@prop {string | null} [installedVersion=null] - Version number of installed mod
+
+@event downloadMod - Fires when download button is clicked
+@event infoMod - Fires when info button is clicked
+@event downloadVersion - Fires when specific version is selected from modal
+
+@example
+```svelte
+◄ModCard {mod} viewMode="grid" on:downloadMod={handleDownload} /►
+```
+-->
 <script lang="ts">
-import { createEventDispatcher } from 'svelte';
+import { createEventDispatcher, onMount } from 'svelte';
 import { Icon } from '$lib';
-import type { KableInstallation, ModInfoKind } from '$lib';
+import type { KableInstallation, ModInfoKind, ModrinthVersion, ProviderKind } from '$lib';
+import { ProviderKind as ProviderKindEnum } from '$lib/runtimeTypes';
+import ModVersionModal from './ModVersionModal.svelte';
+import * as modsApi from '$lib/api/mods';
 
 type ViewMode = 'grid' | 'list' | 'compact';
 
@@ -10,11 +37,117 @@ export let viewMode: ViewMode = 'grid';
 export let currentInstallation: KableInstallation | null = null;
 export let loading: boolean = false;
 export let isInstalled: boolean = false;
+export let installedVersion: string | null = null;
 
 const dispatch = createEventDispatcher<{
   downloadMod: { mod: ModInfoKind };
   infoMod: { mod: ModInfoKind };
+  downloadVersion: { mod: ModInfoKind; versionId: string; versionNumber: string };
 }>();
+
+let showVersionModal = false;
+let hasNewerVersion = false;
+let hasOtherVersions = false;
+let checkingVersions = false;
+
+// Check for available updates when mod is installed
+$: if (isInstalled && installedVersion && currentInstallation) {
+  checkForUpdates();
+}
+
+async function checkForUpdates() {
+  if (!currentInstallation || !installedVersion || checkingVersions) return;
+  
+  checkingVersions = true;
+  hasNewerVersion = false;
+  hasOtherVersions = false;
+  
+  try {
+    const projectId = getProjectId(mod);
+    const provider = getProvider(mod);
+    
+    if (!projectId) return;
+    
+    // Get loader and game version from installation
+    const loader = extractLoader(currentInstallation.version_id);
+    const gameVersion = extractGameVersion(currentInstallation.version_id);
+    
+    // Fetch compatible versions
+    const versions = await modsApi.getProjectVersions(
+      provider,
+      projectId,
+      loader ? [loader] : undefined,
+      gameVersion ? [gameVersion] : undefined
+    );
+    
+    // Check if there are other versions besides the installed one
+    const otherVersions = versions.filter(v => v.version_number !== installedVersion);
+    hasOtherVersions = otherVersions.length > 0;
+    
+    // Check if any version is newer (higher version number)
+    if (hasOtherVersions) {
+      hasNewerVersion = otherVersions.some(v => 
+        compareVersions(v.version_number, installedVersion) > 0
+      );
+    }
+  } catch (e) {
+    console.error('[ModCard] Failed to check for updates:', e);
+  } finally {
+    checkingVersions = false;
+  }
+}
+
+function compareVersions(a: string, b: string): number {
+  const parseVersion = (v: string) => {
+    const parts = v.split(/[.-]+/).map(p => parseInt(p) || 0);
+    return parts;
+  };
+  
+  const aParts = parseVersion(a);
+  const bParts = parseVersion(b);
+  const maxLength = Math.max(aParts.length, bParts.length);
+  
+  for (let i = 0; i < maxLength; i++) {
+    const aPart = aParts[i] || 0;
+    const bPart = bParts[i] || 0;
+    
+    if (aPart !== bPart) {
+      return aPart - bPart;
+    }
+  }
+  
+  return 0;
+}
+
+function extractLoader(versionId: string): string | null {
+  const lower = versionId.toLowerCase();
+  if (lower.includes('fabric')) return 'fabric';
+  if (lower.includes('neoforge')) return 'neoforge';
+  if (lower.includes('forge')) return 'forge';
+  if (lower.includes('quilt')) return 'quilt';
+  return null;
+}
+
+function extractGameVersion(versionId: string): string | null {
+  const match = versionId.match(/\b(1\.\d+(?:\.\d+)?)\b/);
+  return match ? match[1] : null;
+}
+
+function getProjectId(mod: ModInfoKind): string | null {
+  if ('Modrinth' in mod) {
+    return mod.Modrinth.project_id;
+  } else if ('kind' in mod && mod.kind === 'Modrinth') {
+    return mod.data.project_id;
+  }
+  return null;
+}
+
+function getProvider(mod: ModInfoKind): ProviderKind {
+  if ('Modrinth' in mod || ('kind' in mod && mod.kind === 'Modrinth')) {
+    return ProviderKindEnum.Modrinth;
+  }
+  return ProviderKindEnum.CurseForge;
+}
 
 // ModCard component for displaying mod information
 function getModDisplayInfo(mod: ModInfoKind) {
@@ -168,15 +301,19 @@ function handleInfo() {
   dispatch('infoMod', { mod });
 }
 
-function handleVersions() {
-  // Navigate to the mod's versions page on Modrinth
-  if ('Modrinth' in mod) {
-    const url = `https://modrinth.com/mod/${mod.Modrinth.slug}/versions`;
-    window.open(url, '_blank');
-  } else if ('kind' in mod && mod.kind === 'Modrinth') {
-    const url = `https://modrinth.com/mod/${mod.data.slug}/versions`;
-    window.open(url, '_blank');
+function handleVersions(event?: Event) {
+  // Stop propagation to prevent card click
+  if (event) {
+    event.stopPropagation();
   }
+  
+  // Open version modal instead of external link
+  showVersionModal = true;
+}
+
+function handleVersionSelect(event: CustomEvent<{ versionId: string; versionNumber: string }>) {
+  const { versionId, versionNumber } = event.detail;
+  dispatch('downloadVersion', { mod, versionId, versionNumber });
 }
 
 function handleCardClick() {
@@ -232,7 +369,17 @@ function handleCardKeydown(event: KeyboardEvent) {
           <Icon name="list" size="sm" />
         </button>
         
-        {#if !isInstalled && currentInstallation}
+        {#if isInstalled && currentInstallation}
+          {#if hasNewerVersion || hasOtherVersions}
+            <button 
+              class="compact-update-btn" 
+              on:click={handleVersions}
+              title={hasNewerVersion ? "Update available" : "Change version"}
+            >
+              <Icon name={hasNewerVersion ? "arrow-up" : "edit"} size="sm" forceType="svg" />
+            </button>
+          {/if}
+        {:else if currentInstallation}
           <button 
             class="compact-download-btn" 
             on:click={handleDownload}
@@ -241,10 +388,6 @@ function handleCardKeydown(event: KeyboardEvent) {
           >
             <Icon name="download" size="sm" forceType="svg" />
           </button>
-        {:else if isInstalled}
-          <div class="compact-installed" title="Already installed">
-            <Icon name="check" size="sm" />
-          </div>
         {:else}
           <div class="compact-no-installation" title="Select installation first">
             <Icon name="info" size="sm" />
@@ -303,21 +446,29 @@ function handleCardKeydown(event: KeyboardEvent) {
               >
                 <Icon name="list" size="sm" />
               </button>
-              {#if !isInstalled}
-                {#if currentInstallation}
+              {#if isInstalled && currentInstallation}
+                {#if hasNewerVersion || hasOtherVersions}
                   <button 
-                    class="control-btn download-btn" 
-                    on:click|stopPropagation={handleDownload}
-                    disabled={loading}
-                    title="Download latest version"
+                    class="control-btn update-btn" 
+                    on:click|stopPropagation={handleVersions}
+                    title={hasNewerVersion ? "Update available" : "Change version"}
                   >
-                    <Icon name="download" size="sm" forceType="svg" />
-                  </button>
-                {:else}
-                  <button class="control-btn disabled-btn" disabled title="Select installation first">
-                    <Icon name="info" size="sm" />
+                    <Icon name={hasNewerVersion ? "arrow-up" : "edit"} size="sm" forceType="svg" />
                   </button>
                 {/if}
+              {:else if currentInstallation}
+                <button 
+                  class="control-btn download-btn" 
+                  on:click|stopPropagation={handleDownload}
+                  disabled={loading}
+                  title="Download latest version"
+                >
+                  <Icon name="download" size="sm" forceType="svg" />
+                </button>
+              {:else}
+                <button class="control-btn disabled-btn" disabled title="Select installation first">
+                  <Icon name="info" size="sm" />
+                </button>
               {/if}
             </div>
           </div>
@@ -448,11 +599,17 @@ function handleCardKeydown(event: KeyboardEvent) {
               </div>
 
               <div class="list-action">
-                {#if isInstalled}
-                  <div class="installed-indicator">
-                    <Icon name="check" size="sm" forceType="svg" />
-                    Installed
-                  </div>
+                {#if isInstalled && currentInstallation}
+                  {#if hasNewerVersion || hasOtherVersions}
+                    <button 
+                      class="list-update-btn" 
+                      on:click={handleVersions}
+                      title={hasNewerVersion ? "Update available" : "Change version"}
+                    >
+                      <Icon name={hasNewerVersion ? "arrow-up" : "edit"} size="sm" forceType="svg" />
+                      {hasNewerVersion ? "Update" : "Change"}
+                    </button>
+                  {/if}
                 {:else if currentInstallation}
                   <button 
                     class="list-download-btn" 
@@ -476,6 +633,15 @@ function handleCardKeydown(event: KeyboardEvent) {
     {/if}
   {/if}
 </div>
+
+<!-- Version Selection Modal -->
+<ModVersionModal 
+  {mod} 
+  {currentInstallation}
+  {installedVersion}
+  bind:open={showVersionModal} 
+  on:selectVersion={handleVersionSelect} 
+/>
 
 <style lang="scss">
 @use "@kablan/clean-ui/scss/_variables.scss" as *;
@@ -718,7 +884,6 @@ function handleCardKeydown(event: KeyboardEvent) {
     
     .list-versions-btn,
     .list-download-btn,
-    .installed-indicator,
     .no-installation-warning {
       min-width: 6rem;
       max-width: 7rem;
@@ -749,7 +914,6 @@ function handleCardKeydown(event: KeyboardEvent) {
     
     .list-versions-btn,
     .list-download-btn,
-    .installed-indicator,
     .no-installation-warning {
       min-width: 5rem;
       max-width: 6rem;
@@ -777,7 +941,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     margin-left: auto;
   }
 
-  .list-download-btn {
+  .list-download-btn, .list-update-btn {
     display: flex;
     align-items: center;
     gap: 0.25rem;
@@ -807,21 +971,13 @@ function handleCardKeydown(event: KeyboardEvent) {
     }
   }
 
-  .installed-indicator {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    padding: 0.375rem 0.5rem;
-    background: rgba($green-600, 0.1);
-    border: 1px solid rgba($green-600, 0.3);
-    border-radius: 0.25rem;
-    color: var(--green-600);
-    font-size: 0.7rem;
-    font-weight: 600;
-    height: 1.75rem;
-    min-width: 5.75rem;
-    max-width: 10rem;
-    justify-content: center;
+  .list-update-btn {
+    background: var(--secondary);
+    
+    &:hover:not(:disabled) {
+      background: rgba($secondary, 0.9);
+      box-shadow: 0 4px 12px rgba($secondary, 0.3);
+    }
   }
 
   .no-installation-warning {
@@ -947,7 +1103,7 @@ function handleCardKeydown(event: KeyboardEvent) {
         justify-content: center;
         flex-shrink: 0;
         
-        &.download-btn {
+        &.download-btn, &.update-btn {
           background: var(--tertiary);
           color: white;
           
@@ -960,6 +1116,14 @@ function handleCardKeydown(event: KeyboardEvent) {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
+          }
+        }
+        
+        &.update-btn {
+          background: var(--secondary);
+          
+          &:hover:not(:disabled) {
+            background: rgba($secondary, 0.8);
           }
         }
         
@@ -1155,7 +1319,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       }
     }
     
-    .compact-download-btn {
+    .compact-download-btn, .compact-update-btn {
       background: var(--tertiary);
       color: white;
       border: none;
@@ -1181,19 +1345,12 @@ function handleCardKeydown(event: KeyboardEvent) {
       }
     }
     
-    .compact-installed {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--primary);
-      font-size: 0.65rem;
-      font-weight: 500;
-      padding: 0.25rem;
-      background: rgba($primary, 0.1);
-      border-radius: 0.25rem;
-      border: 1px solid rgba($primary, 0.2);
-      width: 28px;
-      height: 28px;
+    .compact-update-btn {
+      background: var(--secondary);
+      
+      &:hover:not(:disabled) {
+        background: rgba($secondary, 0.8);
+      }
     }
     
     .compact-no-installation {

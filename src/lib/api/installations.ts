@@ -36,6 +36,25 @@ export async function createInstallation(versionId: string): Promise<KableInstal
   return await invoke('create_installation', { versionId });
 }
 
+// Create a new Kable installation by copying from an existing one
+export async function createInstallationFromExisting(
+  versionId: string,
+  sourceInstallationId: string,
+  options: {
+    copyMods: boolean;
+    copyResourcePacks: boolean;
+    copyShaders: boolean;
+  }
+): Promise<KableInstallation> {
+  return await invoke('create_installation_from_existing', {
+    versionId,
+    sourceInstallationId,
+    copyMods: options.copyMods,
+    copyResourcePacks: options.copyResourcePacks,
+    copyShaders: options.copyShaders
+  });
+}
+
 export async function getModInfo(installation: KableInstallation): Promise<ModJarInfo[] | null> {
   return await invoke('get_mod_info', { installation });
 }
@@ -60,6 +79,11 @@ export async function importInstallation(path: string): Promise<KableInstallatio
   return await invoke('import', { path });
 }
 
+// Import installations from a .minecraft folder
+export async function importFromMinecraftFolder(path: string): Promise<KableInstallation[]> {
+  return await invoke('import_from_minecraft_folder', { path });
+}
+
 // Export an installation as a string (serialized)
 export async function exportInstallation(installation: KableInstallation): Promise<string> {
   return await invoke('export', { installation });
@@ -70,3 +94,17 @@ export async function duplicateInstallation(installation: KableInstallation): Pr
   return await invoke('duplicate', { installation });
 }
 
+// Create a desktop shortcut for an installation
+export async function createShortcut(installation: KableInstallation): Promise<string> {
+  return await invoke('create_shortcut', { installation });
+}
+
+// Select a zip file for importing a Kable installation
+export async function selectInstallationZip(): Promise<string | null> {
+  return await invoke('select_installation_zip');
+}
+
+// Select a .minecraft folder for importing installations
+export async function selectMinecraftFolder(): Promise<string | null> {
+  return await invoke('select_minecraft_folder');
+}

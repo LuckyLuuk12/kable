@@ -1,4 +1,16 @@
 <!--
+@component
+AutoUpdater - Handles checking for and installing application updates
+
+Automatically checks for updates on mount and provides UI for manual update checks.
+Displays update information including version numbers and allows users to install updates.
+
+@example
+```svelte
+<AutoUpdater />
+```
+-->
+<!--
 	Auto-update component
 	Handles checking for and installing updates
 -->

@@ -249,20 +249,38 @@ pub async fn launch_installation(
             return Err(format!("Failed to build launch context: {}", e));
         }
     };
-    
+
     // Setup dynamic symlinks for this installation before launching
     Logger::info_global(
-        &format!("Setting up dynamic symlinks for installation: {}", installation.id),
+        &format!(
+            "Setting up dynamic symlinks for installation: {}",
+            installation.id
+        ),
         instance_id,
     );
-    let symlink_manager = crate::symlink_manager::SymlinkManager::new(PathBuf::from(&minecraft_dir));
-    if let Err(e) = symlink_manager.setup_for_installation(&installation.id).await {
-        Logger::warn_global(
-            &format!("Failed to setup symlinks: {}", e),
-            instance_id,
-        );
+    let symlink_manager =
+        crate::symlink_manager::SymlinkManager::new(PathBuf::from(&minecraft_dir));
+    if let Err(e) = symlink_manager
+        .setup_for_installation(&installation.id)
+        .await
+    {
+        Logger::warn_global(&format!("Failed to setup symlinks: {}", e), instance_id);
         // Continue launching even if symlink setup fails
     }
+
+    // Setup dedicated config folder (if configured)
+    Logger::info_global(
+        "Setting up dedicated config folder for installation",
+        instance_id,
+    );
+    if let Err(e) = installation.setup_config_folder().await {
+        Logger::warn_global(
+            &format!("Failed to setup dedicated config folder: {}", e),
+            instance_id,
+        );
+        // Continue launching even if config folder setup fails
+    }
+
     // Detect loader and get Launchable
     let launchable = match get_launchable_for_installation(&context).await {
         Ok(l) => l,
@@ -296,6 +314,15 @@ pub async fn launch_installation(
         pids.insert(result.pid);
     }
 
+    // Update Discord Rich Presence with playing status
+    if let Err(e) = crate::discord::set_playing(
+        &installation.name,
+        &installation.version_id,
+        installation.get_loader_type(),
+    ) {
+        Logger::warn_global(&format!("Failed to update Discord presence: {}", e), None);
+    }
+
     // Compute app handle so we can emit events (if available)
     let app_handle = if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         handle_guard.as_ref().map(|global| (**global).clone())
@@ -324,18 +351,32 @@ pub async fn launch_installation(
         match wait_for_minecraft_exit(pid).await {
             Ok(exit_code) => {
                 // Clean up symlinks after game closes
-                Logger::info_global(
-                    "[SETTINGS TASK] Cleaning up symlinks after game exit",
-                    None,
-                );
-                let symlink_manager = crate::symlink_manager::SymlinkManager::new(PathBuf::from(&minecraft_dir_clone));
+                Logger::info_global("[SETTINGS TASK] Cleaning up symlinks after game exit", None);
+                let symlink_manager = crate::symlink_manager::SymlinkManager::new(PathBuf::from(
+                    &minecraft_dir_clone,
+                ));
                 if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
                     Logger::warn_global(
                         &format!("[SETTINGS TASK] Failed to cleanup symlinks: {}", e),
                         None,
                     );
                 }
-                
+
+                // Restore global configs after game closes
+                Logger::info_global(
+                    "[SETTINGS TASK] Restoring global configs after game exit",
+                    None,
+                );
+                if let Err(e) =
+                    crate::installations::kable_profiles::KableInstallation::restore_global_configs()
+                        .await
+                {
+                    Logger::warn_global(
+                        &format!("[SETTINGS TASK] Failed to restore global configs: {}", e),
+                        None,
+                    );
+                }
+
                 // Calculate playtime in milliseconds
                 let playtime_ms = launch_start_time.elapsed().as_millis() as u64;
                 Logger::info_global(
@@ -397,6 +438,14 @@ pub async fn launch_installation(
                     );
                     handle_close_settings(&settings_clone, app_handle_clone, exit_code).await;
                 }
+
+                // Clear Discord Rich Presence when game exits
+                if let Err(e) = crate::discord::clear_playing() {
+                    Logger::warn_global(
+                        &format!("Failed to clear Discord presence: {}", e),
+                        None,
+                    );
+                }
             }
             Err(e) => {
                 Logger::error_global(
@@ -405,6 +454,14 @@ pub async fn launch_installation(
                 );
                 // Handle as normal close if we can't determine exit code
                 handle_close_settings(&settings_clone, app_handle_clone, 0).await;
+
+                // Clear Discord Rich Presence
+                if let Err(e) = crate::discord::clear_playing() {
+                    Logger::warn_global(
+                        &format!("Failed to clear Discord presence: {}", e),
+                        None,
+                    );
+                }
             }
         }
         Logger::info_global(&format!("[SETTINGS TASK] Completed for PID {}", pid), None);

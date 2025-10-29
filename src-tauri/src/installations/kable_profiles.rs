@@ -27,6 +27,7 @@ pub struct KableInstallation {
     pub dedicated_mods_folder: Option<String>,
     pub dedicated_resource_pack_folder: Option<String>,
     pub dedicated_shaders_folder: Option<String>,
+    pub dedicated_config_folder: Option<String>,
     pub favorite: bool,
     pub total_time_played_ms: u64,
     /// User-overridable parameters for advanced use cases
@@ -59,6 +60,7 @@ impl Default for KableInstallation {
             dedicated_mods_folder: None,
             dedicated_resource_pack_folder: Some(format!("resourcepacks/{}", id.clone())),
             dedicated_shaders_folder: Some(format!("shaderpacks/{}", id.clone())),
+            dedicated_config_folder: Some(format!("config/{}", id.clone())),
             favorite: false,
             total_time_played_ms: 0,
             parameters_map: std::collections::HashMap::new(),
@@ -90,6 +92,7 @@ impl From<LauncherProfile> for KableInstallation {
             dedicated_mods_folder: None, // Will be determined below
             dedicated_resource_pack_folder: Some(format!("resourcepacks/{}", installation_id.clone())),
             dedicated_shaders_folder: Some(format!("shaderpacks/{}", installation_id.clone())),
+            dedicated_config_folder: Some(format!("config/{}", installation_id.clone())),
             favorite: false,
             total_time_played_ms: 0,
             parameters_map: std::collections::HashMap::new(),
@@ -134,6 +137,7 @@ impl From<LauncherProfile> for KableInstallation {
             dedicated_mods_folder,
             dedicated_resource_pack_folder: Some(format!("resourcepacks/{}", installation_id.clone())),
             dedicated_shaders_folder: Some(format!("shaderpacks/{}", installation_id.clone())),
+            dedicated_config_folder: Some(format!("config/{}", installation_id.clone())),
             favorite: false,
             total_time_played_ms: 0,
             parameters_map: std::collections::HashMap::new(),
@@ -163,8 +167,27 @@ pub fn read_kable_profiles() -> Result<Vec<KableInstallation>, String> {
 
     let data = fs::read_to_string(&path)
         .map_err(|e| format!("Failed to read kable_profiles.json: {}", e))?;
-    serde_json::from_str::<Vec<KableInstallation>>(&data)
-        .map_err(|e| format!("Failed to parse kable_profiles.json: {}", e))
+    let mut installations = serde_json::from_str::<Vec<KableInstallation>>(&data)
+        .map_err(|e| format!("Failed to parse kable_profiles.json: {}", e))?;
+    
+    // Ensure backward compatibility: add default dedicated_config_folder if missing
+    let mut needs_update = false;
+    for installation in installations.iter_mut() {
+        if installation.dedicated_config_folder.is_none() {
+            installation.dedicated_config_folder = Some(format!("config/{}", installation.id));
+            needs_update = true;
+        }
+    }
+    
+    // Write back if we added defaults
+    if needs_update {
+        let json = serde_json::to_string_pretty(&installations)
+            .map_err(|e| format!("Failed to serialize kable profiles: {}", e))?;
+        crate::write_file_atomic_sync(&path, json.as_bytes())
+            .map_err(|e| format!("Failed to write kable_profiles.json: {}", e))?;
+    }
+    
+    Ok(installations)
 }
 
 pub async fn read_kable_profiles_async() -> Result<Vec<KableInstallation>, String> {
@@ -182,14 +205,29 @@ pub async fn read_kable_profiles_async() -> Result<Vec<KableInstallation>, Strin
     let data = async_fs::read_to_string(&path)
         .await
         .map_err(|e| format!("Failed to read kable_profiles.json: {}", e))?;
-    task::spawn_blocking(move || {
+    let mut installations = task::spawn_blocking(move || {
         serde_json::from_str::<Vec<KableInstallation>>(&data)
             .map_err(|e| format!("Failed to parse kable_profiles.json: {}", e))
     })
     .await
-    .unwrap()
+    .unwrap()?;
+    
+    // Ensure backward compatibility: add default dedicated_config_folder if missing
+    let mut needs_update = false;
+    for installation in installations.iter_mut() {
+        if installation.dedicated_config_folder.is_none() {
+            installation.dedicated_config_folder = Some(format!("config/{}", installation.id));
+            needs_update = true;
+        }
+    }
+    
+    // Write back if we added defaults
+    if needs_update {
+        write_kable_profiles_async(&installations).await?;
+    }
+    
+    Ok(installations)
 }
-
 pub fn write_kable_profiles(profiles: &[KableInstallation]) -> Result<(), String> {
     // Synchronous version for compatibility
     let kable_dir = crate::get_minecraft_kable_dir()?;
@@ -245,17 +283,52 @@ impl KableInstallation {
             let tmp_file = fs::File::create(&tmp_path)
                 .map_err(|e| format!("Failed to create temp export file: {}", e))?;
             let mut zip = zip::ZipWriter::new(tmp_file);
-            let options = zip::write::FileOptions::default()
+            let options= zip::write::FullFileOptions::default()
                 .compression_method(zip::CompressionMethod::Stored)
                 .unix_permissions(0o755);
-            // Prepare an export copy with reset metadata
+            // Prepare an export copy with reset metadata and placeholders for paths
             let mut export_install = self_owned.clone();
             export_install.created = chrono::Utc::now().to_rfc3339();
             export_install.last_used = chrono::Utc::now().to_rfc3339();
             export_install.times_launched = 0;
             export_install.total_time_played_ms = 0;
+            
+            // Convert all paths to use placeholders to ensure portability
+            // Store mods folder as relative path with placeholder
+            if let Some(ref mods) = export_install.dedicated_mods_folder {
+                let mods_path = PathBuf::from(mods);
+                if mods_path.is_absolute() {
+                    // Convert absolute paths to relative with placeholder
+                    export_install.dedicated_mods_folder = Some("mods/{{INSTALLATION_ID}}".to_string());
+                } else if mods.contains(&self_owned.id) {
+                    // Replace existing ID with placeholder
+                    export_install.dedicated_mods_folder = Some(mods.replace(&self_owned.id, "{{INSTALLATION_ID}}"));
+                }
+            }
+            
+            if let Some(ref rp) = export_install.dedicated_resource_pack_folder {
+                let rp_path = PathBuf::from(rp);
+                if rp_path.is_absolute() {
+                    export_install.dedicated_resource_pack_folder = Some("resourcepacks/{{INSTALLATION_ID}}".to_string());
+                } else if rp.contains(&self_owned.id) {
+                    export_install.dedicated_resource_pack_folder = Some(rp.replace(&self_owned.id, "{{INSTALLATION_ID}}"));
+                }
+            }
+            
+            if let Some(ref shaders) = export_install.dedicated_shaders_folder {
+                let shaders_path = PathBuf::from(shaders);
+                if shaders_path.is_absolute() {
+                    export_install.dedicated_shaders_folder = Some("shaderpacks/{{INSTALLATION_ID}}".to_string());
+                } else if shaders.contains(&self_owned.id) {
+                    export_install.dedicated_shaders_folder = Some(shaders.replace(&self_owned.id, "{{INSTALLATION_ID}}"));
+                }
+            }
+            
+            // Use placeholder for ID in export
+            export_install.id = "{{INSTALLATION_ID}}".to_string();
+            
             // Write the kable_export.json file
-            zip.start_file("kable_export.json", options)
+            zip.start_file("kable_export.json", options.clone())
                 .map_err(|e| format!("Failed to write kable_export.json: {}", e))?;
             let json = serde_json::to_string_pretty(&export_install)
                 .map_err(|e| format!("Failed to serialize KableInstallation: {}", e))?;
@@ -272,8 +345,8 @@ impl KableInstallation {
                 };
                 if resource_pack_path.exists() {
                     // If it's a file (zip), copy it directly
-                    if resource_pack_path.is_file() {
-                        zip.start_file("resource_packs.zip", options)
+                        if resource_pack_path.is_file() {
+                        zip.start_file("resource_packs.zip", options.clone())
                             .map_err(|e| format!("Failed to write resource pack: {}", e))?;
                         let mut resource_pack_file = fs::File::open(&resource_pack_path)
                             .map_err(|e| format!("Failed to open resource pack: {}", e))?;
@@ -294,7 +367,7 @@ impl KableInstallation {
                                 if path.is_file() {
                                     let rel = path.strip_prefix(&resource_pack_path).unwrap();
                                     let name = format!("{}", rel.to_string_lossy());
-                                    tmp_zip.start_file(name, options).map_err(|e| {
+                                    tmp_zip.start_file(name, options.clone()).map_err(|e| {
                                         format!("Failed to add file to tmp resource zip: {}", e)
                                     })?;
                                     let mut f = fs::File::open(path).map_err(|e| {
@@ -312,7 +385,7 @@ impl KableInstallation {
                         // Copy tmp into main zip
                         let mut tmp_file = fs::File::open(&tmp)
                             .map_err(|e| format!("Failed to open tmp resource zip: {}", e))?;
-                        zip.start_file("resource_packs.zip", options)
+                        zip.start_file("resource_packs.zip", options.clone())
                             .map_err(|e| format!("Failed to write resource pack: {}", e))?;
                         std::io::copy(&mut tmp_file, &mut zip)
                             .map_err(|e| format!("Failed to copy resource pack: {}", e))?;
@@ -330,8 +403,8 @@ impl KableInstallation {
                     kable_dir.join(shaders_folder)
                 };
                 if shaders_path.exists() {
-                    if shaders_path.is_file() {
-                        zip.start_file("shaders.zip", options)
+                        if shaders_path.is_file() {
+                        zip.start_file("shaders.zip", options.clone())
                             .map_err(|e| format!("Failed to write shaders folder: {}", e))?;
                         let mut shaders_file = fs::File::open(&shaders_path)
                             .map_err(|e| format!("Failed to open shaders folder: {}", e))?;
@@ -351,7 +424,7 @@ impl KableInstallation {
                                 if path.is_file() {
                                     let rel = path.strip_prefix(&shaders_path).unwrap();
                                     let name = format!("{}", rel.to_string_lossy());
-                                    tmp_zip.start_file(name, options).map_err(|e| {
+                                    tmp_zip.start_file(name, options.clone()).map_err(|e| {
                                         format!("Failed to add file to tmp shaders zip: {}", e)
                                     })?;
                                     let mut f = fs::File::open(path).map_err(|e| {
@@ -368,7 +441,7 @@ impl KableInstallation {
                         }
                         let mut tmp_file = fs::File::open(&tmp)
                             .map_err(|e| format!("Failed to open tmp shaders zip: {}", e))?;
-                        zip.start_file("shaders.zip", options)
+                        zip.start_file("shaders.zip", options.clone())
                             .map_err(|e| format!("Failed to write shaders folder: {}", e))?;
                         std::io::copy(&mut tmp_file, &mut zip)
                             .map_err(|e| format!("Failed to copy shaders folder: {}", e))?;
@@ -386,8 +459,8 @@ impl KableInstallation {
                     kable_dir.join(mods_folder)
                 };
                 if mods_path.exists() {
-                    if mods_path.is_file() {
-                        zip.start_file("mods.zip", options)
+                        if mods_path.is_file() {
+                        zip.start_file("mods.zip", options.clone())
                             .map_err(|e| format!("Failed to write mods: {}", e))?;
                         let mut mods_file = fs::File::open(&mods_path)
                             .map_err(|e| format!("Failed to open mods file: {}", e))?;
@@ -407,7 +480,7 @@ impl KableInstallation {
                                 if path.is_file() {
                                     let rel = path.strip_prefix(&mods_path).unwrap();
                                     let name = format!("{}", rel.to_string_lossy());
-                                    tmp_zip.start_file(name, options).map_err(|e| {
+                                    tmp_zip.start_file(name, options.clone()).map_err(|e| {
                                         format!("Failed to add file to tmp mods zip: {}", e)
                                     })?;
                                     let mut f = fs::File::open(path).map_err(|e| {
@@ -424,7 +497,7 @@ impl KableInstallation {
                         }
                         let mut tmp_file = fs::File::open(&tmp)
                             .map_err(|e| format!("Failed to open tmp mods zip: {}", e))?;
-                        zip.start_file("mods.zip", options)
+                        zip.start_file("mods.zip", options.clone())
                             .map_err(|e| format!("Failed to write mods: {}", e))?;
                         std::io::copy(&mut tmp_file, &mut zip)
                             .map_err(|e| format!("Failed to copy mods: {}", e))?;
@@ -457,35 +530,47 @@ impl KableInstallation {
                 .map_err(|e| format!("Failed to open import file: {}", e))?;
             let mut zip = zip::ZipArchive::new(file)
                 .map_err(|e| format!("Failed to read zip file: {}", e))?;
+            
+            // Generate a new unique ID for this import
+            let new_id = uuid::Uuid::new_v4().to_string();
+            
             let mut installation = KableInstallation::default();
             // Extract the kable_export.json file
             if let Ok(mut file) = zip.by_name("kable_export.json") {
                 let mut json = String::new();
                 file.read_to_string(&mut json)
                     .map_err(|e| format!("Failed to read kable_export.json: {}", e))?;
+                
+                // Replace all placeholders with the new ID
+                json = json.replace("{{INSTALLATION_ID}}", &new_id);
+                
                 installation = serde_json::from_str(&json)
                     .map_err(|e| format!("Failed to parse kable_export.json: {}", e))?;
+                
+                // Ensure the ID is set to the new one (in case replacement didn't work)
+                installation.id = new_id.clone();
             }
             // Extract the resource pack if it exists (embedded zip) and unpack into destination
             if let Ok(mut file) = zip.by_name("resource_packs.zip") {
-                // Determine destination: if installation.dedicated_resource_pack_folder is absolute, use it
+                // Use the new ID for the destination path
                 let resource_pack_rel = installation
                     .dedicated_resource_pack_folder
                     .as_deref()
-                    .unwrap_or(&installation.id)
+                    .unwrap_or(&new_id)
                     .to_string();
                 let rp_path = PathBuf::from(&resource_pack_rel);
+                // Always use relative path from kable_dir
                 let dest_dir = if rp_path.is_absolute() {
                     rp_path
                 } else {
-                    kable_dir.join("resourcepacks").join(resource_pack_rel)
+                    kable_dir.join(&resource_pack_rel)
                 };
                 crate::ensure_folder_sync(&dest_dir)
                     .map_err(|e| format!("Failed to create resource pack directory: {}", e))?;
 
                 // Copy the embedded zip to a temp file then extract its entries safely into dest_dir
                 let mut tmp = std::env::temp_dir();
-                tmp.push(format!("resource_packs_{}.zip", installation.id));
+                tmp.push(format!("resource_packs_{}.zip", new_id));
                 {
                     let mut tmp_file = fs::File::create(&tmp)
                         .map_err(|e| format!("Failed to create tmp resource zip: {}", e))?;
@@ -529,20 +614,21 @@ impl KableInstallation {
                 let shaders_rel = installation
                     .dedicated_shaders_folder
                     .as_deref()
-                    .unwrap_or(&installation.id)
+                    .unwrap_or(&new_id)
                     .to_string();
                 let sf_path = PathBuf::from(&shaders_rel);
+                // Always use relative path from kable_dir
                 let dest_dir = if sf_path.is_absolute() {
                     sf_path
                 } else {
-                    kable_dir.join("shaderpacks").join(shaders_rel)
+                    kable_dir.join(&shaders_rel)
                 };
                 crate::ensure_folder_sync(&dest_dir)
                     .map_err(|e| format!("Failed to create shaders directory: {}", e))?;
 
                 // Copy embedded zip to tmp and extract
                 let mut tmp = std::env::temp_dir();
-                tmp.push(format!("shaders_{}.zip", installation.id));
+                tmp.push(format!("shaders_{}.zip", new_id));
                 {
                     let mut tmp_file = fs::File::create(&tmp)
                         .map_err(|e| format!("Failed to create tmp shaders zip: {}", e))?;
@@ -584,20 +670,21 @@ impl KableInstallation {
                 let mods_rel = installation
                     .dedicated_mods_folder
                     .as_deref()
-                    .unwrap_or(&installation.id)
+                    .unwrap_or(&new_id)
                     .to_string();
                 let mf_path = PathBuf::from(&mods_rel);
+                // Always use relative path from kable_dir
                 let dest_dir = if mf_path.is_absolute() {
                     mf_path
                 } else {
-                    kable_dir.join("mods").join(mods_rel)
+                    kable_dir.join(&mods_rel)
                 };
                 crate::ensure_folder_sync(&dest_dir)
                     .map_err(|e| format!("Failed to create mods directory: {}", e))?;
 
                 // Copy embedded zip to tmp and extract
                 let mut tmp = std::env::temp_dir();
-                tmp.push(format!("mods_{}.zip", installation.id));
+                tmp.push(format!("mods_{}.zip", new_id));
                 {
                     let mut tmp_file = fs::File::create(&tmp)
                         .map_err(|e| format!("Failed to create tmp mods zip: {}", e))?;
@@ -646,6 +733,321 @@ impl KableInstallation {
             );
         }
         res
+    }
+
+    /// Import installations from a .minecraft folder without overwriting the actual .minecraft folder.
+    /// This reads launcher_profiles.json from the provided folder and creates Kable installations
+    /// by copying mods, resourcepacks, and shaderpacks to dedicated folders.
+    pub async fn import_from_minecraft_folder(minecraft_folder: &str) -> Result<Vec<KableInstallation>, String> {
+        use crate::logging::Logger;
+        
+        let minecraft_path = PathBuf::from(minecraft_folder);
+        Logger::debug_global(&format!("Starting import from .minecraft folder: {}", minecraft_path.display()), None);
+        
+        let res = task::spawn_blocking(move || {
+            // Verify it's a valid .minecraft folder
+            let launcher_profiles_path = minecraft_path.join("launcher_profiles.json");
+            if !launcher_profiles_path.exists() {
+                return Err("Invalid .minecraft folder: launcher_profiles.json not found".to_string());
+            }
+            
+            // Read launcher profiles from the provided folder
+            let data = std::fs::read_to_string(&launcher_profiles_path)
+                .map_err(|e| format!("Failed to read launcher_profiles.json: {}", e))?;
+            
+            let json: serde_json::Value = serde_json::from_str(&data)
+                .map_err(|e| format!("Failed to parse launcher_profiles.json: {}", e))?;
+            
+            let profiles = json
+                .get("profiles")
+                .and_then(|p| p.as_object())
+                .ok_or("No 'profiles' object found in launcher_profiles.json")?;
+            
+            let mut new_installations = Vec::new();
+            let kable_dir = crate::get_minecraft_kable_dir()?;
+            
+            for profile_value in profiles.values() {
+                let profile: LauncherProfile = serde_json::from_value(profile_value.clone())
+                    .map_err(|e| format!("Failed to parse a profile: {}", e))?;
+                
+                // Create a new Kable installation from this profile
+                let mut installation = KableInstallation::from(profile.clone());
+                
+                // Copy mods folder if it exists
+                let source_mods = minecraft_path.join("mods");
+                if source_mods.exists() && source_mods.is_dir() {
+                    let dest_mods = kable_dir.join("mods").join(&installation.id);
+                    crate::ensure_folder_sync(&dest_mods)
+                        .map_err(|e| format!("Failed to create mods folder: {}", e))?;
+                    
+                    // Copy all mod files
+                    if let Ok(entries) = std::fs::read_dir(&source_mods) {
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            if path.extension().map(|e| e == "jar").unwrap_or(false) {
+                                let file_name = path.file_name().unwrap();
+                                let dest_file = dest_mods.join(file_name);
+                                let _ = std::fs::copy(&path, &dest_file);
+                            }
+                        }
+                    }
+                    
+                    installation.dedicated_mods_folder = Some(format!("mods/{}", installation.id));
+                }
+                
+                // Copy resourcepacks folder if it exists
+                let source_resourcepacks = minecraft_path.join("resourcepacks");
+                if source_resourcepacks.exists() && source_resourcepacks.is_dir() {
+                    let dest_resourcepacks = kable_dir.join("resourcepacks").join(&installation.id);
+                    crate::ensure_folder_sync(&dest_resourcepacks)
+                        .map_err(|e| format!("Failed to create resourcepacks folder: {}", e))?;
+                    
+                    // Copy all resourcepack files
+                    if let Ok(entries) = std::fs::read_dir(&source_resourcepacks) {
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            let file_name = path.file_name().unwrap();
+                            let dest_file = dest_resourcepacks.join(file_name);
+                            
+                            if path.is_file() {
+                                let _ = std::fs::copy(&path, &dest_file);
+                            } else if path.is_dir() {
+                                let _ = crate::copy_dir_recursive_sync(&path, &dest_file);
+                            }
+                        }
+                    }
+                    
+                    installation.dedicated_resource_pack_folder = Some(format!("resourcepacks/{}", installation.id));
+                }
+                
+                // Copy shaderpacks folder if it exists
+                let source_shaderpacks = minecraft_path.join("shaderpacks");
+                if source_shaderpacks.exists() && source_shaderpacks.is_dir() {
+                    let dest_shaderpacks = kable_dir.join("shaderpacks").join(&installation.id);
+                    crate::ensure_folder_sync(&dest_shaderpacks)
+                        .map_err(|e| format!("Failed to create shaderpacks folder: {}", e))?;
+                    
+                    // Copy all shader files
+                    if let Ok(entries) = std::fs::read_dir(&source_shaderpacks) {
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            let file_name = path.file_name().unwrap();
+                            let dest_file = dest_shaderpacks.join(file_name);
+                            
+                            if path.is_file() {
+                                let _ = std::fs::copy(&path, &dest_file);
+                            } else if path.is_dir() {
+                                let _ = crate::copy_dir_recursive_sync(&path, &dest_file);
+                            }
+                        }
+                    }
+                    
+                    installation.dedicated_shaders_folder = Some(format!("shaderpacks/{}", installation.id));
+                }
+                
+                // Copy config folder if it exists
+                let source_config = minecraft_path.join("config");
+                if source_config.exists() && source_config.is_dir() {
+                    let dest_config = kable_dir.join("config").join(&installation.id);
+                    crate::ensure_folder_sync(&dest_config)
+                        .map_err(|e| format!("Failed to create config directory: {}", e))?;
+                    
+                    // Copy all config files and directories
+                    if let Ok(entries) = std::fs::read_dir(&source_config) {
+                        for entry in entries.flatten() {
+                            let path = entry.path();
+                            let file_name = path.file_name().unwrap();
+                            let dest = dest_config.join(file_name);
+                            
+                            if path.is_file() {
+                                std::fs::copy(&path, &dest)
+                                    .map_err(|e| format!("Failed to copy config file: {}", e))?;
+                            } else if path.is_dir() {
+                                // Recursively copy directory
+                                crate::copy_dir_recursive_sync(&path, &dest)
+                                    .map_err(|e| format!("Failed to copy config directory: {}", e))?;
+                            }
+                        }
+                    }
+                    
+                    installation.dedicated_config_folder = Some(format!("config/{}", installation.id));
+                }
+                
+                Logger::debug_global(&format!("Created installation from profile: {}", installation.name), None);
+                new_installations.push(installation);
+            }
+            
+            // Add all new installations to kable_profiles.json
+            if !new_installations.is_empty() {
+                let mut existing = read_kable_profiles().unwrap_or_default();
+                existing.extend(new_installations.clone());
+                write_kable_profiles(&existing)?;
+            }
+            
+            Ok::<Vec<KableInstallation>, String>(new_installations)
+        })
+        .await
+        .map_err(|e| format!("Import task join error: {}", e))?;
+        
+        if let Ok(ref installations) = res {
+            Logger::debug_global(&format!("Imported {} installations from .minecraft folder", installations.len()), None);
+        }
+        
+        res
+    }
+
+    /// Setup config folder for this installation before launch.
+    /// This function:
+    /// 1. Backs up global configs to .minecraft/config/kable_global if not already done
+    /// 2. If this installation has a dedicated_config_folder with content, symlinks it to .minecraft/config
+    /// 3. If dedicated_config_folder is None or empty, uses global configs (does nothing)
+    pub async fn setup_config_folder(&self) -> Result<(), String> {
+        use crate::logging::Logger;
+        
+        let mc_dir = crate::get_default_minecraft_dir()?;
+        let global_config_dir = mc_dir.join("config");
+        let global_backup_dir = mc_dir.join("config").join("kable_global");
+        
+        // If no dedicated config folder is set, use global configs (do nothing)
+        let dedicated_config = match &self.dedicated_config_folder {
+            Some(path) if !path.is_empty() => path,
+            _ => {
+                Logger::debug_global(
+                    &format!("Installation {} has no dedicated config folder, using global configs", self.name),
+                    None,
+                );
+                return Ok(());
+            }
+        };
+        
+        // Resolve the dedicated config path
+        let kable_dir = crate::get_minecraft_kable_dir()?;
+        let dedicated_path = PathBuf::from(dedicated_config);
+        let dedicated_config_path = if dedicated_path.is_absolute() {
+            dedicated_path
+        } else {
+            kable_dir.join(dedicated_config)
+        };
+        
+        // If dedicated folder doesn't exist or is empty, use global configs
+        if !dedicated_config_path.exists() {
+            Logger::debug_global(
+                &format!("Dedicated config folder doesn't exist for {}, using global configs", self.name),
+                None,
+            );
+            return Ok(());
+        }
+        
+        // Check if dedicated folder is empty
+        let is_empty = std::fs::read_dir(&dedicated_config_path)
+            .map(|mut entries| entries.next().is_none())
+            .unwrap_or(true);
+        
+        if is_empty {
+            Logger::debug_global(
+                &format!("Dedicated config folder is empty for {}, using global configs", self.name),
+                None,
+            );
+            return Ok(());
+        }
+        
+        Logger::debug_global(
+            &format!("Setting up dedicated config folder for installation: {}", self.name),
+            None,
+        );
+        
+        // Step 1: Backup global configs if not already done
+        if !global_backup_dir.exists() {
+            Logger::debug_global("Backing up global configs to kable_global", None);
+            if global_config_dir.exists() {
+                crate::ensure_folder_sync(&global_backup_dir)?;
+                
+                // Move all items from config to config/kable_global
+                if let Ok(entries) = std::fs::read_dir(&global_config_dir) {
+                    for entry in entries.flatten() {
+                        let path = entry.path();
+                        let file_name = path.file_name().unwrap();
+                        
+                        // Skip the kable_global folder itself
+                        if file_name == "kable_global" {
+                            continue;
+                        }
+                        
+                        let dest = global_backup_dir.join(file_name);
+                        if let Err(e) = std::fs::rename(&path, &dest) {
+                            Logger::debug_global(
+                                &format!("Failed to move {} to backup: {}", path.display(), e),
+                                None,
+                            );
+                        }
+                    }
+                }
+            } else {
+                // Create empty backup dir
+                crate::ensure_folder_sync(&global_backup_dir)?;
+            }
+        }
+        
+        // Step 2: Remove existing config symlink if present
+        if global_config_dir.exists() && global_config_dir.is_symlink() {
+            crate::remove_symlink_if_exists(&global_config_dir).await?;
+        }
+        
+        // Step 3: Create symlink from dedicated config to .minecraft/config
+        crate::create_directory_symlink(&dedicated_config_path, &global_config_dir).await?;
+        
+        Logger::debug_global(
+            &format!("Symlinked {} -> {}", dedicated_config_path.display(), global_config_dir.display()),
+            None,
+        );
+        
+        Ok(())
+    }
+
+    /// Restore global configs after game closes.
+    /// This removes the symlink and ensures kable_global contents are available in .minecraft/config
+    pub async fn restore_global_configs() -> Result<(), String> {
+        use crate::logging::Logger;
+        
+        let mc_dir = crate::get_default_minecraft_dir()?;
+        let global_config_dir = mc_dir.join("config");
+        let global_backup_dir = mc_dir.join("config").join("kable_global");
+        
+        Logger::debug_global("Restoring global configs", None);
+        
+        // Remove symlink if it exists
+        if global_config_dir.exists() && global_config_dir.is_symlink() {
+            crate::remove_symlink_if_exists(&global_config_dir).await?;
+            Logger::debug_global("Removed config symlink", None);
+        }
+        
+        // Restore global configs from backup
+        if global_backup_dir.exists() {
+            // Ensure config directory exists
+            crate::ensure_folder(&global_config_dir).await?;
+            
+            // Move items from kable_global back to config
+            if let Ok(entries) = std::fs::read_dir(&global_backup_dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    let file_name = path.file_name().unwrap();
+                    let dest = global_config_dir.join(file_name);
+                    
+                    // Only restore if not already present
+                    if !dest.exists() {
+                        if let Err(e) = std::fs::rename(&path, &dest) {
+                            Logger::debug_global(
+                                &format!("Failed to restore {} from backup: {}", path.display(), e),
+                                None,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        
+        Logger::debug_global("Global configs restored", None);
+        Ok(())
     }
 
     /// Try to get the mods folder from the dedicated_mods_folder field.
@@ -1094,6 +1496,17 @@ impl KableInstallation {
         Ok(result)
     }
 
+    /// See if the version_id contains a known mod loader identifier, and return it.
+    pub fn get_loader_type(&self) -> Option<&str> {
+        match self.version_id.as_str() {
+            id if id.contains("fabric-loader") => Some("fabric"),
+            id if id.contains("forge") => Some("forge"),
+            id if id.contains("quilt-loader") => Some("quilt"),
+            id if id.contains("neoforge") => Some("neoforge"),
+            _ => Some("vanilla"),
+        }
+    }
+
     pub fn duplicate(&self) -> Result<Vec<KableInstallation>, String> {
         let mut new = self.clone();
         // generate new ID
@@ -1112,6 +1525,114 @@ impl KableInstallation {
         } else {
             Err("Failed to read Kable profiles".into())
         }
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn create_desktop_shortcut(&self) -> Result<String, String> {
+        use std::env;
+
+        // Get current executable path
+        let exe_path = env::current_exe().map_err(|e| format!("Failed to get exe path: {}", e))?;
+        
+        // Get desktop path
+        let desktop = dirs::desktop_dir().ok_or("Failed to get desktop directory")?;
+        
+        // Create shortcut file path
+        let shortcut_name = format!("{}.lnk", self.name);
+        let shortcut_path = desktop.join(&shortcut_name);
+
+        // Create shortcut using mslnk library
+        let mut shortcut = mslnk::ShellLink::new(exe_path.clone()).map_err(|e| format!("Failed to create shortcut: {}", e))?;
+        shortcut.set_arguments(Some(format!("--launch-installation={}", self.id)));
+        shortcut.set_name(Some(self.name.clone()));
+        shortcut.set_working_dir(exe_path.parent().and_then(|p| p.to_str()).map(|s| s.to_string()));
+        shortcut.set_icon_location(exe_path.to_str().map(|s| s.to_string()));
+        
+        shortcut.create_lnk(&shortcut_path).map_err(|e| format!("Failed to write shortcut: {}", e))?;
+        
+        Ok(shortcut_path.to_string_lossy().to_string())
+    }
+
+    #[cfg(target_os = "macos")]
+    pub fn create_desktop_shortcut(&self) -> Result<String, String> {
+        use std::env;
+        use std::fs;
+        use std::path::PathBuf;
+
+        // Get desktop path
+        let desktop = dirs::desktop_dir().ok_or("Failed to get desktop directory")?;
+        
+        // Create .command file (shell script)
+        let shortcut_name = format!("{}.command", self.name);
+        let shortcut_path = desktop.join(&shortcut_name);
+
+        // Get current executable path
+        let exe_path = env::current_exe().map_err(|e| format!("Failed to get exe path: {}", e))?;
+        
+        // Create shell script
+        let script = format!(
+            "#!/bin/bash\nopen \"{}\" --args --launch-installation={}\n",
+            exe_path.to_string_lossy(),
+            self.id
+        );
+        
+        fs::write(&shortcut_path, script).map_err(|e| format!("Failed to write shortcut: {}", e))?;
+        
+        // Make executable
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&shortcut_path)
+                .map_err(|e| format!("Failed to get metadata: {}", e))?
+                .permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&shortcut_path, perms)
+                .map_err(|e| format!("Failed to set permissions: {}", e))?;
+        }
+        
+        Ok(shortcut_path.to_string_lossy().to_string())
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn create_desktop_shortcut(&self) -> Result<String, String> {
+        use std::env;
+        use std::fs;
+        use std::path::PathBuf;
+
+        // Get desktop path
+        let desktop = dirs::desktop_dir().ok_or("Failed to get desktop directory")?;
+        
+        // Create .desktop file
+        let shortcut_name = format!("{}.desktop", self.name);
+        let shortcut_path = desktop.join(&shortcut_name);
+
+        // Get current executable path
+        let exe_path = env::current_exe().map_err(|e| format!("Failed to get exe path: {}", e))?;
+        
+        // Create .desktop file content
+        let desktop_entry = format!(
+            "[Desktop Entry]\nType=Application\nName={}\nExec=\"{}\" --launch-installation={}\nIcon={}\nTerminal=false\nCategories=Game;\n",
+            self.name,
+            exe_path.to_string_lossy(),
+            self.id,
+            exe_path.to_string_lossy()
+        );
+        
+        fs::write(&shortcut_path, desktop_entry).map_err(|e| format!("Failed to write shortcut: {}", e))?;
+        
+        // Make executable
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&shortcut_path)
+                .map_err(|e| format!("Failed to get metadata: {}", e))?
+                .permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&shortcut_path, perms)
+                .map_err(|e| format!("Failed to set permissions: {}", e))?;
+        }
+        
+        Ok(shortcut_path.to_string_lossy().to_string())
     }
 }
 

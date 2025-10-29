@@ -7,11 +7,11 @@ use tokio::fs as async_fs;
 // Filter structure for shader searching
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ShaderFilterFacets {
-    pub query: Option<String>,                      // User search string
-    pub loaders: Option<Vec<(String, String)>>,     // (operation, value) - each AND'd
-    pub categories: Option<Vec<(String, String)>>,  // (operation, value) - each AND'd
-    pub game_versions: Option<Vec<String>>,         // From installation
-    // Note: Performance and features are Modrinth categories/tags
+    pub query: Option<String>,                     // User search string
+    pub loaders: Option<Vec<(String, String)>>,    // (operation, value) - each AND'd
+    pub categories: Option<Vec<(String, String)>>, // (operation, value) - each AND'd
+    pub game_versions: Option<Vec<String>>,        // From installation
+                                                   // Note: Performance and features are Modrinth categories/tags
 }
 
 impl ShaderFilterFacets {
@@ -433,10 +433,7 @@ pub async fn search_modrinth_shaders_with_facets(
         }
     } else if let Some(version) = minecraft_version {
         // Simple version filter without custom facets
-        url.push_str(&format!(
-            "&facets=[[\"versions:{}\"]]",
-            version
-        ));
+        url.push_str(&format!("&facets=[[\"versions:{}\"]]", version));
     }
 
     println!("[ModrinthAPI] Calling shader search URL: {}", url);
@@ -657,7 +654,7 @@ pub async fn download_and_install_shader_to_dedicated(
 ) -> Result<String, String> {
     let kable_dir = crate::get_minecraft_kable_dir()?;
     let dedicated_path = PathBuf::from(&dedicated_folder);
-    
+
     // Support both absolute paths and relative paths from .minecraft/kable
     let shaders_dir = if dedicated_path.is_absolute() {
         dedicated_path
@@ -700,7 +697,7 @@ pub async fn setup_shader_symlink(
 ) -> Result<(), String> {
     let minecraft_dir = PathBuf::from(&minecraft_path);
     let kable_dir = crate::get_minecraft_kable_dir()?;
-    
+
     // Ensure symlinks are allowed in Minecraft
     crate::ensure_symlinks_enabled(&minecraft_dir).await?;
 
@@ -745,7 +742,7 @@ pub async fn delete_shader_from_dedicated(
 ) -> Result<(), String> {
     let kable_dir = crate::get_minecraft_kable_dir()?;
     let dedicated_path = PathBuf::from(&dedicated_folder);
-    
+
     // Support both absolute paths and relative paths from .minecraft/kable
     let shaders_dir = if dedicated_path.is_absolute() {
         dedicated_path

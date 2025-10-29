@@ -1,3 +1,15 @@
+<!--
+@component
+InstallationMods - Manages and displays mods for a specific installation
+
+Shows installed mods with options to enable/disable, delete, and view mod information.
+Includes installation carousel for quick switching and semantic search filtering.
+
+@example
+```svelte
+<InstallationMods />
+```
+-->
 <script lang="ts">
 import { installations, selectedInstallation, InstallationService, Icon, ModsService } from '$lib';
 import * as installationsApi from '$lib/api/installations';

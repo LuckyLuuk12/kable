@@ -14,6 +14,7 @@ pub use kable_macros::*;
 // Module declarations
 pub mod auth;
 pub mod commands;
+pub mod discord;
 pub mod icons;
 pub mod installations;
 pub mod launcher;
@@ -32,6 +33,7 @@ pub mod logging;
 // Re-export public items from modules
 pub use auth::*;
 pub use commands::auth as commands_auth;
+pub use commands::discord as commands_discord;
 pub use commands::installations as commands_installations;
 pub use commands::launcher as commands_launcher;
 pub use commands::mods as commands_mods;
@@ -59,27 +61,99 @@ pub use skins::*;
 /// This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Handle CLI arguments before building Tauri app
+    let args: Vec<String> = std::env::args().collect();
+    
+    // Check for --launch-installation argument
+    for arg in args.iter() {
+        if arg.starts_with("--launch-installation=") {
+            let installation_id = arg.trim_start_matches("--launch-installation=");
+            
+            // Launch the installation directly without showing UI
+            tauri::async_runtime::block_on(async {
+                match crate::installations::get_installation(installation_id).await {
+                    Ok(Some(installation)) => {
+                        eprintln!("Launching installation: {}", installation.name);
+                        
+                        // Load settings and account
+                        let settings = match crate::settings::load_settings().await {
+                            Ok(s) => s,
+                            Err(e) => {
+                                eprintln!("Failed to load settings: {}", e);
+                                std::process::exit(1);
+                            }
+                        };
+                        
+                        let account = match crate::auth::auth_util::get_active_launcher_account().await {
+                            Ok(Some(acc)) => acc,
+                            Ok(None) => {
+                                eprintln!("No active account found. Please log in through the launcher.");
+                                std::process::exit(1);
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to get active account: {}", e);
+                                std::process::exit(1);
+                            }
+                        };
+                        
+                        if let Err(e) = crate::launcher::launch_installation(installation, settings, account).await {
+                            eprintln!("Failed to launch installation: {}", e);
+                            std::process::exit(1);
+                        }
+                        
+                        eprintln!("Installation launched successfully");
+                        std::process::exit(0);
+                    }
+                    Ok(None) => {
+                        eprintln!("Installation not found: {}", installation_id);
+                        std::process::exit(1);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to get installation: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            });
+        }
+    }
+    
     tauri::Builder::default()
         .setup(|app| {
             // Initialize global logger with the app handle so modules that
             // use GLOBAL_APP_HANDLE (e.g. launcher utils) can emit events.
             crate::logging::init_global_logger(app.handle());
-            
+
+            // Initialize Discord Rich Presence
+            tauri::async_runtime::spawn(async {
+                if let Err(e) = crate::discord::initialize() {
+                    Logger::warn_global(
+                        &format!("[STARTUP] Failed to initialize Discord RPC: {}", e),
+                        None,
+                    );
+                } else {
+                    Logger::info_global("[STARTUP] Discord Rich Presence initialized", None);
+                }
+            });
+
             // Clean up any leftover symlinks from previous crashes/exits
             tauri::async_runtime::spawn(async {
                 if let Ok(minecraft_dir) = get_default_minecraft_dir() {
-                    let symlink_manager = crate::symlink_manager::SymlinkManager::new(minecraft_dir);
+                    let symlink_manager =
+                        crate::symlink_manager::SymlinkManager::new(minecraft_dir);
                     if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
                         Logger::warn_global(
                             &format!("[STARTUP] Failed to cleanup leftover symlinks: {}", e),
                             None,
                         );
                     } else {
-                        Logger::info_global("[STARTUP] Cleaned up leftover symlinks from previous session", None);
+                        Logger::info_global(
+                            "[STARTUP] Cleaned up leftover symlinks from previous session",
+                            None,
+                        );
                     }
                 }
             });
-            
+
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -87,15 +161,27 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 if window.label() == "main" {
                     tauri::async_runtime::spawn(async {
+                        // Disconnect Discord RPC
+                        if let Err(e) = crate::discord::disconnect() {
+                            Logger::warn_global(
+                                &format!("[SHUTDOWN] Failed to disconnect Discord RPC: {}", e),
+                                None,
+                            );
+                        }
+
                         if let Ok(minecraft_dir) = get_default_minecraft_dir() {
-                            let symlink_manager = crate::symlink_manager::SymlinkManager::new(minecraft_dir);
+                            let symlink_manager =
+                                crate::symlink_manager::SymlinkManager::new(minecraft_dir);
                             if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
                                 Logger::warn_global(
                                     &format!("[SHUTDOWN] Failed to cleanup symlinks: {}", e),
                                     None,
                                 );
                             } else {
-                                Logger::info_global("[SHUTDOWN] Cleaned up all symlinks on app close", None);
+                                Logger::info_global(
+                                    "[SHUTDOWN] Cleaned up all symlinks on app close",
+                                    None,
+                                );
                             }
                         }
                     });
@@ -151,13 +237,18 @@ pub fn run() {
             commands_installations::modify_installation,
             commands_installations::delete_installation,
             commands_installations::create_installation,
+            commands_installations::create_installation_from_existing,
             commands_installations::get_mod_info,
             commands_installations::disable_mod,
             commands_installations::enable_mod,
             commands_installations::toggle_mod_disabled,
             commands_installations::import,
+            commands_installations::import_from_minecraft_folder,
             commands_installations::export,
             commands_installations::duplicate,
+            commands_installations::create_shortcut,
+            commands_installations::select_installation_zip,
+            commands_installations::select_minecraft_folder,
             // Launcher commands
             commands_launcher::launch_installation,
             commands_launcher::kill_minecraft_process,
@@ -171,6 +262,7 @@ pub fn run() {
             // Mods commands
             commands_mods::get_mods,
             commands_mods::download_mod,
+            commands_mods::get_project_versions,
             commands_mods::set_provider_filter,
             commands_mods::set_provider_limit,
             commands_mods::clear_provider_cache,
@@ -203,6 +295,10 @@ pub fn run() {
             commands_resourcepacks::setup_resourcepack_symlink,
             commands_resourcepacks::remove_resourcepack_symlink,
             commands_resourcepacks::delete_resourcepack_from_dedicated,
+            // Discord commands
+            commands_discord::discord_set_browsing,
+            commands_discord::discord_set_enabled,
+            commands_discord::discord_clear,
             // Skins commands
             commands_skins::upload_skin_to_account,
             commands_skins::change_skin_model,
@@ -400,6 +496,68 @@ pub fn ensure_folder_sync(path: &Path) -> Result<PathBuf, String> {
     }
 }
 
+/// Recursively copy a directory and all its contents (async version)
+pub async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+    async_fs::create_dir_all(dst)
+        .await
+        .map_err(|e| format!("Failed to create directory {}: {}", dst.display(), e))?;
+    
+    let mut entries = async_fs::read_dir(src)
+        .await
+        .map_err(|e| format!("Failed to read directory {}: {}", src.display(), e))?;
+    
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| format!("Failed to read entry: {}", e))?
+    {
+        let src_path = entry.path();
+        let file_name = src_path
+            .file_name()
+            .ok_or_else(|| "Invalid file name".to_string())?;
+        let dst_path = dst.join(file_name);
+        
+        let metadata = async_fs::metadata(&src_path)
+            .await
+            .map_err(|e| format!("Failed to get metadata: {}", e))?;
+        
+        if metadata.is_dir() {
+            Box::pin(copy_dir_recursive(&src_path, &dst_path)).await?;
+        } else {
+            async_fs::copy(&src_path, &dst_path)
+                .await
+                .map_err(|e| format!("Failed to copy file from {} to {}: {}", src_path.display(), dst_path.display(), e))?;
+        }
+    }
+    
+    Ok(())
+}
+
+/// Synchronous variant of copy_dir_recursive for use in blocking contexts
+pub fn copy_dir_recursive_sync(src: &Path, dst: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(dst)
+        .map_err(|e| format!("Failed to create directory {}: {}", dst.display(), e))?;
+    
+    let entries = std::fs::read_dir(src)
+        .map_err(|e| format!("Failed to read directory {}: {}", src.display(), e))?;
+    
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+        let ty = entry.file_type().map_err(|e| format!("Failed to get file type: {}", e))?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        
+        if ty.is_dir() {
+            copy_dir_recursive_sync(&src_path, &dst_path)?;
+        } else {
+            std::fs::copy(&src_path, &dst_path)
+                .map_err(|e| format!("Failed to copy file from {} to {}: {}", src_path.display(), dst_path.display(), e))?;
+        }
+    }
+    
+    Ok(())
+}
+
 /// Atomically write bytes to `path` by creating a temporary file in the same
 /// directory and renaming it into place. This avoids partial file writes.
 pub async fn write_file_atomic_async(path: &Path, bytes: &[u8]) -> Result<(), String> {
@@ -495,7 +653,7 @@ pub async fn ensure_symlinks_enabled(minecraft_path: &Path) -> Result<(), String
 #[cfg(windows)]
 pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<(), String> {
     use std::os::windows::fs::symlink_dir;
-    
+
     if target.exists() {
         if target.is_symlink() {
             // Remove existing symlink
@@ -503,7 +661,10 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
                 .await
                 .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
         } else {
-            return Err(format!("Target path exists and is not a symlink: {}", target.display()));
+            return Err(format!(
+                "Target path exists and is not a symlink: {}",
+                target.display()
+            ));
         }
     }
 
@@ -513,8 +674,7 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
         let source = source.to_path_buf();
         let target = target.to_path_buf();
         move || {
-            symlink_dir(&source, &target)
-                .map_err(|e| format!("Failed to create symlink: {}", e))
+            symlink_dir(&source, &target).map_err(|e| format!("Failed to create symlink: {}", e))
         }
     })
     .await
@@ -526,7 +686,7 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
 #[cfg(windows)]
 pub async fn create_file_symlink(source: &Path, target: &Path) -> Result<(), String> {
     use std::os::windows::fs::symlink_file;
-    
+
     if target.exists() {
         if target.is_symlink() {
             // Remove existing symlink
@@ -534,7 +694,10 @@ pub async fn create_file_symlink(source: &Path, target: &Path) -> Result<(), Str
                 .await
                 .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
         } else {
-            return Err(format!("Target path exists and is not a symlink: {}", target.display()));
+            return Err(format!(
+                "Target path exists and is not a symlink: {}",
+                target.display()
+            ));
         }
     }
 
@@ -557,7 +720,7 @@ pub async fn create_file_symlink(source: &Path, target: &Path) -> Result<(), Str
 #[cfg(unix)]
 pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<(), String> {
     use std::os::unix::fs::symlink;
-    
+
     if target.exists() {
         if target.is_symlink() {
             // Remove existing symlink
@@ -565,7 +728,10 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
                 .await
                 .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
         } else {
-            return Err(format!("Target path exists and is not a symlink: {}", target.display()));
+            return Err(format!(
+                "Target path exists and is not a symlink: {}",
+                target.display()
+            ));
         }
     }
 
@@ -574,10 +740,7 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
     tokio::task::spawn_blocking({
         let source = source.to_path_buf();
         let target = target.to_path_buf();
-        move || {
-            symlink(&source, &target)
-                .map_err(|e| format!("Failed to create symlink: {}", e))
-        }
+        move || symlink(&source, &target).map_err(|e| format!("Failed to create symlink: {}", e))
     })
     .await
     .map_err(|e| format!("Symlink creation task failed: {}", e))??;
@@ -609,7 +772,7 @@ pub async fn remove_symlink_if_exists(path: &Path) -> Result<(), String> {
             Ok(target) => {
                 // Check if the target (when it exists) is a directory
                 target.is_dir()
-            },
+            }
             Err(_) => {
                 // If we can't read the link, try metadata as fallback
                 match tokio::fs::symlink_metadata(path).await {
@@ -618,7 +781,7 @@ pub async fn remove_symlink_if_exists(path: &Path) -> Result<(), String> {
                 }
             }
         };
-        
+
         // Try the appropriate removal method first, with fallback to the other method
         if is_dir_symlink {
             if let Err(e) = async_fs::remove_dir(path).await {

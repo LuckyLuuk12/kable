@@ -1,3 +1,20 @@
+<!--
+@component
+ResourcePackGalleryModal - Modal for viewing resource pack gallery images
+
+Displays a lightbox-style gallery with navigation controls for browsing
+resource pack screenshots and preview images.
+
+@prop {Object | null} [ResourcePack=null] - Resource pack with gallery images
+@prop {boolean} [visible=false] - Whether modal is visible
+
+@event close - Fires when modal is closed
+
+@example
+```svelte
+<ResourcePackGalleryModal {ResourcePack} {visible} on:close={handleClose} />
+```
+-->
 <script lang="ts">
 import { Icon } from '$lib';
 import { createEventDispatcher } from 'svelte';

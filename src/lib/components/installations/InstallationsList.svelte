@@ -1,3 +1,21 @@
+<!-- @component
+◄!--
+@component
+InstallationsList - Displays list or grid of Minecraft installations
+
+Shows all available installations with options to launch, edit, duplicate, delete, and favorite.
+Supports both grid and list view modes with sorting and filtering.
+
+@prop {boolean} [isGrid=false] - Display installations in grid layout
+@prop {boolean} [isSmall=false] - Use compact display mode
+@prop {string | null} [error=null] - Error message to display
+@prop {number | null} [limit=null] - Maximum number of installations to display
+
+@example
+```svelte
+◄InstallationsList isGrid={true} limit={10} /►
+```
+-->
 <script lang="ts">
   import { Icon, InstallationService, installations, isLoadingInstallations, isLoadingVersions, Launcher } from '$lib';
   import { isLaunching, currentLaunchingInstallation } from '$lib/stores/launcher';
@@ -15,10 +33,11 @@
   // Debug logging to verify store updates
   $: {
     console.log('[InstallationsList] installations changed, count:', $installations.length);
+    console.log('[InstallationsList] First installation favorite:', $installations[0]?.favorite);
   }
 
   $: limitedInstallations = $installations
-    .slice()
+    .map(inst => ({ ...inst })) // Create new object references to ensure reactivity
     .sort((a, b) => {
       // Favorites first
       if ((a.favorite ? 1 : 0) !== (b.favorite ? 1 : 0)) {
@@ -30,6 +49,18 @@
       return bTime - aTime;
     })
     .slice(0, limit || $installations.length);
+    
+  // Debug limitedInstallations changes
+  $: {
+    console.log('[InstallationsList] limitedInstallations updated, count:', limitedInstallations.length);
+    if (limitedInstallations.length > 0) {
+      console.log('[InstallationsList] First limited installation:', {
+        id: limitedInstallations[0].id,
+        name: limitedInstallations[0].name,
+        favorite: limitedInstallations[0].favorite
+      });
+    }
+  }
   $: loaderIcons = Object.fromEntries(
     $installations.map(installation => [
       installation.id,
@@ -215,7 +246,9 @@
             <div class={isSmall ? 'installation-card small' : 'installation-card'} style="background: linear-gradient(135deg, {loaderColors[installation.id]}22 0%, {loaderColors[installation.id]}08 40%); --loader-color: {loaderColors[installation.id]}55; z-index: {(limitedInstallations.length - i) * 2}; position: relative;">
             <div class="card-top-actions">
               <button class="star-btn" title={installation.favorite ? "Unfavorite" : "Favorite"} on:click={async (e) => { e.stopPropagation(); await InstallationService.toggleFavorite(installation); }}>
-                <Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="md" />
+                {#key installation.favorite}
+                  <Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="md" />
+                {/key}
               </button>
               {#if isSmall}
                 <div class="dropdown installation-dropdown actions-dropdown small-actions-dropdown">
@@ -234,6 +267,17 @@
                     <button on:click={async () => { await InstallationService.exportInstallation(installation); }}>
                       <Icon name="download" size="sm" />
                       Export
+                    </button>
+                    <button on:click={async () => { 
+                      try {
+                        const path = await InstallationService.createShortcut(installation);
+                        console.log('Shortcut created at:', path);
+                      } catch (err) {
+                        console.error('Failed to create shortcut:', err);
+                      }
+                    }}>
+                      <Icon name="link" size="sm" />
+                      Create Shortcut
                     </button>
                     <div class="dropdown-separator"></div>
                     <button 
@@ -335,6 +379,17 @@
                   <Icon name="download" size="sm" />
                   Export
                 </button>
+                <button class="btn btn-secondary" on:click={async () => { 
+                  try {
+                    const path = await InstallationService.createShortcut(installation);
+                    console.log('Shortcut created at:', path);
+                  } catch (err) {
+                    console.error('Failed to create shortcut:', err);
+                  }
+                }}>
+                  <Icon name="link" size="sm" />
+                  Create Shortcut
+                </button>
                 <button class="btn btn-danger" on:click={async () => await InstallationService.deleteInstallation(installation.id)}>
                   <Icon name="trash" size="sm" />
                   Delete
@@ -382,7 +437,9 @@
                   <h3>{installation.name || installation.version_id}</h3>
                   <div class="list-actions-section">
                     <button class="star-btn" title={installation.favorite ? "Unfavorite" : "Favorite"} on:click={async (e) => { e.stopPropagation(); await InstallationService.toggleFavorite(installation); }}>
-                      <Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="sm" />
+                      {#key installation.favorite}
+                        <Icon name="star" forceType={installation.favorite ? 'emoji' : 'svg'} size="sm" />
+                      {/key}
                     </button>
                     
                     <!-- Inline Actions (shown when they fit) -->
@@ -398,6 +455,17 @@
                       <button class="list-action-btn" on:click={async () => {/* TODO: implement export logic */}}>
                         <Icon name="download" size="sm" />
                         Export
+                      </button>
+                      <button class="list-action-btn" on:click={async () => { 
+                        try {
+                          const path = await InstallationService.createShortcut(installation);
+                          console.log('Shortcut created at:', path);
+                        } catch (err) {
+                          console.error('Failed to create shortcut:', err);
+                        }
+                      }}>
+                        <Icon name="link" size="sm" />
+                        Create Shortcut
                       </button>
                       <button class="list-action-btn danger" on:click={async () => await InstallationService.deleteInstallation(installation.id)}>
                         <Icon name="trash" size="sm" />
@@ -422,6 +490,17 @@
                         <button on:click={async () => {/* TODO: implement export logic */}}>
                           <Icon name="download" size="sm" />
                           Export
+                        </button>
+                        <button on:click={async () => { 
+                          try {
+                            const path = await InstallationService.createShortcut(installation);
+                            console.log('Shortcut created at:', path);
+                          } catch (err) {
+                            console.error('Failed to create shortcut:', err);
+                          }
+                        }}>
+                          <Icon name="link" size="sm" />
+                          Create Shortcut
                         </button>
                         <div class="dropdown-separator"></div>
                         <button 
@@ -1179,7 +1258,7 @@
         right: 0;
         top: 100%;
         min-width: 10rem;
-  background: color-mix(in srgb, var(--card), 94%, transparent);
+        background: var(--card);
         border: 1px solid var(--dark-200);
         border-radius: var(--border-radius);
         box-shadow: 0 0.25rem 1rem rgba(0,0,0,0.15), 0 0.125rem 0.5rem rgba(0,0,0,0.08);

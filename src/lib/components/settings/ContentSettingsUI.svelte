@@ -1,3 +1,15 @@
+<!--
+@component
+ContentSettingsUI - Content management settings panel
+
+Configures automatic world backups, backup retention limits,
+and other content-related settings.
+
+@example
+```svelte
+<ContentSettingsUI />
+```
+-->
 <script lang="ts">
   import { settings } from "$lib/stores";
   function disableMaxWorldBackups() {

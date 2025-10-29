@@ -1,3 +1,17 @@
+<!-- @component
+◄!--
+@component
+EditInstallationModal - Modal dialog for editing existing Minecraft installations
+
+Provides interface for modifying installation settings including name, version,
+Java arguments, resolution, memory allocation, and advanced parameters.
+
+@example
+```svelte
+◄EditInstallationModal bind:this={editModal} /►
+◄button on:click={() =► editModal.open(installation)}►Edit Installation◄/button►
+```
+-->
 <script lang="ts">
   import { InstallationService } from '$lib/services/InstallationService';
   import type { KableInstallation } from '$lib/types';
@@ -210,6 +224,14 @@
           </label>
 
           <label>
+            Dedicated Config Folder (optional):
+            <div class="file-row">
+              <input type="text" bind:value={installation.dedicated_config_folder} on:input={(e) => handleInput(e, 'dedicated_config_folder')} />
+              <button type="button" class="btn" on:click={() => pickFolder('dedicated_config_folder')}>Browse...</button>
+            </div>
+          </label>
+
+          <label>
             Parameters (JSON object):
             <textarea bind:value={parametersJson} rows="6"></textarea>
           </label>
@@ -229,6 +251,7 @@
   <input id="folder-input-dedicated_mods_folder" type="file" webkitdirectory style="display:none;" on:change={(e) => handleFolderSelect(e, 'dedicated_mods_folder')} />
   <input id="folder-input-dedicated_resource_pack_folder" type="file" webkitdirectory style="display:none;" on:change={(e) => handleFolderSelect(e, 'dedicated_resource_pack_folder')} />
   <input id="folder-input-dedicated_shaders_folder" type="file" webkitdirectory style="display:none;" on:change={(e) => handleFolderSelect(e, 'dedicated_shaders_folder')} />
+  <input id="folder-input-dedicated_config_folder" type="file" webkitdirectory style="display:none;" on:change={(e) => handleFolderSelect(e, 'dedicated_config_folder')} />
 </dialog>
 
 <style lang="scss">

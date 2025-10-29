@@ -1,3 +1,15 @@
+<!--
+@component
+AppearanceSettingsUI - Appearance and theming settings panel
+
+Manages visual customization including icon templates, CSS themes,
+UI scaling, and color schemes. Supports custom theme uploads.
+
+@example
+```svelte
+<AppearanceSettingsUI />
+```
+-->
 <script lang="ts">
   import { settings } from "$lib/stores";
   import { Icon, IconService, availableTemplates, SettingsService } from "$lib";

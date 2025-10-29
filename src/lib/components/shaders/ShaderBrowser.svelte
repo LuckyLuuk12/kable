@@ -1,3 +1,20 @@
+<!--
+@component
+ShaderBrowser - Browse and search for shader packs from Modrinth
+
+Provides interface for discovering shader packs with support for:
+- Multiple view modes (grid, list, compact)
+- Installation modes (dedicated per-installation or global)
+- Advanced filtering (categories, versions, sorting)
+- Gallery preview modal
+
+@event download - Fires when user clicks to download a shader pack
+
+@example
+```svelte
+<ShaderBrowser on:download={handleDownload} />
+```
+-->
 <script lang="ts">
 import { onMount, createEventDispatcher } from 'svelte';
 import { get } from 'svelte/store';

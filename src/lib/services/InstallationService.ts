@@ -63,24 +63,51 @@ export class InstallationService {
   }
 
   /**
+   * Create a new installation by copying from an existing one.
+   * Optionally copies mods (with version updates), resource packs, and shaders.
+   * @param version_id The ID of the version to create the new installation for.
+   * @param sourceInstallation The source installation to copy from.
+   * @param options Copy options for mods, resource packs, and shaders.
+   */
+  static async createInstallationFromExisting(
+    version_id: string,
+    sourceInstallation: KableInstallation,
+    options: {
+      copyMods: boolean;
+      copyResourcePacks: boolean;
+      copyShaders: boolean;
+    }
+  ): Promise<void> {
+    await installationsApi.createInstallationFromExisting(
+      version_id,
+      sourceInstallation.id,
+      options
+    );
+    await this.loadInstallations();
+  }
+
+  /**
    * Update an existing installation.
    */
   static async updateInstallation(id: string, newInstallation: KableInstallation): Promise<void> {
     console.log('[Service] updateInstallation called with:', { id, newInstallation });
-    // first modify store for reactivity
+    
+    // Update store first for immediate UI feedback
     installations.update(list => {
       const index = list.findIndex(i => i.id === id);
       if (index !== -1) {
         // Create a new array with the updated installation for reactivity
         const newList = [...list];
-        newList[index] = newInstallation;
+        newList[index] = { ...newInstallation }; // Ensure new object reference
+        console.log('[Service] Updated installation in store:', newList[index]);
         return newList;
       }
       return list;
     });
 
+    // Then persist to backend
     await installationsApi.modifyInstallation(id, newInstallation);
-    console.log('Installation updated:', id);
+    console.log('Installation updated in backend:', id);
   }
 
   /**
@@ -238,6 +265,20 @@ export class InstallationService {
     } catch (error) {
       console.error('Failed to import installation:', error);
       LogsService.emitLauncherEvent(`Failed to import installation from ${path}`, 'error');
+      throw error;
+    }
+  }
+
+  static async importFromMinecraftFolder(path: string): Promise<void> {
+    try {
+      const newInstallations = await installationsApi.importFromMinecraftFolder(path);
+      console.log('Imported installations from .minecraft folder:', path, newInstallations);
+      LogsService.emitLauncherEvent(`Imported ${newInstallations.length} installation(s) from ${path}`, 'info');
+      await this.loadInstallations();
+    } catch (error) {
+      console.error('Failed to import from .minecraft folder:', error);
+      LogsService.emitLauncherEvent(`Failed to import from .minecraft folder: ${path}`, 'error');
+      throw error;
     }
   }
 
@@ -323,5 +364,14 @@ export class InstallationService {
       loaderCounts,
       mostUsedLoader,
     };
+  }
+
+  /**
+   * Create a desktop shortcut for an installation.
+   * @param installation The installation to create a shortcut for.
+   * @returns The path to the created shortcut.
+   */
+  static async createShortcut(installation: KableInstallation): Promise<string> {
+    return await installationsApi.createShortcut(installation);
   }
 }

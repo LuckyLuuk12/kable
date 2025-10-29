@@ -52,7 +52,14 @@ pub async fn search_modrinth_resourcepacks_with_facets(
     limit: u32,
     offset: u32,
 ) -> Result<Vec<resourcepacks::ResourcePackDownload>, String> {
-    resourcepacks::search_modrinth_resourcepacks_with_facets(query, minecraft_version, facets, limit, offset).await
+    resourcepacks::search_modrinth_resourcepacks_with_facets(
+        query,
+        minecraft_version,
+        facets,
+        limit,
+        offset,
+    )
+    .await
 }
 
 /// Get resource pack details from Modrinth
@@ -81,7 +88,13 @@ pub async fn download_and_install_resourcepack_to_dedicated(
     download_url: String,
     filename: String,
 ) -> Result<String, String> {
-    resourcepacks::download_and_install_resourcepack_to_dedicated(minecraft_path, dedicated_folder, download_url, filename).await
+    resourcepacks::download_and_install_resourcepack_to_dedicated(
+        minecraft_path,
+        dedicated_folder,
+        download_url,
+        filename,
+    )
+    .await
 }
 
 /// Setup symbolic link from dedicated resource pack folder to .minecraft/resourcepacks
@@ -111,5 +124,11 @@ pub async fn delete_resourcepack_from_dedicated(
     pack_file: String,
     symlink_name: Option<String>,
 ) -> Result<(), String> {
-    resourcepacks::delete_resourcepack_from_dedicated(minecraft_path, dedicated_folder, pack_file, symlink_name).await
+    resourcepacks::delete_resourcepack_from_dedicated(
+        minecraft_path,
+        dedicated_folder,
+        pack_file,
+        symlink_name,
+    )
+    .await
 }

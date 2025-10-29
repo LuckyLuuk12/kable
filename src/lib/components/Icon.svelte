@@ -1,3 +1,21 @@
+<!--
+@component
+Icon - Flexible icon component supporting multiple icon types
+
+Renders icons from various sources including emoji, FontAwesome, SVG, system icons, and CSS.
+Automatically selects the appropriate icon type based on the IconService configuration.
+
+@prop {string} name - The name/identifier of the icon to display
+@prop {'sm' | 'md' | 'lg' | 'xl'} [size='md'] - Size of the icon
+@prop {string} [className=''] - Additional CSS classes to apply
+@prop {'emoji' | 'fontawesome' | 'svg' | 'system' | 'css' | null} [forceType=null] - Force a specific icon type
+
+@example
+```svelte
+<Icon name="home" size="lg" />
+<Icon name="settings" forceType="svg" className="custom-class" />
+```
+-->
 <script lang="ts">
   import { onMount } from 'svelte';
   import { IconService, selectedTemplate } from '../services/IconService';

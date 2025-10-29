@@ -62,7 +62,8 @@ pub async fn search_modrinth_shaders_with_facets(
     limit: u32,
     offset: u32,
 ) -> Result<Vec<shaders::ShaderDownload>, String> {
-    shaders::search_modrinth_shaders_with_facets(query, minecraft_version, facets, limit, offset).await
+    shaders::search_modrinth_shaders_with_facets(query, minecraft_version, facets, limit, offset)
+        .await
 }
 
 /// Get shader pack details from Modrinth
@@ -91,7 +92,13 @@ pub async fn download_and_install_shader_to_dedicated(
     download_url: String,
     filename: String,
 ) -> Result<String, String> {
-    shaders::download_and_install_shader_to_dedicated(minecraft_path, dedicated_folder, download_url, filename).await
+    shaders::download_and_install_shader_to_dedicated(
+        minecraft_path,
+        dedicated_folder,
+        download_url,
+        filename,
+    )
+    .await
 }
 
 /// Setup symbolic link from dedicated shader folder to .minecraft/shaderpacks
@@ -121,5 +128,11 @@ pub async fn delete_shader_from_dedicated(
     shader_file: String,
     symlink_name: Option<String>,
 ) -> Result<(), String> {
-    shaders::delete_shader_from_dedicated(minecraft_path, dedicated_folder, shader_file, symlink_name).await
+    shaders::delete_shader_from_dedicated(
+        minecraft_path,
+        dedicated_folder,
+        shader_file,
+        symlink_name,
+    )
+    .await
 }

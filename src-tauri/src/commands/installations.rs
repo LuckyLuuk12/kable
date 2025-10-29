@@ -1,4 +1,6 @@
 use crate::installations::*;
+use tauri_plugin_dialog::DialogExt;
+
 /// Gets all versions, either from cache or by building them, does not modify the cache
 #[tauri::command]
 pub async fn get_versions() -> Versions {
@@ -49,6 +51,26 @@ pub async fn create_installation(version_id: &str) -> Result<KableInstallation, 
     crate::installations::create_installation(version_id).await
 }
 
+/// Creates a new KableInstallation by copying from an existing one
+/// Optionally copies mods (with version updates), resource packs, and shaders
+#[tauri::command]
+pub async fn create_installation_from_existing(
+    version_id: &str,
+    source_installation_id: &str,
+    copy_mods: bool,
+    copy_resource_packs: bool,
+    copy_shaders: bool,
+) -> Result<KableInstallation, String> {
+    crate::installations::create_installation_from_existing(
+        version_id,
+        source_installation_id,
+        copy_mods,
+        copy_resource_packs,
+        copy_shaders,
+    )
+    .await
+}
+
 #[tauri::command]
 pub async fn get_mod_info(installation: KableInstallation) -> Result<Vec<ModJarInfo>, String> {
     installation.get_mod_info()
@@ -81,6 +103,11 @@ pub async fn import(path: String) -> Result<KableInstallation, String> {
 }
 
 #[tauri::command]
+pub async fn import_from_minecraft_folder(path: String) -> Result<Vec<KableInstallation>, String> {
+    KableInstallation::import_from_minecraft_folder(&path).await
+}
+
+#[tauri::command]
 pub async fn export(installation: KableInstallation) -> Result<String, String> {
     installation.export().await
 }
@@ -88,4 +115,46 @@ pub async fn export(installation: KableInstallation) -> Result<String, String> {
 #[tauri::command]
 pub async fn duplicate(installation: KableInstallation) -> Result<Vec<KableInstallation>, String> {
     installation.duplicate()
+}
+
+#[tauri::command]
+pub async fn create_shortcut(installation: KableInstallation) -> Result<String, String> {
+    installation.create_desktop_shortcut()
+}
+
+/// Select a zip file for importing a Kable installation
+#[tauri::command]
+pub async fn select_installation_zip(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let file_path = app
+        .dialog()
+        .file()
+        .add_filter("Kable Installation", &["zip"])
+        .set_title("Import Kable Installation")
+        .blocking_pick_file();
+
+    match file_path {
+        Some(path) => match path.as_path() {
+            Some(path_buf) => Ok(Some(path_buf.to_string_lossy().to_string())),
+            None => Err("Invalid file path".to_string()),
+        },
+        None => Ok(None),
+    }
+}
+
+/// Select a .minecraft folder for importing installations
+#[tauri::command]
+pub async fn select_minecraft_folder(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    let folder_path = app
+        .dialog()
+        .file()
+        .set_title("Import from .minecraft Folder")
+        .blocking_pick_folder();
+
+    match folder_path {
+        Some(path) => match path.as_path() {
+            Some(path_buf) => Ok(Some(path_buf.to_string_lossy().to_string())),
+            None => Err("Invalid folder path".to_string()),
+        },
+        None => Ok(None),
+    }
 }

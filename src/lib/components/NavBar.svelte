@@ -1,3 +1,16 @@
+<!--
+@component
+NavBar - Main navigation bar for the Kable launcher
+
+Provides navigation between different sections (installations, mods, shaders, etc.),
+displays user account information, and shows active installation status.
+Initializes all required services on mount.
+
+@example
+```svelte
+<NavBar />
+```
+-->
 <script lang="ts">
   import '$lib/styles/global.scss';
   import { page } from '$app/stores';

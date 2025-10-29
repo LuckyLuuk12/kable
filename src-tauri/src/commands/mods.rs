@@ -17,6 +17,23 @@ pub async fn download_mod(
 }
 
 #[tauri::command]
+pub async fn get_project_versions(
+    provider: ProviderKind,
+    project_id: String,
+    loaders: Option<Vec<String>>,
+    game_versions: Option<Vec<String>>,
+) -> Result<Vec<modrinth::ModrinthVersion>, String> {
+    match provider {
+        ProviderKind::Modrinth => {
+            modrinth::get_project_versions_filtered(&project_id, loaders, game_versions).await
+        }
+        ProviderKind::CurseForge => {
+            Err("CurseForge version fetching not yet implemented".to_string())
+        }
+    }
+}
+
+#[tauri::command]
 pub async fn set_provider_filter(
     provider: ProviderKind,
     installation: Option<KableInstallation>,

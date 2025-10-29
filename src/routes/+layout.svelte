@@ -5,10 +5,13 @@
   import { get } from 'svelte/store';
   import { getSelectedCssTheme, loadCustomCss } from '$lib/api/settings';
   import { settings } from '$lib';
+  import { DiscordService } from '$lib/services/DiscordService';
+  import { page } from '$app/stores';
 
   let customCSSLoaded = false;
   let currentThemeName = '';
   let unsubscribeSettings: (() => void) | null = null;
+  let unsubscribePage: (() => void) | null = null;
 
   onMount(async () => {
     await loadCustomCSS();
@@ -22,6 +25,15 @@
         await reloadCustomCSS();
       }
     });
+
+    // Subscribe to route changes for Discord RPC
+    unsubscribePage = page.subscribe(($page) => {
+      if ($page?.url?.pathname) {
+        DiscordService.updateBrowsing($page.url.pathname).catch(err => 
+          console.error('Failed to update Discord status:', err)
+        );
+      }
+    });
   });
 
   // Clean up subscription on component destroy
@@ -29,6 +41,10 @@
     if (unsubscribeSettings) {
       unsubscribeSettings();
       unsubscribeSettings = null;
+    }
+    if (unsubscribePage) {
+      unsubscribePage();
+      unsubscribePage = null;
     }
   });
 

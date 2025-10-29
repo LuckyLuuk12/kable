@@ -7,10 +7,10 @@ use tokio::fs as async_fs;
 // Filter structure for resourcepack searching
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct ResourcePackFilterFacets {
-    pub query: Option<String>,                      // User search string
-    pub categories: Option<Vec<(String, String)>>,  // (operation, value) - each AND'd
-    pub game_versions: Option<Vec<String>>,         // From installation
-    // Note: Performance and features are Modrinth categories/tags
+    pub query: Option<String>,                     // User search string
+    pub categories: Option<Vec<(String, String)>>, // (operation, value) - each AND'd
+    pub game_versions: Option<Vec<String>>,        // From installation
+                                                   // Note: Performance and features are Modrinth categories/tags
 }
 
 impl ResourcePackFilterFacets {
@@ -145,7 +145,9 @@ struct ModrinthFile {
 
 /// Get all installed resource packs from the resourcepacks directory
 #[log_result(log_values = true, max_length = 100)]
-pub async fn get_installed_resourcepacks(minecraft_path: String) -> Result<Vec<ResourcePack>, String> {
+pub async fn get_installed_resourcepacks(
+    minecraft_path: String,
+) -> Result<Vec<ResourcePack>, String> {
     let resourcepacks_dir = PathBuf::from(minecraft_path).join("resourcepacks");
 
     if !resourcepacks_dir.exists() {
@@ -378,10 +380,7 @@ pub async fn search_modrinth_resourcepacks_with_facets(
         }
     } else if let Some(version) = minecraft_version {
         // Simple version filter without custom facets
-        url.push_str(&format!(
-            "&facets=[[\"versions:{}\"]]",
-            version
-        ));
+        url.push_str(&format!("&facets=[[\"versions:{}\"]]", version));
     }
 
     println!("[ModrinthAPI] Calling resourcepack search URL: {}", url);
@@ -392,10 +391,12 @@ pub async fn search_modrinth_resourcepacks_with_facets(
         .await
         .map_err(|e| format!("Failed to search Modrinth resource packs: {}", e))?;
 
-    let search_result: ModrinthSearchResponse = response
-        .json()
-        .await
-        .map_err(|e| format!("Failed to parse Modrinth resourcepack search response: {}", e))?;
+    let search_result: ModrinthSearchResponse = response.json().await.map_err(|e| {
+        format!(
+            "Failed to parse Modrinth resourcepack search response: {}",
+            e
+        )
+    })?;
 
     let mut packs = Vec::new();
     for project in search_result.hits {
@@ -454,8 +455,12 @@ pub async fn search_modrinth_resourcepacks_with_facets(
         };
 
         // Extract resolution from categories (e.g., "16x", "32x", "64x", etc.)
-        let resolution = project.categories.iter()
-            .find(|cat| cat.ends_with('x') && cat.chars().take_while(|c| c.is_numeric()).count() > 0)
+        let resolution = project
+            .categories
+            .iter()
+            .find(|cat| {
+                cat.ends_with('x') && cat.chars().take_while(|c| c.is_numeric()).count() > 0
+            })
             .cloned();
 
         packs.push(ResourcePackDownload {
@@ -477,13 +482,18 @@ pub async fn search_modrinth_resourcepacks_with_facets(
         });
     }
 
-    println!("[ModrinthAPI] Received {} resource packs from API", packs.len());
+    println!(
+        "[ModrinthAPI] Received {} resource packs from API",
+        packs.len()
+    );
     Ok(packs)
 }
 
 /// Get resource pack details from Modrinth
 #[log_result(log_values = true, max_length = 100)]
-pub async fn get_modrinth_resourcepack_details(project_id: String) -> Result<ResourcePackDownload, String> {
+pub async fn get_modrinth_resourcepack_details(
+    project_id: String,
+) -> Result<ResourcePackDownload, String> {
     let client = reqwest::Client::new();
 
     let project_url = format!("https://api.modrinth.com/v2/project/{}", project_id);
@@ -520,7 +530,9 @@ pub async fn get_modrinth_resourcepack_details(project_id: String) -> Result<Res
         .ok_or("No primary file found")?;
 
     // Extract resolution from categories
-    let resolution = project.categories.iter()
+    let resolution = project
+        .categories
+        .iter()
         .find(|cat| cat.ends_with('x') && cat.chars().take_while(|c| c.is_numeric()).count() > 0)
         .cloned();
 
@@ -588,7 +600,7 @@ pub async fn download_and_install_resourcepack_to_dedicated(
 ) -> Result<String, String> {
     let kable_dir = crate::get_minecraft_kable_dir()?;
     let dedicated_path = PathBuf::from(&dedicated_folder);
-    
+
     // Support both absolute paths and relative paths from .minecraft/kable
     let packs_dir = if dedicated_path.is_absolute() {
         dedicated_path
@@ -631,7 +643,7 @@ pub async fn setup_resourcepack_symlink(
 ) -> Result<(), String> {
     let minecraft_dir = PathBuf::from(&minecraft_path);
     let kable_dir = crate::get_minecraft_kable_dir()?;
-    
+
     // Ensure symlinks are allowed in Minecraft
     crate::ensure_symlinks_enabled(&minecraft_dir).await?;
 
@@ -676,7 +688,7 @@ pub async fn delete_resourcepack_from_dedicated(
 ) -> Result<(), String> {
     let kable_dir = crate::get_minecraft_kable_dir()?;
     let dedicated_path = PathBuf::from(&dedicated_folder);
-    
+
     // Support both absolute paths and relative paths from .minecraft/kable
     let packs_dir = if dedicated_path.is_absolute() {
         dedicated_path
