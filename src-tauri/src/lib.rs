@@ -61,6 +61,62 @@ pub use skins::*;
 /// This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Handle CLI arguments before building Tauri app
+    let args: Vec<String> = std::env::args().collect();
+    
+    // Check for --launch-installation argument
+    for arg in args.iter() {
+        if arg.starts_with("--launch-installation=") {
+            let installation_id = arg.trim_start_matches("--launch-installation=");
+            
+            // Launch the installation directly without showing UI
+            tauri::async_runtime::block_on(async {
+                match crate::installations::get_installation(installation_id).await {
+                    Ok(Some(installation)) => {
+                        eprintln!("Launching installation: {}", installation.name);
+                        
+                        // Load settings and account
+                        let settings = match crate::settings::load_settings().await {
+                            Ok(s) => s,
+                            Err(e) => {
+                                eprintln!("Failed to load settings: {}", e);
+                                std::process::exit(1);
+                            }
+                        };
+                        
+                        let account = match crate::auth::auth_util::get_active_launcher_account().await {
+                            Ok(Some(acc)) => acc,
+                            Ok(None) => {
+                                eprintln!("No active account found. Please log in through the launcher.");
+                                std::process::exit(1);
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to get active account: {}", e);
+                                std::process::exit(1);
+                            }
+                        };
+                        
+                        if let Err(e) = crate::launcher::launch_installation(installation, settings, account).await {
+                            eprintln!("Failed to launch installation: {}", e);
+                            std::process::exit(1);
+                        }
+                        
+                        eprintln!("Installation launched successfully");
+                        std::process::exit(0);
+                    }
+                    Ok(None) => {
+                        eprintln!("Installation not found: {}", installation_id);
+                        std::process::exit(1);
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to get installation: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            });
+        }
+    }
+    
     tauri::Builder::default()
         .setup(|app| {
             // Initialize global logger with the app handle so modules that
@@ -189,6 +245,7 @@ pub fn run() {
             commands_installations::import,
             commands_installations::export,
             commands_installations::duplicate,
+            commands_installations::create_shortcut,
             // Launcher commands
             commands_launcher::launch_installation,
             commands_launcher::kill_minecraft_process,

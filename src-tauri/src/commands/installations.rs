@@ -109,3 +109,8 @@ pub async fn export(installation: KableInstallation) -> Result<String, String> {
 pub async fn duplicate(installation: KableInstallation) -> Result<Vec<KableInstallation>, String> {
     installation.duplicate()
 }
+
+#[tauri::command]
+pub async fn create_shortcut(installation: KableInstallation) -> Result<String, String> {
+    installation.create_desktop_shortcut()
+}

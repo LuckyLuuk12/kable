@@ -351,4 +351,13 @@ export class InstallationService {
       mostUsedLoader,
     };
   }
+
+  /**
+   * Create a desktop shortcut for an installation.
+   * @param installation The installation to create a shortcut for.
+   * @returns The path to the created shortcut.
+   */
+  static async createShortcut(installation: KableInstallation): Promise<string> {
+    return await installationsApi.createShortcut(installation);
+  }
 }

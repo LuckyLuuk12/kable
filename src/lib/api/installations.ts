@@ -89,3 +89,7 @@ export async function duplicateInstallation(installation: KableInstallation): Pr
   return await invoke('duplicate', { installation });
 }
 
+// Create a desktop shortcut for an installation
+export async function createShortcut(installation: KableInstallation): Promise<string> {
+  return await invoke('create_shortcut', { installation });
+}

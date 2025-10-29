@@ -268,6 +268,17 @@ Supports both grid and list view modes with sorting and filtering.
                       <Icon name="download" size="sm" />
                       Export
                     </button>
+                    <button on:click={async () => { 
+                      try {
+                        const path = await InstallationService.createShortcut(installation);
+                        console.log('Shortcut created at:', path);
+                      } catch (err) {
+                        console.error('Failed to create shortcut:', err);
+                      }
+                    }}>
+                      <Icon name="link" size="sm" />
+                      Create Shortcut
+                    </button>
                     <div class="dropdown-separator"></div>
                     <button 
                       class="danger" 
@@ -368,6 +379,17 @@ Supports both grid and list view modes with sorting and filtering.
                   <Icon name="download" size="sm" />
                   Export
                 </button>
+                <button class="btn btn-secondary" on:click={async () => { 
+                  try {
+                    const path = await InstallationService.createShortcut(installation);
+                    console.log('Shortcut created at:', path);
+                  } catch (err) {
+                    console.error('Failed to create shortcut:', err);
+                  }
+                }}>
+                  <Icon name="link" size="sm" />
+                  Create Shortcut
+                </button>
                 <button class="btn btn-danger" on:click={async () => await InstallationService.deleteInstallation(installation.id)}>
                   <Icon name="trash" size="sm" />
                   Delete
@@ -434,6 +456,17 @@ Supports both grid and list view modes with sorting and filtering.
                         <Icon name="download" size="sm" />
                         Export
                       </button>
+                      <button class="list-action-btn" on:click={async () => { 
+                        try {
+                          const path = await InstallationService.createShortcut(installation);
+                          console.log('Shortcut created at:', path);
+                        } catch (err) {
+                          console.error('Failed to create shortcut:', err);
+                        }
+                      }}>
+                        <Icon name="link" size="sm" />
+                        Create Shortcut
+                      </button>
                       <button class="list-action-btn danger" on:click={async () => await InstallationService.deleteInstallation(installation.id)}>
                         <Icon name="trash" size="sm" />
                         Delete
@@ -457,6 +490,17 @@ Supports both grid and list view modes with sorting and filtering.
                         <button on:click={async () => {/* TODO: implement export logic */}}>
                           <Icon name="download" size="sm" />
                           Export
+                        </button>
+                        <button on:click={async () => { 
+                          try {
+                            const path = await InstallationService.createShortcut(installation);
+                            console.log('Shortcut created at:', path);
+                          } catch (err) {
+                            console.error('Failed to create shortcut:', err);
+                          }
+                        }}>
+                          <Icon name="link" size="sm" />
+                          Create Shortcut
                         </button>
                         <div class="dropdown-separator"></div>
                         <button 

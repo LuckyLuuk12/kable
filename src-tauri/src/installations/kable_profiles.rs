@@ -1173,6 +1173,114 @@ impl KableInstallation {
             Err("Failed to read Kable profiles".into())
         }
     }
+
+    #[cfg(target_os = "windows")]
+    pub fn create_desktop_shortcut(&self) -> Result<String, String> {
+        use std::env;
+
+        // Get current executable path
+        let exe_path = env::current_exe().map_err(|e| format!("Failed to get exe path: {}", e))?;
+        
+        // Get desktop path
+        let desktop = dirs::desktop_dir().ok_or("Failed to get desktop directory")?;
+        
+        // Create shortcut file path
+        let shortcut_name = format!("{}.lnk", self.name);
+        let shortcut_path = desktop.join(&shortcut_name);
+
+        // Create shortcut using mslnk library
+        let mut shortcut = mslnk::ShellLink::new(exe_path.clone()).map_err(|e| format!("Failed to create shortcut: {}", e))?;
+        shortcut.set_arguments(Some(format!("--launch-installation={}", self.id)));
+        shortcut.set_name(Some(self.name.clone()));
+        shortcut.set_working_dir(exe_path.parent().and_then(|p| p.to_str()).map(|s| s.to_string()));
+        shortcut.set_icon_location(exe_path.to_str().map(|s| s.to_string()));
+        
+        shortcut.create_lnk(&shortcut_path).map_err(|e| format!("Failed to write shortcut: {}", e))?;
+        
+        Ok(shortcut_path.to_string_lossy().to_string())
+    }
+
+    #[cfg(target_os = "macos")]
+    pub fn create_desktop_shortcut(&self) -> Result<String, String> {
+        use std::env;
+        use std::fs;
+        use std::path::PathBuf;
+
+        // Get desktop path
+        let desktop = dirs::desktop_dir().ok_or("Failed to get desktop directory")?;
+        
+        // Create .command file (shell script)
+        let shortcut_name = format!("{}.command", self.name);
+        let shortcut_path = desktop.join(&shortcut_name);
+
+        // Get current executable path
+        let exe_path = env::current_exe().map_err(|e| format!("Failed to get exe path: {}", e))?;
+        
+        // Create shell script
+        let script = format!(
+            "#!/bin/bash\nopen \"{}\" --args --launch-installation={}\n",
+            exe_path.to_string_lossy(),
+            self.id
+        );
+        
+        fs::write(&shortcut_path, script).map_err(|e| format!("Failed to write shortcut: {}", e))?;
+        
+        // Make executable
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&shortcut_path)
+                .map_err(|e| format!("Failed to get metadata: {}", e))?
+                .permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&shortcut_path, perms)
+                .map_err(|e| format!("Failed to set permissions: {}", e))?;
+        }
+        
+        Ok(shortcut_path.to_string_lossy().to_string())
+    }
+
+    #[cfg(target_os = "linux")]
+    pub fn create_desktop_shortcut(&self) -> Result<String, String> {
+        use std::env;
+        use std::fs;
+        use std::path::PathBuf;
+
+        // Get desktop path
+        let desktop = dirs::desktop_dir().ok_or("Failed to get desktop directory")?;
+        
+        // Create .desktop file
+        let shortcut_name = format!("{}.desktop", self.name);
+        let shortcut_path = desktop.join(&shortcut_name);
+
+        // Get current executable path
+        let exe_path = env::current_exe().map_err(|e| format!("Failed to get exe path: {}", e))?;
+        
+        // Create .desktop file content
+        let desktop_entry = format!(
+            "[Desktop Entry]\nType=Application\nName={}\nExec=\"{}\" --launch-installation={}\nIcon={}\nTerminal=false\nCategories=Game;\n",
+            self.name,
+            exe_path.to_string_lossy(),
+            self.id,
+            exe_path.to_string_lossy()
+        );
+        
+        fs::write(&shortcut_path, desktop_entry).map_err(|e| format!("Failed to write shortcut: {}", e))?;
+        
+        // Make executable
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = fs::metadata(&shortcut_path)
+                .map_err(|e| format!("Failed to get metadata: {}", e))?
+                .permissions();
+            perms.set_mode(0o755);
+            fs::set_permissions(&shortcut_path, perms)
+                .map_err(|e| format!("Failed to set permissions: {}", e))?;
+        }
+        
+        Ok(shortcut_path.to_string_lossy().to_string())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
