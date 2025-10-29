@@ -1,7 +1,7 @@
 import fs from "fs";
-import { inc, rcompare } from "semver";
+import { inc, rcompare, parse } from "semver";
 
-const bumpType = process.argv[2] ?? "patch";
+const explicitBumpType = process.argv[2];
 
 // --- helpers ---
 const readJson = (file) => {
@@ -51,9 +51,24 @@ if (versions.length === 0) {
 versions.sort(rcompare);
 const baseVersion = versions[0];
 
+// determine bump type
+let bumpType;
+if (explicitBumpType) {
+  // explicit bump type provided (e.g., npm run version:patch)
+  bumpType = explicitBumpType;
+} else {
+  // auto-detect: if patch >= 9, bump minor instead
+  const parsed = parse(baseVersion);
+  if (parsed && parsed.patch >= 9) {
+    bumpType = "minor";
+  } else {
+    bumpType = "patch";
+  }
+}
+
 // bump
 const newVersion = inc(baseVersion, bumpType);
-console.log(`Bumping from ${baseVersion} → ${newVersion}`);
+console.log(`Bumping from ${baseVersion} → ${newVersion} (${bumpType})`);
 
 // --- update files ---
 if (pkg) writeJson("package.json", (d) => { d.version = newVersion; });
