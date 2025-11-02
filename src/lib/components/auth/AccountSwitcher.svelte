@@ -1,4 +1,5 @@
-<!--
+<!-- @component
+◄!--
 @component
 AccountSwitcher - Dropdown menu for switching between multiple Microsoft accounts
 
@@ -7,7 +8,7 @@ Allows quick switching between accounts and shows account health indicators.
 
 @example
 ```svelte
-<AccountSwitcher />
+◄AccountSwitcher /►
 ```
 -->
 <script lang="ts">
@@ -362,6 +363,7 @@ Allows quick switching between accounts and shows account health indicators.
     
     &:hover:not(:disabled) {
       background: var(--container);
+      transform: none;
     }
     
     &:disabled {

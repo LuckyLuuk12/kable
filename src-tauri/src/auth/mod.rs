@@ -4,14 +4,12 @@
  * 2. authenticate()
  */
 pub mod auth_util;
-pub mod code_flow;
 pub mod device_code_flow;
 pub mod oauth_helpers;
 pub mod secure_token;
 
 // Re-export the auth_util functions and types for convenience
 pub use auth_util::*;
-pub use code_flow::*;
 pub use device_code_flow::*;
 pub use secure_token::*;
 
@@ -23,8 +21,6 @@ use serde::{Deserialize, Serialize};
 pub enum AuthMethod {
     /// Use the device_code_flow.rs implementation (Device Code Flow)
     DeviceCodeFlow,
-    /// Use the code_flow.rs implementation (Authorization Code Flow)
-    AuthCodeFlow,
     /// Use the custom_auth.rs implementation (custom OAuth2 flow) - TODO: implement
     Custom,
     /// Use offline/mock authentication for testing
@@ -47,7 +43,6 @@ pub async fn get_minecraft_account(
 
     match method {
         AuthMethod::DeviceCodeFlow => get_minecraft_account_device_code().await,
-        AuthMethod::AuthCodeFlow => get_minecraft_account_auth_code().await,
         AuthMethod::Custom => {
             // TODO: Implement custom authentication
             Err("Custom authentication not yet implemented".to_string())
@@ -92,62 +87,6 @@ async fn get_minecraft_account_device_code() -> Result<LauncherAccount, String> 
         None => {
             Logger::console_log(LogLevel::Warning, "❌ No active account found", None);
             Err("No authenticated account found. Please sign in first.".to_string())
-        }
-    }
-}
-
-/// Get account using the code_flow.rs implementation
-async fn get_minecraft_account_auth_code() -> Result<LauncherAccount, String> {
-    Logger::console_log(
-        LogLevel::Debug,
-        "🌐 Using authorization code flow authentication",
-        None,
-    );
-
-    // Try to get the active launcher account
-    match get_active_launcher_account().await? {
-        Some(launcher_account) => {
-            // Sanitize access token before logging
-            let mut sanitized_account = launcher_account.clone();
-            sanitized_account.access_token = String::new();
-            Logger::console_log(
-                LogLevel::Debug,
-                &format!("✅ Found active account: {:?}", sanitized_account),
-                None,
-            );
-            // Check if access token is still valid
-            if is_access_token_valid(&launcher_account) {
-                Logger::console_log(LogLevel::Info, "🔑 Access token is still valid", None);
-                Ok(launcher_account)
-            } else {
-                Logger::console_log(
-                    LogLevel::Warning,
-                    "⚠️ Access token expired, attempting re-authentication",
-                    None,
-                );
-                // Attempt to re-authenticate using code flow
-                match crate::auth::code_flow::start_microsoft_auth_code().await {
-                    Ok(_) => {
-                        // After successful re-auth, try to get the account again
-                        match get_active_launcher_account().await? {
-                            Some(new_account) => Ok(new_account),
-                            None => Err("Re-authentication failed, no account found.".to_string()),
-                        }
-                    }
-                    Err(e) => Err(format!("Re-authentication failed: {}", e)),
-                }
-            }
-        }
-        None => {
-            Logger::console_log(LogLevel::Warning, "❌ No active account found", None);
-            // Attempt to authenticate if no account is found
-            match crate::auth::code_flow::start_microsoft_auth_code().await {
-                Ok(_) => match get_active_launcher_account().await? {
-                    Some(new_account) => Ok(new_account),
-                    None => Err("Authentication failed, no account found.".to_string()),
-                },
-                Err(e) => Err(format!("Authentication failed: {}", e)),
-            }
         }
     }
 }

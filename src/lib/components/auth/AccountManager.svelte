@@ -1,4 +1,5 @@
-<!--
+<!-- @component
+◄!--
 @component
 AccountManager - Manages Microsoft account authentication and account operations
 
@@ -7,7 +8,7 @@ Displays current account status and allows switching between authentication flow
 
 @example
 ```svelte
-<AccountManager />
+◄AccountManager /►
 ```
 -->
 <script lang="ts">
@@ -35,7 +36,7 @@ Displays current account status and allows switching between authentication flow
     if (!$currentAccount) return;
     isLoading = true;
     try {
-      await AuthService.authenticateWithMicrosoft();
+      await AuthService.authenticateWithDeviceCode();
     } catch (error) {
       console.error('Manual re-login failed:', error);
     } finally {

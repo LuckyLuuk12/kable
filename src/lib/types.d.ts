@@ -21,13 +21,7 @@ export interface MicrosoftToken {
 }
 
 // Authentication Methods
-export type AuthMethod = 'DeviceCodeFlow' | 'AuthCodeFlow' | 'Custom' | 'Offline';
-
-export interface AuthCodeResponse {
-  auth_url: string;
-  state: string;
-  local_server_port: number;
-}
+export type AuthMethod = 'DeviceCodeFlow' | 'Custom' | 'Offline';
 
 export interface DeviceCodeResponse {
   device_code: string;

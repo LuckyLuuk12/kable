@@ -1,10 +1,12 @@
+pub use crate::auth::*;
+
+
 #[tauri::command]
 pub async fn refresh_microsoft_token(
     local_id: String,
 ) -> Result<crate::auth::LauncherAccount, String> {
-    crate::auth::code_flow::refresh_microsoft_token(local_id).await
+    crate::auth::auth_util::refresh_microsoft_token(local_id).await
 }
-pub use crate::auth::*;
 
 // Tauri command wrappers for all public async functions in the auth module
 
@@ -73,26 +75,6 @@ pub async fn validate_and_cleanup_accounts() -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn start_microsoft_auth_code() -> Result<crate::auth::code_flow::AuthCodeResponse, String>
-{
-    crate::auth::code_flow::start_microsoft_auth_code().await
-}
-
-#[tauri::command]
-pub async fn complete_minecraft_auth_code(
-    microsoft_token: crate::auth::code_flow::MicrosoftToken,
-) -> Result<crate::auth::LauncherAccount, String> {
-    crate::auth::code_flow::complete_minecraft_auth_code(microsoft_token).await
-}
-
-#[tauri::command]
-pub async fn poll_microsoft_auth_code(
-    state: String,
-) -> Result<Option<crate::auth::code_flow::MicrosoftToken>, String> {
-    crate::auth::code_flow::poll_microsoft_auth_code(state).await
-}
-
-#[tauri::command]
 pub async fn start_microsoft_device_auth(
 ) -> Result<crate::auth::device_code_flow::DeviceCodeResponse, String> {
     crate::auth::device_code_flow::start_microsoft_device_auth().await
@@ -101,6 +83,6 @@ pub async fn start_microsoft_device_auth(
 #[tauri::command]
 pub async fn poll_microsoft_device_auth(
     device_code: String,
-) -> Result<Option<crate::auth::code_flow::MicrosoftToken>, String> {
+) -> Result<Option<crate::auth::device_code_flow::MicrosoftToken>, String> {
     crate::auth::device_code_flow::poll_microsoft_device_auth(device_code).await
 }

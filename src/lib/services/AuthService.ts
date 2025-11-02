@@ -31,7 +31,7 @@ export class AuthService {
     }
   }
   // These are assigned after the class for Svelte compatibility
-  static signIn = async () => await this.authenticateWithMicrosoft();
+  static signIn = async () => await this.authenticateWithDeviceCode();
   static signInWithDeviceCode = async () => await this.authenticateWithDeviceCode();
   private static oauthWindow: WebviewWindow | null = null;
   private static refreshTimer: ReturnType<typeof setInterval> | null = null;
@@ -171,81 +171,6 @@ export class AuthService {
   }
 
   /**
-   * Start Microsoft Authorization Code Flow authentication
-   * This is the recommended method for desktop apps (no manual code entry)
-   */
-  static async authenticateWithMicrosoft(): Promise<LauncherAccount> {
-    isAuthenticating.set(true);
-    return new Promise(async (resolve, reject) => {
-      try {
-        // Clean up any existing authentication attempt
-        await this.cleanup();
-
-        console.log('🔐 Starting Microsoft Authorization Code Flow...');
-        
-        // Step 1: Start the authorization code flow
-        const authResponse = await authApi.startMicrosoftAuthCode();
-        console.log('🌐 Authorization server started on port:', authResponse.local_server_port);
-
-        // Step 2: Open authentication window with the auth URL
-        this.oauthWindow = new WebviewWindow('microsoft-oauth', {
-          url: authResponse.auth_url,
-          title: 'Sign in to Microsoft',
-          width: 480,
-          height: 640,
-          center: true,
-          resizable: false,
-          minimizable: false,
-          maximizable: false,
-          skipTaskbar: true,
-          alwaysOnTop: true,
-          decorations: true
-        });
-
-        // Handle window events
-        this.oauthWindow.onCloseRequested(() => {
-          this.cleanup();
-          isAuthenticating.set(false);
-          reject(new Error('Authentication cancelled by user'));
-        });
-
-        // Step 3: Wait a moment for the callback to complete, then get the account
-        setTimeout(async () => {
-          try {
-            const account = await authApi.getMinecraftAccount('AuthCodeFlow');
-            currentAccount.set(account);
-            await this.refreshAvailableAccounts();
-            // Clean up
-            await this.cleanup();
-            isAuthenticating.set(false);
-            resolve(account);
-          } catch (error) {
-            console.error('❌ Failed to get authenticated account:', error);
-            await this.cleanup();
-            isAuthenticating.set(false);
-            currentAccount.set(null);
-            reject(error);
-          }
-        }, 2000); // Give the callback handler time to save the account
-
-        // Timeout after 5 minutes
-        setTimeout(async () => {
-          await this.cleanup();
-          isAuthenticating.set(false);
-          reject(new Error('Authentication timeout - please try again'));
-        }, 300000);
-
-      } catch (error) {
-        console.error('❌ Authentication setup failed:', error);
-        await this.cleanup();
-        isAuthenticating.set(false);
-        currentAccount.set(null);
-        reject(error);
-      }
-    });
-  }
-
-  /**
    * Start Device Code Flow authentication (fallback method)
    * Returns device code data for UI display, then polls in background
    */
@@ -255,8 +180,8 @@ export class AuthService {
     const deviceResponse = await authApi.startMicrosoftDeviceAuth();
     console.log('📝 Device code generated:', deviceResponse.user_code);
     
-    // Open verification URL automatically
-    await systemApi.openUrl(deviceResponse.verification_uri);
+    // Don't auto-open - let UI show instructions first
+    // await systemApi.openUrl(deviceResponse.verification_uri);
     
     return deviceResponse;
   }
@@ -530,7 +455,7 @@ export class AuthService {
 
 // --- Aliases for compatibility with old AuthManager usage in Svelte components ---
 // Should be removed or put into static methods instead!
-export const signIn = AuthService.authenticateWithMicrosoft;
+export const signIn = AuthService.authenticateWithDeviceCode;
 export const signInWithDeviceCode = AuthService.authenticateWithDeviceCode;
 export const refreshAvailableAccounts = AuthService.getAllAccounts;
 export const getCurrentAccount = AuthService.getCurrentAccount;
