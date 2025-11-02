@@ -206,16 +206,6 @@ pub async fn start_microsoft_device_auth() -> Result<DeviceCodeResponse, String>
         None,
     );
 
-    if let Err(e) = open_url(response.verification_uri.clone()).await {
-        Logger::console_log(
-            LogLevel::Warning,
-            &format!("⚠️ Failed to open browser automatically: {}", e),
-            None,
-        );
-    } else {
-        Logger::console_log(LogLevel::Debug, "✅ Browser opened successfully", None);
-    }
-
     Ok(response)
 }
 
