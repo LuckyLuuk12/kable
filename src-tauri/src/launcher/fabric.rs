@@ -666,12 +666,15 @@ impl Launchable for FabricLaunchable {
             cleaned_jvm_args.push(arg);
         }
 
-        // 5. Prepend installation-specific JVM args (Vec<String>) if present
+        // 5. Remove any -Dfabric.modsFolder from JVM args (we'll set it correctly below)
+        cleaned_jvm_args.retain(|arg| !arg.starts_with("-Dfabric.modsFolder="));
+
+        // 6. Prepend installation-specific JVM args (Vec<String>) if present
         if !context.installation.java_args.is_empty() {
             cleaned_jvm_args.splice(0..0, context.installation.java_args.clone());
         }
 
-        // 6. Add/overwrite with parameters_map (for --key style)
+        // 7. Add/overwrite with parameters_map (for --key style)
         for (k, v) in &context.installation.parameters_map {
             if k.starts_with("--") {
                 cleaned_jvm_args.push(k.clone());
@@ -681,26 +684,36 @@ impl Launchable for FabricLaunchable {
             }
         }
 
-        // 7. Handle mods folder override for Fabric (optional, only if needed)
-        let mut final_game_args_vec = game_args_vec.clone();
-        if let Some(mods_folder) = &context.installation.dedicated_mods_folder {
-            let mods_path = {
-                let p = PathBuf::from(mods_folder);
-                if p.is_absolute() {
-                    p
-                } else {
-                    PathBuf::from(&context.minecraft_dir)
-                        .join("kable")
-                        .join("mods")
-                        .join(p)
-                }
-            };
-            final_game_args_vec.retain(|arg| arg != "--fabric.modDir");
-            final_game_args_vec.push("--fabric.modDir".to_string());
-            final_game_args_vec.push(mods_path.to_string_lossy().to_string());
-        }
+        // 8. Set the correct Fabric mods folder
+        // Priority: dedicated_mods_folder > default Fabric mods folder
+        let mods_path = if let Some(mods_folder) = &context.installation.dedicated_mods_folder {
+            // Use the installation's dedicated mods folder
+            let p = PathBuf::from(mods_folder);
+            if p.is_absolute() {
+                p
+            } else {
+                PathBuf::from(&context.minecraft_dir)
+                    .join("kable")
+                    .join("mods")
+                    .join(p)
+            }
+        } else {
+            // Default: use standard Fabric mods folder
+            PathBuf::from(&context.minecraft_dir).join("mods")
+        };
 
-        // 8. Build command: exactly like vanilla (single -cp, correct order)
+        // Set the mods folder via JVM property (this is what Fabric Loader reads)
+        cleaned_jvm_args.push(format!("-Dfabric.modsFolder={}", mods_path.to_string_lossy()));
+        
+        crate::logging::Logger::debug_global(
+            &format!("Using Fabric mods folder: {}", mods_path.display()),
+            Some(&context.installation.id),
+        );
+
+        // 9. Game args (no mods folder override needed here, JVM property takes precedence)
+        let final_game_args_vec = game_args_vec.clone();
+
+        // 10. Build command: exactly like vanilla (single -cp, correct order)
         let java_path = context
             .settings
             .general

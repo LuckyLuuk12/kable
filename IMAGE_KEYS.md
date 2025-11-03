@@ -277,4 +277,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [Installations Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/installations/+page.svelte#L105) | <pre><code class="language-html">&lt;Icon name="x" size="sm" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L608) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2025-11-03T12:58:40.300Z_
+_Generated: 2025-11-03T14:56:11.825Z_

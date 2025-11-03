@@ -1026,9 +1026,10 @@ impl KableInstallation {
             if custom_path.is_absolute() {
                 Some(custom_path)
             } else {
+                // Relative paths should be relative to .minecraft/kable/mods/
                 crate::get_minecraft_kable_dir()
                     .ok()
-                    .map(|dir| dir.join(custom_mods))
+                    .map(|dir| dir.join("mods").join(custom_mods))
             }
         } else {
             None
