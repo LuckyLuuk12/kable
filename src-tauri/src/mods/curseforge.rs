@@ -360,9 +360,9 @@ impl ModProvider for CurseForgeProvider {
         );
 
         // Handle filter updates or clearing
-        match filter {
+        match &filter {
             Some(crate::mods::manager::ModFilter::CurseForge(cf_filter)) => {
-                self.filter = cf_filter;
+                self.filter = cf_filter.clone();
                 println!("[CurseForgeProvider] Set filter: {}", self.filter);
             }
             None => {
@@ -408,6 +408,14 @@ impl ModProvider for CurseForgeProvider {
                     self.filter.game_version = Some(installation.version_id.clone());
                     println!("[CurseForgeProvider] Set mc_version filter (fallback) from installation: {}", installation.version_id);
                 }
+            }
+        } else {
+            // Clear installation-specific filters when no installation provided
+            // Only clear if they weren't explicitly set by user filters
+            if filter.is_none() {
+                self.filter.mod_loader_type = None;
+                self.filter.game_version = None;
+                println!("[CurseForgeProvider] Cleared installation-specific filters (loader, game_version)");
             }
         }
 

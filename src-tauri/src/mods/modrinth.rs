@@ -356,6 +356,11 @@ impl ModProvider for ModrinthProvider {
                     installation.version_id
                 );
             }
+        } else {
+            // Clear installation-specific filters when no installation provided
+            self.loader = None;
+            self.mc_version = None;
+            println!("[ModrinthProvider] Cleared installation-specific filters (loader, mc_version)");
         }
 
         println!(

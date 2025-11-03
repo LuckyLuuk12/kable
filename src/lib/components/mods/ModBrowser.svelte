@@ -40,6 +40,7 @@ let viewMode: ViewMode = 'grid';
 let searchQuery = '';
 let currentInstallation: KableInstallation | null = null;
 let showFilters = true;
+let smartFilteringEnabled = true; // Auto-apply loader and game version filters
 
 // Filter state with include/exclude support
 type FilterMode = 'include' | 'exclude';
@@ -175,7 +176,8 @@ async function applyFiltersToBackend() {
       includeEnvironments.length === 0 && excludeEnvironments.length === 0 && !openSource) {
     currentPage = 1;
     modsOffset.set(0);
-    await modsService.setFilter(null, currentInstallation);
+    // Only pass installation if smart filtering is enabled
+    await modsService.setFilter(null, smartFilteringEnabled ? currentInstallation : null);
     return;
   }
   
@@ -231,7 +233,8 @@ async function applyFiltersToBackend() {
   modsOffset.set(0);
   
   try {
-    await modsService.setFilter(modFilter, currentInstallation);
+    // Only pass installation if smart filtering is enabled
+    await modsService.setFilter(modFilter, smartFilteringEnabled ? currentInstallation : null);
   } catch (e) {
     console.error('[ModBrowser] Failed to apply filters:', e);
   }
@@ -569,13 +572,24 @@ async function initializeProvider() {
 }
 
 async function applyInstallationFilters() {
-  if (!currentInstallation || !modsService) return;
+  if (!modsService) return;
   
   // Apply filters based on installation (loader, MC version, etc.)
+  // Only pass installation if smart filtering is enabled
   try {
-    await modsService.setFilter(null, currentInstallation);
+    await modsService.setFilter(null, smartFilteringEnabled ? currentInstallation : null);
   } catch (e) {
     console.error('Failed to apply installation filters:', e);
+  }
+}
+
+// Handle smart filtering toggle
+async function onSmartFilteringChange() {
+  console.log(`[ModBrowser] Smart filtering ${smartFilteringEnabled ? 'enabled' : 'disabled'}`);
+  
+  // Re-apply filters with new setting
+  if (modsService) {
+    await applyFiltersToBackend();
   }
 }
 
@@ -1050,6 +1064,25 @@ onMount(async () => {
                 </button>
               {/if}
             </div>
+          </div>
+
+          <!-- Smart Filtering Toggle -->
+          <div class="filter-section smart-filter-section">
+            <label class="smart-filter-toggle">
+              <input 
+                type="checkbox" 
+                bind:checked={smartFilteringEnabled}
+                on:change={onSmartFilteringChange}
+              />
+              <span class="toggle-label" title="When enabled, only shows mods compatible with your installation's loader and Minecraft version. Disable to browse all mods.">
+                Smart Filtering
+              </span>
+            </label>
+            <p class="smart-filter-hint">
+              {smartFilteringEnabled 
+                ? 'Showing mods compatible with your installation' 
+                : 'Showing all mods (compatibility not filtered)'}
+            </p>
           </div>
 
           <!-- Dynamic Filter Sections -->
@@ -1606,6 +1639,47 @@ onMount(async () => {
             }
           }
         }
+      }
+    }
+    
+    // Smart Filter Toggle Section
+    .smart-filter-section {
+      padding: 0.75rem;
+      background: #{'color-mix(in srgb, var(--primary), 3%, transparent)'};
+      border: 1px solid #{'color-mix(in srgb, var(--primary), 12%, transparent)'};
+      border-radius: 0.375rem;
+      margin-bottom: 1rem;
+      
+      .smart-filter-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        cursor: pointer;
+        user-select: none;
+        
+        input[type="checkbox"] {
+          width: 1rem;
+          height: 1rem;
+          cursor: pointer;
+          accent-color: var(--primary);
+        }
+        
+        .toggle-label {
+          font-size: 0.85em;
+          font-weight: 600;
+          color: var(--text);
+          cursor: help;
+        }
+      }
+      
+      .smart-filter-hint {
+        margin: 0.5rem 0 0 0;
+        padding: 0.375rem 0.5rem;
+        background: #{'color-mix(in srgb, var(--dark-800), 50%, transparent)'};
+        border-radius: 0.25rem;
+        font-size: 0.75em;
+        color: var(--text-secondary);
+        line-height: 1.4;
       }
     }
   }
