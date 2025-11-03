@@ -9,13 +9,13 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | Key | Source | Snippet |
 | --- | --- | --- |
 | advertisement-banner | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L218) | <pre><code class="language-html">&lt;Image key="advertisement-banner" alt="Banner" className="banner-image" width="100%" height="100%" /&gt;</code></pre> |
-| curseforge | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1033) | <pre><code class="language-html">&lt;Image key="curseforge" alt="CurseForge" className="provider-icon" width="1.25rem" height="1.25rem" /&gt;</code></pre> |
+| curseforge | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1014) | <pre><code class="language-html">&lt;Image key="curseforge" alt="CurseForge" className="provider-icon" width="1.25rem" height="1.25rem" /&gt;</code></pre> |
 | kablan-logo | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L224) | <pre><code class="language-html">&lt;Image key="kablan-logo" alt="Kablan" className="button-image" width="auto" height="2.5rem" /&gt;</code></pre> |
 | kofi-logo | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L234) | <pre><code class="language-html">&lt;Image key="kofi-logo" alt="Ko-fi" className="button-image" width="auto" height="2.5rem" /&gt;</code></pre> |
 | luckybindings-logo | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L229) | <pre><code class="language-html">&lt;Image key="luckybindings-logo" alt="LuckyBindings" className="button-image" width="auto" height="2.5rem" /&gt;</code></pre> |
 | microsoft-logo | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L100) | <pre><code class="language-html">&lt;Image key="microsoft-logo" alt="Microsoft" width="20px" height="20px" /&gt;</code></pre> |
 | microsoft-logo | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L146) | <pre><code class="language-html">&lt;Image key="microsoft-logo" alt="Microsoft" width="21px" height="21px" /&gt;</code></pre> |
-| modrinth | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1031) | <pre><code class="language-html">&lt;Image key="modrinth" alt="Modrinth" className="provider-icon" width="1.25rem" height="1.25rem" /&gt;</code></pre> |
+| modrinth | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1012) | <pre><code class="language-html">&lt;Image key="modrinth" alt="Modrinth" className="provider-icon" width="1.25rem" height="1.25rem" /&gt;</code></pre> |
 | profile-avatar | [Image](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/Image.svelte#L12) | <pre><code class="language-html">&lt;Image key="profile-avatar" alt="User Avatar" className="avatar" width="100px" height="100px" /&gt;</code></pre> |
 
 ## Icon keys
@@ -187,8 +187,8 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | package | [InstallationMods](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstallationMods.svelte#L557) | <pre><code class="language-html">&lt;Icon name="package" size="lg" /&gt;</code></pre> |
 | package | [InstallationMods](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstallationMods.svelte#L574) | <pre><code class="language-html">&lt;div class="mod-icon-link loading"&gt;&lt;Icon name="package" size="lg" /&gt;&lt;/div&gt;</code></pre> |
 | package | [InstallationMods](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstallationMods.svelte#L586) | <pre><code class="language-html">&lt;Icon name="package" size="xl" /&gt;</code></pre> |
-| package | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1011) | <pre><code class="language-html">&lt;Icon name="package" size="sm" /&gt;</code></pre> |
-| package | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1035) | <pre><code class="language-html">&lt;Icon name="package" size="sm" /&gt;</code></pre> |
+| package | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L992) | <pre><code class="language-html">&lt;Icon name="package" size="sm" /&gt;</code></pre> |
+| package | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1016) | <pre><code class="language-html">&lt;Icon name="package" size="sm" /&gt;</code></pre> |
 | package | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L345) | <pre><code class="language-html">&lt;Icon name="package" size="sm" /&gt;</code></pre> |
 | package | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L349) | <pre><code class="language-html">&lt;Icon name="package" size="sm" /&gt;</code></pre> |
 | package | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L423) | <pre><code class="language-html">&lt;Icon name="package" size="md" /&gt;</code></pre> |
@@ -205,7 +205,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | refresh | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L297) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" className="spin" forceType="svg" /&gt;</code></pre> |
 | refresh | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L406) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" className="spin" forceType="svg" /&gt;</code></pre> |
 | refresh | [InstallationMods](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstallationMods.svelte#L527) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" className="spin" /&gt;</code></pre> |
-| refresh | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1054) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" forceType="svg" /&gt;</code></pre> |
+| refresh | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1035) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" forceType="svg" /&gt;</code></pre> |
 | refresh | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1205) | <pre><code class="language-html">&lt;Icon name="refresh" size="lg" className="spin" /&gt;</code></pre> |
 | refresh | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1214) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1232) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
@@ -222,7 +222,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | refresh | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L146) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" forceType="svg" /&gt;</code></pre> |
 | refresh | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L305) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | rocket | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L711) | <pre><code class="language-html">&lt;Icon name="rocket" size="sm" /&gt;</code></pre> |
-| search | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1068) | <pre><code class="language-html">&lt;Icon name="search" size="sm" /&gt;</code></pre> |
+| search | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1049) | <pre><code class="language-html">&lt;Icon name="search" size="sm" /&gt;</code></pre> |
 | search | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1220) | <pre><code class="language-html">&lt;Icon name="search" size="xl" /&gt;</code></pre> |
 | search | [ResourcePackBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/ResourcePackBrowser.svelte#L421) | <pre><code class="language-html">&lt;Icon name="search" size="sm" /&gt;</code></pre> |
 | search | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L425) | <pre><code class="language-html">&lt;Icon name="search" size="sm" /&gt;</code></pre> |
@@ -263,7 +263,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | user-plus | [AccountSwitcher](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AccountSwitcher.svelte#L164) | <pre><code class="language-html">&lt;Icon name="user-plus" size="lg" /&gt;</code></pre> |
 | user-plus | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L95) | <pre><code class="language-html">&lt;h2&gt;&lt;Icon name="user-plus" forceType="svg" /&gt; Account Management&lt;/h2&gt;</code></pre> |
 | warning | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1210) | <pre><code class="language-html">&lt;Icon name="warning" size="lg" /&gt;</code></pre> |
-| x | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1082) | <pre><code class="language-html">&lt;Icon name="x" size="sm" /&gt;</code></pre> |
+| x | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1063) | <pre><code class="language-html">&lt;Icon name="x" size="sm" /&gt;</code></pre> |
 | x | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1107) | <pre><code class="language-html">&lt;Icon name="x" size="sm" forceType="svg" /&gt;</code></pre> |
 | x | [ModVersionModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModVersionModal.svelte#L247) | <pre><code class="language-html">&lt;Icon name="x" size="lg" forceType="svg" /&gt;</code></pre> |
 | x | [ResourcePackBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/ResourcePackBrowser.svelte#L434) | <pre><code class="language-html">&lt;Icon name="x" size="sm" /&gt;</code></pre> |
@@ -277,4 +277,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [Installations Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/installations/+page.svelte#L105) | <pre><code class="language-html">&lt;Icon name="x" size="sm" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L608) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2025-11-03T14:56:11.825Z_
+_Generated: 2025-11-03T20:52:01.506Z_

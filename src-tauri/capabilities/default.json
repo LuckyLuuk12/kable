@@ -12,6 +12,7 @@
   ],
   "permissions": [
     "core:default",
+    "core:webview:allow-set-webview-zoom",
     "core:window:default",
     "core:window:allow-center",
     "core:window:allow-hide",
