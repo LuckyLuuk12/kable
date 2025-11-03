@@ -311,13 +311,23 @@ impl ModProvider for ModrinthProvider {
             filter
         );
 
-        // Store user-defined filters
-        if let Some(crate::mods::manager::ModFilter::Modrinth(facets)) = filter {
-            self.user_filters = Some(facets);
-            println!(
-                "[ModrinthProvider] Set user filters: {:?}",
-                self.user_filters
-            );
+        // Store user-defined filters (or clear them if None)
+        match filter {
+            Some(crate::mods::manager::ModFilter::Modrinth(facets)) => {
+                self.user_filters = Some(facets);
+                println!(
+                    "[ModrinthProvider] Set user filters: {:?}",
+                    self.user_filters
+                );
+            }
+            None => {
+                self.user_filters = None;
+                println!("[ModrinthProvider] Cleared user filters");
+            }
+            _ => {
+                // Other providers - don't change user_filters
+                println!("[ModrinthProvider] Ignoring non-Modrinth filter");
+            }
         }
 
         // Extract installation-specific context

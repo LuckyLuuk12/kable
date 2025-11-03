@@ -123,7 +123,7 @@ export class ModsService {
       await modsApi.downloadMod(provider, modId, versionId, installation);
       console.log(`[ModsService] Successfully downloaded mod ${modId} from ${provider} provider`);
     } catch (e: any) {
-      console.error(`[ModsService] Failed to download mod ${modId} from ${provider} provider:`, e.message || 'Unknown error');
+      console.error(`[ModsService] Failed to download mod ${modId} from ${provider} provider to ${installation.dedicated_mods_folder}:`, e.message || e || 'Unknown error');
       modsError.set(e.message || 'Failed to download mod');
     } finally {
       modsLoading.set(false);

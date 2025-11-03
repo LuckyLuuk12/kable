@@ -692,9 +692,10 @@ impl Launchable for FabricLaunchable {
             if p.is_absolute() {
                 p
             } else {
+                // Relative paths are relative to .minecraft/kable/
+                // They already include the folder type prefix (e.g., "mods/{id}")
                 PathBuf::from(&context.minecraft_dir)
                     .join("kable")
-                    .join("mods")
                     .join(p)
             }
         } else {

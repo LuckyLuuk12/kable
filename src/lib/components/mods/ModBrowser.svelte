@@ -23,9 +23,10 @@ import { Icon, ModsService, selectedInstallation, InstallationService, installat
 import Image from '$lib/components/Image.svelte';
 import { modsByProvider, modsLoading, modsError, modsLimit, modsOffset, modsProvider } from '$lib/stores/mods';
 import { ProviderKind } from '$lib/runtimeTypes';
-import type { ModInfoKind, KableInstallation, ModJarInfo, FilterFacets } from '$lib';
+import type { ModInfoKind, KableInstallation, ModJarInfo, FilterFacets, ModrinthVersion, ModrinthFile } from '$lib';
 import ModCard from './ModCard.svelte';
 import * as systemApi from '$lib/api/system';
+import * as modsApi from '$lib/api/mods';
 
 type ViewMode = 'grid' | 'list' | 'compact';
 
@@ -67,6 +68,16 @@ let maxPageReached = 1; // Highest page number user has visited
 let installedMods: ModJarInfo[] = [];
 let installedModsMap = new Map<string, ModJarInfo>();
 let installedModsLoaded = false;
+
+// Version filename cache for accurate mod detection
+// Maps: project_id -> Set<filename> (all JAR filenames across all versions)
+let versionFilenameCache = new Map<string, Set<string>>();
+// Track which projects we've already fetched
+let versionFetchInProgress = new Set<string>();
+// Cache of installed status for displayed mods: project_id -> {isInstalled, version}
+let installedStatusCache = new Map<string, { isInstalled: boolean; version: string | null }>();
+// Counter to force reactivity updates
+let cacheUpdateCounter = 0;
 
 // Service instance
 let modsService: ModsService;
@@ -127,6 +138,11 @@ $: error = $modsError;
 // Don't apply client-side filters - let backend handle it
 $: paginatedMods = mods;
 $: totalMods = mods.length;
+
+// Update installed status cache when mods change
+$: if (paginatedMods && installedModsLoaded) {
+  updateInstalledStatusCache(paginatedMods);
+}
 
 // Load installed mods when installation changes
 $: if (currentInstallation) {
@@ -374,212 +390,163 @@ async function loadInstalledMods(installation: KableInstallation) {
   try {
     installedMods = await InstallationService.getModInfo(installation);
     
-    // Create a map for quick lookups using mod name and file name for matching
+    // Create a map for quick lookups using JAR filename (exact match)
     installedModsMap = new Map();
     installedMods.forEach(mod => {
-      // Add multiple keys for different ways to match
-      if (mod.mod_name) {
-        installedModsMap.set(mod.mod_name.toLowerCase(), mod);
-      }
       if (mod.file_name) {
-        installedModsMap.set(mod.file_name.toLowerCase(), mod);
-        // Also add without file extension
-        const nameWithoutExt = mod.file_name.replace(/\.(jar|zip)$/i, '');
-        installedModsMap.set(nameWithoutExt.toLowerCase(), mod);
+        // Store by exact filename (with .jar extension)
+        const filename = mod.file_name.toLowerCase();
+        installedModsMap.set(filename, mod);
       }
     });
     
+    // Clear caches when installation changes
+    installedStatusCache.clear();
+    versionFilenameCache.clear();
+    versionFetchInProgress.clear();
+    
     installedModsLoaded = true;
+    console.log(`[ModBrowser] Loaded ${installedMods.length} installed mods`);
   } catch (e) {
     console.error('[ModBrowser] Failed to load installed mods:', e);
     installedMods = [];
     installedModsMap = new Map();
-    installedModsLoaded = true; // Still set to true to prevent infinite loading
+    installedModsLoaded = true;
   }
 }
 
-// Fuzzy matching utilities
-function levenshteinDistance(a: string, b: string): number {
-  const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
-
-  for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
-  for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
-
-  for (let j = 1; j <= b.length; j++) {
-    for (let i = 1; i <= a.length; i++) {
-      const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[j][i] = Math.min(
-        matrix[j][i - 1] + 1,     // deletion
-        matrix[j - 1][i] + 1,     // insertion
-        matrix[j - 1][i - 1] + indicator  // substitution
-      );
-    }
+// Lazy-load version filenames for a mod to check if installed
+async function fetchVersionFilenames(projectId: string): Promise<Set<string>> {
+  // Return cached if available
+  if (versionFilenameCache.has(projectId)) {
+    return versionFilenameCache.get(projectId)!;
   }
-
-  return matrix[b.length][a.length];
-}
-
-function similarity(a: string, b: string): number {
-  const maxLength = Math.max(a.length, b.length);
-  if (maxLength === 0) return 1;
-  const distance = levenshteinDistance(a, b);
-  return (maxLength - distance) / maxLength;
-}
-
-function normalizeForComparison(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    // Remove common file extensions
-    .replace(/\.(jar|zip)$/i, '')
-    // Normalize separators to spaces
-    .replace(/[\-_]+/g, ' ')
-    // Remove extra spaces
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function findBestMatch(target: string, candidates: string[], threshold: number = 0.7): { match: string; score: number } | null {
-  const normalizedTarget = normalizeForComparison(target);
   
-  let bestMatch = null;
-  let bestScore = 0;
-
-  for (const candidate of candidates) {
-    const normalizedCandidate = normalizeForComparison(candidate);
-    
-    // Skip very short strings
-    if (normalizedTarget.length < 3 || normalizedCandidate.length < 3) continue;
-    
-    const score = similarity(normalizedTarget, normalizedCandidate);
-    
-    if (score > bestScore && score >= threshold) {
-      bestScore = score;
-      bestMatch = candidate;
+  // Prevent duplicate fetches
+  if (versionFetchInProgress.has(projectId)) {
+    // Wait a bit and try again (primitive lock)
+    await new Promise(resolve => setTimeout(resolve, 100));
+    if (versionFilenameCache.has(projectId)) {
+      return versionFilenameCache.get(projectId)!;
     }
+    return new Set(); // Give up if still not ready
   }
-
-  return bestMatch ? { match: bestMatch, score: bestScore } : null;
+  
+  versionFetchInProgress.add(projectId);
+  
+  try {
+    // Fetch ALL versions for this project (no filters)
+    const versions: ModrinthVersion[] = await modsApi.getProjectVersions(currentProvider, projectId);
+    
+    // Extract all filenames from all versions
+    const filenames = new Set<string>();
+    versions.forEach((version: ModrinthVersion) => {
+      version.files.forEach((file: ModrinthFile) => {
+        filenames.add(file.filename.toLowerCase());
+      });
+    });
+    
+    versionFilenameCache.set(projectId, filenames);
+    console.log(`[ModBrowser] Cached ${filenames.size} filenames for project ${projectId}`);
+    
+    return filenames;
+  } catch (e) {
+    console.error(`[ModBrowser] Failed to fetch versions for ${projectId}:`, e);
+    return new Set();
+  } finally {
+    versionFetchInProgress.delete(projectId);
+  }
 }
 
-// Check if a mod is already installed and return version info
-function getInstalledModInfo(mod: ModInfoKind): { isInstalled: boolean; version: string | null } {
+// Check if a mod is already installed by comparing JAR filenames
+async function getInstalledModInfo(mod: ModInfoKind): Promise<{ isInstalled: boolean; version: string | null }> {
   // Don't check if installed mods haven't been loaded yet
   if (!installedModsLoaded) {
     return { isInstalled: false, version: null };
   }
-
-  const displayInfo = getModDisplayInfo(mod);
   
-  // Skip if mod info is unavailable
-  if (!displayInfo) {
+  // Get project ID based on provider
+  let projectId: string | null = null;
+  
+  if ('Modrinth' in mod) {
+    projectId = mod.Modrinth.project_id;
+  } else if ('CurseForge' in mod) {
+    projectId = mod.CurseForge.id.toString();
+  }
+  
+  if (!projectId) {
     return { isInstalled: false, version: null };
   }
   
-  // Helper to find installed mod by various identifiers
-  const findInstalledMod = (): ModJarInfo | null => {
-    // First try exact matches for performance
-    const modTitle = displayInfo.title.toLowerCase();
-    const titleMatch = installedModsMap.get(modTitle);
-    if (titleMatch) return titleMatch;
-    
-    // For Modrinth mods, also check by project ID or slug
-    let modrinthData: any = null;
-    if ('Modrinth' in mod) {
-      modrinthData = mod.Modrinth;
-    } else if ('kind' in mod && mod.kind === 'Modrinth') {
-      modrinthData = mod.data;
-    }
-    
-    if (modrinthData) {
-      if (modrinthData.project_id) {
-        const idMatch = installedModsMap.get(modrinthData.project_id.toLowerCase());
-        if (idMatch) return idMatch;
-      }
-      if (modrinthData.slug) {
-        const slugMatch = installedModsMap.get(modrinthData.slug.toLowerCase());
-        if (slugMatch) return slugMatch;
-      }
-    }
-
-    // For CurseForge mods, also check by mod ID or slug
-    let curseforgeData: any = null;
-    if ('CurseForge' in mod) {
-      curseforgeData = mod.CurseForge;
-    } else if ('kind' in mod && mod.kind === 'CurseForge') {
-      curseforgeData = mod.data;
-    }
-    
-    if (curseforgeData) {
-      if (curseforgeData.id) {
-        const idMatch = installedModsMap.get(curseforgeData.id.toString().toLowerCase());
-        if (idMatch) return idMatch;
-      }
-      if (curseforgeData.slug) {
-        const slugMatch = installedModsMap.get(curseforgeData.slug.toLowerCase());
-        if (slugMatch) return slugMatch;
-      }
-    }
-    
-    // If no exact match, try fuzzy matching
-    const candidateNames: string[] = [];
-    const candidateMap = new Map<string, ModJarInfo>();
-    
-    installedMods.forEach(installedMod => {
-      if (installedMod.mod_name) {
-        const key = installedMod.mod_name.toLowerCase();
-        candidateNames.push(key);
-        candidateMap.set(key, installedMod);
-      }
-      if (installedMod.file_name) {
-        const key = installedMod.file_name.toLowerCase();
-        candidateNames.push(key);
-        candidateMap.set(key, installedMod);
-        // Also add filename without extension
-        const nameWithoutExt = installedMod.file_name.replace(/\.(jar|zip)$/i, '').toLowerCase();
-        candidateNames.push(nameWithoutExt);
-        candidateMap.set(nameWithoutExt, installedMod);
-      }
-    });
-    
-    // Try fuzzy matching against mod title
-    const titleFuzzy = findBestMatch(displayInfo.title.toLowerCase(), candidateNames, 0.7);
-    if (titleFuzzy) {
-      return candidateMap.get(titleFuzzy.match) || null;
-    }
-    
-    // Also try fuzzy matching against slug if available
-    if (modrinthData?.slug) {
-      const slugFuzzy = findBestMatch(modrinthData.slug.toLowerCase(), candidateNames, 0.7);
-      if (slugFuzzy) {
-        return candidateMap.get(slugFuzzy.match) || null;
-      }
-    }
-
-    if (curseforgeData?.slug) {
-      const slugFuzzy = findBestMatch(curseforgeData.slug.toLowerCase(), candidateNames, 0.7);
-      if (slugFuzzy) {
-        return candidateMap.get(slugFuzzy.match) || null;
-      }
-    }
-    
-    return null;
-  };
-  
-  const installedMod = findInstalledMod();
-  if (installedMod) {
-    return {
-      isInstalled: true,
-      version: installedMod.mod_version || null
-    };
+  // Check cache first
+  if (installedStatusCache.has(projectId)) {
+    return installedStatusCache.get(projectId)!;
   }
   
-  return { isInstalled: false, version: null };
+  // Fetch version filenames for this project
+  const versionFilenames = await fetchVersionFilenames(projectId);
+  
+  // Check if any of our installed mod filenames match any version filename
+  for (const [filename, installedMod] of installedModsMap.entries()) {
+    if (versionFilenames.has(filename)) {
+      const result = {
+        isInstalled: true,
+        version: installedMod.mod_version || null
+      };
+      installedStatusCache.set(projectId, result);
+      return result;
+    }
+  }
+  
+  const result = { isInstalled: false, version: null };
+  installedStatusCache.set(projectId, result);
+  return result;
+}
+
+// Update installed status cache for all visible mods
+async function updateInstalledStatusCache(mods: ModInfoKind[]) {
+  // Process mods in parallel (with limit to avoid overwhelming)
+  const batchSize = 10;
+  for (let i = 0; i < mods.length; i += batchSize) {
+    const batch = mods.slice(i, i + batchSize);
+    await Promise.all(batch.map(mod => getInstalledModInfo(mod)));
+    // Trigger reactivity after each batch
+    cacheUpdateCounter++;
+  }
+}
+
+// Get cached installed info (synchronous, for template use)
+// Include cacheUpdateCounter to make this reactive to cache updates
+function getCachedInstalledInfo(mod: ModInfoKind, _counter = cacheUpdateCounter): { isInstalled: boolean; version: string | null } {
+  let projectId: string | null = null;
+  
+  if ('Modrinth' in mod) {
+    projectId = mod.Modrinth.project_id;
+  } else if ('CurseForge' in mod) {
+    projectId = mod.CurseForge.id.toString();
+  }
+  
+  if (!projectId) {
+    return { isInstalled: false, version: null };
+  }
+  
+  return installedStatusCache.get(projectId) || { isInstalled: false, version: null };
+}
+
+// Get unique key for each mod (for keyed each blocks)
+function getModKey(mod: ModInfoKind): string {
+  if ('Modrinth' in mod) {
+    return `modrinth-${mod.Modrinth.project_id}`;
+  } else if ('CurseForge' in mod) {
+    return `curseforge-${mod.CurseForge.id}`;
+  }
+  return `unknown-${Math.random()}`;
 }
 
 // Legacy function for backward compatibility
-function isModInstalled(mod: ModInfoKind): boolean {
-  return getInstalledModInfo(mod).isInstalled;
+async function isModInstalled(mod: ModInfoKind): Promise<boolean> {
+  const info = await getInstalledModInfo(mod);
+  return info.isInstalled;
 }
 
 // Initialize service when provider changes
@@ -1237,8 +1204,8 @@ onMount(async () => {
         {:else}
           <!-- Mods Grid/List -->
           <div class="mods-container" class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} class:compact={viewMode === 'compact'}>
-            {#each paginatedMods as mod}
-              {@const installedInfo = currentInstallation && installedModsLoaded ? getInstalledModInfo(mod) : { isInstalled: false, version: null }}
+            {#each paginatedMods as mod (getModKey(mod))}
+              {@const installedInfo = currentInstallation && installedModsLoaded ? getCachedInstalledInfo(mod, cacheUpdateCounter) : { isInstalled: false, version: null }}
               <ModCard 
                 {mod} 
                 {viewMode} 

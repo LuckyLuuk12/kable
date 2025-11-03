@@ -30,8 +30,8 @@ async fn ensure_dedicated_mods_folder(
         None => false,
     };
     if is_modded && installation.dedicated_mods_folder.is_none() {
-        // Set mods_folder to installation id
-        installation.dedicated_mods_folder = Some(installation.id.clone());
+        // Set mods_folder to relative path format: "mods/{id}"
+        installation.dedicated_mods_folder = Some(format!("mods/{}", installation.id));
         // Create .minecraft/kable/mods/<id> if not exists
         let minecraft_dir = crate::get_default_minecraft_dir()
             .map_err(|e| format!("Failed to get default Minecraft dir: {e}"))?;
@@ -232,6 +232,18 @@ pub async fn get_installation(id: &str) -> Result<Option<KableInstallation>, Str
 pub async fn delete_installation(id: &str) -> Result<(), String> {
     let mut installations = kable_profiles::read_kable_profiles_async().await?;
     let orig_len = installations.len();
+    
+    // Find the installation to get its dedicated folder paths before deletion
+    let installation = installations.iter().find(|i| i.id == id);
+    let dedicated_folders = installation.map(|inst| {
+        (
+            inst.dedicated_mods_folder.clone(),
+            inst.dedicated_resource_pack_folder.clone(),
+            inst.dedicated_shaders_folder.clone(),
+            inst.dedicated_config_folder.clone(),
+        )
+    });
+    
     installations.retain(|i| i.id != id);
     if installations.len() == orig_len {
         crate::logging::Logger::warn_global(
@@ -240,6 +252,61 @@ pub async fn delete_installation(id: &str) -> Result<(), String> {
         );
         return Err(format!("No Kable installation found with id: {}", id));
     }
+    
+    // Delete dedicated folders if they exist
+    if let Some((mods, resourcepacks, shaders, config)) = dedicated_folders {
+        let kable_dir = match crate::get_minecraft_kable_dir() {
+            Ok(dir) => dir,
+            Err(e) => {
+                crate::logging::Logger::warn_global(
+                    &format!("Failed to get kable dir for cleanup: {}", e),
+                    None,
+                );
+                std::path::PathBuf::new()
+            }
+        };
+        
+        // Helper to delete a dedicated folder
+        let delete_folder = |folder_opt: Option<String>, folder_type: &str| {
+            if let Some(folder) = folder_opt {
+                let path = std::path::PathBuf::from(&folder);
+                let final_path = if path.is_absolute() {
+                    path
+                } else {
+                    // Normalize and construct path same way as get_*_directory functions
+                    let normalized = folder.replace('\\', "/");
+                    let cleaned = match folder_type {
+                        "mods" => normalized.strip_prefix("mods/").unwrap_or(&normalized),
+                        "resourcepacks" => normalized.strip_prefix("resourcepacks/").unwrap_or(&normalized),
+                        "shaderpacks" => normalized.strip_prefix("shaderpacks/").unwrap_or(&normalized),
+                        "config" => normalized.strip_prefix("config/").unwrap_or(&normalized),
+                        _ => &normalized,
+                    };
+                    kable_dir.join(folder_type).join(cleaned)
+                };
+                
+                if final_path.exists() {
+                    if let Err(e) = std::fs::remove_dir_all(&final_path) {
+                        crate::logging::Logger::warn_global(
+                            &format!("Failed to delete {} folder {}: {}", folder_type, final_path.display(), e),
+                            None,
+                        );
+                    } else {
+                        crate::logging::Logger::debug_global(
+                            &format!("Deleted {} folder: {}", folder_type, final_path.display()),
+                            None,
+                        );
+                    }
+                }
+            }
+        };
+        
+        delete_folder(mods, "mods");
+        delete_folder(resourcepacks, "resourcepacks");
+        delete_folder(shaders, "shaderpacks");
+        delete_folder(config, "config");
+    }
+    
     let result = kable_profiles::write_kable_profiles_async(&installations).await;
     {
         let mut cache_write = INSTALLATIONS_CACHE.write().await;
@@ -444,45 +511,207 @@ async fn copy_and_update_mods(
         
         crate::logging::info(&format!("Processing mod: {}", file_name));
         
-        // Try to get mod info to find project ID
-        let mod_info = match get_mod_info_single(&path).await {
-            Ok(Some(info)) => info,
-            Ok(None) => {
-                crate::logging::Logger::warn_global(
-                    &format!("Could not read mod info from {}, copying as-is", file_name),
-                    None,
-                );
-                // Just copy the file as-is
-                let target_path = target_mods_dir.join(file_name);
-                async_fs::copy(&path, &target_path)
-                    .await
-                    .map_err(|e| format!("Failed to copy mod file: {}", e))?;
-                continue;
+        // PRIORITY 1: Check for kable_metadata.json file
+        let metadata_file = source_mods_dir.join(format!("{}.kable_metadata.json", file_name));
+        let project_id_from_metadata = if metadata_file.exists() {
+            match async_fs::read_to_string(&metadata_file).await {
+                Ok(content) => {
+                    match serde_json::from_str::<serde_json::Value>(&content) {
+                        Ok(metadata) => {
+                            let project_id = metadata.get("project_id")
+                                .and_then(|v| v.as_str())
+                                .map(|s| s.to_string());
+                            if let Some(ref id) = project_id {
+                                crate::logging::info(&format!(
+                                    "Found metadata for {}: project_id = {}",
+                                    file_name, id
+                                ));
+                            }
+                            project_id
+                        }
+                        Err(e) => {
+                            crate::logging::Logger::warn_global(
+                                &format!("Failed to parse metadata for {}: {}", file_name, e),
+                                None,
+                            );
+                            None
+                        }
+                    }
+                }
+                Err(_) => None,
             }
-            Err(e) => {
-                crate::logging::Logger::warn_global(
-                    &format!("Error reading mod {}: {}, copying as-is", file_name, e),
-                    None,
-                );
-                let target_path = target_mods_dir.join(file_name);
-                async_fs::copy(&path, &target_path)
-                    .await
-                    .map_err(|e| format!("Failed to copy mod file: {}", e))?;
-                continue;
-            }
+        } else {
+            None
         };
         
-        // Try to find a compatible version on Modrinth
-        // Use the mod name as the identifier
-        if let Some(ref mod_id) = mod_info.mod_name {
+        // PRIORITY 2: Try to get mod info from JAR if no metadata
+        let mod_info = if project_id_from_metadata.is_none() {
+            match get_mod_info_single(&path).await {
+                Ok(Some(info)) => Some(info),
+                Ok(None) => {
+                    crate::logging::Logger::warn_global(
+                        &format!("Could not read mod info from {}, copying as-is", file_name),
+                        None,
+                    );
+                    // Just copy the file as-is
+                    let target_path = target_mods_dir.join(file_name);
+                    async_fs::copy(&path, &target_path)
+                        .await
+                        .map_err(|e| format!("Failed to copy mod file: {}", e))?;
+                    continue;
+                }
+                Err(e) => {
+                    crate::logging::Logger::warn_global(
+                        &format!("Error reading mod {}: {}, copying as-is", file_name, e),
+                        None,
+                    );
+                    let target_path = target_mods_dir.join(file_name);
+                    async_fs::copy(&path, &target_path)
+                        .await
+                        .map_err(|e| format!("Failed to copy mod file: {}", e))?;
+                    continue;
+                }
+            }
+        } else {
+            None
+        };
+        
+        // Determine project_id (from metadata or search)
+        let project_id = if let Some(id) = project_id_from_metadata {
+            Some(id)
+        } else if let Some(ref info) = mod_info {
+            // PRIORITY 3: Search Modrinth by internal name and VERIFY with JAR filename
+            if let Some(ref mod_name) = info.mod_name {
+                crate::logging::info(&format!(
+                    "No metadata found, searching Modrinth for '{}' (internal name: {})",
+                    file_name, mod_name
+                ));
+                
+                let search_url = format!(
+                    "https://api.modrinth.com/v2/search?query={}&limit=10",
+                    urlencoding::encode(mod_name)
+                );
+                
+                let search_result: Result<serde_json::Value, String> = async {
+                    let resp = reqwest::get(&search_url)
+                        .await
+                        .map_err(|e| format!("Modrinth search failed: {}", e))?;
+                    resp.json()
+                        .await
+                        .map_err(|e| format!("Modrinth search parse failed: {}", e))
+                }.await;
+                
+                match search_result {
+                    Ok(json) => {
+                        let hits = json.get("hits").and_then(|h| h.as_array());
+                        
+                        let verified_project_id = if let Some(hits) = hits {
+                            crate::logging::info(&format!(
+                                "Search returned {} results for '{}'",
+                                hits.len(),
+                                mod_name
+                            ));
+                            
+                            // NEW: Verify each search result by checking if it has a version with matching JAR filename
+                            let mut found_id = None;
+                            for hit in hits {
+                                let candidate_id = hit.get("project_id")
+                                    .and_then(|id| id.as_str())
+                                    .map(|s| s.to_string());
+                                
+                                if let Some(ref candidate_id) = candidate_id {
+                                    let slug = hit.get("slug").and_then(|s| s.as_str()).unwrap_or("");
+                                    let title = hit.get("title").and_then(|s| s.as_str()).unwrap_or("");
+                                    
+                                    crate::logging::info(&format!(
+                                        "Checking candidate: {} (slug: {}, title: {})",
+                                        candidate_id, slug, title
+                                    ));
+                                    
+                                    // Fetch ALL versions for this candidate (no filters, to check all possible filenames)
+                                    match modrinth::get_project_versions_filtered(
+                                        candidate_id,
+                                        None, // No loader filter
+                                        None, // No game version filter
+                                    )
+                                    .await
+                                    {
+                                        Ok(all_versions) => {
+                                            // Check if any version has a file matching our current JAR filename
+                                            let has_matching_filename = all_versions.iter().any(|version| {
+                                                version.files.iter().any(|file| {
+                                                    file.filename.eq_ignore_ascii_case(file_name)
+                                                })
+                                            });
+                                            
+                                            if has_matching_filename {
+                                                crate::logging::info(&format!(
+                                                    "✓ VERIFIED: Project '{}' has a version with filename '{}'",
+                                                    candidate_id, file_name
+                                                ));
+                                                
+                                                // This is the correct project!
+                                                found_id = Some(candidate_id.clone());
+                                                break;
+                                            } else {
+                                                crate::logging::info(&format!(
+                                                    "✗ Project '{}' does NOT have filename '{}', trying next result",
+                                                    candidate_id, file_name
+                                                ));
+                                            }
+                                        }
+                                        Err(e) => {
+                                            crate::logging::Logger::warn_global(
+                                                &format!("Failed to fetch versions for candidate '{}': {}", candidate_id, e),
+                                                None,
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if found_id.is_none() {
+                                crate::logging::Logger::warn_global(
+                                    &format!("No search results matched JAR filename '{}' for query '{}'", file_name, mod_name),
+                                    None,
+                                );
+                            }
+                            
+                            found_id
+                        } else {
+                            None
+                        };
+                        
+                        verified_project_id
+                    }
+                    Err(e) => {
+                        crate::logging::Logger::warn_global(
+                            &format!("Failed to search Modrinth for '{}': {}", mod_name, e),
+                            None,
+                        );
+                        None
+                    }
+                }
+            } else {
+                crate::logging::Logger::warn_global(
+                    &format!("No mod name found in {} JAR", file_name),
+                    None,
+                );
+                None
+            }
+        } else {
+            None
+        };
+        
+        // If we have a project_id, try to download compatible version
+        if let Some(project_id) = project_id {
             crate::logging::info(&format!(
-                "Attempting to update mod '{}' (ID: {}) from version {:?}",
-                file_name, mod_id, mod_info.mod_version
+                "Fetching compatible versions for project '{}' (loader: {:?}, game_version: {:?})",
+                project_id, target_loader, target_game_version
             ));
             
-            // Try to fetch compatible versions from Modrinth
             match modrinth::get_project_versions_filtered(
-                mod_id,
+                &project_id,
                 target_loader.clone().map(|l| vec![l]),
                 target_game_version.clone().map(|v| vec![v]),
             )
@@ -490,9 +719,9 @@ async fn copy_and_update_mods(
             {
                 Ok(versions) if !versions.is_empty() => {
                     crate::logging::info(&format!(
-                        "Found {} compatible versions for '{}' on Modrinth",
+                        "Found {} compatible versions for project '{}'",
                         versions.len(),
-                        mod_id
+                        project_id
                     ));
                     
                     // Find the best version
@@ -504,8 +733,8 @@ async fn copy_and_update_mods(
                     
                     if let Some(version) = best_version {
                         crate::logging::info(&format!(
-                            "Found compatible version for {}: {} ({})",
-                            file_name, version.version_number, version.id
+                            "Selected best version: {} ({})",
+                            version.version_number, version.id
                         ));
                         
                         // Download the compatible version
@@ -519,41 +748,42 @@ async fn copy_and_update_mods(
                         let target_path = target_mods_dir.join(&primary_file.filename);
                         
                         crate::logging::info(&format!(
-                            "Downloading updated mod from {} to {:?}",
-                            primary_file.url, target_path
+                            "Downloading {} from {}",
+                            primary_file.filename, primary_file.url
                         ));
                         
                         modrinth::download_mod_file(&primary_file.url, &target_path).await?;
                         
                         crate::logging::info(&format!(
-                            "Successfully downloaded updated mod: {}",
+                            "Successfully downloaded: {}",
                             primary_file.filename
                         ));
                         continue;
                     } else {
                         crate::logging::Logger::warn_global(
-                            &format!("Could not select best version for {} from {} candidates", mod_id, versions.len()),
+                            &format!("Could not select best version for project '{}' from {} candidates", 
+                                project_id, versions.len()),
                             None,
                         );
                     }
                 }
                 Ok(_) => {
                     crate::logging::Logger::warn_global(
-                        &format!("No compatible versions found for '{}' on Modrinth (loader: {:?}, game_version: {:?})", 
-                            mod_id, target_loader, target_game_version),
+                        &format!("No compatible versions found for project '{}' (loader: {:?}, game_version: {:?})", 
+                            project_id, target_loader, target_game_version),
                         None,
                     );
                 }
                 Err(e) => {
                     crate::logging::Logger::warn_global(
-                        &format!("Failed to fetch versions for '{}': {}", mod_id, e),
+                        &format!("Failed to fetch versions for project '{}': {}", project_id, e),
                         None,
                     );
                 }
             }
         } else {
             crate::logging::Logger::warn_global(
-                &format!("No mod ID found for {}, cannot check for updates", file_name),
+                &format!("No project ID found for {}, cannot check for updates", file_name),
                 None,
             );
         }
@@ -656,10 +886,16 @@ async fn get_mods_directory(installation: &KableInstallation) -> Result<PathBuf,
         let final_path = if path.is_absolute() {
             path
         } else {
+            // Normalize path separators and strip any leading "mods/" or "mods\" prefix
+            let normalized = dedicated_folder.replace('\\', "/");
+            let cleaned = normalized
+                .strip_prefix("mods/")
+                .unwrap_or(&normalized);
+            
             // The dedicated_folder is just the installation ID
             // It should be in .minecraft/kable/mods/<id>
             let minecraft_dir = crate::get_default_minecraft_dir()?;
-            minecraft_dir.join("kable").join("mods").join(dedicated_folder)
+            minecraft_dir.join("kable").join("mods").join(cleaned)
         };
         async_fs::create_dir_all(&final_path)
             .await
@@ -683,10 +919,16 @@ async fn get_resource_packs_directory(installation: &KableInstallation) -> Resul
         let final_path = if path.is_absolute() {
             path
         } else {
+            // Normalize path separators and strip any leading "resourcepacks/" prefix
+            let normalized = dedicated_folder.replace('\\', "/");
+            let cleaned = normalized
+                .strip_prefix("resourcepacks/")
+                .unwrap_or(&normalized);
+            
             // The dedicated_folder is just the installation ID
             // It should be in .minecraft/kable/resourcepacks/<id>
             let minecraft_dir = crate::get_default_minecraft_dir()?;
-            minecraft_dir.join("kable").join("resourcepacks").join(dedicated_folder)
+            minecraft_dir.join("kable").join("resourcepacks").join(cleaned)
         };
         async_fs::create_dir_all(&final_path)
             .await
@@ -709,10 +951,16 @@ async fn get_shaders_directory(installation: &KableInstallation) -> Result<PathB
         let final_path = if path.is_absolute() {
             path
         } else {
+            // Normalize path separators and strip any leading "shaderpacks/" prefix
+            let normalized = dedicated_folder.replace('\\', "/");
+            let cleaned = normalized
+                .strip_prefix("shaderpacks/")
+                .unwrap_or(&normalized);
+            
             // The dedicated_folder is just the installation ID
             // It should be in .minecraft/kable/shaderpacks/<id>
             let minecraft_dir = crate::get_default_minecraft_dir()?;
-            minecraft_dir.join("kable").join("shaderpacks").join(dedicated_folder)
+            minecraft_dir.join("kable").join("shaderpacks").join(cleaned)
         };
         async_fs::create_dir_all(&final_path)
             .await
@@ -747,12 +995,18 @@ fn extract_loader_from_version_id(version_id: &str) -> Option<String> {
 
 /// Extract Minecraft version from version_id
 fn extract_game_version_from_version_id(version_id: &str) -> Option<String> {
-    // Common Minecraft version pattern: X.Y.Z where X, Y, Z are numbers
-    if let Ok(mc_version_regex) = regex::Regex::new(r"\b(\d+\.\d+(?:\.\d+)?)\b") {
-        if let Some(captures) = mc_version_regex.captures(version_id) {
-            if let Some(mc_version) = captures.get(1) {
-                return Some(mc_version.as_str().to_string());
-            }
+    // Minecraft versions always start with "1." (e.g., 1.20.4, 1.21.4, 1.16.5)
+    // This helps distinguish from loader versions like "0.16.10"
+    if let Ok(mc_version_regex) = regex::Regex::new(r"\b(1\.\d+(?:\.\d+)?)\b") {
+        // Find all matches and take the last one (most specific)
+        let matches: Vec<_> = mc_version_regex
+            .captures_iter(version_id)
+            .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
+            .collect();
+        
+        if !matches.is_empty() {
+            // Return the last (most specific) match
+            return Some(matches.last().unwrap().clone());
         }
     }
     None

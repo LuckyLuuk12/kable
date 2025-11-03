@@ -359,9 +359,28 @@ impl ModProvider for CurseForgeProvider {
             filter
         );
 
-        if let Some(crate::mods::manager::ModFilter::CurseForge(cf_filter)) = filter {
-            self.filter = cf_filter;
-            println!("[CurseForgeProvider] Set filter: {}", self.filter);
+        // Handle filter updates or clearing
+        match filter {
+            Some(crate::mods::manager::ModFilter::CurseForge(cf_filter)) => {
+                self.filter = cf_filter;
+                println!("[CurseForgeProvider] Set filter: {}", self.filter);
+            }
+            None => {
+                // Reset filter to default (clear user-defined filters)
+                self.filter = CurseForgeFilter {
+                    query: None,
+                    category_id: None,
+                    game_version: None,
+                    mod_loader_type: None,
+                    sort_field: None,
+                    sort_order: None,
+                };
+                println!("[CurseForgeProvider] Cleared user filters");
+            }
+            _ => {
+                // Other providers - don't change filter
+                println!("[CurseForgeProvider] Ignoring non-CurseForge filter");
+            }
         }
 
         if let Some(installation) = installation {
