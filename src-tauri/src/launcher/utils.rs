@@ -863,6 +863,7 @@ pub async fn ensure_libraries(
     if let Some(libs) = manifest.get("libraries").and_then(|v| v.as_array()) {
         for lib in libs {
             if let Some(obj) = lib.as_object() {
+                // Try to get library info from downloads.artifact first
                 let downloads = obj.get("downloads").and_then(|v| v.as_object());
                 if let Some(downloads) = downloads {
                     if let Some(artifact) = downloads.get("artifact").and_then(|v| v.as_object()) {
@@ -886,6 +887,81 @@ pub async fn ensure_libraries(
                             crate::write_file_atomic_async(&jar_path, &bytes)
                                 .await
                                 .map_err(|e| format!("Failed to write lib: {e}"))?;
+                        }
+                    }
+                } else {
+                    // Fallback: If no downloads.artifact, try to construct from name and url
+                    // This is needed for Fabric libraries like "net.fabricmc:fabric-loader:0.17.3"
+                    if let (Some(name), Some(base_url)) = (
+                        obj.get("name").and_then(|v| v.as_str()),
+                        obj.get("url").and_then(|v| v.as_str()),
+                    ) {
+                        // Parse Maven coordinates: "group:artifact:version[:classifier]"
+                        let parts: Vec<&str> = name.split(':').collect();
+                        if parts.len() >= 3 {
+                            let group = parts[0];
+                            let artifact = parts[1];
+                            let version = parts[2];
+                            let classifier = if parts.len() >= 4 { Some(parts[3]) } else { None };
+                            
+                            // Construct Maven path: group/artifact/version/artifact-version[-classifier].jar
+                            let group_path = group.replace('.', "/");
+                            let jar_filename = if let Some(cls) = classifier {
+                                format!("{}-{}-{}.jar", artifact, version, cls)
+                            } else {
+                                format!("{}-{}.jar", artifact, version)
+                            };
+                            let relative_path = format!("{}/{}/{}/{}", group_path, artifact, version, jar_filename);
+                            let jar_path = libraries_path.join(&relative_path);
+                            
+                            if !jar_path.exists() {
+                                // Construct download URL
+                                let download_url = format!("{}/{}/{}/{}/{}", 
+                                    base_url.trim_end_matches('/'), 
+                                    group_path, 
+                                    artifact, 
+                                    version, 
+                                    jar_filename
+                                );
+                                
+                                crate::logging::Logger::debug_global(
+                                    &format!("Downloading library: {} from {}", name, download_url),
+                                    None,
+                                );
+                                
+                                if !jar_path.parent().unwrap().exists() {
+                                    crate::ensure_parent_dir_exists_async(jar_path.parent().unwrap())
+                                        .await?;
+                                }
+                                
+                                let resp = client
+                                    .get(&download_url)
+                                    .send()
+                                    .await
+                                    .map_err(|e| format!("Failed to fetch library {}: {}", name, e))?;
+                                
+                                if !resp.status().is_success() {
+                                    return Err(format!(
+                                        "Failed to download library {}: HTTP {}",
+                                        name,
+                                        resp.status()
+                                    ));
+                                }
+                                
+                                let bytes = resp
+                                    .bytes()
+                                    .await
+                                    .map_err(|e| format!("Failed to get library bytes for {}: {}", name, e))?;
+                                
+                                crate::write_file_atomic_async(&jar_path, &bytes)
+                                    .await
+                                    .map_err(|e| format!("Failed to write library {}: {}", name, e))?;
+                                
+                                crate::logging::Logger::debug_global(
+                                    &format!("Successfully downloaded library: {} to {}", name, jar_path.display()),
+                                    None,
+                                );
+                            }
                         }
                     }
                 }

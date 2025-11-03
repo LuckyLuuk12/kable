@@ -8,6 +8,7 @@ export class InstallationService {
   private static _inflightLoad: Promise<KableInstallation[]> | null = null;
   private static _versionsListenerUnsubscribe: (() => void) | null = null;
   private static _installationsListenerUnsubscribe: (() => void) | null = null;
+  private static _installationUpdatedUnsubscribe: (() => void) | null = null;
 
   /**
    * Initialize event listeners for progressive loading
@@ -62,6 +63,28 @@ export class InstallationService {
         unsubscribe1();
         unsubscribe2();
       };
+    }
+    
+    // Listen for individual installation updates (e.g., playtime updates)
+    if (!this._installationUpdatedUnsubscribe) {
+      const unsubscribe = await listen('installation-updated', (event: any) => {
+        const { installation_id, installation } = event.payload;
+        console.log(`[InstallationService] Installation updated:`, installation_id);
+        
+        // Update the specific installation in the store
+        installations.update(list => {
+          const index = list.findIndex(i => i.id === installation_id);
+          if (index !== -1) {
+            const newList = [...list];
+            newList[index] = { ...installation };
+            console.log(`[InstallationService] Updated installation in store:`, installation.name, 'playtime:', installation.total_time_played_ms);
+            return newList;
+          }
+          return list;
+        });
+      });
+      
+      this._installationUpdatedUnsubscribe = unsubscribe;
     }
   }
 
@@ -357,26 +380,35 @@ export class InstallationService {
 
   static async importInstallation(path: string): Promise<void> {
     try {
+      console.log('[InstallationService] Starting import from:', path);
       const newInstallation = await installationsApi.importInstallation(path);
-      console.log('Imported installation from:', path, newInstallation);
-      LogsService.emitLauncherEvent(`Imported installation ${newInstallation.name} from ${path}`, 'info');
+      console.log('[InstallationService] Successfully imported installation:', newInstallation.name);
+      LogsService.emitLauncherEvent(`✓ Successfully imported installation "${newInstallation.name}" from ${path}`, 'info');
+      
+      // Reload installations to show the new one
       await this.loadInstallations();
     } catch (error) {
-      console.error('Failed to import installation:', error);
-      LogsService.emitLauncherEvent(`Failed to import installation from ${path}`, 'error');
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('[InstallationService] Failed to import installation:', errorMsg);
+      LogsService.emitLauncherEvent(`✗ Failed to import installation from ${path}: ${errorMsg}`, 'error');
       throw error;
     }
   }
 
   static async importFromMinecraftFolder(path: string): Promise<void> {
     try {
+      console.log('[InstallationService] Starting import from .minecraft folder:', path);
       const newInstallations = await installationsApi.importFromMinecraftFolder(path);
-      console.log('Imported installations from .minecraft folder:', path, newInstallations);
-      LogsService.emitLauncherEvent(`Imported ${newInstallations.length} installation(s) from ${path}`, 'info');
+      const count = newInstallations.length;
+      console.log(`[InstallationService] Successfully imported ${count} installation(s) from .minecraft folder`);
+      LogsService.emitLauncherEvent(`✓ Successfully imported ${count} installation(s) from ${path}`, 'info');
+      
+      // Reload installations to show the new ones
       await this.loadInstallations();
     } catch (error) {
-      console.error('Failed to import from .minecraft folder:', error);
-      LogsService.emitLauncherEvent(`Failed to import from .minecraft folder: ${path}`, 'error');
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('[InstallationService] Failed to import from .minecraft folder:', errorMsg);
+      LogsService.emitLauncherEvent(`✗ Failed to import from .minecraft folder ${path}: ${errorMsg}`, 'error');
       throw error;
     }
   }

@@ -269,7 +269,19 @@ pub async fn modify_installation(
             *cache_write = Some(installations.clone());
         }
         match &result {
-            Ok(_) => crate::logging::info(&format!("Installation '{}' modified successfully.", id)),
+            Ok(_) => {
+                crate::logging::info(&format!("Installation '{}' modified successfully.", id));
+                
+                // Emit event to notify frontend of installation update
+                if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
+                    if let Some(app_handle) = handle_guard.as_ref() {
+                        let _ = app_handle.emit("installation-updated", serde_json::json!({
+                            "installation_id": id,
+                            "installation": &installations[index]
+                        }));
+                    }
+                }
+            },
             Err(e) => {
                 crate::logging::error(&format!("Failed to modify installation '{}': {}", id, e))
             }

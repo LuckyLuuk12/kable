@@ -358,13 +358,35 @@ impl Loader for FabricLoader {
                 for v in arr {
                     let fabricv = v.get("version").and_then(|x| x.as_str()).unwrap_or("");
                     let stable = v.get("stable").and_then(|x| x.as_bool()).unwrap_or(false);
+                    
+                    // Extract installer maven coordinates from the version object directly
+                    let installer_maven = v
+                        .get("maven")
+                        .and_then(|m| m.as_str())
+                        .map(|s| s.to_string());
+                    
                     for mcv in vanilla {
+                        // Create extra data with minecraft_version and installer_maven
+                        let mut extra = v.clone();
+                        if let Some(extra_obj) = extra.as_object_mut() {
+                            extra_obj.insert(
+                                "minecraft_version".to_string(),
+                                serde_json::json!(mcv.version_id.clone()),
+                            );
+                            if let Some(ref maven) = installer_maven {
+                                extra_obj.insert(
+                                    "installer_maven".to_string(),
+                                    serde_json::json!(maven),
+                                );
+                            }
+                        }
+                        
                         out.push(VersionData {
                             version_id: format!("fabric-loader-{}-{}", fabricv, mcv.version_id),
                             loader: LoaderKind::Fabric,
                             display_name: format!("Fabric {} for MC {}", fabricv, mcv.version_id),
                             is_stable: stable,
-                            extra: v.clone(),
+                            extra,
                         });
                     }
                 }
@@ -405,7 +427,29 @@ impl Loader for IrisFabricLoader {
                 for v in arr {
                     let fabricv = v.get("version").and_then(|x| x.as_str()).unwrap_or("");
                     let stable = v.get("stable").and_then(|x| x.as_bool()).unwrap_or(false);
+                    
+                    // Extract installer maven coordinates from the version object directly
+                    let installer_maven = v
+                        .get("maven")
+                        .and_then(|m| m.as_str())
+                        .map(|s| s.to_string());
+                    
                     for mcv in vanilla {
+                        // Create extra data with minecraft_version and installer_maven
+                        let mut extra = v.clone();
+                        if let Some(extra_obj) = extra.as_object_mut() {
+                            extra_obj.insert(
+                                "minecraft_version".to_string(),
+                                serde_json::json!(mcv.version_id.clone()),
+                            );
+                            if let Some(ref maven) = installer_maven {
+                                extra_obj.insert(
+                                    "installer_maven".to_string(),
+                                    serde_json::json!(maven),
+                                );
+                            }
+                        }
+                        
                         out.push(VersionData {
                             version_id: format!(
                                 "iris-fabric-loader-{}-{}",
@@ -417,7 +461,7 @@ impl Loader for IrisFabricLoader {
                                 fabricv, mcv.version_id
                             ),
                             is_stable: stable,
-                            extra: v.clone(),
+                            extra,
                         });
                     }
                 }
@@ -512,12 +556,25 @@ impl Loader for NeoForgeLoader {
             let mut out = Vec::new();
             for v in arr {
                 let neoforge_ver = v.as_str().unwrap_or("");
+                // NeoForge versions are in format like "21.4.14" where first part is MC version
+                // Extract MC version from NeoForge version (e.g., "21.4.14" -> "1.21.4")
+                let mc_version = if let Some(_first_part) = neoforge_ver.split('.').next() {
+                    // NeoForge 20.x = MC 1.20.x, NeoForge 21.x = MC 1.21.x, etc.
+                    format!("1.{}", neoforge_ver.split('.').take(2).collect::<Vec<_>>().join("."))
+                } else {
+                    neoforge_ver.to_string()
+                };
+                
                 out.push(VersionData {
                     version_id: format!("neoforge-{}", neoforge_ver),
                     loader: LoaderKind::NeoForge,
-                    display_name: format!("NeoForge {}", neoforge_ver),
+                    display_name: format!("NeoForge {} for MC {}", neoforge_ver, mc_version),
                     is_stable: !is_snapshot,
-                    extra: json!({ "neoforge_version": neoforge_ver, "is_snapshot": is_snapshot }),
+                    extra: json!({ 
+                        "neoforge_version": neoforge_ver, 
+                        "minecraft_version": mc_version,
+                        "is_snapshot": is_snapshot 
+                    }),
                 });
             }
             Ok(out)
