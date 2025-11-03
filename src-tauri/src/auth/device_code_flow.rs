@@ -1,7 +1,6 @@
 use crate::auth::auth_util::{
     get_client_id, write_launcher_account, LauncherAccount, MinecraftProfile,
 };
-use crate::commands::system::open_url;
 use crate::logging::{LogLevel, Logger};
 use chrono::Utc;
 use minecraft_msa_auth::MinecraftAuthorizationFlow;
@@ -51,6 +50,13 @@ pub struct MinecraftToken {
     pub access_token: String,
     pub username: String,
     pub uuid: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MicrosoftToken {
+    pub access_token: String,
+    pub expires_at: chrono::DateTime<Utc>,
+    pub encrypted_refresh_token: Option<String>, // AES-encrypted refresh token
 }
 
 /// Start the Microsoft device code authentication flow
@@ -206,23 +212,13 @@ pub async fn start_microsoft_device_auth() -> Result<DeviceCodeResponse, String>
         None,
     );
 
-    if let Err(e) = open_url(response.verification_uri.clone()).await {
-        Logger::console_log(
-            LogLevel::Warning,
-            &format!("⚠️ Failed to open browser automatically: {}", e),
-            None,
-        );
-    } else {
-        Logger::console_log(LogLevel::Debug, "✅ Browser opened successfully", None);
-    }
-
     Ok(response)
 }
 
 /// Poll for the completion of Microsoft device code authentication
 pub async fn poll_microsoft_device_auth(
     device_code: String,
-) -> Result<Option<crate::auth::code_flow::MicrosoftToken>, String> {
+) -> Result<Option<MicrosoftToken>, String> {
     Logger::console_log(
         LogLevel::Debug,
         "🔄 Polling Microsoft device authentication...",
@@ -316,7 +312,7 @@ pub async fn poll_microsoft_device_auth(
             let encrypted_refresh_token = token.refresh_token().map(|rt| {
                 crate::auth::secure_token::encrypt_token(rt.secret()).unwrap_or_default()
             });
-            let ms_token = crate::auth::code_flow::MicrosoftToken {
+            let ms_token = MicrosoftToken {
                 access_token: token.access_token().secret().to_string(),
                 expires_at,
                 encrypted_refresh_token,
@@ -393,7 +389,7 @@ pub async fn poll_microsoft_device_auth(
 /// Exchange Microsoft token for Minecraft token and save account
 #[tauri::command]
 pub async fn complete_minecraft_auth(
-    microsoft_token: crate::auth::code_flow::MicrosoftToken,
+    microsoft_token: MicrosoftToken,
 ) -> Result<LauncherAccount, String> {
     Logger::console_log(
         LogLevel::Info,

@@ -1,4 +1,5 @@
-<!--
+<!-- @component
+◄!--
 @component
 AccountManager - Manages Microsoft account authentication and account operations
 
@@ -7,7 +8,7 @@ Displays current account status and allows switching between authentication flow
 
 @example
 ```svelte
-<AccountManager />
+◄AccountManager /►
 ```
 -->
 <script lang="ts">
@@ -35,7 +36,7 @@ Displays current account status and allows switching between authentication flow
     if (!$currentAccount) return;
     isLoading = true;
     try {
-      await AuthService.authenticateWithMicrosoft();
+      await AuthService.authenticateWithDeviceCode();
     } catch (error) {
       console.error('Manual re-login failed:', error);
     } finally {
@@ -280,7 +281,7 @@ Displays current account status and allows switching between authentication flow
     transition: opacity 0.15s cubic-bezier(0.4,0,0.2,1), z-index 0s linear 0.15s;
     position: absolute;
     min-width: 180px;
-  background: color-mix(in srgb, var(--card), 94%, transparent);
+    background: color-mix(in srgb, var(--card), 94%, transparent);
     border: 1px solid var(--dark-200);
     border-radius: var(--border-radius);
     box-shadow: 0 2px 16px 4px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.08);
@@ -471,7 +472,6 @@ Displays current account status and allows switching between authentication flow
   
   .auth-flow-container {
     background: var(--container);
-    border: 1px solid var(--dark-600);
     border-radius: 16px;
     overflow: hidden;
   }

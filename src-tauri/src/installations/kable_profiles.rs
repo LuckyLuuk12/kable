@@ -1026,9 +1026,14 @@ impl KableInstallation {
             if custom_path.is_absolute() {
                 Some(custom_path)
             } else {
+                // Relative paths are relative to .minecraft/kable/
+                // They already include the folder type prefix (e.g., "mods/{id}")
+                // Just normalize the separators
+                let normalized = custom_mods.replace('\\', "/");
+                
                 crate::get_minecraft_kable_dir()
                     .ok()
-                    .map(|dir| dir.join(custom_mods))
+                    .map(|dir| dir.join(normalized))
             }
         } else {
             None
@@ -1477,15 +1482,81 @@ impl KableInstallation {
     }
 
     pub fn duplicate(&self) -> Result<Vec<KableInstallation>, String> {
+        use crate::logging::Logger;
+        
+        let old_id = self.id.clone();
         let mut new = self.clone();
-        // generate new ID
+        
+        // Generate new ID
         new.id = uuid::Uuid::new_v4().to_string();
         new.name = format!("{} (copy)", self.name);
+        
         // Reset stats
         new.created = chrono::Utc::now().to_rfc3339();
         new.last_used = chrono::Utc::now().to_rfc3339();
         new.total_time_played_ms = 0;
         new.times_launched = 0;
+        
+        // Update dedicated folder paths if they reference the old installation ID
+        // Check if the dedicated folders are set to the old installation ID (relative paths)
+        if let Some(ref mods_folder) = self.dedicated_mods_folder {
+            let path = std::path::PathBuf::from(mods_folder);
+            // Normalize and check if it matches old ID pattern
+            let normalized = mods_folder.replace('\\', "/");
+            let cleaned = normalized.strip_prefix("mods/").unwrap_or(&normalized);
+            
+            if !path.is_absolute() && (cleaned == old_id || mods_folder == &old_id) {
+                // Update to new ID with proper format
+                new.dedicated_mods_folder = Some(format!("mods/{}", new.id));
+                Logger::debug_global(
+                    &format!("Updated dedicated_mods_folder from '{}' to 'mods/{}'", mods_folder, new.id),
+                    None,
+                );
+            }
+        }
+        
+        if let Some(ref rp_folder) = self.dedicated_resource_pack_folder {
+            let path = std::path::PathBuf::from(rp_folder);
+            let normalized = rp_folder.replace('\\', "/");
+            let cleaned = normalized.strip_prefix("resourcepacks/").unwrap_or(&normalized);
+            
+            if !path.is_absolute() && (cleaned == old_id || rp_folder == &old_id) {
+                new.dedicated_resource_pack_folder = Some(format!("resourcepacks/{}", new.id));
+                Logger::debug_global(
+                    &format!("Updated dedicated_resource_pack_folder from '{}' to 'resourcepacks/{}'", rp_folder, new.id),
+                    None,
+                );
+            }
+        }
+        
+        if let Some(ref shaders_folder) = self.dedicated_shaders_folder {
+            let path = std::path::PathBuf::from(shaders_folder);
+            let normalized = shaders_folder.replace('\\', "/");
+            let cleaned = normalized.strip_prefix("shaderpacks/").unwrap_or(&normalized);
+            
+            if !path.is_absolute() && (cleaned == old_id || shaders_folder == &old_id) {
+                new.dedicated_shaders_folder = Some(format!("shaderpacks/{}", new.id));
+                Logger::debug_global(
+                    &format!("Updated dedicated_shaders_folder from '{}' to 'shaderpacks/{}'", shaders_folder, new.id),
+                    None,
+                );
+            }
+        }
+        
+        if let Some(ref config_folder) = self.dedicated_config_folder {
+            let path = std::path::PathBuf::from(config_folder);
+            let normalized = config_folder.replace('\\', "/");
+            let cleaned = normalized.strip_prefix("config/").unwrap_or(&normalized);
+            
+            if !path.is_absolute() && (cleaned == old_id || config_folder == &old_id) {
+                new.dedicated_config_folder = Some(format!("config/{}", new.id));
+                Logger::debug_global(
+                    &format!("Updated dedicated_config_folder from '{}' to 'config/{}'", config_folder, new.id),
+                    None,
+                );
+            }
+        }
+        
         // Add to profiles
         if let Ok(mut profiles) = read_kable_profiles() {
             profiles.push(new);

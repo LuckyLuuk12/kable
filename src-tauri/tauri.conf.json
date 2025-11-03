@@ -22,7 +22,8 @@
         "center": true,
         "visible": false,
         "backgroundColor": "#000000",
-        "decorations": false
+        "decorations": false,
+        "zoomHotkeysEnabled": true
       }
     ],
     "security": {

@@ -518,3 +518,97 @@ pub async fn validate_and_cleanup_accounts() -> Result<String, String> {
 
     Ok(summary)
 }
+
+/// Refresh Microsoft token for a specific account
+pub async fn refresh_microsoft_token(local_id: String) -> Result<LauncherAccount, String> {
+    use chrono::Utc;
+    use minecraft_msa_auth::MinecraftAuthorizationFlow;
+    use oauth2::{basic::BasicClient, AuthUrl, ClientId, TokenResponse, TokenUrl};
+    use reqwest::Client;
+    
+    // Load accounts and find the one to refresh
+    let accounts_json = crate::read_launcher_accounts().await?;
+    let account = accounts_json
+        .accounts
+        .get(&local_id)
+        .cloned()
+        .ok_or_else(|| format!("Account not found for local_id: {}", local_id))?;
+
+    let encrypted_refresh_token = account
+        .encrypted_refresh_token
+        .clone()
+        .ok_or_else(|| "No refresh token available".to_string())?;
+    let refresh_token = decrypt_token(&encrypted_refresh_token)?;
+
+    let client_id = get_client_id()?;
+    let client = BasicClient::new(ClientId::new(client_id))
+        .set_auth_uri(
+            AuthUrl::new(
+                "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize".to_string(),
+            )
+            .map_err(|e| format!("Failed to create auth URL: {}", e))?,
+        )
+        .set_token_uri(
+            TokenUrl::new(
+                "https://login.microsoftonline.com/consumers/oauth2/v2.0/token".to_string(),
+            )
+            .map_err(|e| format!("Failed to create token URL: {}", e))?,
+        );
+
+    let token_result = client
+        .exchange_refresh_token(&oauth2::RefreshToken::new(refresh_token))
+        .request_async(&crate::auth::oauth_helpers::async_http_client)
+        .await
+        .map_err(|e| format!("Failed to refresh token: {}", e))?;
+
+    // Compute new Microsoft token expiry
+    let new_expires_at = Utc::now()
+        + chrono::Duration::seconds(
+            token_result
+                .expires_in()
+                .map(|d| d.as_secs() as i64)
+                .unwrap_or(3600),
+        );
+
+    // Exchange refreshed Microsoft access token for a Minecraft token
+    let ms_access = token_result.access_token().secret().to_string();
+    let mc_flow = MinecraftAuthorizationFlow::new(Client::new());
+    let mc_token = mc_flow
+        .exchange_microsoft_token(&ms_access)
+        .await
+        .map_err(|e| {
+            format!(
+                "Failed to exchange Microsoft token for Minecraft token: {}",
+                e
+            )
+        })?;
+
+    // Extract Minecraft access token string
+    let mc_access = mc_token.access_token().clone().into_inner();
+
+    // Handle refresh token: encrypt any new refresh token; fail rather than silently storing plaintext
+    let new_encrypted_refresh_token = if let Some(rt) = token_result.refresh_token() {
+        match encrypt_token(rt.secret()) {
+            Ok(enc) => Some(enc),
+            Err(e) => {
+                Logger::console_log(
+                    LogLevel::Error,
+                    &format!("❌ Failed to encrypt refreshed refresh token: {}", e),
+                    None,
+                );
+                return Err(format!("Failed to encrypt refreshed refresh token: {}", e));
+            }
+        }
+    } else {
+        account.encrypted_refresh_token.clone()
+    };
+
+    // Persist the updated account using the Minecraft token and the Microsoft expiry
+    let mut updated_account = account.clone();
+    updated_account.access_token = mc_access;
+    updated_account.access_token_expires_at = new_expires_at.to_rfc3339();
+    updated_account.encrypted_refresh_token = new_encrypted_refresh_token;
+
+    write_launcher_account(updated_account.clone()).await?;
+    Ok(updated_account)
+}

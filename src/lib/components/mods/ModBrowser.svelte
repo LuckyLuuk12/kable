@@ -23,9 +23,10 @@ import { Icon, ModsService, selectedInstallation, InstallationService, installat
 import Image from '$lib/components/Image.svelte';
 import { modsByProvider, modsLoading, modsError, modsLimit, modsOffset, modsProvider } from '$lib/stores/mods';
 import { ProviderKind } from '$lib/runtimeTypes';
-import type { ModInfoKind, KableInstallation, ModJarInfo, FilterFacets } from '$lib';
+import type { ModInfoKind, KableInstallation, ModJarInfo, FilterFacets, ModrinthVersion, ModrinthFile } from '$lib';
 import ModCard from './ModCard.svelte';
 import * as systemApi from '$lib/api/system';
+import * as modsApi from '$lib/api/mods';
 
 type ViewMode = 'grid' | 'list' | 'compact';
 
@@ -39,6 +40,7 @@ let viewMode: ViewMode = 'grid';
 let searchQuery = '';
 let currentInstallation: KableInstallation | null = null;
 let showFilters = true;
+let smartFilteringEnabled = true; // Auto-apply loader and game version filters
 
 // Filter state with include/exclude support
 type FilterMode = 'include' | 'exclude';
@@ -67,6 +69,16 @@ let maxPageReached = 1; // Highest page number user has visited
 let installedMods: ModJarInfo[] = [];
 let installedModsMap = new Map<string, ModJarInfo>();
 let installedModsLoaded = false;
+
+// Version filename cache for accurate mod detection
+// Maps: project_id -> Set<filename> (all JAR filenames across all versions)
+let versionFilenameCache = new Map<string, Set<string>>();
+// Track which projects we've already fetched
+let versionFetchInProgress = new Set<string>();
+// Cache of installed status for displayed mods: project_id -> {isInstalled, version}
+let installedStatusCache = new Map<string, { isInstalled: boolean; version: string | null }>();
+// Counter to force reactivity updates
+let cacheUpdateCounter = 0;
 
 // Service instance
 let modsService: ModsService;
@@ -128,6 +140,11 @@ $: error = $modsError;
 $: paginatedMods = mods;
 $: totalMods = mods.length;
 
+// Update installed status cache when mods change
+$: if (paginatedMods && installedModsLoaded) {
+  updateInstalledStatusCache(paginatedMods);
+}
+
 // Load installed mods when installation changes
 $: if (currentInstallation) {
   installedModsLoaded = false;
@@ -159,7 +176,8 @@ async function applyFiltersToBackend() {
       includeEnvironments.length === 0 && excludeEnvironments.length === 0 && !openSource) {
     currentPage = 1;
     modsOffset.set(0);
-    await modsService.setFilter(null, currentInstallation);
+    // Only pass installation if smart filtering is enabled
+    await modsService.setFilter(null, smartFilteringEnabled ? currentInstallation : null);
     return;
   }
   
@@ -215,7 +233,8 @@ async function applyFiltersToBackend() {
   modsOffset.set(0);
   
   try {
-    await modsService.setFilter(modFilter, currentInstallation);
+    // Only pass installation if smart filtering is enabled
+    await modsService.setFilter(modFilter, smartFilteringEnabled ? currentInstallation : null);
   } catch (e) {
     console.error('[ModBrowser] Failed to apply filters:', e);
   }
@@ -374,212 +393,163 @@ async function loadInstalledMods(installation: KableInstallation) {
   try {
     installedMods = await InstallationService.getModInfo(installation);
     
-    // Create a map for quick lookups using mod name and file name for matching
+    // Create a map for quick lookups using JAR filename (exact match)
     installedModsMap = new Map();
     installedMods.forEach(mod => {
-      // Add multiple keys for different ways to match
-      if (mod.mod_name) {
-        installedModsMap.set(mod.mod_name.toLowerCase(), mod);
-      }
       if (mod.file_name) {
-        installedModsMap.set(mod.file_name.toLowerCase(), mod);
-        // Also add without file extension
-        const nameWithoutExt = mod.file_name.replace(/\.(jar|zip)$/i, '');
-        installedModsMap.set(nameWithoutExt.toLowerCase(), mod);
+        // Store by exact filename (with .jar extension)
+        const filename = mod.file_name.toLowerCase();
+        installedModsMap.set(filename, mod);
       }
     });
     
+    // Clear caches when installation changes
+    installedStatusCache.clear();
+    versionFilenameCache.clear();
+    versionFetchInProgress.clear();
+    
     installedModsLoaded = true;
+    console.log(`[ModBrowser] Loaded ${installedMods.length} installed mods`);
   } catch (e) {
     console.error('[ModBrowser] Failed to load installed mods:', e);
     installedMods = [];
     installedModsMap = new Map();
-    installedModsLoaded = true; // Still set to true to prevent infinite loading
+    installedModsLoaded = true;
   }
 }
 
-// Fuzzy matching utilities
-function levenshteinDistance(a: string, b: string): number {
-  const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
-
-  for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
-  for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
-
-  for (let j = 1; j <= b.length; j++) {
-    for (let i = 1; i <= a.length; i++) {
-      const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
-      matrix[j][i] = Math.min(
-        matrix[j][i - 1] + 1,     // deletion
-        matrix[j - 1][i] + 1,     // insertion
-        matrix[j - 1][i - 1] + indicator  // substitution
-      );
-    }
+// Lazy-load version filenames for a mod to check if installed
+async function fetchVersionFilenames(projectId: string): Promise<Set<string>> {
+  // Return cached if available
+  if (versionFilenameCache.has(projectId)) {
+    return versionFilenameCache.get(projectId)!;
   }
-
-  return matrix[b.length][a.length];
-}
-
-function similarity(a: string, b: string): number {
-  const maxLength = Math.max(a.length, b.length);
-  if (maxLength === 0) return 1;
-  const distance = levenshteinDistance(a, b);
-  return (maxLength - distance) / maxLength;
-}
-
-function normalizeForComparison(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    // Remove common file extensions
-    .replace(/\.(jar|zip)$/i, '')
-    // Normalize separators to spaces
-    .replace(/[\-_]+/g, ' ')
-    // Remove extra spaces
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function findBestMatch(target: string, candidates: string[], threshold: number = 0.7): { match: string; score: number } | null {
-  const normalizedTarget = normalizeForComparison(target);
   
-  let bestMatch = null;
-  let bestScore = 0;
-
-  for (const candidate of candidates) {
-    const normalizedCandidate = normalizeForComparison(candidate);
-    
-    // Skip very short strings
-    if (normalizedTarget.length < 3 || normalizedCandidate.length < 3) continue;
-    
-    const score = similarity(normalizedTarget, normalizedCandidate);
-    
-    if (score > bestScore && score >= threshold) {
-      bestScore = score;
-      bestMatch = candidate;
+  // Prevent duplicate fetches
+  if (versionFetchInProgress.has(projectId)) {
+    // Wait a bit and try again (primitive lock)
+    await new Promise(resolve => setTimeout(resolve, 100));
+    if (versionFilenameCache.has(projectId)) {
+      return versionFilenameCache.get(projectId)!;
     }
+    return new Set(); // Give up if still not ready
   }
-
-  return bestMatch ? { match: bestMatch, score: bestScore } : null;
+  
+  versionFetchInProgress.add(projectId);
+  
+  try {
+    // Fetch ALL versions for this project (no filters)
+    const versions: ModrinthVersion[] = await modsApi.getProjectVersions(currentProvider, projectId);
+    
+    // Extract all filenames from all versions
+    const filenames = new Set<string>();
+    versions.forEach((version: ModrinthVersion) => {
+      version.files.forEach((file: ModrinthFile) => {
+        filenames.add(file.filename.toLowerCase());
+      });
+    });
+    
+    versionFilenameCache.set(projectId, filenames);
+    console.log(`[ModBrowser] Cached ${filenames.size} filenames for project ${projectId}`);
+    
+    return filenames;
+  } catch (e) {
+    console.error(`[ModBrowser] Failed to fetch versions for ${projectId}:`, e);
+    return new Set();
+  } finally {
+    versionFetchInProgress.delete(projectId);
+  }
 }
 
-// Check if a mod is already installed and return version info
-function getInstalledModInfo(mod: ModInfoKind): { isInstalled: boolean; version: string | null } {
+// Check if a mod is already installed by comparing JAR filenames
+async function getInstalledModInfo(mod: ModInfoKind): Promise<{ isInstalled: boolean; version: string | null }> {
   // Don't check if installed mods haven't been loaded yet
   if (!installedModsLoaded) {
     return { isInstalled: false, version: null };
   }
-
-  const displayInfo = getModDisplayInfo(mod);
   
-  // Skip if mod info is unavailable
-  if (!displayInfo) {
+  // Get project ID based on provider
+  let projectId: string | null = null;
+  
+  if ('Modrinth' in mod) {
+    projectId = mod.Modrinth.project_id;
+  } else if ('CurseForge' in mod) {
+    projectId = mod.CurseForge.id.toString();
+  }
+  
+  if (!projectId) {
     return { isInstalled: false, version: null };
   }
   
-  // Helper to find installed mod by various identifiers
-  const findInstalledMod = (): ModJarInfo | null => {
-    // First try exact matches for performance
-    const modTitle = displayInfo.title.toLowerCase();
-    const titleMatch = installedModsMap.get(modTitle);
-    if (titleMatch) return titleMatch;
-    
-    // For Modrinth mods, also check by project ID or slug
-    let modrinthData: any = null;
-    if ('Modrinth' in mod) {
-      modrinthData = mod.Modrinth;
-    } else if ('kind' in mod && mod.kind === 'Modrinth') {
-      modrinthData = mod.data;
-    }
-    
-    if (modrinthData) {
-      if (modrinthData.project_id) {
-        const idMatch = installedModsMap.get(modrinthData.project_id.toLowerCase());
-        if (idMatch) return idMatch;
-      }
-      if (modrinthData.slug) {
-        const slugMatch = installedModsMap.get(modrinthData.slug.toLowerCase());
-        if (slugMatch) return slugMatch;
-      }
-    }
-
-    // For CurseForge mods, also check by mod ID or slug
-    let curseforgeData: any = null;
-    if ('CurseForge' in mod) {
-      curseforgeData = mod.CurseForge;
-    } else if ('kind' in mod && mod.kind === 'CurseForge') {
-      curseforgeData = mod.data;
-    }
-    
-    if (curseforgeData) {
-      if (curseforgeData.id) {
-        const idMatch = installedModsMap.get(curseforgeData.id.toString().toLowerCase());
-        if (idMatch) return idMatch;
-      }
-      if (curseforgeData.slug) {
-        const slugMatch = installedModsMap.get(curseforgeData.slug.toLowerCase());
-        if (slugMatch) return slugMatch;
-      }
-    }
-    
-    // If no exact match, try fuzzy matching
-    const candidateNames: string[] = [];
-    const candidateMap = new Map<string, ModJarInfo>();
-    
-    installedMods.forEach(installedMod => {
-      if (installedMod.mod_name) {
-        const key = installedMod.mod_name.toLowerCase();
-        candidateNames.push(key);
-        candidateMap.set(key, installedMod);
-      }
-      if (installedMod.file_name) {
-        const key = installedMod.file_name.toLowerCase();
-        candidateNames.push(key);
-        candidateMap.set(key, installedMod);
-        // Also add filename without extension
-        const nameWithoutExt = installedMod.file_name.replace(/\.(jar|zip)$/i, '').toLowerCase();
-        candidateNames.push(nameWithoutExt);
-        candidateMap.set(nameWithoutExt, installedMod);
-      }
-    });
-    
-    // Try fuzzy matching against mod title
-    const titleFuzzy = findBestMatch(displayInfo.title.toLowerCase(), candidateNames, 0.7);
-    if (titleFuzzy) {
-      return candidateMap.get(titleFuzzy.match) || null;
-    }
-    
-    // Also try fuzzy matching against slug if available
-    if (modrinthData?.slug) {
-      const slugFuzzy = findBestMatch(modrinthData.slug.toLowerCase(), candidateNames, 0.7);
-      if (slugFuzzy) {
-        return candidateMap.get(slugFuzzy.match) || null;
-      }
-    }
-
-    if (curseforgeData?.slug) {
-      const slugFuzzy = findBestMatch(curseforgeData.slug.toLowerCase(), candidateNames, 0.7);
-      if (slugFuzzy) {
-        return candidateMap.get(slugFuzzy.match) || null;
-      }
-    }
-    
-    return null;
-  };
-  
-  const installedMod = findInstalledMod();
-  if (installedMod) {
-    return {
-      isInstalled: true,
-      version: installedMod.mod_version || null
-    };
+  // Check cache first
+  if (installedStatusCache.has(projectId)) {
+    return installedStatusCache.get(projectId)!;
   }
   
-  return { isInstalled: false, version: null };
+  // Fetch version filenames for this project
+  const versionFilenames = await fetchVersionFilenames(projectId);
+  
+  // Check if any of our installed mod filenames match any version filename
+  for (const [filename, installedMod] of installedModsMap.entries()) {
+    if (versionFilenames.has(filename)) {
+      const result = {
+        isInstalled: true,
+        version: installedMod.mod_version || null
+      };
+      installedStatusCache.set(projectId, result);
+      return result;
+    }
+  }
+  
+  const result = { isInstalled: false, version: null };
+  installedStatusCache.set(projectId, result);
+  return result;
+}
+
+// Update installed status cache for all visible mods
+async function updateInstalledStatusCache(mods: ModInfoKind[]) {
+  // Process mods in parallel (with limit to avoid overwhelming)
+  const batchSize = 10;
+  for (let i = 0; i < mods.length; i += batchSize) {
+    const batch = mods.slice(i, i + batchSize);
+    await Promise.all(batch.map(mod => getInstalledModInfo(mod)));
+    // Trigger reactivity after each batch
+    cacheUpdateCounter++;
+  }
+}
+
+// Get cached installed info (synchronous, for template use)
+// Include cacheUpdateCounter to make this reactive to cache updates
+function getCachedInstalledInfo(mod: ModInfoKind, _counter = cacheUpdateCounter): { isInstalled: boolean; version: string | null } {
+  let projectId: string | null = null;
+  
+  if ('Modrinth' in mod) {
+    projectId = mod.Modrinth.project_id;
+  } else if ('CurseForge' in mod) {
+    projectId = mod.CurseForge.id.toString();
+  }
+  
+  if (!projectId) {
+    return { isInstalled: false, version: null };
+  }
+  
+  return installedStatusCache.get(projectId) || { isInstalled: false, version: null };
+}
+
+// Get unique key for each mod (for keyed each blocks)
+function getModKey(mod: ModInfoKind): string {
+  if ('Modrinth' in mod) {
+    return `modrinth-${mod.Modrinth.project_id}`;
+  } else if ('CurseForge' in mod) {
+    return `curseforge-${mod.CurseForge.id}`;
+  }
+  return `unknown-${Math.random()}`;
 }
 
 // Legacy function for backward compatibility
-function isModInstalled(mod: ModInfoKind): boolean {
-  return getInstalledModInfo(mod).isInstalled;
+async function isModInstalled(mod: ModInfoKind): Promise<boolean> {
+  const info = await getInstalledModInfo(mod);
+  return info.isInstalled;
 }
 
 // Initialize service when provider changes
@@ -602,13 +572,24 @@ async function initializeProvider() {
 }
 
 async function applyInstallationFilters() {
-  if (!currentInstallation || !modsService) return;
+  if (!modsService) return;
   
   // Apply filters based on installation (loader, MC version, etc.)
+  // Only pass installation if smart filtering is enabled
   try {
-    await modsService.setFilter(null, currentInstallation);
+    await modsService.setFilter(null, smartFilteringEnabled ? currentInstallation : null);
   } catch (e) {
     console.error('Failed to apply installation filters:', e);
+  }
+}
+
+// Handle smart filtering toggle
+async function onSmartFilteringChange() {
+  console.log(`[ModBrowser] Smart filtering ${smartFilteringEnabled ? 'enabled' : 'disabled'}`);
+  
+  // Re-apply filters with new setting
+  if (modsService) {
+    await applyFiltersToBackend();
   }
 }
 
@@ -1085,6 +1066,25 @@ onMount(async () => {
             </div>
           </div>
 
+          <!-- Smart Filtering Toggle -->
+          <div class="filter-section smart-filter-section">
+            <label class="smart-filter-toggle">
+              <input 
+                type="checkbox" 
+                bind:checked={smartFilteringEnabled}
+                on:change={onSmartFilteringChange}
+              />
+              <span class="toggle-label" title="When enabled, only shows mods compatible with your installation's loader and Minecraft version. Disable to browse all mods.">
+                Smart Filtering
+              </span>
+            </label>
+            <p class="smart-filter-hint">
+              {smartFilteringEnabled 
+                ? 'Showing mods compatible with your installation' 
+                : 'Showing all mods (compatibility not filtered)'}
+            </p>
+          </div>
+
           <!-- Dynamic Filter Sections -->
           {#each filterSections as section}
             <div class="filter-section">
@@ -1237,8 +1237,8 @@ onMount(async () => {
         {:else}
           <!-- Mods Grid/List -->
           <div class="mods-container" class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} class:compact={viewMode === 'compact'}>
-            {#each paginatedMods as mod}
-              {@const installedInfo = currentInstallation && installedModsLoaded ? getInstalledModInfo(mod) : { isInstalled: false, version: null }}
+            {#each paginatedMods as mod (getModKey(mod))}
+              {@const installedInfo = currentInstallation && installedModsLoaded ? getCachedInstalledInfo(mod, cacheUpdateCounter) : { isInstalled: false, version: null }}
               <ModCard 
                 {mod} 
                 {viewMode} 
@@ -1639,6 +1639,47 @@ onMount(async () => {
             }
           }
         }
+      }
+    }
+    
+    // Smart Filter Toggle Section
+    .smart-filter-section {
+      padding: 0.75rem;
+      background: #{'color-mix(in srgb, var(--primary), 3%, transparent)'};
+      border: 1px solid #{'color-mix(in srgb, var(--primary), 12%, transparent)'};
+      border-radius: 0.375rem;
+      margin-bottom: 1rem;
+      
+      .smart-filter-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        cursor: pointer;
+        user-select: none;
+        
+        input[type="checkbox"] {
+          width: 1rem;
+          height: 1rem;
+          cursor: pointer;
+          accent-color: var(--primary);
+        }
+        
+        .toggle-label {
+          font-size: 0.85em;
+          font-weight: 600;
+          color: var(--text);
+          cursor: help;
+        }
+      }
+      
+      .smart-filter-hint {
+        margin: 0.5rem 0 0 0;
+        padding: 0.375rem 0.5rem;
+        background: #{'color-mix(in srgb, var(--dark-800), 50%, transparent)'};
+        border-radius: 0.25rem;
+        font-size: 0.75em;
+        color: var(--text-secondary);
+        line-height: 1.4;
       }
     }
   }

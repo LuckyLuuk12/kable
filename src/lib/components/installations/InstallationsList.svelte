@@ -205,36 +205,6 @@ Supports both grid and list view modes with sorting and filtering.
       {error}
     </div>
   {/if}
-
-    <style>
-      /* Constrain installation-provided icons to the same visual area as the built-in icons */
-      .installation-img {
-        width: 48px;
-        height: 48px;
-        max-width: 48px;
-        max-height: 48px;
-        object-fit: contain;
-        border-radius: 8px;
-        display: block;
-      }
-
-      /* Slightly smaller for list view where icons are more compact */
-      .installation-img.list-img {
-        width: 32px;
-        height: 32px;
-        max-width: 32px;
-        max-height: 32px;
-        border-radius: 6px;
-      }
-
-      /* Ensure the wrapper keeps consistent alignment with icon tooltip */
-      .installation-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-    </style>
-
   {#if isLoading && limitedInstallations.length === 0}
     <div class="loading-state">
       <Icon name="refresh" size="md" forceType="svg"/>
@@ -266,15 +236,15 @@ Supports both grid and list view modes with sorting and filtering.
                     <Icon name="more-horizontal" size="sm" />
                   </button>
                   <div class="dropdown-menu" style="z-index: {(limitedInstallations.length - i) * 2 - 1};">
-                    <button on:click={() => editModal?.open(installation)}>
+                    <button on:click={() => editModal?.open(installation)} title="Edit Installation">
                       <Icon name="edit" size="sm" />
                       Edit
                     </button>
-                    <button on:click={async () => await InstallationService.createInstallation(installation.version_id)}>
+                    <button on:click={async () => await InstallationService.createInstallation(installation.version_id)} title="Duplicate Installation">
                       <Icon name="duplicate" size="sm" />
                       Duplicate
                     </button>
-                    <button on:click={async () => { await InstallationService.exportInstallation(installation); }}>
+                    <button on:click={async () => { await InstallationService.exportInstallation(installation); }} title="Export Installation">
                       <Icon name="download" size="sm" />
                       Export
                     </button>
@@ -285,7 +255,7 @@ Supports both grid and list view modes with sorting and filtering.
                       } catch (err) {
                         console.error('Failed to create shortcut:', err);
                       }
-                    }}>
+                    }} title="Create Shortcut">
                       <Icon name="link" size="sm" />
                       Create Shortcut
                     </button>
@@ -293,6 +263,7 @@ Supports both grid and list view modes with sorting and filtering.
                     <button 
                       class="danger" 
                       on:click={async () => await InstallationService.deleteInstallation(installation.id)}
+                      title="Delete Installation"
                     >
                       <Icon name="trash" size="sm" />
                       Delete
@@ -377,15 +348,15 @@ Supports both grid and list view modes with sorting and filtering.
 
             {#if !isSmall}
               <div class="installation-actions">
-                <button class="btn btn-secondary" on:click={() => editModal?.open(installation)}>
+                <button class="btn btn-secondary" on:click={() => editModal?.open(installation)} title="Edit Installation">
                   <Icon name="edit" size="sm" />
                   Edit
                 </button>
-                <button class="btn btn-secondary" on:click={async () => await InstallationService.createInstallation(installation.version_id)}>
+                <button class="btn btn-secondary" on:click={async () => await InstallationService.createInstallation(installation.version_id)} title="Duplicate Installation">
                   <Icon name="duplicate" size="sm" />
                   Duplicate
                 </button>
-                <button class="btn btn-secondary" on:click={async () => { await InstallationService.exportInstallation(installation); }}>
+                <button class="btn btn-secondary" on:click={async () => { await InstallationService.exportInstallation(installation); }} title="Export Installation">
                   <Icon name="download" size="sm" />
                   Export
                 </button>
@@ -396,11 +367,11 @@ Supports both grid and list view modes with sorting and filtering.
                   } catch (err) {
                     console.error('Failed to create shortcut:', err);
                   }
-                }}>
+                }} title="Create Shortcut">
                   <Icon name="link" size="sm" />
                   Create Shortcut
                 </button>
-                <button class="btn btn-danger" on:click={async () => await InstallationService.deleteInstallation(installation.id)}>
+                <button class="btn btn-danger" on:click={async () => await InstallationService.deleteInstallation(installation.id)} title="Delete Installation">
                   <Icon name="trash" size="sm" />
                   Delete
                 </button>
@@ -454,15 +425,15 @@ Supports both grid and list view modes with sorting and filtering.
                     
                     <!-- Inline Actions (shown when they fit) -->
                     <div class="list-inline-actions" class:hidden={useDropdownForActions[installation.id]}>
-                      <button class="list-action-btn" on:click={() => editModal?.open(installation)}>
+                      <button class="list-action-btn" on:click={() => editModal?.open(installation)} title="Edit Installation">
                         <Icon name="edit" size="sm" />
                         Edit
                       </button>
-                      <button class="list-action-btn" on:click={async () => await InstallationService.createInstallation(installation.version_id)}>
+                      <button class="list-action-btn" on:click={async () => await InstallationService.createInstallation(installation.version_id)} title="Duplicate Installation">
                         <Icon name="duplicate" size="sm" />
                         Duplicate
                       </button>
-                      <button class="list-action-btn" on:click={async () => {/* TODO: implement export logic */}}>
+                      <button class="list-action-btn" on:click={async () => await InstallationService.exportInstallation(installation)} title="Export Installation">
                         <Icon name="download" size="sm" />
                         Export
                       </button>
@@ -473,11 +444,11 @@ Supports both grid and list view modes with sorting and filtering.
                         } catch (err) {
                           console.error('Failed to create shortcut:', err);
                         }
-                      }}>
+                      }} title="Create Shortcut">
                         <Icon name="link" size="sm" />
                         Create Shortcut
                       </button>
-                      <button class="list-action-btn danger" on:click={async () => await InstallationService.deleteInstallation(installation.id)}>
+                      <button class="list-action-btn danger" on:click={async () => await InstallationService.deleteInstallation(installation.id)} title="Delete Installation">
                         <Icon name="trash" size="sm" />
                         Delete
                       </button>
@@ -489,15 +460,15 @@ Supports both grid and list view modes with sorting and filtering.
                         <Icon name="more-horizontal" size="sm" />
                       </button>
                       <div class="dropdown-menu">
-                        <button on:click={() => editModal?.open(installation)}>
+                        <button on:click={() => editModal?.open(installation)} title="Edit Installation">
                           <Icon name="edit" size="sm" />
                           Edit
                         </button>
-                        <button on:click={async () => await InstallationService.createInstallation(installation.version_id)}>
+                        <button on:click={async () => await InstallationService.createInstallation(installation.version_id)} title="Duplicate Installation">
                           <Icon name="duplicate" size="sm" />
                           Duplicate
                         </button>
-                        <button on:click={async () => {/* TODO: implement export logic */}}>
+                        <button on:click={async () => await InstallationService.exportInstallation(installation)} title="Export Installation">
                           <Icon name="download" size="sm" />
                           Export
                         </button>
@@ -508,7 +479,7 @@ Supports both grid and list view modes with sorting and filtering.
                           } catch (err) {
                             console.error('Failed to create shortcut:', err);
                           }
-                        }}>
+                        }} title="Create Shortcut">
                           <Icon name="link" size="sm" />
                           Create Shortcut
                         </button>
@@ -516,6 +487,7 @@ Supports both grid and list view modes with sorting and filtering.
                         <button 
                           class="danger" 
                           on:click={async () => await InstallationService.deleteInstallation(installation.id)}
+                          title="Delete Installation"
                         >
                           <Icon name="trash" size="sm" />
                           Delete
@@ -552,6 +524,34 @@ Supports both grid and list view modes with sorting and filtering.
 
 <style lang="scss">
   @use "@kablan/clean-ui/scss/_variables.scss" as *;
+
+  /* Constrain installation-provided icons to the same visual area as the built-in icons */
+  .installation-img {
+    width: 48px;
+    height: 48px;
+    max-width: 48px;
+    max-height: 48px;
+    object-fit: contain;
+    border-radius: 8px;
+    display: block;
+  }
+
+  /* Slightly smaller for list view where icons are more compact */
+  .installation-img.list-img {
+    width: 32px;
+    height: 32px;
+    max-width: 32px;
+    max-height: 32px;
+    border-radius: 6px;
+  }
+
+  /* Ensure the wrapper keeps consistent alignment with icon tooltip */
+  .installation-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   .installations-list {
     padding: 2rem;
     border-radius: var(--border-radius);
@@ -1009,6 +1009,7 @@ Supports both grid and list view modes with sorting and filtering.
     display: flex;
     align-items: center;
     justify-content: flex-start;
+    flex-wrap: wrap;
     margin-top: 1rem;
     min-height: 2.5rem;
     gap: 0.5rem;

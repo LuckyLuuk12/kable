@@ -1,5 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import type { LauncherAccount, LauncherAccountsJson, MicrosoftToken, AuthCodeResponse, DeviceCodeResponse, AuthMethod } from '../types';
+import type { LauncherAccount, LauncherAccountsJson, MicrosoftToken, DeviceCodeResponse, AuthMethod } from '../types';
 
 /**
  * Authentication API
@@ -26,20 +26,7 @@ export async function refreshMinecraftAccount(): Promise<LauncherAccount> {
   return await invoke('refresh_minecraft_account');
 }
 
-// Authorization Code Flow (Recommended for Desktop)
-export async function startMicrosoftAuthCode(): Promise<AuthCodeResponse> {
-  return await invoke('start_microsoft_auth_code');
-}
-
-export async function completeMicrosoftAuthCode(microsoftToken: MicrosoftToken): Promise<LauncherAccount> {
-  return await invoke('complete_minecraft_auth_code', { microsoftToken });
-}
-
-export async function pollMicrosoftAuthCode(state: string): Promise<MicrosoftToken | null> {
-  return await invoke('poll_microsoft_auth_code', { state });
-}
-
-// Device Code Flow (Fallback)
+// Device Code Flow
 export async function startMicrosoftDeviceAuth(): Promise<DeviceCodeResponse> {
   return await invoke('start_microsoft_device_auth');
 }

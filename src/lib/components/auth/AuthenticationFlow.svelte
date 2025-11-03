@@ -1,23 +1,22 @@
-<!--
+<!-- @component
+◄!--
 @component
 AuthenticationFlow - Microsoft authentication flow UI component
 
-Provides interface for authenticating with Microsoft using either:
-- Authorization Code Flow (recommended) - Opens browser for login
-- Device Code Flow (fallback) - Displays code for manual entry
+Provides interface for authenticating with Microsoft using Device Code Flow
 
 @example
 ```svelte
-<AuthenticationFlow />
+◄AuthenticationFlow /►
 ```
 -->
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { AuthService , Icon, isAuthenticating } from '$lib';
+  import { AuthService, Icon, isAuthenticating, Image } from '$lib';
+  import * as systemApi from '$lib';
 
   // Authentication state
   let error: string | null = null;
-  let selectedAuthMethod: 'authcode' | 'devicecode' = 'authcode';
 
   // Device Code Flow state
   let deviceCodeData: any = null;
@@ -31,29 +30,20 @@ Provides interface for authenticating with Microsoft using either:
   });
 
   /**
-   * Primary authentication method - Authorization Code Flow
-   */
-
-  async function signInWithAuthCode() {
-    try {
-      error = null;
-      await AuthService.signIn();
-    } catch (err) {
-      console.error('Authorization Code Flow sign in failed:', err);
-      error = `Sign in failed: ${err}`;
-    }
-  }
-
-  /**
-   * Fallback authentication method - Device Code Flow
+   * Device Code Flow authentication
    */
   async function signInWithDeviceCode() {
     try {
       error = null;
       isPollingDeviceCode = true;
+      
       // Step 1: Start device code flow and get device code data for display
       deviceCodeData = await AuthService.startDeviceCodeFlow();
       console.log('📱 Device code started:', deviceCodeData);
+      
+      // Auto-copy code to clipboard
+      await AuthService.copyToClipboard(deviceCodeData.user_code);
+      
       // Step 2: Start polling for completion in the background
       try {
         const account = await AuthService.pollDeviceCodeCompletion(deviceCodeData.device_code);
@@ -77,6 +67,15 @@ Provides interface for authenticating with Microsoft using either:
   }
 
   /**
+   * Open verification URL in browser
+   */
+  async function openVerificationUrl() {
+    if (deviceCodeData) {
+      await systemApi.openUrl(deviceCodeData.verification_uri);
+    }
+  }
+
+  /**
    * Cancel device code authentication
    */
   function cancelDeviceCode() {
@@ -93,85 +92,66 @@ Provides interface for authenticating with Microsoft using either:
       {error}
     </div>
   {/if}
-
-  <div class="auth-header">
-    <div class="auth-icon">
-      <Icon name="user-plus" size="xl" />
-    </div>
-    <h3>Sign in to Microsoft</h3>
-    <p>Sign in with your Microsoft account to access online features and view your Minecraft profile.</p>
-  </div>
   
   {#if deviceCodeData}
-    <div class="device-code-info">
+    <div class="device-code-container">
       <div class="device-code-header">
-        <Icon name="info" size="sm" />
-        <span>Device Code Authentication</span>
+        <div class="microsoft-logo">
+          <Image key="microsoft-logo" alt="Microsoft" width="20px" height="20px" />
+        </div>
+        <h3>Sign in to Microsoft</h3>
       </div>
       
-      <div class="device-code-instructions">
-        <p>Go to: <strong>{deviceCodeData.verification_uri}</strong></p>
-        <p>Enter this code:</p>
+      <div class="device-code-card">
+        <div class="step-indicator">
+          <span class="step-number">1</span>
+          <p>Click to open Microsoft activation page</p>
+        </div>
+        
+        <button on:click={openVerificationUrl} class="verification-link-btn">
+          <Icon name="link" size="sm" />
+          {deviceCodeData.verification_uri}
+        </button>
+        
+        <div class="step-indicator">
+          <span class="step-number">2</span>
+          <p>Enter this code (automatically copied)</p>
+        </div>
+        
         <div class="code-display">
           <code class="user-code">{deviceCodeData.user_code}</code>
-          <button on:click={() => AuthService.copyToClipboard(deviceCodeData.user_code)} class="copy-btn">
+          <button on:click={() => AuthService.copyToClipboard(deviceCodeData.user_code)} class="copy-btn" title="Copy code">
             <Icon name="duplicate" size="sm" />
           </button>
         </div>
         
         {#if isPollingDeviceCode}
           <div class="polling-status">
-            <Icon name="refresh" size="sm" />
-            <span>Waiting for authentication...</span>
+            <div class="spinner"></div>
+            <span>Waiting for you to complete authentication...</span>
           </div>
         {/if}
         
         <div class="device-code-actions">
-          <button on:click={() => AuthService.copyToClipboard(deviceCodeData.user_code)} class="btn btn-secondary">
-            <Icon name="duplicate" size="sm" />
-            Copy Code
-          </button>
-          <button on:click={cancelDeviceCode} class="btn btn-outline">
-            <Icon name="x" size="sm" />
+          <button on:click={cancelDeviceCode} class="btn btn-secondary btn-sm">
             Cancel
           </button>
         </div>
       </div>
     </div>
   {:else}
-    <div class="auth-options">
-      <div class="auth-method-selector">
-        <label class="radio-option">
-          <input type="radio" bind:group={selectedAuthMethod} value="authcode" />
-          <span>Authorization Code Flow (Recommended)</span>
-        </label>
-        <label class="radio-option">
-          <input type="radio" bind:group={selectedAuthMethod} value="devicecode" />
-          <span>Device Code Flow (Alternative)</span>
-        </label>
-      </div>
+    <div class="sign-in-container">
+      <button on:click={signInWithDeviceCode} class="btn-microsoft" disabled={$isAuthenticating}>
+        <div class="microsoft-logo-large">
+          <Image key="microsoft-logo" alt="Microsoft" width="21px" height="21px" />
+        </div>
+        <span>{$isAuthenticating ? 'Signing in...' : 'Sign in with Microsoft'}</span>
+      </button>
       
-      <div class="auth-actions">
-        {#if selectedAuthMethod === 'authcode'}
-          <button on:click={signInWithAuthCode} class="btn btn-primary" disabled={$isAuthenticating}>
-            <Icon name="microsoft" size="sm" />
-            {$isAuthenticating ? 'Signing in...' : 'Sign in with Microsoft'}
-          </button>
-          <p class="auth-help">
-            <Icon name="info" size="sm" />
-            Opens a browser window for secure authentication.
-          </p>
-        {:else}
-          <button on:click={signInWithDeviceCode} class="btn btn-secondary" disabled={$isAuthenticating}>
-            <Icon name="qr-code" size="sm" />
-            {$isAuthenticating ? 'Signing in...' : 'Sign in with Device Code'}
-          </button>
-          <p class="auth-help">
-            <Icon name="info" size="sm" />
-            Use this if the browser method doesn't work.
-          </p>
-        {/if}
-      </div>
+      <p class="auth-disclaimer">
+        <Icon name="lock" size="sm" />
+        Secure authentication via Microsoft
+      </p>
     </div>
   {/if}
 </div>
@@ -181,189 +161,238 @@ Provides interface for authenticating with Microsoft using either:
 
   .auth-flow {
     width: 100%;
+    padding: 1.5rem;
   }
 
   .error-message {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 1rem;
-  background: color-mix(in srgb, var(--red), 10%, transparent);
+    padding: 0.75rem 1rem;
+    background: color-mix(in srgb, var(--red), 10%, transparent);
     border: 1px solid var(--red);
-    border-radius: var(--border-radius);
+    border-radius: 8px;
     color: var(--red);
     margin-bottom: 1rem;
+    font-size: 0.875rem;
   }
 
-  .auth-header {
-    text-align: center;
-    margin-bottom: 2rem;
-
-    .auth-icon {
-      margin-bottom: 1.5rem;
-      color: var(--primary);
-      opacity: 0.8;
-    }
-
-    h3 {
-      margin: 0 0 1rem;
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    p {
-      margin: 0;
-      color: var(--placeholder);
-      line-height: 1.6;
-    }
-  }
-
-  .auth-options {
+  .sign-in-container {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
     align-items: center;
+    gap: 1.25rem;
+    padding: 0.5rem 0;
   }
 
-  .auth-method-selector {
+  .btn-microsoft {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     gap: 0.75rem;
-    width: 100%;
-    max-width: 400px;
+    padding: 0.75rem 1.75rem;
+    background: white;
+    color: #5e5e5e;
+    border: 1px solid #8c8c8c;
+    border-radius: 2px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    min-width: 240px;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
 
-    .radio-option {
+    &:hover:not(:disabled) {
+      background: #f3f3f3;
+      border-color: #5e5e5e;
+    }
+
+    &:active:not(:disabled) {
+      background: #e5e5e5;
+      transform: scale(0.98);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .microsoft-logo-large {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      padding: 1rem;
-      background: var(--container);
-      border: 1px solid var(--dark-600);
-      border-radius: var(--border-radius);
-      cursor: pointer;
-      transition: all 0.2s ease;
+      justify-content: center;
+    }
 
-      &:hover {
-        border-color: var(--primary);
-  background: color-mix(in srgb, var(--primary), 5%, transparent);
-      }
-
-      input[type="radio"] {
-        accent-color: var(--primary);
-      }
-
-      span {
-        color: var(--text);
-        font-weight: 500;
-      }
+    span {
+      letter-spacing: -0.01em;
     }
   }
 
-  .auth-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    align-items: center;
-    width: 100%;
-    max-width: 300px;
-
-    .btn {
-      width: 100%;
-    }
-  }
-
-  .auth-help {
+  .auth-disclaimer {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    font-size: 0.875rem;
+    font-size: 0.75rem;
     color: var(--placeholder);
     margin: 0;
-    text-align: center;
   }
 
-  .device-code-info {
-    padding: 1.5rem;
-  background: color-mix(in srgb, var(--primary), 5%, transparent);
-  border: 1px solid color-mix(in srgb, var(--primary), 10%, transparent);
-    border-radius: var(--border-radius);
-    text-align: center;
-    
-    .device-code-header {
+  .device-code-container {
+    max-width: 450px;
+    margin: 0 auto;
+  }
+
+  .device-code-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    margin-bottom: 1.25rem;
+
+    .microsoft-logo {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-      color: var(--primary);
+    }
+
+    h3 {
+      margin: 0;
+      font-size: 1.0625rem;
       font-weight: 600;
+      color: var(--text);
     }
-    
-    .device-code-instructions {
-      margin-bottom: 1rem;
-      
-      p {
-        margin: 0 0 0.5rem;
-        color: var(--text);
-        font-size: 0.9rem;
-      }
-      
-      .code-display {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.5rem;
-        margin-bottom: 1rem;
-        padding: 1rem;
-        background: var(--container);
-        border: 2px solid var(--primary);
-        border-radius: var(--border-radius);
-        
-        .user-code {
-          font-size: 1.25rem;
-          font-weight: 700;
-          color: var(--primary);
-          letter-spacing: 0.1em;
-        }
-        
-        .copy-btn {
-          background: none;
-          border: 1px solid color-mix(in srgb, var(--primary), 30%, transparent);
-          border-radius: 4px;
-          padding: 0.25rem;
-          color: var(--primary);
-          cursor: pointer;
-          transition: all 0.2s ease;
-          
-          &:hover {
-            background: color-mix(in srgb, var(--primary), 10%, transparent);
-            border-color: var(--primary);
-          }
-        }
-      }
-    }
-    
-    .polling-status {
+  }
+
+  .device-code-card {
+    background: var(--container);
+    border-radius: 10px;
+    padding: 0.25rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .step-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+
+    .step-number {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-      color: var(--placeholder);
-      
-      :global(.icon) {
-        animation: spin 1s linear infinite;
-      }
+      width: 24px;
+      height: 24px;
+      background: var(--primary);
+      color: white;
+      border-radius: 50%;
+      font-size: 0.8125rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    p {
+      margin: 0;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--text);
+    }
+  }
+
+  .verification-link-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    background: color-mix(in srgb, var(--primary), 8%, transparent);
+    border: 1px solid var(--primary);
+    border-radius: 6px;
+    color: var(--primary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    word-break: break-all;
+
+    &:hover {
+    background: color-mix(in srgb, var(--primary), 15%, transparent);
+    }
+
+    &:active {
+    background: color-mix(in srgb, var(--primary), 20%, transparent);
+      transform: scale(0.98);
+    }
+  }
+
+  .code-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    padding: 1rem;
+    background: var(--dark-800);
+    border: 2px solid var(--primary);
+    border-radius: 8px;
+    
+    .user-code {
+      font-size: 1.375rem;
+      font-weight: 700;
+      color: var(--primary);
+      letter-spacing: 0.15em;
+      font-family: 'Courier New', 'Courier', monospace;
     }
     
-    .device-code-actions {
+    .copy-btn {
+      background: none;
+      border: 1px solid var(--primary);
+      border-radius: 5px;
+      padding: 0.4375rem;
+      color: var(--primary);
+      cursor: pointer;
+      transition: all 0.15s ease;
       display: flex;
-      gap: 1rem;
+      align-items: center;
       justify-content: center;
-      margin-top: 1rem;
+      
+      &:hover {
+      background: color-mix(in srgb, var(--primary), 10%, transparent);
+      }
+
+      &:active {
+        transform: scale(0.95);
+      }
     }
+  }
+
+  .polling-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.625rem;
+    padding: 0.875rem;
+    background: color-mix(in srgb, var(--primary), 5%, transparent);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 0.8125rem;
+    
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--dark-600);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+  }
+
+  .device-code-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 0.25rem;
   }
 
   @keyframes spin {

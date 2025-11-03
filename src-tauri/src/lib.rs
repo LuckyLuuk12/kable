@@ -213,10 +213,6 @@ pub fn run() {
             commands_auth::start_microsoft_device_auth,
             commands_auth::poll_microsoft_device_auth,
             commands_auth::complete_minecraft_auth,
-            // Microsoft authentication commands - Authorization Code Flow
-            commands_auth::start_microsoft_auth_code,
-            commands_auth::complete_minecraft_auth_code,
-            commands_auth::poll_microsoft_auth_code,
             // Settings commands
             settings::load_settings,
             settings::save_settings_command,
