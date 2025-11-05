@@ -28,44 +28,49 @@ let openDropdownId: string | null = null;
 // RAM allocation state
 let ramAllocation = 2048; // Default 2GB in MB
 let ramInputValue = "2048"; // String value for text input
+let isEditingRam = false;
+let _commitTimer: ReturnType<typeof setTimeout> | null = null;
+let skipReactiveSyncUntil = 0;
 
 // Subscribe to the installations store and update RAM allocation
 $: {
-  console.log("Total installations:", $installations.length);
+  // Only run reactive sync when not editing and not in the skip window
+  if (Date.now() >= skipReactiveSyncUntil && !isEditingRam) {
+    console.log("Total installations:", $installations.length);
 
-  lastPlayedInstallations = $installations
-    .sort((a: KableInstallation, b: KableInstallation) => {
-      const aTime = new Date(a.last_used || 0).getTime();
-      const bTime = new Date(b.last_used || 0).getTime();
-      return bTime - aTime;
-    })
-    .slice(0, 8); // Show up to 8 installations
+    lastPlayedInstallations = $installations
+      .sort((a: KableInstallation, b: KableInstallation) => {
+        const aTime = new Date(a.last_used || 0).getTime();
+        const bTime = new Date(b.last_used || 0).getTime();
+        return bTime - aTime;
+      })
+      .slice(0, 8); // Show up to 8 installations
 
-  console.log("Last played installations:", lastPlayedInstallations.length);
+    console.log("Last played installations:", lastPlayedInstallations.length);
 
-  // Update RAM allocation when installation changes
-  if (lastPlayedInstallations.length > 0) {
-    const latestInstallation = lastPlayedInstallations[0];
-    console.log("Latest installation java_args:", latestInstallation.java_args);
+    // Update RAM allocation when installation changes
+    if (lastPlayedInstallations.length > 0) {
+      const latestInstallation = lastPlayedInstallations[0];
+      console.log("Latest installation java_args:", latestInstallation.java_args);
 
-    // Extract RAM from java_args (look for -Xmx)
-    const xmxArg = latestInstallation.java_args?.find((arg) =>
-      arg.startsWith("-Xmx"),
-    );
-    if (xmxArg) {
-      console.log("Found Xmx arg:", xmxArg);
-      const memValue = xmxArg.replace("-Xmx", "").toLowerCase();
-      if (memValue.endsWith("g")) {
-        ramAllocation = parseInt(memValue) * 1024;
-      } else if (memValue.endsWith("m")) {
-        ramAllocation = parseInt(memValue);
+      // Extract RAM from java_args (look for -Xmx)
+      const xmxArg = latestInstallation.java_args?.find((arg) =>
+        arg.startsWith("-Xmx"),
+      );
+      if (xmxArg) {
+        console.log("Found Xmx arg:", xmxArg);
+        const memValue = xmxArg.replace("-Xmx", "").toLowerCase();
+        if (memValue.endsWith("g")) {
+          ramAllocation = parseInt(memValue) * 1024;
+        } else if (memValue.endsWith("m")) {
+          ramAllocation = parseInt(memValue);
+        }
+        ramInputValue = ramAllocation.toString();
+        console.log("Set RAM allocation to:", ramAllocation, "MB");
       }
-      ramInputValue = ramAllocation.toString();
-      console.log("Set RAM allocation to:", ramAllocation, "MB");
     }
   }
 }
-
 // Check if ads should be shown from settings
 $: showAds = $settings?.general?.show_ads ?? false;
 
@@ -193,6 +198,7 @@ async function handleInstallationLaunch(installation: KableInstallation) {
 
 // RAM allocation functions
 function updateRamFromSlider() {
+  // Update only the display string while sliding; persist on change/commit
   ramInputValue = ramAllocation.toString();
 }
 
@@ -208,6 +214,54 @@ function updateRamFromInput() {
   } else {
     // Reset to current valid value if invalid input
     ramInputValue = ramAllocation.toString();
+  }
+}
+
+// Helper to set or replace -Xmx arg in java_args array
+function setXmxArg(args: string[] = [], mb: number): string[] {
+  const newArgs = [...args];
+  const idx = newArgs.findIndex((a) => a.startsWith("-Xmx"));
+  const memStr = mb % 1024 === 0 ? `${mb / 1024}G` : `${mb}M`;
+  const xmx = `-Xmx${memStr}`;
+  if (idx !== -1) {
+    newArgs[idx] = xmx;
+  } else {
+    newArgs.push(xmx);
+  }
+  return newArgs;
+}
+
+// Commit the current ramAllocation to the most-recent installation (debounced)
+async function commitRamChange(immediate = false) {
+  // If immediate, run commit now; otherwise debounce to avoid excessive writes
+  if (!immediate) {
+    if (_commitTimer) clearTimeout(_commitTimer);
+    _commitTimer = setTimeout(() => {
+      _commitTimer = null;
+      // call the actual commit
+      commitRamChange(true).catch((e) => console.error(e));
+    }, 300);
+    return;
+  }
+
+  // Immediate commit path
+  if (lastPlayedInstallations.length === 0) return;
+  const inst = lastPlayedInstallations[0];
+  isEditingRam = true; // keep UI stable while we persist
+  try {
+    const newArgs = setXmxArg(inst.java_args || [], ramAllocation);
+    const updated = { ...inst, java_args: newArgs } as typeof inst;
+    console.log("Committing RAM change for installation:", inst.id, ramAllocation, "MB");
+    await InstallationService.updateInstallation(inst.id, updated);
+    console.log("RAM allocation committed");
+  } catch (err) {
+    console.error("Failed to commit RAM allocation:", err);
+  } finally {
+    // allow reactive updates after commit completes, but delay briefly to avoid races
+    // re-apply UI values optimistically so the UI doesn't flicker back
+    ramInputValue = ramAllocation.toString();
+    skipReactiveSyncUntil = Date.now() + 1000; // 1s grace period
+    isEditingRam = false;
   }
 }
 
@@ -360,7 +414,8 @@ async function handleAdClick(url: string) {
             type="range"
             class="ram-slider"
             bind:value={ramAllocation}
-            on:input={updateRamFromSlider}
+            on:input={() => { updateRamFromSlider(); isEditingRam = true; }}
+            on:change={() => { commitRamChange(); }}
             min="512"
             max="32768"
             step="256"
@@ -379,8 +434,19 @@ async function handleAdClick(url: string) {
             type="text"
             class="ram-input"
             bind:value={ramInputValue}
-            on:blur={updateRamFromInput}
-            on:keydown={(e) => e.key === "Enter" && updateRamFromInput()}
+            on:focus={() => { isEditingRam = true; }}
+            on:blur={() => {
+              updateRamFromInput();
+              // commit immediately on blur and let commitRamChange manage isEditingRam
+              commitRamChange(true);
+            }}
+            on:keydown={(e) => {
+              if (e.key === "Enter") {
+                updateRamFromInput();
+                // commit immediately on Enter
+                commitRamChange(true);
+              }
+            }}
             placeholder="2048"
           />
           <span class="ram-unit">MB</span>
