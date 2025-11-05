@@ -15,22 +15,41 @@ Provides interface for discovering resource packs with support for:
 ```
 -->
 <script lang="ts">
-import { onMount, createEventDispatcher } from 'svelte';
-import { Icon, ResourcepacksService, selectedInstallation, installations, ResourcePackCard, ResourcePackGalleryModal, resourcepackDownloads, resourcepacksLoading, resourcepacksError, resourcepacksOffset, resourcepacksInstallMode } from '$lib';
-import type { ResourcePackDownload, KableInstallation, ResourcePackFilterFacets } from '$lib';
+import { onMount, createEventDispatcher } from "svelte";
+import {
+  Icon,
+  ResourcepacksService,
+  selectedInstallation,
+  installations,
+  ResourcePackCard,
+  ResourcePackGalleryModal,
+  resourcepackDownloads,
+  resourcepacksLoading,
+  resourcepacksError,
+  resourcepacksOffset,
+  resourcepacksInstallMode,
+} from "$lib";
+import type {
+  ResourcePackDownload,
+  KableInstallation,
+  ResourcePackFilterFacets,
+} from "$lib";
 
-type ViewMode = 'grid' | 'list' | 'compact';
-type InstallMode = 'dedicated' | 'global';
+type ViewMode = "grid" | "list" | "compact";
+type InstallMode = "dedicated" | "global";
 
 const dispatch = createEventDispatcher<{
-  download: { resourcepack: ResourcePackDownload; installation: KableInstallation | null };
+  download: {
+    resourcepack: ResourcePackDownload;
+    installation: KableInstallation | null;
+  };
 }>();
 
 // Browser state
-let viewMode: ViewMode = 'grid';
-let installMode: InstallMode = 'global';
-let searchQuery = '';
-let selectedInstallationId: string = 'global';
+let viewMode: ViewMode = "grid";
+let installMode: InstallMode = "global";
+let searchQuery = "";
+let selectedInstallationId: string = "global";
 let currentInstallation: KableInstallation | null = null;
 let showFilters = true;
 
@@ -39,16 +58,16 @@ let showGalleryModal = false;
 let selectedResourcePackForGallery: ResourcePackDownload | null = null;
 
 // Filter state with include/exclude support
-type FilterMode = 'include' | 'exclude';
+type FilterMode = "include" | "exclude";
 type FilterItem = { value: string; mode: FilterMode };
 
 let filters = {
-  categories: [] as FilterItem[]
+  categories: [] as FilterItem[],
 };
 
 // Collapsible filter sections
 let collapsedSections = {
-  categories: false
+  categories: false,
 };
 
 // Pagination state
@@ -62,9 +81,9 @@ let resourcepacksService: ResourcepacksService;
 
 // View mode options
 const viewModes = [
-  { id: 'grid', name: 'Grid', icon: 'grid' },
-  { id: 'list', name: 'List', icon: 'list' },
-  { id: 'compact', name: 'Compact', icon: 'layout' }
+  { id: "grid", name: "Grid", icon: "grid" },
+  { id: "list", name: "List", icon: "list" },
+  { id: "compact", name: "Compact", icon: "layout" },
 ];
 
 // Page size options
@@ -73,29 +92,47 @@ const pageSizeOptions = [10, 20, 50, 100];
 // Filter configuration - Categories/Tags map to Modrinth tags/categories
 const filterSections = [
   {
-    id: 'categories' as const,
-    label: 'Tags',
-    collapsedKey: 'categories' as const,
+    id: "categories" as const,
+    label: "Tags",
+    collapsedKey: "categories" as const,
     options: [
       // Resolutions
-      '16x', '32x', '64x', '128x', '256x', '512x', '1024x',
+      "16x",
+      "32x",
+      "64x",
+      "128x",
+      "256x",
+      "512x",
+      "1024x",
       // Styles
-      'Cartoon', 'Cursed', 'Fantasy', 'Realistic', 'Semi-realistic', 'Vanilla-like', 'Medieval', 'Modern',
+      "Cartoon",
+      "Cursed",
+      "Fantasy",
+      "Realistic",
+      "Semi-realistic",
+      "Vanilla-like",
+      "Medieval",
+      "Modern",
       // Features
-      'Simplistic', 'Detailed', 'Animated', 'GUI', 'Models'
-    ]
-  }
+      "Simplistic",
+      "Detailed",
+      "Animated",
+      "GUI",
+      "Models",
+    ],
+  },
 ];
 
 // Reactive statements
 $: {
   // Update install mode and installation based on selection
-  if (selectedInstallationId === 'global') {
-    installMode = 'global';
+  if (selectedInstallationId === "global") {
+    installMode = "global";
     currentInstallation = null;
   } else {
-    installMode = 'dedicated';
-    currentInstallation = $installations.find(inst => inst.id === selectedInstallationId) || null;
+    installMode = "dedicated";
+    currentInstallation =
+      $installations.find((inst) => inst.id === selectedInstallationId) || null;
     if (currentInstallation) {
       selectedInstallation.set(currentInstallation);
     }
@@ -123,46 +160,62 @@ function handleFiltersChange() {
 // Apply filters to backend
 async function applyFiltersToBackend() {
   if (!resourcepacksService) return;
-  
+
   // Build filter object for backend
-  const includeCategories = filters.categories.filter(f => f.mode === 'include').map(f => f.value);
-  const excludeCategories = filters.categories.filter(f => f.mode === 'exclude').map(f => f.value);
-  
+  const includeCategories = filters.categories
+    .filter((f) => f.mode === "include")
+    .map((f) => f.value);
+  const excludeCategories = filters.categories
+    .filter((f) => f.mode === "exclude")
+    .map((f) => f.value);
+
   // If no filters and no search, clear filters
-  if (!searchQuery && includeCategories.length === 0 && excludeCategories.length === 0) {
+  if (
+    !searchQuery &&
+    includeCategories.length === 0 &&
+    excludeCategories.length === 0
+  ) {
     currentPage = 1;
     resourcepacksOffset.set(0);
     await resourcepacksService.setFilter(null);
     return;
   }
-  
+
   // Build filter facets for Modrinth
   // Each filter is AND'd together - put each in separate array
   // Operations: ':' for include, '!=' for exclude
-  
-  const includeCategoryFilters: [string, string][] = 
-    includeCategories.map(c => [':', c.toLowerCase()] as [string, string]);
-  const excludeCategoryFilters: [string, string][] = 
-    excludeCategories.map(c => ['!=', c.toLowerCase()] as [string, string]);
-  
-  const categoryFilters = [...includeCategoryFilters, ...excludeCategoryFilters];
-  
+
+  const includeCategoryFilters: [string, string][] = includeCategories.map(
+    (c) => [":", c.toLowerCase()] as [string, string],
+  );
+  const excludeCategoryFilters: [string, string][] = excludeCategories.map(
+    (c) => ["!=", c.toLowerCase()] as [string, string],
+  );
+
+  const categoryFilters = [
+    ...includeCategoryFilters,
+    ...excludeCategoryFilters,
+  ];
+
   const filterFacets: ResourcePackFilterFacets = {
     query: searchQuery || undefined,
     categories: categoryFilters.length > 0 ? categoryFilters : undefined,
-    game_versions: undefined
+    game_versions: undefined,
   };
-  
-  console.log('[ResourcePackBrowser] Applying filters to backend:', JSON.stringify(filterFacets, null, 2));
-  
+
+  console.log(
+    "[ResourcePackBrowser] Applying filters to backend:",
+    JSON.stringify(filterFacets, null, 2),
+  );
+
   // Reset to first page when filters change
   currentPage = 1;
   resourcepacksOffset.set(0);
-  
+
   try {
     await resourcepacksService.setFilter(filterFacets);
   } catch (e) {
-    console.error('[ResourcePackBrowser] Failed to apply filters:', e);
+    console.error("[ResourcePackBrowser] Failed to apply filters:", e);
   }
 }
 
@@ -173,59 +226,68 @@ async function handleSearch() {
 }
 
 // Functions
-function toggleFilter(category: 'categories', value: string) {
-  const existing = filters[category].find(f => f.value === value);
+function toggleFilter(category: "categories", value: string) {
+  const existing = filters[category].find((f) => f.value === value);
   if (existing) {
-    if (existing.mode === 'include') {
+    if (existing.mode === "include") {
       // Include -> None (remove the filter)
-      filters[category] = filters[category].filter(f => f.value !== value);
+      filters[category] = filters[category].filter((f) => f.value !== value);
     } else {
       // Exclude -> Include (switch mode by creating new array)
-      filters[category] = filters[category].map(f => 
-        f.value === value ? { ...f, mode: 'include' as const } : f
+      filters[category] = filters[category].map((f) =>
+        f.value === value ? { ...f, mode: "include" as const } : f,
       );
     }
   } else {
     // None -> Include (add as include filter)
-    filters[category] = [...filters[category], { value, mode: 'include' as const }];
+    filters[category] = [
+      ...filters[category],
+      { value, mode: "include" as const },
+    ];
   }
   // Trigger reactivity and backend update
   filters = { ...filters };
   handleFiltersChange();
 }
 
-function toggleFilterExclude(category: 'categories', value: string) {
-  const existing = filters[category].find(f => f.value === value);
+function toggleFilterExclude(category: "categories", value: string) {
+  const existing = filters[category].find((f) => f.value === value);
   if (existing) {
-    if (existing.mode === 'exclude') {
+    if (existing.mode === "exclude") {
       // Exclude -> None (remove the filter)
-      filters[category] = filters[category].filter(f => f.value !== value);
+      filters[category] = filters[category].filter((f) => f.value !== value);
     } else {
       // Include -> Exclude (switch mode by creating new array)
-      filters[category] = filters[category].map(f => 
-        f.value === value ? { ...f, mode: 'exclude' as const } : f
+      filters[category] = filters[category].map((f) =>
+        f.value === value ? { ...f, mode: "exclude" as const } : f,
       );
     }
   } else {
     // None -> Exclude (add as exclude filter)
-    filters[category] = [...filters[category], { value, mode: 'exclude' as const }];
+    filters[category] = [
+      ...filters[category],
+      { value, mode: "exclude" as const },
+    ];
   }
   // Trigger reactivity and backend update
   filters = { ...filters };
   handleFiltersChange();
 }
 
-function getFilterState(category: 'categories', value: string): FilterMode | null {
-  const filter = filters[category].find(f => f.value === value);
+function getFilterState(
+  category: "categories",
+  value: string,
+): FilterMode | null {
+  const filter = filters[category].find((f) => f.value === value);
   return filter ? filter.mode : null;
 }
 
 function resetFilters() {
   // Create new object to trigger reactivity
   filters = {
-    categories: []
+    categories: [],
   };
-  searchQuery = '';
+  searchQuery = "";
   currentPage = 1;
   resourcepacksOffset.set(0);
   // Force reactivity update
@@ -239,18 +301,18 @@ function toggleSection(section: keyof typeof collapsedSections) {
   collapsedSections[section] = !collapsedSections[section];
 }
 
-function generatePageNumbers(): (number | 'ellipsis')[] {
+function generatePageNumbers(): (number | "ellipsis")[] {
   const totalToShow = 10; // Total page numbers to show
-  const pages: (number | 'ellipsis')[] = [];
-  
+  const pages: (number | "ellipsis")[] = [];
+
   // Always show at least pages 1 through current + a few ahead
   const minEndPage = Math.max(currentPage + 3, 10); // Show at least 10 pages or current + 3
-  
+
   // Calculate the window around current page
   const halfWindow = Math.floor(totalToShow / 2);
   let startPage = Math.max(1, currentPage - halfWindow);
   let endPage = Math.min(minEndPage, startPage + totalToShow - 1);
-  
+
   // Adjust if we're near the beginning
   if (endPage - startPage + 1 < totalToShow && endPage < minEndPage) {
     endPage = Math.min(minEndPage, startPage + totalToShow - 1);
@@ -258,19 +320,19 @@ function generatePageNumbers(): (number | 'ellipsis')[] {
   if (endPage - startPage + 1 < totalToShow) {
     startPage = Math.max(1, endPage - totalToShow + 1);
   }
-  
+
   // If we're showing a window that doesn't start at 1, show first few pages + ellipsis
   if (startPage > 3) {
     pages.push(1);
     pages.push(2);
-    pages.push('ellipsis');
+    pages.push("ellipsis");
   } else if (startPage > 1) {
     // Fill in the gap if it's small
     for (let i = 1; i < startPage; i++) {
       pages.push(i);
     }
   }
-  
+
   // Add the main window of pages
   for (let i = startPage; i <= endPage; i++) {
     // Don't duplicate pages we already added
@@ -278,7 +340,7 @@ function generatePageNumbers(): (number | 'ellipsis')[] {
       pages.push(i);
     }
   }
-  
+
   return pages;
 }
 
@@ -286,7 +348,7 @@ async function changePageSize(newSize: number) {
   itemsPerPage = newSize;
   currentPage = 1;
   resourcepacksOffset.set(0);
-  
+
   if (resourcepacksService) {
     await resourcepacksService.setLimit(newSize);
   }
@@ -295,12 +357,12 @@ async function changePageSize(newSize: number) {
 async function goToPage(page: number) {
   if (page < 1) return;
   currentPage = page;
-  
+
   visitedPages.add(page);
   if (page > maxPageReached) {
     maxPageReached = page;
   }
-  
+
   if (resourcepacksService) {
     resourcepacksOffset.set((page - 1) * itemsPerPage);
     await resourcepacksService.loadResourcepacks();
@@ -321,28 +383,40 @@ async function loadResourcepacks() {
   }
 }
 
-async function handleDownload(event: CustomEvent<{ resourcepack: ResourcePackDownload; installation: KableInstallation | null }>) {
-  console.log('[ResourcePackBrowser] Download button clicked:', event.detail);
-  
+async function handleDownload(
+  event: CustomEvent<{
+    resourcepack: ResourcePackDownload;
+    installation: KableInstallation | null;
+  }>,
+) {
+  console.log("[ResourcePackBrowser] Download button clicked:", event.detail);
+
   if (!resourcepacksService) {
-    console.error('[ResourcePackBrowser] ResourcepacksService not initialized');
+    console.error("[ResourcePackBrowser] ResourcepacksService not initialized");
     return;
   }
-  
+
   try {
     const { resourcepack, installation } = event.detail;
-    console.log('[ResourcePackBrowser] Downloading resourcepack:', resourcepack.name, 'to:', installation?.name || 'global');
+    console.log(
+      "[ResourcePackBrowser] Downloading resourcepack:",
+      resourcepack.name,
+      "to:",
+      installation?.name || "global",
+    );
     await resourcepacksService.downloadResourcepack(resourcepack, installation);
-    console.log('[ResourcePackBrowser] Download complete:', resourcepack.name);
+    console.log("[ResourcePackBrowser] Download complete:", resourcepack.name);
   } catch (error) {
-    console.error('[ResourcePackBrowser] Download failed:', error);
+    console.error("[ResourcePackBrowser] Download failed:", error);
   }
-  
-  dispatch('download', event.detail);
+
+  dispatch("download", event.detail);
 }
 
 // Handle viewing gallery
-function handleViewGallery(event: CustomEvent<{ resourcepack: ResourcePackDownload }>) {
+function handleViewGallery(
+  event: CustomEvent<{ resourcepack: ResourcePackDownload }>,
+) {
   selectedResourcePackForGallery = event.detail.resourcepack;
   showGalleryModal = true;
 }
@@ -357,9 +431,9 @@ function closeGallery() {
 onMount(async () => {
   resourcepacksService = new ResourcepacksService();
   await resourcepacksService.initialize();
-  
+
   // Default to global mode
-  selectedInstallationId = 'global';
+  selectedInstallationId = "global";
 });
 </script>
 
@@ -368,14 +442,17 @@ onMount(async () => {
   <div class="browser-header">
     <div class="header-main">
       <h2>ResourcePack Browser</h2>
-      
+
       <!-- Installation Selector -->
       <div class="installation-selector-inline">
         <label for="installation-select-inline">
-          <Icon name={selectedInstallationId === 'global' ? 'globe' : 'package'} size="sm" />
+          <Icon
+            name={selectedInstallationId === "global" ? "globe" : "package"}
+            size="sm"
+          />
           <span>Install to:</span>
         </label>
-        <select 
+        <select
           id="installation-select-inline"
           class="installation-select"
           bind:value={selectedInstallationId}
@@ -384,7 +461,9 @@ onMount(async () => {
           {#if $installations.length > 0}
             <optgroup label="Installations">
               {#each $installations as installation}
-                <option value={installation.id}>📦 {installation.name ?? installation.version_id}</option>
+                <option value={installation.id}
+                  >📦 {installation.name ?? installation.version_id}</option
+                >
               {/each}
             </optgroup>
           {/if}
@@ -400,11 +479,23 @@ onMount(async () => {
       <div class="filters-header">
         <h3>Filters</h3>
         <div class="filters-actions">
-          <button class="reset-filters" on:click={resetFilters} title="Reset all filters">
+          <button
+            class="reset-filters"
+            on:click={resetFilters}
+            title="Reset all filters"
+          >
             <Icon name="refresh" size="sm" forceType="svg" />
           </button>
-          <button class="toggle-filters" on:click={() => showFilters = !showFilters} title="Toggle filters">
-            <Icon name={showFilters ? 'arrow-left' : 'arrow-right'} size="sm" forceType="svg" />
+          <button
+            class="toggle-filters"
+            on:click={() => (showFilters = !showFilters)}
+            title="Toggle filters"
+          >
+            <Icon
+              name={showFilters ? "arrow-left" : "arrow-right"}
+              size="sm"
+              forceType="svg"
+            />
           </button>
         </div>
       </div>
@@ -424,10 +515,13 @@ onMount(async () => {
                 class="search-input"
               />
               {#if searchQuery}
-                <button class="clear-btn" on:click={() => { 
-                  searchQuery = ''; 
-                  handleSearch();
-                }}>
+                <button
+                  class="clear-btn"
+                  on:click={() => {
+                    searchQuery = "";
+                    handleSearch();
+                  }}
+                >
                   <Icon name="x" size="sm" />
                 </button>
               {/if}
@@ -437,32 +531,53 @@ onMount(async () => {
           <!-- Dynamic Filter Sections -->
           {#each filterSections as section}
             <div class="filter-section">
-              <button class="filter-header" on:click={() => toggleSection(section.collapsedKey)}>
+              <button
+                class="filter-header"
+                on:click={() => toggleSection(section.collapsedKey)}
+              >
                 <span class="filter-label">{section.label}</span>
-                <Icon name={collapsedSections[section.collapsedKey] ? 'chevron-down' : 'chevron-up'} size="lg" forceType="svg" />
+                <Icon
+                  name={collapsedSections[section.collapsedKey]
+                    ? "chevron-down"
+                    : "chevron-up"}
+                  size="lg"
+                  forceType="svg"
+                />
               </button>
               {#if !collapsedSections[section.collapsedKey]}
                 <div class="filter-options">
                   {#each section.options as option}
-                    <div class="filter-option" class:included={getFilterState(section.id, option) === 'include'} class:excluded={getFilterState(section.id, option) === 'exclude'}>
-                      <button 
+                    <div
+                      class="filter-option"
+                      class:included={getFilterState(section.id, option) ===
+                        "include"}
+                      class:excluded={getFilterState(section.id, option) ===
+                        "exclude"}
+                    >
+                      <button
                         class="filter-option-btn include-btn"
-                        class:active={getFilterState(section.id, option) === 'include'}
+                        class:active={getFilterState(section.id, option) ===
+                          "include"}
                         on:click={() => toggleFilter(section.id, option)}
-                        title={getFilterState(section.id, option) === 'include' ? 'Remove filter' : 'Include filter'}
+                        title={getFilterState(section.id, option) === "include"
+                          ? "Remove filter"
+                          : "Include filter"}
                       >
                         <span class="option-label">{option}</span>
-                        {#if getFilterState(section.id, option) === 'include'}
+                        {#if getFilterState(section.id, option) === "include"}
                           <Icon name="x" size="sm" forceType="svg" />
                         {:else}
                           <Icon name="check" size="sm" forceType="svg" />
                         {/if}
                       </button>
-                      <button 
+                      <button
                         class="filter-option-btn exclude-btn"
-                        class:active={getFilterState(section.id, option) === 'exclude'}
+                        class:active={getFilterState(section.id, option) ===
+                          "exclude"}
                         on:click={() => toggleFilterExclude(section.id, option)}
-                        title={getFilterState(section.id, option) === 'exclude' ? 'Remove exclusion' : 'Exclude filter'}
+                        title={getFilterState(section.id, option) === "exclude"
+                          ? "Remove exclusion"
+                          : "Exclude filter"}
                       >
                         <Icon name="trash" size="sm" forceType="svg" />
                       </button>
@@ -489,23 +604,26 @@ onMount(async () => {
             {:else if paginatedResourcePacks.length === 0}
               No ResourcePacks found
             {:else}
-              Showing {paginatedResourcePacks.length} ResourcePack{paginatedResourcePacks.length !== 1 ? 's' : ''}
+              Showing {paginatedResourcePacks.length} ResourcePack{paginatedResourcePacks.length !==
+              1
+                ? "s"
+                : ""}
             {/if}
           </p>
-          
+
           <!-- Compact Pagination Controls -->
           <div class="compact-pagination">
-            <button 
-              class="page-btn compact" 
-              on:click={previousPage} 
+            <button
+              class="page-btn compact"
+              on:click={previousPage}
               disabled={currentPage === 1}
               title="Previous page"
             >
               <Icon name="arrow-left" size="sm" forceType="svg" />
             </button>
-            
+
             {#each generatePageNumbers() as pageItem}
-              {#if pageItem === 'ellipsis'}
+              {#if pageItem === "ellipsis"}
                 <span class="pagination-ellipsis">...</span>
               {:else}
                 <button
@@ -517,9 +635,9 @@ onMount(async () => {
                 </button>
               {/if}
             {/each}
-            
-            <button 
-              class="page-btn compact" 
+
+            <button
+              class="page-btn compact"
               on:click={nextPage}
               title="Next page"
             >
@@ -527,21 +645,21 @@ onMount(async () => {
             </button>
           </div>
         </div>
-        
+
         <div class="toolbar-right">
           <div class="view-controls">
             {#each viewModes as mode}
               <button
                 class="view-mode-btn"
                 class:active={viewMode === mode.id}
-                on:click={() => viewMode = mode.id as ViewMode}
+                on:click={() => (viewMode = mode.id as ViewMode)}
                 title={mode.name}
               >
                 <Icon name={mode.icon} size="sm" />
               </button>
             {/each}
           </div>
-          
+
           <select
             class="page-size-select"
             bind:value={itemsPerPage}
@@ -585,12 +703,19 @@ onMount(async () => {
           </div>
         {:else}
           <!-- ResourcePacks Grid/List -->
-          <div class="ResourcePacks-container" class:grid={viewMode === 'grid'} class:list={viewMode === 'list'} class:compact={viewMode === 'compact'}>
+          <div
+            class="ResourcePacks-container"
+            class:grid={viewMode === "grid"}
+            class:list={viewMode === "list"}
+            class:compact={viewMode === "compact"}
+          >
             {#each paginatedResourcePacks as resourcepack}
-              <ResourcePackCard 
-                {resourcepack} 
-                {viewMode} 
-                installation={installMode === 'dedicated' ? currentInstallation : null}
+              <ResourcePackCard
+                {resourcepack}
+                {viewMode}
+                installation={installMode === "dedicated"
+                  ? currentInstallation
+                  : null}
                 loading={false}
                 isInstalled={false}
                 on:download={handleDownload}
@@ -605,7 +730,7 @@ onMount(async () => {
 </div>
 
 <!-- Gallery Modal -->
-<ResourcePackGalleryModal 
+<ResourcePackGalleryModal
   ResourcePack={selectedResourcePackForGallery}
   bind:visible={showGalleryModal}
   on:close={closeGallery}
@@ -621,48 +746,56 @@ onMount(async () => {
   height: 100%;
   background: var(--container);
   border-radius: 0.5rem;
-  border: 1px solid #{'color-mix(in srgb, var(--primary), 8%, transparent)'};
-  box-shadow: 0 2px 8px #{'color-mix(in srgb, var(--dark-900), 4%, transparent)'};
+  border: 1px solid #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
+  box-shadow: 0 2px 8px
+    #{"color-mix(in srgb, var(--dark-900), 4%, transparent)"};
   overflow: hidden;
 }
 
 // Compact Header
 .browser-header {
-  background: linear-gradient(135deg, 
-  #{'color-mix(in srgb, var(--container), 95%, transparent)'} 0%, 
-  #{'color-mix(in srgb, var(--primary), 4%, transparent)'} 30%,
-  #{'color-mix(in srgb, var(--secondary), 2%, transparent)'} 70%,
-  #{'color-mix(in srgb, var(--card), 80%, transparent)'} 100%
+  background: linear-gradient(
+    135deg,
+    #{"color-mix(in srgb, var(--container), 95%, transparent)"} 0%,
+    #{"color-mix(in srgb, var(--primary), 4%, transparent)"} 30%,
+    #{"color-mix(in srgb, var(--secondary), 2%, transparent)"} 70%,
+    #{"color-mix(in srgb, var(--card), 80%, transparent)"} 100%
   );
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid #{'color-mix(in srgb, var(--primary), 15%, transparent)'};
+  border-bottom: 1px solid
+    #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
   padding: 0.75rem 1rem;
   position: relative;
-  
+
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(90deg, 
-      transparent 0%, 
-  #{'color-mix(in srgb, var(--primary), 30%, transparent)'} 20%, 
-  #{'color-mix(in srgb, var(--secondary), 20%, transparent)'} 80%, 
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      #{"color-mix(in srgb, var(--primary), 30%, transparent)"} 20%,
+      #{"color-mix(in srgb, var(--secondary), 20%, transparent)"} 80%,
       transparent 100%
     );
   }
-  
+
   .header-main {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    
+
     h2 {
       margin: 0;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      background: linear-gradient(
+        135deg,
+        var(--primary) 0%,
+        var(--secondary) 100%
+      );
       background-clip: text;
       -webkit-background-clip: text;
       color: transparent;
@@ -671,14 +804,14 @@ onMount(async () => {
       white-space: nowrap;
     }
   }
-  
+
   .installation-selector-inline {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     flex: 1;
     max-width: 400px;
-    
+
     label {
       display: flex;
       align-items: center;
@@ -688,11 +821,12 @@ onMount(async () => {
       color: var(--text);
       white-space: nowrap;
     }
-    
+
     .installation-select {
       flex: 1;
       padding: 0.5rem 0.75rem;
-      border: 1px solid #{'color-mix(in srgb, var(--primary), 15%, transparent)'};
+      border: 1px solid
+        #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
       border-radius: 0.375rem;
       background: var(--card);
       color: var(--text);
@@ -700,24 +834,25 @@ onMount(async () => {
       font-weight: 500;
       cursor: pointer;
       transition: all 0.15s;
-      
+
       &:focus {
         outline: none;
         border-color: var(--primary);
-        box-shadow: 0 0 0 2px #{'color-mix(in srgb, var(--primary), 10%, transparent)'};
+        box-shadow: 0 0 0 2px
+          #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
       }
-      
+
       &:hover {
         border-color: var(--primary);
-        background: #{'color-mix(in srgb, var(--primary), 3%, transparent)'};
+        background: #{"color-mix(in srgb, var(--primary), 3%, transparent)"};
       }
-      
+
       option {
         background: var(--card);
         color: var(--text);
         padding: 0.5rem;
       }
-      
+
       optgroup {
         font-weight: 600;
         color: var(--placeholder);
@@ -735,54 +870,64 @@ onMount(async () => {
 // Filters Sidebar
 .filters-sidebar {
   width: 240px;
-  background: linear-gradient(135deg, #{'color-mix(in srgb, var(--container), 95%, transparent)'} 0%, #{'color-mix(in srgb, var(--card), 80%, transparent)'} 100%);
+  background: linear-gradient(
+    135deg,
+    #{"color-mix(in srgb, var(--container), 95%, transparent)"} 0%,
+    #{"color-mix(in srgb, var(--card), 80%, transparent)"} 100%
+  );
   backdrop-filter: blur(8px);
-  border-right: 1px solid #{'color-mix(in srgb, var(--primary), 12%, transparent)'};
+  border-right: 1px solid
+    #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
-  
+
   &.collapsed {
     width: 48px;
-    
+
     .filters-content {
       display: none;
     }
-    
+
     .filters-header {
       h3 {
         display: none;
       }
-      
+
       .reset-filters {
         display: none;
       }
-      
+
       justify-content: center;
     }
   }
-  
+
   .filters-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0.5rem 0.75rem;
     height: 2.6875rem;
-  border-bottom: 1px solid #{'color-mix(in srgb, var(--primary), 12%, transparent)'};
-  background: linear-gradient(135deg, #{'color-mix(in srgb, var(--primary), 6%, transparent)'} 0%, #{'color-mix(in srgb, var(--secondary), 3%, transparent)'} 100%);
+    border-bottom: 1px solid
+      #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+    background: linear-gradient(
+      135deg,
+      #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 0%,
+      #{"color-mix(in srgb, var(--secondary), 3%, transparent)"} 100%
+    );
     backdrop-filter: blur(4px);
-    
+
     h3 {
       margin: 0;
       font-size: 0.9em;
       font-weight: 600;
       color: var(--text);
     }
-    
+
     .filters-actions {
       display: flex;
       gap: 0.25rem;
-      
+
       .reset-filters,
       .toggle-filters {
         padding: 0.25rem;
@@ -792,24 +937,24 @@ onMount(async () => {
         color: var(--placeholder);
         cursor: pointer;
         transition: all 0.15s;
-        
+
         &:hover {
-          background: #{'color-mix(in srgb, var(--primary), 10%, transparent)'};
+          background: #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
           color: var(--primary);
         }
       }
     }
   }
-  
+
   .filters-content {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
     padding: 0.5rem;
-    
+
     .filter-section {
       margin-bottom: 0.75rem;
-      
+
       .filter-label {
         display: block;
         font-size: 0.95em;
@@ -819,43 +964,44 @@ onMount(async () => {
         text-transform: uppercase;
         letter-spacing: 0.5px;
       }
-      
+
       .filter-header {
         width: 100%;
         display: flex;
         align-items: center;
         justify-content: space-between;
         padding: 0.375rem 0.5rem;
-        background: #{'color-mix(in srgb, var(--primary), 5%, transparent)'};
-        border: 1px solid #{'color-mix(in srgb, var(--primary), 12%, transparent)'};
+        background: #{"color-mix(in srgb, var(--primary), 5%, transparent)"};
+        border: 1px solid
+          #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
         border-radius: 0.25rem;
         cursor: pointer;
         transition: all 0.15s;
         margin-bottom: 0.375rem;
-        
+
         &:hover {
-          background: #{'color-mix(in srgb, var(--primary), 8%, transparent)'};
+          background: #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
           border-color: var(--primary);
         }
-        
+
         .filter-label {
           margin: 0;
           text-align: left;
         }
       }
-      
+
       .search-input-wrapper {
         position: relative;
         display: flex;
         align-items: center;
-        
+
         :global(.icon) {
           position: absolute;
           left: 0.5rem;
           color: var(--placeholder);
           z-index: 1;
         }
-        
+
         .search-input {
           max-width: 90%;
           min-width: fit-content;
@@ -865,18 +1011,19 @@ onMount(async () => {
           background: var(--input);
           color: var(--text);
           font-size: 0.8em;
-          
+
           &:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 2px #{'color-mix(in srgb, var(--primary), 10%, transparent)'};
+            box-shadow: 0 0 0 2px
+              #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
           }
-          
+
           &::placeholder {
             color: var(--placeholder);
           }
         }
-        
+
         .clear-btn {
           position: absolute;
           right: 0.375rem;
@@ -886,40 +1033,40 @@ onMount(async () => {
           cursor: pointer;
           padding: 0.125rem;
           border-radius: 0.125rem;
-          
+
           &:hover {
             color: var(--red);
-            background: #{'color-mix(in srgb, var(--red), 10%, transparent)'};
+            background: #{"color-mix(in srgb, var(--red), 10%, transparent)"};
           }
         }
       }
-      
+
       .filter-options {
         display: flex;
         flex-direction: column;
         gap: 0.25rem;
-        
+
         .filter-option {
           display: flex;
           border-radius: 0.25rem;
           overflow: hidden;
           border: 1px solid var(--dark-600);
           transition: all 0.15s;
-          
+
           &:hover {
             border-color: var(--dark-400);
           }
-          
+
           &.included {
             border-color: var(--green);
-            background: #{'color-mix(in srgb, var(--primary), 5%, transparent)'};
+            background: #{"color-mix(in srgb, var(--primary), 5%, transparent)"};
           }
-          
+
           &.excluded {
             border-color: var(--red);
-            background: #{'color-mix(in srgb, var(--red), 5%, transparent)'};
+            background: #{"color-mix(in srgb, var(--red), 5%, transparent)"};
           }
-          
+
           .filter-option-btn {
             display: flex;
             align-items: center;
@@ -930,11 +1077,11 @@ onMount(async () => {
             color: var(--text);
             cursor: pointer;
             transition: all 0.15s;
-            
+
             &:hover {
-              background: #{'color-mix(in srgb, var(--primary), 3%, transparent)'};
+              background: #{"color-mix(in srgb, var(--primary), 3%, transparent)"};
             }
-            
+
             .option-label {
               font-size: 0.75em;
               font-weight: 500;
@@ -942,43 +1089,43 @@ onMount(async () => {
               text-transform: capitalize;
               flex: 1;
             }
-            
+
             :global(.icon) {
               color: var(--placeholder);
               transition: color 0.15s;
             }
-            
+
             &.include-btn {
               flex: 1;
               gap: 0.5rem;
-              
+
               &.active {
                 :global(.icon) {
                   color: var(--red);
                 }
               }
-              
+
               &:not(.active):hover {
                 :global(.icon) {
                   color: var(--green);
                 }
               }
             }
-            
+
             &.exclude-btn {
               padding: 0.5rem;
               border-left: 1px solid var(--dark-600);
               min-width: 2rem;
               justify-content: center;
-              
+
               &.active {
-                background: #{'color-mix(in srgb, var(--red), 10%, transparent)'};
-                
+                background: #{"color-mix(in srgb, var(--red), 10%, transparent)"};
+
                 :global(.icon) {
                   color: var(--red);
                 }
               }
-              
+
               &:not(.active):hover {
                 :global(.icon) {
                   color: var(--red);
@@ -1007,32 +1154,38 @@ onMount(async () => {
   justify-content: space-between;
   padding: 0.5rem 0.75rem;
   height: 2.6875rem;
-  background: linear-gradient(135deg, var(--container) 0%, #{'color-mix(in srgb, var(--card), 60%, transparent)'} 100%);
+  background: linear-gradient(
+    135deg,
+    var(--container) 0%,
+    #{"color-mix(in srgb, var(--card), 60%, transparent)"} 100%
+  );
   backdrop-filter: blur(6px);
-  border-bottom: 1px solid #{'color-mix(in srgb, var(--primary), 12%, transparent)'};
-  
+  border-bottom: 1px solid
+    #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+
   .toolbar-left {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    
+
     .results-count {
       font-size: 0.75em;
       color: var(--placeholder);
       font-weight: 500;
       margin: 0;
     }
-    
+
     .compact-pagination {
       display: flex;
       align-items: center;
       gap: 0.25rem;
-      
+
       .page-btn.compact {
         padding: 0.25rem 0.375rem;
-        border: 1px solid #{'color-mix(in srgb, var(--primary), 20%, transparent)'};
+        border: 1px solid
+          #{"color-mix(in srgb, var(--primary), 20%, transparent)"};
         border-radius: 0.25rem;
-        background: #{'color-mix(in srgb, var(--card), 80%, transparent)'};
+        background: #{"color-mix(in srgb, var(--card), 80%, transparent)"};
         color: var(--text);
         font-size: 0.7em;
         font-weight: 500;
@@ -1043,27 +1196,28 @@ onMount(async () => {
         display: flex;
         align-items: center;
         justify-content: center;
-        
+
         &:hover:not(:disabled) {
           border-color: var(--primary);
-          background: #{'color-mix(in srgb, var(--primary), 10%, transparent)'};
+          background: #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
           color: var(--primary);
         }
-        
+
         &.active {
           background: var(--primary);
           color: white;
           border-color: transparent;
-          box-shadow: 0 1px 3px #{'color-mix(in srgb, var(--primary), 30%, transparent)'};
+          box-shadow: 0 1px 3px
+            #{"color-mix(in srgb, var(--primary), 30%, transparent)"};
         }
-        
+
         &:disabled {
           opacity: 0.4;
           cursor: not-allowed;
-          background: #{'color-mix(in srgb, var(--card), 40%, transparent)'};
+          background: #{"color-mix(in srgb, var(--card), 40%, transparent)"};
         }
       }
-      
+
       .pagination-ellipsis {
         padding: 0.125rem 0.25rem;
         color: var(--placeholder);
@@ -1072,18 +1226,18 @@ onMount(async () => {
       }
     }
   }
-  
+
   .toolbar-right {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    
+
     .view-controls {
       display: flex;
       border: 1px solid var(--dark-600);
       border-radius: 0.25rem;
       overflow: hidden;
-      
+
       .view-mode-btn {
         padding: 0.25rem 0.375rem;
         border: none;
@@ -1091,23 +1245,23 @@ onMount(async () => {
         color: var(--placeholder);
         cursor: pointer;
         transition: all 0.15s;
-        
+
         &:hover {
-          background: #{'color-mix(in srgb, var(--primary), 5%, transparent)'};
+          background: #{"color-mix(in srgb, var(--primary), 5%, transparent)"};
           color: var(--text);
         }
-        
+
         &.active {
           background: var(--primary);
           color: white;
         }
-        
+
         &:not(:last-child) {
           border-right: 1px solid var(--dark-600);
         }
       }
     }
-    
+
     .page-size-select {
       padding: 0.25rem 0.375rem;
       border: 1px solid var(--dark-600);
@@ -1116,7 +1270,7 @@ onMount(async () => {
       color: var(--text);
       font-size: 0.75em;
       cursor: pointer;
-      
+
       &:focus {
         outline: none;
         border-color: var(--primary);
@@ -1132,28 +1286,38 @@ onMount(async () => {
   flex: 1;
   min-height: 0;
   overflow-y: scroll;
-  
+
   &::-webkit-scrollbar {
     width: 8px;
   }
-  
+
   &::-webkit-scrollbar-track {
-    background: #{'color-mix(in srgb, var(--dark-600), 10%, transparent)'};
+    background: #{"color-mix(in srgb, var(--dark-600), 10%, transparent)"};
     border-radius: 4px;
   }
-  
+
   &::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #{'color-mix(in srgb, var(--primary), 60%, transparent)'} 0%, #{'color-mix(in srgb, var(--secondary), 40%, transparent)'} 100%);
+    background: linear-gradient(
+      135deg,
+      #{"color-mix(in srgb, var(--primary), 60%, transparent)"} 0%,
+      #{"color-mix(in srgb, var(--secondary), 40%, transparent)"} 100%
+    );
     border-radius: 4px;
-    
+
     &:hover {
-      background: linear-gradient(135deg, #{'color-mix(in srgb, var(--primary), 80%, transparent)'} 0%, #{'color-mix(in srgb, var(--secondary), 60%, transparent)'} 100%);
+      background: linear-gradient(
+        135deg,
+        #{"color-mix(in srgb, var(--primary), 80%, transparent)"} 0%,
+        #{"color-mix(in srgb, var(--secondary), 60%, transparent)"} 100%
+      );
     }
   }
 }
 
 // Loading/Error/Empty States
-.loading-state, .error-state, .empty-state {
+.loading-state,
+.error-state,
+.empty-state {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -1164,14 +1328,15 @@ onMount(async () => {
   color: var(--placeholder);
 }
 
-.error-state, .empty-state {
+.error-state,
+.empty-state {
   h3 {
     margin: 0;
     color: var(--text);
     font-weight: 600;
     font-size: 1.1em;
   }
-  
+
   p {
     margin: 0;
     text-align: center;
@@ -1181,7 +1346,8 @@ onMount(async () => {
   }
 }
 
-.error-state .retry-btn, .empty-state .clear-filters-btn {
+.error-state .retry-btn,
+.empty-state .clear-filters-btn {
   display: flex;
   align-items: center;
   gap: 0.375rem;
@@ -1194,7 +1360,7 @@ onMount(async () => {
   font-size: 0.8em;
   cursor: pointer;
   transition: all 0.15s;
-  
+
   &:hover {
     background: var(--primary);
     color: white;
@@ -1204,19 +1370,19 @@ onMount(async () => {
 // ResourcePacks Container
 .ResourcePacks-container {
   padding: 0.75rem;
-  
+
   &.grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 0.75rem;
   }
-  
+
   &.list {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
   }
-  
+
   &.compact {
     display: flex;
     flex-wrap: wrap;
@@ -1233,48 +1399,52 @@ onMount(async () => {
       flex-direction: column;
       align-items: stretch;
       gap: 0.5rem;
-      
+
       h2 {
         text-align: center;
       }
     }
-    
+
     .installation-selector-inline {
       max-width: 100%;
-      
+
       label {
         font-size: 0.75em;
       }
-      
+
       .installation-select {
         font-size: 0.8em;
       }
     }
   }
-  
+
   .browser-main {
     flex-direction: column;
   }
-  
+
   .filters-sidebar {
     width: 100%;
     max-height: 200px;
     border-right: none;
-  border-bottom: 1px solid #{'color-mix(in srgb, var(--primary), 15%, transparent)'};
-  background: linear-gradient(135deg, #{'color-mix(in srgb, var(--container), 90%, transparent)'} 0%, #{'color-mix(in srgb, var(--card), 70%, transparent)'} 100%);
-    
+    border-bottom: 1px solid
+      #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+    background: linear-gradient(
+      135deg,
+      #{"color-mix(in srgb, var(--container), 90%, transparent)"} 0%,
+      #{"color-mix(in srgb, var(--card), 70%, transparent)"} 100%
+    );
+
     &.collapsed {
       max-height: 48px;
     }
   }
-  
+
   .ResourcePacks-container {
     padding: 0.5rem;
-    
+
     &.grid {
       grid-template-columns: 1fr;
     }
   }
 }
 </style>
-

@@ -19,12 +19,12 @@ author, downloads, and gallery preview. Supports grid, list, and compact views.
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher } from 'svelte';
-import { Icon } from '$lib';
-import type { ShaderDownload, KableInstallation } from '$lib';
+import { createEventDispatcher } from "svelte";
+import { Icon } from "$lib";
+import type { ShaderDownload, KableInstallation } from "$lib";
 
 export let shader: ShaderDownload;
-export let viewMode: 'grid' | 'list' | 'compact' = 'grid';
+export let viewMode: "grid" | "list" | "compact" = "grid";
 export let installation: KableInstallation | null = null;
 export let loading = false;
 export let isInstalled = false;
@@ -34,7 +34,8 @@ const dispatch = createEventDispatcher<{
   viewGallery: { shader: ShaderDownload };
 }>();
 
-$: hasGallery = (shader.gallery && shader.gallery.length > 0) || !!shader.featured_gallery;
+$: hasGallery =
+  (shader.gallery && shader.gallery.length > 0) || !!shader.featured_gallery;
 
 // Debug logging
 $: if (shader) {
@@ -42,7 +43,7 @@ $: if (shader) {
     hasGallery,
     gallery: shader.gallery,
     featured_gallery: shader.featured_gallery,
-    galleryLength: shader.gallery?.length ?? 0
+    galleryLength: shader.gallery?.length ?? 0,
   });
 }
 
@@ -59,37 +60,37 @@ function formatDownloads(count: number): string {
 // Get loader badge color
 function getLoaderColor(loader: string): string {
   const loaderColors: Record<string, string> = {
-    Canvas: '#E74C3C',
-    Iris: '#9B59B6',
-    OptiFine: '#3498DB',
-    Vanilla: '#2ECC71'
+    Canvas: "#E74C3C",
+    Iris: "#9B59B6",
+    OptiFine: "#3498DB",
+    Vanilla: "#2ECC71",
   };
-  return loaderColors[loader] || '#95A5A6';
+  return loaderColors[loader] || "#95A5A6";
 }
 
 // Handle download
 function handleDownload() {
-  dispatch('download', { shader, installation });
+  dispatch("download", { shader, installation });
 }
 
 // Handle gallery view
 function handleViewGallery(e: MouseEvent) {
   e.stopPropagation();
   if (hasGallery) {
-    dispatch('viewGallery', { shader });
+    dispatch("viewGallery", { shader });
   }
 }
 </script>
 
-<div 
-  class="shader-card" 
-  class:grid={viewMode === 'grid'} 
-  class:list={viewMode === 'list'} 
-  class:compact={viewMode === 'compact'}
+<div
+  class="shader-card"
+  class:grid={viewMode === "grid"}
+  class:list={viewMode === "list"}
+  class:compact={viewMode === "compact"}
   class:installed={isInstalled}
 >
   <!-- Thumbnail -->
-  {#if viewMode !== 'compact'}
+  {#if viewMode !== "compact"}
     <div class="shader-thumbnail">
       {#if shader.thumbnail}
         <img src={shader.thumbnail} alt={shader.name} />
@@ -98,14 +99,18 @@ function handleViewGallery(e: MouseEvent) {
           <Icon name="image" size="xl" />
         </div>
       {/if}
-      
+
       {#if hasGallery}
-        <button class="gallery-overlay" on:click={handleViewGallery} title="View gallery">
+        <button
+          class="gallery-overlay"
+          on:click={handleViewGallery}
+          title="View gallery"
+        >
           <Icon name="images" size="lg" forceType="svg" />
           <span>View Gallery</span>
         </button>
       {/if}
-      
+
       {#if isInstalled}
         <div class="installed-badge">
           <Icon name="check-circle" size="sm" />
@@ -120,14 +125,14 @@ function handleViewGallery(e: MouseEvent) {
     <!-- Header -->
     <div class="shader-header">
       <h3 class="shader-title" title={shader.name}>{shader.name}</h3>
-      
+
       {#if shader.author}
         <p class="shader-author">by {shader.author}</p>
       {/if}
     </div>
 
     <!-- Description -->
-    {#if viewMode !== 'compact' && shader.description}
+    {#if viewMode !== "compact" && shader.description}
       <p class="shader-description">{shader.description}</p>
     {/if}
 
@@ -136,11 +141,14 @@ function handleViewGallery(e: MouseEvent) {
       <div class="shader-meta">
         <!-- Loader -->
         <div class="shader-loaders">
-          <span class="loader-badge" style="background-color: {getLoaderColor(shader.shader_loader)}">
+          <span
+            class="loader-badge"
+            style="background-color: {getLoaderColor(shader.shader_loader)}"
+          >
             {shader.shader_loader}
           </span>
         </div>
-        
+
         <!-- Downloads -->
         <div class="shader-stats">
           <Icon name="download" size="sm" />
@@ -149,12 +157,16 @@ function handleViewGallery(e: MouseEvent) {
       </div>
 
       <!-- Actions -->
-      <button 
-        class="download-btn" 
-        class:loading 
+      <button
+        class="download-btn"
+        class:loading
         disabled={loading || isInstalled}
         on:click={handleDownload}
-        title={isInstalled ? 'Already installed' : installation ? `Install to ${installation.name}` : 'Install globally'}
+        title={isInstalled
+          ? "Already installed"
+          : installation
+            ? `Install to ${installation.name}`
+            : "Install globally"}
       >
         {#if loading}
           <Icon name="loader" size="sm" forceType="svg" />
@@ -163,9 +175,9 @@ function handleViewGallery(e: MouseEvent) {
         {:else}
           <Icon name="download" size="sm" forceType="svg" />
         {/if}
-        
-        {#if viewMode !== 'compact'}
-          <span>{isInstalled ? 'Installed' : 'Install'}</span>
+
+        {#if viewMode !== "compact"}
+          <span>{isInstalled ? "Installed" : "Install"}</span>
         {/if}
       </button>
     </div>
@@ -178,54 +190,64 @@ function handleViewGallery(e: MouseEvent) {
 
 .shader-card {
   display: flex;
-  background: linear-gradient(135deg, var(--card) 0%, #{'color-mix(in srgb, var(--container), 80%, transparent)'} 100%);
+  background: linear-gradient(
+    135deg,
+    var(--card) 0%,
+    #{"color-mix(in srgb, var(--container), 80%, transparent)"} 100%
+  );
   backdrop-filter: blur(8px);
   border: 1px solid transparent;
   border-radius: 0.5rem;
   overflow: hidden;
   transition: all 0.2s ease;
   position: relative;
-  
+
   &::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(90deg, 
-      transparent 0%, 
-      #{'color-mix(in srgb, var(--primary), 40%, transparent)'} 50%, 
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      #{"color-mix(in srgb, var(--primary), 40%, transparent)"} 50%,
       transparent 100%
     );
     opacity: 0;
     transition: opacity 0.2s ease;
   }
-  
+
   &:hover {
     border: 1px solid var(--secondary);
-    box-shadow: 0 4px 12px #{'color-mix(in srgb, var(--primary), 15%, transparent)'};
+    box-shadow: 0 4px 12px
+      #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
     transform: translateY(-2px);
-    
+
     &::before {
       opacity: 1;
     }
   }
-  
+
   &.installed {
     border-color: var(--green);
-    background: linear-gradient(135deg, #{'color-mix(in srgb, var(--green), 5%, transparent)'} 0%, var(--card) 100%);
+    background: linear-gradient(
+      135deg,
+      #{"color-mix(in srgb, var(--green), 5%, transparent)"} 0%,
+      var(--card) 100%
+    );
   }
 
   // Grid Layout
   &.grid {
     flex-direction: column;
-    
+
     .shader-thumbnail {
       width: 100%;
       aspect-ratio: 16 / 9;
     }
-    
+
     .shader-content {
       padding: 0.75rem;
       display: flex;
@@ -233,7 +255,7 @@ function handleViewGallery(e: MouseEvent) {
       gap: 0.5rem;
       flex: 1;
     }
-    
+
     .shader-footer {
       margin-top: auto;
     }
@@ -242,13 +264,13 @@ function handleViewGallery(e: MouseEvent) {
   // List Layout
   &.list {
     flex-direction: row;
-    
+
     .shader-thumbnail {
       width: 160px;
       min-width: 160px;
       aspect-ratio: 16 / 9;
     }
-    
+
     .shader-content {
       padding: 0.75rem;
       display: flex;
@@ -256,14 +278,14 @@ function handleViewGallery(e: MouseEvent) {
       gap: 0.5rem;
       flex: 1;
     }
-    
+
     .shader-footer {
       margin-top: auto;
       display: flex;
       align-items: flex-end;
       justify-content: space-between;
     }
-    
+
     .shader-meta {
       flex-direction: row;
       gap: 0.75rem;
@@ -278,36 +300,36 @@ function handleViewGallery(e: MouseEvent) {
     gap: 0.5rem;
     min-width: 240px;
     max-width: 300px;
-    
+
     .shader-content {
       flex: 1;
       min-width: 0;
     }
-    
+
     .shader-header {
       margin-bottom: 0;
     }
-    
+
     .shader-title {
       font-size: 0.85em;
       margin-bottom: 0;
     }
-    
+
     .shader-author {
       display: none;
     }
-    
+
     .shader-footer {
       flex-direction: row;
       gap: 0.5rem;
       align-items: center;
     }
-    
+
     .shader-meta {
       flex-direction: row;
       gap: 0.375rem;
     }
-    
+
     .download-btn {
       padding: 0.25rem 0.5rem;
       font-size: 0.75em;
@@ -320,20 +342,24 @@ function handleViewGallery(e: MouseEvent) {
   position: relative;
   background: var(--dark-700);
   overflow: hidden;
-  
+
   :global(img) {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
-  
+
   .placeholder-thumbnail {
     width: 100%;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, var(--dark-700) 0%, var(--dark-600) 100%);
+    background: linear-gradient(
+      135deg,
+      var(--dark-700) 0%,
+      var(--dark-600) 100%
+    );
     color: var(--dark-400);
   }
 
@@ -364,7 +390,7 @@ function handleViewGallery(e: MouseEvent) {
   &:hover .gallery-overlay {
     opacity: 1;
   }
-  
+
   .installed-badge {
     position: absolute;
     top: 0.5rem;
@@ -390,7 +416,7 @@ function handleViewGallery(e: MouseEvent) {
 
 .shader-header {
   margin-bottom: 0.5rem;
-  
+
   .shader-title {
     margin: 0 0 0.25rem 0;
     font-size: 1em;
@@ -400,7 +426,7 @@ function handleViewGallery(e: MouseEvent) {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  
+
   .shader-author {
     margin: 0;
     font-size: 0.75em;
@@ -435,12 +461,12 @@ function handleViewGallery(e: MouseEvent) {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  
+
   .shader-loaders {
     display: flex;
     flex-wrap: wrap;
     gap: 0.25rem;
-    
+
     .loader-badge {
       padding: 0.125rem 0.375rem;
       border-radius: 0.25rem;
@@ -452,14 +478,14 @@ function handleViewGallery(e: MouseEvent) {
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     }
   }
-  
+
   .shader-stats {
     display: flex;
     align-items: center;
     gap: 0.25rem;
     color: var(--placeholder);
     font-size: 0.75em;
-    
+
     span {
       font-weight: 500;
     }
@@ -481,21 +507,22 @@ function handleViewGallery(e: MouseEvent) {
   font-size: 0.8em;
   cursor: pointer;
   transition: all 0.15s;
-  
+
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px #{'color-mix(in srgb, var(--primary), 25%, transparent)'};
+    box-shadow: 0 4px 8px
+      #{"color-mix(in srgb, var(--primary), 25%, transparent)"};
   }
-  
+
   &:active:not(:disabled) {
     transform: translateY(0);
   }
-  
+
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
-  
+
   &.loading {
     :global(.icon) {
       animation: spin 1s linear infinite;

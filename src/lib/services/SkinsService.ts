@@ -1,5 +1,12 @@
-import * as skinsApi from '../api/skins';
-import type { PlayerProfile, AccountSkin, AccountCape, CurrentSkin, SkinUploadConfig, SkinUploadResponse } from '../types';
+import * as skinsApi from "../api/skins";
+import type {
+  PlayerProfile,
+  AccountSkin,
+  AccountCape,
+  CurrentSkin,
+  SkinUploadConfig,
+  SkinUploadResponse,
+} from "../types";
 
 /**
  * Service for managing Minecraft skins and capes
@@ -13,7 +20,7 @@ export class SkinsService {
     try {
       return await skinsApi.getPlayerProfile();
     } catch (error) {
-      console.error('Failed to get player profile:', error);
+      console.error("Failed to get player profile:", error);
       throw error;
     }
   }
@@ -25,22 +32,22 @@ export class SkinsService {
     try {
       const [remoteSkins, localSkins] = await Promise.allSettled([
         this.getRemoteSkins(),
-        this.getLocalSkins()
+        this.getLocalSkins(),
       ]);
 
       const skins: AccountSkin[] = [];
 
-      if (remoteSkins.status === 'fulfilled') {
+      if (remoteSkins.status === "fulfilled") {
         skins.push(...remoteSkins.value);
       }
 
-      if (localSkins.status === 'fulfilled') {
+      if (localSkins.status === "fulfilled") {
         skins.push(...localSkins.value);
       }
 
       return skins;
     } catch (error) {
-      console.error('Failed to get all skins:', error);
+      console.error("Failed to get all skins:", error);
       throw error;
     }
   }
@@ -53,7 +60,7 @@ export class SkinsService {
       const profile = await skinsApi.getPlayerProfile();
       return profile.skins || [];
     } catch (error) {
-      console.error('Failed to get remote skins:', error);
+      console.error("Failed to get remote skins:", error);
       return [];
     }
   }
@@ -65,7 +72,7 @@ export class SkinsService {
     try {
       return await skinsApi.getLocalSkins();
     } catch (error) {
-      console.error('Failed to get local skins:', error);
+      console.error("Failed to get local skins:", error);
       return [];
     }
   }
@@ -77,7 +84,7 @@ export class SkinsService {
     try {
       return await skinsApi.getCurrentSkinInfo();
     } catch (error) {
-      console.error('Failed to get current skin:', error);
+      console.error("Failed to get current skin:", error);
       throw error;
     }
   }
@@ -90,7 +97,7 @@ export class SkinsService {
       const profile = await skinsApi.getPlayerProfile();
       return profile.capes || [];
     } catch (error) {
-      console.error('Failed to get capes:', error);
+      console.error("Failed to get capes:", error);
       return [];
     }
   }
@@ -102,7 +109,7 @@ export class SkinsService {
     try {
       return await skinsApi.getActiveCape();
     } catch (error) {
-      console.error('Failed to get active cape:', error);
+      console.error("Failed to get active cape:", error);
       return null;
     }
   }
@@ -114,7 +121,7 @@ export class SkinsService {
     try {
       return await skinsApi.applyAccountSkin(skinId);
     } catch (error) {
-      console.error('Failed to apply skin:', error);
+      console.error("Failed to apply skin:", error);
       throw error;
     }
   }
@@ -126,7 +133,7 @@ export class SkinsService {
     try {
       return await skinsApi.applyCape(capeId);
     } catch (error) {
-      console.error('Failed to apply cape:', error);
+      console.error("Failed to apply cape:", error);
       throw error;
     }
   }
@@ -134,11 +141,13 @@ export class SkinsService {
   /**
    * Upload a new skin
    */
-  static async uploadSkin(config: SkinUploadConfig): Promise<SkinUploadResponse> {
+  static async uploadSkin(
+    config: SkinUploadConfig,
+  ): Promise<SkinUploadResponse> {
     try {
       return await skinsApi.uploadSkinToAccount(config);
     } catch (error) {
-      console.error('Failed to upload skin:', error);
+      console.error("Failed to upload skin:", error);
       throw error;
     }
   }
@@ -150,7 +159,7 @@ export class SkinsService {
     try {
       return await skinsApi.selectSkinFile();
     } catch (error) {
-      console.error('Failed to select skin file:', error);
+      console.error("Failed to select skin file:", error);
       return null;
     }
   }
@@ -162,12 +171,12 @@ export class SkinsService {
     skinId: string,
     newName?: string,
     newCapeId?: string,
-    newSlim?: boolean
+    newSlim?: boolean,
   ): Promise<void> {
     try {
       return await skinsApi.modifySkinById(skinId, newName, newCapeId, newSlim);
     } catch (error) {
-      console.error('Failed to modify skin:', error);
+      console.error("Failed to modify skin:", error);
       throw error;
     }
   }
@@ -179,7 +188,7 @@ export class SkinsService {
     try {
       return await skinsApi.removeSkinById(skinId);
     } catch (error) {
-      console.error('Failed to remove skin:', error);
+      console.error("Failed to remove skin:", error);
       throw error;
     }
   }
@@ -188,7 +197,11 @@ export class SkinsService {
    * Get skin display name
    */
   static getSkinDisplayName(skin: AccountSkin): string {
-    if (skin.name && skin.name !== 'Current Skin' && skin.name !== 'Account Skin') {
+    if (
+      skin.name &&
+      skin.name !== "Current Skin" &&
+      skin.name !== "Account Skin"
+    ) {
       return skin.name;
     }
     return `${skin.model} Skin`;
@@ -212,7 +225,6 @@ export class SkinsService {
    * Check if a cape is currently active
    */
   static isCapeActive(cape: AccountCape): boolean {
-    return cape.state === 'ACTIVE';
+    return cape.state === "ACTIVE";
   }
 }
-

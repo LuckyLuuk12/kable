@@ -10,65 +10,68 @@ custom paths, experimental features, and key-value extra settings.
 ```
 -->
 <script lang="ts">
-  import { settings } from "$lib/stores";
-  import { get } from 'svelte/store';
-  import Icon from "$lib/components/Icon.svelte";
-  let collapsed = false;
-  // Local state for editing extra settings
-  import { onMount } from 'svelte';
-  let localExtra: Array<{ key: string, value: string }> = [];
+import { settings } from "$lib/stores";
+import { get } from "svelte/store";
+import Icon from "$lib/components/Icon.svelte";
+let collapsed = false;
+// Local state for editing extra settings
+import { onMount } from "svelte";
+let localExtra: Array<{ key: string; value: string }> = [];
 
-  // Initialize localExtra from store on mount
-  onMount(() => {
-    const adv = get(settings).advanced;
-    const entries = Object.entries(adv.extra || {});
-    localExtra = entries.map(([key, value]) => ({ key, value: typeof value === 'string' ? value : JSON.stringify(value) }));
-  });
+// Initialize localExtra from store on mount
+onMount(() => {
+  const adv = get(settings).advanced;
+  const entries = Object.entries(adv.extra || {});
+  localExtra = entries.map(([key, value]) => ({
+    key,
+    value: typeof value === "string" ? value : JSON.stringify(value),
+  }));
+});
 
-  // Sync localExtra to store
-  function syncToStore() {
-    const adv = { ...get(settings).advanced };
-    adv.extra = {};
-    for (const { key, value } of localExtra) {
-      if (key) adv.extra[key] = parseValue(value);
-    }
-    settings.update(s => ({ ...s, advanced: adv }));
+// Sync localExtra to store
+function syncToStore() {
+  const adv = { ...get(settings).advanced };
+  adv.extra = {};
+  for (const { key, value } of localExtra) {
+    if (key) adv.extra[key] = parseValue(value);
   }
+  settings.update((s) => ({ ...s, advanced: adv }));
+}
 
+function handleKeyChange(index: number, newKey: string) {
+  if (!newKey) return;
+  // Prevent duplicate keys
+  if (localExtra.some((e, i) => i !== index && e.key === newKey)) return;
+  localExtra[index].key = newKey;
+  syncToStore();
+}
 
-  function handleKeyChange(index: number, newKey: string) {
-    if (!newKey) return;
-    // Prevent duplicate keys
-    if (localExtra.some((e, i) => i !== index && e.key === newKey)) return;
-    localExtra[index].key = newKey;
-    syncToStore();
+function handleValueChange(index: number, newValue: string) {
+  localExtra[index].value = newValue;
+  syncToStore();
+}
+
+function removeExtra(index: number) {
+  localExtra = [...localExtra.slice(0, index), ...localExtra.slice(index + 1)];
+  syncToStore();
+}
+
+function addExtra() {
+  let base = "key";
+  let i = 1;
+  const existing = new Set(localExtra.map((e) => e.key));
+  while (existing.has(base + i)) i++;
+  localExtra = [...localExtra, { key: base + i, value: "" }];
+  syncToStore();
+}
+
+function parseValue(val: string): any {
+  try {
+    return JSON.parse(val);
+  } catch {
+    return val;
   }
-
-  function handleValueChange(index: number, newValue: string) {
-    localExtra[index].value = newValue;
-    syncToStore();
-  }
-
-  function removeExtra(index: number) {
-    localExtra = [
-      ...localExtra.slice(0, index),
-      ...localExtra.slice(index + 1)
-    ];
-    syncToStore();
-  }
-
-  function addExtra() {
-    let base = 'key';
-    let i = 1;
-    const existing = new Set(localExtra.map(e => e.key));
-    while (existing.has(base + i)) i++;
-    localExtra = [...localExtra, { key: base + i, value: '' }];
-    syncToStore();
-  }
-
-  function parseValue(val: string): any {
-    try { return JSON.parse(val); } catch { return val; }
-  }
+}
 </script>
 
 <div class="settings-tab">
@@ -81,7 +84,11 @@ custom paths, experimental features, and key-value extra settings.
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
-          <input type="checkbox" id="enable-experimental-features" bind:checked={$settings.advanced.enable_experimental_features} />
+          <input
+            type="checkbox"
+            id="enable-experimental-features"
+            bind:checked={$settings.advanced.enable_experimental_features}
+          />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -90,22 +97,44 @@ custom paths, experimental features, and key-value extra settings.
     <div class="setting-item">
       <div class="setting-info">
         <label for="default-memory">Default Memory Allocation (MB)</label>
-        <p class="setting-description">Default RAM allocated to new installations</p>
+        <p class="setting-description">
+          Default RAM allocated to new installations
+        </p>
       </div>
       <div class="setting-control slider-control">
-        <input type="range" id="default-memory-slider" min="512" max="131072" step="256" bind:value={$settings.advanced.default_memory} />
-        <input type="number" id="default-memory" min="512" max="131072" step="256" bind:value={$settings.advanced.default_memory} />
+        <input
+          type="range"
+          id="default-memory-slider"
+          min="512"
+          max="131072"
+          step="256"
+          bind:value={$settings.advanced.default_memory}
+        />
+        <input
+          type="number"
+          id="default-memory"
+          min="512"
+          max="131072"
+          step="256"
+          bind:value={$settings.advanced.default_memory}
+        />
       </div>
     </div>
 
     <div class="setting-item">
       <div class="setting-info">
         <label for="separate-logs-window">Separate Logs Window</label>
-        <p class="setting-description">Show logs in a separate window (experimental)</p>
+        <p class="setting-description">
+          Show logs in a separate window (experimental)
+        </p>
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
-          <input type="checkbox" id="separate-logs-window" bind:checked={$settings.advanced.separate_logs_window} />
+          <input
+            type="checkbox"
+            id="separate-logs-window"
+            bind:checked={$settings.advanced.separate_logs_window}
+          />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -114,22 +143,31 @@ custom paths, experimental features, and key-value extra settings.
     <div class="setting-item">
       <div class="setting-info">
         <label for="show-advanced-page">Show Advanced Page</label>
-        <p class="setting-description">Display the Advanced page in the navigation bar</p>
+        <p class="setting-description">
+          Display the Advanced page in the navigation bar
+        </p>
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
-          <input type="checkbox" id="show-advanced-page" bind:checked={$settings.advanced.show_advanced_page} />
+          <input
+            type="checkbox"
+            id="show-advanced-page"
+            bind:checked={$settings.advanced.show_advanced_page}
+          />
           <span class="toggle-slider"></span>
         </label>
       </div>
     </div>
 
-
     <div class="setting-item advanced-extra-item">
       <div class="setting-info">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label id="advanced-extra-label">Advanced Extra Settings</label>
-        <p class="setting-description">Add, edit, or remove advanced key-value pairs. Values can be JSON, strings, numbers, or hex (e.g. <code>0x1234</code>), and are used by advanced features.</p>
+        <p class="setting-description">
+          Add, edit, or remove advanced key-value pairs. Values can be JSON,
+          strings, numbers, or hex (e.g. <code>0x1234</code>), and are used by
+          advanced features.
+        </p>
       </div>
       <div class="setting-control advanced-extra-control">
         <div class="extra-table">
@@ -137,8 +175,16 @@ custom paths, experimental features, and key-value extra settings.
             <span>Key</span>
             <span>Value (JSON)</span>
             <span class="collapse-toggle">
-              <button type="button" class="collapse-btn" on:click={() => collapsed = !collapsed} title={collapsed ? 'Expand all' : 'Collapse all'}>
-                <Icon name={collapsed ? 'chevron-down' : 'chevron-up'} forceType="svg" />
+              <button
+                type="button"
+                class="collapse-btn"
+                on:click={() => (collapsed = !collapsed)}
+                title={collapsed ? "Expand all" : "Collapse all"}
+              >
+                <Icon
+                  name={collapsed ? "chevron-down" : "chevron-up"}
+                  forceType="svg"
+                />
               </button>
             </span>
           </div>
@@ -150,7 +196,8 @@ custom paths, experimental features, and key-value extra settings.
                   type="text"
                   aria-labelledby="advanced-extra-label"
                   bind:value={entry.key}
-                  on:input={e => handleKeyChange(i, (e.target as HTMLInputElement).value)}
+                  on:input={(e) =>
+                    handleKeyChange(i, (e.target as HTMLInputElement).value)}
                   placeholder="Key"
                   autocomplete="off"
                 />
@@ -158,20 +205,31 @@ custom paths, experimental features, and key-value extra settings.
                   class="extra-value"
                   aria-label="Value for extra setting"
                   bind:value={entry.value}
-                  on:input={e => handleValueChange(i, (e.target as HTMLTextAreaElement).value)}
+                  on:input={(e) =>
+                    handleValueChange(
+                      i,
+                      (e.target as HTMLTextAreaElement).value,
+                    )}
                   placeholder="Value (JSON)"
                   autocomplete="off"
                   rows="1"
                   style="resize:vertical; min-height:2.1em; max-height:12em; width:100%;"
                 ></textarea>
-                <button type="button" class="remove-btn" on:click={() => removeExtra(i)} title="Remove">
+                <button
+                  type="button"
+                  class="remove-btn"
+                  on:click={() => removeExtra(i)}
+                  title="Remove"
+                >
                   <Icon name="delete" forceType="svg" />
                 </button>
               </div>
             {/each}
           {/if}
         </div>
-        <button type="button" class="add-btn" on:click={addExtra}>Add Extra Setting</button>
+        <button type="button" class="add-btn" on:click={addExtra}
+          >Add Extra Setting</button
+        >
       </div>
     </div>
   </form>
@@ -183,7 +241,7 @@ custom paths, experimental features, and key-value extra settings.
 .settings-tab {
   background: var(--container);
   border-radius: var(--border-radius-large);
-  box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.08);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
   padding: 2rem 2.5rem;
   margin-bottom: 2rem;
   width: 100%;
@@ -369,4 +427,3 @@ form {
   transition: color 0.2s;
 }
 </style>
-

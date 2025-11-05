@@ -1,11 +1,13 @@
-
-
-import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
-import * as authApi from '$lib';
-import { currentAccount, availableAccounts, isAuthenticating } from '../stores/auth';
-import { get } from 'svelte/store';
-import type { LauncherAccount } from '../types';
-import * as systemApi from '$lib';
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
+import * as authApi from "$lib";
+import {
+  currentAccount,
+  availableAccounts,
+  isAuthenticating,
+} from "../stores/auth";
+import { get } from "svelte/store";
+import type { LauncherAccount } from "../types";
+import * as systemApi from "$lib";
 
 /**
  * Modern Authentication Service with Authorization Code Flow
@@ -24,15 +26,16 @@ export class AuthService {
     try {
       const accounts = await this.getAllAccounts();
       availableAccounts.set(accounts);
-      console.log('🔄 Refreshed available accounts list');
+      console.log("🔄 Refreshed available accounts list");
     } catch (error) {
-      console.error('❌ Failed to refresh accounts list:', error);
+      console.error("❌ Failed to refresh accounts list:", error);
       availableAccounts.set([]);
     }
   }
   // These are assigned after the class for Svelte compatibility
   static signIn = async () => await this.authenticateWithDeviceCode();
-  static signInWithDeviceCode = async () => await this.authenticateWithDeviceCode();
+  static signInWithDeviceCode = async () =>
+    await this.authenticateWithDeviceCode();
   private static oauthWindow: WebviewWindow | null = null;
   private static refreshTimer: ReturnType<typeof setInterval> | null = null;
   private static isInitialized = false;
@@ -49,7 +52,7 @@ export class AuthService {
     if (this.isInitialized) {
       return get(currentAccount);
     }
-    console.log('🔐 Initializing authentication service...');
+    console.log("🔐 Initializing authentication service...");
     this.isInitialized = true;
     try {
       // Try to get existing account with valid token
@@ -59,12 +62,15 @@ export class AuthService {
       await this.refreshAvailableAccounts();
       // Start background refresh
       this.initializeBackgroundRefresh();
-      console.log('✅ Auto-authenticated with existing account:', account?.username);
+      console.log(
+        "✅ Auto-authenticated with existing account:",
+        account?.username,
+      );
       return account;
     } catch (error) {
       currentAccount.set(null);
       this.initializeBackgroundRefresh();
-      console.log('ℹ️ No valid account found, user will need to sign in');
+      console.log("ℹ️ No valid account found, user will need to sign in");
       return null;
     }
   }
@@ -78,9 +84,12 @@ export class AuthService {
       this.refreshTimer = null;
     }
     // Check every 5 minutes
-    this.refreshTimer = setInterval(() => {
-      this.startBackgroundRefresh();
-    }, 5 * 60 * 1000);
+    this.refreshTimer = setInterval(
+      () => {
+        this.startBackgroundRefresh();
+      },
+      5 * 60 * 1000,
+    );
   }
 
   /**
@@ -92,7 +101,9 @@ export class AuthService {
     if (!account.access_token_expires_at) return;
     // Check for encrypted_refresh_token before attempting refresh
     if (!account.encrypted_refresh_token) {
-      console.warn('⚠️ Cannot auto-refresh token: encrypted_refresh_token is missing');
+      console.warn(
+        "⚠️ Cannot auto-refresh token: encrypted_refresh_token is missing",
+      );
       return;
     }
     const expiresAt = new Date(account.access_token_expires_at);
@@ -103,9 +114,9 @@ export class AuthService {
         const refreshed = await authApi.refreshMicrosoftToken(account.local_id);
         currentAccount.set(refreshed);
         await this.refreshAvailableAccounts();
-        console.log('🔄 Token auto-refreshed in background');
+        console.log("🔄 Token auto-refreshed in background");
       } catch (error) {
-        console.error('❌ Background token refresh failed:', error);
+        console.error("❌ Background token refresh failed:", error);
       }
     }
   }
@@ -120,23 +131,25 @@ export class AuthService {
       if (!accounts || accounts.length === 0) return;
 
       console.log(`🔄 Checking tokens for ${accounts.length} account(s)...`);
-      
+
       // Use Promise.allSettled to handle partial failures
       const results = await Promise.allSettled(
         accounts.map(async (account) => {
           // Skip if no expiry time
           if (!account.access_token_expires_at) return;
-          
+
           // Skip if no refresh token available
           if (!account.encrypted_refresh_token) {
-            console.warn(`⚠️ Cannot refresh ${account.username}: no refresh token`);
+            console.warn(
+              `⚠️ Cannot refresh ${account.username}: no refresh token`,
+            );
             return;
           }
 
           const expiresAt = new Date(account.access_token_expires_at);
           const now = new Date();
           const timeUntilExpiry = expiresAt.getTime() - now.getTime();
-          
+
           // If token is expired or will expire soon (within 10 minutes), refresh it
           if (timeUntilExpiry < 10 * 60 * 1000) {
             console.log(`🔄 Refreshing token for ${account.username}...`);
@@ -144,21 +157,28 @@ export class AuthService {
               await authApi.refreshMicrosoftToken(account.local_id);
               console.log(`✅ Token refreshed for ${account.username}`);
             } catch (error) {
-              console.error(`❌ Failed to refresh token for ${account.username}:`, error);
+              console.error(
+                `❌ Failed to refresh token for ${account.username}:`,
+                error,
+              );
               throw error;
             }
           }
-        })
+        }),
       );
 
       // Log summary
-      const successful = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
-      
+      const successful = results.filter((r) => r.status === "fulfilled").length;
+      const failed = results.filter((r) => r.status === "rejected").length;
+
       if (failed > 0) {
-        console.warn(`⚠️ Token refresh completed: ${successful} successful, ${failed} failed`);
+        console.warn(
+          `⚠️ Token refresh completed: ${successful} successful, ${failed} failed`,
+        );
       } else if (successful > 0) {
-        console.log(`✅ All tokens refreshed successfully (${successful} account(s))`);
+        console.log(
+          `✅ All tokens refreshed successfully (${successful} account(s))`,
+        );
       }
 
       // Only refresh the available accounts list if we actually refreshed any tokens
@@ -166,7 +186,7 @@ export class AuthService {
         await this.refreshAvailableAccounts();
       }
     } catch (error) {
-      console.error('❌ Error during bulk token refresh:', error);
+      console.error("❌ Error during bulk token refresh:", error);
     }
   }
 
@@ -175,27 +195,29 @@ export class AuthService {
    * Returns device code data for UI display, then polls in background
    */
   static async startDeviceCodeFlow(): Promise<authApi.DeviceCodeResponse> {
-    console.log('📱 Starting Device Code Flow...');
-    
+    console.log("📱 Starting Device Code Flow...");
+
     const deviceResponse = await authApi.startMicrosoftDeviceAuth();
-    console.log('📝 Device code generated:', deviceResponse.user_code);
-    
+    console.log("📝 Device code generated:", deviceResponse.user_code);
+
     // Don't auto-open - let UI show instructions first
     // await systemApi.openUrl(deviceResponse.verification_uri);
-    
+
     return deviceResponse;
   }
 
   /**
    * Poll for device code completion
    */
-  static async pollDeviceCodeCompletion(deviceCode: string): Promise<LauncherAccount> {
+  static async pollDeviceCodeCompletion(
+    deviceCode: string,
+  ): Promise<LauncherAccount> {
     return new Promise(async (resolve, reject) => {
       const pollForCompletion = async () => {
         try {
           const token = await authApi.pollMicrosoftDeviceAuth(deviceCode);
           if (token) {
-            console.log('✅ Device code authentication successful!');
+            console.log("✅ Device code authentication successful!");
             const account = await authApi.completeMicrosoftAuth(token);
             currentAccount.set(account);
             await this.refreshAvailableAccounts();
@@ -204,7 +226,7 @@ export class AuthService {
             setTimeout(pollForCompletion, 5000);
           }
         } catch (error) {
-          console.error('❌ Device code polling failed:', error);
+          console.error("❌ Device code polling failed:", error);
           currentAccount.set(null);
           reject(error);
         }
@@ -221,15 +243,17 @@ export class AuthService {
     isAuthenticating.set(true);
     return new Promise(async (resolve, reject) => {
       try {
-        console.log('📱 Starting Device Code Flow...');
+        console.log("📱 Starting Device Code Flow...");
         const deviceResponse = await authApi.startMicrosoftDeviceAuth();
-        console.log('📝 Device code generated:', deviceResponse.user_code);
+        console.log("📝 Device code generated:", deviceResponse.user_code);
         await systemApi.openUrl(deviceResponse.verification_uri);
         const pollForCompletion = async () => {
           try {
-            const token = await authApi.pollMicrosoftDeviceAuth(deviceResponse.device_code);
+            const token = await authApi.pollMicrosoftDeviceAuth(
+              deviceResponse.device_code,
+            );
             if (token) {
-              console.log('✅ Device code authentication successful!');
+              console.log("✅ Device code authentication successful!");
               const account = await authApi.completeMicrosoftAuth(token);
               currentAccount.set(account);
               await this.refreshAvailableAccounts();
@@ -239,7 +263,7 @@ export class AuthService {
               setTimeout(pollForCompletion, deviceResponse.interval * 1000);
             }
           } catch (error) {
-            console.error('❌ Device code polling failed:', error);
+            console.error("❌ Device code polling failed:", error);
             isAuthenticating.set(false);
             currentAccount.set(null);
             reject(error);
@@ -249,10 +273,10 @@ export class AuthService {
         return {
           userCode: deviceResponse.user_code,
           verificationUri: deviceResponse.verification_uri,
-          expiresIn: deviceResponse.expires_in
+          expiresIn: deviceResponse.expires_in,
         } as any;
       } catch (error) {
-        console.error('❌ Device code authentication failed:', error);
+        console.error("❌ Device code authentication failed:", error);
         isAuthenticating.set(false);
         currentAccount.set(null);
         reject(error);
@@ -269,22 +293,24 @@ export class AuthService {
   static async refreshCurrentAccount(): Promise<LauncherAccount | null> {
     const account = get(currentAccount);
     if (!account) {
-      console.warn('⚠️ No account to refresh');
+      console.warn("⚠️ No account to refresh");
       return null;
     }
     if (!account.encrypted_refresh_token) {
-      console.warn('⚠️ Cannot refresh token: encrypted_refresh_token is missing');
+      console.warn(
+        "⚠️ Cannot refresh token: encrypted_refresh_token is missing",
+      );
       return null;
     }
     try {
-      console.log('🔄 Manually refreshing current account token...');
+      console.log("🔄 Manually refreshing current account token...");
       const refreshed = await authApi.refreshMicrosoftToken(account.local_id);
       currentAccount.set(refreshed);
       // Note: refreshAvailableAccounts() will be called by refreshAllAccountTokens() in NavBar
-      console.log('✅ Token manually refreshed');
+      console.log("✅ Token manually refreshed");
       return refreshed;
     } catch (error) {
-      console.error('❌ Manual token refresh failed:', error);
+      console.error("❌ Manual token refresh failed:", error);
       return null;
     }
   }
@@ -325,7 +351,7 @@ export class AuthService {
   static async signOut(): Promise<void> {
     currentAccount.set(null);
     await this.refreshAvailableAccounts();
-    console.log('✅ Signed out successfully');
+    console.log("✅ Signed out successfully");
   }
 
   /**
@@ -341,7 +367,7 @@ export class AuthService {
       try {
         await this.oauthWindow.close();
       } catch (error) {
-        console.warn('Failed to close OAuth window:', error);
+        console.warn("Failed to close OAuth window:", error);
       }
       this.oauthWindow = null;
     }
@@ -360,10 +386,10 @@ export class AuthService {
   static async getAllAccounts(): Promise<LauncherAccount[]> {
     try {
       const allAccounts = await authApi.getAllLauncherAccounts();
-      console.log('� Final accounts:', allAccounts.length);
+      console.log("� Final accounts:", allAccounts.length);
       return allAccounts;
     } catch (error) {
-      console.error('❌ Failed to get all accounts:', error);
+      console.error("❌ Failed to get all accounts:", error);
       return [];
     }
   }
@@ -372,10 +398,10 @@ export class AuthService {
     try {
       // First, get the account to check if token needs refresh
       const accounts = await this.getAllAccounts();
-      const targetAccount = accounts.find(acc => acc.local_id === accountId);
-      
+      const targetAccount = accounts.find((acc) => acc.local_id === accountId);
+
       if (!targetAccount) {
-        throw new Error('Account not found');
+        throw new Error("Account not found");
       }
 
       // Check if token is expired or will expire soon (within 10 minutes)
@@ -383,15 +409,17 @@ export class AuthService {
         const expiresAt = new Date(targetAccount.access_token_expires_at);
         const now = new Date();
         const timeUntilExpiry = expiresAt.getTime() - now.getTime();
-        
+
         // If token is expired or will expire soon, refresh it first
         if (timeUntilExpiry < 10 * 60 * 1000) {
-          console.log('🔄 Token expired or expiring soon, refreshing before switch...');
+          console.log(
+            "🔄 Token expired or expiring soon, refreshing before switch...",
+          );
           try {
             await authApi.refreshMicrosoftToken(accountId);
-            console.log('✅ Token refreshed successfully');
+            console.log("✅ Token refreshed successfully");
           } catch (error) {
-            console.error('❌ Failed to refresh token before switch:', error);
+            console.error("❌ Failed to refresh token before switch:", error);
             // Continue with switch anyway - backend will handle it
           }
         }
@@ -401,10 +429,10 @@ export class AuthService {
       const account = await authApi.getMinecraftAccount();
       currentAccount.set(account);
       await this.refreshAvailableAccounts();
-      console.log('✅ Switched to account:', account.username);
+      console.log("✅ Switched to account:", account.username);
       return account;
     } catch (error) {
-      console.error('❌ Failed to switch account:', error);
+      console.error("❌ Failed to switch account:", error);
       currentAccount.set(null);
       throw error;
     }
@@ -418,22 +446,22 @@ export class AuthService {
         currentAccount.set(null);
       }
       await this.refreshAvailableAccounts();
-      console.log('✅ Account removed successfully');
+      console.log("✅ Account removed successfully");
     } catch (error) {
-      console.error('❌ Failed to remove account:', error);
+      console.error("❌ Failed to remove account:", error);
       throw error;
     }
   }
 
   static formatTokenExpiry(account: LauncherAccount): string {
     if (!account.access_token_expires_at) {
-      return 'Unknown';
+      return "Unknown";
     }
     const expiresAt = new Date(account.access_token_expires_at);
     const now = new Date();
     const diffMs = expiresAt.getTime() - now.getTime();
     if (diffMs <= 0) {
-      return 'Expired';
+      return "Expired";
     }
     const hours = Math.floor(diffMs / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
@@ -443,7 +471,6 @@ export class AuthService {
       return `${minutes}m`;
     }
   }
-
 }
 
 // --- Aliases for compatibility with old AuthManager usage in Svelte components ---

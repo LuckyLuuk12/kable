@@ -10,14 +10,14 @@ speed limits, retry policies, and timeout settings.
 ```
 -->
 <script lang="ts">
-  import { settings, SettingsService } from "$lib";
-  
-  function setUnlimitedDownloadSpeed() {
-    SettingsService.update('network', {
-      ...$settings.network,
-      download_speed_limit: 'unlimited'
-    });
-  }
+import { settings, SettingsService } from "$lib";
+
+function setUnlimitedDownloadSpeed() {
+  SettingsService.update("network", {
+    ...$settings.network,
+    download_speed_limit: "unlimited",
+  });
+}
 </script>
 
 <div class="settings-tab">
@@ -30,8 +30,20 @@ speed limits, retry policies, and timeout settings.
       </div>
       <div class="setting-control slider-control">
         <div class="slider-inputs">
-          <input type="range" id="parallel-downloads-slider" min="1" max="64" bind:value={$settings.network.parallel_downloads} />
-          <input type="number" id="parallel-downloads" min="1" max="64" bind:value={$settings.network.parallel_downloads} />
+          <input
+            type="range"
+            id="parallel-downloads-slider"
+            min="1"
+            max="64"
+            bind:value={$settings.network.parallel_downloads}
+          />
+          <input
+            type="number"
+            id="parallel-downloads"
+            min="1"
+            max="64"
+            bind:value={$settings.network.parallel_downloads}
+          />
         </div>
       </div>
     </div>
@@ -39,12 +51,26 @@ speed limits, retry policies, and timeout settings.
     <div class="setting-item">
       <div class="setting-info">
         <label for="connection-timeout">Connection Timeout (seconds)</label>
-        <p class="setting-description">Network timeout for downloads and API calls</p>
+        <p class="setting-description">
+          Network timeout for downloads and API calls
+        </p>
       </div>
       <div class="setting-control slider-control">
         <div class="slider-inputs">
-          <input type="range" id="connection-timeout-slider" min="1" max="360" bind:value={$settings.network.connection_timeout} />
-          <input type="number" id="connection-timeout" min="1" max="360" bind:value={$settings.network.connection_timeout} />
+          <input
+            type="range"
+            id="connection-timeout-slider"
+            min="1"
+            max="360"
+            bind:value={$settings.network.connection_timeout}
+          />
+          <input
+            type="number"
+            id="connection-timeout"
+            min="1"
+            max="360"
+            bind:value={$settings.network.connection_timeout}
+          />
         </div>
       </div>
     </div>
@@ -52,43 +78,70 @@ speed limits, retry policies, and timeout settings.
     <div class="setting-item">
       <div class="setting-info">
         <label for="download-speed-limit">Download Speed Limit (MB/s)</label>
-        <p class="setting-description">How much to throttle the download speed for parallel downloads</p>
+        <p class="setting-description">
+          How much to throttle the download speed for parallel downloads
+        </p>
       </div>
       <div class="setting-control slider-control download-speed-layout">
         <div class="download-speed-inputs">
-          <input type="range" id="download-speed-limit-slider" min="0" max="20000"
-            value={$settings.network.download_speed_limit === 'unlimited' ? 0 : $settings.network.download_speed_limit}
-            disabled={$settings.network.download_speed_limit === 'unlimited'}
+          <input
+            type="range"
+            id="download-speed-limit-slider"
+            min="0"
+            max="20000"
+            value={$settings.network.download_speed_limit === "unlimited"
+              ? 0
+              : $settings.network.download_speed_limit}
+            disabled={$settings.network.download_speed_limit === "unlimited"}
             on:input={(e) => {
-              if ($settings.network.download_speed_limit !== 'unlimited') {
-                SettingsService.update('network', {
+              if ($settings.network.download_speed_limit !== "unlimited") {
+                SettingsService.update("network", {
                   ...$settings.network,
-                  download_speed_limit: Number((e.target as HTMLInputElement)?.value)
+                  download_speed_limit: Number(
+                    (e.target as HTMLInputElement)?.value,
+                  ),
                 });
               }
             }}
           />
-          <input type="number" id="download-speed-limit" min="0" max="20000"
-            value={$settings.network.download_speed_limit === 'unlimited' ? '' : $settings.network.download_speed_limit}
-            disabled={$settings.network.download_speed_limit === 'unlimited'}
+          <input
+            type="number"
+            id="download-speed-limit"
+            min="0"
+            max="20000"
+            value={$settings.network.download_speed_limit === "unlimited"
+              ? ""
+              : $settings.network.download_speed_limit}
+            disabled={$settings.network.download_speed_limit === "unlimited"}
             on:input={(e) => {
-              if ($settings.network.download_speed_limit !== 'unlimited') {
-                SettingsService.update('network', {
+              if ($settings.network.download_speed_limit !== "unlimited") {
+                SettingsService.update("network", {
                   ...$settings.network,
-                  download_speed_limit: Number((e.target as HTMLInputElement)?.value)
+                  download_speed_limit: Number(
+                    (e.target as HTMLInputElement)?.value,
+                  ),
                 });
               }
             }}
           />
         </div>
         <div class="download-speed-btn">
-          {#if $settings.network.download_speed_limit !== 'unlimited'}
-            <button type="button" class="primary" on:click={setUnlimitedDownloadSpeed}>Unlimited</button>
+          {#if $settings.network.download_speed_limit !== "unlimited"}
+            <button
+              type="button"
+              class="primary"
+              on:click={setUnlimitedDownloadSpeed}>Unlimited</button
+            >
           {:else}
-            <button type="button" class="primary" on:click={() => SettingsService.update('network', {
-              ...$settings.network,
-              download_speed_limit: 100
-            })}>Use limit</button>
+            <button
+              type="button"
+              class="primary"
+              on:click={() =>
+                SettingsService.update("network", {
+                  ...$settings.network,
+                  download_speed_limit: 100,
+                })}>Use limit</button
+            >
           {/if}
         </div>
       </div>
@@ -103,7 +156,7 @@ speed limits, retry policies, and timeout settings.
 .settings-tab {
   background: var(--container);
   border-radius: var(--border-radius-large);
-  box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.08); // 2px 8px
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08); // 2px 8px
   padding: 2rem 2.5rem;
   margin-bottom: 2rem;
   width: 100%;

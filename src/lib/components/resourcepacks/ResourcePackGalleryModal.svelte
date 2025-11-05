@@ -15,10 +15,14 @@ resource pack screenshots and preview images.
 ```
 -->
 <script lang="ts">
-import { Icon } from '$lib';
-import { createEventDispatcher } from 'svelte';
+import { Icon } from "$lib";
+import { createEventDispatcher } from "svelte";
 
-export let ResourcePack: { name: string; gallery: string[] | null; featured_gallery: string | null } | null = null;
+export let ResourcePack: {
+  name: string;
+  gallery: string[] | null;
+  featured_gallery: string | null;
+} | null = null;
 export let visible = false;
 
 const dispatch = createEventDispatcher<{ close: void }>();
@@ -37,19 +41,19 @@ $: if (ResourcePack) {
   // Remove duplicates
   images = [...new Set(images)];
   currentIndex = 0;
-  
+
   console.log(`[ResourcePackGalleryModal] Processing ResourcePack:`, {
     name: ResourcePack.name,
     featured_gallery: ResourcePack.featured_gallery,
     gallery: ResourcePack.gallery,
     totalImages: images.length,
-    images
+    images,
   });
 }
 
 function close() {
   visible = false;
-  dispatch('close');
+  dispatch("close");
 }
 
 function nextImage() {
@@ -66,15 +70,15 @@ function goToImage(index: number) {
 
 function handleKeydown(e: KeyboardEvent) {
   if (!visible) return;
-  
+
   switch (e.key) {
-    case 'Escape':
+    case "Escape":
       close();
       break;
-    case 'ArrowLeft':
+    case "ArrowLeft":
       prevImage();
       break;
-    case 'ArrowRight':
+    case "ArrowRight":
       nextImage();
       break;
   }
@@ -92,7 +96,14 @@ function handleBackdropClick(e: MouseEvent) {
 {#if visible && ResourcePack && images.length > 0}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="gallery-modal" on:click={handleBackdropClick} role="dialog" aria-modal="true" aria-labelledby="gallery-title" tabindex="-1">
+  <div
+    class="gallery-modal"
+    on:click={handleBackdropClick}
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="gallery-title"
+    tabindex="-1"
+  >
     <div class="gallery-container">
       <!-- Header -->
       <div class="gallery-header">
@@ -105,15 +116,19 @@ function handleBackdropClick(e: MouseEvent) {
       <!-- Main Image -->
       <div class="gallery-main">
         {#if images.length > 1}
-          <button class="nav-btn prev" on:click={prevImage} aria-label="Previous image">
+          <button
+            class="nav-btn prev"
+            on:click={prevImage}
+            aria-label="Previous image"
+          >
             <Icon name="chevron-left" size="xl" forceType="svg" />
           </button>
         {/if}
 
         <div class="image-container">
-          <img 
-            src={images[currentIndex]} 
-            alt="{ResourcePack.name} screenshot {currentIndex + 1}" 
+          <img
+            src={images[currentIndex]}
+            alt="{ResourcePack.name} screenshot {currentIndex + 1}"
             class="main-image"
           />
           <div class="image-counter">
@@ -122,7 +137,11 @@ function handleBackdropClick(e: MouseEvent) {
         </div>
 
         {#if images.length > 1}
-          <button class="nav-btn next" on:click={nextImage} aria-label="Next image">
+          <button
+            class="nav-btn next"
+            on:click={nextImage}
+            aria-label="Next image"
+          >
             <Icon name="chevron-right" size="xl" forceType="svg" />
           </button>
         {/if}
@@ -132,13 +151,16 @@ function handleBackdropClick(e: MouseEvent) {
       {#if images.length > 1}
         <div class="gallery-thumbnails">
           {#each images as image, index}
-            <button 
-              class="thumbnail" 
+            <button
+              class="thumbnail"
               class:active={index === currentIndex}
               on:click={() => goToImage(index)}
               aria-label="View image {index + 1}"
             >
-              <img src={image} alt="{ResourcePack.name} thumbnail {index + 1}" />
+              <img
+                src={image}
+                alt="{ResourcePack.name} thumbnail {index + 1}"
+              />
             </button>
           {/each}
         </div>
@@ -345,4 +367,3 @@ function handleBackdropClick(e: MouseEvent) {
   }
 }
 </style>
-

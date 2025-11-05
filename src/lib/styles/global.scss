@@ -1,18 +1,18 @@
 // Import clean-ui completely
-@use '@kablan/clean-ui/scss/_variables.scss' as *;
-@use '@kablan/clean-ui/scss/index.scss' as *;
+@use "@kablan/clean-ui/scss/_variables.scss" as *;
+@use "@kablan/clean-ui/scss/index.scss" as *;
 
 // ========================================
 // COMMON PAGE COMPONENTS
 // ========================================
 
-@font-face{
+@font-face {
   font-family: "minecraft";
-  src: url('/themes/Minecraft-Regular.woff2') format('woff2'),
-       url('/themes/Minecraft-Regular.woff') format('woff');
+  src:
+    url("/themes/Minecraft-Regular.woff2") format("woff2"),
+    url("/themes/Minecraft-Regular.woff") format("woff");
   font-style: normal;
 }
-
 
 * {
   font-family: var(--font);
@@ -21,7 +21,7 @@
 .page-header {
   text-align: center;
   margin-bottom: 2rem;
-  
+
   h1 {
     margin: 0 0 0.5rem 0;
     font-size: 2.5rem;
@@ -31,7 +31,7 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
-  
+
   p {
     margin: 0;
     color: var(--placeholder);
@@ -43,12 +43,12 @@
     padding: 0.5rem 1rem;
     border-radius: var(--border-radius);
     font-weight: 500;
-    
+
     &.success {
       background: var(--status-success-bg);
       color: var(--status-success);
     }
-    
+
     &.error {
       background: var(--status-error-bg);
       color: var(--status-error);
@@ -65,19 +65,19 @@
   background: var(--status-warning-bg);
   border: 1px solid var(--status-warning);
   border-radius: var(--border-radius-large);
-  
+
   .warning-icon {
     font-size: 2rem;
   }
-  
+
   .warning-content {
     flex: 1;
-    
+
     h3 {
       margin: 0 0 0.5rem 0;
       color: var(--status-warning);
     }
-    
+
     p {
       margin: 0 0 1rem 0;
       color: var(--placeholder);
@@ -88,7 +88,7 @@
 // Info Banners
 .info-banner {
   margin-bottom: 2rem;
-  
+
   .banner-content {
     display: flex;
     align-items: center;
@@ -97,19 +97,19 @@
     background: var(--status-info-bg);
     border: 1px solid var(--status-info);
     border-radius: var(--border-radius-large);
-    
+
     .banner-icon {
       font-size: 2rem;
     }
-    
+
     .banner-text {
       flex: 1;
-      
+
       h3 {
         margin: 0 0 0.5rem 0;
         color: var(--blue);
       }
-      
+
       p {
         margin: 0;
         color: var(--placeholder);
@@ -123,17 +123,17 @@
   text-align: center;
   max-width: 400px;
   margin: 0 auto;
-  
+
   .empty-icon {
     font-size: 4rem;
     margin-bottom: 1rem;
   }
-  
+
   h3 {
     margin: 0 0 1rem 0;
     color: var(--text);
   }
-  
+
   p {
     margin: 0 0 2rem 0;
     color: var(--placeholder);
@@ -156,7 +156,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -166,64 +166,65 @@
 // Button variants
 .btn {
   @extend %btn-base;
-  
+
   &.btn-primary {
     background: var(--primary);
     color: var(--text-white);
-    
+
     &:hover:not(:disabled) {
       background: var(--primary-600);
       transform: translateY(-1px);
     }
   }
-  
+
   &.btn-secondary {
     background: var(--button);
     color: var(--text);
-    
+
     &:hover:not(:disabled) {
       background: var(--button-hover);
     }
   }
-  
+
   &.btn-success {
     background: var(--green);
     color: var(--text-white);
-    
+
     &:hover:not(:disabled) {
       background: var(--green-600);
     }
   }
-  
+
   &.btn-warning {
     background: var(--yellow);
     color: var(--text-white);
-    
+
     &:hover:not(:disabled) {
       background: var(--yellow-600);
     }
   }
-  
-  &.btn-error, &.btn-danger {
+
+  &.btn-error,
+  &.btn-danger {
     background: var(--red);
     color: var(--text-white);
-    
+
     &:hover:not(:disabled) {
       background: var(--red-600);
     }
   }
-  
+
   // Button sizes
   &.btn-sm {
     padding: 0.5rem 1rem;
     font-size: 0.875rem;
   }
-  
+
   &.btn-md {
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
   }
-  
+
   &.btn-lg {
     padding: 1rem 2rem;
     font-size: 1.125rem;
@@ -231,13 +232,14 @@
 }
 
 // Legacy button classes for backwards compatibility
-.sign-in-btn, .refresh-btn {
+.sign-in-btn,
+.refresh-btn {
   @extend %btn-base;
   padding: 0.75rem 1.5rem;
   background: var(--primary);
   color: var(--text-white);
   font-size: 1rem;
-  
+
   &:hover:not(:disabled) {
     background: var(--primary-600);
     transform: translateY(-1px);
@@ -250,70 +252,71 @@
   padding: 0.75rem;
   font-size: 0.875rem;
   font-weight: 500;
-  
+
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  
+
   &.install-btn {
     background: var(--primary);
     color: var(--text-white);
-    
+
     &:hover:not(:disabled) {
       background: var(--primary-600);
     }
   }
-  
+
   &.uninstall-btn {
     background: var(--red);
     color: var(--text-white);
-    
+
     &:hover:not(:disabled) {
       background: var(--red-600);
     }
   }
-  
+
   &.edit-btn {
     background: var(--primary);
     color: var(--text-white);
-    
+
     &:hover:not(:disabled) {
       background: var(--primary-600);
     }
   }
-  
+
   &.duplicate-btn {
     background: var(--input);
     color: var(--text);
-    
+
     &:hover:not(:disabled) {
       background: var(--button-hover);
     }
   }
-  
+
   &.delete-btn {
     background: var(--red);
     color: var(--text-white);
-    
+
     &:hover:not(:disabled) {
       background: var(--red-600);
     }
   }
-  
+
   &.play-btn {
     background: var(--green);
     color: var(--text-white);
-    
+
     &:hover:not(:disabled) {
       background: var(--green-600);
     }
   }
-  
-  &.info-btn, &.preview-btn {
+
+  &.info-btn,
+  &.preview-btn {
     background: var(--input);
     color: var(--text);
-    
+
     &:hover:not(:disabled) {
       background: var(--button-hover);
     }
@@ -333,7 +336,7 @@
   display: flex;
   gap: 1rem;
   flex-wrap: wrap;
-  
+
   @media (max-width: 768px) {
     flex-direction: column;
   }
@@ -343,7 +346,7 @@
   flex: 1;
   position: relative;
   min-width: 250px;
-  
+
   .search-icon {
     position: absolute;
     left: 1rem;
@@ -351,7 +354,7 @@
     transform: translateY(-50%);
     color: var(--placeholder);
   }
-  
+
   .search-input {
     width: 100%;
     padding: 0.75rem 1rem 0.75rem 2.5rem;
@@ -360,7 +363,7 @@
     background: var(--container);
     color: var(--text);
     font-size: 1rem;
-    
+
     &:focus {
       outline: none;
       border-color: var(--primary);
@@ -373,14 +376,15 @@
   gap: 0.5rem;
 }
 
-.category-select, .sort-select {
+.category-select,
+.sort-select {
   padding: 0.75rem 1rem;
   border: 1px solid var(--dark-600);
   border-radius: 0.75rem;
   background: var(--container);
   color: var(--text);
   cursor: pointer;
-  
+
   &:focus {
     outline: none;
     border-color: var(--primary);
@@ -397,7 +401,7 @@
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1.5rem;
-  
+
   h2 {
     margin: 0;
     color: var(--text);
@@ -409,7 +413,7 @@
 .view-options {
   display: flex;
   gap: 0.5rem;
-  
+
   .view-btn {
     padding: 0.5rem 1rem;
     border: 1px solid var(--dark-600);
@@ -418,13 +422,13 @@
     color: var(--text);
     cursor: pointer;
     transition: all 0.2s ease;
-    
+
     &.active {
       background: var(--primary);
       color: white;
       border-color: var(--primary);
     }
-    
+
     &:hover:not(.active) {
       background: var(--button-hover);
     }
@@ -438,17 +442,17 @@
   border-radius: var(--border-radius-large);
   padding: 1.5rem;
   transition: all 0.2s ease;
-  
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
     border-color: var(--primary);
   }
-  
+
   &.installed {
     border-color: var(--green);
   }
-  
+
   &.premium {
     border-color: var(--tertiary);
   }
@@ -458,15 +462,15 @@
 .grid {
   display: grid;
   gap: 1.5rem;
-  
+
   &.grid-auto-fill {
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   }
-  
+
   &.grid-auto-fit {
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   }
-  
+
   &.grid-responsive {
     grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
   }
@@ -481,16 +485,16 @@
   --text-white: #ffffff;
   --text-black: #000000;
   --text-transparent: transparent;
-  
+
   // Gradient colors for installations/progress bars
   --gradient-primary: #3a7bd5;
   --gradient-secondary: #00b09b;
-  
+
   // Shader preview gradients
   --shader-preview-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   --shader-preview-primary: #667eea;
   --shader-preview-secondary: #764ba2;
-  
+
   // Status colors
   --status-success: #22c55e;
   --status-success-hover: #16a34a;
@@ -501,12 +505,12 @@
   --status-warning-bg: #fffbeb;
   --status-info: #3b82f6;
   --status-info-bg: #eff6ff;
-  
+
   // Loading/progress indicators
   --loader-primary: #3a7bd5;
   --loader-secondary: #00b09b;
   --loader-accent: #cc;
-  
+
   // Badge colors
   --badge-installed: #22c55e;
   --badge-available: var(--input);
@@ -540,7 +544,7 @@
   justify-content: center;
   padding: 4rem;
   color: var(--placeholder);
-  
+
   .spinner {
     width: 40px;
     height: 40px;
@@ -550,7 +554,7 @@
     animation: spin 1s linear infinite;
     margin-bottom: 1rem;
   }
-  
+
   p {
     margin: 0;
     font-size: 1.1rem;
@@ -558,8 +562,12 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 // Status badges
@@ -569,22 +577,22 @@
   font-size: 0.75rem;
   font-weight: 500;
   display: inline-block;
-  
+
   &.installed {
     background: var(--badge-installed);
     color: var(--text-white);
   }
-  
+
   &.available {
     background: var(--badge-available);
     color: var(--text);
   }
-  
+
   &.premium {
     background: var(--badge-premium);
     color: var(--badge-premium-text);
   }
-  
+
   &.category {
     background: var(--badge-category);
     color: var(--badge-category-text);
@@ -597,11 +605,11 @@
   justify-content: space-between;
   font-size: 0.75rem;
   margin-bottom: 0.25rem;
-  
+
   .meta-label {
     color: var(--placeholder);
   }
-  
+
   .meta-value {
     color: var(--text);
     font-weight: 500;
@@ -613,12 +621,12 @@
   display: flex;
   justify-content: space-between;
   margin-bottom: 0.5rem;
-  
+
   .label {
     color: var(--placeholder);
     font-size: 0.875rem;
   }
-  
+
   .value {
     color: var(--text);
     font-size: 0.875rem;

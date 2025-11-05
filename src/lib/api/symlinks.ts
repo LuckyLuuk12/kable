@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from "@tauri-apps/api/core";
 
 export interface SymlinkInfo {
   id: string | null; // Custom symlink ID if stored
@@ -6,7 +6,7 @@ export interface SymlinkInfo {
   destination: string;
   is_global: boolean;
   installation_id: string | null;
-  symlink_type: 'resourcepack' | 'shader' | 'world' | 'mod' | 'custom';
+  symlink_type: "resourcepack" | "shader" | "world" | "mod" | "custom";
   is_disabled: boolean;
   exists: boolean;
 }
@@ -16,7 +16,7 @@ export class SymlinksAPI {
    * List all managed symlinks
    */
   static async listSymlinks(): Promise<SymlinkInfo[]> {
-    return invoke<SymlinkInfo[]>('list_symlinks');
+    return invoke<SymlinkInfo[]>("list_symlinks");
   }
 
   /**
@@ -26,8 +26,16 @@ export class SymlinksAPI {
    * @param installationId - Optional installation ID (null/undefined = global, always active)
    * @returns The ID of the created custom symlink
    */
-  static async createCustomSymlink(source: string, destinationParent: string, installationId?: string | null): Promise<string> {
-    return invoke<string>('create_custom_symlink', { source, destinationParent, installationId: installationId || null });
+  static async createCustomSymlink(
+    source: string,
+    destinationParent: string,
+    installationId?: string | null,
+  ): Promise<string> {
+    return invoke<string>("create_custom_symlink", {
+      source,
+      destinationParent,
+      installationId: installationId || null,
+    });
   }
 
   /**
@@ -35,8 +43,11 @@ export class SymlinksAPI {
    * @param destination - The full path to the symlink
    * @param id - Optional custom symlink ID (for stored symlinks)
    */
-  static async removeSymlink(destination: string, id?: string | null): Promise<void> {
-    return invoke('remove_symlink', { destination, id: id || null });
+  static async removeSymlink(
+    destination: string,
+    id?: string | null,
+  ): Promise<void> {
+    return invoke("remove_symlink", { destination, id: id || null });
   }
 
   /**
@@ -45,8 +56,14 @@ export class SymlinksAPI {
    * @param destination - The full path to the symlink
    * @param id - Optional custom symlink ID (for stored symlinks)
    */
-  static async toggleSymlinkDisabled(destination: string, id?: string | null): Promise<boolean> {
-    return invoke<boolean>('toggle_symlink_disabled', { destination, id: id || null });
+  static async toggleSymlinkDisabled(
+    destination: string,
+    id?: string | null,
+  ): Promise<boolean> {
+    return invoke<boolean>("toggle_symlink_disabled", {
+      destination,
+      id: id || null,
+    });
   }
 
   /**
@@ -62,14 +79,15 @@ export class SymlinksAPI {
     oldDestination: string,
     newSource: string,
     newDestinationParent: string,
-    newInstallationId?: string | null
+    newInstallationId?: string | null,
   ): Promise<void> {
-    return invoke('update_symlink', {
+    return invoke("update_symlink", {
       id: id || null,
       oldDestination,
       newSource,
       newDestinationParent,
-      newInstallationId: newInstallationId === undefined ? null : newInstallationId
+      newInstallationId:
+        newInstallationId === undefined ? null : newInstallationId,
     });
   }
 
@@ -78,7 +96,7 @@ export class SymlinksAPI {
    * @returns The selected file path, or null if cancelled
    */
   static async selectFileForSymlink(): Promise<string | null> {
-    return invoke<string | null>('select_file_for_symlink');
+    return invoke<string | null>("select_file_for_symlink");
   }
 
   /**
@@ -86,6 +104,6 @@ export class SymlinksAPI {
    * @returns The selected folder path, or null if cancelled
    */
   static async selectFolderForSymlink(): Promise<string | null> {
-    return invoke<string | null>('select_folder_for_symlink');
+    return invoke<string | null>("select_folder_for_symlink");
   }
 }

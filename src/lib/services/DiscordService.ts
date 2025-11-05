@@ -1,4 +1,4 @@
-import * as discordApi from '$lib/api/discord';
+import * as discordApi from "$lib/api/discord";
 
 /**
  * Discord Rich Presence Service
@@ -23,7 +23,7 @@ export class DiscordService {
     try {
       await discordApi.setEnabled(enabled);
     } catch (error) {
-      console.error('Failed to set Discord enabled state:', error);
+      console.error("Failed to set Discord enabled state:", error);
     }
   }
 
@@ -35,10 +35,10 @@ export class DiscordService {
 
     try {
       // Extract section from route path
-      const section = route.split('/')[1] || 'home';
+      const section = route.split("/")[1] || "home";
       await discordApi.setBrowsing(section);
     } catch (error) {
-      console.error('Failed to update Discord browsing status:', error);
+      console.error("Failed to update Discord browsing status:", error);
     }
   }
 
@@ -49,7 +49,7 @@ export class DiscordService {
     try {
       await discordApi.clear();
     } catch (error) {
-      console.error('Failed to clear Discord status:', error);
+      console.error("Failed to clear Discord status:", error);
     }
   }
 }

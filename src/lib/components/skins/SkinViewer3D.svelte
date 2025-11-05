@@ -16,142 +16,142 @@ animations and models (slim/classic).
 ```
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import * as skinview3d from 'skinview3d';
+import { onMount, onDestroy } from "svelte";
+import * as skinview3d from "skinview3d";
 
-  export let skinUrl: string = '';
-  export let width: number = 200;
-  export let height: number = 200;
-  export let model: 'auto' | 'slim' | 'classic' = 'auto';
-  export let animation: 'idle' | 'walk' | 'run' | 'fly' = 'idle';
+export let skinUrl: string = "";
+export let width: number = 200;
+export let height: number = 200;
+export let model: "auto" | "slim" | "classic" = "auto";
+export let animation: "idle" | "walk" | "run" | "fly" = "idle";
 
-  let canvas: HTMLCanvasElement;
-  let skinViewer: any = null;
+let canvas: HTMLCanvasElement;
+let skinViewer: any = null;
 
-  onMount(() => {
-    if (canvas && skinUrl) {
-      initSkinViewer();
-    }
-  });
-
-  onDestroy(() => {
-    if (skinViewer) {
-      skinViewer.dispose();
-      skinViewer = null;
-    }
-  });
-
-  function initSkinViewer() {
-    if (!canvas || !skinUrl) return;
-
-    try {
-      // Create the skin viewer with basic options
-      const options: any = {
-        canvas,
-        width,
-        height,
-        skin: skinUrl,
-      };
-
-      // Add model if not auto
-      if (model === 'classic') {
-        options.model = 'default'; // steve model
-      } else if (model === 'slim') {
-        options.model = 'slim'; // alex model
-      }
-      // For 'auto', let skinview3d auto-detect
-
-      skinViewer = new skinview3d.SkinViewer(options);
-
-      // Set animation based on available animations
-      if (skinview3d.IdleAnimation) {
-        switch (animation) {
-          case 'walk':
-            if (skinview3d.WalkingAnimation) {
-              skinViewer.animation = new skinview3d.WalkingAnimation();
-            }
-            break;
-          case 'run':
-            if (skinview3d.RunningAnimation) {
-              skinViewer.animation = new skinview3d.RunningAnimation();
-            }
-            break;
-          case 'fly':
-            if (skinview3d.FlyingAnimation) {
-              skinViewer.animation = new skinview3d.FlyingAnimation();
-            }
-            break;
-          case 'idle':
-          default:
-            skinViewer.animation = new skinview3d.IdleAnimation();
-            break;
-        }
-      }
-
-      // Set camera position for a nice view
-      skinViewer.camera.position.x = 30;
-      skinViewer.camera.position.y = 20;
-      skinViewer.camera.position.z = 50;
-      skinViewer.camera.lookAt(0, 10, 0);
-
-      // Enable controls
-      if (skinViewer.controls) {
-        skinViewer.controls.enableRotate = true;
-        skinViewer.controls.enableZoom = true;
-        skinViewer.controls.enablePan = false;
-      }
-    } catch (error) {
-      console.error('Failed to initialize SkinViewer3D:', error);
-    }
+onMount(() => {
+  if (canvas && skinUrl) {
+    initSkinViewer();
   }
+});
 
-  // React to prop changes
-  $: if (skinViewer && skinUrl) {
-    try {
-      skinViewer.loadSkin(skinUrl);
-    } catch (error) {
-      console.error('Failed to load skin:', error);
+onDestroy(() => {
+  if (skinViewer) {
+    skinViewer.dispose();
+    skinViewer = null;
+  }
+});
+
+function initSkinViewer() {
+  if (!canvas || !skinUrl) return;
+
+  try {
+    // Create the skin viewer with basic options
+    const options: any = {
+      canvas,
+      width,
+      height,
+      skin: skinUrl,
+    };
+
+    // Add model if not auto
+    if (model === "classic") {
+      options.model = "default"; // steve model
+    } else if (model === "slim") {
+      options.model = "slim"; // alex model
     }
-  }
+    // For 'auto', let skinview3d auto-detect
 
-  $: if (skinViewer && width && height) {
-    skinViewer.width = width;
-    skinViewer.height = height;
-  }
+    skinViewer = new skinview3d.SkinViewer(options);
 
-  // React to animation changes
-  $: if (skinViewer && animation) {
-    try {
+    // Set animation based on available animations
+    if (skinview3d.IdleAnimation) {
       switch (animation) {
-        case 'walk':
+        case "walk":
           if (skinview3d.WalkingAnimation) {
             skinViewer.animation = new skinview3d.WalkingAnimation();
           }
           break;
-        case 'run':
+        case "run":
           if (skinview3d.RunningAnimation) {
             skinViewer.animation = new skinview3d.RunningAnimation();
           }
           break;
-        case 'fly':
+        case "fly":
           if (skinview3d.FlyingAnimation) {
             skinViewer.animation = new skinview3d.FlyingAnimation();
           }
           break;
-        case 'idle':
+        case "idle":
         default:
-          if (skinview3d.IdleAnimation) {
-            skinViewer.animation = new skinview3d.IdleAnimation();
-          }
+          skinViewer.animation = new skinview3d.IdleAnimation();
           break;
       }
-    } catch (error) {
-      console.error('Failed to change animation:', error);
     }
+
+    // Set camera position for a nice view
+    skinViewer.camera.position.x = 30;
+    skinViewer.camera.position.y = 20;
+    skinViewer.camera.position.z = 50;
+    skinViewer.camera.lookAt(0, 10, 0);
+
+    // Enable controls
+    if (skinViewer.controls) {
+      skinViewer.controls.enableRotate = true;
+      skinViewer.controls.enableZoom = true;
+      skinViewer.controls.enablePan = false;
+    }
+  } catch (error) {
+    console.error("Failed to initialize SkinViewer3D:", error);
   }
+}
+
+// React to prop changes
+$: if (skinViewer && skinUrl) {
+  try {
+    skinViewer.loadSkin(skinUrl);
+  } catch (error) {
+    console.error("Failed to load skin:", error);
+  }
+}
+
+$: if (skinViewer && width && height) {
+  skinViewer.width = width;
+  skinViewer.height = height;
+}
+
+// React to animation changes
+$: if (skinViewer && animation) {
+  try {
+    switch (animation) {
+      case "walk":
+        if (skinview3d.WalkingAnimation) {
+          skinViewer.animation = new skinview3d.WalkingAnimation();
+        }
+        break;
+      case "run":
+        if (skinview3d.RunningAnimation) {
+          skinViewer.animation = new skinview3d.RunningAnimation();
+        }
+        break;
+      case "fly":
+        if (skinview3d.FlyingAnimation) {
+          skinViewer.animation = new skinview3d.FlyingAnimation();
+        }
+        break;
+      case "idle":
+      default:
+        if (skinview3d.IdleAnimation) {
+          skinViewer.animation = new skinview3d.IdleAnimation();
+        }
+        break;
+    }
+  } catch (error) {
+    console.error("Failed to change animation:", error);
+  }
+}
 </script>
 
-<canvas 
+<canvas
   bind:this={canvas}
   {width}
   {height}
@@ -160,8 +160,8 @@ animations and models (slim/classic).
 ></canvas>
 
 <style>
-  .skin-viewer-canvas {
-    border-radius: 8px;
-    display: block;
-  }
+.skin-viewer-canvas {
+  border-radius: 8px;
+  display: block;
+}
 </style>

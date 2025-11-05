@@ -1,5 +1,5 @@
-import { writable, derived } from 'svelte/store';
-import type { GameInstance, LogEntry, GameInstanceLogs } from '../types';
+import { writable, derived } from "svelte/store";
+import type { GameInstance, LogEntry, GameInstanceLogs } from "../types";
 
 // Active game instances
 export const gameInstances = writable<Map<string, GameInstance>>(new Map());
@@ -14,60 +14,62 @@ export const globalLauncherLogs = writable<LogEntry[]>([]);
 const recentLauncherMessages = new Map<string, number>();
 
 // Currently selected instance/tab
-export const selectedInstanceId = writable<string | 'global'>('global');
+export const selectedInstanceId = writable<string | "global">("global");
 
 // Derived store for current logs based on selection
 export const currentLogs = derived(
   [logsData, globalLauncherLogs, selectedInstanceId],
   ([$logsData, $globalLogs, $selectedId]) => {
     try {
-      if ($selectedId === 'global') {
+      if ($selectedId === "global") {
         return {
           launcherLogs: $globalLogs || [],
-          gameLogs: [] as LogEntry[]
+          gameLogs: [] as LogEntry[],
         };
       }
-      
+
       const instanceLogs = $logsData.get($selectedId);
-      return instanceLogs ? {
-        launcherLogs: instanceLogs.launcherLogs || [],
-        gameLogs: instanceLogs.gameLogs || []
-      } : {
-        launcherLogs: [] as LogEntry[],
-        gameLogs: [] as LogEntry[]
-      };
+      return instanceLogs
+        ? {
+            launcherLogs: instanceLogs.launcherLogs || [],
+            gameLogs: instanceLogs.gameLogs || [],
+          }
+        : {
+            launcherLogs: [] as LogEntry[],
+            gameLogs: [] as LogEntry[],
+          };
     } catch (error) {
-      console.error('Error in currentLogs derived store:', error);
+      console.error("Error in currentLogs derived store:", error);
       return {
         launcherLogs: [] as LogEntry[],
-        gameLogs: [] as LogEntry[]
+        gameLogs: [] as LogEntry[],
       };
     }
-  }
+  },
 );
 
 // Helper functions
 export const LogsManager = {
   addGameInstance(instance: GameInstance) {
-    gameInstances.update(instances => {
+    gameInstances.update((instances) => {
       const newInstances = new Map(instances);
       newInstances.set(instance.id, instance);
       return newInstances;
     });
-    
-    logsData.update(logs => {
+
+    logsData.update((logs) => {
       const newLogs = new Map(logs);
       newLogs.set(instance.id, {
         instanceId: instance.id,
         launcherLogs: [],
-        gameLogs: []
+        gameLogs: [],
       });
       return newLogs;
     });
   },
 
   updateGameInstance(instanceId: string, updates: Partial<GameInstance>) {
-    gameInstances.update(instances => {
+    gameInstances.update((instances) => {
       const newInstances = new Map(instances);
       const instance = newInstances.get(instanceId);
       if (instance) {
@@ -78,29 +80,35 @@ export const LogsManager = {
   },
 
   removeGameInstance(instanceId: string) {
-    gameInstances.update(instances => {
+    gameInstances.update((instances) => {
       const newInstances = new Map(instances);
       newInstances.delete(instanceId);
       return newInstances;
     });
-    
+
     // Keep logs for historical reference but mark as closed
     // Could add cleanup logic here if desired
   },
 
-  addLauncherLog(message: string, level: LogEntry['level'] = 'info', instanceId?: string) {
+  addLauncherLog(
+    message: string,
+    level: LogEntry["level"] = "info",
+    instanceId?: string,
+  ) {
     // Enhanced duplicate detection for launcher messages (5 minute window)
     const now = Date.now();
-    const messageKey = instanceId ? `${instanceId}:${level}:${message}` : `global:${level}:${message}`;
+    const messageKey = instanceId
+      ? `${instanceId}:${level}:${message}`
+      : `global:${level}:${message}`;
     const lastSeen = recentLauncherMessages.get(messageKey);
-    
-    if (lastSeen && (now - lastSeen) < 10 * 1000) {
+
+    if (lastSeen && now - lastSeen < 10 * 1000) {
       // Skip duplicate message within 10 seconds
       return;
     }
-    
+
     recentLauncherMessages.set(messageKey, now);
-    
+
     // Clean up old entries (older than 5 minutes)
     const cutoff = now - 5 * 60 * 1000;
     for (const [key, timestamp] of recentLauncherMessages.entries()) {
@@ -112,14 +120,14 @@ export const LogsManager = {
     const logEntry: LogEntry = {
       timestamp: new Date(),
       level,
-      source: 'launcher',
+      source: "launcher",
       instanceId,
       message,
-      raw: message
+      raw: message,
     };
 
     if (instanceId) {
-      logsData.update(logs => {
+      logsData.update((logs) => {
         const newLogs = new Map(logs);
         const instanceLogs = newLogs.get(instanceId);
         if (instanceLogs) {
@@ -130,21 +138,25 @@ export const LogsManager = {
         return newLogs;
       });
     } else {
-      globalLauncherLogs.update(logs => [...logs, logEntry]);
+      globalLauncherLogs.update((logs) => [...logs, logEntry]);
     }
   },
 
-  addGameLog(instanceId: string, message: string, level: LogEntry['level'] = 'info') {
+  addGameLog(
+    instanceId: string,
+    message: string,
+    level: LogEntry["level"] = "info",
+  ) {
     const logEntry: LogEntry = {
       timestamp: new Date(),
       level,
-      source: 'game',
+      source: "game",
       instanceId,
       message,
-      raw: message
+      raw: message,
     };
 
-    logsData.update(logs => {
+    logsData.update((logs) => {
       const newLogs = new Map(logs);
       const instanceLogs = newLogs.get(instanceId);
       if (instanceLogs) {
@@ -157,10 +169,10 @@ export const LogsManager = {
   },
 
   clearLogs(instanceId?: string) {
-    if (instanceId === 'global' || !instanceId) {
+    if (instanceId === "global" || !instanceId) {
       globalLauncherLogs.set([]);
     } else {
-      logsData.update(logs => {
+      logsData.update((logs) => {
         const newLogs = new Map(logs);
         const instanceLogs = newLogs.get(instanceId);
         if (instanceLogs) {
@@ -174,7 +186,10 @@ export const LogsManager = {
   },
 
   // Emit global launcher events for better logging
-  emitLauncherEvent(message: string, level: 'info' | 'warn' | 'error' = 'info') {
+  emitLauncherEvent(
+    message: string,
+    level: "info" | "warn" | "error" = "info",
+  ) {
     LogsManager.addLauncherLog(message, level);
   },
 };

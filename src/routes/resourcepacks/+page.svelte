@@ -1,5 +1,5 @@
 <script lang="ts">
-import { ResourcePackBrowser } from '$lib';
+import { ResourcePackBrowser } from "$lib";
 </script>
 
 <svelte:head>
