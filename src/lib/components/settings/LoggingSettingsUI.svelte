@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 LoggingSettingsUI - Logging configuration settings panel
 
 Manages logging levels, file size limits, retention policies,
@@ -7,7 +6,7 @@ and log visibility in the navigation.
 
 @example
 ```svelte
-<LoggingSettingsUI />
+◄LoggingSettingsUI /►
 ```
 -->
 <script lang="ts">

@@ -1,6 +1,4 @@
 <!-- @component
-◄!--
-@component
 NavBar - Main navigation bar for the Kable launcher
 
 Provides navigation between different sections (installations, mods, shaders, etc.),
@@ -14,16 +12,12 @@ Initializes all required services on mount.
 -->
 <script lang="ts">
   import '$lib/styles/global.scss';
-  import { page } from '$app/stores';
-  import { onMount, onDestroy } from 'svelte';
-  import { goto } from '$app/navigation';
-  import { currentAccount, AuthService, SettingsService, InstallationService, Icon, logsService, LogsService, IconService, settings } from '$lib';
-  import { isLaunching, currentLaunchingInstallation, launchTimeoutHandle } from '$lib/stores/launcher';
   import { get } from 'svelte/store';
-  import type { NavigationEventPayload, BehaviorChoiceEventPayload, GameRestartEventPayload } from '$lib/types';
-  
-  let isTauriReady = false;
-  let initializationStatus = 'Initializing...';
+  import { onMount, onDestroy } from 'svelte';
+  import { page } from '$app/stores';
+  import { goto } from '$app/navigation';
+  import { currentAccount, AuthService, SettingsService, InstallationService, Icon, logsService, LogsService, IconService, settings, isLaunching, currentLaunchingInstallation, launchTimeoutHandle } from '$lib';
+  import type { NavigationEventPayload, BehaviorChoiceEventPayload, GameRestartEventPayload } from '$lib';
 
   // Here we initialize all the required managers and services
   onMount(async () => {
@@ -31,9 +25,6 @@ Initializes all required services on mount.
     // Wait a bit for Tauri to fully initialize
     await new Promise(resolve => setTimeout(resolve, 50));
     try {
-      // Assume Tauri is available once this onMount runs; set ready flag early
-      isTauriReady = true;
-
       // Initialize progressive loading listeners FIRST
       await InstallationService.initializeProgressiveLoading();
 
@@ -81,7 +72,6 @@ Initializes all required services on mount.
       } catch (e) {
         console.error('Failed to emit final init log:', e);
       }
-      initializationStatus = 'Ready';
       console.log('Layout initialization complete');
 
       // Set up settings behavior event listeners
@@ -89,8 +79,6 @@ Initializes all required services on mount.
     } catch (error) {
       console.error('Tauri initialization error:', error);
       LogsService.emitLauncherEvent(`Initialization error: ${error}`, 'error');
-      initializationStatus = `Initialization error: ${error}`;
-      isTauriReady = false;
     }
   });
 

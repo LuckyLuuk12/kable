@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 ShaderCard - Displays shader pack information in various view modes
 
 Reusable card component for showing shader pack details including title, description,
@@ -16,7 +15,7 @@ author, downloads, and gallery preview. Supports grid, list, and compact views.
 
 @example
 ```svelte
-<ShaderCard {shader} viewMode="grid" on:download={handleDownload} />
+◄ShaderCard {shader} viewMode="grid" on:download={handleDownload} /►
 ```
 -->
 <script lang="ts">

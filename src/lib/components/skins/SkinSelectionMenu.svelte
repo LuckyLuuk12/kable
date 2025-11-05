@@ -1,4 +1,5 @@
-﻿<!--
+﻿<!-- @component
+◄!--
 @component
 SkinSelectionMenu - Manages Minecraft account skins and capes
 
@@ -7,14 +8,13 @@ to the current Microsoft account. Includes 3D preview and management tools.
 
 @example
 ```svelte
-<SkinSelectionMenu />
+◄SkinSelectionMenu /►
 ```
 -->
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Icon, SkinViewer3D } from '$lib/components';
-  import { SkinsService } from '$lib/services';
-  import type { AccountSkin, AccountCape } from '$lib/types.d';
+  import { Icon, SkinViewer3D, SkinsService } from '$lib';
+  import type { AccountSkin, AccountCape } from '$lib';
 
   // State
   let accountSkins: AccountSkin[] = [];

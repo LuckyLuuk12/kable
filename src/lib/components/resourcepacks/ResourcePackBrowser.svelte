@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 ResourcePackBrowser - Browse and search for resource packs from Modrinth
 
 Provides interface for discovering resource packs with support for:
@@ -12,14 +11,12 @@ Provides interface for discovering resource packs with support for:
 
 @example
 ```svelte
-<ResourcePackBrowser on:download={handleDownload} />
+◄ResourcePackBrowser on:download={handleDownload} /►
 ```
 -->
 <script lang="ts">
 import { onMount, createEventDispatcher } from 'svelte';
-import { get } from 'svelte/store';
-import { Icon, ResourcepacksService, selectedInstallation, installations, GLOBAL_INSTALLATION, ResourcePackCard, ResourcePackGalleryModal } from '$lib';
-import { resourcepackDownloads, resourcepacksLoading, resourcepacksError, resourcepacksLimit, resourcepacksOffset, resourcepacksInstallMode } from '$lib/stores/resourcepacks';
+import { Icon, ResourcepacksService, selectedInstallation, installations, ResourcePackCard, ResourcePackGalleryModal, resourcepackDownloads, resourcepacksLoading, resourcepacksError, resourcepacksOffset, resourcepacksInstallMode } from '$lib';
 import type { ResourcePackDownload, KableInstallation, ResourcePackFilterFacets } from '$lib';
 
 type ViewMode = 'grid' | 'list' | 'compact';

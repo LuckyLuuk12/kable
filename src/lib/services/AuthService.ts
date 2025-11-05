@@ -425,13 +425,6 @@ export class AuthService {
     }
   }
 
-  /**
-   * Utility functions
-   */
-  static async copyToClipboard(text: string): Promise<void> {
-    return await systemApi.copyToClipboard(text);
-  }
-
   static formatTokenExpiry(account: LauncherAccount): string {
     if (!account.access_token_expires_at) {
       return 'Unknown';
@@ -464,7 +457,6 @@ export const signOut = AuthService.signOut;
 export const getAllAccounts = AuthService.getAllAccounts;
 export const switchAccount = AuthService.switchAccount;
 export const removeAccount = AuthService.removeAccount;
-export const copyToClipboard = AuthService.copyToClipboard;
 export const formatTokenExpiry = AuthService.formatTokenExpiry;
 export const refreshCurrentAccount = AuthService.refreshCurrentAccount;
 export const startDeviceCodeFlow = AuthService.startDeviceCodeFlow;

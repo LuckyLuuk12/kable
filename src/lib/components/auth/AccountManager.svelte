@@ -1,6 +1,4 @@
 <!-- @component
-◄!--
-@component
 AccountManager - Manages Microsoft account authentication and account operations
 
 Provides UI for account login, logout, refresh, and management.
@@ -13,7 +11,8 @@ Displays current account status and allows switching between authentication flow
 -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { Icon, AuthService, currentAccount, type LauncherAccount, AuthenticationFlow } from '$lib';
+  import { Icon, AuthService, currentAccount, AuthenticationFlow } from '$lib';
+  import type { LauncherAccount } from '$lib';
 
   let isLoading = false;
 
@@ -77,7 +76,6 @@ Displays current account status and allows switching between authentication flow
 
   onMount(async () => {
     // Initialize authentication and load accounts
-    // Note: AuthService.initialize() already loads accounts into the store
     await AuthService.initialize();
     // Start interval to update expiry display every second
     expiryInterval = setInterval(() => {
@@ -215,10 +213,6 @@ Displays current account status and allows switching between authentication flow
           </svg>
         </div>
         <h3>Welcome to Kable</h3>
-           <!-- <button on:click={reloginCurrentAccount} class="btn btn-warning btn-sm" disabled={isLoading}>
-             <Icon name="login" size="sm" />
-             {isLoading ? 'Logging in...' : 'Re-login'}
-           </button> -->
         <p>Sign in with your Microsoft account to get started with Minecraft.</p>
       </div>
       <div class="auth-flow-container">

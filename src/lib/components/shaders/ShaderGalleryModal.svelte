@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 ShaderGalleryModal - Modal for viewing shader pack gallery images
 
 Displays a lightbox-style gallery with navigation controls for browsing
@@ -12,7 +11,7 @@ shader pack screenshots and preview images.
 
 @example
 ```svelte
-<ShaderGalleryModal {shader} {visible} on:close={handleClose} />
+◄ShaderGalleryModal {shader} {visible} on:close={handleClose} /►
 ```
 -->
 <script lang="ts">

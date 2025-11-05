@@ -1,6 +1,4 @@
 <!-- @component
-◄!--
-@component
 EditInstallationModal - Modal dialog for editing existing Minecraft installations
 
 Provides interface for modifying installation settings including name, version,
@@ -13,10 +11,10 @@ Java arguments, resolution, memory allocation, and advanced parameters.
 ```
 -->
 <script lang="ts">
-  import { InstallationService } from '$lib/services/InstallationService';
-  import type { KableInstallation } from '$lib/types';
-
   import { tick } from 'svelte';
+  import { InstallationService } from '$lib';
+  import type { KableInstallation } from '$lib';
+
 
   // Working copy of the installation being edited
   let installation: KableInstallation | null = null;

@@ -18,11 +18,10 @@ Allows users to browse, filter, and select specific versions to install.
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher, onMount } from 'svelte';
-import { Icon } from '$lib';
-import type { KableInstallation, ModInfoKind, ModrinthVersion, ProviderKind } from '$lib';
-import { ProviderKind as ProviderKindEnum } from '$lib/runtimeTypes';
+import { createEventDispatcher } from 'svelte';
+import { Icon, ProviderKind as ProviderKindEnum } from '$lib';
 import * as modsApi from '$lib/api/mods';
+import type { KableInstallation, ModInfoKind, ModrinthVersion, ProviderKind } from '$lib';
 
 export let mod: ModInfoKind;
 export let currentInstallation: KableInstallation | null = null;

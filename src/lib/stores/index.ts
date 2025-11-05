@@ -4,9 +4,11 @@
  */
 
 export * from './auth';
-export * from './installation';
 
+export * from './installation';
+export * from './launcher';
 export * from './logs';
 export * from './mods';
-export * from './shaders';
+export * from './resourcepacks';
 export * from './settings';
+export * from './shaders';

@@ -23,7 +23,7 @@ export const shadersInstallation = writable<KableInstallation | null>(null);
 export const shadersInstallMode = writable<'dedicated' | 'global'>('dedicated');
 
 // Create a "global installation" fake entry for global shader management
-export const GLOBAL_INSTALLATION: KableInstallation = {
+export const GLOBAL_SHADER_INSTALLATION: KableInstallation = {
   id: '__global__',
   name: 'Global (All Installations)',
   version_id: '',
@@ -41,6 +41,6 @@ export const shadersInstallationList = derived(
   shadersInstallation,
   ($shadersInstallation) => {
     // Return array with global installation always first
-    return [GLOBAL_INSTALLATION];
+    return [GLOBAL_SHADER_INSTALLATION];
   }
 );

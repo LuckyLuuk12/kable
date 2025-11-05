@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 ResourcePackGalleryModal - Modal for viewing resource pack gallery images
 
 Displays a lightbox-style gallery with navigation controls for browsing
@@ -12,7 +11,7 @@ resource pack screenshots and preview images.
 
 @example
 ```svelte
-<ResourcePackGalleryModal {ResourcePack} {visible} on:close={handleClose} />
+◄ResourcePackGalleryModal {ResourcePack} {visible} on:close={handleClose} /►
 ```
 -->
 <script lang="ts">

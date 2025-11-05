@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { ShaderBrowser } from "$lib/components/shaders";
+    import { ShaderBrowser } from "$lib";
     import type { KableInstallation, ShaderDownload } from '$lib';
 
     // Handle shader download from browser

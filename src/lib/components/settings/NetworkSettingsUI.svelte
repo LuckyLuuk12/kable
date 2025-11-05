@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 NetworkSettingsUI - Network and download settings panel
 
 Configures download behavior including parallel downloads,
@@ -7,12 +6,12 @@ speed limits, retry policies, and timeout settings.
 
 @example
 ```svelte
-<NetworkSettingsUI />
+◄NetworkSettingsUI /►
 ```
 -->
 <script lang="ts">
-  import { settings } from "$lib/stores";
-  import { SettingsService } from "$lib/services/SettingsService";
+  import { settings, SettingsService } from "$lib";
+  
   function setUnlimitedDownloadSpeed() {
     SettingsService.update('network', {
       ...$settings.network,

@@ -1,6 +1,4 @@
 <!-- @component
-◄!--
-@component
 AuthenticationFlow - Microsoft authentication flow UI component
 
 Provides interface for authenticating with Microsoft using Device Code Flow
@@ -13,7 +11,7 @@ Provides interface for authenticating with Microsoft using Device Code Flow
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { AuthService, Icon, isAuthenticating, Image } from '$lib';
-  import * as systemApi from '$lib';
+  import * as systemApi from '$lib/api/system';
 
   // Authentication state
   let error: string | null = null;
@@ -42,7 +40,7 @@ Provides interface for authenticating with Microsoft using Device Code Flow
       console.log('📱 Device code started:', deviceCodeData);
       
       // Auto-copy code to clipboard
-      await AuthService.copyToClipboard(deviceCodeData.user_code);
+      await systemApi.copyToClipboard(deviceCodeData.user_code);
       
       // Step 2: Start polling for completion in the background
       try {
@@ -120,7 +118,7 @@ Provides interface for authenticating with Microsoft using Device Code Flow
         
         <div class="code-display">
           <code class="user-code">{deviceCodeData.user_code}</code>
-          <button on:click={() => AuthService.copyToClipboard(deviceCodeData.user_code)} class="copy-btn" title="Copy code">
+          <button on:click={() => systemApi.copyToClipboard(deviceCodeData.user_code)} class="copy-btn" title="Copy code">
             <Icon name="duplicate" size="sm" />
           </button>
         </div>

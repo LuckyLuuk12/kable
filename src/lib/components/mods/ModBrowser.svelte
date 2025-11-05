@@ -1,6 +1,4 @@
 <!-- @component
-◄!--
-@component
 ModBrowser - Browse and search for mods from Modrinth and other providers
 
 Provides interface for discovering, searching, and filtering mods with support for:
@@ -19,14 +17,11 @@ Provides interface for discovering, searching, and filtering mods with support f
 <script lang="ts">
 import { onMount, createEventDispatcher } from 'svelte';
 import { get } from 'svelte/store';
-import { Icon, ModsService, selectedInstallation, InstallationService, installations } from '$lib';
-import Image from '$lib/components/Image.svelte';
-import { modsByProvider, modsLoading, modsError, modsLimit, modsOffset, modsProvider } from '$lib/stores/mods';
-import { ProviderKind } from '$lib/runtimeTypes';
-import type { ModInfoKind, KableInstallation, ModJarInfo, FilterFacets, ModrinthVersion, ModrinthFile } from '$lib';
+import { Icon, ModsService, selectedInstallation, InstallationService, installations, Image, modsByProvider, modsLoading, modsError, modsOffset, modsProvider, ProviderKind } from '$lib';
 import ModCard from './ModCard.svelte';
 import * as systemApi from '$lib/api/system';
 import * as modsApi from '$lib/api/mods';
+import type { ModInfoKind, KableInstallation, ModJarInfo, FilterFacets, ModrinthVersion, ModrinthFile } from '$lib';
 
 type ViewMode = 'grid' | 'list' | 'compact';
 

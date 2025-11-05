@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 AutoUpdater - Handles checking for and installing application updates
 
 Automatically checks for updates on mount and provides UI for manual update checks.
@@ -7,18 +6,12 @@ Displays update information including version numbers and allows users to instal
 
 @example
 ```svelte
-<AutoUpdater />
+◄AutoUpdater /►
 ```
 -->
-<!--
-	Auto-update component
-	Handles checking for and installing updates
--->
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
-	import { checkForUpdates, installUpdate, getCurrentVersion } from '$lib/api';
-
-	const dispatch = createEventDispatcher();
+	import { onMount } from 'svelte';
+	import { checkForUpdates, installUpdate, getCurrentVersion } from '$lib';
 
 	let currentVersion = '';
 	let updateInfo: any = null;

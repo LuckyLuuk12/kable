@@ -1,6 +1,4 @@
 <!-- @component
-◄!--
-@component
 ModCard - Displays mod information in various view modes
 
 Reusable card component for showing mod details including title, description,
@@ -23,12 +21,11 @@ author, downloads, and installation status. Supports grid, list, and compact vie
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher, onMount } from 'svelte';
-import { Icon } from '$lib';
-import type { KableInstallation, ModInfoKind, ModrinthVersion, ProviderKind } from '$lib';
-import { ProviderKind as ProviderKindEnum } from '$lib/runtimeTypes';
+import { createEventDispatcher } from 'svelte';
+import { Icon, ProviderKind as ProviderKindEnum } from '$lib';
 import ModVersionModal from './ModVersionModal.svelte';
 import * as modsApi from '$lib/api/mods';
+import type { KableInstallation, ModInfoKind, ProviderKind } from '$lib';
 
 type ViewMode = 'grid' | 'list' | 'compact';
 

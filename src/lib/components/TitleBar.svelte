@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 TitleBar - Custom window title bar with minimize, maximize, and close controls
 
 Provides window controls for the Tauri application window with custom styling.
@@ -7,7 +6,7 @@ Handles window state changes and provides standard window management functionali
 
 @example
 ```svelte
-<TitleBar />
+◄TitleBar /►
 ```
 -->
 <script lang="ts">

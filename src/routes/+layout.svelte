@@ -3,9 +3,7 @@
   import { NavBar, TitleBar } from '$lib';
   import { onMount, onDestroy } from 'svelte';
   import { get } from 'svelte/store';
-  import { getSelectedCssTheme, loadCustomCss } from '$lib/api/settings';
-  import { settings } from '$lib';
-  import { DiscordService } from '$lib/services/DiscordService';
+  import { getSelectedCssTheme, loadCustomCss, settings, DiscordService } from '$lib';
   import { page } from '$app/stores';
 
   let customCSSLoaded = false;

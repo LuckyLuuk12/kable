@@ -1,6 +1,4 @@
 <!-- @component
-◄!--
-@component
 CreateInstallationModal - Modal dialog for creating new Minecraft installations
 
 Allows users to select a Minecraft version, mod loader (Vanilla, Fabric, Forge, etc.),
@@ -14,11 +12,9 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
 ```
 -->
 <script lang="ts">
-  import { type VersionData, Loader, InstallationService, type LoaderKind, type KableInstallation } from '$lib';
   import { onMount } from 'svelte';
-  import { installations, versions } from '$lib/stores/installation';
-  import * as installationsApi from '$lib/api/installations';
-  import Icon from '../Icon.svelte';
+  import { Loader, InstallationService, Icon, installations, versions  } from '$lib';
+  import type { VersionData, LoaderKind } from '$lib';
 
   let dialogRef: HTMLDialogElement;
   let availableVersions: VersionData[] = [];

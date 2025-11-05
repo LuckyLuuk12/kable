@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 ResourcePackCard - Displays resource pack information in various view modes
 
 Reusable card component for showing resource pack details including title, description,
@@ -16,7 +15,7 @@ author, downloads, and gallery preview. Supports grid, list, and compact views.
 
 @example
 ```svelte
-<ResourcePackCard {resourcepack} viewMode="grid" on:download={handleDownload} />
+◄ResourcePackCard {resourcepack} viewMode="grid" on:download={handleDownload} /►
 ```
 -->
 <script lang="ts">

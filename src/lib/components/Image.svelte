@@ -1,17 +1,18 @@
-<!--
-@component
-  name: Image
-  description: A component that attempts to find the key with backend on the file system and displays it. If not found, it falls back to a default image with relative path in static assets.
-  props:
-    - key: string (required) - The key to look up the image path.
-    - alt: string (optional) - The alt text for the image.
-    - className: string (optional) - Additional CSS classes for styling.
-    - width: string (optional) - The width of the image (e.g., "100px", "50%").
-    - height: string (optional) - The height of the image (e.g., "100px", "50%").
-  example:
-    <Image key="profile-avatar" alt="User Avatar" className="avatar" width="100px" height="100px" />
--->
 
+<!-- @component
+A component that attempts to find the key with backend on the file system and displays it. If not found, it falls back to a default image with relative path in static assets.
+
+@prop {string} key - The logical image identifier used by the app (e.g. 'profile-avatar')
+@prop {string} [alt='Image'] - The alt text for the image
+@prop {string} [className=''] - Additional CSS classes for styling
+@prop {string} [width='auto'] - The width of the image (e.g., "100px", "50%").
+@prop {string} [height='auto'] - The height of the image (e.g., "100px", "50%").
+
+@example
+```svelte
+  ◄Image key="profile-avatar" alt="User Avatar" className="avatar" width="100px" height="100px" /►
+```
+-->
 <script lang="ts">
   import { onMount } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';

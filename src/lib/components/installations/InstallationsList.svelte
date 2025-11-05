@@ -1,6 +1,4 @@
 <!-- @component
-◄!--
-@component
 InstallationsList - Displays list or grid of Minecraft installations
 
 Shows all available installations with options to launch, edit, duplicate, delete, and favorite.
@@ -17,10 +15,9 @@ Supports both grid and list view modes with sorting and filtering.
 ```
 -->
 <script lang="ts">
-  import { Icon, InstallationService, installations, versions, isLoadingInstallations, isLoadingVersions, Launcher } from '$lib';
-  import { isLaunching, currentLaunchingInstallation } from '$lib/stores/launcher';
+  import { onMount, onDestroy } from 'svelte';
+  import { Icon, InstallationService, installations, versions, isLoadingInstallations, isLoadingVersions, Launcher, isLaunching, currentLaunchingInstallation } from '$lib';
   import EditInstallationModal from './EditInstallationModal.svelte';
-  import { onMount, onDestroy, tick } from 'svelte';
   
   export let isGrid: boolean = false;
   export let isSmall: boolean = false;

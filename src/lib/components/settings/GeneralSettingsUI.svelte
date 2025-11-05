@@ -1,5 +1,5 @@
-<!--
-@component
+
+<!-- @component
 GeneralSettingsUI - General launcher settings panel
 
 Core launcher configuration including Java paths, memory allocation,
@@ -7,10 +7,9 @@ game directory, and window behavior settings.
 
 @example
 ```svelte
-<GeneralSettingsUI />
+◄GeneralSettingsUI /►
 ```
 -->
-
 <script>
   import { settings, AutoUpdater } from "$lib";
   import { onMount } from 'svelte';

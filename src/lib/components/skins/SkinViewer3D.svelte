@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 SkinViewer3D - 3D Minecraft skin viewer using skinview3d
 
 Renders an interactive 3D preview of Minecraft skins with customizable
@@ -13,7 +12,7 @@ animations and models (slim/classic).
 
 @example
 ```svelte
-<SkinViewer3D skinUrl="/skins/steve.png" width={300} height={400} animation="walk" />
+◄SkinViewer3D skinUrl="/skins/steve.png" width={300} height={400} animation="walk" /►
 ```
 -->
 <script lang="ts">

@@ -1,6 +1,4 @@
 <!-- @component
-◄!--
-@component
 AccountSwitcher - Dropdown menu for switching between multiple Microsoft accounts
 
 Displays all available accounts with their status (online/offline/expired).
@@ -12,11 +10,10 @@ Allows quick switching between accounts and shows account health indicators.
 ```
 -->
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { AuthService, currentAccount, availableAccounts, type LauncherAccount, Icon } from '$lib';
+  import { AuthService, currentAccount, availableAccounts, Icon } from '$lib';
+  import type { LauncherAccount } from '$lib';
 
   let showDropdown = false;
-  let isLoading = false;
 
   // Show all available accounts, including offline
   $: validAccounts = $availableAccounts.filter(acc => acc?.username !== $currentAccount?.username);
@@ -41,14 +38,8 @@ Allows quick switching between accounts and shows account health indicators.
     return 'online';
   }
 
-  onMount(async () => {
-    // Accounts are already loaded by AuthService.initialize() in NavBar
-    // No need to refresh again - just use the store data
-  });
-
   async function switchAccount(account: LauncherAccount) {
     if (account.local_id === $currentAccount?.local_id) return;
-    isLoading = true;
     try {
       await AuthService.switchAccount(account.local_id);
       showDropdown = false;
@@ -56,7 +47,6 @@ Allows quick switching between accounts and shows account health indicators.
       console.error('Failed to switch account:', error);
     } finally {
       showDropdown = false;
-      isLoading = false;
     }
   }
 
@@ -181,8 +171,6 @@ Allows quick switching between accounts and shows account health indicators.
     min-width: 15rem;
     width: 100%;
   }
-  
-  // Removed unused .current-account-container
   
   .current-account {
     display: flex;
@@ -325,8 +313,6 @@ Allows quick switching between accounts and shows account health indicators.
     backdrop-filter: blur(1.25rem);
   }
   
-  // Removed unused .accounts-list and custom scrollbar styles
-  
   .account-item {
     position: relative;
     border-radius: 0.5rem;
@@ -371,25 +357,7 @@ Allows quick switching between accounts and shows account health indicators.
       cursor: default;
     }
   }
-  
-  // Removed unused .account-details (not present in markup)
-  
-  // Removed unused .account-meta, .account-id, .offline-badge, .expired-badge
-  
-  // Removed unused .current-badge
-  
-  // Removed unused .remove-btn.trash-btn and hover styles
-  
-  /* Add Account Button */
-  // Removed unused .add-account-item, .add-account-btn, .add-icon
-  
-  /* Sign-in button when no accounts */
-  // Removed unused .no-account-container, .sign-in-btn, .sign-in-avatar, .sign-in-info, .sign-in-text, .sign-in-help, .sign-in-arrow, .sign-in-btn:hover .sign-in-arrow
-  
-  /* Account selection when no current account */
-  // Removed unused .account-selection, .selection-header, .account-count
-  
-  /* Responsive design */
+
   @media (max-width: 48rem) {
     .account-switcher {
       min-width: 12.5rem;

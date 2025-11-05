@@ -23,7 +23,7 @@ export const resourcepacksInstallation = writable<KableInstallation | null>(null
 export const resourcepacksInstallMode = writable<'dedicated' | 'global'>('dedicated');
 
 // Create a "global installation" fake entry for global resourcepack management
-export const GLOBAL_INSTALLATION: KableInstallation = {
+export const GLOBAL_RESOURCEPACK_INSTALLATION: KableInstallation = {
   id: '__global__',
   name: 'Global (All Installations)',
   version_id: '',
@@ -41,6 +41,6 @@ export const resourcepacksInstallationList = derived(
   resourcepacksInstallation,
   ($resourcepacksInstallation) => {
     // Return array with global installation always first
-    return [GLOBAL_INSTALLATION];
+    return [GLOBAL_RESOURCEPACK_INSTALLATION];
   }
 );

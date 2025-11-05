@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 MiscSettingsUI - Miscellaneous settings panel
 
 Additional settings including titlebar preferences, auto-updates,
@@ -7,13 +6,12 @@ and other general launcher features.
 
 @example
 ```svelte
-<MiscSettingsUI />
+◄MiscSettingsUI /►
 ```
 -->
 <script lang="ts">
-  import { settings } from "$lib/stores";
+  import { settings } from "$lib";
   import { onMount } from 'svelte';
-  import AutoUpdater from '../AutoUpdater.svelte';
   
   let isWideScreen = true;
   function checkScreen() {

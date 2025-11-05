@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 ShaderBrowser - Browse and search for shader packs from Modrinth
 
 Provides interface for discovering shader packs with support for:
@@ -12,14 +11,12 @@ Provides interface for discovering shader packs with support for:
 
 @example
 ```svelte
-<ShaderBrowser on:download={handleDownload} />
+◄ShaderBrowser on:download={handleDownload} /►
 ```
 -->
 <script lang="ts">
 import { onMount, createEventDispatcher } from 'svelte';
-import { get } from 'svelte/store';
-import { Icon, ShadersService, selectedInstallation, installations, GLOBAL_INSTALLATION, ShaderCard, ShaderGalleryModal } from '$lib';
-import { shaderDownloads, shadersLoading, shadersError, shadersLimit, shadersOffset, shadersInstallMode } from '$lib/stores/shaders';
+import { Icon, ShadersService, selectedInstallation, installations, ShaderCard, ShaderGalleryModal, shaderDownloads, shadersLoading, shadersError, shadersOffset, shadersInstallMode } from '$lib';
 import type { ShaderDownload, KableInstallation, ShaderFilterFacets } from '$lib';
 
 type ViewMode = 'grid' | 'list' | 'compact';

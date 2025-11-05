@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 AdvancedSettingsUI - Advanced configuration settings panel
 
 Provides interface for advanced launcher settings including JVM overrides,
@@ -7,7 +6,7 @@ custom paths, experimental features, and key-value extra settings.
 
 @example
 ```svelte
-<AdvancedSettingsUI />
+◄AdvancedSettingsUI /►
 ```
 -->
 <script lang="ts">

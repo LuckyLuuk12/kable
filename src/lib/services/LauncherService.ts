@@ -1,9 +1,7 @@
-
-import { currentAccount, installations, settings } from '$lib/stores';
-import { launchedInstallations, currentLaunchingInstallation, isLaunching, launchError, launchTimeoutHandle } from '$lib/stores/launcher';
-import type { KableInstallation, LaunchResult } from '$lib';
 import { get } from 'svelte/store';
-import * as launcherApi from '../api/launcher';
+import { currentAccount, installations, settings, launchedInstallations, currentLaunchingInstallation, isLaunching, launchError, launchTimeoutHandle } from '$lib';
+import * as launcherApi from '$lib/api/launcher';
+import type { KableInstallation, LaunchResult } from '$lib';
 
 
 export class Launcher {
