@@ -8,6 +8,7 @@ Shows recent notifications and allows clearing history.
 import { notificationHistory } from "$lib/services/NotificationService";
 import { NotificationService, Icon } from "$lib";
 import { onMount, onDestroy } from "svelte";
+import * as systemApi from "$lib/api/system";
 
 let isOpen = false;
 let trayElement: HTMLDivElement;
@@ -23,6 +24,15 @@ function closeTray() {
 function clearHistory() {
   NotificationService.clearHistory();
   closeTray();
+}
+
+async function openHelp() {
+  try {
+    await systemApi.openUrl("https://github.com/LuckyLuuk12/kable/wiki");
+  } catch (error) {
+    console.error("Failed to open help wiki:", error);
+    NotificationService.error("Failed to open help page");
+  }
 }
 
 // Close tray when clicking outside
@@ -82,12 +92,17 @@ function formatTime(date: Date): string {
     <div class="tray-dropdown">
       <div class="tray-header">
         <h3>Notifications</h3>
-        {#if $notificationHistory.length > 0}
-          <button class="clear-btn" on:click={clearHistory}>
-            <Icon name="trash" size="sm" />
-            Clear
+        <div class="header-actions">
+          <button class="help-btn" on:click={openHelp} title="Get help">
+            Get Help
           </button>
-        {/if}
+          {#if $notificationHistory.length > 0}
+            <button class="clear-btn" on:click={clearHistory}>
+              <Icon name="trash" size="sm" />
+              Clear
+            </button>
+          {/if}
+        </div>
       </div>
 
       <div class="tray-content">
@@ -191,18 +206,37 @@ function formatTime(date: Date): string {
     color: var(--text);
   }
 
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .help-btn,
   .clear-btn {
     display: flex;
     align-items: center;
     gap: 0.25rem;
     background: transparent;
     border: none;
-    color: var(--placeholder);
     font-size: 0.875rem;
     cursor: pointer;
     padding: 0.25rem 0.5rem;
     border-radius: var(--border-radius-small);
     transition: all 0.15s;
+  }
+
+  .help-btn {
+    color: var(--primary);
+
+    &:hover {
+      background: color-mix(in srgb, var(--primary), 10%, transparent);
+      color: var(--primary);
+    }
+  }
+
+  .clear-btn {
+    color: var(--placeholder);
 
     &:hover {
       background: color-mix(in srgb, var(--red), 10%, transparent);
