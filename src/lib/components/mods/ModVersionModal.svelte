@@ -18,11 +18,15 @@ Allows users to browse, filter, and select specific versions to install.
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher, onMount } from 'svelte';
-import { Icon } from '$lib';
-import type { KableInstallation, ModInfoKind, ModrinthVersion, ProviderKind } from '$lib';
-import { ProviderKind as ProviderKindEnum } from '$lib/runtimeTypes';
-import * as modsApi from '$lib/api/mods';
+import { createEventDispatcher } from "svelte";
+import { Icon, ProviderKind as ProviderKindEnum } from "$lib";
+import * as modsApi from "$lib/api/mods";
+import type {
+  KableInstallation,
+  ModInfoKind,
+  ModrinthVersion,
+  ProviderKind,
+} from "$lib";
 
 export let mod: ModInfoKind;
 export let currentInstallation: KableInstallation | null = null;
@@ -42,7 +46,7 @@ let error: string | null = null;
 // Filter state
 let selectedLoader: string | null = null;
 let selectedGameVersion: string | null = null;
-let searchQuery = '';
+let searchQuery = "";
 
 // Available filter options (extracted from versions)
 let availableLoaders: string[] = [];
@@ -60,51 +64,51 @@ $: {
 async function loadVersions() {
   loading = true;
   error = null;
-  
+
   try {
     const projectId = getProjectId(mod);
     const provider = getProvider(mod);
-    
+
     if (!projectId) {
-      error = 'Could not determine project ID';
+      error = "Could not determine project ID";
       return;
     }
-    
+
     // Fetch all versions (we'll filter client-side for better UX)
     versions = await modsApi.getProjectVersions(provider, projectId);
-    
+
     // Extract available loaders and game versions
     const loaderSet = new Set<string>();
     const gameVersionSet = new Set<string>();
-    
-    versions.forEach(v => {
-      v.loaders.forEach(l => loaderSet.add(l));
-      v.game_versions.forEach(gv => gameVersionSet.add(gv));
+
+    versions.forEach((v) => {
+      v.loaders.forEach((l) => loaderSet.add(l));
+      v.game_versions.forEach((gv) => gameVersionSet.add(gv));
     });
-    
+
     availableLoaders = Array.from(loaderSet).sort();
     availableGameVersions = Array.from(gameVersionSet).sort((a, b) => {
       // Sort game versions in descending order (newest first)
       return compareVersions(b, a);
     });
-    
+
     // Auto-select filters based on current installation
     if (currentInstallation) {
       const loader = extractLoader(currentInstallation.version_id);
       if (loader && availableLoaders.includes(loader)) {
         selectedLoader = loader;
       }
-      
+
       const gameVersion = extractGameVersion(currentInstallation.version_id);
       if (gameVersion && availableGameVersions.includes(gameVersion)) {
         selectedGameVersion = gameVersion;
       }
     }
-    
+
     applyFilters();
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
-    console.error('[ModVersionModal] Failed to load versions:', e);
+    console.error("[ModVersionModal] Failed to load versions:", e);
   } finally {
     loading = false;
   }
@@ -112,65 +116,70 @@ async function loadVersions() {
 
 function applyFilters() {
   let result = [...versions];
-  
+
   // Filter out the currently installed version
   if (installedVersion) {
-    result = result.filter(v => v.version_number !== installedVersion);
+    result = result.filter((v) => v.version_number !== installedVersion);
   }
-  
+
   // Filter by loader
   if (selectedLoader) {
-    result = result.filter(v => v.loaders.some(l => l.toLowerCase() === selectedLoader!.toLowerCase()));
+    result = result.filter((v) =>
+      v.loaders.some((l) => l.toLowerCase() === selectedLoader!.toLowerCase()),
+    );
   }
-  
+
   // Filter by game version
   if (selectedGameVersion) {
-    result = result.filter(v => v.game_versions.includes(selectedGameVersion!));
+    result = result.filter((v) =>
+      v.game_versions.includes(selectedGameVersion!),
+    );
   }
-  
+
   // Filter by search query
   if (searchQuery.trim()) {
     const query = searchQuery.toLowerCase();
-    result = result.filter(v => 
-      v.version_number.toLowerCase().includes(query) ||
-      v.name.toLowerCase().includes(query)
+    result = result.filter(
+      (v) =>
+        v.version_number.toLowerCase().includes(query) ||
+        v.name.toLowerCase().includes(query),
     );
   }
-  
+
   // Sort by version number (descending - newest first)
   result.sort((a, b) => compareVersions(b.version_number, a.version_number));
-  
+
   filteredVersions = result;
 }
 
 function compareVersions(a: string, b: string): number {
   const parseVersion = (v: string) => {
-    const parts = v.split(/[.-]+/).map(p => parseInt(p) || 0);
+    const parts = v.split(/[.-]+/).map((p) => parseInt(p) || 0);
     return parts;
   };
-  
+
   const aParts = parseVersion(a);
   const bParts = parseVersion(b);
   const maxLength = Math.max(aParts.length, bParts.length);
-  
+
   for (let i = 0; i < maxLength; i++) {
     const aPart = aParts[i] || 0;
     const bPart = bParts[i] || 0;
-    
+
     if (aPart !== bPart) {
       return aPart - bPart;
     }
   }
-  
+
   return 0;
 }
 
 function extractLoader(versionId: string): string | null {
   const lower = versionId.toLowerCase();
-  if (lower.includes('fabric')) return 'fabric';
-  if (lower.includes('neoforge')) return 'neoforge';
-  if (lower.includes('forge')) return 'forge';
-  if (lower.includes('quilt')) return 'quilt';
+  if (lower.includes("fabric")) return "fabric";
+  if (lower.includes("neoforge")) return "neoforge";
+  if (lower.includes("forge")) return "forge";
+  if (lower.includes("quilt")) return "quilt";
   return null;
 }
 
@@ -181,37 +190,40 @@ function extractGameVersion(versionId: string): string | null {
 }
 
 function getProjectId(mod: ModInfoKind): string | null {
-  if ('Modrinth' in mod) {
+  if ("Modrinth" in mod) {
     return mod.Modrinth.project_id;
-  } else if ('kind' in mod && mod.kind === 'Modrinth') {
+  } else if ("kind" in mod && mod.kind === "Modrinth") {
     return mod.data.project_id;
   }
   return null;
 }
 
 function getProvider(mod: ModInfoKind): ProviderKind {
-  if ('Modrinth' in mod || ('kind' in mod && mod.kind === 'Modrinth')) {
+  if ("Modrinth" in mod || ("kind" in mod && mod.kind === "Modrinth")) {
     return ProviderKindEnum.Modrinth;
   }
   return ProviderKindEnum.CurseForge;
 }
 
 function getModTitle(mod: ModInfoKind): string {
-  if ('Modrinth' in mod) {
+  if ("Modrinth" in mod) {
     return mod.Modrinth.title;
-  } else if ('kind' in mod && mod.kind === 'Modrinth') {
+  } else if ("kind" in mod && mod.kind === "Modrinth") {
     return mod.data.title;
   }
-  return 'Unknown Mod';
+  return "Unknown Mod";
 }
 
 function handleClose() {
   open = false;
-  dispatch('close');
+  dispatch("close");
 }
 
 function handleSelectVersion(version: ModrinthVersion) {
-  dispatch('selectVersion', { versionId: version.id, versionNumber: version.version_number });
+  dispatch("selectVersion", {
+    versionId: version.id,
+    versionNumber: version.version_number,
+  });
   handleClose();
 }
 
@@ -231,8 +243,20 @@ function formatDate(dateString: string): string {
 </script>
 
 {#if open}
-  <div class="modal-backdrop" on:click={handleClose} on:keydown={(e) => e.key === 'Escape' && handleClose()} role="button" tabindex="-1">
-    <div class="modal-content" on:click|stopPropagation on:keydown|stopPropagation role="dialog" tabindex="-1">
+  <div
+    class="modal-backdrop"
+    on:click={handleClose}
+    on:keydown={(e) => e.key === "Escape" && handleClose()}
+    role="button"
+    tabindex="-1"
+  >
+    <div
+      class="modal-content"
+      on:click|stopPropagation
+      on:keydown|stopPropagation
+      role="dialog"
+      tabindex="-1"
+    >
       <div class="modal-header">
         <div class="modal-title">
           <h2>Select Version - {getModTitle(mod)}</h2>
@@ -243,7 +267,11 @@ function formatDate(dateString: string): string {
             </span>
           {/if}
         </div>
-        <button class="close-btn" on:click={handleClose} aria-label="Close modal">
+        <button
+          class="close-btn"
+          on:click={handleClose}
+          aria-label="Close modal"
+        >
           <Icon name="x" size="lg" forceType="svg" />
         </button>
       </div>
@@ -271,11 +299,11 @@ function formatDate(dateString: string): string {
 
         <div class="filter-group search-group">
           <label for="version-search">Search:</label>
-          <input 
+          <input
             id="version-search"
-            type="text" 
-            bind:value={searchQuery} 
-            placeholder="Filter versions..." 
+            type="text"
+            bind:value={searchQuery}
+            placeholder="Filter versions..."
           />
         </div>
       </div>
@@ -299,7 +327,14 @@ function formatDate(dateString: string): string {
         {:else}
           <div class="versions-list">
             {#each filteredVersions as version}
-              <div class="version-item" on:click={() => handleSelectVersion(version)} on:keydown={(e) => e.key === 'Enter' && handleSelectVersion(version)} role="button" tabindex="0">
+              <div
+                class="version-item"
+                on:click={() => handleSelectVersion(version)}
+                on:keydown={(e) =>
+                  e.key === "Enter" && handleSelectVersion(version)}
+                role="button"
+                tabindex="0"
+              >
                 <div class="version-info">
                   <div class="version-header">
                     <span class="version-number">{version.version_number}</span>
@@ -312,9 +347,11 @@ function formatDate(dateString: string): string {
                       {/each}
                     </span>
                     <span class="version-game-versions">
-                      MC {version.game_versions.slice(0, 3).join(', ')}
+                      MC {version.game_versions.slice(0, 3).join(", ")}
                       {#if version.game_versions.length > 3}
-                        <span class="more-versions">+{version.game_versions.length - 3}</span>
+                        <span class="more-versions"
+                          >+{version.game_versions.length - 3}</span
+                        >
                       {/if}
                     </span>
                   </div>
@@ -329,7 +366,10 @@ function formatDate(dateString: string): string {
                     </div>
                   {/if}
                 </div>
-                <button class="select-btn" on:click={() => handleSelectVersion(version)}>
+                <button
+                  class="select-btn"
+                  on:click={() => handleSelectVersion(version)}
+                >
                   <Icon name="download" size="md" forceType="svg" />
                   Install
                 </button>
@@ -341,7 +381,10 @@ function formatDate(dateString: string): string {
 
       <div class="modal-footer">
         <p class="version-count">
-          {filteredVersions.length} of {versions.length} version{versions.length !== 1 ? 's' : ''}
+          {filteredVersions.length} of {versions.length} version{versions.length !==
+          1
+            ? "s"
+            : ""}
         </p>
         <button class="cancel-btn" on:click={handleClose}>Close</button>
       </div>
@@ -453,7 +496,8 @@ function formatDate(dateString: string): string {
       letter-spacing: 0.05em;
     }
 
-    select, input {
+    select,
+    input {
       padding: 0.5rem;
       background: var(--card);
       border: 1px solid rgba($primary, 0.2);
@@ -483,7 +527,9 @@ function formatDate(dateString: string): string {
   min-height: 300px;
 }
 
-.loading-state, .error-state, .empty-state {
+.loading-state,
+.error-state,
+.empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;

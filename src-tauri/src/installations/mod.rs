@@ -61,17 +61,20 @@ async fn build_installations_async() -> Result<Vec<KableInstallation>, String> {
         "Read {} installations from kable_profiles.json",
         installations.len()
     ));
-    
+
     // Emit initial installations immediately (sorted by last_used)
     if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         if let Some(app_handle) = handle_guard.as_ref() {
-            let _ = app_handle.emit("installations-chunk-loaded", InstallationsChunk {
-                installations: installations.clone(),
-                is_complete: false,
-            });
+            let _ = app_handle.emit(
+                "installations-chunk-loaded",
+                InstallationsChunk {
+                    installations: installations.clone(),
+                    is_complete: false,
+                },
+            );
         }
     }
-    
+
     match profiles::read_launcher_profiles_async().await {
         Ok(launcher_profiles) => {
             // Use a tuple of (name, last_version_id, created) for deduplication, all as String
@@ -79,7 +82,7 @@ async fn build_installations_async() -> Result<Vec<KableInstallation>, String> {
                 .iter()
                 .map(|i| (i.name.clone(), i.version_id.clone(), i.created.clone()))
                 .collect();
-            
+
             // IMPORTANT: Filter BEFORE converting to avoid expensive get_mods_folder_from_version_manifest() calls
             let mut new_converted: Vec<KableInstallation> = launcher_profiles
                 .into_iter()
@@ -87,29 +90,34 @@ async fn build_installations_async() -> Result<Vec<KableInstallation>, String> {
                     let key = (
                         lp.name.clone(),
                         lp.last_version_id.clone(),
-                        lp.created.clone().unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+                        lp.created
+                            .clone()
+                            .unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
                     );
                     !kable_keys.contains(&key)
                 })
                 .map(|lp| lp.into())
                 .collect();
-            
+
             if !new_converted.is_empty() {
                 installations.append(&mut new_converted);
-                
+
                 // Sort again after adding new installations
                 installations.sort_by(|a, b| b.last_used.cmp(&a.last_used));
-                
+
                 // Only write if we actually added new installations
                 kable_profiles::write_kable_profiles_async(&installations).await?;
-                
+
                 // Emit updated installations with new ones
                 if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
                     if let Some(app_handle) = handle_guard.as_ref() {
-                        let _ = app_handle.emit("installations-chunk-loaded", InstallationsChunk {
-                            installations: installations.clone(),
-                            is_complete: false,
-                        });
+                        let _ = app_handle.emit(
+                            "installations-chunk-loaded",
+                            InstallationsChunk {
+                                installations: installations.clone(),
+                                is_complete: false,
+                            },
+                        );
                     }
                 }
             }
@@ -124,16 +132,19 @@ async fn build_installations_async() -> Result<Vec<KableInstallation>, String> {
             );
         }
     }
-    
+
     // Emit completion event
     if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         if let Some(app_handle) = handle_guard.as_ref() {
-            let _ = app_handle.emit("installations-loading-complete", InstallationsComplete {
-                total_count: installations.len(),
-            });
+            let _ = app_handle.emit(
+                "installations-loading-complete",
+                InstallationsComplete {
+                    total_count: installations.len(),
+                },
+            );
         }
     }
-    
+
     crate::logging::debug(&format!(
         "Total installations after merging: {}",
         installations.len()
@@ -223,6 +234,21 @@ pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
     Ok(installations)
 }
 
+/// Force rebuild installations from disk and return them, updating the cache.
+pub async fn get_installations_force() -> Result<Vec<KableInstallation>, String> {
+    // Always rebuild from sources
+    let installations = build_installations_async().await?;
+    {
+        let mut cache_write = INSTALLATIONS_CACHE.write().await;
+        *cache_write = Some(installations.clone());
+    }
+    crate::logging::debug(&format!(
+        "Force-built installations: {} items",
+        installations.len()
+    ));
+    Ok(installations)
+}
+
 /// Returns a single installation by id, using cache.
 pub async fn get_installation(id: &str) -> Result<Option<KableInstallation>, String> {
     let installations = get_installations().await?;
@@ -232,7 +258,7 @@ pub async fn get_installation(id: &str) -> Result<Option<KableInstallation>, Str
 pub async fn delete_installation(id: &str) -> Result<(), String> {
     let mut installations = kable_profiles::read_kable_profiles_async().await?;
     let orig_len = installations.len();
-    
+
     // Find the installation to get its dedicated folder paths before deletion
     let installation = installations.iter().find(|i| i.id == id);
     let dedicated_folders = installation.map(|inst| {
@@ -243,7 +269,7 @@ pub async fn delete_installation(id: &str) -> Result<(), String> {
             inst.dedicated_config_folder.clone(),
         )
     });
-    
+
     installations.retain(|i| i.id != id);
     if installations.len() == orig_len {
         crate::logging::Logger::warn_global(
@@ -252,7 +278,7 @@ pub async fn delete_installation(id: &str) -> Result<(), String> {
         );
         return Err(format!("No Kable installation found with id: {}", id));
     }
-    
+
     // Delete dedicated folders if they exist
     if let Some((mods, resourcepacks, shaders, config)) = dedicated_folders {
         let kable_dir = match crate::get_minecraft_kable_dir() {
@@ -265,7 +291,7 @@ pub async fn delete_installation(id: &str) -> Result<(), String> {
                 std::path::PathBuf::new()
             }
         };
-        
+
         // Helper to delete a dedicated folder
         let delete_folder = |folder_opt: Option<String>, folder_type: &str| {
             if let Some(folder) = folder_opt {
@@ -277,18 +303,27 @@ pub async fn delete_installation(id: &str) -> Result<(), String> {
                     let normalized = folder.replace('\\', "/");
                     let cleaned = match folder_type {
                         "mods" => normalized.strip_prefix("mods/").unwrap_or(&normalized),
-                        "resourcepacks" => normalized.strip_prefix("resourcepacks/").unwrap_or(&normalized),
-                        "shaderpacks" => normalized.strip_prefix("shaderpacks/").unwrap_or(&normalized),
+                        "resourcepacks" => normalized
+                            .strip_prefix("resourcepacks/")
+                            .unwrap_or(&normalized),
+                        "shaderpacks" => normalized
+                            .strip_prefix("shaderpacks/")
+                            .unwrap_or(&normalized),
                         "config" => normalized.strip_prefix("config/").unwrap_or(&normalized),
                         _ => &normalized,
                     };
                     kable_dir.join(folder_type).join(cleaned)
                 };
-                
+
                 if final_path.exists() {
                     if let Err(e) = std::fs::remove_dir_all(&final_path) {
                         crate::logging::Logger::warn_global(
-                            &format!("Failed to delete {} folder {}: {}", folder_type, final_path.display(), e),
+                            &format!(
+                                "Failed to delete {} folder {}: {}",
+                                folder_type,
+                                final_path.display(),
+                                e
+                            ),
                             None,
                         );
                     } else {
@@ -300,13 +335,13 @@ pub async fn delete_installation(id: &str) -> Result<(), String> {
                 }
             }
         };
-        
+
         delete_folder(mods, "mods");
         delete_folder(resourcepacks, "resourcepacks");
         delete_folder(shaders, "shaderpacks");
         delete_folder(config, "config");
     }
-    
+
     let result = kable_profiles::write_kable_profiles_async(&installations).await;
     {
         let mut cache_write = INSTALLATIONS_CACHE.write().await;
@@ -338,17 +373,20 @@ pub async fn modify_installation(
         match &result {
             Ok(_) => {
                 crate::logging::info(&format!("Installation '{}' modified successfully.", id));
-                
+
                 // Emit event to notify frontend of installation update
                 if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
                     if let Some(app_handle) = handle_guard.as_ref() {
-                        let _ = app_handle.emit("installation-updated", serde_json::json!({
-                            "installation_id": id,
-                            "installation": &installations[index]
-                        }));
+                        let _ = app_handle.emit(
+                            "installation-updated",
+                            serde_json::json!({
+                                "installation_id": id,
+                                "installation": &installations[index]
+                            }),
+                        );
                     }
                 }
-            },
+            }
             Err(e) => {
                 crate::logging::error(&format!("Failed to modify installation '{}': {}", id, e))
             }
@@ -421,12 +459,12 @@ pub async fn create_installation_from_existing(
 ) -> Result<KableInstallation, String> {
     // First create the base installation
     let new_installation = create_installation(version_id).await?;
-    
+
     // Get the source installation
     let source_installation = get_installation(source_installation_id)
         .await?
         .ok_or_else(|| format!("Source installation not found: {}", source_installation_id))?;
-    
+
     crate::logging::info(&format!(
         "Copying from installation '{}' to '{}' (mods: {}, resourcepacks: {}, shaders: {})",
         source_installation.name,
@@ -435,22 +473,22 @@ pub async fn create_installation_from_existing(
         copy_resource_packs,
         copy_shaders
     ));
-    
+
     // Copy mods if requested
     if copy_mods {
         copy_and_update_mods(&source_installation, &new_installation).await?;
     }
-    
+
     // Copy resource packs if requested
     if copy_resource_packs {
         copy_resource_packs_between_installations(&source_installation, &new_installation).await?;
     }
-    
+
     // Copy shaders if requested
     if copy_shaders {
         copy_shaders_between_installations(&source_installation, &new_installation).await?;
     }
-    
+
     Ok(new_installation)
 }
 
@@ -461,21 +499,21 @@ async fn copy_and_update_mods(
     target: &KableInstallation,
 ) -> Result<(), String> {
     use crate::mods::modrinth;
-    
+
     crate::logging::info(&format!(
         "Copying and updating mods from '{}' to '{}'",
         source.name, target.name
     ));
-    
+
     // Get source mods directory
     let source_mods_dir = get_mods_directory(source).await?;
     let target_mods_dir = get_mods_directory(target).await?;
-    
+
     // Read all mods from source
     let source_mod_files = async_fs::read_dir(&source_mods_dir)
         .await
         .map_err(|e| format!("Failed to read source mods directory: {}", e))?;
-    
+
     let mut entries = vec![];
     let mut read_dir = source_mod_files;
     while let Some(entry) = read_dir
@@ -485,65 +523,64 @@ async fn copy_and_update_mods(
     {
         entries.push(entry);
     }
-    
+
     // Extract loader and game version from target installation
     let target_loader = extract_loader_from_version_id(&target.version_id);
     let target_game_version = extract_game_version_from_version_id(&target.version_id);
-    
+
     crate::logging::info(&format!(
         "Target: loader={:?}, game_version={:?}",
         target_loader, target_game_version
     ));
-    
+
     // Process each mod file
     for entry in entries {
         let path = entry.path();
-        
+
         // Skip if not a .jar file
         if !matches!(path.extension(), Some(ext) if ext == "jar") {
             continue;
         }
-        
+
         let file_name = path
             .file_name()
             .and_then(|n| n.to_str())
             .ok_or_else(|| "Invalid file name".to_string())?;
-        
+
         crate::logging::info(&format!("Processing mod: {}", file_name));
-        
+
         // PRIORITY 1: Check for kable_metadata.json file
         let metadata_file = source_mods_dir.join(format!("{}.kable_metadata.json", file_name));
         let project_id_from_metadata = if metadata_file.exists() {
             match async_fs::read_to_string(&metadata_file).await {
-                Ok(content) => {
-                    match serde_json::from_str::<serde_json::Value>(&content) {
-                        Ok(metadata) => {
-                            let project_id = metadata.get("project_id")
-                                .and_then(|v| v.as_str())
-                                .map(|s| s.to_string());
-                            if let Some(ref id) = project_id {
-                                crate::logging::info(&format!(
-                                    "Found metadata for {}: project_id = {}",
-                                    file_name, id
-                                ));
-                            }
-                            project_id
+                Ok(content) => match serde_json::from_str::<serde_json::Value>(&content) {
+                    Ok(metadata) => {
+                        let project_id = metadata
+                            .get("project_id")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string());
+                        if let Some(ref id) = project_id {
+                            crate::logging::info(&format!(
+                                "Found metadata for {}: project_id = {}",
+                                file_name, id
+                            ));
                         }
-                        Err(e) => {
-                            crate::logging::Logger::warn_global(
-                                &format!("Failed to parse metadata for {}: {}", file_name, e),
-                                None,
-                            );
-                            None
-                        }
+                        project_id
                     }
-                }
+                    Err(e) => {
+                        crate::logging::Logger::warn_global(
+                            &format!("Failed to parse metadata for {}: {}", file_name, e),
+                            None,
+                        );
+                        None
+                    }
+                },
                 Err(_) => None,
             }
         } else {
             None
         };
-        
+
         // PRIORITY 2: Try to get mod info from JAR if no metadata
         let mod_info = if project_id_from_metadata.is_none() {
             match get_mod_info_single(&path).await {
@@ -575,7 +612,7 @@ async fn copy_and_update_mods(
         } else {
             None
         };
-        
+
         // Determine project_id (from metadata or search)
         let project_id = if let Some(id) = project_id_from_metadata {
             Some(id)
@@ -586,12 +623,12 @@ async fn copy_and_update_mods(
                     "No metadata found, searching Modrinth for '{}' (internal name: {})",
                     file_name, mod_name
                 ));
-                
+
                 let search_url = format!(
                     "https://api.modrinth.com/v2/search?query={}&limit=10",
                     urlencoding::encode(mod_name)
                 );
-                
+
                 let search_result: Result<serde_json::Value, String> = async {
                     let resp = reqwest::get(&search_url)
                         .await
@@ -599,35 +636,39 @@ async fn copy_and_update_mods(
                     resp.json()
                         .await
                         .map_err(|e| format!("Modrinth search parse failed: {}", e))
-                }.await;
-                
+                }
+                .await;
+
                 match search_result {
                     Ok(json) => {
                         let hits = json.get("hits").and_then(|h| h.as_array());
-                        
+
                         let verified_project_id = if let Some(hits) = hits {
                             crate::logging::info(&format!(
                                 "Search returned {} results for '{}'",
                                 hits.len(),
                                 mod_name
                             ));
-                            
+
                             // NEW: Verify each search result by checking if it has a version with matching JAR filename
                             let mut found_id = None;
                             for hit in hits {
-                                let candidate_id = hit.get("project_id")
+                                let candidate_id = hit
+                                    .get("project_id")
                                     .and_then(|id| id.as_str())
                                     .map(|s| s.to_string());
-                                
+
                                 if let Some(ref candidate_id) = candidate_id {
-                                    let slug = hit.get("slug").and_then(|s| s.as_str()).unwrap_or("");
-                                    let title = hit.get("title").and_then(|s| s.as_str()).unwrap_or("");
-                                    
+                                    let slug =
+                                        hit.get("slug").and_then(|s| s.as_str()).unwrap_or("");
+                                    let title =
+                                        hit.get("title").and_then(|s| s.as_str()).unwrap_or("");
+
                                     crate::logging::info(&format!(
                                         "Checking candidate: {} (slug: {}, title: {})",
                                         candidate_id, slug, title
                                     ));
-                                    
+
                                     // Fetch ALL versions for this candidate (no filters, to check all possible filenames)
                                     match modrinth::get_project_versions_filtered(
                                         candidate_id,
@@ -638,18 +679,20 @@ async fn copy_and_update_mods(
                                     {
                                         Ok(all_versions) => {
                                             // Check if any version has a file matching our current JAR filename
-                                            let has_matching_filename = all_versions.iter().any(|version| {
-                                                version.files.iter().any(|file| {
-                                                    file.filename.eq_ignore_ascii_case(file_name)
-                                                })
-                                            });
-                                            
+                                            let has_matching_filename =
+                                                all_versions.iter().any(|version| {
+                                                    version.files.iter().any(|file| {
+                                                        file.filename
+                                                            .eq_ignore_ascii_case(file_name)
+                                                    })
+                                                });
+
                                             if has_matching_filename {
                                                 crate::logging::info(&format!(
                                                     "✓ VERIFIED: Project '{}' has a version with filename '{}'",
                                                     candidate_id, file_name
                                                 ));
-                                                
+
                                                 // This is the correct project!
                                                 found_id = Some(candidate_id.clone());
                                                 break;
@@ -669,19 +712,19 @@ async fn copy_and_update_mods(
                                     }
                                 }
                             }
-                            
+
                             if found_id.is_none() {
                                 crate::logging::Logger::warn_global(
                                     &format!("No search results matched JAR filename '{}' for query '{}'", file_name, mod_name),
                                     None,
                                 );
                             }
-                            
+
                             found_id
                         } else {
                             None
                         };
-                        
+
                         verified_project_id
                     }
                     Err(e) => {
@@ -702,14 +745,14 @@ async fn copy_and_update_mods(
         } else {
             None
         };
-        
+
         // If we have a project_id, try to download compatible version
         if let Some(project_id) = project_id {
             crate::logging::info(&format!(
                 "Fetching compatible versions for project '{}' (loader: {:?}, game_version: {:?})",
                 project_id, target_loader, target_game_version
             ));
-            
+
             match modrinth::get_project_versions_filtered(
                 &project_id,
                 target_loader.clone().map(|l| vec![l]),
@@ -723,20 +766,20 @@ async fn copy_and_update_mods(
                         versions.len(),
                         project_id
                     ));
-                    
+
                     // Find the best version
                     let best_version = modrinth::find_best_version(
                         &versions,
                         target_loader.as_deref(),
                         target_game_version.as_deref(),
                     );
-                    
+
                     if let Some(version) = best_version {
                         crate::logging::info(&format!(
                             "Selected best version: {} ({})",
                             version.version_number, version.id
                         ));
-                        
+
                         // Download the compatible version
                         let primary_file = version
                             .files
@@ -744,16 +787,16 @@ async fn copy_and_update_mods(
                             .find(|f| f.primary)
                             .or_else(|| version.files.first())
                             .ok_or_else(|| "No files found in version".to_string())?;
-                        
+
                         let target_path = target_mods_dir.join(&primary_file.filename);
-                        
+
                         crate::logging::info(&format!(
                             "Downloading {} from {}",
                             primary_file.filename, primary_file.url
                         ));
-                        
+
                         modrinth::download_mod_file(&primary_file.url, &target_path).await?;
-                        
+
                         crate::logging::info(&format!(
                             "Successfully downloaded: {}",
                             primary_file.filename
@@ -761,8 +804,11 @@ async fn copy_and_update_mods(
                         continue;
                     } else {
                         crate::logging::Logger::warn_global(
-                            &format!("Could not select best version for project '{}' from {} candidates", 
-                                project_id, versions.len()),
+                            &format!(
+                                "Could not select best version for project '{}' from {} candidates",
+                                project_id,
+                                versions.len()
+                            ),
                             None,
                         );
                     }
@@ -776,26 +822,35 @@ async fn copy_and_update_mods(
                 }
                 Err(e) => {
                     crate::logging::Logger::warn_global(
-                        &format!("Failed to fetch versions for project '{}': {}", project_id, e),
+                        &format!(
+                            "Failed to fetch versions for project '{}': {}",
+                            project_id, e
+                        ),
                         None,
                     );
                 }
             }
         } else {
             crate::logging::Logger::warn_global(
-                &format!("No project ID found for {}, cannot check for updates", file_name),
+                &format!(
+                    "No project ID found for {}, cannot check for updates",
+                    file_name
+                ),
                 None,
             );
         }
-        
+
         // Fallback: copy the original file
-        crate::logging::info(&format!("Copying {} as-is (no update available)", file_name));
+        crate::logging::info(&format!(
+            "Copying {} as-is (no update available)",
+            file_name
+        ));
         let target_path = target_mods_dir.join(file_name);
         async_fs::copy(&path, &target_path)
             .await
             .map_err(|e| format!("Failed to copy mod file: {}", e))?;
     }
-    
+
     crate::logging::info("Finished copying and updating mods");
     Ok(())
 }
@@ -809,12 +864,12 @@ async fn copy_resource_packs_between_installations(
         "Copying resource packs from '{}' to '{}'",
         source.name, target.name
     ));
-    
+
     let source_dir = get_resource_packs_directory(source).await?;
     let target_dir = get_resource_packs_directory(target).await?;
-    
+
     copy_directory_contents(source_dir, target_dir).await?;
-    
+
     crate::logging::info("Finished copying resource packs");
     Ok(())
 }
@@ -828,12 +883,12 @@ async fn copy_shaders_between_installations(
         "Copying shaders from '{}' to '{}'",
         source.name, target.name
     ));
-    
+
     let source_dir = get_shaders_directory(source).await?;
     let target_dir = get_shaders_directory(target).await?;
-    
+
     copy_directory_contents(source_dir, target_dir).await?;
-    
+
     crate::logging::info("Finished copying shaders");
     Ok(())
 }
@@ -848,11 +903,11 @@ fn copy_directory_contents(
         async_fs::create_dir_all(&target)
             .await
             .map_err(|e| format!("Failed to create target directory: {}", e))?;
-        
+
         let mut entries = async_fs::read_dir(&source)
             .await
             .map_err(|e| format!("Failed to read source directory: {}", e))?;
-        
+
         while let Some(entry) = entries
             .next_entry()
             .await
@@ -863,7 +918,7 @@ fn copy_directory_contents(
                 .file_name()
                 .ok_or_else(|| "Invalid file name".to_string())?;
             let target_path = target.join(file_name);
-            
+
             if source_path.is_dir() {
                 // Recursively copy directories
                 copy_directory_contents(source_path, target_path).await?;
@@ -874,7 +929,7 @@ fn copy_directory_contents(
                     .map_err(|e| format!("Failed to copy file: {}", e))?;
             }
         }
-        
+
         Ok(())
     })
 }
@@ -888,10 +943,8 @@ async fn get_mods_directory(installation: &KableInstallation) -> Result<PathBuf,
         } else {
             // Normalize path separators and strip any leading "mods/" or "mods\" prefix
             let normalized = dedicated_folder.replace('\\', "/");
-            let cleaned = normalized
-                .strip_prefix("mods/")
-                .unwrap_or(&normalized);
-            
+            let cleaned = normalized.strip_prefix("mods/").unwrap_or(&normalized);
+
             // The dedicated_folder is just the installation ID
             // It should be in .minecraft/kable/mods/<id>
             let minecraft_dir = crate::get_default_minecraft_dir()?;
@@ -924,11 +977,14 @@ async fn get_resource_packs_directory(installation: &KableInstallation) -> Resul
             let cleaned = normalized
                 .strip_prefix("resourcepacks/")
                 .unwrap_or(&normalized);
-            
+
             // The dedicated_folder is just the installation ID
             // It should be in .minecraft/kable/resourcepacks/<id>
             let minecraft_dir = crate::get_default_minecraft_dir()?;
-            minecraft_dir.join("kable").join("resourcepacks").join(cleaned)
+            minecraft_dir
+                .join("kable")
+                .join("resourcepacks")
+                .join(cleaned)
         };
         async_fs::create_dir_all(&final_path)
             .await
@@ -956,11 +1012,14 @@ async fn get_shaders_directory(installation: &KableInstallation) -> Result<PathB
             let cleaned = normalized
                 .strip_prefix("shaderpacks/")
                 .unwrap_or(&normalized);
-            
+
             // The dedicated_folder is just the installation ID
             // It should be in .minecraft/kable/shaderpacks/<id>
             let minecraft_dir = crate::get_default_minecraft_dir()?;
-            minecraft_dir.join("kable").join("shaderpacks").join(cleaned)
+            minecraft_dir
+                .join("kable")
+                .join("shaderpacks")
+                .join(cleaned)
         };
         async_fs::create_dir_all(&final_path)
             .await
@@ -979,7 +1038,7 @@ async fn get_shaders_directory(installation: &KableInstallation) -> Result<PathB
 /// Extract loader type from version_id
 fn extract_loader_from_version_id(version_id: &str) -> Option<String> {
     let version_lower = version_id.to_lowercase();
-    
+
     if version_lower.contains("fabric") {
         Some("fabric".to_string())
     } else if version_lower.contains("neoforge") {
@@ -1003,7 +1062,7 @@ fn extract_game_version_from_version_id(version_id: &str) -> Option<String> {
             .captures_iter(version_id)
             .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
             .collect();
-        
+
         if !matches.is_empty() {
             // Return the last (most specific) match
             return Some(matches.last().unwrap().clone());
@@ -1016,17 +1075,17 @@ fn extract_game_version_from_version_id(version_id: &str) -> Option<String> {
 async fn get_mod_info_single(path: &std::path::Path) -> Result<Option<ModJarInfo>, String> {
     let path_clone = path.to_path_buf();
     task::spawn_blocking(move || {
-        let file = File::open(&path_clone)
-            .map_err(|e| format!("Failed to open mod file: {}", e))?;
-        let mut archive = ZipArchive::new(file)
-            .map_err(|e| format!("Failed to read jar archive: {}", e))?;
-        
+        let file =
+            File::open(&path_clone).map_err(|e| format!("Failed to open mod file: {}", e))?;
+        let mut archive =
+            ZipArchive::new(file).map_err(|e| format!("Failed to read jar archive: {}", e))?;
+
         let file_name = path_clone
             .file_name()
             .and_then(|n| n.to_str())
             .map(|s| s.to_string())
             .unwrap_or_default();
-        
+
         // Try to read mod info from various manifest files
         // fabric.mod.json
         if let Ok(mut fabric_file) = archive.by_name("fabric.mod.json") {
@@ -1034,49 +1093,55 @@ async fn get_mod_info_single(path: &std::path::Path) -> Result<Option<ModJarInfo
             fabric_file
                 .read_to_string(&mut content)
                 .map_err(|e| format!("Failed to read fabric.mod.json: {}", e))?;
-            
+
             let json: serde_json::Value = serde_json::from_str(&content)
                 .map_err(|e| format!("Failed to parse fabric.mod.json: {}", e))?;
-            
+
             return Ok(Some(ModJarInfo {
                 file_name: file_name.clone(),
-                mod_name: json["id"].as_str().or_else(|| json["name"].as_str()).map(|s| s.to_string()),
+                mod_name: json["id"]
+                    .as_str()
+                    .or_else(|| json["name"].as_str())
+                    .map(|s| s.to_string()),
                 mod_version: json["version"].as_str().map(|s| s.to_string()),
                 loader: Some("fabric".to_string()),
                 disabled: false,
             }));
         }
-        
+
         // quilt.mod.json
         if let Ok(mut quilt_file) = archive.by_name("quilt.mod.json") {
             let mut content = String::new();
             quilt_file
                 .read_to_string(&mut content)
                 .map_err(|e| format!("Failed to read quilt.mod.json: {}", e))?;
-            
+
             let json: serde_json::Value = serde_json::from_str(&content)
                 .map_err(|e| format!("Failed to parse quilt.mod.json: {}", e))?;
-            
+
             let quilt_loader = &json["quilt_loader"];
             return Ok(Some(ModJarInfo {
                 file_name: file_name.clone(),
-                mod_name: quilt_loader["id"].as_str().or_else(|| quilt_loader["metadata"]["name"].as_str()).map(|s| s.to_string()),
+                mod_name: quilt_loader["id"]
+                    .as_str()
+                    .or_else(|| quilt_loader["metadata"]["name"].as_str())
+                    .map(|s| s.to_string()),
                 mod_version: quilt_loader["version"].as_str().map(|s| s.to_string()),
                 loader: Some("quilt".to_string()),
                 disabled: false,
             }));
         }
-        
+
         // META-INF/mods.toml (Forge/NeoForge)
         if let Ok(mut forge_file) = archive.by_name("META-INF/mods.toml") {
             let mut content = String::new();
             forge_file
                 .read_to_string(&mut content)
                 .map_err(|e| format!("Failed to read mods.toml: {}", e))?;
-            
+
             let toml: TomlValue = toml::from_str(&content)
                 .map_err(|e| format!("Failed to parse mods.toml: {}", e))?;
-            
+
             if let Some(mods_array) = toml.get("mods").and_then(|v| v.as_array()) {
                 if let Some(first_mod) = mods_array.first() {
                     let loader_type = if file_name.to_lowercase().contains("neoforge") {
@@ -1084,24 +1149,27 @@ async fn get_mod_info_single(path: &std::path::Path) -> Result<Option<ModJarInfo
                     } else {
                         "forge"
                     };
-                    
+
                     return Ok(Some(ModJarInfo {
                         file_name: file_name.clone(),
-                        mod_name: first_mod.get("modId")
+                        mod_name: first_mod
+                            .get("modId")
                             .and_then(|v| v.as_str())
                             .or_else(|| first_mod.get("displayName").and_then(|v| v.as_str()))
                             .map(|s| s.to_string()),
-                        mod_version: first_mod.get("version").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                        mod_version: first_mod
+                            .get("version")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
                         loader: Some(loader_type.to_string()),
                         disabled: false,
                     }));
                 }
             }
         }
-        
+
         Ok(None)
     })
     .await
     .map_err(|e| format!("Task join error: {}", e))?
 }
-

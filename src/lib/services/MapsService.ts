@@ -1,7 +1,11 @@
-import { invoke } from '@tauri-apps/api/core';
-import { get } from 'svelte/store';
-import { settings } from '../stores/settings';
-import type { LocalWorld, WorldDownload, MinecraftDirectoryInfo } from '../types';
+import { invoke } from "@tauri-apps/api/core";
+import { get } from "svelte/store";
+import { settings } from "../stores/settings";
+import type {
+  LocalWorld,
+  WorldDownload,
+  MinecraftDirectoryInfo,
+} from "../types";
 
 export class MapsService {
   static async loadWorlds(): Promise<LocalWorld[]> {
@@ -11,54 +15,69 @@ export class MapsService {
   static async getLocalWorlds(): Promise<LocalWorld[]> {
     const minecraftPath = get(settings).general.game_directory;
     if (!minecraftPath) {
-      throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
+      throw new Error(
+        "Minecraft directory not found. Please set the Minecraft path in settings.",
+      );
     }
-    return invoke('get_local_worlds', { minecraftPath });
+    return invoke("get_local_worlds", { minecraftPath });
   }
 
   static async deleteWorld(worldFolder: string): Promise<void> {
     const minecraftPath = get(settings).general.game_directory;
     if (!minecraftPath) {
-      throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
+      throw new Error(
+        "Minecraft directory not found. Please set the Minecraft path in settings.",
+      );
     }
-    return invoke('delete_world', { minecraftPath, worldFolder });
+    return invoke("delete_world", { minecraftPath, worldFolder });
   }
 
   static async backupWorld(worldFolder: string): Promise<string> {
     const minecraftPath = get(settings).general.game_directory;
     if (!minecraftPath) {
-      throw new Error('Minecraft directory not found. Please set the Minecraft path in settings.');
+      throw new Error(
+        "Minecraft directory not found. Please set the Minecraft path in settings.",
+      );
     }
-    return invoke('backup_world', { minecraftPath, worldFolder });
+    return invoke("backup_world", { minecraftPath, worldFolder });
   }
 
   static getWorldStats(worlds: LocalWorld[]) {
     const totalWorlds = worlds.length;
     const totalSize = worlds.reduce((sum, world) => sum + world.size_mb, 0);
-    const lastPlayedWorld = worlds.reduce((latest, world) => 
-      (world?.last_played || 0) > (latest?.last_played || 0) ? world : latest
-    , worlds[0]);
+    const lastPlayedWorld = worlds.reduce(
+      (latest, world) =>
+        (world?.last_played || 0) > (latest?.last_played || 0) ? world : latest,
+      worlds[0],
+    );
 
-    const gameModeCounts = worlds.reduce((counts, world) => {
-      counts[world?.game_mode as string] = (counts[world?.game_mode as string] || 0) + 1;
-      return counts;
-    }, {} as Record<string, number>);
+    const gameModeCounts = worlds.reduce(
+      (counts, world) => {
+        counts[world?.game_mode as string] =
+          (counts[world?.game_mode as string] || 0) + 1;
+        return counts;
+      },
+      {} as Record<string, number>,
+    );
 
     return {
       totalWorlds,
       totalSizeMB: totalSize,
       lastPlayedWorld,
-      gameModeCounts
+      gameModeCounts,
     };
   }
 
-  static filterWorlds(worlds: LocalWorld[], filters: {
-    gameMode?: string;
-    minSize?: number;
-    maxSize?: number;
-    searchTerm?: string;
-  }): LocalWorld[] {
-    return worlds.filter(world => {
+  static filterWorlds(
+    worlds: LocalWorld[],
+    filters: {
+      gameMode?: string;
+      minSize?: number;
+      maxSize?: number;
+      searchTerm?: string;
+    },
+  ): LocalWorld[] {
+    return worlds.filter((world) => {
       if (filters.gameMode && world.game_mode !== filters.gameMode) {
         return false;
       }
@@ -70,8 +89,10 @@ export class MapsService {
       }
       if (filters.searchTerm) {
         const term = filters.searchTerm.toLowerCase();
-        if (!world.name.toLowerCase().includes(term) && 
-            !world.folder_name.toLowerCase().includes(term)) {
+        if (
+          !world.name.toLowerCase().includes(term) &&
+          !world.folder_name.toLowerCase().includes(term)
+        ) {
           return false;
         }
       }
@@ -79,20 +100,24 @@ export class MapsService {
     });
   }
 
-  static sortWorlds(worlds: LocalWorld[], sortBy: 'name' | 'last_played' | 'size' | 'created', ascending = true): LocalWorld[] {
+  static sortWorlds(
+    worlds: LocalWorld[],
+    sortBy: "name" | "last_played" | "size" | "created",
+    ascending = true,
+  ): LocalWorld[] {
     return [...worlds].sort((a, b) => {
       let cmp = 0;
       switch (sortBy) {
-        case 'name':
+        case "name":
           cmp = a.name.localeCompare(b.name);
           break;
-        case 'last_played':
+        case "last_played":
           cmp = (a.last_played || 0) - (b.last_played || 0);
           break;
-        case 'size':
+        case "size":
           cmp = a.size_mb - b.size_mb;
           break;
-        case 'created':
+        case "created":
           cmp = a.created - b.created;
           break;
       }
@@ -109,7 +134,7 @@ export class MapsService {
   }
 
   static formatLastPlayed(timestamp: number): string {
-    if (!timestamp) return 'Never';
+    if (!timestamp) return "Never";
     const date = new Date(timestamp);
     return date.toLocaleString();
   }
@@ -117,37 +142,53 @@ export class MapsService {
   static async getStatistics() {
     try {
       const worlds = await this.getLocalWorlds();
-      
+
       const totalWorlds = worlds.length;
-      const totalBackups = worlds.reduce((sum, world) => sum + (world.backup_count || 0), 0);
-      const totalSizeMB = worlds.reduce((sum, world) => sum + (world.size_mb || 0), 0);
-      
-      const averageBackupsPerWorld = totalWorlds > 0 
-        ? Math.round((totalBackups / totalWorlds) * 10) / 10 
-        : 0;
+      const totalBackups = worlds.reduce(
+        (sum, world) => sum + (world.backup_count || 0),
+        0,
+      );
+      const totalSizeMB = worlds.reduce(
+        (sum, world) => sum + (world.size_mb || 0),
+        0,
+      );
+
+      const averageBackupsPerWorld =
+        totalWorlds > 0
+          ? Math.round((totalBackups / totalWorlds) * 10) / 10
+          : 0;
 
       const lastPlayedWorld = worlds
-        .filter(world => world.last_played && world.last_played > 0)
+        .filter((world) => world.last_played && world.last_played > 0)
         .sort((a, b) => (b.last_played || 0) - (a.last_played || 0))[0];
 
-      const largestWorld = worlds.length > 0
-        ? worlds.reduce((largest, world) => 
-            world.size_mb > largest.size_mb ? world : largest
-          , worlds[0])
-        : null;
+      const largestWorld =
+        worlds.length > 0
+          ? worlds.reduce(
+              (largest, world) =>
+                world.size_mb > largest.size_mb ? world : largest,
+              worlds[0],
+            )
+          : null;
 
-      const gameModeCounts = worlds.reduce((counts, world) => {
-        const mode = world.game_mode || 'Unknown';
-        counts[mode] = (counts[mode] || 0) + 1;
-        return counts;
-      }, {} as Record<string, number>);
+      const gameModeCounts = worlds.reduce(
+        (counts, world) => {
+          const mode = world.game_mode || "Unknown";
+          counts[mode] = (counts[mode] || 0) + 1;
+          return counts;
+        },
+        {} as Record<string, number>,
+      );
 
-      const mostCommonGameMode = Object.entries(gameModeCounts)
-        .sort(([, a], [, b]) => b - a)[0]?.[0] || null;
+      const mostCommonGameMode =
+        Object.entries(gameModeCounts).sort(([, a], [, b]) => b - a)[0]?.[0] ||
+        null;
 
       // Note: Hardcore is typically Survival mode with hardcore flag in older versions
       // In modern Minecraft, it's a separate game mode, but we can check for cheats disabled
-      const hardcoreCount = worlds.filter(w => !w.has_cheats && w.game_mode === 'Survival').length;
+      const hardcoreCount = worlds.filter(
+        (w) => !w.has_cheats && w.game_mode === "Survival",
+      ).length;
 
       return {
         totalWorlds,
@@ -158,10 +199,10 @@ export class MapsService {
         largestWorld,
         gameModeCounts,
         mostCommonGameMode,
-        hardcoreCount
+        hardcoreCount,
       };
     } catch (error) {
-      console.error('Failed to get world statistics:', error);
+      console.error("Failed to get world statistics:", error);
       // Return empty stats on error
       return {
         totalWorlds: 0,
@@ -172,7 +213,7 @@ export class MapsService {
         largestWorld: null,
         gameModeCounts: {},
         mostCommonGameMode: null,
-        hardcoreCount: 0
+        hardcoreCount: 0,
       };
     }
   }

@@ -3,14 +3,14 @@
  * Handles auto-update functionality
  */
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from "@tauri-apps/api/core";
 
 /**
  * Check for available updates
  * @returns Promise with update info or null if no update available
  */
 export async function checkForUpdates(): Promise<any> {
-    return await invoke('check_for_updates');
+  return await invoke("check_for_updates");
 }
 
 /**
@@ -18,7 +18,7 @@ export async function checkForUpdates(): Promise<any> {
  * @returns Promise that resolves when update is installed
  */
 export async function installUpdate(): Promise<void> {
-    return await invoke('install_update');
+  return await invoke("install_update");
 }
 
 /**
@@ -26,5 +26,5 @@ export async function installUpdate(): Promise<void> {
  * @returns Promise with current version string
  */
 export async function getCurrentVersion(): Promise<string> {
-    return await invoke('get_current_version');
+  return await invoke("get_current_version");
 }

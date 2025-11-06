@@ -222,7 +222,7 @@ impl Launchable for FabricLaunchable {
                 Some(&context.installation.id),
             );
         }
-        
+
         // Track if we need to download/install Fabric files
         let need_fabric_files = !fabric_json.exists() || !fabric_jar.exists();
 
@@ -230,264 +230,285 @@ impl Launchable for FabricLaunchable {
         let profile_json: String;
         let mc_version: String;
         let client = Client::new();
-        
+
         if need_fabric_files {
             // 2. Get version metadata from version.extra
-        use crate::installations::get_version;
-        let version_data = get_version(version_id.clone()).await;
-        if version_data.is_none() {
-            crate::logging::Logger::debug_global(
-                &format!(
-                    "Could not find version data for installation's version_id: {}",
-                    version_id
-                ),
-                Some(&context.installation.id),
-            );
-        }
+            use crate::installations::get_version;
+            let version_data = get_version(version_id.clone()).await;
+            if version_data.is_none() {
+                crate::logging::Logger::debug_global(
+                    &format!(
+                        "Could not find version data for installation's version_id: {}",
+                        version_id
+                    ),
+                    Some(&context.installation.id),
+                );
+            }
             let version_data =
                 version_data.ok_or("Could not find version data for installation's version_id")?;
             let extra = &version_data.extra;
-            
+
             // Extract Minecraft version and Fabric loader version
             mc_version = extra
                 .get("minecraft_version")
                 .and_then(|v| v.as_str())
                 .ok_or("No 'minecraft_version' in version.extra for Fabric")?
-                .to_string();        let fabric_version = extra
-            .get("version")
-            .and_then(|v| v.as_str())
-            .ok_or("No 'version' in version.extra for Fabric loader")?;
-        
-        crate::logging::Logger::debug_global(
-            &format!("Installing Fabric: MC {} with loader {}", mc_version, fabric_version),
-            Some(&context.installation.id),
-        );
-        
-        // 3. Ensure version subdirectory exists
-        let version_subdir = versions_dir.join(version_id);
-        if !version_subdir.exists() {
+                .to_string();
+            let fabric_version = extra
+                .get("version")
+                .and_then(|v| v.as_str())
+                .ok_or("No 'version' in version.extra for Fabric loader")?;
+
             crate::logging::Logger::debug_global(
-                &format!("Creating version subdir: {}", version_subdir.display()),
+                &format!(
+                    "Installing Fabric: MC {} with loader {}",
+                    mc_version, fabric_version
+                ),
                 Some(&context.installation.id),
             );
-            crate::ensure_folder_sync(&version_subdir)
-                .map_err(|e| format!("Failed to create version dir: {e}"))?;
-        }
-        
-        // 4. Download Fabric profile JSON directly from Meta API
-        // This is the same method used by Iris Installer - simpler than running installer JAR
-        let profile_url = format!(
-            "https://meta.fabricmc.net/v2/versions/loader/{}/{}/profile/json",
-            mc_version, fabric_version
-        );
-        
-        crate::logging::Logger::debug_global(
-            &format!("Downloading Fabric profile from: {}", profile_url),
-            Some(&context.installation.id),
-        );
-        
-        let downloaded_profile_json = client
-            .get(&profile_url)
-            .send()
-            .await
-            .map_err(|e| format!("Failed to download Fabric profile: {e}"))?
-            .text()
-            .await
-            .map_err(|e| format!("Failed to read Fabric profile: {e}"))?;
-        
-        // 5. For IrisFabric, modify the JSON to add JVM arguments
-        profile_json = if version_id.contains("iris-fabric") {
-            // Parse JSON to add Iris-specific JVM arguments
-            match serde_json::from_str::<serde_json::Value>(&downloaded_profile_json) {
-                Ok(mut json_obj) => {
-                    // Log original ID
-                    if let Some(original_id) = json_obj.get("id").and_then(|i| i.as_str()) {
-                        crate::logging::Logger::debug_global(
-                            &format!("Original JSON id: {}", original_id),
-                            Some(&context.installation.id),
-                        );
-                    }
-                    
-                    // Get or create arguments -> jvm array
-                    let jvm_args = json_obj
-                        .get_mut("arguments")
-                        .and_then(|a| a.as_object_mut())
-                        .and_then(|args| args.get_mut("jvm"))
-                        .and_then(|jvm| jvm.as_array_mut());
-                    
-                    if let Some(jvm_args) = jvm_args {
-                        // Add Iris-specific JVM arguments
-                        jvm_args.push(serde_json::Value::String("-Diris.installer=true".to_string()));
-                        
-                        // Add custom mods folder path
-                        let minecraft_dir = std::path::PathBuf::from(&context.minecraft_dir);
-                        let mods_folder = if version_id.contains("beta") {
-                            minecraft_dir.join("iris-beta-reserved").join(&mc_version)
-                        } else {
-                            minecraft_dir.join("iris-reserved").join(&mc_version)
-                        };
-                        
-                        crate::logging::Logger::debug_global(
-                            &format!("Setting Fabric mods folder to: {}", mods_folder.display()),
-                            Some(&context.installation.id),
-                        );
-                        
-                        jvm_args.push(serde_json::Value::String(
-                            format!("-Dfabric.modsFolder={}", mods_folder.display())
-                        ));
-                    }
-                    
-                    // Update version ID to match our folder/file naming
-                    // The downloaded JSON has id like "fabric-loader-0.17.3-1.21.10"
-                    // We need to change it to "iris-fabric-loader-0.17.3-1.21.10"
-                    if let Some(id_str) = json_obj.get("id").and_then(|i| i.as_str()) {
-                        let new_id = format!("iris-{}", id_str);
-                        json_obj["id"] = serde_json::Value::String(new_id.clone());
-                        
-                        crate::logging::Logger::debug_global(
-                            &format!("Modified JSON id to: {}", new_id),
-                            Some(&context.installation.id),
-                        );
-                    }
-                    
-                    serde_json::to_string_pretty(&json_obj)
-                        .map_err(|e| format!("Failed to serialize modified profile JSON: {e}"))?
-                }
-                Err(e) => {
-                    crate::logging::Logger::debug_global(
-                        &format!("Warning: Could not parse profile JSON for modification: {e}"),
-                        Some(&context.installation.id),
-                    );
-                    downloaded_profile_json // Use original if parsing fails
-                }
+
+            // 3. Ensure version subdirectory exists
+            let version_subdir = versions_dir.join(version_id);
+            if !version_subdir.exists() {
+                crate::logging::Logger::debug_global(
+                    &format!("Creating version subdir: {}", version_subdir.display()),
+                    Some(&context.installation.id),
+                );
+                crate::ensure_folder_sync(&version_subdir)
+                    .map_err(|e| format!("Failed to create version dir: {e}"))?;
             }
-        } else {
-            downloaded_profile_json
-        };
-        
-        // 6. Write profile JSON
-        crate::write_file_atomic_async(&fabric_json, profile_json.as_bytes())
-            .await
-            .map_err(|e| format!("Failed to write Fabric profile JSON: {e}"))?;
-        
-        crate::logging::Logger::debug_global(
-            &format!("Created Fabric profile: {}", fabric_json.display()),
-            Some(&context.installation.id),
-        );
-        
-        // 7. Ensure the parent vanilla Minecraft version JAR exists and copy it
-        // The Fabric version JAR should be a copy of the vanilla Minecraft client JAR
-        // This is referenced by the "inheritsFrom" field in the profile JSON
-        
-        // Parse the JSON to get the inheritsFrom version
-        let profile_parsed: serde_json::Value = serde_json::from_str(&profile_json)
-            .map_err(|e| format!("Failed to parse profile JSON to get inheritsFrom: {e}"))?;
-        
-        let parent_version = profile_parsed
-            .get("inheritsFrom")
-            .and_then(|v| v.as_str())
-            .ok_or("No 'inheritsFrom' in Fabric profile JSON")?;
-        
-        crate::logging::Logger::debug_global(
-            &format!("Fabric inherits from vanilla version: {}", parent_version),
-            Some(&context.installation.id),
-        );
-        
-        // Ensure the parent vanilla version exists (downloads if missing)
-        let resolved_parent = crate::launcher::utils::ensure_version_manifest_and_jar(
-            parent_version,
-            &context.minecraft_dir,
-        )
-        .await
-        .map_err(|e| format!("Failed to ensure parent Minecraft version: {e}"))?;
-        
-        // Copy the vanilla JAR to the Fabric version folder
-        let parent_jar = versions_dir
-            .join(&resolved_parent)
-            .join(format!("{}.jar", resolved_parent));
-        
-        if !parent_jar.exists() {
-            return Err(format!("Parent Minecraft JAR not found: {}", parent_jar.display()));
-        }
-        
-        crate::logging::Logger::debug_global(
-            &format!("Copying vanilla JAR from: {}", parent_jar.display()),
-            Some(&context.installation.id),
-        );
-        
-        tokio::fs::copy(&parent_jar, &fabric_jar)
-            .await
-            .map_err(|e| format!("Failed to copy vanilla JAR to Fabric version: {e}"))?;
-        
-        crate::logging::Logger::debug_global(
-            &format!("Created Fabric version JAR (copy of vanilla): {}", fabric_jar.display()),
-            Some(&context.installation.id),
-        );
-    } else {
-        // Fabric files already exist, just read the existing JSON for library checking
-        crate::logging::Logger::debug_global(
-            "Fabric manifest and JAR already exist, reading existing JSON",
-            Some(&context.installation.id),
-        );
-        
-        profile_json = tokio::fs::read_to_string(&fabric_json)
-            .await
-            .map_err(|e| format!("Failed to read existing Fabric profile JSON: {e}"))?;
-        
-        // Extract mc_version from the existing installation metadata
-        use crate::installations::get_version;
-        let version_data = get_version(version_id.clone()).await;
-        if let Some(version_data) = version_data {
-            if let Some(mc_ver) = version_data.extra.get("minecraft_version").and_then(|v| v.as_str()) {
-                mc_version = mc_ver.to_string();
+
+            // 4. Download Fabric profile JSON directly from Meta API
+            // This is the same method used by Iris Installer - simpler than running installer JAR
+            let profile_url = format!(
+                "https://meta.fabricmc.net/v2/versions/loader/{}/{}/profile/json",
+                mc_version, fabric_version
+            );
+
+            crate::logging::Logger::debug_global(
+                &format!("Downloading Fabric profile from: {}", profile_url),
+                Some(&context.installation.id),
+            );
+
+            let downloaded_profile_json = client
+                .get(&profile_url)
+                .send()
+                .await
+                .map_err(|e| format!("Failed to download Fabric profile: {e}"))?
+                .text()
+                .await
+                .map_err(|e| format!("Failed to read Fabric profile: {e}"))?;
+
+            // 5. For IrisFabric, modify the JSON to add JVM arguments
+            profile_json = if version_id.contains("iris-fabric") {
+                // Parse JSON to add Iris-specific JVM arguments
+                match serde_json::from_str::<serde_json::Value>(&downloaded_profile_json) {
+                    Ok(mut json_obj) => {
+                        // Log original ID
+                        if let Some(original_id) = json_obj.get("id").and_then(|i| i.as_str()) {
+                            crate::logging::Logger::debug_global(
+                                &format!("Original JSON id: {}", original_id),
+                                Some(&context.installation.id),
+                            );
+                        }
+
+                        // Get or create arguments -> jvm array
+                        let jvm_args = json_obj
+                            .get_mut("arguments")
+                            .and_then(|a| a.as_object_mut())
+                            .and_then(|args| args.get_mut("jvm"))
+                            .and_then(|jvm| jvm.as_array_mut());
+
+                        if let Some(jvm_args) = jvm_args {
+                            // Add Iris-specific JVM arguments
+                            jvm_args.push(serde_json::Value::String(
+                                "-Diris.installer=true".to_string(),
+                            ));
+
+                            // Add custom mods folder path
+                            let minecraft_dir = std::path::PathBuf::from(&context.minecraft_dir);
+                            let mods_folder = if version_id.contains("beta") {
+                                minecraft_dir.join("iris-beta-reserved").join(&mc_version)
+                            } else {
+                                minecraft_dir.join("iris-reserved").join(&mc_version)
+                            };
+
+                            crate::logging::Logger::debug_global(
+                                &format!(
+                                    "Setting Fabric mods folder to: {}",
+                                    mods_folder.display()
+                                ),
+                                Some(&context.installation.id),
+                            );
+
+                            jvm_args.push(serde_json::Value::String(format!(
+                                "-Dfabric.modsFolder={}",
+                                mods_folder.display()
+                            )));
+                        }
+
+                        // Update version ID to match our folder/file naming
+                        // The downloaded JSON has id like "fabric-loader-0.17.3-1.21.10"
+                        // We need to change it to "iris-fabric-loader-0.17.3-1.21.10"
+                        if let Some(id_str) = json_obj.get("id").and_then(|i| i.as_str()) {
+                            let new_id = format!("iris-{}", id_str);
+                            json_obj["id"] = serde_json::Value::String(new_id.clone());
+
+                            crate::logging::Logger::debug_global(
+                                &format!("Modified JSON id to: {}", new_id),
+                                Some(&context.installation.id),
+                            );
+                        }
+
+                        serde_json::to_string_pretty(&json_obj).map_err(|e| {
+                            format!("Failed to serialize modified profile JSON: {e}")
+                        })?
+                    }
+                    Err(e) => {
+                        crate::logging::Logger::debug_global(
+                            &format!("Warning: Could not parse profile JSON for modification: {e}"),
+                            Some(&context.installation.id),
+                        );
+                        downloaded_profile_json // Use original if parsing fails
+                    }
+                }
             } else {
-                return Err("No 'minecraft_version' in version.extra for Fabric".to_string());
+                downloaded_profile_json
+            };
+
+            // 6. Write profile JSON
+            crate::write_file_atomic_async(&fabric_json, profile_json.as_bytes())
+                .await
+                .map_err(|e| format!("Failed to write Fabric profile JSON: {e}"))?;
+
+            crate::logging::Logger::debug_global(
+                &format!("Created Fabric profile: {}", fabric_json.display()),
+                Some(&context.installation.id),
+            );
+
+            // 7. Ensure the parent vanilla Minecraft version JAR exists and copy it
+            // The Fabric version JAR should be a copy of the vanilla Minecraft client JAR
+            // This is referenced by the "inheritsFrom" field in the profile JSON
+
+            // Parse the JSON to get the inheritsFrom version
+            let profile_parsed: serde_json::Value = serde_json::from_str(&profile_json)
+                .map_err(|e| format!("Failed to parse profile JSON to get inheritsFrom: {e}"))?;
+
+            let parent_version = profile_parsed
+                .get("inheritsFrom")
+                .and_then(|v| v.as_str())
+                .ok_or("No 'inheritsFrom' in Fabric profile JSON")?;
+
+            crate::logging::Logger::debug_global(
+                &format!("Fabric inherits from vanilla version: {}", parent_version),
+                Some(&context.installation.id),
+            );
+
+            // Ensure the parent vanilla version exists (downloads if missing)
+            let resolved_parent = crate::launcher::utils::ensure_version_manifest_and_jar(
+                parent_version,
+                &context.minecraft_dir,
+            )
+            .await
+            .map_err(|e| format!("Failed to ensure parent Minecraft version: {e}"))?;
+
+            // Copy the vanilla JAR to the Fabric version folder
+            let parent_jar = versions_dir
+                .join(&resolved_parent)
+                .join(format!("{}.jar", resolved_parent));
+
+            if !parent_jar.exists() {
+                return Err(format!(
+                    "Parent Minecraft JAR not found: {}",
+                    parent_jar.display()
+                ));
             }
+
+            crate::logging::Logger::debug_global(
+                &format!("Copying vanilla JAR from: {}", parent_jar.display()),
+                Some(&context.installation.id),
+            );
+
+            tokio::fs::copy(&parent_jar, &fabric_jar)
+                .await
+                .map_err(|e| format!("Failed to copy vanilla JAR to Fabric version: {e}"))?;
+
+            crate::logging::Logger::debug_global(
+                &format!(
+                    "Created Fabric version JAR (copy of vanilla): {}",
+                    fabric_jar.display()
+                ),
+                Some(&context.installation.id),
+            );
         } else {
-            return Err("Could not find version data for installation's version_id".to_string());
+            // Fabric files already exist, just read the existing JSON for library checking
+            crate::logging::Logger::debug_global(
+                "Fabric manifest and JAR already exist, reading existing JSON",
+                Some(&context.installation.id),
+            );
+
+            profile_json = tokio::fs::read_to_string(&fabric_json)
+                .await
+                .map_err(|e| format!("Failed to read existing Fabric profile JSON: {e}"))?;
+
+            // Extract mc_version from the existing installation metadata
+            use crate::installations::get_version;
+            let version_data = get_version(version_id.clone()).await;
+            if let Some(version_data) = version_data {
+                if let Some(mc_ver) = version_data
+                    .extra
+                    .get("minecraft_version")
+                    .and_then(|v| v.as_str())
+                {
+                    mc_version = mc_ver.to_string();
+                } else {
+                    return Err("No 'minecraft_version' in version.extra for Fabric".to_string());
+                }
+            } else {
+                return Err("Could not find version data for installation's version_id".to_string());
+            }
         }
-    }
-        
+
         // 8. Ensure all libraries (including Fabric Loader) are downloaded
         // This is CRITICAL - without this, the Fabric Loader JAR won't be downloaded from Maven!
         crate::logging::Logger::debug_global(
             "Ensuring Fabric libraries are downloaded...",
             Some(&context.installation.id),
         );
-        
+
         // Re-parse the JSON to get the manifest for library checking
         let manifest_for_libs: serde_json::Value = serde_json::from_str(&profile_json)
             .map_err(|e| format!("Failed to parse profile JSON for library check: {e}"))?;
-        
+
         let libraries_path = PathBuf::from(&context.minecraft_dir).join("libraries");
         crate::launcher::utils::ensure_libraries(&manifest_for_libs, &libraries_path)
             .await
             .map_err(|e| format!("Failed to ensure Fabric libraries: {e}"))?;
-        
+
         crate::logging::Logger::debug_global(
             "All Fabric libraries downloaded successfully",
             Some(&context.installation.id),
         );
-        
+
         // 9. For IrisFabric, download and install Iris+Sodium mods
         if version_id.contains("iris-fabric") {
             crate::logging::Logger::debug_global(
                 "Downloading Iris+Sodium mods...",
                 Some(&context.installation.id),
             );
-            
+
             let is_beta = version_id.contains("beta");
             let zip_name = if is_beta {
                 format!("Iris-Sodium-Beta-{}.zip", &mc_version)
             } else {
                 format!("Iris-Sodium-{}.zip", &mc_version)
             };
-            
+
             let download_url = format!(
                 "https://github.com/IrisShaders/Iris-Installer-Files/releases/latest/download/{}",
                 zip_name
             );
-            
+
             // Create mods directory
             let minecraft_dir = std::path::PathBuf::from(&context.minecraft_dir);
             let mods_folder = if is_beta {
@@ -495,62 +516,63 @@ impl Launchable for FabricLaunchable {
             } else {
                 minecraft_dir.join("iris-reserved").join(&mc_version)
             };
-            
+
             crate::ensure_folder_sync(&mods_folder)
                 .map_err(|e| format!("Failed to create Iris mods folder: {e}"))?;
-            
+
             // Download ZIP file
             crate::logging::Logger::debug_global(
                 &format!("Downloading from: {}", download_url),
                 Some(&context.installation.id),
             );
-            
+
             let zip_response = client
                 .get(&download_url)
                 .send()
                 .await
                 .map_err(|e| format!("Failed to download Iris mods ZIP: {e}"))?;
-            
+
             let zip_bytes = zip_response
                 .bytes()
                 .await
                 .map_err(|e| format!("Failed to read Iris mods ZIP: {e}"))?;
-            
+
             // Extract ZIP to mods folder
             let cursor = std::io::Cursor::new(zip_bytes);
             let mut archive = zip::ZipArchive::new(cursor)
                 .map_err(|e| format!("Failed to open Iris mods ZIP: {e}"))?;
-            
+
             for i in 0..archive.len() {
-                let mut file = archive.by_index(i)
+                let mut file = archive
+                    .by_index(i)
                     .map_err(|e| format!("Failed to read ZIP entry: {e}"))?;
-                
+
                 let file_name = file.name().to_string();
-                
+
                 // Only extract files from the "mods/" directory
                 if file_name.starts_with("mods/") && !file.is_dir() {
                     let mod_name = file_name.strip_prefix("mods/").unwrap();
                     let mod_path = mods_folder.join(mod_name);
-                    
+
                     crate::logging::Logger::debug_global(
                         &format!("Extracting: {}", mod_name),
                         Some(&context.installation.id),
                     );
-                    
+
                     let mut out_file = std::fs::File::create(&mod_path)
                         .map_err(|e| format!("Failed to create mod file {}: {e}", mod_name))?;
-                    
+
                     std::io::copy(&mut file, &mut out_file)
                         .map_err(|e| format!("Failed to extract mod {}: {e}", mod_name))?;
                 }
             }
-            
+
             crate::logging::Logger::debug_global(
                 &format!("Installed Iris+Sodium mods to: {}", mods_folder.display()),
                 Some(&context.installation.id),
             );
         }
-        
+
         Ok(())
     }
 
@@ -694,9 +716,7 @@ impl Launchable for FabricLaunchable {
             } else {
                 // Relative paths are relative to .minecraft/kable/
                 // They already include the folder type prefix (e.g., "mods/{id}")
-                PathBuf::from(&context.minecraft_dir)
-                    .join("kable")
-                    .join(p)
+                PathBuf::from(&context.minecraft_dir).join("kable").join(p)
             }
         } else {
             // Default: use standard Fabric mods folder
@@ -704,8 +724,11 @@ impl Launchable for FabricLaunchable {
         };
 
         // Set the mods folder via JVM property (this is what Fabric Loader reads)
-        cleaned_jvm_args.push(format!("-Dfabric.modsFolder={}", mods_path.to_string_lossy()));
-        
+        cleaned_jvm_args.push(format!(
+            "-Dfabric.modsFolder={}",
+            mods_path.to_string_lossy()
+        ));
+
         crate::logging::Logger::debug_global(
             &format!("Using Fabric mods folder: {}", mods_path.display()),
             Some(&context.installation.id),

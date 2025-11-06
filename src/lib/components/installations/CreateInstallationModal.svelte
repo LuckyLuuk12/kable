@@ -1,6 +1,4 @@
 <!-- @component
-◄!--
-@component
 CreateInstallationModal - Modal dialog for creating new Minecraft installations
 
 Allows users to select a Minecraft version, mod loader (Vanilla, Fabric, Forge, etc.),
@@ -14,183 +12,197 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
 ```
 -->
 <script lang="ts">
-  import { type VersionData, Loader, InstallationService, type LoaderKind, type KableInstallation } from '$lib';
-  import { onMount } from 'svelte';
-  import { installations, versions } from '$lib/stores/installation';
-  import * as installationsApi from '$lib/api/installations';
-  import Icon from '../Icon.svelte';
+import { onMount } from "svelte";
+import {
+  Loader,
+  InstallationService,
+  Icon,
+  installations,
+  versions,
+} from "$lib";
+import type { VersionData, LoaderKind } from "$lib";
 
-  let dialogRef: HTMLDialogElement;
-  let availableVersions: VersionData[] = [];
-  let loaderOptions: LoaderKind[] = [];
-  let selectedLoader: LoaderKind = "Vanilla";
-  let selectedVersionId: string = '';
-  let searchQuery: string = '';
-  let isLoading = false;
-  let error: string | null = null;
-  let versionListRef: HTMLSelectElement;
-  
-  // Copy from existing installation
-  let sourceInstallationId: string | null = null;
-  let copyMods = false;
-  let copyResourcePacks = false;
-  let copyShaders = false;
-  let showCopySection = false;
-  
-  const INITIAL_DISPLAY_COUNT = 50;
-  const LOAD_MORE_COUNT = 50;
-  let displayCount = INITIAL_DISPLAY_COUNT;
+let dialogRef: HTMLDialogElement;
+let availableVersions: VersionData[] = [];
+let loaderOptions: LoaderKind[] = [];
+let selectedLoader: LoaderKind = "Vanilla";
+let selectedVersionId: string = "";
+let searchQuery: string = "";
+let isLoading = false;
+let error: string | null = null;
+let versionListRef: HTMLSelectElement;
 
-  // Get available installations for copying
-  $: availableInstallations = $installations;
-  
-  // Toggle all copy options
-  $: allCopyOptionsSelected = copyMods && copyResourcePacks && copyShaders;
-  $: someCopyOptionsSelected = copyMods || copyResourcePacks || copyShaders;
-  
-  function toggleAllCopyOptions() {
-    if (allCopyOptionsSelected) {
-      copyMods = false;
-      copyResourcePacks = false;
-      copyShaders = false;
+// Copy from existing installation
+let sourceInstallationId: string | null = null;
+let copyMods = false;
+let copyResourcePacks = false;
+let copyShaders = false;
+let showCopySection = false;
+
+const INITIAL_DISPLAY_COUNT = 50;
+const LOAD_MORE_COUNT = 50;
+let displayCount = INITIAL_DISPLAY_COUNT;
+
+// Get available installations for copying
+$: availableInstallations = $installations;
+
+// Toggle all copy options
+$: allCopyOptionsSelected = copyMods && copyResourcePacks && copyShaders;
+$: someCopyOptionsSelected = copyMods || copyResourcePacks || copyShaders;
+
+function toggleAllCopyOptions() {
+  if (allCopyOptionsSelected) {
+    copyMods = false;
+    copyResourcePacks = false;
+    copyShaders = false;
+  } else {
+    copyMods = true;
+    copyResourcePacks = true;
+    copyShaders = true;
+  }
+}
+
+// Reset copy options when source installation changes
+$: if (sourceInstallationId === null) {
+  copyMods = false;
+  copyResourcePacks = false;
+  copyShaders = false;
+}
+
+// Create a map of loader -> versions for O(1) lookup instead of filtering every time
+$: versionsByLoader = availableVersions.reduce((map, version) => {
+  if (!map.has(version.loader)) {
+    map.set(version.loader, []);
+  }
+  map.get(version.loader)!.push(version);
+  return map;
+}, new Map<LoaderKind, VersionData[]>());
+
+$: allVersionsForLoader = versionsByLoader.get(selectedLoader) ?? [];
+
+// Filter by search query
+$: filteredVersions = searchQuery.trim()
+  ? allVersionsForLoader.filter((v) =>
+      v.version_id.toLowerCase().includes(searchQuery.toLowerCase()),
+    )
+  : allVersionsForLoader;
+
+// Only display a subset for performance
+$: displayedVersions = filteredVersions.slice(0, displayCount);
+$: hasMoreVersions = displayedVersions.length < filteredVersions.length;
+
+// Reset display count when loader or search changes
+$: {
+  if (selectedLoader || searchQuery) {
+    displayCount = INITIAL_DISPLAY_COUNT;
+  }
+}
+
+$: if (
+  filteredVersions.length > 0 &&
+  !filteredVersions.find((v) => v.version_id === selectedVersionId)
+) {
+  selectedVersionId = filteredVersions[0]?.version_id ?? "";
+}
+
+function loadMoreVersions() {
+  displayCount += LOAD_MORE_COUNT;
+}
+
+function handleScroll(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  const scrollThreshold = 100; // pixels from bottom
+  const isNearBottom =
+    target.scrollHeight - target.scrollTop - target.clientHeight <
+    scrollThreshold;
+
+  if (isNearBottom && hasMoreVersions) {
+    loadMoreVersions();
+  }
+}
+
+export function open() {
+  // Reset copy options
+  sourceInstallationId = null;
+  copyMods = false;
+  copyResourcePacks = false;
+  copyShaders = false;
+  showCopySection = false;
+
+  dialogRef?.showModal();
+}
+
+export function close() {
+  dialogRef?.close();
+}
+
+onMount(async () => {
+  isLoading = true;
+  try {
+    // Use versions from store if available, otherwise load them
+    if ($versions.length > 0) {
+      availableVersions = $versions;
     } else {
-      copyMods = true;
-      copyResourcePacks = true;
-      copyShaders = true;
+      // Load versions if not already loaded (this will update the store too)
+      availableVersions = await InstallationService.loadVersions();
     }
-  }
-  
-  // Reset copy options when source installation changes
-  $: if (sourceInstallationId === null) {
-    copyMods = false;
-    copyResourcePacks = false;
-    copyShaders = false;
-  }
 
-  // Create a map of loader -> versions for O(1) lookup instead of filtering every time
-  $: versionsByLoader = availableVersions.reduce((map, version) => {
-    if (!map.has(version.loader)) {
-      map.set(version.loader, []);
+    loaderOptions = Array.from(new Set(availableVersions.map((v) => v.loader)));
+    selectedLoader = loaderOptions[0] ?? Loader.Vanilla;
+    if (filteredVersions.length > 0) {
+      selectedVersionId = filteredVersions[0].version_id;
     }
-    map.get(version.loader)!.push(version);
-    return map;
-  }, new Map<LoaderKind, VersionData[]>());
+  } catch (e) {
+    error = "Failed to load versions.";
+  } finally {
+    isLoading = false;
+  }
+});
 
-  $: allVersionsForLoader = versionsByLoader.get(selectedLoader) ?? [];
-  
-  // Filter by search query
-  $: filteredVersions = searchQuery.trim() 
-    ? allVersionsForLoader.filter(v => 
-        v.version_id.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : allVersionsForLoader;
-  
-  // Only display a subset for performance
-  $: displayedVersions = filteredVersions.slice(0, displayCount);
-  $: hasMoreVersions = displayedVersions.length < filteredVersions.length;
-  
-  // Reset display count when loader or search changes
-  $: {
-    if (selectedLoader || searchQuery) {
-      displayCount = INITIAL_DISPLAY_COUNT;
-    }
-  }
-  
-  $: if (filteredVersions.length > 0 && !filteredVersions.find(v => v.version_id === selectedVersionId)) {
-    selectedVersionId = filteredVersions[0]?.version_id ?? '';
-  }
+async function confirmCreate() {
+  if (!selectedVersionId) return;
+  isLoading = true;
+  error = null;
 
-  function loadMoreVersions() {
-    displayCount += LOAD_MORE_COUNT;
-  }
+  try {
+    // Check if we're copying from an existing installation
+    if (
+      sourceInstallationId &&
+      (copyMods || copyResourcePacks || copyShaders)
+    ) {
+      const sourceInstallation = availableInstallations.find(
+        (i) => i.id === sourceInstallationId,
+      );
 
-  function handleScroll(event: Event) {
-    const target = event.target as HTMLSelectElement;
-    const scrollThreshold = 100; // pixels from bottom
-    const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < scrollThreshold;
-    
-    if (isNearBottom && hasMoreVersions) {
-      loadMoreVersions();
-    }
-  }
-
-  export function open() {
-    // Reset copy options
-    sourceInstallationId = null;
-    copyMods = false;
-    copyResourcePacks = false;
-    copyShaders = false;
-    showCopySection = false;
-    
-    dialogRef?.showModal();
-  }
-  
-  export function close() {
-    dialogRef?.close();
-  }
-
-  onMount(async () => {
-    isLoading = true;
-    try {
-      // Use versions from store if available, otherwise load them
-      if ($versions.length > 0) {
-        availableVersions = $versions;
+      if (sourceInstallation) {
+        await InstallationService.createInstallationFromExisting(
+          selectedVersionId,
+          sourceInstallation,
+          {
+            copyMods,
+            copyResourcePacks,
+            copyShaders,
+          },
+        );
       } else {
-        // Load versions if not already loaded (this will update the store too)
-        availableVersions = await InstallationService.loadVersions();
+        throw new Error("Source installation not found");
       }
-      
-      loaderOptions = Array.from(new Set(availableVersions.map(v => v.loader)));
-      selectedLoader = loaderOptions[0] ?? Loader.Vanilla;
-      if (filteredVersions.length > 0) {
-        selectedVersionId = filteredVersions[0].version_id;
-      }
-    } catch (e) {
-      error = 'Failed to load versions.';
-    } finally {
-      isLoading = false;
+    } else {
+      // Regular installation creation
+      await InstallationService.createInstallation(selectedVersionId);
     }
-  });
 
-  async function confirmCreate() {
-    if (!selectedVersionId) return;
-    isLoading = true;
-    error = null;
-    
-    try {
-      // Check if we're copying from an existing installation
-      if (sourceInstallationId && (copyMods || copyResourcePacks || copyShaders)) {
-        const sourceInstallation = availableInstallations.find(i => i.id === sourceInstallationId);
-        
-        if (sourceInstallation) {
-          await InstallationService.createInstallationFromExisting(
-            selectedVersionId,
-            sourceInstallation,
-            {
-              copyMods,
-              copyResourcePacks,
-              copyShaders
-            }
-          );
-        } else {
-          throw new Error('Source installation not found');
-        }
-      } else {
-        // Regular installation creation
-        await InstallationService.createInstallation(selectedVersionId);
-      }
-      
-      close();
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to create installation.';
-    } finally {
-      isLoading = false;
-    }
-  }
-
-  function cancelCreate() {
     close();
+  } catch (e) {
+    error = e instanceof Error ? e.message : "Failed to create installation.";
+  } finally {
+    isLoading = false;
   }
+}
+
+function cancelCreate() {
+  close();
+}
 </script>
 
 <dialog bind:this={dialogRef} class="create-installation-modal">
@@ -204,8 +216,10 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
         <button
           type="button"
           class="loader-btn {selectedLoader === loader ? 'selected' : ''}"
-          style="background: {InstallationService.getLoaderColor(loader)}20; color: {InstallationService.getLoaderColor(loader)};"
-          on:click={() => selectedLoader = loader}
+          style="background: {InstallationService.getLoaderColor(
+            loader,
+          )}20; color: {InstallationService.getLoaderColor(loader)};"
+          on:click={() => (selectedLoader = loader)}
         >
           <span class="loader-icon">
             <!-- TODO: Change this to Image and add images for all loaders to the assets -->
@@ -215,29 +229,36 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
               forceType="svg"
             />
           </span>
-          <span class="loader-label">{loader.replace(/_/g, ' ').replace(/(^|\s)([a-z])/g, (_, p1, p2) => p1 + p2.toUpperCase())}</span>
+          <span class="loader-label"
+            >{loader
+              .replace(/_/g, " ")
+              .replace(
+                /(^|\s)([a-z])/g,
+                (_, p1, p2) => p1 + p2.toUpperCase(),
+              )}</span
+          >
         </button>
       {/each}
     </div>
     <div class="version-select-section">
       <label for="version-search">
         Search Version:
-        <input 
+        <input
           id="version-search"
-          type="text" 
-          bind:value={searchQuery} 
+          type="text"
+          bind:value={searchQuery}
           placeholder="Search for a version..."
           class="version-search"
         />
       </label>
       <label for="version-select">
         Version:
-        <select 
-          id="version-select" 
-          bind:value={selectedVersionId} 
+        <select
+          id="version-select"
+          bind:value={selectedVersionId}
           bind:this={versionListRef}
           on:scroll={handleScroll}
-          size="10" 
+          size="10"
           class="version-list"
         >
           {#each displayedVersions as version (version.version_id)}
@@ -251,14 +272,17 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
         </button>
       {:else if filteredVersions.length > 0}
         <div class="version-count">
-          Showing all {filteredVersions.length} version{filteredVersions.length !== 1 ? 's' : ''}
+          Showing all {filteredVersions.length} version{filteredVersions.length !==
+          1
+            ? "s"
+            : ""}
         </div>
       {/if}
       {#if searchQuery && filteredVersions.length === 0}
         <div class="no-results">No versions found matching "{searchQuery}"</div>
       {/if}
     </div>
-    
+
     <!-- Copy from existing installation (optional) -->
     <details class="copy-section" bind:open={showCopySection}>
       <summary>
@@ -268,32 +292,35 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
       <div class="copy-content">
         <label for="source-installation">
           Source Installation:
-          <select 
+          <select
             id="source-installation"
             bind:value={sourceInstallationId}
             class="source-select"
           >
             <option value={null}>None - Start fresh</option>
             {#each availableInstallations as installation}
-              <option value={installation.id}>{installation.name} ({installation.version_id})</option>
+              <option value={installation.id}
+                >{installation.name} ({installation.version_id})</option
+              >
             {/each}
           </select>
         </label>
-        
+
         {#if sourceInstallationId}
           <div class="copy-options">
             <div class="copy-option-header">
               <label class="copy-option toggle-all">
-                <input 
-                  type="checkbox" 
+                <input
+                  type="checkbox"
                   checked={allCopyOptionsSelected}
-                  indeterminate={someCopyOptionsSelected && !allCopyOptionsSelected}
+                  indeterminate={someCopyOptionsSelected &&
+                    !allCopyOptionsSelected}
                   on:change={toggleAllCopyOptions}
                 />
                 <span>Select All</span>
               </label>
             </div>
-            
+
             <div class="copy-option-list">
               <label class="copy-option">
                 <input type="checkbox" bind:checked={copyMods} />
@@ -301,29 +328,35 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
                   <Icon name="package" size="sm" />
                   <div class="option-text">
                     <span class="option-label">Copy Mods</span>
-                    <span class="option-description">Mods will be updated/downgraded to match the new version</span>
+                    <span class="option-description"
+                      >Mods will be updated/downgraded to match the new version</span
+                    >
                   </div>
                 </div>
               </label>
-              
+
               <label class="copy-option">
                 <input type="checkbox" bind:checked={copyResourcePacks} />
                 <div class="option-content">
                   <Icon name="image" size="sm" />
                   <div class="option-text">
                     <span class="option-label">Copy Resource Packs</span>
-                    <span class="option-description">Resource packs will be copied as-is</span>
+                    <span class="option-description"
+                      >Resource packs will be copied as-is</span
+                    >
                   </div>
                 </div>
               </label>
-              
+
               <label class="copy-option">
                 <input type="checkbox" bind:checked={copyShaders} />
                 <div class="option-content">
                   <Icon name="sun" size="sm" />
                   <div class="option-text">
                     <span class="option-label">Copy Shaders</span>
-                    <span class="option-description">Shaders will be copied as-is</span>
+                    <span class="option-description"
+                      >Shaders will be copied as-is</span
+                    >
                   </div>
                 </div>
               </label>
@@ -332,12 +365,15 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
         {:else}
           <div class="copy-hint">
             <Icon name="info" size="sm" />
-            <span>Select a source installation to copy mods, resource packs, and shaders</span>
+            <span
+              >Select a source installation to copy mods, resource packs, and
+              shaders</span
+            >
           </div>
         {/if}
       </div>
     </details>
-    
+
     <div class="actions">
       <button type="submit" class="btn btn-primary" disabled={isLoading}>
         {#if isLoading}
@@ -347,13 +383,18 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
           Create
         {/if}
       </button>
-      <button type="button" class="btn btn-secondary" on:click={cancelCreate} disabled={isLoading}>Cancel</button>
+      <button
+        type="button"
+        class="btn btn-secondary"
+        on:click={cancelCreate}
+        disabled={isLoading}>Cancel</button
+      >
     </div>
   </form>
 </dialog>
 
 <style lang="scss">
-@use '@kablan/clean-ui/scss/_variables.scss' as *;
+@use "@kablan/clean-ui/scss/_variables.scss" as *;
 .create-installation-modal {
   padding: 2rem;
   background: var(--container);
@@ -408,7 +449,7 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
-      
+
       .version-search {
         width: 100%;
         padding: 0.6rem;
@@ -418,17 +459,17 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
         color: var(--text);
         font-size: 1rem;
         transition: border-color 0.2s;
-        
+
         &:focus {
           outline: none;
           border-color: var(--primary);
         }
-        
+
         &::placeholder {
           color: var(--placeholder);
         }
       }
-      
+
       .version-list {
         width: 100%;
         padding: 0.5rem;
@@ -438,22 +479,22 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
         color: var(--text);
         font-size: 0.95rem;
         min-height: 300px;
-        
+
         &:focus {
           outline: none;
           border-color: var(--primary);
         }
-        
+
         option {
           padding: 0.4rem;
           cursor: pointer;
-          
+
           &:hover {
             background: color-mix(in srgb, var(--primary), 10%, transparent);
           }
         }
       }
-      
+
       .load-more-btn {
         padding: 0.5rem 1rem;
         border-radius: var(--border-radius);
@@ -462,21 +503,23 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
         color: var(--text);
         font-size: 0.9rem;
         cursor: pointer;
-        transition: background 0.2s, border-color 0.2s;
-        
+        transition:
+          background 0.2s,
+          border-color 0.2s;
+
         &:hover {
           background: color-mix(in srgb, var(--primary), 10%, transparent);
           border-color: var(--primary);
         }
       }
-      
+
       .version-count {
         font-size: 0.85rem;
         color: var(--placeholder);
         text-align: center;
         padding: 0.25rem;
       }
-      
+
       .no-results {
         font-size: 0.9rem;
         color: var(--placeholder);
@@ -485,13 +528,13 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
         font-style: italic;
       }
     }
-    
+
     .copy-section {
       border: 1px solid var(--dark-300);
       border-radius: var(--border-radius);
       padding: 1rem;
       background: var(--card);
-      
+
       summary {
         cursor: pointer;
         font-weight: 600;
@@ -500,18 +543,18 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
         align-items: center;
         gap: 0.5rem;
         user-select: none;
-        
+
         &:hover {
           color: var(--primary);
         }
       }
-      
+
       .copy-content {
         margin-top: 1rem;
         display: flex;
         flex-direction: column;
         gap: 1rem;
-        
+
         .source-select {
           width: 100%;
           padding: 0.6rem;
@@ -520,34 +563,34 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
           background: var(--input);
           color: var(--text);
           font-size: 0.95rem;
-          
+
           &:focus {
             outline: none;
             border-color: var(--primary);
           }
         }
-        
+
         .copy-options {
           display: flex;
           flex-direction: column;
           gap: 0.75rem;
-          
+
           .copy-option-header {
             padding-bottom: 0.5rem;
             border-bottom: 1px solid var(--dark-300);
-            
+
             .toggle-all {
               font-weight: 600;
               color: var(--primary);
             }
           }
-          
+
           .copy-option-list {
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
           }
-          
+
           .copy-option {
             display: flex;
             align-items: flex-start;
@@ -558,36 +601,36 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
             border: 1px solid var(--dark-300);
             cursor: pointer;
             transition: all 0.2s;
-            
+
             &:hover {
               border-color: var(--primary);
               background: color-mix(in srgb, var(--primary), 5%, transparent);
             }
-            
+
             input[type="checkbox"] {
               margin-top: 0.125rem;
               cursor: pointer;
               width: 1.125rem;
               height: 1.125rem;
             }
-            
+
             .option-content {
               display: flex;
               align-items: flex-start;
               gap: 0.5rem;
               flex: 1;
-              
+
               .option-text {
                 display: flex;
                 flex-direction: column;
                 gap: 0.25rem;
-                
+
                 .option-label {
                   font-weight: 500;
                   color: var(--text);
                   font-size: 0.95rem;
                 }
-                
+
                 .option-description {
                   font-size: 0.8rem;
                   color: var(--placeholder);
@@ -597,7 +640,7 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
             }
           }
         }
-        
+
         .copy-hint {
           display: flex;
           align-items: center;
@@ -610,7 +653,7 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
         }
       }
     }
-    
+
     .actions {
       display: flex;
       gap: 1rem;

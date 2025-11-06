@@ -525,7 +525,7 @@ pub async fn refresh_microsoft_token(local_id: String) -> Result<LauncherAccount
     use minecraft_msa_auth::MinecraftAuthorizationFlow;
     use oauth2::{basic::BasicClient, AuthUrl, ClientId, TokenResponse, TokenUrl};
     use reqwest::Client;
-    
+
     // Load accounts and find the one to refresh
     let accounts_json = crate::read_launcher_accounts().await?;
     let account = accounts_json

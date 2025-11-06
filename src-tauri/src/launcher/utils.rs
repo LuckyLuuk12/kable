@@ -390,7 +390,7 @@ pub struct Extract {
     pub exclude: Option<Vec<String>>,
 }
 
-// --- Variable substitution and argument processing ---
+//  Variable substitution and argument processing
 /// Substitute variables in a template string with values from the provided map.
 ///
 /// Variables are in the form `${key}` and are replaced with the corresponding value from `variables`.
@@ -566,7 +566,7 @@ pub fn is_problematic_argument(arg: &str) -> bool {
     false
 }
 
-// --- Classpath and library utilities ---
+//  Classpath and library utilities
 /// Builds the Java classpath string from a list of Minecraft libraries and the main version JAR.
 ///
 /// Used by all loader modules to construct the classpath for launching Minecraft.
@@ -673,7 +673,7 @@ pub fn deduplicate_libraries(libraries: Vec<Library>) -> Vec<Library> {
     library_map.into_values().collect()
 }
 
-// --- Java and JVM utilities ---
+//  Java and JVM utilities
 /// Ensures the version manifest JSON and JAR exist for the given version_id in minecraft_dir.
 /// Downloads them from Mojang if missing.
 pub async fn ensure_version_manifest_and_jar(
@@ -902,8 +902,12 @@ pub async fn ensure_libraries(
                             let group = parts[0];
                             let artifact = parts[1];
                             let version = parts[2];
-                            let classifier = if parts.len() >= 4 { Some(parts[3]) } else { None };
-                            
+                            let classifier = if parts.len() >= 4 {
+                                Some(parts[3])
+                            } else {
+                                None
+                            };
+
                             // Construct Maven path: group/artifact/version/artifact-version[-classifier].jar
                             let group_path = group.replace('.', "/");
                             let jar_filename = if let Some(cls) = classifier {
@@ -911,35 +915,37 @@ pub async fn ensure_libraries(
                             } else {
                                 format!("{}-{}.jar", artifact, version)
                             };
-                            let relative_path = format!("{}/{}/{}/{}", group_path, artifact, version, jar_filename);
+                            let relative_path =
+                                format!("{}/{}/{}/{}", group_path, artifact, version, jar_filename);
                             let jar_path = libraries_path.join(&relative_path);
-                            
+
                             if !jar_path.exists() {
                                 // Construct download URL
-                                let download_url = format!("{}/{}/{}/{}/{}", 
-                                    base_url.trim_end_matches('/'), 
-                                    group_path, 
-                                    artifact, 
-                                    version, 
+                                let download_url = format!(
+                                    "{}/{}/{}/{}/{}",
+                                    base_url.trim_end_matches('/'),
+                                    group_path,
+                                    artifact,
+                                    version,
                                     jar_filename
                                 );
-                                
+
                                 crate::logging::Logger::debug_global(
                                     &format!("Downloading library: {} from {}", name, download_url),
                                     None,
                                 );
-                                
+
                                 if !jar_path.parent().unwrap().exists() {
-                                    crate::ensure_parent_dir_exists_async(jar_path.parent().unwrap())
-                                        .await?;
+                                    crate::ensure_parent_dir_exists_async(
+                                        jar_path.parent().unwrap(),
+                                    )
+                                    .await?;
                                 }
-                                
-                                let resp = client
-                                    .get(&download_url)
-                                    .send()
-                                    .await
-                                    .map_err(|e| format!("Failed to fetch library {}: {}", name, e))?;
-                                
+
+                                let resp = client.get(&download_url).send().await.map_err(|e| {
+                                    format!("Failed to fetch library {}: {}", name, e)
+                                })?;
+
                                 if !resp.status().is_success() {
                                     return Err(format!(
                                         "Failed to download library {}: HTTP {}",
@@ -947,18 +953,23 @@ pub async fn ensure_libraries(
                                         resp.status()
                                     ));
                                 }
-                                
-                                let bytes = resp
-                                    .bytes()
-                                    .await
-                                    .map_err(|e| format!("Failed to get library bytes for {}: {}", name, e))?;
-                                
+
+                                let bytes = resp.bytes().await.map_err(|e| {
+                                    format!("Failed to get library bytes for {}: {}", name, e)
+                                })?;
+
                                 crate::write_file_atomic_async(&jar_path, &bytes)
                                     .await
-                                    .map_err(|e| format!("Failed to write library {}: {}", name, e))?;
-                                
+                                    .map_err(|e| {
+                                        format!("Failed to write library {}: {}", name, e)
+                                    })?;
+
                                 crate::logging::Logger::debug_global(
-                                    &format!("Successfully downloaded library: {} to {}", name, jar_path.display()),
+                                    &format!(
+                                        "Successfully downloaded library: {} to {}",
+                                        name,
+                                        jar_path.display()
+                                    ),
                                     None,
                                 );
                             }
@@ -1299,7 +1310,7 @@ pub fn get_java_path(java_path: Option<String>) -> Result<String, String> {
     find_java_executable(java_path.as_ref())
 }
 
-// --- Native extraction ---
+//  Native extraction
 /// Extracts native libraries from Minecraft library JARs into the given natives directory.
 ///
 /// Used by all loader modules to prepare the environment for launching Minecraft.
@@ -1703,7 +1714,7 @@ fn extract_jar(jar_path: &PathBuf, extract_to: &Path) -> Result<(), String> {
     Ok(())
 }
 
-// --- Variable map builder ---
+//  Variable map builder
 /// Builds a map of variable substitutions for Minecraft argument templates, based on the launch context, manifest, and version info.
 ///
 /// Used by all loader modules to provide variables for argument processing.

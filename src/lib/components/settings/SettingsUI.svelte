@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 SettingsUI - Main settings interface with tabbed navigation
 
 Container component that manages all settings panels with smooth scrolling
@@ -7,159 +6,184 @@ navigation and responsive mini-nav sidebar.
 
 @example
 ```svelte
-<SettingsUI />
+◄SettingsUI /►
 ```
 -->
-<!-- @component
-no description yet
--->
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
-  import { GeneralSettingsUI, AppearanceSettingsUI, ContentSettingsUI, LoggingSettingsUI, AdvancedSettingsUI, MiscSettingsUI, NetworkSettingsUI } from '.';
-  import { settings, SettingsService } from '$lib';
-  import { writable } from 'svelte/store';
+import { onDestroy, onMount } from "svelte";
+import {
+  GeneralSettingsUI,
+  AppearanceSettingsUI,
+  ContentSettingsUI,
+  LoggingSettingsUI,
+  AdvancedSettingsUI,
+  MiscSettingsUI,
+  NetworkSettingsUI,
+} from ".";
+import { settings, SettingsService } from "$lib";
+import { writable } from "svelte/store";
 
-  const sections = ['general', 'appearance', 'logging', 'content', 'network', 'advanced', 'misc'];
-  let currentSection = writable('general');
-  currentSection.subscribe(val => $currentSection = val);
+const sections = [
+  "general",
+  "appearance",
+  "logging",
+  "content",
+  "network",
+  "advanced",
+  "misc",
+];
+let currentSection = writable("general");
+currentSection.subscribe((val) => ($currentSection = val));
 
-  // Dynamic layout variables
-  let miniNavElement: HTMLElement;
-  let miniNavWidth = 0;
-  
-  // Reactive statement to update width when mini-nav changes
-  $: if (miniNavElement) {
-    miniNavWidth = miniNavElement.offsetWidth;
-  }
+// Dynamic layout variables
+let miniNavElement: HTMLElement;
+let miniNavWidth = 0;
 
-  function updateCurrentSection() {
-    let found = false;
-    for (const id of sections) {
-      const el = document.getElementById(id);
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        if (rect.top <= 200 && rect.bottom > 200) {
-          currentSection.set(id);
-          found = true;
-          break;
-        }
+// Reactive statement to update width when mini-nav changes
+$: if (miniNavElement) {
+  miniNavWidth = miniNavElement.offsetWidth;
+}
+
+function updateCurrentSection() {
+  let found = false;
+  for (const id of sections) {
+    const el = document.getElementById(id);
+    if (el) {
+      const rect = el.getBoundingClientRect();
+      if (rect.top <= 200 && rect.bottom > 200) {
+        currentSection.set(id);
+        found = true;
+        break;
       }
     }
-    if (!found) currentSection.set(sections[0]);
   }
+  if (!found) currentSection.set(sections[0]);
+}
 
-  // Local validation functions
-  export function validateMemory(value: string): number | null {
-    const num = parseInt(value);
-    if (isNaN(num) || num < 512 || num > 262144) return null;
-    return Math.floor(num / 512) * 512; // Round to nearest 512MB
-  }
-  export function validateNumber(value: string, min: number, max: number): number | null {
-    const num = parseInt(value);
-    if (isNaN(num) || num < min || num > max) return null;
-    return num;
-  }
-  export function validatePath(value: string): string {
-    return value.trim();
-  }
+// Local validation functions
+export function validateMemory(value: string): number | null {
+  const num = parseInt(value);
+  if (isNaN(num) || num < 512 || num > 262144) return null;
+  return Math.floor(num / 512) * 512; // Round to nearest 512MB
+}
+export function validateNumber(
+  value: string,
+  min: number,
+  max: number,
+): number | null {
+  const num = parseInt(value);
+  if (isNaN(num) || num < min || num > max) return null;
+  return num;
+}
+export function validatePath(value: string): string {
+  return value.trim();
+}
 
-  // Periodic save logic
-  import { get } from 'svelte/store';
-  let lastSettings: any = null;
+// Periodic save logic
+import { get } from "svelte/store";
+let lastSettings: any = null;
 
-  // Validate memory settings before saving
-  function getValidatedSettings() {
-    const snapshot = get(settings);
-    snapshot.advanced.default_memory = validateMemory(snapshot.advanced.default_memory.toString()) || 1024;
-    return snapshot;
-  }
+// Validate memory settings before saving
+function getValidatedSettings() {
+  const snapshot = get(settings);
+  snapshot.advanced.default_memory =
+    validateMemory(snapshot.advanced.default_memory.toString()) || 1024;
+  return snapshot;
+}
 
-  let saveInterval: ReturnType<typeof setInterval> | null = null;
-  let unsubscribeSettings: (() => void) | null = null;
+let saveInterval: ReturnType<typeof setInterval> | null = null;
+let unsubscribeSettings: (() => void) | null = null;
 
-  if (typeof window !== 'undefined') {
-    // Save settings on page unload
-    window.addEventListener('beforeunload', () => {
-      lastSettings = getValidatedSettings();
-      SettingsService.saveSettings(lastSettings);
-    });
-  }
+if (typeof window !== "undefined") {
+  // Save settings on page unload
+  window.addEventListener("beforeunload", () => {
+    lastSettings = getValidatedSettings();
+    SettingsService.saveSettings(lastSettings);
+  });
+}
 
-  let sectionInterval: ReturnType<typeof setInterval> | null = null;
-  let resizeObserver: ResizeObserver | null = null;
-  
-  onMount(() => {
-    sectionInterval = setInterval(updateCurrentSection, 1000);
+let sectionInterval: ReturnType<typeof setInterval> | null = null;
+let resizeObserver: ResizeObserver | null = null;
 
-    // Set up ResizeObserver for mini-nav width changes
-    if (typeof window !== 'undefined' && 'ResizeObserver' in window) {
-      resizeObserver = new ResizeObserver(() => {
-        if (miniNavElement) {
-          miniNavWidth = miniNavElement.offsetWidth;
-        }
-      });
-      
+onMount(() => {
+  sectionInterval = setInterval(updateCurrentSection, 1000);
+
+  // Set up ResizeObserver for mini-nav width changes
+  if (typeof window !== "undefined" && "ResizeObserver" in window) {
+    resizeObserver = new ResizeObserver(() => {
       if (miniNavElement) {
-        resizeObserver.observe(miniNavElement);
+        miniNavWidth = miniNavElement.offsetWidth;
       }
-    }
-
-    // Auto-save interval logic
-    if (typeof window !== 'undefined') {
-      let prevIntervalSetting: number | null = null;
-      unsubscribeSettings = settings.subscribe(($settings) => {
-        let intervalSetting = $settings.advanced.auto_save_interval;
-        const isEnabled = typeof intervalSetting === 'number' && intervalSetting > 0;
-        intervalSetting = validateNumber(intervalSetting.toString(), 5000, 3600000) || 30000; // Default to 30 seconds if invalid
-        if (isEnabled) {
-          if (saveInterval) {
-            clearInterval(saveInterval);
-            saveInterval = null;
-          }
-          saveInterval = setInterval(() => {
-            lastSettings = getValidatedSettings();
-            SettingsService.saveSettings(lastSettings);
-          }, intervalSetting);
-          prevIntervalSetting = intervalSetting;
-        } else {
-          if (saveInterval) {
-            clearInterval(saveInterval);
-            saveInterval = null;
-          }
-        }
-      });
-    }
-  });
-  onDestroy(() => {
-    if (saveInterval) {
-      clearInterval(saveInterval);
-      saveInterval = null;
-    }
-    if (sectionInterval) {
-      clearInterval(sectionInterval);
-      sectionInterval = null;
-    }
-    if (resizeObserver) {
-      resizeObserver.disconnect();
-      resizeObserver = null;
-    }
-    if (unsubscribeSettings) {
-      unsubscribeSettings();
-      unsubscribeSettings = null;
-    }
-    window.removeEventListener('beforeunload', () => {
-      lastSettings = getValidatedSettings();
-      SettingsService.saveSettings(lastSettings);
     });
-    SettingsService.saveSettings(getValidatedSettings());
+
+    if (miniNavElement) {
+      resizeObserver.observe(miniNavElement);
+    }
+  }
+
+  // Auto-save interval logic
+  if (typeof window !== "undefined") {
+    let prevIntervalSetting: number | null = null;
+    unsubscribeSettings = settings.subscribe(($settings) => {
+      let intervalSetting = $settings.advanced.auto_save_interval;
+      const isEnabled =
+        typeof intervalSetting === "number" && intervalSetting > 0;
+      intervalSetting =
+        validateNumber(intervalSetting.toString(), 5000, 3600000) || 30000; // Default to 30 seconds if invalid
+      if (isEnabled) {
+        if (saveInterval) {
+          clearInterval(saveInterval);
+          saveInterval = null;
+        }
+        saveInterval = setInterval(() => {
+          lastSettings = getValidatedSettings();
+          SettingsService.saveSettings(lastSettings);
+        }, intervalSetting);
+        prevIntervalSetting = intervalSetting;
+      } else {
+        if (saveInterval) {
+          clearInterval(saveInterval);
+          saveInterval = null;
+        }
+      }
+    });
+  }
+});
+onDestroy(() => {
+  if (saveInterval) {
+    clearInterval(saveInterval);
+    saveInterval = null;
+  }
+  if (sectionInterval) {
+    clearInterval(sectionInterval);
+    sectionInterval = null;
+  }
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+    resizeObserver = null;
+  }
+  if (unsubscribeSettings) {
+    unsubscribeSettings();
+    unsubscribeSettings = null;
+  }
+  window.removeEventListener("beforeunload", () => {
+    lastSettings = getValidatedSettings();
+    SettingsService.saveSettings(lastSettings);
   });
+  SettingsService.saveSettings(getValidatedSettings());
+});
 </script>
 
 <!-- a small fixed nav on the left side with links to specific tabs -->
 <div class="settings-content" style="--mini-nav-width: {miniNavWidth}px;">
   <div class="mini-nav" bind:this={miniNavElement}>
     {#each sections as section}
-      <a href={`#${section}`} class:active={$currentSection === section} on:click={() => currentSection.set(section)}>{section.charAt(0).toUpperCase() + section.slice(1)}</a>
+      <a
+        href={`#${section}`}
+        class:active={$currentSection === section}
+        on:click={() => currentSection.set(section)}
+        >{section.charAt(0).toUpperCase() + section.slice(1)}</a
+      >
     {/each}
   </div>
   <div class="settings">
@@ -172,69 +196,70 @@ no description yet
     <div id="misc"><MiscSettingsUI /></div>
   </div>
 </div>
+
 <style lang="scss">
 @use "@kablan/clean-ui/scss/_variables.scss" as *;
 
-  .settings-content {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 2rem;
+.settings-content {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 2rem;
+  width: 100%;
+  max-height: 80vh;
+  min-height: 0;
+}
+.mini-nav {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 0 0 auto;
+  min-width: fit-content;
+  align-self: center;
+  transform: translateY(-40%);
+}
+.mini-nav a {
+  color: var(--tertiary);
+  &.active {
+    color: var(--primary);
+  }
+  text-decoration: none;
+  position: relative;
+  padding-bottom: 2px;
+  transition: all 0.4s ease;
+  &:hover {
+    transform: scale(1.15) translateY(-0.15rem) translateX(0.15rem);
+  }
+  &::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: 0;
     width: 100%;
-    max-height: 80vh;
-    min-height: 0;
+    height: 2px;
+    background: var(--tertiary);
+    border-radius: 2px;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
   }
-  .mini-nav {
-    position: fixed;
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    flex: 0 0 auto;
-    min-width: fit-content;
-    align-self: center;
-    transform: translateY(-40%);
+  &:hover::before {
+    transform: scaleX(1);
   }
-  .mini-nav a {
-    color: var(--tertiary);
-    &.active {
-      color: var(--primary);
-    }
-    text-decoration: none;
-    position: relative;
-    padding-bottom: 2px;
-    transition: all 0.4s ease;
-    &:hover {
-      transform: scale(1.15) translateY(-0.15rem) translateX(0.15rem);
-    }
-    &::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      bottom: 0;
-      width: 100%;
-      height: 2px;
-      background: var(--tertiary);
-      border-radius: 2px;
-      transform: scaleX(0);
-      transform-origin: left;
-      transition: transform 0.25s cubic-bezier(0.4,0,0.2,1);
-      z-index: 1;
-    }
-    &:hover::before {
-      transform: scaleX(1);
-    }
-    &.active::before {
-      background: var(--primary);
-    }
+  &.active::before {
+    background: var(--primary);
   }
-  .settings {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    flex: 1 1 0;
-    min-width: 0;
-    max-height: 100%;
-    overflow-y: auto;
-    margin-left: calc(var(--mini-nav-width, 120px) + 2rem);
-  }
+}
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  flex: 1 1 0;
+  min-width: 0;
+  max-height: 100%;
+  overflow-y: auto;
+  margin-left: calc(var(--mini-nav-width, 120px) + 2rem);
+}
 </style>

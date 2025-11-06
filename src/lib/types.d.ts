@@ -21,7 +21,7 @@ export interface MicrosoftToken {
 }
 
 // Authentication Methods
-export type AuthMethod = 'DeviceCodeFlow' | 'Custom' | 'Offline';
+export type AuthMethod = "DeviceCodeFlow" | "Custom" | "Offline";
 
 export interface DeviceCodeResponse {
   device_code: string;
@@ -36,7 +36,7 @@ export interface MinecraftInstallation {
   path: string;
   version: string;
   is_valid: boolean;
-  mod_loader: 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge'; // Backend uses mod_loader
+  mod_loader: "vanilla" | "fabric" | "forge" | "quilt" | "neoforge"; // Backend uses mod_loader
   loader_version?: string;
   description?: string;
   game_directory?: string; // Backend uses game_directory
@@ -54,8 +54,8 @@ export interface LegacyMinecraftInstallation {
   path: string;
   version: string;
   is_valid: boolean;
-  type: 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge';
-  modLoader: 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge';
+  type: "vanilla" | "fabric" | "forge" | "quilt" | "neoforge";
+  modLoader: "vanilla" | "fabric" | "forge" | "quilt" | "neoforge";
   loader_version?: string;
   description?: string;
   gameDirectory?: string;
@@ -140,7 +140,7 @@ export interface ModDetectionResult {
   hasActiveMods: boolean;
   modCount: number;
   detectedLoaders: string[];
-  modLoaderType: 'vanilla' | 'fabric' | 'forge' | 'quilt' | 'neoforge';
+  modLoaderType: "vanilla" | "fabric" | "forge" | "quilt" | "neoforge";
   loaderVersion?: string;
   modsList?: Array<{
     name: string;
@@ -189,13 +189,11 @@ export interface LauncherProfiles {
  */
 export interface MinecraftVersion {
   id: string;
-  type: 'release' | 'snapshot' | 'old_beta' | 'old_alpha';
+  type: "release" | "snapshot" | "old_beta" | "old_alpha";
   url: string;
   time: string;
   releaseTime: string;
 }
-
-
 
 export interface MinecraftDirectoryInfo {
   path: string;
@@ -209,12 +207,12 @@ export interface LocalWorld {
   id: string;
   name: string;
   folder_name: string;
-  game_mode: 'Survival' | 'Creative' | 'Adventure' | 'Spectator';
-  difficulty: 'Peaceful' | 'Easy' | 'Normal' | 'Hard';
+  game_mode: "Survival" | "Creative" | "Adventure" | "Spectator";
+  difficulty: "Peaceful" | "Easy" | "Normal" | "Hard";
   version: string;
   size_mb: number;
-  last_played: number;  // Unix timestamp in milliseconds
-  created: number;  // Unix timestamp in milliseconds
+  last_played: number; // Unix timestamp in milliseconds
+  created: number; // Unix timestamp in milliseconds
   seed: string | null;
   icon: string | null;
   backup_count: number;
@@ -244,7 +242,7 @@ export interface ShaderPack {
   enabled: boolean;
   source_url: string | null;
   thumbnail: string | null;
-  shader_loader: 'Canvas' | 'Iris' | 'OptiFine' | 'Vanilla';
+  shader_loader: "Canvas" | "Iris" | "OptiFine" | "Vanilla";
   installed_date: number;
   last_used: number | null;
 }
@@ -260,15 +258,15 @@ export interface ShaderDownload {
   featured_gallery: string | null;
   tags: string[];
   minecraft_versions: string[];
-  shader_loader: 'Canvas' | 'Iris' | 'OptiFine' | 'Vanilla';
+  shader_loader: "Canvas" | "Iris" | "OptiFine" | "Vanilla";
   rating: number;
   downloads: number;
   size_mb: number;
-  source: 'Modrinth' | 'CurseForge' | { Other: string };
+  source: "Modrinth" | "CurseForge" | { Other: string };
 }
 
 export interface ShaderSettings {
-  quality: 'Low' | 'Medium' | 'High' | 'Ultra' | 'Custom';
+  quality: "Low" | "Medium" | "High" | "Ultra" | "Custom";
   shadows: boolean;
   shadow_resolution: number;
   anti_aliasing: boolean;
@@ -281,7 +279,7 @@ export interface MinecraftSkin {
   id: string;
   name: string;
   url?: string;
-  type: 'steve' | 'alex';
+  type: "steve" | "alex";
   premium?: boolean;
   // Additional properties for local skin management
   file_name: string;
@@ -295,7 +293,7 @@ export interface SkinDownload {
   id: string;
   name: string;
   url: string;
-  type: 'steve' | 'alex';
+  type: "steve" | "alex";
   description?: string;
 }
 
@@ -312,11 +310,11 @@ export interface InstalledMod {
   id: string;
   name: string;
   version: string;
-  source: 'Modrinth' | 'CurseForge' | 'Local';
+  source: "Modrinth" | "CurseForge" | "Local";
   source_id: string;
   file_path: string;
   minecraft_version: string;
-  mod_loader: 'Fabric' | 'Forge' | 'Quilt' | 'NeoForge';
+  mod_loader: "Fabric" | "Forge" | "Quilt" | "NeoForge";
   enabled: boolean;
   dependencies: string[];
   auto_update: boolean;
@@ -328,17 +326,17 @@ export interface ModProject {
   title: string;
   description: string;
   categories: string[];
-  client_side: 'Required' | 'Optional' | 'Unsupported';
-  server_side: 'Required' | 'Optional' | 'Unsupported';
+  client_side: "Required" | "Optional" | "Unsupported";
+  server_side: "Required" | "Optional" | "Unsupported";
   downloads: number;
   icon_url?: string;
-  source: 'Modrinth' | 'CurseForge' | 'Other';
+  source: "Modrinth" | "CurseForge" | "Other";
 }
 
 export interface ModVersion {
   id: string;
   version_number: string;
-  version_type: 'Release' | 'Beta' | 'Alpha';
+  version_type: "Release" | "Beta" | "Alpha";
   minecraft_versions: string[];
   mod_loaders: string[];
   date_published: string;
@@ -355,9 +353,6 @@ export interface ModFile {
   primary: boolean;
 }
 
-
-
-
 // Log system types
 export interface GameInstance {
   id: string;
@@ -369,7 +364,7 @@ export interface GameInstance {
   launchedAt: Date;
   lastActivity: Date;
   completedAt?: Date;
-  status: 'launching' | 'running' | 'crashed' | 'stopped' | 'closed';
+  status: "launching" | "running" | "crashed" | "stopped" | "closed";
   exitCode?: number;
   processId?: number;
   restartAttempts?: number;
@@ -377,8 +372,8 @@ export interface GameInstance {
 
 export interface LogEntry {
   timestamp: Date;
-  level: 'debug' | 'info' | 'warn' | 'error';
-  source: 'launcher' | 'game';
+  level: "debug" | "info" | "warn" | "error";
+  source: "launcher" | "game";
   instanceId?: string; // For game logs
   message: string;
   raw?: string; // Raw log line for syntax highlighting
@@ -423,11 +418,11 @@ export interface CategorizedLauncherSettings {
  * export interface GeneralSettings {
  *  javaPath?: string;
  *  gameDirectory?: string;
- *  onGameClose: 'exit' | 'minimize' | 'ask'; 
- *  onGameCrash: 'restart' | 'close' | 'ask'; 
- *  onGameLaunch: 'keep_open' | 'close_launcher' | 'open_logs' | 'ask'; 
- *  autoUpdateLauncher: boolean; 
- *  showAds: boolean; 
+ *  onGameClose: 'exit' | 'minimize' | 'ask';
+ *  onGameCrash: 'restart' | 'close' | 'ask';
+ *  onGameLaunch: 'keep_open' | 'close_launcher' | 'open_logs' | 'ask';
+ *  autoUpdateLauncher: boolean;
+ *  showAds: boolean;
  * }
  * ```
  */
@@ -437,11 +432,17 @@ export interface GeneralSettings {
   /** The path to the .minecraft directory */
   game_directory?: string;
   /** What to do when the game is being closed (quit game / close window) */
-  on_game_close: 'open_logs' | 'open_home' | 'exit' | 'minimize' | 'ask';
+  on_game_close: "open_logs" | "open_home" | "exit" | "minimize" | "ask";
   /** What to do when the game crashes */
-  on_game_crash: 'restart' | 'open_logs' | 'open_home' | 'exit' | 'minimize' | 'ask';
+  on_game_crash:
+    | "restart"
+    | "open_logs"
+    | "open_home"
+    | "exit"
+    | "minimize"
+    | "ask";
   /** Whether to keep the launcher open after launching the game */
-  on_game_launch: 'keep_open' | 'exit' | 'open_logs' | 'minimize' | 'ask';
+  on_game_launch: "keep_open" | "exit" | "open_logs" | "minimize" | "ask";
   /** Whether to automatically check for updates on startup */
   auto_update_launcher: boolean;
   /** Whether to show ads; I am a nice guy, no paid subscription needed to disable ads */
@@ -470,7 +471,7 @@ export interface CustomIconTemplate {
   version: string;
   author?: string;
   description?: string;
-  iconType: 'emoji' | 'fontawesome' | 'css' | 'svg' | 'image';
+  iconType: "emoji" | "fontawesome" | "css" | "svg" | "image";
   fallbackIcon: string;
   icons: Record<string, string>;
   cssClasses?: Record<string, string>; // For CSS-based icons
@@ -510,7 +511,7 @@ export interface IconSettings {
  */
 export interface AppearanceSettings {
   /** The theme to use for the launcher */
-  theme: 'light' | 'dark' | 'system';
+  theme: "light" | "dark" | "system";
   /** The language to use for the launcher */
   language: string;
   /** The amount of pixels to add in spacing containers and cards */
@@ -546,13 +547,13 @@ export interface LoggingSettings {
   /** Whether to compress log files: only applies if persistent logging is enabled */
   enable_log_compression: boolean;
   /** The maximum size of a log file in MB before it is added to the zip */
-  log_file_size_limit_mb: number | 'disabled';
+  log_file_size_limit_mb: number | "disabled";
   /** The number of days to keep log files */
-  log_retention_days: number | 'disabled';
+  log_retention_days: number | "disabled";
   /** Whether to try to "merge" log tabs into one tab if they are from the same game instance (but a different launch) */
   merge_log_tabs: boolean;
   /** Which log levels are shown by default */
-  default_log_levels: ('debug' | 'info' | 'warn' | 'error')[];
+  default_log_levels: ("debug" | "info" | "warn" | "error")[];
 }
 
 /** Network Settings for the launcher
@@ -570,7 +571,7 @@ export interface NetworkSettings {
   /** The connection timeout in seconds for network requests */
   connection_timeout: number;
   /** How much to throttle the download speed for parallel downloads */
-  download_speed_limit: number | 'unlimited';
+  download_speed_limit: number | "unlimited";
 }
 
 /** Content Settings for the launcher
@@ -585,7 +586,7 @@ export interface NetworkSettings {
  */
 export interface ContentSettings {
   /** The maximum number of backups to keep for each world */
-  max_world_backups: number | 'disabled';
+  max_world_backups: number | "disabled";
   /** Whether to zip all worlds at least once on startup (not if >= maxWorldBackups) */
   auto_backup_worlds: boolean;
   /** Whether to modify existing mod installations to use a per-installation mods folder in the kable directory */
@@ -613,7 +614,7 @@ export interface AdvancedSettings {
   /** Whether to have the logs page on another window (experimental) */
   separate_logs_window: boolean;
   /** How frequently to auto save the settings */
-  auto_save_interval: number | 'disabled'; // in seconds, 'disabled' means no auto save
+  auto_save_interval: number | "disabled"; // in seconds, 'disabled' means no auto save
   /** Whether to show the advanced page in the navigation bar */
   show_advanced_page: boolean;
   /** A map with string keys and any type of values for really advanced stuff */
@@ -632,7 +633,7 @@ export interface MiscSettings {
   /** Whether a titlebar should be used (not handy for closing the app) */
   use_titlebar: boolean;
   /** Authentication preference (code flow is recommended) */
-  auth_preference: 'code' | 'device_code';
+  auth_preference: "code" | "device_code";
 }
 
 // _____________________________________________________________________________
@@ -640,15 +641,14 @@ export interface MiscSettings {
 //|                            Installation Types                               |
 //|_____________________________________________________________________________|
 
-
 /** LoaderKind enum (matches backend LoaderKind) */
 export type LoaderKind =
-  | 'Vanilla'
-  | 'Fabric'
-  | 'IrisFabric'
-  | 'Forge'
-  | 'NeoForge'
-  | 'Quilt';
+  | "Vanilla"
+  | "Fabric"
+  | "IrisFabric"
+  | "Forge"
+  | "NeoForge"
+  | "Quilt";
 
 /** VersionData struct
  * ```ts
@@ -809,11 +809,10 @@ export interface LaunchResult {
  * ```
  */
 export type ModInfoKind =
-  | { kind: 'Modrinth'; data: ModrinthInfo }        // TypeScript discriminated union format
-  | { Modrinth: ModrinthInfo }                      // Rust enum serialization format
-  | { kind: 'CurseForge'; data: CurseForgeInfo }    // TypeScript discriminated union format
-  | { CurseForge: CurseForgeInfo };                 // Rust enum serialization format
-
+  | { kind: "Modrinth"; data: ModrinthInfo } // TypeScript discriminated union format
+  | { Modrinth: ModrinthInfo } // Rust enum serialization format
+  | { kind: "CurseForge"; data: CurseForgeInfo } // TypeScript discriminated union format
+  | { CurseForge: CurseForgeInfo }; // Rust enum serialization format
 
 /** Discriminated union for mod filters for each provider.
  * Uses Rust externally tagged enum format for serde compatibility.
@@ -826,7 +825,6 @@ export type ModInfoKind =
 export type ModFilter =
   | { Modrinth: FilterFacets }
   | { CurseForge: CurseForgeFilter };
-
 
 /** Modrinth filter facets for searching mods.
  * ```ts
@@ -917,7 +915,7 @@ export interface ResourcePackDownload {
   rating: number;
   downloads: number;
   size_mb: number;
-  source: 'Modrinth' | 'CurseForge' | { Other: string };
+  source: "Modrinth" | "CurseForge" | { Other: string };
 }
 
 /** Modrinth filter facets for searching resource packs.
@@ -937,8 +935,6 @@ export interface ResourcePackFilterFacets {
   /** Game versions to filter by */
   game_versions?: string[];
 }
-
-
 
 /** Modrinth mod project info.
  * ```ts
@@ -1034,7 +1030,6 @@ export interface ModrinthInfo {
   moderation_message?: ModerationMessage;
   moderation_message_type?: string;
 }
-
 
 /** CurseForge mod project info.
  * ```ts
@@ -1336,7 +1331,6 @@ export interface CurseForgeFilter {
   sort_order?: number;
 }
 
-
 /** Modrinth mod version info.
  * ```ts
  * export interface ModrinthVersion {
@@ -1360,7 +1354,6 @@ export interface ModrinthVersion {
   loaders: string[];
 }
 
-
 /** File info for a Modrinth mod version.
  * ```ts
  * export interface ModrinthFile {
@@ -1380,7 +1373,6 @@ export interface ModrinthFile {
   size: number;
 }
 
-
 /** Donation URL for a Modrinth project.
  * ```ts
  * export interface DonationUrl {
@@ -1396,7 +1388,6 @@ export interface DonationUrl {
   url: string;
 }
 
-
 /** License info for a Modrinth project.
  * ```ts
  * export interface ModrinthLicense {
@@ -1411,7 +1402,6 @@ export interface ModrinthLicense {
   name: string;
   url?: string;
 }
-
 
 /** Moderation message for a Modrinth project.
  * ```ts
@@ -1470,7 +1460,7 @@ export interface GameRestartEventPayload {
 //|_____________________________________________________________________________|
 
 /** Skin model types in Minecraft */
-export type SkinModelType = 'Classic' | 'Slim';
+export type SkinModelType = "Classic" | "Slim";
 
 /** Configuration for skin upload operations */
 export interface SkinUploadConfig {

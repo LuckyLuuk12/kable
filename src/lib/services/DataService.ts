@@ -1,9 +1,9 @@
-import { writable } from 'svelte/store';
-import { SettingsService, MapsService } from '$lib';
+import { writable } from "svelte/store";
+import { SettingsService, MapsService } from "$lib";
 
 // Global initialization state
 export const isAppInitialized = writable(false);
-export const initializationStatus = writable('Starting...');
+export const initializationStatus = writable("Starting...");
 export const initializationError = writable<string | null>(null);
 
 export class DataService {
@@ -18,31 +18,32 @@ export class DataService {
       return; // Already initialized
     }
 
-    initializationStatus.set('Initializing settings...');
-    
+    initializationStatus.set("Initializing settings...");
+
     try {
       // Step 1: Initialize settings first (required for other managers)
       await SettingsService.initialize();
-      initializationStatus.set('Settings loaded');
+      initializationStatus.set("Settings loaded");
 
       // Step 2: Load maps/worlds data
-      initializationStatus.set('Loading worlds data...');
+      initializationStatus.set("Loading worlds data...");
       await MapsService.loadWorlds();
-      initializationStatus.set('Worlds loaded');
+      initializationStatus.set("Worlds loaded");
 
       // Mark as complete
       this.isInitialized = true;
       isAppInitialized.set(true);
-      initializationStatus.set('Ready');
+      initializationStatus.set("Ready");
       initializationError.set(null);
 
-      console.log('✅ DataManager: All application data initialized successfully');
-
+      console.log(
+        "✅ DataManager: All application data initialized successfully",
+      );
     } catch (error) {
-      console.error('❌ DataManager: Initialization failed:', error);
+      console.error("❌ DataManager: Initialization failed:", error);
       initializationError.set(`Initialization failed: ${error}`);
-      initializationStatus.set('Failed');
-      
+      initializationStatus.set("Failed");
+
       // Don't throw here - let the app continue with partial functionality
     }
   }
@@ -51,17 +52,16 @@ export class DataService {
    * Refresh all data (useful after settings changes)
    */
   static async refresh(): Promise<void> {
-    initializationStatus.set('Refreshing data...');
-    
+    initializationStatus.set("Refreshing data...");
+
     try {
       // Refresh non-GameManager data only - GameManager handles its own installations
       await MapsService.loadWorlds();
 
-      initializationStatus.set('Ready');
-      console.log('✅ DataManager: Data refreshed successfully');
-
+      initializationStatus.set("Ready");
+      console.log("✅ DataManager: Data refreshed successfully");
     } catch (error) {
-      console.error('❌ DataManager: Refresh failed:', error);
+      console.error("❌ DataManager: Refresh failed:", error);
       initializationError.set(`Refresh failed: ${error}`);
     }
   }
@@ -72,7 +72,7 @@ export class DataService {
   static reset(): void {
     this.isInitialized = false;
     isAppInitialized.set(false);
-    initializationStatus.set('Starting...');
+    initializationStatus.set("Starting...");
     initializationError.set(null);
   }
 }

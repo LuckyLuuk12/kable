@@ -1,5 +1,4 @@
-<!--
-@component
+<!-- @component
 GeneralSettingsUI - General launcher settings panel
 
 Core launcher configuration including Java paths, memory allocation,
@@ -7,25 +6,23 @@ game directory, and window behavior settings.
 
 @example
 ```svelte
-<GeneralSettingsUI />
+◄GeneralSettingsUI /►
 ```
 -->
-
 <script>
-  import { settings, AutoUpdater } from "$lib";
-  import { onMount } from 'svelte';
+import { settings, AutoUpdater } from "$lib";
+import { onMount } from "svelte";
 
-  let isWideScreen = true;
-  function checkScreen() {
-    isWideScreen = window.innerWidth >= 700;
-  }
-  onMount(() => {
-    checkScreen();
-    window.addEventListener('resize', checkScreen);
-    return () => window.removeEventListener('resize', checkScreen);
-  });
+let isWideScreen = true;
+function checkScreen() {
+  isWideScreen = window.innerWidth >= 700;
+}
+onMount(() => {
+  checkScreen();
+  window.addEventListener("resize", checkScreen);
+  return () => window.removeEventListener("resize", checkScreen);
+});
 </script>
-
 
 <div class="settings-tab">
   <h2>General Settings</h2>
@@ -37,7 +34,12 @@ game directory, and window behavior settings.
         <p class="setting-description">Path to Java executable</p>
       </div>
       <div class="setting-control">
-        <input type="text" id="java-path" bind:value={$settings.general.java_path} placeholder="Path to Java executable" />
+        <input
+          type="text"
+          id="java-path"
+          bind:value={$settings.general.java_path}
+          placeholder="Path to Java executable"
+        />
       </div>
     </div>
 
@@ -47,7 +49,12 @@ game directory, and window behavior settings.
         <p class="setting-description">Path to your .minecraft folder</p>
       </div>
       <div class="setting-control">
-        <input type="text" id="game-directory" bind:value={$settings.general.game_directory} placeholder="C:/Users/user/AppData/Roaming/.minecraft" />
+        <input
+          type="text"
+          id="game-directory"
+          bind:value={$settings.general.game_directory}
+          placeholder="C:/Users/user/AppData/Roaming/.minecraft"
+        />
       </div>
     </div>
 
@@ -55,19 +62,59 @@ game directory, and window behavior settings.
       <div class="setting-info">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>On Game Close</label>
-        <p class="setting-description">What should happen when the game closes?</p>
+        <p class="setting-description">
+          What should happen when the game closes?
+        </p>
       </div>
       <div class="setting-control">
         {#if isWideScreen}
           <div class="radio-group">
-            <label><input type="radio" name="on-game-close" value="open_logs" bind:group={$settings.general.on_game_close} /> Open Logs</label>
-            <label><input type="radio" name="on-game-close" value="open_home" bind:group={$settings.general.on_game_close} /> Open Home</label>
-            <label><input type="radio" name="on-game-close" value="exit" bind:group={$settings.general.on_game_close} /> Exit Application</label>
-            <label><input type="radio" name="on-game-close" value="minimize" bind:group={$settings.general.on_game_close} /> Minimize to Tray</label>
-            <label><input type="radio" name="on-game-close" value="ask" bind:group={$settings.general.on_game_close} /> Ask</label>
+            <label
+              ><input
+                type="radio"
+                name="on-game-close"
+                value="open_logs"
+                bind:group={$settings.general.on_game_close}
+              /> Open Logs</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-close"
+                value="open_home"
+                bind:group={$settings.general.on_game_close}
+              /> Open Home</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-close"
+                value="exit"
+                bind:group={$settings.general.on_game_close}
+              /> Exit Application</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-close"
+                value="minimize"
+                bind:group={$settings.general.on_game_close}
+              /> Minimize to Tray</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-close"
+                value="ask"
+                bind:group={$settings.general.on_game_close}
+              /> Ask</label
+            >
           </div>
         {:else}
-          <select id="on-game-close" bind:value={$settings.general.on_game_close}>
+          <select
+            id="on-game-close"
+            bind:value={$settings.general.on_game_close}
+          >
             <option value="open_logs">Open Logs</option>
             <option value="open_home">Open Home</option>
             <option value="exit">Exit Application</option>
@@ -82,20 +129,67 @@ game directory, and window behavior settings.
       <div class="setting-info">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>On Game Crash</label>
-        <p class="setting-description">What should happen when the game crashes?</p>
+        <p class="setting-description">
+          What should happen when the game crashes?
+        </p>
       </div>
       <div class="setting-control">
         {#if isWideScreen}
           <div class="radio-group">
-            <label><input type="radio" name="on-game-crash" value="restart" bind:group={$settings.general.on_game_crash} /> Restart Game</label>
-            <label><input type="radio" name="on-game-crash" value="open_logs" bind:group={$settings.general.on_game_crash} /> Open Logs</label>
-            <label><input type="radio" name="on-game-crash" value="open_home" bind:group={$settings.general.on_game_crash} /> Open Home</label>
-            <label><input type="radio" name="on-game-crash" value="exit" bind:group={$settings.general.on_game_crash} /> Exit Application</label>
-            <label><input type="radio" name="on-game-crash" value="minimize" bind:group={$settings.general.on_game_crash} /> Minimize to Tray</label>
-            <label><input type="radio" name="on-game-crash" value="ask" bind:group={$settings.general.on_game_crash} /> Ask</label>
+            <label
+              ><input
+                type="radio"
+                name="on-game-crash"
+                value="restart"
+                bind:group={$settings.general.on_game_crash}
+              /> Restart Game</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-crash"
+                value="open_logs"
+                bind:group={$settings.general.on_game_crash}
+              /> Open Logs</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-crash"
+                value="open_home"
+                bind:group={$settings.general.on_game_crash}
+              /> Open Home</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-crash"
+                value="exit"
+                bind:group={$settings.general.on_game_crash}
+              /> Exit Application</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-crash"
+                value="minimize"
+                bind:group={$settings.general.on_game_crash}
+              /> Minimize to Tray</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-crash"
+                value="ask"
+                bind:group={$settings.general.on_game_crash}
+              /> Ask</label
+            >
           </div>
         {:else}
-          <select id="on-game-crash" bind:value={$settings.general.on_game_crash}>
+          <select
+            id="on-game-crash"
+            bind:value={$settings.general.on_game_crash}
+          >
             <option value="restart">Restart Game</option>
             <option value="open_logs">Open Logs</option>
             <option value="open_home">Open Home</option>
@@ -111,19 +205,59 @@ game directory, and window behavior settings.
       <div class="setting-info">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>On Game Launch</label>
-        <p class="setting-description">What should happen when the game launches?</p>
+        <p class="setting-description">
+          What should happen when the game launches?
+        </p>
       </div>
       <div class="setting-control">
         {#if isWideScreen}
           <div class="radio-group">
-            <label><input type="radio" name="on-game-launch" value="keep_open" bind:group={$settings.general.on_game_launch} /> Keep Application Open</label>
-            <label><input type="radio" name="on-game-launch" value="exit" bind:group={$settings.general.on_game_launch} /> Exit Application</label>
-            <label><input type="radio" name="on-game-launch" value="open_logs" bind:group={$settings.general.on_game_launch} /> Open Logs</label>
-            <label><input type="radio" name="on-game-launch" value="minimize" bind:group={$settings.general.on_game_launch} /> Minimize to Tray</label>
-            <label><input type="radio" name="on-game-launch" value="ask" bind:group={$settings.general.on_game_launch} /> Ask</label>
+            <label
+              ><input
+                type="radio"
+                name="on-game-launch"
+                value="keep_open"
+                bind:group={$settings.general.on_game_launch}
+              /> Keep Application Open</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-launch"
+                value="exit"
+                bind:group={$settings.general.on_game_launch}
+              /> Exit Application</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-launch"
+                value="open_logs"
+                bind:group={$settings.general.on_game_launch}
+              /> Open Logs</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-launch"
+                value="minimize"
+                bind:group={$settings.general.on_game_launch}
+              /> Minimize to Tray</label
+            >
+            <label
+              ><input
+                type="radio"
+                name="on-game-launch"
+                value="ask"
+                bind:group={$settings.general.on_game_launch}
+              /> Ask</label
+            >
           </div>
         {:else}
-          <select id="on-game-launch" bind:value={$settings.general.on_game_launch}>
+          <select
+            id="on-game-launch"
+            bind:value={$settings.general.on_game_launch}
+          >
             <option value="keep_open">Keep Application Open</option>
             <option value="exit">Exit Application</option>
             <option value="open_logs">Open Logs</option>
@@ -137,20 +271,32 @@ game directory, and window behavior settings.
     <div class="setting-item">
       <div class="setting-info">
         <label for="auto-update-launcher">Auto Update Launcher</label>
-        <p class="setting-description">Automatically check for launcher updates</p>
+        <p class="setting-description">
+          Automatically check for launcher updates
+        </p>
       </div>
       <div class="setting-control">
-        <input type="checkbox" id="auto-update-launcher" bind:checked={$settings.general.auto_update_launcher} />
+        <input
+          type="checkbox"
+          id="auto-update-launcher"
+          bind:checked={$settings.general.auto_update_launcher}
+        />
       </div>
     </div>
 
     <div class="setting-item">
       <div class="setting-info">
         <label for="show-ads">Show Ads</label>
-        <p class="setting-description">Show ads in the launcher (no paid subscription required)</p>
+        <p class="setting-description">
+          Show ads in the launcher (no paid subscription required)
+        </p>
       </div>
       <div class="setting-control">
-        <input type="checkbox" id="show-ads" bind:checked={$settings.general.show_ads} />
+        <input
+          type="checkbox"
+          id="show-ads"
+          bind:checked={$settings.general.show_ads}
+        />
       </div>
     </div>
   </form>
@@ -164,7 +310,7 @@ game directory, and window behavior settings.
 .settings-tab {
   background: var(--container);
   border-radius: var(--border-radius-large);
-  box-shadow: 0 0.125rem 0.5rem rgba(0,0,0,0.08);
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
   padding: 2rem 2.5rem;
   margin-bottom: 2rem;
   width: 100%;
@@ -245,4 +391,3 @@ select {
   color: var(--text);
 }
 </style>
-

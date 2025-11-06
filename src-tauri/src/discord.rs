@@ -196,7 +196,11 @@ pub fn set_enabled(enabled: bool) -> Result<(), String> {
 }
 
 /// Update presence for playing Minecraft
-pub fn set_playing(installation_name: &str, version_id: &str, mod_loader: Option<&str>) -> Result<(), String> {
+pub fn set_playing(
+    installation_name: &str,
+    version_id: &str,
+    mod_loader: Option<&str>,
+) -> Result<(), String> {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()

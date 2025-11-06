@@ -30,6 +30,18 @@ pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
     crate::installations::get_installations().await
 }
 
+/// Force refresh installations, bypassing cache
+#[tauri::command]
+pub async fn get_installations_force() -> Result<Vec<KableInstallation>, String> {
+    crate::installations::get_installations_force().await
+}
+
+/// Convenience command to refresh installations and update cache
+#[tauri::command]
+pub async fn refresh_installations() -> Result<Vec<KableInstallation>, String> {
+    crate::installations::get_installations_force().await
+}
+
 /// Returns a single installation by id, using cache.
 #[tauri::command]
 pub async fn get_installation(id: &str) -> Result<Option<KableInstallation>, String> {
@@ -101,6 +113,12 @@ pub async fn toggle_mod_disabled(
     file_name: String,
 ) -> Result<bool, String> {
     installation.toggle_mod_disabled(&file_name)
+}
+
+/// Delete/remove a mod from the installation
+#[tauri::command]
+pub async fn delete_mod(installation: KableInstallation, file_name: String) -> Result<(), String> {
+    installation.delete_mod(&file_name)
 }
 
 #[tauri::command]

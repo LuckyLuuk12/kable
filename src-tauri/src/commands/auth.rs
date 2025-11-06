@@ -1,6 +1,5 @@
 pub use crate::auth::*;
 
-
 #[tauri::command]
 pub async fn refresh_microsoft_token(
     local_id: String,

@@ -1,5 +1,5 @@
-import { writable } from 'svelte/store';
-import type { KableInstallation, VersionData } from '../types';
+import { writable } from "svelte/store";
+import type { KableInstallation, VersionData } from "../types";
 
 /**
  * Game Stores

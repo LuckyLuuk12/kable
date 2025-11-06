@@ -368,8 +368,9 @@ pub async fn launch_installation(
                     None,
                 );
                 if let Err(e) =
-                    crate::installations::kable_profiles::KableInstallation::restore_global_configs()
-                        .await
+                    crate::installations::kable_profiles::KableInstallation::restore_global_configs(
+                    )
+                    .await
                 {
                     Logger::warn_global(
                         &format!("[SETTINGS TASK] Failed to restore global configs: {}", e),
@@ -441,10 +442,7 @@ pub async fn launch_installation(
 
                 // Clear Discord Rich Presence when game exits
                 if let Err(e) = crate::discord::clear_playing() {
-                    Logger::warn_global(
-                        &format!("Failed to clear Discord presence: {}", e),
-                        None,
-                    );
+                    Logger::warn_global(&format!("Failed to clear Discord presence: {}", e), None);
                 }
             }
             Err(e) => {
@@ -457,10 +455,7 @@ pub async fn launch_installation(
 
                 // Clear Discord Rich Presence
                 if let Err(e) = crate::discord::clear_playing() {
-                    Logger::warn_global(
-                        &format!("Failed to clear Discord presence: {}", e),
-                        None,
-                    );
+                    Logger::warn_global(&format!("Failed to clear Discord presence: {}", e), None);
                 }
             }
         }

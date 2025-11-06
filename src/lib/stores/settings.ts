@@ -1,5 +1,15 @@
-import { writable } from 'svelte/store';
-import type { CategorizedLauncherSettings, GeneralSettings, AppearanceSettings, LoggingSettings, NetworkSettings, ContentSettings, AdvancedSettings, MiscSettings, MinecraftDirectoryInfo } from '../types';
+import { writable } from "svelte/store";
+import type {
+  CategorizedLauncherSettings,
+  GeneralSettings,
+  AppearanceSettings,
+  LoggingSettings,
+  NetworkSettings,
+  ContentSettings,
+  AdvancedSettings,
+  MiscSettings,
+  MinecraftDirectoryInfo,
+} from "../types";
 
 /**
  * Settings Stores
@@ -16,41 +26,43 @@ export const defaultCategorizedSettings: CategorizedLauncherSettings = {
   misc: defaultMiscSettings(),
 };
 
-
 // Settings state
-export const settings = writable<CategorizedLauncherSettings>(defaultCategorizedSettings);
+export const settings = writable<CategorizedLauncherSettings>(
+  defaultCategorizedSettings,
+);
 export const isSettingsLoading = writable(false);
 export const settingsError = writable<string | null>(null);
 export const isSettingsInitialized = writable(false);
 
 // Minecraft directory info
-export const minecraftDirectoryInfo = writable<MinecraftDirectoryInfo | null>(null);
+export const minecraftDirectoryInfo = writable<MinecraftDirectoryInfo | null>(
+  null,
+);
 export const isMinecraftFound = writable(false);
-
 
 export function defaultGeneralSettings(): GeneralSettings {
   return {
     java_path: undefined,
     game_directory: undefined,
-    on_game_close: 'open_home',
-    on_game_crash: 'open_logs',
-    on_game_launch: 'open_logs',
+    on_game_close: "open_home",
+    on_game_crash: "open_logs",
+    on_game_launch: "open_logs",
     auto_update_launcher: true,
     show_ads: true,
   };
 }
 export function defaultAppearanceSettings(): AppearanceSettings {
   return {
-    theme: 'system',
-    language: 'en',
+    theme: "system",
+    language: "en",
     extra_spacing: 16,
     sidebar_width: 250,
-    selected_icon_template: 'default',
-    selected_css_theme: '',
+    selected_icon_template: "default",
+    selected_css_theme: "",
     icon_settings: {
-      selected_template: 'default',
+      selected_template: "default",
       custom_templates: [],
-      builtin_templates: ['emoji', 'fontawesome', 'svg'],
+      builtin_templates: ["emoji", "fontawesome", "svg"],
     },
   };
 }
@@ -63,7 +75,7 @@ export function defaultLoggingSettings(): LoggingSettings {
     log_file_size_limit_mb: 10,
     log_retention_days: 30,
     merge_log_tabs: true,
-    default_log_levels: ['info', 'warn', 'error'],
+    default_log_levels: ["info", "warn", "error"],
   };
 }
 
@@ -71,7 +83,7 @@ export function defaultNetworkSettings(): NetworkSettings {
   return {
     parallel_downloads: 3,
     connection_timeout: 30,
-    download_speed_limit: 'unlimited',
+    download_speed_limit: "unlimited",
   };
 }
 
@@ -98,6 +110,6 @@ export function defaultAdvancedSettings(): AdvancedSettings {
 export function defaultMiscSettings(): MiscSettings {
   return {
     use_titlebar: true,
-    auth_preference: 'code',
+    auth_preference: "code",
   };
 }

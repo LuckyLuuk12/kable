@@ -360,7 +360,9 @@ impl ModProvider for ModrinthProvider {
             // Clear installation-specific filters when no installation provided
             self.loader = None;
             self.mc_version = None;
-            println!("[ModrinthProvider] Cleared installation-specific filters (loader, mc_version)");
+            println!(
+                "[ModrinthProvider] Cleared installation-specific filters (loader, mc_version)"
+            );
         }
 
         println!(
@@ -406,20 +408,20 @@ impl ModProvider for ModrinthProvider {
                 .into_iter()
                 .find(|v| v.id == version_id)
                 .ok_or("Specified mod version not found")?;
-            
+
             let mut files_iter = version.files.into_iter();
             let file = files_iter
                 .clone()
                 .find(|f| f.primary)
                 .or_else(|| files_iter.next())
                 .ok_or("No mod file found")?;
-            
+
             // Download the file
             download_mod_file(&file.url, &mods_dir.join(&file.filename)).await?;
-            
+
             // Save metadata
             save_mod_metadata(&mods_dir, &file.filename, mod_id, &version.version_number).await?;
-            
+
             return Ok(());
         }
 
@@ -463,13 +465,13 @@ impl ModProvider for ModrinthProvider {
             .find(|f| f.primary)
             .or_else(|| files_iter.next())
             .ok_or("No mod file found")?;
-        
+
         // Download the file
         download_mod_file(&file.url, &mods_dir.join(&file.filename)).await?;
-        
+
         // Save metadata
         save_mod_metadata(&mods_dir, &file.filename, mod_id, &version.version_number).await?;
-        
+
         Ok(())
     }
 
@@ -714,9 +716,9 @@ pub async fn get_project_versions_filtered(
 ) -> Result<Vec<ModrinthVersion>, String> {
     let client = Client::new();
     let mut url = format!("https://api.modrinth.com/v2/project/{}/version", project_id);
-    
+
     let mut params = Vec::new();
-    
+
     // Add loaders parameter (e.g., ["fabric", "forge"])
     if let Some(loaders) = loaders {
         if !loaders.is_empty() {
@@ -725,35 +727,41 @@ pub async fn get_project_versions_filtered(
             params.push(format!("loaders={}", urlencoding::encode(&loaders_json)));
         }
     }
-    
+
     // Add game_versions parameter (e.g., ["1.20.1", "1.20.2"])
     if let Some(game_versions) = game_versions {
         if !game_versions.is_empty() {
             let game_versions_json = serde_json::to_string(&game_versions)
                 .map_err(|e| format!("Failed to serialize game_versions: {e}"))?;
-            params.push(format!("game_versions={}", urlencoding::encode(&game_versions_json)));
+            params.push(format!(
+                "game_versions={}",
+                urlencoding::encode(&game_versions_json)
+            ));
         }
     }
-    
+
     if !params.is_empty() {
         url.push('?');
         url.push_str(&params.join("&"));
     }
-    
+
     println!("[ModrinthAPI] Fetching filtered versions from: {}", url);
-    
+
     let resp = client
         .get(&url)
         .send()
         .await
         .map_err(|e| format!("Modrinth get filtered versions failed: {e}"))?;
-    
+
     let versions: Vec<ModrinthVersion> = resp
         .json()
         .await
         .map_err(|e| format!("Modrinth get filtered versions parse failed: {e}"))?;
-    
-    println!("[ModrinthAPI] Received {} filtered versions", versions.len());
+
+    println!(
+        "[ModrinthAPI] Received {} filtered versions",
+        versions.len()
+    );
     Ok(versions)
 }
 
@@ -765,24 +773,24 @@ pub fn find_best_version(
     preferred_game_version: Option<&str>,
 ) -> Option<ModrinthVersion> {
     let mut candidates: Vec<&ModrinthVersion> = versions.iter().collect();
-    
+
     // Filter by loader if specified
     if let Some(loader) = preferred_loader {
         candidates.retain(|v| v.loaders.iter().any(|l| l.eq_ignore_ascii_case(loader)));
     }
-    
+
     // Filter by game version if specified
     if let Some(game_version) = preferred_game_version {
         candidates.retain(|v| v.game_versions.contains(&game_version.to_string()));
     }
-    
+
     if candidates.is_empty() {
         return None;
     }
-    
+
     // Sort by version number (reverse semver-like comparison)
     candidates.sort_by(|a, b| compare_version_strings(&b.version_number, &a.version_number));
-    
+
     candidates.first().map(|v| (*v).clone())
 }
 
@@ -790,23 +798,23 @@ pub fn find_best_version(
 /// Returns Ordering: Greater if a > b, Less if a < b, Equal if a == b
 fn compare_version_strings(a: &str, b: &str) -> std::cmp::Ordering {
     use std::cmp::Ordering;
-    
+
     let parse_version_parts = |s: &str| -> Vec<u32> {
         s.split(['.', '-', '+'])
             .filter_map(|part| part.parse::<u32>().ok())
             .collect()
     };
-    
+
     let a_parts = parse_version_parts(a);
     let b_parts = parse_version_parts(b);
-    
+
     for (a_part, b_part) in a_parts.iter().zip(b_parts.iter()) {
         match a_part.cmp(b_part) {
             Ordering::Equal => continue,
             other => return other,
         }
     }
-    
+
     // If all parts are equal, compare by length (more parts = more specific)
     a_parts.len().cmp(&b_parts.len())
 }
@@ -902,46 +910,55 @@ fn extract_loader_from_version_id(version_id: &str) -> Option<String> {
 
 /// Remove old versions of a mod before downloading a new version
 /// Checks for mods with the same project_id and removes them completely
-async fn disable_old_mod_versions(mods_dir: &std::path::Path, project_id: &str) -> Result<(), String> {
+async fn disable_old_mod_versions(
+    mods_dir: &std::path::Path,
+    project_id: &str,
+) -> Result<(), String> {
     use tokio::fs;
-    
+
     // Read all files in the mods directory
     let mut entries = fs::read_dir(mods_dir)
         .await
         .map_err(|e| format!("Failed to read mods directory: {}", e))?;
-    
+
     while let Some(entry) = entries
         .next_entry()
         .await
         .map_err(|e| format!("Failed to read directory entry: {}", e))?
     {
         let path = entry.path();
-        
+
         // Check for .kable_metadata.json files
         if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
             if file_name.ends_with(".kable_metadata.json") {
                 // Read the metadata file
                 if let Ok(metadata_content) = fs::read_to_string(&path).await {
-                    if let Ok(metadata) = serde_json::from_str::<serde_json::Value>(&metadata_content) {
+                    if let Ok(metadata) =
+                        serde_json::from_str::<serde_json::Value>(&metadata_content)
+                    {
                         // Check if this metadata belongs to the same project
-                        if let Some(stored_project_id) = metadata.get("project_id").and_then(|v| v.as_str()) {
+                        if let Some(stored_project_id) =
+                            metadata.get("project_id").and_then(|v| v.as_str())
+                        {
                             if stored_project_id == project_id {
                                 // Get the associated jar file name
-                                if let Some(jar_file) = metadata.get("file_name").and_then(|v| v.as_str()) {
+                                if let Some(jar_file) =
+                                    metadata.get("file_name").and_then(|v| v.as_str())
+                                {
                                     let jar_path = mods_dir.join(jar_file);
-                                    
+
                                     // Delete the old jar file completely
                                     if jar_path.exists() {
-                                        fs::remove_file(&jar_path)
-                                            .await
-                                            .map_err(|e| format!("Failed to remove old mod version: {}", e))?;
-                                        
+                                        fs::remove_file(&jar_path).await.map_err(|e| {
+                                            format!("Failed to remove old mod version: {}", e)
+                                        })?;
+
                                         println!(
                                             "[ModrinthProvider] Removed old version: {} (project: {})",
                                             jar_file, project_id
                                         );
                                     }
-                                    
+
                                     // Also remove the metadata file
                                     let _ = fs::remove_file(&path).await;
                                 }
@@ -952,7 +969,7 @@ async fn disable_old_mod_versions(mods_dir: &std::path::Path, project_id: &str) 
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -964,21 +981,21 @@ async fn save_mod_metadata(
     version_number: &str,
 ) -> Result<(), String> {
     use tokio::fs;
-    
+
     let metadata = serde_json::json!({
         "project_id": project_id,
         "file_name": file_name,
         "version_number": version_number,
         "download_time": chrono::Utc::now().to_rfc3339(),
     });
-    
+
     let metadata_path = mods_dir.join(format!("{}.kable_metadata.json", file_name));
     let metadata_content = serde_json::to_string_pretty(&metadata)
         .map_err(|e| format!("Failed to serialize metadata: {}", e))?;
-    
+
     fs::write(&metadata_path, metadata_content)
         .await
         .map_err(|e| format!("Failed to write metadata file: {}", e))?;
-    
+
     Ok(())
 }

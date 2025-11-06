@@ -1,5 +1,5 @@
-import { writable, derived } from 'svelte/store';
-import type { LauncherAccount } from '$lib';
+import { writable, derived } from "svelte/store";
+import type { LauncherAccount } from "$lib";
 
 /**
  * Authentication Stores
@@ -9,7 +9,10 @@ import type { LauncherAccount } from '$lib';
 
 // Core authentication state
 export const currentAccount = writable<LauncherAccount | null>(null);
-export const isAuthenticated = derived(currentAccount, $account => $account !== null);
+export const isAuthenticated = derived(
+  currentAccount,
+  ($account) => $account !== null,
+);
 export const isAuthenticating = writable(false);
 export const availableAccounts = writable<LauncherAccount[]>([]);
 

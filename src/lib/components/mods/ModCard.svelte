@@ -1,6 +1,4 @@
 <!-- @component
-◄!--
-@component
 ModCard - Displays mod information in various view modes
 
 Reusable card component for showing mod details including title, description,
@@ -23,17 +21,16 @@ author, downloads, and installation status. Supports grid, list, and compact vie
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher, onMount } from 'svelte';
-import { Icon } from '$lib';
-import type { KableInstallation, ModInfoKind, ModrinthVersion, ProviderKind } from '$lib';
-import { ProviderKind as ProviderKindEnum } from '$lib/runtimeTypes';
-import ModVersionModal from './ModVersionModal.svelte';
-import * as modsApi from '$lib/api/mods';
+import { createEventDispatcher } from "svelte";
+import { Icon, ProviderKind as ProviderKindEnum } from "$lib";
+import ModVersionModal from "./ModVersionModal.svelte";
+import * as modsApi from "$lib/api/mods";
+import type { KableInstallation, ModInfoKind, ProviderKind } from "$lib";
 
-type ViewMode = 'grid' | 'list' | 'compact';
+type ViewMode = "grid" | "list" | "compact";
 
 export let mod: ModInfoKind;
-export let viewMode: ViewMode = 'grid';
+export let viewMode: ViewMode = "grid";
 export let currentInstallation: KableInstallation | null = null;
 export let loading: boolean = false;
 export let isInstalled: boolean = false;
@@ -42,7 +39,11 @@ export let installedVersion: string | null = null;
 const dispatch = createEventDispatcher<{
   downloadMod: { mod: ModInfoKind };
   infoMod: { mod: ModInfoKind };
-  downloadVersion: { mod: ModInfoKind; versionId: string; versionNumber: string };
+  downloadVersion: {
+    mod: ModInfoKind;
+    versionId: string;
+    versionNumber: string;
+  };
 }>();
 
 let showVersionModal = false;
@@ -57,41 +58,43 @@ $: if (isInstalled && installedVersion && currentInstallation) {
 
 async function checkForUpdates() {
   if (!currentInstallation || !installedVersion || checkingVersions) return;
-  
+
   checkingVersions = true;
   hasNewerVersion = false;
   hasOtherVersions = false;
-  
+
   try {
     const projectId = getProjectId(mod);
     const provider = getProvider(mod);
-    
+
     if (!projectId) return;
-    
+
     // Get loader and game version from installation
     const loader = extractLoader(currentInstallation.version_id);
     const gameVersion = extractGameVersion(currentInstallation.version_id);
-    
+
     // Fetch compatible versions
     const versions = await modsApi.getProjectVersions(
       provider,
       projectId,
       loader ? [loader] : undefined,
-      gameVersion ? [gameVersion] : undefined
+      gameVersion ? [gameVersion] : undefined,
     );
-    
+
     // Check if there are other versions besides the installed one
-    const otherVersions = versions.filter(v => v.version_number !== installedVersion);
+    const otherVersions = versions.filter(
+      (v) => v.version_number !== installedVersion,
+    );
     hasOtherVersions = otherVersions.length > 0;
-    
+
     // Check if any version is newer (higher version number)
     if (hasOtherVersions) {
-      hasNewerVersion = otherVersions.some(v => 
-        compareVersions(v.version_number, installedVersion) > 0
+      hasNewerVersion = otherVersions.some(
+        (v) => compareVersions(v.version_number, installedVersion) > 0,
       );
     }
   } catch (e) {
-    console.error('[ModCard] Failed to check for updates:', e);
+    console.error("[ModCard] Failed to check for updates:", e);
   } finally {
     checkingVersions = false;
   }
@@ -99,32 +102,32 @@ async function checkForUpdates() {
 
 function compareVersions(a: string, b: string): number {
   const parseVersion = (v: string) => {
-    const parts = v.split(/[.-]+/).map(p => parseInt(p) || 0);
+    const parts = v.split(/[.-]+/).map((p) => parseInt(p) || 0);
     return parts;
   };
-  
+
   const aParts = parseVersion(a);
   const bParts = parseVersion(b);
   const maxLength = Math.max(aParts.length, bParts.length);
-  
+
   for (let i = 0; i < maxLength; i++) {
     const aPart = aParts[i] || 0;
     const bPart = bParts[i] || 0;
-    
+
     if (aPart !== bPart) {
       return aPart - bPart;
     }
   }
-  
+
   return 0;
 }
 
 function extractLoader(versionId: string): string | null {
   const lower = versionId.toLowerCase();
-  if (lower.includes('fabric')) return 'fabric';
-  if (lower.includes('neoforge')) return 'neoforge';
-  if (lower.includes('forge')) return 'forge';
-  if (lower.includes('quilt')) return 'quilt';
+  if (lower.includes("fabric")) return "fabric";
+  if (lower.includes("neoforge")) return "neoforge";
+  if (lower.includes("forge")) return "forge";
+  if (lower.includes("quilt")) return "quilt";
   return null;
 }
 
@@ -134,16 +137,16 @@ function extractGameVersion(versionId: string): string | null {
 }
 
 function getProjectId(mod: ModInfoKind): string | null {
-  if ('Modrinth' in mod) {
+  if ("Modrinth" in mod) {
     return mod.Modrinth.project_id;
-  } else if ('kind' in mod && mod.kind === 'Modrinth') {
+  } else if ("kind" in mod && mod.kind === "Modrinth") {
     return mod.data.project_id;
   }
   return null;
 }
 
 function getProvider(mod: ModInfoKind): ProviderKind {
-  if ('Modrinth' in mod || ('kind' in mod && mod.kind === 'Modrinth')) {
+  if ("Modrinth" in mod || ("kind" in mod && mod.kind === "Modrinth")) {
     return ProviderKindEnum.Modrinth;
   }
   return ProviderKindEnum.CurseForge;
@@ -152,132 +155,175 @@ function getProvider(mod: ModInfoKind): ProviderKind {
 // ModCard component for displaying mod information
 function getModDisplayInfo(mod: ModInfoKind) {
   // Type guard for Rust enum format
-  if ('Modrinth' in mod) {
+  if ("Modrinth" in mod) {
     const modrinthData = mod.Modrinth;
     // Find the display version by matching latest_version ID with versions_obj
-    let displayVersion = 'Unknown';
-    
+    let displayVersion = "Unknown";
+
     // Debug: log what data we have
-    console.log('Mod data for', modrinthData.title, ':', {
+    console.log("Mod data for", modrinthData.title, ":", {
       latest_version: modrinthData.latest_version,
       versions: modrinthData.versions,
       versions_obj: modrinthData.versions_obj,
-      hasVersionsObj: !!modrinthData.versions_obj
+      hasVersionsObj: !!modrinthData.versions_obj,
     });
-    
-    if (modrinthData.latest_version && modrinthData.versions_obj && modrinthData.versions_obj.length > 0) {
+
+    if (
+      modrinthData.latest_version &&
+      modrinthData.versions_obj &&
+      modrinthData.versions_obj.length > 0
+    ) {
       // Find the version object that matches the latest_version ID
-      const latestVersionObj = modrinthData.versions_obj.find(v => v.id === modrinthData.latest_version);
+      const latestVersionObj = modrinthData.versions_obj.find(
+        (v) => v.id === modrinthData.latest_version,
+      );
       if (latestVersionObj) {
         displayVersion = latestVersionObj.version_number;
-        console.log('Found matching version object:', latestVersionObj.version_number);
+        console.log(
+          "Found matching version object:",
+          latestVersionObj.version_number,
+        );
       } else {
         // Fallback to last (newest) version's version_number if latest not found
-        displayVersion = modrinthData.versions_obj[modrinthData.versions_obj.length - 1].version_number;
-        console.log('Using last version object:', displayVersion);
+        displayVersion =
+          modrinthData.versions_obj[modrinthData.versions_obj.length - 1]
+            .version_number;
+        console.log("Using last version object:", displayVersion);
       }
     } else if (modrinthData.versions && modrinthData.versions.length > 0) {
       // Fallback to last (newest) version ID from versions array if versions_obj not available
       displayVersion = modrinthData.versions[modrinthData.versions.length - 1];
-      console.log('Using last version ID (fallback):', displayVersion);
+      console.log("Using last version ID (fallback):", displayVersion);
     } else if (modrinthData.latest_version) {
       // Last resort: use the latest_version ID directly
       displayVersion = modrinthData.latest_version;
-      console.log('Using latest_version directly:', displayVersion);
+      console.log("Using latest_version directly:", displayVersion);
     }
-    
-    console.log('Final displayVersion for', modrinthData.title, ':', displayVersion);
-    
+
+    console.log(
+      "Final displayVersion for",
+      modrinthData.title,
+      ":",
+      displayVersion,
+    );
+
     return {
-      title: modrinthData.title || 'Unknown Mod',
-      description: modrinthData.description || 'No description available',
-      author: modrinthData.author || 'Unknown Author',
+      title: modrinthData.title || "Unknown Mod",
+      description: modrinthData.description || "No description available",
+      author: modrinthData.author || "Unknown Author",
       icon_url: modrinthData.icon_url || null,
       downloads: modrinthData.downloads || 0,
       follows: modrinthData.follows || 0,
-      updated: modrinthData.date_modified ? new Date(modrinthData.date_modified).toLocaleDateString() : 'Unknown',
+      updated: modrinthData.date_modified
+        ? new Date(modrinthData.date_modified).toLocaleDateString()
+        : "Unknown",
       categories: modrinthData.categories || [],
-      client_side: modrinthData.client_side || 'unknown',
-      server_side: modrinthData.server_side || 'unknown',
-      project_type: modrinthData.project_type || 'mod',
-      latest_version: displayVersion
+      client_side: modrinthData.client_side || "unknown",
+      server_side: modrinthData.server_side || "unknown",
+      project_type: modrinthData.project_type || "mod",
+      latest_version: displayVersion,
     };
   }
-  
+
   // Type guard for TypeScript discriminated union format
-  if ('kind' in mod && mod.kind === 'Modrinth') {
+  if ("kind" in mod && mod.kind === "Modrinth") {
     const modrinthData = mod.data;
     // Find the display version by matching latest_version ID with versions_obj
-    let displayVersion = 'Unknown';
-    
+    let displayVersion = "Unknown";
+
     // Debug: log what data we have
-    console.log('Mod data for', modrinthData.title, ':', {
+    console.log("Mod data for", modrinthData.title, ":", {
       latest_version: modrinthData.latest_version,
       versions: modrinthData.versions,
       versions_obj: modrinthData.versions_obj,
-      hasVersionsObj: !!modrinthData.versions_obj
+      hasVersionsObj: !!modrinthData.versions_obj,
     });
-    
-    if (modrinthData.latest_version && modrinthData.versions_obj && modrinthData.versions_obj.length > 0) {
+
+    if (
+      modrinthData.latest_version &&
+      modrinthData.versions_obj &&
+      modrinthData.versions_obj.length > 0
+    ) {
       // Find the version object that matches the latest_version ID
-      const latestVersionObj = modrinthData.versions_obj.find(v => v.id === modrinthData.latest_version);
+      const latestVersionObj = modrinthData.versions_obj.find(
+        (v) => v.id === modrinthData.latest_version,
+      );
       if (latestVersionObj) {
         displayVersion = latestVersionObj.version_number;
-        console.log('Found matching version object:', latestVersionObj.version_number);
+        console.log(
+          "Found matching version object:",
+          latestVersionObj.version_number,
+        );
       } else {
         // Fallback to last (newest) version's version_number if latest not found
-        displayVersion = modrinthData.versions_obj[modrinthData.versions_obj.length - 1].version_number;
-        console.log('Using last version object:', displayVersion);
+        displayVersion =
+          modrinthData.versions_obj[modrinthData.versions_obj.length - 1]
+            .version_number;
+        console.log("Using last version object:", displayVersion);
       }
     } else if (modrinthData.versions && modrinthData.versions.length > 0) {
       // Fallback to last (newest) version ID from versions array if versions_obj not available
       displayVersion = modrinthData.versions[modrinthData.versions.length - 1];
-      console.log('Using last version ID (fallback):', displayVersion);
+      console.log("Using last version ID (fallback):", displayVersion);
     } else if (modrinthData.latest_version) {
       // Last resort: use the latest_version ID directly
       displayVersion = modrinthData.latest_version;
-      console.log('Using latest_version directly:', displayVersion);
+      console.log("Using latest_version directly:", displayVersion);
     }
-    
-    console.log('Final displayVersion for', modrinthData.title, ':', displayVersion);
-    
+
+    console.log(
+      "Final displayVersion for",
+      modrinthData.title,
+      ":",
+      displayVersion,
+    );
+
     return {
-      title: modrinthData.title || 'Unknown Mod',
-      description: modrinthData.description || 'No description available',
-      author: modrinthData.author || 'Unknown Author',
+      title: modrinthData.title || "Unknown Mod",
+      description: modrinthData.description || "No description available",
+      author: modrinthData.author || "Unknown Author",
       icon_url: modrinthData.icon_url || null,
       downloads: modrinthData.downloads || 0,
       follows: modrinthData.follows || 0,
-      updated: modrinthData.date_modified ? new Date(modrinthData.date_modified).toLocaleDateString() : 'Unknown',
+      updated: modrinthData.date_modified
+        ? new Date(modrinthData.date_modified).toLocaleDateString()
+        : "Unknown",
       categories: modrinthData.categories || [],
-      client_side: modrinthData.client_side || 'unknown',
-      server_side: modrinthData.server_side || 'unknown',
-      project_type: modrinthData.project_type || 'mod',
-      latest_version: displayVersion
+      client_side: modrinthData.client_side || "unknown",
+      server_side: modrinthData.server_side || "unknown",
+      project_type: modrinthData.project_type || "mod",
+      latest_version: displayVersion,
     };
   }
-  
+
   return {
-    title: 'Unknown Mod',
-    description: 'No description available',
-    author: 'Unknown Author',
+    title: "Unknown Mod",
+    description: "No description available",
+    author: "Unknown Author",
     icon_url: null,
     downloads: 0,
     follows: 0,
-    updated: 'Unknown',
+    updated: "Unknown",
     categories: [],
-    client_side: 'unknown',
-    server_side: 'unknown',
-    project_type: 'mod',
-    latest_version: 'Unknown'
+    client_side: "unknown",
+    server_side: "unknown",
+    project_type: "mod",
+    latest_version: "Unknown",
   };
 }
 
 // Filter categories for display
 function getDisplayCategories(categories: string[]): string[] {
-  const filterOut = ['forge', 'fabric', 'quilt', 'neoforge', 'client', 'server'];
+  const filterOut = [
+    "forge",
+    "fabric",
+    "quilt",
+    "neoforge",
+    "client",
+    "server",
+  ];
   return categories
-    .filter(cat => !filterOut.includes(cat.toLowerCase()))
+    .filter((cat) => !filterOut.includes(cat.toLowerCase()))
     .slice(0, 4);
 }
 
@@ -286,19 +332,19 @@ function handleImageError(event: Event) {
   const img = event.target as HTMLImageElement;
   const placeholder = img.nextElementSibling as HTMLElement;
   if (placeholder) {
-    img.style.display = 'none';
-    placeholder.style.display = 'flex';
+    img.style.display = "none";
+    placeholder.style.display = "flex";
   }
 }
 
 $: displayInfo = getModDisplayInfo(mod);
 
 function handleDownload() {
-  dispatch('downloadMod', { mod });
+  dispatch("downloadMod", { mod });
 }
 
 function handleInfo() {
-  dispatch('infoMod', { mod });
+  dispatch("infoMod", { mod });
 }
 
 function handleVersions(event?: Event) {
@@ -306,14 +352,16 @@ function handleVersions(event?: Event) {
   if (event) {
     event.stopPropagation();
   }
-  
+
   // Open version modal instead of external link
   showVersionModal = true;
 }
 
-function handleVersionSelect(event: CustomEvent<{ versionId: string; versionNumber: string }>) {
+function handleVersionSelect(
+  event: CustomEvent<{ versionId: string; versionNumber: string }>,
+) {
   const { versionId, versionNumber } = event.detail;
-  dispatch('downloadVersion', { mod, versionId, versionNumber });
+  dispatch("downloadVersion", { mod, versionId, versionNumber });
 }
 
 function handleCardClick() {
@@ -322,22 +370,28 @@ function handleCardClick() {
 }
 
 function handleCardKeydown(event: KeyboardEvent) {
-  if (event.key === 'Enter' || event.key === ' ') {
+  if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
     handleCardClick();
   }
 }
 </script>
 
-<div class="mod-card" class:installed={isInstalled} class:compact={viewMode === 'compact'} class:list={viewMode === 'list'} class:grid={viewMode === 'grid'}>
-  {#if viewMode === 'compact'}
+<div
+  class="mod-card"
+  class:installed={isInstalled}
+  class:compact={viewMode === "compact"}
+  class:list={viewMode === "list"}
+  class:grid={viewMode === "grid"}
+>
+  {#if viewMode === "compact"}
     <!-- !Compact Mode - Icon + Name/Description + Stacked Buttons -->
     <div class="compact-layout">
       <div class="compact-icon">
         {#if displayInfo.icon_url}
-          <img 
-            src={displayInfo.icon_url} 
-            alt={displayInfo.title} 
+          <img
+            src={displayInfo.icon_url}
+            alt={displayInfo.title}
             class="compact-mod-icon"
             on:error={handleImageError}
           />
@@ -361,27 +415,31 @@ function handleCardKeydown(event: KeyboardEvent) {
       </div>
 
       <div class="compact-actions">
-        <button 
-          class="compact-versions-btn" 
+        <button
+          class="compact-versions-btn"
           on:click={handleVersions}
           title="View all versions"
         >
           <Icon name="list" size="sm" />
         </button>
-        
+
         {#if isInstalled && currentInstallation}
           {#if hasNewerVersion || hasOtherVersions}
-            <button 
-              class="compact-update-btn" 
+            <button
+              class="compact-update-btn"
               on:click={handleVersions}
               title={hasNewerVersion ? "Update available" : "Change version"}
             >
-              <Icon name={hasNewerVersion ? "arrow-up" : "edit"} size="sm" forceType="svg" />
+              <Icon
+                name={hasNewerVersion ? "arrow-up" : "edit"}
+                size="sm"
+                forceType="svg"
+              />
             </button>
           {/if}
         {:else if currentInstallation}
-          <button 
-            class="compact-download-btn" 
+          <button
+            class="compact-download-btn"
             on:click={handleDownload}
             disabled={loading}
             title="Download latest version"
@@ -389,7 +447,10 @@ function handleCardKeydown(event: KeyboardEvent) {
             <Icon name="download" size="sm" forceType="svg" />
           </button>
         {:else}
-          <div class="compact-no-installation" title="Select installation first">
+          <div
+            class="compact-no-installation"
+            title="Select installation first"
+          >
             <Icon name="info" size="sm" />
           </div>
         {/if}
@@ -397,9 +458,9 @@ function handleCardKeydown(event: KeyboardEvent) {
     </div>
   {:else}
     <!-- !Grid and List Mode -->
-    {#if viewMode === 'grid'}
+    {#if viewMode === "grid"}
       <!-- Clickable grid card -->
-      <div 
+      <div
         class="mod-content-wrapper clickable"
         on:click={handleCardClick}
         on:keydown={handleCardKeydown}
@@ -413,9 +474,9 @@ function handleCardKeydown(event: KeyboardEvent) {
           <div class="flex-header">
             <div class="flex-icon">
               {#if displayInfo.icon_url}
-                <img 
-                  src={displayInfo.icon_url} 
-                  alt={displayInfo.title} 
+                <img
+                  src={displayInfo.icon_url}
+                  alt={displayInfo.title}
                   class="flex-icon-img"
                   on:error={handleImageError}
                 />
@@ -430,7 +491,10 @@ function handleCardKeydown(event: KeyboardEvent) {
             </div>
 
             <div class="flex-header-info">
-              <h3 class="flex-title" title={`${displayInfo.title} - Latest: ${displayInfo.latest_version}`}>
+              <h3
+                class="flex-title"
+                title={`${displayInfo.title} - Latest: ${displayInfo.latest_version}`}
+              >
                 {displayInfo.title}
               </h3>
               <div class="flex-author">
@@ -439,8 +503,8 @@ function handleCardKeydown(event: KeyboardEvent) {
             </div>
 
             <div class="flex-controls">
-              <button 
-                class="control-btn versions-btn" 
+              <button
+                class="control-btn versions-btn"
                 on:click|stopPropagation={handleVersions}
                 title="View all versions"
               >
@@ -448,17 +512,23 @@ function handleCardKeydown(event: KeyboardEvent) {
               </button>
               {#if isInstalled && currentInstallation}
                 {#if hasNewerVersion || hasOtherVersions}
-                  <button 
-                    class="control-btn update-btn" 
+                  <button
+                    class="control-btn update-btn"
                     on:click|stopPropagation={handleVersions}
-                    title={hasNewerVersion ? "Update available" : "Change version"}
+                    title={hasNewerVersion
+                      ? "Update available"
+                      : "Change version"}
                   >
-                    <Icon name={hasNewerVersion ? "arrow-up" : "edit"} size="sm" forceType="svg" />
+                    <Icon
+                      name={hasNewerVersion ? "arrow-up" : "edit"}
+                      size="sm"
+                      forceType="svg"
+                    />
                   </button>
                 {/if}
               {:else if currentInstallation}
-                <button 
-                  class="control-btn download-btn" 
+                <button
+                  class="control-btn download-btn"
                   on:click|stopPropagation={handleDownload}
                   disabled={loading}
                   title="Download latest version"
@@ -466,7 +536,11 @@ function handleCardKeydown(event: KeyboardEvent) {
                   <Icon name="download" size="sm" forceType="svg" />
                 </button>
               {:else}
-                <button class="control-btn disabled-btn" disabled title="Select installation first">
+                <button
+                  class="control-btn disabled-btn"
+                  disabled
+                  title="Select installation first"
+                >
                   <Icon name="info" size="sm" />
                 </button>
               {/if}
@@ -479,17 +553,19 @@ function handleCardKeydown(event: KeyboardEvent) {
               <div class="flex-stat">
                 <Icon name="download" size="sm" forceType="svg" />
                 <span class="stat-value">
-                  {displayInfo.downloads > 999 ? 
-                    (displayInfo.downloads / 1000000 > 1 ? 
-                      `${(displayInfo.downloads / 1000000).toFixed(1)}M` : 
-                      `${(displayInfo.downloads / 1000).toFixed(0)}K`) : 
-                    displayInfo.downloads.toLocaleString()}
+                  {displayInfo.downloads > 999
+                    ? displayInfo.downloads / 1000000 > 1
+                      ? `${(displayInfo.downloads / 1000000).toFixed(1)}M`
+                      : `${(displayInfo.downloads / 1000).toFixed(0)}K`
+                    : displayInfo.downloads.toLocaleString()}
                 </span>
               </div>
 
               <div class="flex-stat">
                 <Icon name="star" size="sm" forceType="svg" />
-                <span class="stat-value">{displayInfo.follows.toLocaleString()}</span>
+                <span class="stat-value"
+                  >{displayInfo.follows.toLocaleString()}</span
+                >
               </div>
 
               <div class="flex-stat">
@@ -520,9 +596,9 @@ function handleCardKeydown(event: KeyboardEvent) {
           <!-- Icon Section (Left) -->
           <div class="list-icon">
             {#if displayInfo.icon_url}
-              <img 
-                src={displayInfo.icon_url} 
-                alt={displayInfo.title} 
+              <img
+                src={displayInfo.icon_url}
+                alt={displayInfo.title}
                 class="list-icon-img"
                 on:error={handleImageError}
               />
@@ -548,22 +624,24 @@ function handleCardKeydown(event: KeyboardEvent) {
                   by {displayInfo.author}
                 </div>
               </div>
-              
+
               <div class="list-stats">
                 <div class="list-stat">
                   <Icon name="download" size="sm" forceType="svg" />
                   <span class="stat-value">
-                    {displayInfo.downloads > 999 ? 
-                      (displayInfo.downloads / 1000000 > 1 ? 
-                        `${(displayInfo.downloads / 1000000).toFixed(1)}M` : 
-                        `${(displayInfo.downloads / 1000).toFixed(0)}K`) : 
-                      displayInfo.downloads.toLocaleString()}
+                    {displayInfo.downloads > 999
+                      ? displayInfo.downloads / 1000000 > 1
+                        ? `${(displayInfo.downloads / 1000000).toFixed(1)}M`
+                        : `${(displayInfo.downloads / 1000).toFixed(0)}K`
+                      : displayInfo.downloads.toLocaleString()}
                   </span>
                 </div>
 
                 <div class="list-stat">
                   <Icon name="star" size="sm" forceType="svg" />
-                  <span class="stat-value">{displayInfo.follows.toLocaleString()}</span>
+                  <span class="stat-value"
+                    >{displayInfo.follows.toLocaleString()}</span
+                  >
                 </div>
 
                 <div class="list-stat">
@@ -572,8 +650,8 @@ function handleCardKeydown(event: KeyboardEvent) {
                 </div>
               </div>
 
-              <button 
-                class="list-versions-btn" 
+              <button
+                class="list-versions-btn"
                 on:click={handleVersions}
                 title="View all versions"
               >
@@ -601,18 +679,24 @@ function handleCardKeydown(event: KeyboardEvent) {
               <div class="list-action">
                 {#if isInstalled && currentInstallation}
                   {#if hasNewerVersion || hasOtherVersions}
-                    <button 
-                      class="list-update-btn" 
+                    <button
+                      class="list-update-btn"
                       on:click={handleVersions}
-                      title={hasNewerVersion ? "Update available" : "Change version"}
+                      title={hasNewerVersion
+                        ? "Update available"
+                        : "Change version"}
                     >
-                      <Icon name={hasNewerVersion ? "arrow-up" : "edit"} size="sm" forceType="svg" />
+                      <Icon
+                        name={hasNewerVersion ? "arrow-up" : "edit"}
+                        size="sm"
+                        forceType="svg"
+                      />
                       {hasNewerVersion ? "Update" : "Change"}
                     </button>
                   {/if}
                 {:else if currentInstallation}
-                  <button 
-                    class="list-download-btn" 
+                  <button
+                    class="list-download-btn"
                     on:click={handleDownload}
                     disabled={loading}
                   >
@@ -635,12 +719,12 @@ function handleCardKeydown(event: KeyboardEvent) {
 </div>
 
 <!-- Version Selection Modal -->
-<ModVersionModal 
-  {mod} 
+<ModVersionModal
+  {mod}
   {currentInstallation}
   {installedVersion}
-  bind:open={showVersionModal} 
-  on:selectVersion={handleVersionSelect} 
+  bind:open={showVersionModal}
+  on:selectVersion={handleVersionSelect}
 />
 
 <style lang="scss">
@@ -654,18 +738,22 @@ function handleCardKeydown(event: KeyboardEvent) {
   transition: all 0.2s ease;
   display: flex;
   position: relative;
-  
+
   &.installed {
-    background: linear-gradient(135deg, rgba($green, 0.05) 0%, rgba($green, 0.02) 100%);
+    background: linear-gradient(
+      135deg,
+      rgba($green, 0.05) 0%,
+      rgba($green, 0.02) 100%
+    );
     border-color: rgba($green, 0.3);
   }
-  
+
   &.grid {
     flex-direction: column;
     width: 100%;
     height: auto;
     overflow: hidden;
-    
+
     &:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 25px rgba($dark-900, 0.15);
@@ -673,7 +761,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       border-color: rgba($primary, 0.15);
     }
   }
-  
+
   &.list {
     width: 100%;
     max-width: none;
@@ -873,15 +961,15 @@ function handleCardKeydown(event: KeyboardEvent) {
       width: 150px;
       max-width: 160px;
     }
-    
+
     .list-stats {
       gap: 0.25rem;
-      
+
       .list-stat {
         font-size: 0.65rem;
       }
     }
-    
+
     .list-versions-btn,
     .list-download-btn,
     .no-installation-warning {
@@ -897,21 +985,21 @@ function handleCardKeydown(event: KeyboardEvent) {
       gap: 0.375rem;
       padding: 0.375rem;
     }
-    
+
     .list-name-author {
       width: 120px;
       max-width: 130px;
     }
-    
+
     .list-stats {
       gap: 0.25rem;
-      
+
       .list-stat {
         font-size: 0.6rem;
         gap: 0.125rem;
       }
     }
-    
+
     .list-versions-btn,
     .list-download-btn,
     .no-installation-warning {
@@ -920,11 +1008,11 @@ function handleCardKeydown(event: KeyboardEvent) {
       font-size: 0.6rem;
       gap: 0.125rem;
     }
-    
+
     .list-description {
       font-size: 0.7rem;
     }
-    
+
     .list-tag {
       font-size: 0.55rem;
       padding: 0.0625rem 0.1875rem;
@@ -941,7 +1029,8 @@ function handleCardKeydown(event: KeyboardEvent) {
     margin-left: auto;
   }
 
-  .list-download-btn, .list-update-btn {
+  .list-download-btn,
+  .list-update-btn {
     display: flex;
     align-items: center;
     gap: 0.25rem;
@@ -973,7 +1062,7 @@ function handleCardKeydown(event: KeyboardEvent) {
 
   .list-update-btn {
     background: var(--secondary);
-    
+
     &:hover:not(:disabled) {
       background: rgba($secondary, 0.9);
       box-shadow: 0 4px 12px rgba($secondary, 0.3);
@@ -996,14 +1085,14 @@ function handleCardKeydown(event: KeyboardEvent) {
     max-width: 80px;
     justify-content: center;
   }
-  
+
   &.compact {
     border-radius: 0.375rem;
     height: fit-content;
     flex: 1 1 220px;
     min-width: 220px;
     max-width: 300px;
-    
+
     &:hover {
       background: rgba($primary, 0.03);
       border-color: rgba($primary, 0.2);
@@ -1011,7 +1100,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       box-shadow: 0 2px 6px rgba($dark-900, 0.1);
     }
   }
-  
+
   .mod-content-wrapper {
     display: flex;
     flex-direction: column;
@@ -1027,12 +1116,12 @@ function handleCardKeydown(event: KeyboardEvent) {
   padding: 0.75rem;
   height: 100%;
   gap: 0.5rem;
-  
+
   .flex-header {
     display: flex;
     align-items: flex-start;
     gap: 0.75rem;
-    
+
     .flex-icon {
       width: 48px;
       height: 48px;
@@ -1042,13 +1131,13 @@ function handleCardKeydown(event: KeyboardEvent) {
       border: 1px solid rgba($placeholder, 0.2);
       flex-shrink: 0;
       position: relative;
-      
+
       .flex-icon-img {
         width: 100%;
         height: 100%;
         object-fit: cover;
       }
-      
+
       .flex-icon-placeholder {
         width: 100%;
         height: 100%;
@@ -1059,11 +1148,11 @@ function handleCardKeydown(event: KeyboardEvent) {
         background: rgba($placeholder, 0.05);
       }
     }
-    
+
     .flex-header-info {
       flex: 1;
       min-width: 0;
-      
+
       .flex-title {
         margin: 0 0 0.25rem 0;
         font-size: 0.9rem;
@@ -1075,21 +1164,21 @@ function handleCardKeydown(event: KeyboardEvent) {
         hyphens: auto;
         white-space: normal;
       }
-      
+
       .flex-author {
         color: var(--placeholder);
         font-size: 0.75em;
         font-weight: 500;
       }
     }
-    
+
     .flex-controls {
       display: flex;
       flex-direction: column;
       gap: 0.375rem;
       align-items: center;
       flex-shrink: 0;
-      
+
       .control-btn {
         width: 32px;
         height: 32px;
@@ -1102,42 +1191,43 @@ function handleCardKeydown(event: KeyboardEvent) {
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        
-        &.download-btn, &.update-btn {
+
+        &.download-btn,
+        &.update-btn {
           background: var(--tertiary);
           color: white;
-          
+
           &:hover:not(:disabled) {
             background: rgba($tertiary, 0.8);
             transform: translateY(-1px);
           }
-          
+
           &:disabled {
             opacity: 0.6;
             cursor: not-allowed;
             transform: none;
           }
         }
-        
+
         &.update-btn {
           background: var(--secondary);
-          
+
           &:hover:not(:disabled) {
             background: rgba($secondary, 0.8);
           }
         }
-        
+
         &.versions-btn {
           background: rgba($secondary, 0.1);
           color: var(--secondary);
           border: 1px solid rgba($secondary, 0.3);
-          
+
           &:hover {
             background: rgba($secondary, 0.2);
             border-color: rgba($secondary, 0.5);
           }
         }
-        
+
         &.disabled-btn {
           background: rgba($placeholder, 0.05);
           color: var(--placeholder);
@@ -1148,30 +1238,30 @@ function handleCardKeydown(event: KeyboardEvent) {
       }
     }
   }
-  
+
   .flex-data {
     display: flex;
     flex-direction: column;
     gap: 0.375rem;
-    
+
     .flex-stats {
       display: flex;
       gap: 0.5rem;
-      
+
       .flex-stat {
         display: flex;
         align-items: center;
         gap: 0.25rem;
         color: var(--placeholder);
         font-size: 0.65em;
-        
+
         .stat-value {
           font-weight: 600;
           color: var(--text);
         }
       }
     }
-    
+
     .flex-description {
       color: var(--placeholder);
       font-size: 0.75em;
@@ -1184,12 +1274,12 @@ function handleCardKeydown(event: KeyboardEvent) {
       word-wrap: break-word;
       overflow-wrap: break-word;
     }
-    
+
     .flex-tags {
       display: flex;
       flex-wrap: wrap;
       gap: 0.25rem;
-      
+
       .flex-tag {
         background: rgba($primary, 0.08);
         color: var(--primary);
@@ -1207,7 +1297,7 @@ function handleCardKeydown(event: KeyboardEvent) {
   cursor: pointer;
 }
 
-// Compact layout specific styles  
+// Compact layout specific styles
 .compact-layout {
   display: flex;
   align-items: center;
@@ -1215,7 +1305,7 @@ function handleCardKeydown(event: KeyboardEvent) {
   gap: 0.5rem;
   padding: 0.5rem;
   position: relative;
-  
+
   .compact-icon {
     width: 32px;
     height: 32px;
@@ -1225,13 +1315,13 @@ function handleCardKeydown(event: KeyboardEvent) {
     border: 1px solid rgba($placeholder, 0.2);
     flex-shrink: 0;
     position: relative;
-    
+
     .compact-mod-icon {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
-    
+
     .compact-icon-placeholder {
       width: 100%;
       height: 100%;
@@ -1242,7 +1332,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       background: rgba($placeholder, 0.05);
     }
   }
-  
+
   .compact-content {
     flex: 1;
     min-width: 0;
@@ -1252,7 +1342,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     gap: 0.125rem;
     padding-right: 0.5rem;
   }
-  
+
   .compact-title {
     margin: 0;
     font-size: 0.75rem;
@@ -1268,7 +1358,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  
+
   .compact-description {
     margin: 0;
     font-size: 0.65rem;
@@ -1284,7 +1374,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  
+
   .compact-actions {
     margin-left: auto;
     display: flex;
@@ -1292,7 +1382,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     align-items: center;
     gap: 0.25rem;
     flex-shrink: 0;
-    
+
     .compact-versions-btn {
       background: var(--secondary);
       color: white;
@@ -1306,20 +1396,21 @@ function handleCardKeydown(event: KeyboardEvent) {
       justify-content: center;
       width: 28px;
       height: 28px;
-      
+
       &:hover:not(:disabled) {
         background: rgba($secondary, 0.8);
         transform: translateY(-1px);
       }
-      
+
       &:disabled {
         opacity: 0.6;
         cursor: not-allowed;
         transform: none;
       }
     }
-    
-    .compact-download-btn, .compact-update-btn {
+
+    .compact-download-btn,
+    .compact-update-btn {
       background: var(--tertiary);
       color: white;
       border: none;
@@ -1332,27 +1423,27 @@ function handleCardKeydown(event: KeyboardEvent) {
       justify-content: center;
       width: 28px;
       height: 28px;
-      
+
       &:hover:not(:disabled) {
         background: rgba($tertiary, 0.8);
         transform: translateY(-1px);
       }
-      
+
       &:disabled {
         opacity: 0.6;
         cursor: not-allowed;
         transform: none;
       }
     }
-    
+
     .compact-update-btn {
       background: var(--secondary);
-      
+
       &:hover:not(:disabled) {
         background: rgba($secondary, 0.8);
       }
     }
-    
+
     .compact-no-installation {
       display: flex;
       align-items: center;

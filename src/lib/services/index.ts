@@ -1,12 +1,15 @@
+export * from "./AuthService";
+export * from "./DataService";
+export * from "./DiscordService";
+export * from "./IconService";
 
-export { AuthService } from './AuthService';
-export { InstallationService } from './InstallationService';
-export { SettingsService } from './SettingsService';
-export { IconService, availableTemplates, selectedTemplate, isIconsLoading, iconError } from './IconService';
-export { MapsService } from './MapsService';
-export { ModsService } from './ModsService';
-export { ResourcepacksService } from './ResourcepacksService';
-export { ShadersService } from './ShadersService';
-export { SkinsService } from './SkinsService';
-export * from './LauncherService';
-export * from './LogService';
+export * from "./InstallationService";
+export * from "./LauncherService";
+export * from "./LogService";
+export * from "./MapsService";
+export * from "./ModsService";
+export * from "./NotificationService";
+export * from "./ResourcepacksService";
+export * from "./SettingsService";
+export * from "./ShadersService";
+export * from "./SkinsService";
