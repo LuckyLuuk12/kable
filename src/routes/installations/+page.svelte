@@ -18,27 +18,6 @@ let isRefreshing = false;
 let isRefreshingVersions = false;
 let isImporting = false;
 
-// Notification state
-let notificationMessage = "";
-let notificationType: "success" | "error" | "" = "";
-let notificationTimeout: number | null = null;
-
-function showNotification(message: string, type: "success" | "error") {
-  notificationMessage = message;
-  notificationType = type;
-
-  // Clear any existing timeout
-  if (notificationTimeout) {
-    clearTimeout(notificationTimeout);
-  }
-
-  // Auto-hide after 5 seconds
-  notificationTimeout = setTimeout(() => {
-    notificationMessage = "";
-    notificationType = "";
-  }, 5000) as any;
-}
-
 function editInstallation(installation: KableInstallation) {
   editModalRef?.open(installation);
 }
@@ -72,12 +51,10 @@ async function importKableInstallation() {
 
     if (path) {
       await InstallationService.importInstallation(path);
-      showNotification("Installation imported successfully!", "success");
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";
     console.error("Failed to import installation:", error);
-    showNotification(`Failed to import installation: ${errorMsg}`, "error");
   } finally {
     isImporting = false;
   }
@@ -90,18 +67,10 @@ async function importFromMinecraftFolder() {
 
     if (path) {
       const result = await InstallationService.importFromMinecraftFolder(path);
-      showNotification(
-        "Installations imported successfully from .minecraft folder!",
-        "success",
-      );
     }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";
     console.error("Failed to import from .minecraft folder:", error);
-    showNotification(
-      `Failed to import from .minecraft folder: ${errorMsg}`,
-      "error",
-    );
   } finally {
     isImporting = false;
   }
@@ -109,26 +78,6 @@ async function importFromMinecraftFolder() {
 </script>
 
 <div class="installations-page">
-  <!-- Notification Toast -->
-  {#if notificationMessage}
-    <div class="notification notification-{notificationType}">
-      <Icon
-        name={notificationType === "success" ? "check-circle" : "alert"}
-        size="sm"
-      />
-      <span>{notificationMessage}</span>
-      <button
-        class="close-btn"
-        on:click={() => {
-          notificationMessage = "";
-          notificationType = "";
-        }}
-      >
-        <Icon name="x" size="sm" />
-      </button>
-    </div>
-  {/if}
-
   <div class="page-header">
     <div class="header-content">
       <h1>Installations</h1>
@@ -353,71 +302,6 @@ async function importFromMinecraftFolder() {
   }
   to {
     transform: rotate(360deg);
-  }
-}
-
-.notification {
-  position: fixed;
-  top: 1.5rem;
-  right: 1.5rem;
-  z-index: 10000;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  border-radius: var(--border-radius);
-  box-shadow:
-    0 0.5rem 2rem rgba(0, 0, 0, 0.2),
-    0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  font-weight: 500;
-  animation: slideIn 0.3s ease-out;
-  max-width: 400px;
-
-  &.notification-success {
-    background: color-mix(in srgb, var(--green), 15%, var(--card));
-    border: 1px solid var(--green);
-    color: var(--green);
-  }
-
-  &.notification-error {
-    background: color-mix(in srgb, var(--red), 15%, var(--card));
-    border: 1px solid var(--red);
-    color: var(--red);
-  }
-
-  span {
-    flex: 1;
-    font-size: 0.9rem;
-  }
-
-  .close-btn {
-    background: none;
-    border: none;
-    padding: 0.25rem;
-    cursor: pointer;
-    color: inherit;
-    opacity: 0.7;
-    transition: opacity 0.15s;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    &:hover {
-      opacity: 1;
-    }
-  }
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateX(400px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
   }
 }
 </style>

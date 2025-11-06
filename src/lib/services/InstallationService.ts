@@ -14,6 +14,7 @@ import {
   type ExtendedModInfo,
   LogsService,
   openPath,
+  NotificationService,
 } from "$lib";
 import * as installationsApi from "../api/installations";
 import { get } from "svelte/store";
@@ -271,8 +272,14 @@ export class InstallationService {
    * @param version_id The ID of the version to create the installation for.
    */
   static async createInstallation(version_id: string): Promise<void> {
-    await installationsApi.createInstallation(version_id);
-    await this.refreshInstallations();
+    try {
+      await installationsApi.createInstallation(version_id);
+      await this.refreshInstallations();
+      NotificationService.success(`Installation created successfully`);
+    } catch (error) {
+      NotificationService.error(`Failed to create installation: ${error}`);
+      throw error;
+    }
   }
 
   /**
@@ -291,12 +298,18 @@ export class InstallationService {
       copyShaders: boolean;
     },
   ): Promise<void> {
-    await installationsApi.createInstallationFromExisting(
-      version_id,
-      sourceInstallation.id,
-      options,
-    );
-    await this.refreshInstallations();
+    try {
+      await installationsApi.createInstallationFromExisting(
+        version_id,
+        sourceInstallation.id,
+        options,
+      );
+      await this.refreshInstallations();
+      NotificationService.success(`Installation created from "${sourceInstallation.name}"`);
+    } catch (error) {
+      NotificationService.error(`Failed to create installation: ${error}`);
+      throw error;
+    }
   }
 
   /**
@@ -340,8 +353,10 @@ export class InstallationService {
       await installationsApi.deleteInstallation(id);
       // After successful delete, ensure we have authoritative data from backend
       await this.refreshInstallations();
+      NotificationService.success(`Installation deleted`);
     } catch (error) {
       console.error("Failed to delete installation, reloading list:", error);
+      NotificationService.error(`Failed to delete installation: ${error}`);
       // On failure, attempt to reload authoritative list to restore UI
       try {
         await this.refreshInstallations();
@@ -500,21 +515,28 @@ export class InstallationService {
   }
 
   static async exportInstallation(installation: KableInstallation) {
-    console.log("Exporting installation:", installation);
-    const path = await installationsApi.exportInstallation(installation);
-    // Open the file location in the system file explorer
-    if (path) {
-      console.log("Exported installation to:", path);
-      LogsService.emitLauncherEvent(
-        `Exported installation ${installation.name} to ${path}`,
-        "info",
-      );
-      await openPath(path);
-    } else {
-      LogsService.emitLauncherEvent(
-        `Failed to export installation ${installation.name}`,
-        "error",
-      );
+    try {
+      console.log("Exporting installation:", installation);
+      const path = await installationsApi.exportInstallation(installation);
+      // Open the file location in the system file explorer
+      if (path) {
+        console.log("Exported installation to:", path);
+        LogsService.emitLauncherEvent(
+          `Exported installation ${installation.name} to ${path}`,
+          "info",
+        );
+        NotificationService.success(`Exported "${installation.name}" successfully`);
+        await openPath(path);
+      } else {
+        LogsService.emitLauncherEvent(
+          `Failed to export installation ${installation.name}`,
+          "error",
+        );
+        NotificationService.error(`Failed to export "${installation.name}"`);
+      }
+    } catch (error) {
+      NotificationService.error(`Failed to export installation: ${error}`);
+      throw error;
     }
   }
 
@@ -530,6 +552,7 @@ export class InstallationService {
         `✓ Successfully imported installation "${newInstallation.name}" from ${path}`,
         "info",
       );
+      NotificationService.success(`Imported "${newInstallation.name}" successfully`);
 
   // Reload installations to show the new one (force refresh)
   await this.refreshInstallations();
@@ -543,6 +566,7 @@ export class InstallationService {
         `✗ Failed to import installation from ${path}: ${errorMsg}`,
         "error",
       );
+      NotificationService.error(`Failed to import installation: ${errorMsg}`);
       throw error;
     }
   }
@@ -563,6 +587,7 @@ export class InstallationService {
         `✓ Successfully imported ${count} installation(s) from ${path}`,
         "info",
       );
+      NotificationService.success(`Imported ${count} installation(s) from .minecraft folder`);
 
   // Reload installations to show the new ones (force refresh)
   await this.refreshInstallations();
@@ -576,6 +601,7 @@ export class InstallationService {
         `✗ Failed to import from .minecraft folder ${path}: ${errorMsg}`,
         "error",
       );
+      NotificationService.error(`Failed to import from .minecraft folder: ${errorMsg}`);
       throw error;
     }
   }
@@ -590,6 +616,7 @@ export class InstallationService {
         `Duplicated installation ${installation.name}`,
         "info",
       );
+      NotificationService.success(`Duplicated "${installation.name}"`);
       await this.loadInstallations();
     } catch (error) {
       console.error("Failed to duplicate installation:", error);
@@ -597,6 +624,7 @@ export class InstallationService {
         `Failed to duplicate installation ${installation.name}`,
         "error",
       );
+      NotificationService.error(`Failed to duplicate "${installation.name}": ${error}`);
     }
   }
 
@@ -692,6 +720,13 @@ export class InstallationService {
   static async createShortcut(
     installation: KableInstallation,
   ): Promise<string> {
-    return await installationsApi.createShortcut(installation);
+    try {
+      const path = await installationsApi.createShortcut(installation);
+      NotificationService.success(`Shortcut created for "${installation.name}"`);
+      return path;
+    } catch (error) {
+      NotificationService.error(`Failed to create shortcut: ${error}`);
+      throw error;
+    }
   }
 }

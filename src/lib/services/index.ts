@@ -8,6 +8,7 @@ export * from "./LauncherService";
 export * from "./LogService";
 export * from "./MapsService";
 export * from "./ModsService";
+export * from "./NotificationService";
 export * from "./ResourcepacksService";
 export * from "./SettingsService";
 export * from "./ShadersService";

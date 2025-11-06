@@ -12,6 +12,8 @@ Handles window state changes and provides standard window management functionali
 <script lang="ts">
 import { onMount } from "svelte";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { NotificationContainer, NotificationTray } from "$lib";
+
 let isMaximized = false;
 
 const appWindow = async () => await getCurrentWindow();
@@ -54,6 +56,9 @@ onMount(async () => {
       <span class="app-title">Kable Launcher</span>
     </div>
     <div class="titlebar-right">
+      <!-- Notification Tray -->
+      <NotificationTray />
+      
       <button
         class="titlebar-btn minimize"
         title="Minimize"
@@ -143,6 +148,10 @@ onMount(async () => {
       </button>
     </div>
   </div>
+  
+  <!-- Global Notification Container -->
+  <NotificationContainer />
+  
   <slot />
 </div>
 
