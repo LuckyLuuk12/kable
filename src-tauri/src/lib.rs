@@ -63,18 +63,18 @@ pub use skins::*;
 pub fn run() {
     // Handle CLI arguments before building Tauri app
     let args: Vec<String> = std::env::args().collect();
-    
+
     // Check for --launch-installation argument
     for arg in args.iter() {
         if arg.starts_with("--launch-installation=") {
             let installation_id = arg.trim_start_matches("--launch-installation=");
-            
+
             // Launch the installation directly without showing UI
             tauri::async_runtime::block_on(async {
                 match crate::installations::get_installation(installation_id).await {
                     Ok(Some(installation)) => {
                         eprintln!("Launching installation: {}", installation.name);
-                        
+
                         // Load settings and account
                         let settings = match crate::settings::load_settings().await {
                             Ok(s) => s,
@@ -83,11 +83,15 @@ pub fn run() {
                                 std::process::exit(1);
                             }
                         };
-                        
-                        let account = match crate::auth::auth_util::get_active_launcher_account().await {
+
+                        let account = match crate::auth::auth_util::get_active_launcher_account()
+                            .await
+                        {
                             Ok(Some(acc)) => acc,
                             Ok(None) => {
-                                eprintln!("No active account found. Please log in through the launcher.");
+                                eprintln!(
+                                    "No active account found. Please log in through the launcher."
+                                );
                                 std::process::exit(1);
                             }
                             Err(e) => {
@@ -95,12 +99,15 @@ pub fn run() {
                                 std::process::exit(1);
                             }
                         };
-                        
-                        if let Err(e) = crate::launcher::launch_installation(installation, settings, account).await {
+
+                        if let Err(e) =
+                            crate::launcher::launch_installation(installation, settings, account)
+                                .await
+                        {
                             eprintln!("Failed to launch installation: {}", e);
                             std::process::exit(1);
                         }
-                        
+
                         eprintln!("Installation launched successfully");
                         std::process::exit(0);
                     }
@@ -116,7 +123,7 @@ pub fn run() {
             });
         }
     }
-    
+
     tauri::Builder::default()
         .setup(|app| {
             // Initialize global logger with the app handle so modules that
@@ -501,11 +508,11 @@ pub async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
     async_fs::create_dir_all(dst)
         .await
         .map_err(|e| format!("Failed to create directory {}: {}", dst.display(), e))?;
-    
+
     let mut entries = async_fs::read_dir(src)
         .await
         .map_err(|e| format!("Failed to read directory {}: {}", src.display(), e))?;
-    
+
     while let Some(entry) = entries
         .next_entry()
         .await
@@ -516,20 +523,25 @@ pub async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
             .file_name()
             .ok_or_else(|| "Invalid file name".to_string())?;
         let dst_path = dst.join(file_name);
-        
+
         let metadata = async_fs::metadata(&src_path)
             .await
             .map_err(|e| format!("Failed to get metadata: {}", e))?;
-        
+
         if metadata.is_dir() {
             Box::pin(copy_dir_recursive(&src_path, &dst_path)).await?;
         } else {
-            async_fs::copy(&src_path, &dst_path)
-                .await
-                .map_err(|e| format!("Failed to copy file from {} to {}: {}", src_path.display(), dst_path.display(), e))?;
+            async_fs::copy(&src_path, &dst_path).await.map_err(|e| {
+                format!(
+                    "Failed to copy file from {} to {}: {}",
+                    src_path.display(),
+                    dst_path.display(),
+                    e
+                )
+            })?;
         }
     }
-    
+
     Ok(())
 }
 
@@ -537,24 +549,32 @@ pub async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
 pub fn copy_dir_recursive_sync(src: &Path, dst: &Path) -> Result<(), String> {
     std::fs::create_dir_all(dst)
         .map_err(|e| format!("Failed to create directory {}: {}", dst.display(), e))?;
-    
+
     let entries = std::fs::read_dir(src)
         .map_err(|e| format!("Failed to read directory {}: {}", src.display(), e))?;
-    
+
     for entry in entries {
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
-        let ty = entry.file_type().map_err(|e| format!("Failed to get file type: {}", e))?;
+        let ty = entry
+            .file_type()
+            .map_err(|e| format!("Failed to get file type: {}", e))?;
         let src_path = entry.path();
         let dst_path = dst.join(entry.file_name());
-        
+
         if ty.is_dir() {
             copy_dir_recursive_sync(&src_path, &dst_path)?;
         } else {
-            std::fs::copy(&src_path, &dst_path)
-                .map_err(|e| format!("Failed to copy file from {} to {}: {}", src_path.display(), dst_path.display(), e))?;
+            std::fs::copy(&src_path, &dst_path).map_err(|e| {
+                format!(
+                    "Failed to copy file from {} to {}: {}",
+                    src_path.display(),
+                    dst_path.display(),
+                    e
+                )
+            })?;
         }
     }
-    
+
     Ok(())
 }
 

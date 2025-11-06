@@ -58,7 +58,7 @@ onMount(async () => {
     <div class="titlebar-right">
       <!-- Notification Tray -->
       <NotificationTray />
-      
+
       <button
         class="titlebar-btn minimize"
         title="Minimize"
@@ -148,10 +148,10 @@ onMount(async () => {
       </button>
     </div>
   </div>
-  
+
   <!-- Global Notification Container -->
   <NotificationContainer />
-  
+
   <slot />
 </div>
 

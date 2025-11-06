@@ -206,7 +206,9 @@ export class ResourcepacksService {
       );
       const errorMsg = e.message || "Failed to download resourcepack";
       resourcepacksError.set(errorMsg);
-      NotificationService.error(`Failed to download resource pack: ${errorMsg}`);
+      NotificationService.error(
+        `Failed to download resource pack: ${errorMsg}`,
+      );
       throw e;
     } finally {
       resourcepacksLoading.set(false);

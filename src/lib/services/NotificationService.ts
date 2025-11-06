@@ -37,7 +37,7 @@ export class NotificationService {
     markdown: boolean = false,
   ): string {
     const id = crypto.randomUUID();
-    
+
     // Convert duration: if <= 100, treat as seconds; otherwise milliseconds
     let durationMs = DEFAULT_DURATION;
     if (duration !== undefined) {
@@ -73,19 +73,35 @@ export class NotificationService {
   /**
    * Shorthand methods for common notification types
    */
-  static success(message: string, duration?: number, markdown: boolean = false): string {
+  static success(
+    message: string,
+    duration?: number,
+    markdown: boolean = false,
+  ): string {
     return this.send(message, "success", duration, markdown);
   }
 
-  static error(message: string, duration?: number, markdown: boolean = false): string {
+  static error(
+    message: string,
+    duration?: number,
+    markdown: boolean = false,
+  ): string {
     return this.send(message, "error", duration, markdown);
   }
 
-  static warning(message: string, duration?: number, markdown: boolean = false): string {
+  static warning(
+    message: string,
+    duration?: number,
+    markdown: boolean = false,
+  ): string {
     return this.send(message, "warning", duration, markdown);
   }
 
-  static info(message: string, duration?: number, markdown: boolean = false): string {
+  static info(
+    message: string,
+    duration?: number,
+    markdown: boolean = false,
+  ): string {
     return this.send(message, "info", duration, markdown);
   }
 
@@ -93,7 +109,9 @@ export class NotificationService {
    * Dismiss a specific notification
    */
   static dismiss(id: string): void {
-    notifications.update((n) => n.filter((notification) => notification.id !== id));
+    notifications.update((n) =>
+      n.filter((notification) => notification.id !== id),
+    );
   }
 
   /**
@@ -128,7 +146,7 @@ export class NotificationService {
     setTimeout(() => {
       const currentNotifications = get(notifications);
       const notification = currentNotifications.find((n) => n.id === id);
-      
+
       // Only dismiss if not hovered
       if (notification && !notification.isHovered) {
         this.dismiss(id);

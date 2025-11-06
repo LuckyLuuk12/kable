@@ -467,13 +467,13 @@ impl ModProvider for CurseForgeProvider {
 
         let file = file.ok_or("Mod file not found")?;
         let download_url = get_mod_file_download_url(mod_id_u32, file.id).await?;
-        
+
         // Download the file
         download_mod_file(&download_url, &mods_dir.join(&file.file_name)).await?;
-        
+
         // Save metadata
         save_mod_metadata(&mods_dir, &file.file_name, mod_id, &file.display_name).await?;
-        
+
         Ok(())
     }
 
@@ -771,46 +771,55 @@ fn extract_loader_from_version_id(version_id: &str) -> Option<ModLoaderType> {
 
 /// Remove old versions of a mod before downloading a new version
 /// Checks for mods with the same project_id and removes them completely
-async fn disable_old_mod_versions(mods_dir: &std::path::Path, project_id: &str) -> Result<(), String> {
+async fn disable_old_mod_versions(
+    mods_dir: &std::path::Path,
+    project_id: &str,
+) -> Result<(), String> {
     use tokio::fs;
-    
+
     // Read all files in the mods directory
     let mut entries = fs::read_dir(mods_dir)
         .await
         .map_err(|e| format!("Failed to read mods directory: {}", e))?;
-    
+
     while let Some(entry) = entries
         .next_entry()
         .await
         .map_err(|e| format!("Failed to read directory entry: {}", e))?
     {
         let path = entry.path();
-        
+
         // Check for .kable_metadata.json files
         if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
             if file_name.ends_with(".kable_metadata.json") {
                 // Read the metadata file
                 if let Ok(metadata_content) = fs::read_to_string(&path).await {
-                    if let Ok(metadata) = serde_json::from_str::<serde_json::Value>(&metadata_content) {
+                    if let Ok(metadata) =
+                        serde_json::from_str::<serde_json::Value>(&metadata_content)
+                    {
                         // Check if this metadata belongs to the same project
-                        if let Some(stored_project_id) = metadata.get("project_id").and_then(|v| v.as_str()) {
+                        if let Some(stored_project_id) =
+                            metadata.get("project_id").and_then(|v| v.as_str())
+                        {
                             if stored_project_id == project_id {
                                 // Get the associated jar file name
-                                if let Some(jar_file) = metadata.get("file_name").and_then(|v| v.as_str()) {
+                                if let Some(jar_file) =
+                                    metadata.get("file_name").and_then(|v| v.as_str())
+                                {
                                     let jar_path = mods_dir.join(jar_file);
-                                    
+
                                     // Delete the old jar file completely
                                     if jar_path.exists() {
-                                        fs::remove_file(&jar_path)
-                                            .await
-                                            .map_err(|e| format!("Failed to remove old mod version: {}", e))?;
-                                        
+                                        fs::remove_file(&jar_path).await.map_err(|e| {
+                                            format!("Failed to remove old mod version: {}", e)
+                                        })?;
+
                                         println!(
                                             "[CurseForgeProvider] Removed old version: {} (project: {})",
                                             jar_file, project_id
                                         );
                                     }
-                                    
+
                                     // Also remove the metadata file
                                     let _ = fs::remove_file(&path).await;
                                 }
@@ -821,7 +830,7 @@ async fn disable_old_mod_versions(mods_dir: &std::path::Path, project_id: &str) 
             }
         }
     }
-    
+
     Ok(())
 }
 
@@ -833,21 +842,21 @@ async fn save_mod_metadata(
     version_number: &str,
 ) -> Result<(), String> {
     use tokio::fs;
-    
+
     let metadata = serde_json::json!({
         "project_id": project_id,
         "file_name": file_name,
         "version_number": version_number,
         "download_time": chrono::Utc::now().to_rfc3339(),
     });
-    
+
     let metadata_path = mods_dir.join(format!("{}.kable_metadata.json", file_name));
     let metadata_content = serde_json::to_string_pretty(&metadata)
         .map_err(|e| format!("Failed to serialize metadata: {}", e))?;
-    
+
     fs::write(&metadata_path, metadata_content)
         .await
         .map_err(|e| format!("Failed to write metadata file: {}", e))?;
-    
+
     Ok(())
 }

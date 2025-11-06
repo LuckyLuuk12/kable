@@ -21,7 +21,12 @@ Shows mod icon, name, version, and provides actions:
 <script lang="ts">
 import { createEventDispatcher } from "svelte";
 import { Icon, NotificationService, ProviderKind } from "$lib";
-import type { ModJarInfo, KableInstallation, ExtendedModInfo, ModInfoKind } from "$lib";
+import type {
+  ModJarInfo,
+  KableInstallation,
+  ExtendedModInfo,
+  ModInfoKind,
+} from "$lib";
 import * as installationsApi from "$lib/api/installations";
 import * as modsApi from "$lib/api/mods";
 import ModVersionModal from "./ModVersionModal.svelte";
@@ -58,14 +63,16 @@ async function toggleDisabled(event?: MouseEvent) {
       installation,
       mod.file_name,
     );
-    
+
     // Update local state
     mod.disabled = newDisabledState;
-    
+
     NotificationService.success(
-      newDisabledState ? `Disabled "${displayName}"` : `Enabled "${displayName}"`
+      newDisabledState
+        ? `Disabled "${displayName}"`
+        : `Enabled "${displayName}"`,
     );
-    
+
     dispatch("modChanged");
   } catch (error) {
     NotificationService.error(`Failed to toggle mod: ${error}`);
@@ -81,7 +88,9 @@ async function handleRemove(event: MouseEvent) {
   if (loading) return;
 
   // Confirm deletion
-  const confirmed = confirm(`Remove "${displayName}"?\n\nThis will permanently delete the mod file.`);
+  const confirmed = confirm(
+    `Remove "${displayName}"?\n\nThis will permanently delete the mod file.`,
+  );
   if (!confirmed) return;
 
   loading = true;
@@ -99,28 +108,30 @@ async function handleRemove(event: MouseEvent) {
 
 async function handleManageVersions(event: MouseEvent) {
   event.stopPropagation();
-  
+
   if (loadingVersions) return;
-  
+
   // If we don't have extended info, we can't fetch versions
   if (!extendedInfo || !extendedInfo.page_uri) {
     NotificationService.warning(
-      `Could not find mod information for "${displayName}". Version management requires mod metadata.`
+      `Could not find mod information for "${displayName}". Version management requires mod metadata.`,
     );
     return;
   }
-  
+
   loadingVersions = true;
-  
+
   try {
     // Extract project ID from page_uri (e.g., "https://modrinth.com/mod/sodium" -> "sodium")
-    const projectId = extendedInfo.page_uri.split('/').pop();
-    
+    const projectId = extendedInfo.page_uri.split("/").pop();
+
     if (!projectId) {
-      NotificationService.error(`Could not determine project ID for "${displayName}"`);
+      NotificationService.error(
+        `Could not determine project ID for "${displayName}"`,
+      );
       return;
     }
-    
+
     // Convert ExtendedModInfo to ModInfoKind format for the modal
     // We'll use Modrinth format since that's what we have
     modInfoKind = {
@@ -142,33 +153,33 @@ async function handleManageVersions(event: MouseEvent) {
         versions: [],
         versions_obj: [],
         latest_version: mod.mod_version || undefined,
-      }
+      },
     };
-    
+
     // Fetch available versions from backend
     const loader = extractLoader(installation.version_id);
     const gameVersion = extractGameVersion(installation.version_id);
-    
+
     const versions = await modsApi.getProjectVersions(
       ProviderKind.Modrinth,
       projectId,
       loader ? [loader] : undefined,
-      gameVersion ? [gameVersion] : undefined
+      gameVersion ? [gameVersion] : undefined,
     );
-    
+
     if (!versions || versions.length === 0) {
       NotificationService.warning(
-        `No compatible versions found for "${displayName}" (${loader || 'unknown loader'}, ${gameVersion || 'unknown version'})`
+        `No compatible versions found for "${displayName}" (${loader || "unknown loader"}, ${gameVersion || "unknown version"})`,
       );
       return;
     }
-    
+
     // Update the ModInfoKind with version data
     if (modInfoKind && "Modrinth" in modInfoKind) {
       modInfoKind.Modrinth.versions_obj = versions;
-      modInfoKind.Modrinth.versions = versions.map(v => v.id);
+      modInfoKind.Modrinth.versions = versions.map((v) => v.id);
     }
-    
+
     showVersionModal = true;
     dispatch("openVersions", { mod });
   } catch (error) {
@@ -193,20 +204,24 @@ function extractGameVersion(versionId: string): string | null {
   return match ? match[1] : null;
 }
 
-async function handleVersionSelect(event: CustomEvent<{ versionId: string; versionNumber: string }>) {
+async function handleVersionSelect(
+  event: CustomEvent<{ versionId: string; versionNumber: string }>,
+) {
   const { versionId, versionNumber } = event.detail;
-  
+
   if (!modInfoKind || !("Modrinth" in modInfoKind)) return;
-  
+
   try {
     await modsApi.downloadMod(
       ProviderKind.Modrinth,
       modInfoKind.Modrinth.project_id,
       versionId,
-      installation
+      installation,
     );
-    
-    NotificationService.success(`Downloading "${displayName}" v${versionNumber}`);
+
+    NotificationService.success(
+      `Downloading "${displayName}" v${versionNumber}`,
+    );
     showVersionModal = false;
     dispatch("modChanged");
   } catch (error) {
@@ -230,7 +245,7 @@ function handleKeydown(event: KeyboardEvent) {
 <div
   class="installed-mod-card"
   class:disabled={isDisabled}
-  class:loading={loading}
+  class:loading
   on:click={handleCardClick}
   on:keydown={handleKeydown}
   role="button"
@@ -247,7 +262,7 @@ function handleKeydown(event: KeyboardEvent) {
           <Icon name="cube" size="md" />
         </div>
       {/if}
-      
+
       {#if isDisabled}
         <div class="disabled-overlay">
           <Icon name="error" size="sm" />
@@ -460,7 +475,7 @@ function handleKeydown(event: KeyboardEvent) {
 
 .manage-btn {
   border-color: rgba(map.get($variables, "blue-500"), 0.3);
-  
+
   &:hover:not(:disabled) {
     border-color: rgba(map.get($variables, "blue-500"), 0.5);
     background: rgba(map.get($variables, "blue-500"), 0.1);
@@ -469,7 +484,7 @@ function handleKeydown(event: KeyboardEvent) {
 
 .remove-btn {
   border-color: rgba(map.get($variables, "red-500"), 0.3);
-  
+
   &:hover:not(:disabled) {
     border-color: rgba(map.get($variables, "red-500"), 0.5);
     background: rgba(map.get($variables, "red-500"), 0.1);

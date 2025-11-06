@@ -81,7 +81,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | copy | [CreateInstallationModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/CreateInstallationModal.svelte#L289) | <pre><code class="language-html">&lt;Icon name="copy" size="sm" /&gt;</code></pre> |
 | cube | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L240) | <pre><code class="language-html">&lt;Icon name="cube" size="xl" /&gt;</code></pre> |
 | cube | [InstallationMods](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstallationMods.svelte#L549) | <pre><code class="language-html">&lt;Icon name="cube" size="xl" /&gt;</code></pre> |
-| cube | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L247) | <pre><code class="language-html">&lt;Icon name="cube" size="md" /&gt;</code></pre> |
+| cube | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L262) | <pre><code class="language-html">&lt;Icon name="cube" size="md" /&gt;</code></pre> |
 | cube | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L135) | <pre><code class="language-html">&lt;Icon name="cube" size="md" /&gt;</code></pre> |
 | delete | [AdvancedSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AdvancedSettingsUI.svelte#L224) | <pre><code class="language-html">&lt;Icon name="delete" forceType="svg" /&gt;</code></pre> |
 | delete | [AppearanceSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AppearanceSettingsUI.svelte#L365) | <pre><code class="language-html">&lt;Icon name="delete" /&gt;</code></pre> |
@@ -113,7 +113,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | edit | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L693) | <pre><code class="language-html">&lt;Icon name="edit" size="sm" /&gt;</code></pre> |
 | edit | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L350) | <pre><code class="language-html">title="Edit"&gt;&lt;Icon name="edit" size="sm" /&gt;&lt;/button</code></pre> |
 | edit | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L478) | <pre><code class="language-html">&lt;Icon name="edit" forceType="svg" /&gt;</code></pre> |
-| error | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L253) | <pre><code class="language-html">&lt;Icon name="error" size="sm" /&gt;</code></pre> |
+| error | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L268) | <pre><code class="language-html">&lt;Icon name="error" size="sm" /&gt;</code></pre> |
 | file | [ModVersionModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModVersionModal.svelte#L362) | <pre><code class="language-html">&lt;Icon name="file" size="sm" /&gt;</code></pre> |
 | file | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L488) | <pre><code class="language-html">&lt;Icon name="file" size="sm" /&gt;{addFilePath.split(/[\\\\/]/).pop()}</code></pre> |
 | file | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L380) | <pre><code class="language-html">&lt;Icon name="file" size="sm" /&gt;</code></pre> |
@@ -186,7 +186,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | package | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L488) | <pre><code class="language-html">&lt;Icon name="package" size="md" /&gt;</code></pre> |
 | package | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L606) | <pre><code class="language-html">&lt;Icon name="package" size="lg" /&gt;</code></pre> |
 | package | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L610) | <pre><code class="language-html">&lt;Icon name="package" size="lg" /&gt;</code></pre> |
-| play | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L378) | <pre><code class="language-html">&lt;Icon name="play" size="md" forceType="svg" /&gt;</code></pre> |
+| play | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L386) | <pre><code class="language-html">&lt;Icon name="play" size="md" forceType="svg" /&gt;</code></pre> |
 | play | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L196) | <pre><code class="language-html">&lt;Icon name="play" size="md" /&gt;</code></pre> |
 | plus | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L305) | <pre><code class="language-html">&lt;Icon name="plus" forceType="svg" /&gt;</code></pre> |
 | plus | [Installations Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/installations/+page.svelte#L94) | <pre><code class="language-html">&lt;Icon name="plus" size="md" forceType="svg" /&gt;</code></pre> |
@@ -205,7 +205,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | refresh | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L688) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L699) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L238) | <pre><code class="language-html">&lt;Icon name="refresh" size="lg" /&gt;</code></pre> |
-| refresh | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L375) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" className="spin" /&gt;</code></pre> |
+| refresh | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L383) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" className="spin" /&gt;</code></pre> |
 | refresh | [Installations Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/installations/+page.svelte#L123) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" /&gt;</code></pre> |
 | refresh | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L954) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L152) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" forceType="svg" /&gt;</code></pre> |
@@ -219,7 +219,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | search | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L837) | <pre><code class="language-html">&lt;Icon name="search" size="xl" /&gt;</code></pre> |
 | search | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L167) | <pre><code class="language-html">&lt;Icon name="search" size="sm" /&gt;</code></pre> |
 | search | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L308) | <pre><code class="language-html">&lt;Icon name="search" size="xl" /&gt;</code></pre> |
-| settings | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L276) | <pre><code class="language-html">&lt;Icon name="settings" size="sm" /&gt;</code></pre> |
+| settings | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L291) | <pre><code class="language-html">&lt;Icon name="settings" size="sm" /&gt;</code></pre> |
 | settings | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L559) | <pre><code class="language-html">&lt;Icon name="settings" size="md" className="nav-icon" /&gt;</code></pre> |
 | settings | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L263) | <pre><code class="language-html">&lt;Icon name="settings" /&gt;</code></pre> |
 | settings | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L285) | <pre><code class="language-html">&lt;Icon name="settings" /&gt;</code></pre> |
@@ -235,7 +235,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | trash | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L521) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L675) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L742) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
-| trash | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L286) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
+| trash | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L301) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1340) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" forceType="svg" /&gt;</code></pre> |
 | trash | [NotificationTray](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/notifications/NotificationTray.svelte#L101) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [ResourcePackBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/ResourcePackBrowser.svelte#L582) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" forceType="svg" /&gt;</code></pre> |
@@ -266,4 +266,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L538) | <pre><code class="language-html">&lt;Icon name="x" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L690) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2025-11-06T19:54:23.963Z_
+_Generated: 2025-11-06T19:56:28.760Z_

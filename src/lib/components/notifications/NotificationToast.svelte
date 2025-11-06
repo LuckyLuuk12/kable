@@ -121,7 +121,7 @@ const iconMap = {
   flex: 1;
   font-size: 0.9rem;
   color: inherit;
-  
+
   // Support for markdown/html content
   :global(a) {
     color: inherit;

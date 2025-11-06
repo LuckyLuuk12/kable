@@ -136,11 +136,15 @@ export class SkinsService {
   static async applyCape(capeId: string | null): Promise<string> {
     try {
       const result = await skinsApi.applyCape(capeId);
-      NotificationService.success(capeId ? `Cape applied successfully` : `Cape removed`);
+      NotificationService.success(
+        capeId ? `Cape applied successfully` : `Cape removed`,
+      );
       return result;
     } catch (error) {
       console.error("Failed to apply cape:", error);
-      NotificationService.error(`Failed to ${capeId ? 'apply' : 'remove'} cape: ${error}`);
+      NotificationService.error(
+        `Failed to ${capeId ? "apply" : "remove"} cape: ${error}`,
+      );
       throw error;
     }
   }

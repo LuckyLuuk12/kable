@@ -51,7 +51,10 @@ $: {
     // Update RAM allocation when installation changes
     if (lastPlayedInstallations.length > 0) {
       const latestInstallation = lastPlayedInstallations[0];
-      console.log("Latest installation java_args:", latestInstallation.java_args);
+      console.log(
+        "Latest installation java_args:",
+        latestInstallation.java_args,
+      );
 
       // Extract RAM from java_args (look for -Xmx)
       const xmxArg = latestInstallation.java_args?.find((arg) =>
@@ -251,7 +254,12 @@ async function commitRamChange(immediate = false) {
   try {
     const newArgs = setXmxArg(inst.java_args || [], ramAllocation);
     const updated = { ...inst, java_args: newArgs } as typeof inst;
-    console.log("Committing RAM change for installation:", inst.id, ramAllocation, "MB");
+    console.log(
+      "Committing RAM change for installation:",
+      inst.id,
+      ramAllocation,
+      "MB",
+    );
     await InstallationService.updateInstallation(inst.id, updated);
     console.log("RAM allocation committed");
   } catch (err) {
@@ -414,8 +422,13 @@ async function handleAdClick(url: string) {
             type="range"
             class="ram-slider"
             bind:value={ramAllocation}
-            on:input={() => { updateRamFromSlider(); isEditingRam = true; }}
-            on:change={() => { commitRamChange(); }}
+            on:input={() => {
+              updateRamFromSlider();
+              isEditingRam = true;
+            }}
+            on:change={() => {
+              commitRamChange();
+            }}
             min="512"
             max="32768"
             step="256"
@@ -434,7 +447,9 @@ async function handleAdClick(url: string) {
             type="text"
             class="ram-input"
             bind:value={ramInputValue}
-            on:focus={() => { isEditingRam = true; }}
+            on:focus={() => {
+              isEditingRam = true;
+            }}
             on:blur={() => {
               updateRamFromInput();
               // commit immediately on blur and let commitRamChange manage isEditingRam

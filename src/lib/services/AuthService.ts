@@ -473,7 +473,7 @@ export class AuthService {
   }
 }
 
-//  Aliases for compatibility with old AuthManager usage in Svelte components 
+//  Aliases for compatibility with old AuthManager usage in Svelte components
 // Should be removed or put into static methods instead!
 export const signIn = AuthService.authenticateWithDeviceCode;
 export const signInWithDeviceCode = AuthService.authenticateWithDeviceCode;

@@ -215,7 +215,7 @@ function getCarouselScale(
   return { scale, opacity, fontSize, translateY, zIndex, visible: true };
 }
 
-//  Loader styling helpers (inspired by InstallationsList) 
+//  Loader styling helpers (inspired by InstallationsList)
 $: loaderIcons = Object.fromEntries(
   $installations.map((installation) => [
     installation.id,
@@ -233,7 +233,7 @@ $: loaderColors = Object.fromEntries(
   ]),
 );
 
-//  Sort installations by favorite and date (same as InstallationsList) 
+//  Sort installations by favorite and date (same as InstallationsList)
 $: sortedInstallations = $installations
   .slice()
   .sort((a, b) => {
@@ -297,7 +297,7 @@ $: if (mods && mods.length > 0) {
   }
 }
 
-//  Fuzzy search helper function 
+//  Fuzzy search helper function
 function fuzzyMatch(text: string, query: string): boolean {
   if (!query) return true;
   const textLower = text.toLowerCase();
@@ -320,7 +320,7 @@ function fuzzyMatch(text: string, query: string): boolean {
   return queryIndex === queryLower.length;
 }
 
-//  Semantic search/filter logic with fuzzy matching 
+//  Semantic search/filter logic with fuzzy matching
 $: filteredMods = mods.filter((mod) => {
   const info = $extendedModInfo[mod.file_name];
   if (searchQuery) {
@@ -581,7 +581,7 @@ onMount(() => {
   overflow: hidden;
 }
 
-//  Left sidebar: Installation carousel 
+//  Left sidebar: Installation carousel
 .installation-sidebar {
   width: 320px;
   min-width: 320px;
@@ -791,7 +791,7 @@ onMount(() => {
   }
 }
 
-//  Right content: Search and mods 
+//  Right content: Search and mods
 .mods-section {
   flex: 1;
   display: flex;
@@ -946,7 +946,7 @@ onMount(() => {
   @media (max-width: 900px) {
     grid-template-columns: 1fr;
   }
-  
+
   @media (min-width: 1400px) {
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   }

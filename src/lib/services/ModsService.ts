@@ -207,7 +207,9 @@ export class ModsService {
         `[ModsService] Failed to clear cache for ${provider} provider:`,
         e.message || "Unknown error",
       );
-      NotificationService.error(`Failed to clear cache: ${e.message || "Unknown error"}`);
+      NotificationService.error(
+        `Failed to clear cache: ${e.message || "Unknown error"}`,
+      );
       throw e;
     }
   }
@@ -249,7 +251,7 @@ export class ModsService {
     return get(modsError);
   }
 
-  //  Concurrency-limited queue for extended mod info requests 
+  //  Concurrency-limited queue for extended mod info requests
   static #pending: (() => Promise<void>)[] = [];
   static #inFlight = 0;
   static #MAX_CONCURRENT = 3; // You can tune this (2-4 is safe)

@@ -123,7 +123,9 @@ function formatTime(date: Date): string {
                 {:else}
                   <div class="item-message">{notification.message}</div>
                 {/if}
-                <div class="item-time">{formatTime(notification.timestamp)}</div>
+                <div class="item-time">
+                  {formatTime(notification.timestamp)}
+                </div>
               </div>
             </div>
           {/each}

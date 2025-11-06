@@ -198,10 +198,16 @@ export class InstallationService {
     isLoadingInstallations.set(true);
     installationsError.set(null);
     try {
-      console.log("[Service] refreshInstallations: invoking backend force-refresh");
+      console.log(
+        "[Service] refreshInstallations: invoking backend force-refresh",
+      );
       const foundInstallations = await installationsApi.refreshInstallations();
       installations.set(foundInstallations);
-      console.log("[Service] refreshInstallations: received", foundInstallations.length, "installations");
+      console.log(
+        "[Service] refreshInstallations: received",
+        foundInstallations.length,
+        "installations",
+      );
       selectedInstallation.set(foundInstallations[0] || null);
       return get(installations);
     } catch (error) {
@@ -305,7 +311,9 @@ export class InstallationService {
         options,
       );
       await this.refreshInstallations();
-      NotificationService.success(`Installation created from "${sourceInstallation.name}"`);
+      NotificationService.success(
+        `Installation created from "${sourceInstallation.name}"`,
+      );
     } catch (error) {
       NotificationService.error(`Failed to create installation: ${error}`);
       throw error;
@@ -361,7 +369,10 @@ export class InstallationService {
       try {
         await this.refreshInstallations();
       } catch (err) {
-        console.error("Failed to refresh installations after delete error:", err);
+        console.error(
+          "Failed to refresh installations after delete error:",
+          err,
+        );
       }
       throw error;
     }
@@ -525,7 +536,9 @@ export class InstallationService {
           `Exported installation ${installation.name} to ${path}`,
           "info",
         );
-        NotificationService.success(`Exported "${installation.name}" successfully`);
+        NotificationService.success(
+          `Exported "${installation.name}" successfully`,
+        );
         await openPath(path);
       } else {
         LogsService.emitLauncherEvent(
@@ -552,10 +565,12 @@ export class InstallationService {
         `✓ Successfully imported installation "${newInstallation.name}" from ${path}`,
         "info",
       );
-      NotificationService.success(`Imported "${newInstallation.name}" successfully`);
+      NotificationService.success(
+        `Imported "${newInstallation.name}" successfully`,
+      );
 
-  // Reload installations to show the new one (force refresh)
-  await this.refreshInstallations();
+      // Reload installations to show the new one (force refresh)
+      await this.refreshInstallations();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error(
@@ -587,10 +602,12 @@ export class InstallationService {
         `✓ Successfully imported ${count} installation(s) from ${path}`,
         "info",
       );
-      NotificationService.success(`Imported ${count} installation(s) from .minecraft folder`);
+      NotificationService.success(
+        `Imported ${count} installation(s) from .minecraft folder`,
+      );
 
-  // Reload installations to show the new ones (force refresh)
-  await this.refreshInstallations();
+      // Reload installations to show the new ones (force refresh)
+      await this.refreshInstallations();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error(
@@ -601,7 +618,9 @@ export class InstallationService {
         `✗ Failed to import from .minecraft folder ${path}: ${errorMsg}`,
         "error",
       );
-      NotificationService.error(`Failed to import from .minecraft folder: ${errorMsg}`);
+      NotificationService.error(
+        `Failed to import from .minecraft folder: ${errorMsg}`,
+      );
       throw error;
     }
   }
@@ -624,7 +643,9 @@ export class InstallationService {
         `Failed to duplicate installation ${installation.name}`,
         "error",
       );
-      NotificationService.error(`Failed to duplicate "${installation.name}": ${error}`);
+      NotificationService.error(
+        `Failed to duplicate "${installation.name}": ${error}`,
+      );
     }
   }
 
@@ -722,7 +743,9 @@ export class InstallationService {
   ): Promise<string> {
     try {
       const path = await installationsApi.createShortcut(installation);
-      NotificationService.success(`Shortcut created for "${installation.name}"`);
+      NotificationService.success(
+        `Shortcut created for "${installation.name}"`,
+      );
       return path;
     } catch (error) {
       NotificationService.error(`Failed to create shortcut: ${error}`);

@@ -2,10 +2,10 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 use strum::{EnumIter, IntoEnumIterator};
 use tauri::Emitter;
 use tokio::fs as async_fs;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, EnumIter, Serialize, Deserialize)]
 pub enum LoaderKind {
@@ -52,7 +52,7 @@ async fn is_cache_valid(cache_path: &Path) -> bool {
     if !cache_path.exists() {
         return false;
     }
-    
+
     match async_fs::read_to_string(cache_path).await {
         Ok(content) => {
             if let Ok(cached) = serde_json::from_str::<CachedManifest>(&content) {
@@ -73,7 +73,7 @@ async fn get_cached_manifest(cache_path: &Path) -> Option<serde_json::Value> {
     if !is_cache_valid(cache_path).await {
         return None;
     }
-    
+
     match async_fs::read_to_string(cache_path).await {
         Ok(content) => {
             if let Ok(cached) = serde_json::from_str::<CachedManifest>(&content) {
@@ -91,15 +91,15 @@ async fn save_to_cache(cache_path: &Path, data: &serde_json::Value) -> Result<()
         .duration_since(UNIX_EPOCH)
         .unwrap()
         .as_secs();
-    
+
     let cached = CachedManifest {
         timestamp,
         data: data.clone(),
     };
-    
+
     let json = serde_json::to_string_pretty(&cached)
         .map_err(|e| format!("Failed to serialize cache: {}", e))?;
-    
+
     crate::write_file_atomic_async(cache_path, json.as_bytes()).await?;
     Ok(())
 }
@@ -114,7 +114,7 @@ async fn fetch_with_cache(
         .await
         .map_err(|e| anyhow::anyhow!("Failed to get cache dir: {}", e))?;
     let cache_path = cache_dir.join(cache_filename);
-    
+
     // Try to use cache if not forcing refresh
     if !force_refresh {
         if let Some(cached_data) = get_cached_manifest(&cache_path).await {
@@ -125,20 +125,17 @@ async fn fetch_with_cache(
             return Ok(cached_data);
         }
     }
-    
+
     // Fetch from network
-    crate::logging::Logger::debug_global(
-        &format!("Fetching manifest from network: {}", url),
-        None,
-    );
-    
+    crate::logging::Logger::debug_global(&format!("Fetching manifest from network: {}", url), None);
+
     let data = reqwest::get(url)
         .await
         .map_err(|e| anyhow::anyhow!("Failed to fetch {}: {}", url, e))?
         .json::<serde_json::Value>()
         .await
         .map_err(|e| anyhow::anyhow!("Failed to parse JSON from {}: {}", url, e))?;
-    
+
     // Save to cache
     if let Err(e) = save_to_cache(&cache_path, &data).await {
         crate::logging::Logger::warn_global(
@@ -146,7 +143,7 @@ async fn fetch_with_cache(
             None,
         );
     }
-    
+
     Ok(data)
 }
 
@@ -222,7 +219,7 @@ pub trait Loader: Send + Sync {
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>>;
 }
 
-// Loader Implementations 
+// Loader Implementations
 
 // Vanilla Loader
 pub struct VanillaLoader;
@@ -238,21 +235,28 @@ impl Loader for VanillaLoader {
     {
         Box::pin(async move {
             let url = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
-            
+
             // Try to fetch with cache/network
-            let resp = match fetch_with_cache(url, self.kind().cache_filename(), force_refresh).await {
+            let resp = match fetch_with_cache(url, self.kind().cache_filename(), force_refresh)
+                .await
+            {
                 Ok(data) => data,
                 Err(e) => {
                     // Fallback: Try to read from local .minecraft/versions/version_manifest_v2.json
                     crate::logging::Logger::warn_global(
-                        &format!("Failed to fetch vanilla manifest: {}. Trying local fallback...", e),
+                        &format!(
+                            "Failed to fetch vanilla manifest: {}. Trying local fallback...",
+                            e
+                        ),
                         None,
                     );
-                    
+
                     match crate::get_default_minecraft_dir() {
                         Ok(minecraft_dir) => {
-                            let local_manifest = minecraft_dir.join("versions").join("version_manifest_v2.json");
-                            
+                            let local_manifest = minecraft_dir
+                                .join("versions")
+                                .join("version_manifest_v2.json");
+
                             if local_manifest.exists() {
                                 match async_fs::read_to_string(&local_manifest).await {
                                     Ok(content) => {
@@ -299,7 +303,7 @@ impl Loader for VanillaLoader {
                     }
                 }
             };
-            
+
             let versions_val = &resp["versions"];
             let versions: &[serde_json::Value] = match versions_val.as_array() {
                 Some(arr) => arr,
@@ -358,13 +362,13 @@ impl Loader for FabricLoader {
                 for v in arr {
                     let fabricv = v.get("version").and_then(|x| x.as_str()).unwrap_or("");
                     let stable = v.get("stable").and_then(|x| x.as_bool()).unwrap_or(false);
-                    
+
                     // Extract installer maven coordinates from the version object directly
                     let installer_maven = v
                         .get("maven")
                         .and_then(|m| m.as_str())
                         .map(|s| s.to_string());
-                    
+
                     for mcv in vanilla {
                         // Create extra data with minecraft_version and installer_maven
                         let mut extra = v.clone();
@@ -380,7 +384,7 @@ impl Loader for FabricLoader {
                                 );
                             }
                         }
-                        
+
                         out.push(VersionData {
                             version_id: format!("fabric-loader-{}-{}", fabricv, mcv.version_id),
                             loader: LoaderKind::Fabric,
@@ -427,13 +431,13 @@ impl Loader for IrisFabricLoader {
                 for v in arr {
                     let fabricv = v.get("version").and_then(|x| x.as_str()).unwrap_or("");
                     let stable = v.get("stable").and_then(|x| x.as_bool()).unwrap_or(false);
-                    
+
                     // Extract installer maven coordinates from the version object directly
                     let installer_maven = v
                         .get("maven")
                         .and_then(|m| m.as_str())
                         .map(|s| s.to_string());
-                    
+
                     for mcv in vanilla {
                         // Create extra data with minecraft_version and installer_maven
                         let mut extra = v.clone();
@@ -449,7 +453,7 @@ impl Loader for IrisFabricLoader {
                                 );
                             }
                         }
-                        
+
                         out.push(VersionData {
                             version_id: format!(
                                 "iris-fabric-loader-{}-{}",
@@ -560,20 +564,27 @@ impl Loader for NeoForgeLoader {
                 // Extract MC version from NeoForge version (e.g., "21.4.14" -> "1.21.4")
                 let mc_version = if let Some(_first_part) = neoforge_ver.split('.').next() {
                     // NeoForge 20.x = MC 1.20.x, NeoForge 21.x = MC 1.21.x, etc.
-                    format!("1.{}", neoforge_ver.split('.').take(2).collect::<Vec<_>>().join("."))
+                    format!(
+                        "1.{}",
+                        neoforge_ver
+                            .split('.')
+                            .take(2)
+                            .collect::<Vec<_>>()
+                            .join(".")
+                    )
                 } else {
                     neoforge_ver.to_string()
                 };
-                
+
                 out.push(VersionData {
                     version_id: format!("neoforge-{}", neoforge_ver),
                     loader: LoaderKind::NeoForge,
                     display_name: format!("NeoForge {} for MC {}", neoforge_ver, mc_version),
                     is_stable: !is_snapshot,
-                    extra: json!({ 
-                        "neoforge_version": neoforge_ver, 
+                    extra: json!({
+                        "neoforge_version": neoforge_ver,
                         "minecraft_version": mc_version,
-                        "is_snapshot": is_snapshot 
+                        "is_snapshot": is_snapshot
                     }),
                 });
             }
@@ -651,63 +662,86 @@ pub fn loader_for_kind(kind: LoaderKind) -> Box<dyn Loader> {
 pub async fn build_versions(force_refresh: bool) -> Versions {
     use crate::logging::Logger;
     let mut versions = Versions::default();
-    
+
     // First, get vanilla versions (needed for some loaders)
     let vanilla_loader = VanillaLoader;
-    let vanilla_versions = vanilla_loader.get_versions(None, force_refresh).await.unwrap_or_default();
-    Logger::debug_global(&format!("Loaded {} vanilla versions", vanilla_versions.len()), None);
+    let vanilla_versions = vanilla_loader
+        .get_versions(None, force_refresh)
+        .await
+        .unwrap_or_default();
+    Logger::debug_global(
+        &format!("Loaded {} vanilla versions", vanilla_versions.len()),
+        None,
+    );
     versions.extend(vanilla_versions.clone());
-    
+
     // Emit vanilla versions immediately
     if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         if let Some(app_handle) = handle_guard.as_ref() {
-            let _ = app_handle.emit("versions-chunk-loaded", VersionsChunk {
-                loader: LoaderKind::Vanilla,
-                versions: vanilla_versions.to_vec(),
-                is_complete: false,
-            });
+            let _ = app_handle.emit(
+                "versions-chunk-loaded",
+                VersionsChunk {
+                    loader: LoaderKind::Vanilla,
+                    versions: vanilla_versions.to_vec(),
+                    is_complete: false,
+                },
+            );
         }
     }
-    
+
     for kind in LoaderKind::iter() {
         if kind == LoaderKind::Vanilla {
             continue; // Already loaded above
         }
-        
+
         let loader = loader_for_kind(kind);
-        let vers = loader.get_versions(Some(&vanilla_versions), force_refresh).await;
-        
+        let vers = loader
+            .get_versions(Some(&vanilla_versions), force_refresh)
+            .await;
+
         match vers {
             Ok(vers) => {
-                Logger::debug_global(&format!("Loaded {} versions for {:?}", vers.len(), kind), None);
+                Logger::debug_global(
+                    &format!("Loaded {} versions for {:?}", vers.len(), kind),
+                    None,
+                );
                 versions.extend(vers.clone());
-                
+
                 // Emit event for this loader's versions
                 if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
                     if let Some(app_handle) = handle_guard.as_ref() {
-                        let _ = app_handle.emit("versions-chunk-loaded", VersionsChunk {
-                            loader: kind,
-                            versions: vers,
-                            is_complete: false,
-                        });
+                        let _ = app_handle.emit(
+                            "versions-chunk-loaded",
+                            VersionsChunk {
+                                loader: kind,
+                                versions: vers,
+                                is_complete: false,
+                            },
+                        );
                     }
                 }
             }
             Err(e) => {
-                Logger::warn_global(&format!("Failed to load versions for {:?}: {}", kind, e), None);
+                Logger::warn_global(
+                    &format!("Failed to load versions for {:?}: {}", kind, e),
+                    None,
+                );
             }
         }
     }
-    
+
     // Emit completion event
     if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
         if let Some(app_handle) = handle_guard.as_ref() {
-            let _ = app_handle.emit("versions-loading-complete", VersionsComplete {
-                total_count: versions.len(),
-            });
+            let _ = app_handle.emit(
+                "versions-loading-complete",
+                VersionsComplete {
+                    total_count: versions.len(),
+                },
+            );
         }
     }
-    
+
     Logger::debug_global(&format!("Total versions loaded: {}", versions.len()), None);
     versions
 }
