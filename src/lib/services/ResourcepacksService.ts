@@ -17,6 +17,7 @@ import {
   resourcepacksInstallMode,
 } from "../stores/resourcepacks";
 import * as ResourcepacksAPI from "../api/resourcepacks";
+import { NotificationService } from "./NotificationService";
 
 export interface ResourcePackFilter {
   resolution?: ("16x" | "32x" | "64x" | "128x" | "256x" | "512x" | "1024x")[];
@@ -197,12 +198,15 @@ export class ResourcepacksService {
       console.log(
         `[ResourcepacksService] Successfully downloaded resourcepack "${pack.name}"`,
       );
+      NotificationService.success(`Resource pack "${pack.name}" downloaded`);
     } catch (e: any) {
       console.error(
         `[ResourcepacksService] Failed to download resourcepack "${pack.name}":`,
         e.message || "Unknown error",
       );
-      resourcepacksError.set(e.message || "Failed to download resourcepack");
+      const errorMsg = e.message || "Failed to download resourcepack";
+      resourcepacksError.set(errorMsg);
+      NotificationService.error(`Failed to download resource pack: ${errorMsg}`);
       throw e;
     } finally {
       resourcepacksLoading.set(false);
@@ -299,7 +303,13 @@ export class ResourcepacksService {
     if (!this.minecraftPath) {
       throw new Error("Minecraft directory not configured");
     }
-    return ResourcepacksAPI.deleteResourcepack(this.minecraftPath, packFile);
+    try {
+      await ResourcepacksAPI.deleteResourcepack(this.minecraftPath, packFile);
+      NotificationService.success(`Resource pack deleted`);
+    } catch (error) {
+      NotificationService.error(`Failed to delete resource pack: ${error}`);
+      throw error;
+    }
   }
 
   static async deleteResourcepackFromDedicated(
@@ -315,12 +325,18 @@ export class ResourcepacksService {
       installation.dedicated_resource_pack_folder || installation.id;
     const symlinkName = installation.id;
 
-    return ResourcepacksAPI.deleteResourcepackFromDedicated(
-      this.minecraftPath,
-      dedicatedFolder,
-      packFile,
-      symlinkName,
-    );
+    try {
+      await ResourcepacksAPI.deleteResourcepackFromDedicated(
+        this.minecraftPath,
+        dedicatedFolder,
+        packFile,
+        symlinkName,
+      );
+      NotificationService.success(`Resource pack deleted`);
+    } catch (error) {
+      NotificationService.error(`Failed to delete resource pack: ${error}`);
+      throw error;
+    }
   }
 
   static filterResourcepacks(

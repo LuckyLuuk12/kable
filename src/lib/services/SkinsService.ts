@@ -7,6 +7,7 @@ import type {
   SkinUploadConfig,
   SkinUploadResponse,
 } from "../types";
+import { NotificationService } from "./NotificationService";
 
 /**
  * Service for managing Minecraft skins and capes
@@ -119,9 +120,12 @@ export class SkinsService {
    */
   static async applySkin(skinId: string): Promise<SkinUploadResponse> {
     try {
-      return await skinsApi.applyAccountSkin(skinId);
+      const result = await skinsApi.applyAccountSkin(skinId);
+      NotificationService.success(`Skin applied successfully`);
+      return result;
     } catch (error) {
       console.error("Failed to apply skin:", error);
+      NotificationService.error(`Failed to apply skin: ${error}`);
       throw error;
     }
   }
@@ -131,9 +135,12 @@ export class SkinsService {
    */
   static async applyCape(capeId: string | null): Promise<string> {
     try {
-      return await skinsApi.applyCape(capeId);
+      const result = await skinsApi.applyCape(capeId);
+      NotificationService.success(capeId ? `Cape applied successfully` : `Cape removed`);
+      return result;
     } catch (error) {
       console.error("Failed to apply cape:", error);
+      NotificationService.error(`Failed to ${capeId ? 'apply' : 'remove'} cape: ${error}`);
       throw error;
     }
   }
@@ -145,9 +152,12 @@ export class SkinsService {
     config: SkinUploadConfig,
   ): Promise<SkinUploadResponse> {
     try {
-      return await skinsApi.uploadSkinToAccount(config);
+      const result = await skinsApi.uploadSkinToAccount(config);
+      NotificationService.success(`Skin uploaded successfully`);
+      return result;
     } catch (error) {
       console.error("Failed to upload skin:", error);
+      NotificationService.error(`Failed to upload skin: ${error}`);
       throw error;
     }
   }
@@ -186,9 +196,11 @@ export class SkinsService {
    */
   static async removeSkin(skinId: string): Promise<void> {
     try {
-      return await skinsApi.removeSkinById(skinId);
+      await skinsApi.removeSkinById(skinId);
+      NotificationService.success(`Skin removed successfully`);
     } catch (error) {
       console.error("Failed to remove skin:", error);
+      NotificationService.error(`Failed to remove skin: ${error}`);
       throw error;
     }
   }

@@ -10,6 +10,7 @@ import {
   modsInstallation,
   modsProvider,
   extendedModInfo,
+  NotificationService,
 } from "$lib";
 import type {
   ProviderKind,
@@ -171,12 +172,15 @@ export class ModsService {
       console.log(
         `[ModsService] Successfully downloaded mod ${modId} from ${provider} provider`,
       );
+      NotificationService.success(`Mod downloaded successfully`);
     } catch (e: any) {
       console.error(
         `[ModsService] Failed to download mod ${modId} from ${provider} provider to ${installation.dedicated_mods_folder}:`,
         e.message || e || "Unknown error",
       );
-      modsError.set(e.message || "Failed to download mod");
+      const errorMsg = e.message || "Failed to download mod";
+      modsError.set(errorMsg);
+      NotificationService.error(`Failed to download mod: ${errorMsg}`);
     } finally {
       modsLoading.set(false);
     }
@@ -197,11 +201,13 @@ export class ModsService {
       console.log(
         `[ModsService] Successfully cleared cache for ${provider} provider`,
       );
+      NotificationService.success(`Cache cleared for ${provider}`);
     } catch (e: any) {
       console.error(
         `[ModsService] Failed to clear cache for ${provider} provider:`,
         e.message || "Unknown error",
       );
+      NotificationService.error(`Failed to clear cache: ${e.message || "Unknown error"}`);
       throw e;
     }
   }

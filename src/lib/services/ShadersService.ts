@@ -17,6 +17,7 @@ import {
   shadersInstallMode,
 } from "../stores/shaders";
 import * as ShadersAPI from "../api/shaders";
+import { NotificationService } from "./NotificationService";
 
 export interface ShaderFilter {
   loader?: ("Canvas" | "Iris" | "OptiFine" | "Vanilla")[];
@@ -198,12 +199,15 @@ export class ShadersService {
       console.log(
         `[ShadersService] Successfully downloaded shader "${shader.name}"`,
       );
+      NotificationService.success(`Shader "${shader.name}" downloaded`);
     } catch (e: any) {
       console.error(
         `[ShadersService] Failed to download shader "${shader.name}":`,
         e.message || "Unknown error",
       );
-      shadersError.set(e.message || "Failed to download shader");
+      const errorMsg = e.message || "Failed to download shader";
+      shadersError.set(errorMsg);
+      NotificationService.error(`Failed to download shader: ${errorMsg}`);
       throw e;
     } finally {
       shadersLoading.set(false);
@@ -300,7 +304,13 @@ export class ShadersService {
     if (!this.minecraftPath) {
       throw new Error("Minecraft directory not configured");
     }
-    return ShadersAPI.deleteShader(this.minecraftPath, shaderFile);
+    try {
+      await ShadersAPI.deleteShader(this.minecraftPath, shaderFile);
+      NotificationService.success(`Shader deleted`);
+    } catch (error) {
+      NotificationService.error(`Failed to delete shader: ${error}`);
+      throw error;
+    }
   }
 
   static async deleteShaderFromDedicated(
@@ -316,12 +326,18 @@ export class ShadersService {
       installation.dedicated_shaders_folder || installation.id;
     const symlinkName = installation.id;
 
-    return ShadersAPI.deleteShaderFromDedicated(
-      this.minecraftPath,
-      dedicatedFolder,
-      shaderFile,
-      symlinkName,
-    );
+    try {
+      await ShadersAPI.deleteShaderFromDedicated(
+        this.minecraftPath,
+        dedicatedFolder,
+        shaderFile,
+        symlinkName,
+      );
+      NotificationService.success(`Shader deleted`);
+    } catch (error) {
+      NotificationService.error(`Failed to delete shader: ${error}`);
+      throw error;
+    }
   }
 
   static filterShaders(
