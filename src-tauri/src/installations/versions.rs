@@ -222,7 +222,7 @@ pub trait Loader: Send + Sync {
     ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<()>> + Send + 'a>>;
 }
 
-// --- Loader Implementations ---
+// Loader Implementations 
 
 // Vanilla Loader
 pub struct VanillaLoader;

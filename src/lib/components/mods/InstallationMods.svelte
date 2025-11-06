@@ -23,6 +23,7 @@ import {
 import { openUrl } from "$lib/api/system";
 import * as installationsApi from "$lib/api/installations";
 import type { KableInstallation, ModJarInfo } from "$lib";
+import InstalledModCard from "./InstalledModCard.svelte";
 
 let currentInstallation: KableInstallation | null = null;
 let selectedId: string = "";
@@ -214,7 +215,7 @@ function getCarouselScale(
   return { scale, opacity, fontSize, translateY, zIndex, visible: true };
 }
 
-// --- Loader styling helpers (inspired by InstallationsList) ---
+//  Loader styling helpers (inspired by InstallationsList) 
 $: loaderIcons = Object.fromEntries(
   $installations.map((installation) => [
     installation.id,
@@ -232,7 +233,7 @@ $: loaderColors = Object.fromEntries(
   ]),
 );
 
-// --- Sort installations by favorite and date (same as InstallationsList) ---
+//  Sort installations by favorite and date (same as InstallationsList) 
 $: sortedInstallations = $installations
   .slice()
   .sort((a, b) => {
@@ -296,7 +297,7 @@ $: if (mods && mods.length > 0) {
   }
 }
 
-// --- Fuzzy search helper function ---
+//  Fuzzy search helper function 
 function fuzzyMatch(text: string, query: string): boolean {
   if (!query) return true;
   const textLower = text.toLowerCase();
@@ -319,7 +320,7 @@ function fuzzyMatch(text: string, query: string): boolean {
   return queryIndex === queryLower.length;
 }
 
-// --- Semantic search/filter logic with fuzzy matching ---
+//  Semantic search/filter logic with fuzzy matching 
 $: filteredMods = mods.filter((mod) => {
   const info = $extendedModInfo[mod.file_name];
   if (searchQuery) {
@@ -335,6 +336,14 @@ $: filteredMods = mods.filter((mod) => {
   }
   return true;
 });
+
+// Handle mod changed event (toggle, delete, etc.)
+function handleModChanged() {
+  // Reload mods to reflect changes
+  if (currentInstallation) {
+    loadMods(currentInstallation);
+  }
+}
 
 async function handleModClick(mod: ModJarInfo) {
   const extendedInfo = $extendedModInfo[mod.file_name];
@@ -367,100 +376,6 @@ async function toggleModDisabledAction(mod: ModJarInfo) {
       await loadMods(currentInstallation);
     } catch (_) {}
   }
-}
-
-async function onModActivate(event: MouseEvent, mod: ModJarInfo) {
-  // Ctrl/Cmd + click opens mod page
-  if (event.ctrlKey || event.metaKey) {
-    await handleModClick(mod);
-    return;
-  }
-  await toggleModDisabledAction(mod);
-}
-
-async function onModKeyDown(event: KeyboardEvent, mod: ModJarInfo) {
-  if (event.key !== "Enter") return;
-  if (event.ctrlKey || event.metaKey) {
-    await handleModClick(mod);
-    return;
-  }
-  await toggleModDisabledAction(mod);
-}
-
-function updateTooltipPosition(event: MouseEvent) {
-  const modIcon = event.currentTarget as HTMLElement;
-  const tooltip = modIcon.querySelector(".mod-tooltip") as HTMLElement;
-  if (!tooltip) return;
-
-  const iconRect = modIcon.getBoundingClientRect();
-  const containerRect = modIcon
-    .closest(".mods-content")
-    ?.getBoundingClientRect();
-  if (!containerRect) return;
-
-  // Calculate available space on each side
-  const spaceRight = containerRect.right - iconRect.right;
-  const spaceLeft = iconRect.left - containerRect.left;
-  const spaceTop = iconRect.top - containerRect.top;
-  const spaceBottom = containerRect.bottom - iconRect.bottom;
-
-  // Tooltip dimensions (approximate)
-  const tooltipWidth = 280; // max-width from CSS
-  const tooltipHeight = 120; // approximate height
-
-  // Reset all positioning classes and inline styles
-  tooltip.classList.remove(
-    "tooltip-right",
-    "tooltip-left",
-    "tooltip-top",
-    "tooltip-bottom",
-  );
-  tooltip.style.left = "";
-  tooltip.style.right = "";
-  tooltip.style.top = "";
-  tooltip.style.bottom = "";
-
-  // Determine best position based on available space
-  if (spaceRight >= tooltipWidth + 20) {
-    // Default right position has enough space
-    tooltip.classList.add("tooltip-right");
-  } else if (spaceLeft >= tooltipWidth + 20) {
-    // Switch to left position
-    tooltip.classList.add("tooltip-left");
-  } else if (spaceTop >= tooltipHeight + 20) {
-    // Switch to top position
-    tooltip.classList.add("tooltip-top");
-  } else if (spaceBottom >= tooltipHeight + 20) {
-    // Switch to bottom position
-    tooltip.classList.add("tooltip-bottom");
-  } else {
-    // Default to right but adjust horizontal position if needed
-    tooltip.classList.add("tooltip-right");
-
-    // If still not enough space, position closer to the icon
-    if (spaceRight < tooltipWidth) {
-      const adjustment = tooltipWidth - spaceRight + 10;
-      tooltip.style.left = `calc(105% - ${adjustment}px)`;
-    }
-  }
-}
-
-function resetTooltipPosition(event: MouseEvent) {
-  const modIcon = event.currentTarget as HTMLElement;
-  const tooltip = modIcon.querySelector(".mod-tooltip") as HTMLElement;
-  if (!tooltip) return;
-
-  // Reset all positioning classes and inline styles
-  tooltip.classList.remove(
-    "tooltip-right",
-    "tooltip-left",
-    "tooltip-top",
-    "tooltip-bottom",
-  );
-  tooltip.style.left = "";
-  tooltip.style.right = "";
-  tooltip.style.top = "";
-  tooltip.style.bottom = "";
 }
 
 async function loadMods(installation: KableInstallation) {
@@ -619,70 +534,14 @@ onMount(() => {
               {error}
             </div>
           {:else if mods.length > 0}
-            <span class="mods-instructions"
-              >Click mods to disable/enable them</span
-            >
-            <div class="mods-icon-grid">
-              {#each filteredMods as mod}
-                {#if $extendedModInfo[mod.file_name]}
-                  <div
-                    class="mod-icon-link"
-                    class:clickable={!!$extendedModInfo[mod.file_name]
-                      ?.page_uri}
-                    class:disabled={!!mod.disabled}
-                    on:click={(e) => onModActivate(e as MouseEvent, mod)}
-                    on:keydown={(e) => onModKeyDown(e as KeyboardEvent, mod)}
-                    on:mouseenter={updateTooltipPosition}
-                    on:mouseleave={resetTooltipPosition}
-                    role="button"
-                    tabindex="0"
-                    title=""
-                    aria-label={$extendedModInfo[mod.file_name]?.mod_jar_info
-                      .mod_name ||
-                      $extendedModInfo[mod.file_name]?.mod_jar_info.file_name}
-                    aria-pressed={mod.disabled ? "true" : "false"}
-                  >
-                    {#if $extendedModInfo[mod.file_name]?.icon_uri}
-                      <img
-                        class="mod-icon"
-                        src={$extendedModInfo[mod.file_name]?.icon_uri}
-                        alt=""
-                        title=""
-                      />
-                    {:else}
-                      <Icon name="package" size="lg" />
-                    {/if}
-
-                    <div class="mod-tooltip">
-                      <div class="mod-tooltip-title">
-                        {$extendedModInfo[mod.file_name]?.mod_jar_info
-                          .mod_name ||
-                          $extendedModInfo[mod.file_name]?.mod_jar_info
-                            .file_name}
-                      </div>
-                      {#if $extendedModInfo[mod.file_name]?.mod_jar_info.mod_version}
-                        <div class="mod-tooltip-version">
-                          {$extendedModInfo[mod.file_name]?.mod_jar_info
-                            .mod_version}
-                        </div>
-                      {/if}
-                      {#if $extendedModInfo[mod.file_name]?.description}
-                        <div class="mod-tooltip-desc">
-                          {$extendedModInfo[mod.file_name]?.description || ""}
-                        </div>
-                      {/if}
-                      {#if $extendedModInfo[mod.file_name]?.page_uri}
-                        <div class="mod-tooltip-link">
-                          Click to view on Modrinth
-                        </div>
-                      {/if}
-                    </div>
-                  </div>
-                {:else}
-                  <div class="mod-icon-link loading">
-                    <Icon name="package" size="lg" />
-                  </div>
-                {/if}
+            <div class="mods-card-grid">
+              {#each filteredMods as mod (mod.file_name)}
+                <InstalledModCard
+                  {mod}
+                  installation={currentInstallation}
+                  extendedInfo={$extendedModInfo[mod.file_name]}
+                  on:modChanged={handleModChanged}
+                />
               {/each}
             </div>
           {:else}
@@ -722,7 +581,7 @@ onMount(() => {
   overflow: hidden;
 }
 
-// --- Left sidebar: Installation carousel ---
+//  Left sidebar: Installation carousel 
 .installation-sidebar {
   width: 320px;
   min-width: 320px;
@@ -746,22 +605,6 @@ onMount(() => {
     border-bottom: 1px solid
       #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
   }
-}
-
-.mod-icon-link.disabled {
-  border: 2px solid var(--red-600, #d9534f);
-  box-shadow: 0 1px 6px 0 color-mix(in srgb, var(--red), 12%, transparent) !important;
-  filter: grayscale(70%) opacity(0.9);
-}
-
-.mod-icon-link.disabled .mod-tooltip {
-  background: color-mix(in srgb, var(--red), 6%, var(--card));
-  border-color: color-mix(in srgb, var(--red), 20%, var(--card));
-}
-.mods-instructions {
-  font-size: 0.875em;
-  color: var(--placeholder);
-  margin-top: 0.5rem;
 }
 
 .installation-carousel {
@@ -948,7 +791,7 @@ onMount(() => {
   }
 }
 
-// --- Right content: Search and mods ---
+//  Right content: Search and mods 
 .mods-section {
   flex: 1;
   display: flex;
@@ -1093,87 +936,30 @@ onMount(() => {
   overflow-x: hidden;
 }
 
-// --- Compact icon grid for mods with enhanced hover effects ---
-.mods-icon-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  padding: 0.3rem 0.1rem 0.3rem 0.1rem;
-  align-items: flex-start;
-  justify-content: flex-start;
+// Card grid for mods
+.mods-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.5rem;
+  padding: 0.5rem;
+
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+  }
+  
+  @media (min-width: 1400px) {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
 }
 
-.mod-icon-link {
+.loading-state {
   display: flex;
   align-items: center;
+  gap: 0.7em;
+  color: var(--placeholder);
+  font-size: 1.1em;
+  padding: 2.5rem 0;
   justify-content: center;
-  position: relative;
-  background: var(--card);
-  border-radius: 0.5rem;
-  border: 1px solid color-mix(in srgb, var(--primary), 10%, transparent);
-  width: 48px;
-  height: 48px;
-  min-width: 48px;
-  min-height: 48px;
-  box-shadow:
-    0 1px 6px 0 color-mix(in srgb, var(--dark-900), 6%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  overflow: visible;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-
-  &:hover {
-    transform: translateY(-1px) scale(1.04);
-    box-shadow:
-      0 6px 20px 0 color-mix(in srgb, var(--primary), 18%, transparent),
-      0 2px 8px 0 color-mix(in srgb, var(--dark-900), 12%, transparent),
-      inset 0 1px 0 color-mix(in srgb, #fff, 15%, transparent);
-    border-color: var(--primary);
-    background: linear-gradient(
-      135deg,
-      var(--card) 0%,
-      #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 100%
-    );
-    z-index: 15;
-
-    .mod-tooltip {
-      opacity: 1;
-      pointer-events: none;
-      transform: translateY(-6px) scale(1.01);
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .mod-icon {
-      transform: scale(1.08);
-      filter: brightness(1.08) contrast(1.08) saturate(1.15);
-    }
-  }
-
-  &.loading {
-    background: linear-gradient(
-      135deg,
-      var(--card) 0%,
-      #{"color-mix(in srgb, var(--placeholder), 4%, transparent)"} 100%
-    );
-    color: var(--placeholder);
-    animation: pulse 1.8s ease-in-out infinite;
-  }
-
-  &.clickable {
-    cursor: pointer;
-
-    &:hover {
-      .mod-tooltip-link {
-        opacity: 1;
-      }
-    }
-  }
-
-  &:not(.clickable) {
-    cursor: default;
-  }
 }
 
 @keyframes pulse {
@@ -1183,119 +969,6 @@ onMount(() => {
   }
   50% {
     opacity: 1;
-  }
-}
-
-.mod-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 0.4rem;
-  object-fit: cover;
-  background: linear-gradient(
-    45deg,
-    var(--background) 0%,
-    #{"color-mix(in srgb, var(--primary), 2%, transparent)"} 100%
-  );
-  box-shadow:
-    0 1px 4px color-mix(in srgb, var(--dark-900), 8%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  transition: all 0.12s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
-}
-
-.mod-tooltip {
-  opacity: 0;
-  pointer-events: none;
-  position: absolute;
-  background: var(--card);
-  color: var(--text);
-  border: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-  border-radius: 0.5rem;
-  padding: 0.5em 0.8em;
-  font-size: 0.85em;
-  font-weight: 500;
-  min-width: 160px;
-  max-width: 280px;
-  box-shadow:
-    0 8px 24px 0 color-mix(in srgb, var(--dark-900), 25%, transparent),
-    0 2px 6px 0 color-mix(in srgb, var(--primary), 15%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  z-index: 100;
-  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-
-  // Default positioning (right)
-  left: 105%;
-  top: 0%;
-  transform: translateY(-8%) scale(0.96);
-  margin-top: 0.2em;
-
-  &::before {
-    content: "";
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    background: linear-gradient(
-      135deg,
-      #{"color-mix(in srgb, var(--container), 98%, transparent)"} 0%,
-      #{"color-mix(in srgb, var(--primary), 100%, transparent)"} 100%
-    );
-    border-left: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-    border-bottom: 1px solid
-      color-mix(in srgb, var(--primary), 25%, transparent);
-    transform: rotate(45deg);
-    // Default arrow position (left side, pointing left)
-    left: -5px;
-    top: 18%;
-  }
-
-  .mod-tooltip-title {
-    font-weight: 600;
-    font-size: 1em;
-    background: linear-gradient(
-      135deg,
-      var(--primary) 0%,
-      var(--secondary) 100%
-    );
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    margin-bottom: 0.25em;
-    text-overflow: ellipsis;
-    overflow: hidden;
-    white-space: nowrap;
-  }
-  .mod-tooltip-version {
-    font-size: 0.8em;
-    color: var(--tertiary);
-    background: color-mix(in srgb, var(--tertiary), 8%, transparent);
-    padding: 0.15em 0.4em;
-    border-radius: 0.25em;
-    display: inline-block;
-    margin-bottom: 0.3em;
-    font-weight: 500;
-  }
-  .mod-tooltip-desc {
-    font-size: 0.78em;
-    color: var(--placeholder);
-    margin-top: 0.2em;
-    line-height: 1.35;
-    max-width: 260px;
-    word-break: break-word;
-  }
-
-  .mod-tooltip-link {
-    font-size: 0.75em;
-    color: var(--primary);
-    margin-top: 0.4em;
-    padding: 0.2em 0.4em;
-    background: color-mix(in srgb, var(--primary), 8%, transparent);
-    border-radius: 0.25em;
-    text-align: center;
-    font-weight: 500;
-    opacity: 0.8;
-    transition: opacity 0.15s;
   }
 }
 
@@ -1440,26 +1113,6 @@ onMount(() => {
   .installation-mods {
     padding: 0.5rem;
     height: auto;
-  }
-
-  .mods-icon-grid {
-    gap: 0.3rem;
-  }
-  .mod-icon-link {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
-    min-height: 44px;
-  }
-  .mod-icon {
-    width: 34px;
-    height: 34px;
-  }
-  .mod-tooltip {
-    left: auto;
-    right: 105%;
-    min-width: 140px;
-    font-size: 0.8em;
   }
 }
 </style>

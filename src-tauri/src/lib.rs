@@ -241,6 +241,7 @@ pub fn run() {
             commands_installations::disable_mod,
             commands_installations::enable_mod,
             commands_installations::toggle_mod_disabled,
+            commands_installations::delete_mod,
             commands_installations::import,
             commands_installations::import_from_minecraft_folder,
             commands_installations::export,

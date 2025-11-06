@@ -3,7 +3,7 @@ import { inc, rcompare, parse } from "semver";
 
 const explicitBumpType = process.argv[2];
 
-// --- helpers ---
+// helpers
 const readJson = (file) => {
   try { return JSON.parse(fs.readFileSync(file, "utf8")); }
   catch { return null; }
@@ -32,7 +32,7 @@ const writeTomlVersion = (file, newVersion) => {
   } catch {}
 };
 
-// --- read versions ---
+// read versions 
 const pkg = readJson("package.json");
 const tauri = readJson("src-tauri/tauri.conf.json");
 const cargo = readTomlVersion("src-tauri/Cargo.toml");
@@ -70,7 +70,7 @@ if (explicitBumpType) {
 const newVersion = inc(baseVersion, bumpType);
 console.log(`Bumping from ${baseVersion} → ${newVersion} (${bumpType})`);
 
-// --- update files ---
+// update files 
 if (pkg) writeJson("package.json", (d) => { d.version = newVersion; });
 if (tauri) writeJson("src-tauri/tauri.conf.json", (d) => { d.version = newVersion; });
 writeTomlVersion("src-tauri/Cargo.toml", newVersion);

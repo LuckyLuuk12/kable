@@ -1231,6 +1231,32 @@ impl KableInstallation {
         ))
     }
 
+    /// Delete/remove a mod JAR file from the installation (checks both active and disabled folders)
+    pub fn delete_mod(&self, file_name: &str) -> Result<(), String> {
+        let mods_dir = self.find_mods_dir()?;
+        let active_path = mods_dir.join(file_name);
+        let disabled_path = mods_dir.join("disabled").join(file_name);
+
+        // Try to delete from active folder first
+        if active_path.exists() {
+            std::fs::remove_file(&active_path)
+                .map_err(|e| format!("Failed to delete mod from active folder: {}", e))?;
+            return Ok(());
+        }
+
+        // If not in active, try disabled folder
+        if disabled_path.exists() {
+            std::fs::remove_file(&disabled_path)
+                .map_err(|e| format!("Failed to delete mod from disabled folder: {}", e))?;
+            return Ok(());
+        }
+
+        Err(format!(
+            "Mod file not found in either active or disabled folders: {}",
+            file_name
+        ))
+    }
+
     /// Scans the mods folder for this installation and extracts mod info from each JAR
     pub fn get_mod_info(&self) -> Result<Vec<ModJarInfo>, String> {
         use crate::logging::Logger;

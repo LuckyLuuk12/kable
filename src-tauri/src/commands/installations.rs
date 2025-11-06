@@ -115,6 +115,12 @@ pub async fn toggle_mod_disabled(
     installation.toggle_mod_disabled(&file_name)
 }
 
+/// Delete/remove a mod from the installation
+#[tauri::command]
+pub async fn delete_mod(installation: KableInstallation, file_name: String) -> Result<(), String> {
+    installation.delete_mod(&file_name)
+}
+
 #[tauri::command]
 pub async fn import(path: String) -> Result<KableInstallation, String> {
     KableInstallation::import(&path).await

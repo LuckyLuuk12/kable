@@ -390,7 +390,7 @@ pub struct Extract {
     pub exclude: Option<Vec<String>>,
 }
 
-// --- Variable substitution and argument processing ---
+//  Variable substitution and argument processing 
 /// Substitute variables in a template string with values from the provided map.
 ///
 /// Variables are in the form `${key}` and are replaced with the corresponding value from `variables`.
@@ -566,7 +566,7 @@ pub fn is_problematic_argument(arg: &str) -> bool {
     false
 }
 
-// --- Classpath and library utilities ---
+//  Classpath and library utilities 
 /// Builds the Java classpath string from a list of Minecraft libraries and the main version JAR.
 ///
 /// Used by all loader modules to construct the classpath for launching Minecraft.
@@ -673,7 +673,7 @@ pub fn deduplicate_libraries(libraries: Vec<Library>) -> Vec<Library> {
     library_map.into_values().collect()
 }
 
-// --- Java and JVM utilities ---
+//  Java and JVM utilities 
 /// Ensures the version manifest JSON and JAR exist for the given version_id in minecraft_dir.
 /// Downloads them from Mojang if missing.
 pub async fn ensure_version_manifest_and_jar(
@@ -1299,7 +1299,7 @@ pub fn get_java_path(java_path: Option<String>) -> Result<String, String> {
     find_java_executable(java_path.as_ref())
 }
 
-// --- Native extraction ---
+//  Native extraction 
 /// Extracts native libraries from Minecraft library JARs into the given natives directory.
 ///
 /// Used by all loader modules to prepare the environment for launching Minecraft.
@@ -1703,7 +1703,7 @@ fn extract_jar(jar_path: &PathBuf, extract_to: &Path) -> Result<(), String> {
     Ok(())
 }
 
-// --- Variable map builder ---
+//  Variable map builder 
 /// Builds a map of variable substitutions for Minecraft argument templates, based on the launch context, manifest, and version info.
 ///
 /// Used by all loader modules to provide variables for argument processing.

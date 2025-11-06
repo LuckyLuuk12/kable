@@ -119,6 +119,17 @@ export async function toggleModDisabled(
   });
 }
 
+// Delete/remove a mod from installation
+export async function deleteMod(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<void> {
+  return await invoke("delete_mod", {
+    installation,
+    fileName,
+  });
+}
+
 // Import an installation from a path
 export async function importInstallation(
   path: string,
