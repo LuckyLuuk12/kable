@@ -230,6 +230,8 @@ pub fn run() {
             commands_installations::get_all_versions,
             commands_installations::refresh_version_manifests,
             commands_installations::get_installations,
+            commands_installations::get_installations_force,
+            commands_installations::refresh_installations,
             commands_installations::get_installation,
             commands_installations::modify_installation,
             commands_installations::delete_installation,

@@ -23,6 +23,11 @@ export async function getInstallations(): Promise<KableInstallation[]> {
   return await invoke("get_installations");
 }
 
+// Force refresh installations bypassing cache
+export async function refreshInstallations(): Promise<KableInstallation[]> {
+  return await invoke("get_installations_force");
+}
+
 // Get a single Kable installation by id
 export async function getInstallation(
   id: string,

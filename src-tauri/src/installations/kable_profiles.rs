@@ -691,6 +691,29 @@ impl KableInstallation {
                 let _ = fs::remove_file(&tmp);
             }
 
+            // Persist the imported installation into kable_profiles.json so the frontend
+            // and other parts of the app can immediately see the new installation.
+            // Prefix the name so users can easily identify imported items.
+            if !installation.name.starts_with("[IMPORT] ") {
+                installation.name = format!("[IMPORT] {}", installation.name);
+            }
+
+            // Read existing profiles (synchronous helper) and append
+            let mut existing = match read_kable_profiles() {
+                Ok(v) => {
+                    v
+                }
+                Err(e) => {
+                    // If we cannot read existing profiles, propagate error to caller
+                    return Err(format!("Failed to read existing kable profiles: {}", e));
+                }
+            };
+            existing.push(installation.clone());
+            // Persist updated profiles to disk
+            if let Err(e) = write_kable_profiles(&existing) {
+                return Err(format!("Failed to persist imported installation: {}", e));
+            }
+
             Ok::<KableInstallation, String>(installation)
         })
         .await

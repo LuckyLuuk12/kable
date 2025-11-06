@@ -50,7 +50,7 @@ function openCreateModal() {
 async function refreshInstallations() {
   isRefreshing = true;
   try {
-    await InstallationService.loadInstallations();
+    await InstallationService.refreshInstallations();
   } finally {
     isRefreshing = false;
   }

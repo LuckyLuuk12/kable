@@ -223,6 +223,18 @@ pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
     Ok(installations)
 }
 
+/// Force rebuild installations from disk and return them, updating the cache.
+pub async fn get_installations_force() -> Result<Vec<KableInstallation>, String> {
+    // Always rebuild from sources
+    let installations = build_installations_async().await?;
+    {
+        let mut cache_write = INSTALLATIONS_CACHE.write().await;
+        *cache_write = Some(installations.clone());
+    }
+    crate::logging::debug(&format!("Force-built installations: {} items", installations.len()));
+    Ok(installations)
+}
+
 /// Returns a single installation by id, using cache.
 pub async fn get_installation(id: &str) -> Result<Option<KableInstallation>, String> {
     let installations = get_installations().await?;

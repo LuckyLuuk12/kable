@@ -191,6 +191,28 @@ export class InstallationService {
   }
 
   /**
+   * Force reload installations from backend, bypassing any cached value.
+   */
+  static async refreshInstallations(): Promise<KableInstallation[]> {
+    isLoadingInstallations.set(true);
+    installationsError.set(null);
+    try {
+      console.log("[Service] refreshInstallations: invoking backend force-refresh");
+      const foundInstallations = await installationsApi.refreshInstallations();
+      installations.set(foundInstallations);
+      console.log("[Service] refreshInstallations: received", foundInstallations.length, "installations");
+      selectedInstallation.set(foundInstallations[0] || null);
+      return get(installations);
+    } catch (error) {
+      installationsError.set(`Failed to refresh installations: ${error}`);
+      console.error("[Service] refreshInstallations error:", error);
+      return get(installations);
+    } finally {
+      isLoadingInstallations.set(false);
+    }
+  }
+
+  /**
    * Load all versions and update the store.
    * This is called separately from loadInstallations to avoid blocking.
    * @returns A snapshot of the loaded versions.
@@ -250,7 +272,7 @@ export class InstallationService {
    */
   static async createInstallation(version_id: string): Promise<void> {
     await installationsApi.createInstallation(version_id);
-    await this.loadInstallations();
+    await this.refreshInstallations();
   }
 
   /**
@@ -274,7 +296,7 @@ export class InstallationService {
       sourceInstallation.id,
       options,
     );
-    await this.loadInstallations();
+    await this.refreshInstallations();
   }
 
   /**
@@ -311,8 +333,23 @@ export class InstallationService {
    * Delete an installation by ID.
    */
   static async deleteInstallation(id: string): Promise<void> {
-    await installationsApi.deleteInstallation(id);
-    await this.loadInstallations();
+    // Optimistic update: remove from store immediately so UI reflects deletion
+    installations.update((list) => list.filter((i) => i.id !== id));
+
+    try {
+      await installationsApi.deleteInstallation(id);
+      // After successful delete, ensure we have authoritative data from backend
+      await this.refreshInstallations();
+    } catch (error) {
+      console.error("Failed to delete installation, reloading list:", error);
+      // On failure, attempt to reload authoritative list to restore UI
+      try {
+        await this.refreshInstallations();
+      } catch (err) {
+        console.error("Failed to refresh installations after delete error:", err);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -494,8 +531,8 @@ export class InstallationService {
         "info",
       );
 
-      // Reload installations to show the new one
-      await this.loadInstallations();
+  // Reload installations to show the new one (force refresh)
+  await this.refreshInstallations();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error(
@@ -527,8 +564,8 @@ export class InstallationService {
         "info",
       );
 
-      // Reload installations to show the new ones
-      await this.loadInstallations();
+  // Reload installations to show the new ones (force refresh)
+  await this.refreshInstallations();
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
       console.error(
