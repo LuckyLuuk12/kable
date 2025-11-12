@@ -1275,6 +1275,10 @@ pub fn find_java_executable(java_path: Option<&String>) -> Result<String, String
     let java_candidates = if cfg!(windows) {
         vec![
             "java".to_string(),
+            "C:\\Program Files\\Java\\jdk-25\\bin\\java.exe".to_string(),
+            "C:\\Program Files\\Java\\jdk-24\\bin\\java.exe".to_string(),
+            "C:\\Program Files\\Java\\jdk-21\\bin\\java.exe".to_string(),
+            "C:\\Program Files\\Java\\jdk-11\\bin\\java.exe".to_string(),
             "C:\\Program Files\\Java\\jre1.8.0_301\\bin\\java.exe".to_string(),
             "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.2.8-hotspot\\bin\\java.exe".to_string(),
             "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.1.12-hotspot\\bin\\java.exe".to_string(),
