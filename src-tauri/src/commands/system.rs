@@ -8,8 +8,10 @@ pub async fn open_url(url: String) -> Result<(), String> {
 
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", &url])
+        // Use explorer.exe instead of cmd to avoid issues with special characters
+        // This is more reliable and doesn't require shell escaping
+        std::process::Command::new("explorer.exe")
+            .arg(&url)
             .spawn()
             .map_err(|e| format!("Failed to open URL on Windows: {}", e))?;
     }
