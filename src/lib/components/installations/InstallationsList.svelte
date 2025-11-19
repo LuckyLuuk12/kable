@@ -1372,11 +1372,7 @@ $: {
   min-width: 0;
   backdrop-filter: blur(0.5rem); // 8px
   -webkit-backdrop-filter: blur(0.5rem);
-  cursor: pointer;
   z-index: 1;
-  * {
-    cursor: pointer !important;
-  }
   &:hover {
     box-shadow:
       0 0.375rem 1.5rem rgba(80, 80, 90, 0.13),

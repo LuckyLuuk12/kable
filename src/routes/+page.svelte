@@ -409,7 +409,9 @@ async function handleAdClick(url: string) {
       <div class="ram-header">
         <span class="installation-name">
           {lastPlayedInstallations.length > 0
-            ? lastPlayedInstallations[0].name
+            ? (lastPlayedInstallations[0].name !== ""
+                ? lastPlayedInstallations[0].name
+                : lastPlayedInstallations[0].version_id)
             : "No Installation"}
         </span>
         <span class="ram-display">{formatRamDisplay(ramAllocation)}</span>
