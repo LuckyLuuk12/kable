@@ -22,6 +22,7 @@ author, downloads, and gallery preview. Supports grid, list, and compact views.
 import { createEventDispatcher } from "svelte";
 import { Icon } from "$lib";
 import type { ResourcePackDownload, KableInstallation } from "$lib";
+import { openUrl } from "$lib/api/system";
 
 export let resourcepack: ResourcePackDownload;
 export let viewMode: "grid" | "list" | "compact" = "grid";
@@ -78,7 +79,8 @@ function getResolutionColor(resolution: string | null): string {
 }
 
 // Handle download
-function handleDownload() {
+function handleDownload(e: MouseEvent) {
+  e.stopPropagation();
   console.log(
     "[ResourcePackCard] Download clicked:",
     resourcepack.name,
@@ -90,9 +92,19 @@ function handleDownload() {
 
 // Handle gallery view
 function handleViewGallery(e: MouseEvent) {
-  e.stopPropagation();
+  e.stopPropagation(); // Prevent card click
   if (hasGallery) {
     dispatch("viewGallery", { resourcepack });
+  }
+}
+
+// Handle visit page
+async function handleVisit(e: MouseEvent | KeyboardEvent) {
+  const url = `https://modrinth.com/resourcepack/${resourcepack.id}`;
+  try {
+    await openUrl(url);
+  } catch (error) {
+    console.error("Failed to open URL:", error);
   }
 }
 </script>
@@ -103,6 +115,10 @@ function handleViewGallery(e: MouseEvent) {
   class:list={viewMode === "list"}
   class:compact={viewMode === "compact"}
   class:installed={isInstalled}
+  on:click={handleVisit}
+  role="button"
+  tabindex="0"
+  on:keydown={(e) => e.key === 'Enter' && handleVisit(e)}
 >
   <!-- Thumbnail -->
   {#if viewMode !== "compact"}
@@ -222,6 +238,7 @@ function handleViewGallery(e: MouseEvent) {
   overflow: hidden;
   transition: all 0.2s ease;
   position: relative;
+  cursor: pointer;
 
   &::before {
     content: "";
