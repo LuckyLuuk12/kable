@@ -706,6 +706,8 @@ export interface KableInstallation {
   parameters_map: Record<string, string>;
   description?: string | null;
   times_launched: number;
+  enable_pack_merging?: boolean;
+  pack_order?: string[];
 }
 
 /** LauncherProfile struct

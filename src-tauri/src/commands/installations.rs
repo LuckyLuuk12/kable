@@ -94,6 +94,18 @@ pub async fn get_mod_info(installation: KableInstallation) -> Result<Vec<ModJarI
     installation.get_mod_info()
 }
 
+/// Get resource pack info for an installation
+#[tauri::command]
+pub async fn get_resourcepack_info_for_installation(installation: KableInstallation) -> Result<Vec<ResourcePackInfo>, String> {
+    installation.get_resourcepack_info()
+}
+
+/// Get global resource packs from .minecraft/resourcepacks
+#[tauri::command]
+pub async fn get_global_resourcepacks() -> Result<Vec<ResourcePackInfo>, String> {
+    KableInstallation::get_global_resourcepacks()
+}
+
 /// Disable a mod by moving the jar into the installation's disabled/ subfolder
 #[tauri::command]
 pub async fn disable_mod(installation: KableInstallation, file_name: String) -> Result<(), String> {
@@ -119,6 +131,33 @@ pub async fn toggle_mod_disabled(
 #[tauri::command]
 pub async fn delete_mod(installation: KableInstallation, file_name: String) -> Result<(), String> {
     installation.delete_mod(&file_name)
+}
+
+/// Disable a resource pack by moving it into the installation's disabled/ subfolder
+#[tauri::command]
+pub async fn disable_resourcepack_for_installation(installation: KableInstallation, file_name: String) -> Result<(), String> {
+    installation.disable_resourcepack(&file_name)
+}
+
+/// Enable a resource pack by moving it out of the installation's disabled/ subfolder
+#[tauri::command]
+pub async fn enable_resourcepack_for_installation(installation: KableInstallation, file_name: String) -> Result<(), String> {
+    installation.enable_resourcepack(&file_name)
+}
+
+/// Toggle the disabled state for a resource pack; returns the new disabled state (true = disabled)
+#[tauri::command]
+pub async fn toggle_resourcepack_disabled_for_installation(
+    installation: KableInstallation,
+    file_name: String,
+) -> Result<bool, String> {
+    installation.toggle_resourcepack_disabled(&file_name)
+}
+
+/// Delete/remove a resource pack from the installation
+#[tauri::command]
+pub async fn delete_resourcepack_for_installation(installation: KableInstallation, file_name: String) -> Result<(), String> {
+    installation.delete_resourcepack(&file_name)
 }
 
 #[tauri::command]

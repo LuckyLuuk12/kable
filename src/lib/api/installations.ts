@@ -130,6 +130,62 @@ export async function deleteMod(
   });
 }
 
+// Disable a resource pack by moving it into the disabled/ subfolder
+export async function disableResourcePack(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<void> {
+  return await invoke("disable_resourcepack_for_installation", {
+    installation,
+    file_name: fileName,
+  });
+}
+
+// Enable a resource pack by moving it out of the disabled/ subfolder
+export async function enableResourcePack(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<void> {
+  return await invoke("enable_resourcepack_for_installation", {
+    installation,
+    file_name: fileName,
+  });
+}
+
+// Toggle the disabled state for a resource pack; returns the new disabled state (true = disabled)
+export async function toggleResourcePackDisabled(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<boolean> {
+  return await invoke("toggle_resourcepack_disabled_for_installation", {
+    installation,
+    file_name: fileName,
+  });
+}
+
+// Delete/remove a resource pack from installation
+export async function deleteResourcePack(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<void> {
+  return await invoke("delete_resourcepack_for_installation", {
+    installation,
+    fileName,
+  });
+}
+
+// Get resource pack info for an installation
+export async function getResourcePackInfo(
+  installation: KableInstallation,
+): Promise<any[]> {
+  return await invoke("get_resourcepack_info_for_installation", { installation });
+}
+
+// Get global resource packs from .minecraft/resourcepacks
+export async function getGlobalResourcePacks(): Promise<any[]> {
+  return await invoke("get_global_resourcepacks");
+}
+
 // Import an installation from a path
 export async function importInstallation(
   path: string,

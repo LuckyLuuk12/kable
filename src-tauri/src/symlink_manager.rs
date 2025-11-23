@@ -644,6 +644,8 @@ impl SymlinkManager {
     }
 
     /// Setup resource pack symlinks for a specific installation
+    /// If pack merging is enabled, merges all enabled packs into kable-merged.zip
+    /// Otherwise, creates individual symlinks for each pack
     async fn setup_resourcepack_symlinks(&self, installation_id: &str) -> Result<(), String> {
         let kable_dir = crate::get_minecraft_kable_dir()?;
 
@@ -651,19 +653,21 @@ impl SymlinkManager {
         let installations = crate::installations::kable_profiles::read_kable_profiles()?;
         let installation = installations.iter().find(|i| i.id == installation_id);
 
-        let installation_packs_dir = if let Some(inst) = installation {
-            if let Some(ref dedicated_folder) = inst.dedicated_resource_pack_folder {
-                let dedicated_path = std::path::PathBuf::from(dedicated_folder);
-                if dedicated_path.is_absolute() {
-                    dedicated_path
-                } else {
-                    kable_dir.join(dedicated_folder)
-                }
-            } else {
-                return Ok(()); // No dedicated folder configured
-            }
+        let installation_data = if let Some(inst) = installation {
+            inst
         } else {
             return Ok(()); // Installation not found
+        };
+
+        let installation_packs_dir = if let Some(ref dedicated_folder) = installation_data.dedicated_resource_pack_folder {
+            let dedicated_path = std::path::PathBuf::from(dedicated_folder);
+            if dedicated_path.is_absolute() {
+                dedicated_path
+            } else {
+                kable_dir.join(dedicated_folder)
+            }
+        } else {
+            return Ok(()); // No dedicated folder configured
         };
 
         // Only setup if the installation has a dedicated resource packs folder
@@ -674,24 +678,72 @@ impl SymlinkManager {
         let resourcepacks_dir = self.minecraft_dir.join("resourcepacks");
         crate::ensure_folder(&resourcepacks_dir).await?;
 
-        // Read all resource packs in the installation's dedicated folder
-        let entries = match std::fs::read_dir(&installation_packs_dir) {
-            Ok(e) => e,
-            Err(_) => return Ok(()), // No resource packs for this installation
-        };
+        // Check if pack merging is enabled
+        if installation_data.enable_pack_merging {
+            // Build set of enabled packs (all packs not in disabled state)
+            // TODO: Add disabled state tracking - for now assume all are enabled
+            let entries = match std::fs::read_dir(&installation_packs_dir) {
+                Ok(e) => e,
+                Err(_) => return Ok(()), // No resource packs
+            };
 
-        for entry in entries {
-            let entry = entry.map_err(|e| format!("Failed to read resourcepack entry: {}", e))?;
-            let path = entry.path();
+            let mut enabled_packs = std::collections::HashSet::new();
+            for entry in entries.filter_map(|e| e.ok()) {
+                let path = entry.path();
+                if path.is_file() && path.extension().is_some_and(|ext| ext == "zip") {
+                    if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
+                        // Skip the merged pack itself
+                        if filename != "kable-merged.zip" {
+                            enabled_packs.insert(filename.to_string());
+                        }
+                    }
+                }
+            }
 
-            if path.is_file() && path.extension().is_some_and(|ext| ext == "zip") {
-                // Create symlink in .minecraft/resourcepacks pointing to the dedicated folder file
-                if let Some(filename) = path.file_name() {
-                    let target_link = resourcepacks_dir.join(filename);
+            // If we have enabled packs, merge them
+            if !enabled_packs.is_empty() {
+                let pack_order = if installation_data.pack_order.is_empty() {
+                    // No order specified, use all enabled packs in arbitrary order
+                    enabled_packs.iter().cloned().collect()
+                } else {
+                    // Use specified order
+                    installation_data.pack_order.clone()
+                };
 
-                    // Only create if doesn't exist
-                    if !target_link.exists() {
-                        crate::create_file_symlink(&path, &target_link).await?;
+                // Merge packs into kable-merged.zip
+                let merged_path = crate::resourcepacks::merge_resourcepacks(
+                    installation_packs_dir.to_string_lossy().to_string(),
+                    pack_order,
+                    enabled_packs,
+                ).await?;
+
+                // Create symlink for the merged pack
+                let target_link = resourcepacks_dir.join("kable-merged.zip");
+                if target_link.exists() {
+                    crate::remove_symlink_if_exists(&target_link).await?;
+                }
+                crate::create_file_symlink(&merged_path, &target_link).await?;
+            }
+        } else {
+            // Individual pack symlinks (original behavior)
+            let entries = match std::fs::read_dir(&installation_packs_dir) {
+                Ok(e) => e,
+                Err(_) => return Ok(()), // No resource packs for this installation
+            };
+
+            for entry in entries {
+                let entry = entry.map_err(|e| format!("Failed to read resourcepack entry: {}", e))?;
+                let path = entry.path();
+
+                if path.is_file() && path.extension().is_some_and(|ext| ext == "zip") {
+                    // Create symlink in .minecraft/resourcepacks pointing to the dedicated folder file
+                    if let Some(filename) = path.file_name() {
+                        let target_link = resourcepacks_dir.join(filename);
+
+                        // Only create if doesn't exist
+                        if !target_link.exists() {
+                            crate::create_file_symlink(&path, &target_link).await?;
+                        }
                     }
                 }
             }

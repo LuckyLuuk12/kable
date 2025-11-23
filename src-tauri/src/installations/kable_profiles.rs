@@ -36,6 +36,12 @@ pub struct KableInstallation {
     pub description: Option<String>,
     /// Number of times this installation has been launched
     pub times_launched: u32,
+    /// Enable resource pack merging (merge all packs into kable-merged.zip)
+    #[serde(default)]
+    pub enable_pack_merging: bool,
+    /// Order of resource packs (first = highest priority)
+    #[serde(default)]
+    pub pack_order: Vec<String>,
 }
 
 impl Default for KableInstallation {
@@ -66,6 +72,8 @@ impl Default for KableInstallation {
             parameters_map: std::collections::HashMap::new(),
             description: None,
             times_launched: 0,
+            enable_pack_merging: false,
+            pack_order: Vec::new(),
         }
     }
 }
@@ -112,6 +120,8 @@ impl From<LauncherProfile> for KableInstallation {
             parameters_map: std::collections::HashMap::new(),
             description: None,
             times_launched: 0,
+            enable_pack_merging: false,
+            pack_order: Vec::new(),
         }
     }
 }
@@ -1303,6 +1313,293 @@ impl KableInstallation {
         ))
     }
 
+    /// Get the resourcepacks folder path for this installation
+    fn find_resourcepacks_dir(&self) -> Result<PathBuf, String> {
+        if let Some(ref dedicated_folder) = self.dedicated_resource_pack_folder {
+            let path = PathBuf::from(dedicated_folder);
+            if path.is_absolute() {
+                return Ok(path);
+            } else {
+                let kable_dir = crate::get_minecraft_kable_dir()?;
+                return Ok(kable_dir.join(dedicated_folder));
+            }
+        }
+        
+        let minecraft_dir = crate::get_default_minecraft_dir()?;
+        Ok(minecraft_dir.join("resourcepacks"))
+    }
+
+    /// Move the given resource pack into the installation's disabled/ subfolder.
+    pub fn disable_resourcepack(&self, file_name: &str) -> Result<(), String> {
+        use crate::logging::Logger;
+        let packs_dir = self.find_resourcepacks_dir()?;
+        let disabled_dir = packs_dir.join("disabled");
+        let src = packs_dir.join(file_name);
+        let dst = disabled_dir.join(file_name);
+        if !src.exists() {
+            if dst.exists() {
+                return Ok(());
+            }
+            return Err(format!("Resource pack file not found: {}", file_name));
+        }
+        crate::ensure_folder_sync(&disabled_dir)
+            .map_err(|e| format!("Failed to create disabled directory: {}", e))?;
+        fs::rename(&src, &dst)
+            .map_err(|e| format!("Failed to move resource pack to disabled: {}", e))?;
+        Logger::debug_global(
+            &format!("Moved {} -> {}", src.display(), dst.display()),
+            None,
+        );
+        Ok(())
+    }
+
+    /// Move the given resource pack out of the installation's disabled/ subfolder back into the active packs folder.
+    pub fn enable_resourcepack(&self, file_name: &str) -> Result<(), String> {
+        let packs_dir = self.find_resourcepacks_dir()?;
+        let disabled_dir = packs_dir.join("disabled");
+        let src = disabled_dir.join(file_name);
+        let dst = packs_dir.join(file_name);
+        if !src.exists() {
+            if dst.exists() {
+                return Ok(());
+            }
+            return Err(format!("Disabled resource pack not found: {}", file_name));
+        }
+        fs::rename(&src, &dst)
+            .map_err(|e| format!("Failed to move resource pack to enabled: {}", e))?;
+        Ok(())
+    }
+
+    /// Toggle the disabled state of a resource pack; returns the new disabled state (true = disabled).
+    pub fn toggle_resourcepack_disabled(&self, file_name: &str) -> Result<bool, String> {
+        let packs_dir = self.find_resourcepacks_dir()?;
+        let src_active = packs_dir.join(file_name);
+        let src_disabled = packs_dir.join("disabled").join(file_name);
+        if src_active.exists() {
+            self.disable_resourcepack(file_name)?;
+            return Ok(true);
+        }
+        if src_disabled.exists() {
+            self.enable_resourcepack(file_name)?;
+            return Ok(false);
+        }
+        Err(format!(
+            "Resource pack file not found in either active or disabled folders: {}",
+            file_name
+        ))
+    }
+
+    /// Delete/remove a resource pack from the installation (checks both active and disabled folders)
+    pub fn delete_resourcepack(&self, file_name: &str) -> Result<(), String> {
+        let packs_dir = self.find_resourcepacks_dir()?;
+        let active_path = packs_dir.join(file_name);
+        let disabled_path = packs_dir.join("disabled").join(file_name);
+
+        if active_path.exists() {
+            std::fs::remove_file(&active_path)
+                .map_err(|e| format!("Failed to delete resource pack from active folder: {}", e))?;
+            return Ok(());
+        }
+
+        if disabled_path.exists() {
+            std::fs::remove_file(&disabled_path)
+                .map_err(|e| format!("Failed to delete resource pack from disabled folder: {}", e))?;
+            return Ok(());
+        }
+
+        Err(format!(
+            "Resource pack file not found in either active or disabled folders: {}",
+            file_name
+        ))
+    }
+
+    /// Scans the resourcepacks folder for this installation and returns info
+    pub fn get_resourcepack_info(&self) -> Result<Vec<ResourcePackInfo>, String> {
+        use crate::logging::Logger;
+        let packs_dir = self.find_resourcepacks_dir()?;
+        
+        Logger::debug_global(
+            &format!(
+                "🔍 get_resourcepack_info for installation: {} (packs_dir: {})",
+                self.name,
+                packs_dir.display()
+            ),
+            None,
+        );
+
+        let mut result = Vec::new();
+
+        if !packs_dir.exists() {
+            return Ok(result);
+        }
+
+        // Scan active packs (both folders and zip files)
+        for entry in fs::read_dir(&packs_dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            let file_name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+            
+            // Skip hidden files, disabled subfolder, and merged pack
+            if file_name.starts_with('.') || file_name == "disabled" || file_name == "kable-merged.zip" {
+                continue;
+            }
+            
+            // Check if it's a valid resource pack
+            let is_valid = if path.is_file() {
+                // For files, must be .zip
+                file_name.ends_with(".zip")
+            } else if path.is_dir() {
+                // For folders, must contain pack.mcmeta
+                path.join("pack.mcmeta").exists()
+            } else {
+                false
+            };
+            
+            if is_valid {
+                result.push(ResourcePackInfo {
+                    file_name,
+                    name: None,
+                    description: None,
+                    disabled: false,
+                });
+            }
+        }
+
+        // Scan disabled packs (both folders and zip files)
+        let disabled_dir = packs_dir.join("disabled");
+        if disabled_dir.exists() {
+            for entry in fs::read_dir(&disabled_dir).map_err(|e| e.to_string())? {
+                let entry = entry.map_err(|e| e.to_string())?;
+                let path = entry.path();
+                let file_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+                
+                // Skip hidden files
+                if file_name.starts_with('.') {
+                    continue;
+                }
+                
+                // Check if it's a valid resource pack
+                let is_valid = if path.is_file() {
+                    file_name.ends_with(".zip")
+                } else if path.is_dir() {
+                    path.join("pack.mcmeta").exists()
+                } else {
+                    false
+                };
+                
+                if is_valid {
+                    result.push(ResourcePackInfo {
+                        file_name,
+                        name: None,
+                        description: None,
+                        disabled: true,
+                    });
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Get global resource packs from .minecraft/resourcepacks
+    pub fn get_global_resourcepacks() -> Result<Vec<ResourcePackInfo>, String> {
+        use crate::logging::Logger;
+        let minecraft_dir = crate::get_default_minecraft_dir()?;
+        let packs_dir = minecraft_dir.join("resourcepacks");
+
+        Logger::debug_global(
+            &format!("🔍 get_global_resourcepacks (packs_dir: {})", packs_dir.display()),
+            None,
+        );
+
+        let mut result = Vec::new();
+
+        if !packs_dir.exists() {
+            return Ok(result);
+        }
+
+        // Scan active packs (both folders and zip files)
+        for entry in fs::read_dir(&packs_dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            let file_name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+            
+            // Skip hidden files, disabled subfolder, and merged pack
+            if file_name.starts_with('.') || file_name == "disabled" || file_name == "kable-merged.zip" {
+                continue;
+            }
+            
+            // Check if it's a valid resource pack
+            let is_valid = if path.is_file() {
+                file_name.ends_with(".zip")
+            } else if path.is_dir() {
+                path.join("pack.mcmeta").exists()
+            } else {
+                false
+            };
+            
+            if is_valid {
+                result.push(ResourcePackInfo {
+                    file_name,
+                    name: None,
+                    description: None,
+                    disabled: false,
+                });
+            }
+        }
+
+        // Scan disabled packs (both folders and zip files)
+        let disabled_dir = packs_dir.join("disabled");
+        if disabled_dir.exists() {
+            for entry in fs::read_dir(&disabled_dir).map_err(|e| e.to_string())? {
+                let entry = entry.map_err(|e| e.to_string())?;
+                let path = entry.path();
+                let file_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+                
+                // Skip hidden files
+                if file_name.starts_with('.') {
+                    continue;
+                }
+                
+                // Check if it's a valid resource pack
+                let is_valid = if path.is_file() {
+                    file_name.ends_with(".zip")
+                } else if path.is_dir() {
+                    path.join("pack.mcmeta").exists()
+                } else {
+                    false
+                };
+                
+                if is_valid {
+                    result.push(ResourcePackInfo {
+                        file_name,
+                        name: None,
+                        description: None,
+                        disabled: true,
+                    });
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
     /// Scans the mods folder for this installation and extracts mod info from each JAR
     pub fn get_mod_info(&self) -> Result<Vec<ModJarInfo>, String> {
         use crate::logging::Logger;
@@ -1804,5 +2101,14 @@ pub struct ModJarInfo {
     pub mod_version: Option<String>,
     pub loader: Option<String>,
     /// true when the JAR was found in the installation's disabled/ subfolder
+    pub disabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ResourcePackInfo {
+    pub file_name: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    /// true when the pack was found in the installation's disabled/ subfolder
     pub disabled: bool,
 }

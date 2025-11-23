@@ -124,12 +124,39 @@ const filterSections = [
   },
 ];
 
+// Sync with selectedInstallation store
+$: {
+  if ($selectedInstallation) {
+    selectedInstallationId = $selectedInstallation.id;
+  }
+}
+
 // Reactive statements
 $: {
   // Update install mode and installation based on selection
   if (selectedInstallationId === "global") {
     installMode = "global";
     currentInstallation = null;
+    selectedInstallation.set({
+      id: "global",
+      name: "Global (All Installations)",
+      icon: null,
+      version_id: "global",
+      created: new Date().toISOString(),
+      last_used: new Date().toISOString(),
+      java_args: [],
+      dedicated_mods_folder: null,
+      dedicated_resource_pack_folder: null,
+      dedicated_shaders_folder: null,
+      dedicated_config_folder: null,
+      favorite: false,
+      total_time_played_ms: 0,
+      parameters_map: {},
+      description: null,
+      times_launched: 0,
+      enable_pack_merging: false,
+      pack_order: [],
+    });
   } else {
     installMode = "dedicated";
     currentInstallation =
@@ -445,13 +472,17 @@ onMount(async () => {
   resourcepacksService = new ResourcepacksService();
   await resourcepacksService.initialize();
 
-  // Default to global mode
-  selectedInstallationId = "global";
+  // Read from store if available, otherwise default to global
+  if ($selectedInstallation && $selectedInstallation.id) {
+    selectedInstallationId = $selectedInstallation.id;
+  } else {
+    selectedInstallationId = "global";
+  }
   
   // Mark as fully mounted after initialization
   isFullyMounted = true;
   
-  console.log("[ResourcePackBrowser] Fully mounted and initialized");
+  console.log("[ResourcePackBrowser] Fully mounted and initialized with installation:", selectedInstallationId);
 });
 </script>
 
