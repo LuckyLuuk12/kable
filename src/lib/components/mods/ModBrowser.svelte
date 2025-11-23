@@ -422,10 +422,10 @@ function applyFilters(modsList: ModInfoKind[]) {
   });
 }
 
-// Handle search query changes
+// Handle search query changes - debounced via handleFiltersChange
 async function handleSearch() {
   if (!modsService) return;
-  await applyFiltersToBackend();
+  handleFiltersChange();
 }
 
 // Filter helper functions

@@ -78,6 +78,7 @@ let maxPageReached = 1;
 
 // Service instance
 let resourcepacksService: ResourcepacksService;
+let isFullyMounted = false;
 
 // View mode options
 const viewModes = [
@@ -137,6 +138,16 @@ $: {
       selectedInstallation.set(currentInstallation);
     }
   }
+  // Trigger filter update when installation changes (only after mount)
+  if (isFullyMounted && resourcepacksService) {
+    console.log(
+      "[ResourcePackBrowser] Installation changed to:",
+      selectedInstallationId,
+      "version:",
+      currentInstallation?.version_id,
+    );
+    handleFiltersChange();
+  }
 }
 $: resourcePacks = $resourcepackDownloads || [];
 $: loading = $resourcepacksLoading;
@@ -169,11 +180,12 @@ async function applyFiltersToBackend() {
     .filter((f) => f.mode === "exclude")
     .map((f) => f.value);
 
-  // If no filters and no search, clear filters
+  // If no filters and no search and no installation version, clear filters
   if (
     !searchQuery &&
     includeCategories.length === 0 &&
-    excludeCategories.length === 0
+    excludeCategories.length === 0 &&
+    !currentInstallation
   ) {
     currentPage = 1;
     resourcepacksOffset.set(0);
@@ -200,7 +212,10 @@ async function applyFiltersToBackend() {
   const filterFacets: ResourcePackFilterFacets = {
     query: searchQuery || undefined,
     categories: categoryFilters.length > 0 ? categoryFilters : undefined,
-    game_versions: undefined,
+    game_versions:
+      currentInstallation && currentInstallation.version_id
+        ? [currentInstallation.version_id]
+        : undefined,
   };
 
   console.log(
@@ -219,10 +234,10 @@ async function applyFiltersToBackend() {
   }
 }
 
-// Handle search query changes
+// Handle search query changes - debounced via handleFiltersChange
 async function handleSearch() {
   if (!resourcepacksService) return;
-  await applyFiltersToBackend();
+  handleFiltersChange();
 }
 
 // Functions
@@ -434,6 +449,11 @@ onMount(async () => {
 
   // Default to global mode
   selectedInstallationId = "global";
+  
+  // Mark as fully mounted after initialization
+  isFullyMounted = true;
+  
+  console.log("[ResourcePackBrowser] Fully mounted and initialized");
 });
 </script>
 

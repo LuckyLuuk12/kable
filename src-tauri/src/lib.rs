@@ -84,21 +84,20 @@ pub fn run() {
                             }
                         };
 
-                        let account = match crate::auth::auth_util::get_active_launcher_account()
-                            .await
-                        {
-                            Ok(Some(acc)) => acc,
-                            Ok(None) => {
-                                eprintln!(
+                        let account =
+                            match crate::auth::auth_util::get_active_launcher_account().await {
+                                Ok(Some(acc)) => acc,
+                                Ok(None) => {
+                                    eprintln!(
                                     "No active account found. Please log in through the launcher."
                                 );
-                                std::process::exit(1);
-                            }
-                            Err(e) => {
-                                eprintln!("Failed to get active account: {}", e);
-                                std::process::exit(1);
-                            }
-                        };
+                                    std::process::exit(1);
+                                }
+                                Err(e) => {
+                                    eprintln!("Failed to get active account: {}", e);
+                                    std::process::exit(1);
+                                }
+                            };
 
                         if let Err(e) =
                             crate::launcher::launch_installation(installation, settings, account)

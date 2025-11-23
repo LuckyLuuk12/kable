@@ -60,7 +60,7 @@ export class ResourcepacksService {
       // Search Modrinth for resource packs with current filter
       const packs = this.currentFilter
         ? await ResourcepacksAPI.searchModrinthResourcepacksWithFacets(
-            "",
+            this.currentFilter.query || "",
             null,
             this.currentFilter,
             limit,

@@ -359,9 +359,34 @@ pub async fn search_modrinth_resourcepacks_with_facets(
         url.push_str(&format!("&query={}", encoded));
     }
 
+    // Resolve minecraft_version parameter if present
+    let resolved_mc_version = if let Some(v) = &minecraft_version {
+        crate::installations::get_minecraft_version(v).await.or(Some(v.clone()))
+    } else {
+        None
+    };
+
     // Build facets if custom filters provided
-    if let Some(filter_facets) = facets {
-        let facet_arrays = filter_facets.to_modrinth_facets(minecraft_version.as_deref());
+    if let Some(mut filter_facets) = facets {
+        // Resolve game versions to Minecraft versions
+        if let Some(versions) = &mut filter_facets.game_versions {
+            println!("[ResourcePacks] Original game_versions: {:?}", versions);
+            let mut resolved_versions = Vec::new();
+            for v in versions.iter() {
+                if let Some(mc_ver) = crate::installations::get_minecraft_version(v).await {
+                    println!("[ResourcePacks] Resolved '{}' -> '{}'", v, mc_ver);
+                    resolved_versions.push(mc_ver);
+                } else {
+                    // Fallback to original if resolution fails (e.g. it's already a MC version or unknown)
+                    println!("[ResourcePacks] Could not resolve '{}', using as-is", v);
+                    resolved_versions.push(v.clone());
+                }
+            }
+            println!("[ResourcePacks] Final resolved game_versions: {:?}", resolved_versions);
+            *versions = resolved_versions;
+        }
+
+        let facet_arrays = filter_facets.to_modrinth_facets(resolved_mc_version.as_deref());
         if !facet_arrays.is_empty() {
             let facets_json: Vec<String> = facet_arrays
                 .iter()
@@ -378,7 +403,7 @@ pub async fn search_modrinth_resourcepacks_with_facets(
             // Remove default facets and add custom ones
             url = url.replace("&facets=[[\"project_type:resourcepack\"]]", &facets_param);
         }
-    } else if let Some(version) = minecraft_version {
+    } else if let Some(version) = resolved_mc_version {
         // Simple version filter without custom facets
         url.push_str(&format!("&facets=[[\"versions:{}\"]]", version));
     }
