@@ -305,11 +305,9 @@ function resetFilters() {
   searchQuery = "";
   currentPage = 1;
   resourcepacksOffset.set(0);
-  // Force reactivity update
+  // Force reactivity update and re-apply filters (preserving installation version)
   filters = { ...filters };
-  if (resourcepacksService) {
-    resourcepacksService.setFilter(null);
-  }
+  handleFiltersChange();
 }
 
 function toggleSection(section: keyof typeof collapsedSections) {

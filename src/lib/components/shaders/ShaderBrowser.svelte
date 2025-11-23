@@ -77,6 +77,7 @@ let maxPageReached = 1;
 
 // Service instance
 let shadersService: ShadersService;
+let isFullyMounted = false;
 
 // View mode options
 const viewModes = [
@@ -141,6 +142,16 @@ $: {
       selectedInstallation.set(currentInstallation);
     }
   }
+  // Trigger filter update when installation changes (only after mount)
+  if (isFullyMounted && shadersService) {
+    console.log(
+      "[ShaderBrowser] Installation changed to:",
+      selectedInstallationId,
+      "version:",
+      currentInstallation?.version_id,
+    );
+    handleFiltersChange();
+  }
 }
 $: shaders = $shaderDownloads || [];
 $: loading = $shadersLoading;
@@ -179,13 +190,14 @@ async function applyFiltersToBackend() {
     .filter((f) => f.mode === "exclude")
     .map((f) => f.value);
 
-  // If no filters and no search, clear filters
+  // If no filters and no search and no installation version, clear filters
   if (
     !searchQuery &&
     includeLoaders.length === 0 &&
     excludeLoaders.length === 0 &&
     includeCategories.length === 0 &&
-    excludeCategories.length === 0
+    excludeCategories.length === 0 &&
+    !currentInstallation
   ) {
     currentPage = 1;
     shadersOffset.set(0);
@@ -222,7 +234,10 @@ async function applyFiltersToBackend() {
     query: searchQuery || undefined,
     loaders: loaderFilters.length > 0 ? loaderFilters : undefined,
     categories: categoryFilters.length > 0 ? categoryFilters : undefined,
-    game_versions: undefined,
+    game_versions:
+      currentInstallation && currentInstallation.version_id
+        ? [currentInstallation.version_id]
+        : undefined,
   };
 
   console.log(
@@ -241,10 +256,10 @@ async function applyFiltersToBackend() {
   }
 }
 
-// Handle search query changes
+// Handle search query changes - debounced via handleFiltersChange
 async function handleSearch() {
   if (!shadersService) return;
-  await applyFiltersToBackend();
+  handleFiltersChange();
 }
 
 // Functions
@@ -313,11 +328,9 @@ function resetFilters() {
   searchQuery = "";
   currentPage = 1;
   shadersOffset.set(0);
-  // Force reactivity update
+  // Force reactivity update and re-apply filters (preserving installation version)
   filters = { ...filters };
-  if (shadersService) {
-    shadersService.setFilter(null);
-  }
+  handleFiltersChange();
 }
 
 function toggleSection(section: keyof typeof collapsedSections) {
@@ -434,6 +447,11 @@ onMount(async () => {
 
   // Default to global mode
   selectedInstallationId = "global";
+  
+  // Mark as fully mounted after initialization
+  isFullyMounted = true;
+  
+  console.log("[ShaderBrowser] Fully mounted and initialized");
 });
 </script>
 
