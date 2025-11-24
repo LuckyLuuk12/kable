@@ -160,6 +160,37 @@ pub async fn delete_resourcepack_for_installation(installation: KableInstallatio
     installation.delete_resourcepack(&file_name)
 }
 
+/// Update resource pack order and merging settings for an installation
+#[tauri::command]
+pub async fn update_resourcepack_settings(
+    installation_id: String,
+    enable_pack_merging: bool,
+    pack_order: Vec<String>,
+) -> Result<(), String> {
+    // Read all installations
+    let mut installations = crate::installations::kable_profiles::read_kable_profiles_async().await?;
+    
+    // Find and update the installation
+    let installation = installations.iter_mut()
+        .find(|i| i.id == installation_id)
+        .ok_or_else(|| format!("Installation not found: {}", installation_id))?;
+    
+    // Update settings
+    installation.enable_pack_merging = enable_pack_merging;
+    installation.pack_order = pack_order;
+    
+    // Write back all installations
+    crate::installations::kable_profiles::write_kable_profiles_async(&installations).await?;
+    
+    // Refresh symlinks to apply changes
+    let minecraft_dir = crate::get_default_minecraft_dir()?;
+    crate::symlink_manager::SymlinkManager::new(minecraft_dir)
+        .setup_resourcepack_symlinks(&installation_id)
+        .await?;
+    
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn import(path: String) -> Result<KableInstallation, String> {
     KableInstallation::import(&path).await

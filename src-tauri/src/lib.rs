@@ -254,6 +254,7 @@ pub fn run() {
             commands_installations::delete_resourcepack_for_installation,
             commands_installations::get_resourcepack_info_for_installation,
             commands_installations::get_global_resourcepacks,
+            commands_installations::update_resourcepack_settings,
             commands_installations::import,
             commands_installations::import_from_minecraft_folder,
             commands_installations::export,

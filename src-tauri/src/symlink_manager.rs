@@ -646,7 +646,7 @@ impl SymlinkManager {
     /// Setup resource pack symlinks for a specific installation
     /// If pack merging is enabled, merges all enabled packs into kable-merged.zip
     /// Otherwise, creates individual symlinks for each pack
-    async fn setup_resourcepack_symlinks(&self, installation_id: &str) -> Result<(), String> {
+    pub async fn setup_resourcepack_symlinks(&self, installation_id: &str) -> Result<(), String> {
         let kable_dir = crate::get_minecraft_kable_dir()?;
 
         // Read the installation to get the dedicated resource pack folder path

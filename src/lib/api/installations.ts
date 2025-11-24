@@ -186,6 +186,19 @@ export async function getGlobalResourcePacks(): Promise<any[]> {
   return await invoke("get_global_resourcepacks");
 }
 
+// Update resource pack settings (order and merging)
+export async function updateResourcePackSettings(
+  installationId: string,
+  enablePackMerging: boolean,
+  packOrder: string[]
+): Promise<void> {
+  return await invoke("update_resourcepack_settings", {
+    installationId,
+    enablePackMerging,
+    packOrder,
+  });
+}
+
 // Import an installation from a path
 export async function importInstallation(
   path: string,

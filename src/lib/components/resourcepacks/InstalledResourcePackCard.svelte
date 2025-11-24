@@ -34,13 +34,11 @@ const dispatch = createEventDispatcher<{
 let loading = false;
 
 $: isDisabled = pack.disabled || false;
-$: displayName = pack.name || pack.file_name.replace(/\.zip$/, "");
+$: displayName = decodeURIComponent(pack.name || pack.file_name.replace(/\.zip$/, ""));
 $: iconUrl = extendedInfo?.icon_uri || null;
 
-async function toggleDisabled(event?: MouseEvent) {
-  if (event) {
-    event.stopPropagation();
-  }
+async function toggleDisabled(event: MouseEvent) {
+  event.stopPropagation();
 
   if (loading) return;
 
@@ -110,28 +108,12 @@ async function handleVisitPage(event: MouseEvent) {
     console.error("Failed to open page:", error);
   }
 }
-
-function handleCardClick() {
-  toggleDisabled();
-}
-
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === "Enter" || event.key === " ") {
-    event.preventDefault();
-    toggleDisabled();
-  }
-}
 </script>
 
 <div
   class="installed-pack-card"
   class:disabled={isDisabled}
   class:loading
-  on:click={handleCardClick}
-  on:keydown={handleKeydown}
-  role="button"
-  tabindex="0"
-  title={isDisabled ? "Click to enable" : "Click to disable"}
 >
   <!-- Pack Icon and Name -->
   <div class="pack-info">
@@ -165,6 +147,17 @@ function handleKeydown(event: KeyboardEvent) {
 
   <!-- Action Buttons -->
   <div class="pack-actions">
+    <button
+      class="action-btn toggle-btn"
+      class:enabled={!isDisabled}
+      on:click={toggleDisabled}
+      title={isDisabled ? "Enable pack" : "Disable pack"}
+      disabled={loading}
+    >
+      <Icon name={isDisabled ? "eye-off" : "eye"} size="sm" />
+      <span>{isDisabled ? "Enable" : "Disable"}</span>
+    </button>
+
     {#if extendedInfo?.page_uri}
       <button
         class="action-btn visit-btn"
@@ -202,37 +195,18 @@ function handleKeydown(event: KeyboardEvent) {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
-
-  &:hover {
-    border-color: rgba($primary, 0.2);
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba($primary, 0.1);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
+  user-select: none;
 
   &.disabled {
     opacity: 0.6;
     background: var(--bg-tertiary);
-
-    &:hover {
-      opacity: 0.8;
-    }
   }
 
   &.loading {
     pointer-events: none;
     opacity: 0.7;
-  }
-
-  &:focus {
-    outline: 2px solid rgba($primary, 0.4);
-    outline-offset: 2px;
   }
 }
 
@@ -346,6 +320,25 @@ function handleKeydown(event: KeyboardEvent) {
 
   span {
     white-space: nowrap;
+  }
+}
+
+.toggle-btn {
+  border-color: color-mix(in srgb, map.get($variables, "orange-500"), 30%, transparent);
+
+  &:hover:not(:disabled) {
+    border-color: color-mix(in srgb, map.get($variables, "orange-500"), 50%, transparent);
+    background: color-mix(in srgb, map.get($variables, "orange-500"), 10%, transparent);
+  }
+
+  &.enabled {
+    border-color: color-mix(in srgb, map.get($variables, "green-500"), 30%, transparent);
+    
+    &:hover:not(:disabled) {
+      border-color: color-mix(in srgb, map.get($variables, "green-500"), 50%, transparent);
+      background: color-mix(in srgb, map.get($variables, "green-500"), 10%, transparent);
+      color: map.get($variables, "green-600");
+    }
   }
 }
 

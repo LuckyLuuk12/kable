@@ -5,6 +5,8 @@ Features:
 - Installation carousel selector
 - Fuzzy search for packs
 - Enable/disable/remove packs
+- Drag-drop ordering (when merging enabled)
+- Pack merging toggle
 - Click pack card to toggle enabled state
 - Visit pack pages
 
@@ -19,6 +21,8 @@ import { installations, selectedInstallation } from "$lib/stores";
 import InstalledResourcePackCard from "./InstalledResourcePackCard.svelte";
 import * as installationsApi from "$lib/api/installations";
 import { openUrl } from "$lib/api/system";
+import { dndzone, TRIGGERS, SHADOW_ITEM_MARKER_PROPERTY_NAME } from "svelte-dnd-action";
+import type { DndEvent } from "svelte-dnd-action";
 
 let selectedId: string = "";
 let currentInstallation: KableInstallation | null = null;
@@ -29,6 +33,18 @@ let loading = false;
 let error: string | null = null;
 let searchQuery = "";
 let installationListContainer: HTMLDivElement | null = null;
+
+// Pack ordering and merging state
+let packMergingEnabled = false;
+let originalPackOrder: string[] = [];
+let currentPackOrder: string[] = [];
+let hasOrderChanged = false;
+let savingOrder = false;
+let orderedPacks: any[] = [];
+
+// Drag-drop state
+let dragDisabled = true;
+const flipDurationMs = 200;
 
 function selectInstallation(installation: KableInstallation) {
   selectedId = installation.id;
@@ -272,8 +288,31 @@ function fuzzyMatch(text: string, query: string): boolean {
   return queryIndex === queryLower.length;
 }
 
+// Order packs according to currentPackOrder when merging is enabled
+// Add 'id' field for dnd library
+$: orderedPacks = packMergingEnabled && currentPackOrder.length > 0
+  ? (() => {
+      const ordered = [];
+      const packMap = new Map(packs.map(p => [p.file_name, { ...p, id: p.file_name }]));
+      
+      // Add packs in specified order
+      for (const fileName of currentPackOrder) {
+        const pack = packMap.get(fileName);
+        if (pack) {
+          ordered.push(pack);
+          packMap.delete(fileName);
+        }
+      }
+      
+      // Add any remaining packs not in order
+      ordered.push(...Array.from(packMap.values()));
+      
+      return ordered;
+    })()
+  : packs.map(p => ({ ...p, id: p.file_name }));
+
 // Filter packs
-$: filteredPacks = packs.filter((pack) => {
+$: filteredPacks = orderedPacks.filter((pack) => {
   const info = extendedPackInfo[pack.file_name];
   if (searchQuery) {
     const name = info?.name || pack.name || "";
@@ -303,12 +342,30 @@ async function loadResourcePacks(installation: KableInstallation) {
     if (installation.id === "global") {
       // Load global resourcepacks from .minecraft/resourcepacks
       packs = await installationsApi.getGlobalResourcePacks();
+      packMergingEnabled = false; // Global doesn't support merging
+      originalPackOrder = [];
+      currentPackOrder = [];
+      dragDisabled = true;
     } else {
       // Load resourcepacks for specific installation
       packs = await installationsApi.getResourcePackInfo(installation);
+      
+      // Load merging settings
+      packMergingEnabled = installation.enable_pack_merging || false;
+      originalPackOrder = installation.pack_order || [];
+      currentPackOrder = [...originalPackOrder];
+      dragDisabled = !packMergingEnabled;
+      
+      // Initialize order with current packs if not set
+      if (currentPackOrder.length === 0 && packs.length > 0) {
+        currentPackOrder = packs.map(p => p.file_name);
+        originalPackOrder = [...currentPackOrder];
+      }
     }
+    
     loadedInstallationId = installation.id;
     attemptedExtendedInfo.clear();
+    hasOrderChanged = false;
   } catch (e: any) {
     error = e?.message || e || "Failed to load resource packs info";
     packs = [];
@@ -317,6 +374,84 @@ async function loadResourcePacks(installation: KableInstallation) {
   } finally {
     loading = false;
   }
+}
+
+async function togglePackMerging() {
+  if (!currentInstallation || currentInstallation.id === "global") return;
+  
+  packMergingEnabled = !packMergingEnabled;
+  dragDisabled = !packMergingEnabled;
+  
+  // Initialize order if enabling merging
+  if (packMergingEnabled && currentPackOrder.length === 0) {
+    currentPackOrder = packs.map(p => p.file_name);
+    originalPackOrder = [...currentPackOrder];
+  }
+  
+  // Auto-save when toggling
+  try {
+    await installationsApi.updateResourcePackSettings(
+      currentInstallation.id,
+      packMergingEnabled,
+      currentPackOrder
+    );
+    
+    NotificationService.success(
+      packMergingEnabled 
+        ? "Pack merging enabled" 
+        : "Pack merging disabled"
+    );
+    
+    // Refresh installations to update state
+    await installationsApi.refreshInstallations();
+    hasOrderChanged = false;
+  } catch (e: any) {
+    NotificationService.error(`Failed to update settings: ${e}`);
+    packMergingEnabled = !packMergingEnabled; // Revert
+    dragDisabled = !packMergingEnabled;
+  }
+}
+
+async function confirmOrder() {
+  if (!currentInstallation || currentInstallation.id === "global") return;
+  
+  savingOrder = true;
+  try {
+    await installationsApi.updateResourcePackSettings(
+      currentInstallation.id,
+      packMergingEnabled,
+      currentPackOrder
+    );
+    
+    originalPackOrder = [...currentPackOrder];
+    hasOrderChanged = false;
+    
+    NotificationService.success("Pack order saved and applied");
+    
+    // Refresh installations
+    await installationsApi.refreshInstallations();
+  } catch (e: any) {
+    NotificationService.error(`Failed to save order: ${e}`);
+  } finally {
+    savingOrder = false;
+  }
+}
+
+function handleDndConsider(e: CustomEvent<DndEvent>) {
+  const { items } = e.detail;
+  orderedPacks = items as any[];
+}
+
+function handleDndFinalize(e: CustomEvent<DndEvent>) {
+  const { items } = e.detail;
+  orderedPacks = items as any[];
+  currentPackOrder = orderedPacks.map((p: any) => p.file_name);
+  
+  // Check if order changed
+  const orderChanged = currentPackOrder.length !== originalPackOrder.length ||
+    currentPackOrder.some((name, idx) => name !== originalPackOrder[idx]);
+  
+  hasOrderChanged = orderChanged;
 }
 
 onMount(() => {
@@ -422,7 +557,24 @@ onMount(() => {
 
         {#if currentInstallation}
           <div class="packs-title-section">
-            <h3>Resource Packs for {currentInstallation.name}</h3>
+            <div class="title-and-toggle">
+              <h3>Resource Packs for {currentInstallation.name}</h3>
+              
+              {#if currentInstallation.id !== "global"}
+                <button
+                  class="merge-toggle"
+                  class:enabled={packMergingEnabled}
+                  on:click={togglePackMerging}
+                  title={packMergingEnabled 
+                    ? "Pack merging enabled - packs will be merged into one" 
+                    : "Pack merging disabled - packs loaded individually"}
+                >
+                  <Icon name={packMergingEnabled ? "layers" : "package"} size="sm" />
+                  <span>{packMergingEnabled ? "Merging Enabled" : "Individual Packs"}</span>
+                </button>
+              {/if}
+            </div>
+            
             {#if packs.length > 0}
               <div class="packs-count-badge">
                 {#if searchQuery}
@@ -439,6 +591,28 @@ onMount(() => {
               </div>
             {/if}
           </div>
+          
+          {#if packMergingEnabled && hasOrderChanged}
+            <div class="order-actions">
+              <div class="order-hint">
+                <Icon name="info" size="sm" />
+                <span>Drag packs to reorder (top = highest priority)</span>
+              </div>
+              <button
+                class="confirm-order-btn"
+                on:click={confirmOrder}
+                disabled={savingOrder}
+              >
+                {#if savingOrder}
+                  <Icon name="refresh" size="sm" className="spin" />
+                  <span>Saving...</span>
+                {:else}
+                  <Icon name="check" size="sm" />
+                  <span>Apply Order</span>
+                {/if}
+              </button>
+            </div>
+          {/if}
         {/if}
       </div>
 
@@ -455,16 +629,44 @@ onMount(() => {
               {error}
             </div>
           {:else if packs.length > 0}
-            <div class="packs-card-grid">
-              {#each filteredPacks as pack (pack.file_name)}
-                <InstalledResourcePackCard
-                  {pack}
-                  installation={currentInstallation}
-                  extendedInfo={extendedPackInfo[pack.file_name]}
-                  on:packChanged={handlePackChanged}
-                />
-              {/each}
-            </div>
+            {#if packMergingEnabled && !searchQuery}
+              <div 
+                class="packs-list-draggable"
+                use:dndzone={{
+                  items: orderedPacks,
+                  flipDurationMs,
+                  dragDisabled: false,
+                  dropTargetStyle: {}
+                }}
+                on:consider={handleDndConsider}
+                on:finalize={handleDndFinalize}
+              >
+                {#each orderedPacks as pack (pack.id)}
+                  <div class="drag-item-wrapper">
+                    <div class="drag-handle">
+                      <Icon name="menu" size="md" />
+                    </div>
+                    <InstalledResourcePackCard
+                      {pack}
+                      installation={currentInstallation}
+                      extendedInfo={extendedPackInfo[pack.file_name]}
+                      on:packChanged={handlePackChanged}
+                    />
+                  </div>
+                {/each}
+              </div>
+            {:else}
+              <div class="packs-card-grid">
+                {#each filteredPacks as pack (pack.file_name)}
+                  <InstalledResourcePackCard
+                    {pack}
+                    installation={currentInstallation}
+                    extendedInfo={extendedPackInfo[pack.file_name]}
+                    on:packChanged={handlePackChanged}
+                  />
+                {/each}
+              </div>
+            {/if}
           {:else}
             <div class="empty-state">
               <Icon name="image" size="xl" />
@@ -723,6 +925,13 @@ onMount(() => {
     justify-content: space-between;
     margin: 1rem 0 0.5rem 0;
 
+    .title-and-toggle {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex: 1;
+    }
+
     h3 {
       margin: 0;
       color: var(--text);
@@ -730,6 +939,104 @@ onMount(() => {
       font-size: 1.1em;
     }
   }
+
+.merge-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.5em 1em;
+  border-radius: 0.5rem;
+  border: 1px solid var(--dark-600);
+  background: var(--input);
+  color: var(--text-secondary);
+  font-size: 0.85em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--primary);
+    background: var(--card);
+    color: var(--text);
+  }
+
+  &.enabled {
+    border-color: var(--green-700);
+    background: linear-gradient(
+      135deg,
+      #{"color-mix(in srgb, var(--green-700), 12%, transparent)"} 0%,
+      #{"color-mix(in srgb, var(--green-800), 8%, transparent)"} 100%
+    );
+    color: var(--green-600);
+    box-shadow: 0 1px 6px
+      #{"color-mix(in srgb, var(--green-700), 15%, transparent)"};
+
+    &:hover {
+      border-color: var(--green-600);
+      box-shadow: 0 2px 10px
+        #{"color-mix(in srgb, var(--green-700), 20%, transparent)"};
+    }
+  }
+}
+
+.order-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.75rem 0 0.5rem 0;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(
+    135deg,
+    #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 0%,
+    #{"color-mix(in srgb, var(--secondary), 3%, transparent)"} 100%
+  );
+  border: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+  border-radius: 0.5rem;
+
+  .order-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    color: var(--text-secondary);
+    font-size: 0.85em;
+  }
+}
+
+.confirm-order-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.5em 1.2em;
+  border-radius: 0.5rem;
+  border: 1px solid var(--green-700);
+  background: linear-gradient(
+    135deg,
+    var(--green-700) 0%,
+    var(--green-800) 100%
+  );
+  color: white;
+  font-size: 0.9em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px
+    #{"color-mix(in srgb, var(--green-700), 25%, transparent)"};
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px
+      #{"color-mix(in srgb, var(--green-700), 35%, transparent)"};
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
 }
 
 .packs-count-badge {
@@ -843,6 +1150,24 @@ onMount(() => {
   background: var(--container);
   overflow-y: auto;
   overflow-x: hidden;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--dark-600);
+    border-radius: 4px;
+
+    &:hover {
+      background: var(--dark-500);
+    }
+  }
 }
 
 .packs-card-grid {
@@ -858,6 +1183,81 @@ onMount(() => {
   @media (min-width: 1400px) {
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   }
+}
+
+.packs-list-draggable {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--dark-600);
+    border-radius: 4px;
+
+    &:hover {
+      background: var(--dark-500);
+    }
+  }
+}
+
+.drag-item-wrapper {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  background: transparent;
+  border-radius: 0.6rem;
+  padding: 0.5rem;
+  transition: all 0.2s ease;
+  user-select: none;
+  margin-bottom: 0.5rem;
+
+  &:hover {
+    background: color-mix(in srgb, var(--primary), 3%, transparent);
+  }
+}
+
+.drag-handle {
+  flex-shrink: 0;
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  cursor: grab;
+  transition: all 0.2s ease;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  margin-right: 0.5rem;
+
+  &:hover {
+    color: var(--primary);
+    background: var(--bg-tertiary);
+    border-color: color-mix(in srgb, var(--primary), 20%, transparent);
+  }
+
+  &:active {
+    cursor: grabbing;
+    background: var(--bg-tertiary);
+    border-color: var(--primary);
+  }
+}
+
+:global(.drag-item-wrapper .installed-pack-card) {
+  flex: 1;
+  min-width: 0;
 }
 
 .loading-state {
