@@ -1,101 +1,76 @@
 <!-- @component
-InstallationMods - Manages and displays mods for a specific installation
+InstallationResourcePacks - Manage resource packs for installations
 
-Shows installed mods with options to enable/disable, delete, and view mod information.
-Includes installation carousel for quick switching and semantic search filtering.
-
-@example
-```svelte
-◄InstallationMods /►
-```
+Features:
+- Installation carousel selector
+- Fuzzy search for packs
+- Enable/disable/remove packs
+- Drag-drop ordering (when merging enabled)
+- Pack merging toggle
+- Visit pack pages
 -->
 <script lang="ts">
 import { onMount } from "svelte";
 import { get } from "svelte/store";
-import {
-  installations,
-  selectedInstallation,
-  InstallationService,
-  Icon,
-  ModsService,
-  extendedModInfo,
-} from "$lib";
-import { openUrl } from "$lib/api/system";
+import { Icon, NotificationService, InstallationService } from "$lib";
+import type { KableInstallation } from "$lib";
+import { installations, selectedInstallation } from "$lib/stores";
+import InstalledResourcePackCard from "./InstalledResourcePackCard.svelte";
 import * as installationsApi from "$lib/api/installations";
-import type { KableInstallation, ModJarInfo } from "$lib";
-import InstalledModCard from "./InstalledModCard.svelte";
+import { openUrl } from "$lib/api/system";
+import { dndzone, TRIGGERS, SHADOW_ITEM_MARKER_PROPERTY_NAME } from "svelte-dnd-action";
+import type { DndEvent } from "svelte-dnd-action";
 
-let currentInstallation: KableInstallation | null = null;
 let selectedId: string = "";
-let mods: ModJarInfo[] = [];
-$: $extendedModInfo;
+let currentInstallation: KableInstallation | null = null;
+let packs: any[] = [];
+let extendedPackInfo: Record<string, any> = {};
+let attemptedExtendedInfo = new Set<string>();
 let loading = false;
 let error: string | null = null;
-let installationListContainer: HTMLElement;
-
-// Track which mods we've attempted to fetch extended info for to prevent infinite loops
-let attemptedExtendedInfo = new Set<string>();
-
-// Semantic search/filter state
 let searchQuery = "";
+let installationListContainer: HTMLDivElement | null = null;
 
-// Installation carousel logic
+// Pack ordering and merging state
+let packMergingEnabled = false;
+let originalPackOrder: string[] = [];
+let currentPackOrder: string[] = [];
+let hasOrderChanged = false;
+let savingOrder = false;
+let orderedPacks: any[] = [];
+
+// Drag-drop state
+let dragDisabled = true;
+const flipDurationMs = 200;
+
 function selectInstallation(installation: KableInstallation) {
   selectedId = installation.id;
   currentInstallation = installation;
   selectedInstallation.set(installation);
-  // Let the reactive statement handle loading mods to prevent duplicate calls
 }
 
-// Handle custom scroll behavior - cycle through installations
-let scrollTimeout: number;
-let scrollOffset = 0; // Track our virtual scroll position
-
+// Handle mouse wheel for carousel
 function handleWheel(event: WheelEvent) {
-  event.preventDefault(); // Prevent default scrolling
+  if (sortedInstallations.length === 0) return;
 
-  if (scrollTimeout) clearTimeout(scrollTimeout);
+  const delta = event.deltaY;
+  const selectedIndex = sortedInstallations.findIndex(
+    (inst) => inst.id === selectedId,
+  );
 
-  // Determine scroll direction and magnitude
-  const scrollDelta = event.deltaY;
-  const scrollThreshold = 50; // Minimum scroll to trigger selection change
-
-  scrollOffset += scrollDelta;
-
-  // Only change selection if we've scrolled enough
-  if (Math.abs(scrollOffset) >= scrollThreshold) {
-    const selectedIndex = sortedInstallations.findIndex(
-      (inst) => inst.id === selectedId,
-    );
-    let newIndex = selectedIndex;
-
-    if (scrollOffset > 0) {
-      // Scroll down - select next installation (with wrapping)
-      newIndex = (selectedIndex + 1) % sortedInstallations.length;
-    } else if (scrollOffset < 0) {
-      // Scroll up - select previous installation (with wrapping)
-      newIndex =
-        (selectedIndex - 1 + sortedInstallations.length) %
-        sortedInstallations.length;
-    }
-
-    if (newIndex !== selectedIndex) {
-      const installation = sortedInstallations[newIndex];
-      selectedId = installation.id;
-      currentInstallation = installation;
-      selectedInstallation.set(installation);
-
-      // The reactive statement will handle loading mods when selectedId changes
-    }
-
-    // Reset scroll offset after triggering change
-    scrollOffset = 0;
+  if (delta > 0) {
+    // Scroll down - select next installation
+    const nextIndex = (selectedIndex + 1) % sortedInstallations.length;
+    selectInstallation(sortedInstallations[nextIndex]);
+  } else if (delta < 0) {
+    // Scroll up - select previous installation
+    const prevIndex =
+      (selectedIndex - 1 + sortedInstallations.length) %
+      sortedInstallations.length;
+    selectInstallation(sortedInstallations[prevIndex]);
   }
 
-  // Reset scroll offset after a delay if no change was triggered
-  scrollTimeout = setTimeout(() => {
-    scrollOffset = 0;
-  }, 200);
+  event.preventDefault();
 }
 
 // Handle keyboard navigation
@@ -109,10 +84,8 @@ function handleKeydown(event: KeyboardEvent) {
     let newIndex = selectedIndex;
 
     if (event.key === "ArrowDown") {
-      // Select next installation (with wrapping)
       newIndex = (selectedIndex + 1) % sortedInstallations.length;
     } else if (event.key === "ArrowUp") {
-      // Select previous installation (with wrapping)
       newIndex =
         (selectedIndex - 1 + sortedInstallations.length) %
         sortedInstallations.length;
@@ -125,7 +98,7 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
-// Calculate carousel scaling and positioning for centered layout with wrapping
+// Calculate carousel scaling and positioning
 function getCarouselScale(
   currentIndex: number,
   selectedIndex: number,
@@ -138,22 +111,18 @@ function getCarouselScale(
   zIndex: number;
   visible: boolean;
 } {
-  // Calculate wrapped distance (shortest path around the carousel)
   const directDistance = Math.abs(currentIndex - selectedIndex);
   const wrapDistance = totalItems - directDistance;
   const distance = Math.min(directDistance, wrapDistance);
 
-  // Determine relative position considering wrapping
   let relativePosition = currentIndex - selectedIndex;
   if (Math.abs(relativePosition) > totalItems / 2) {
-    // Use wrapping path
     relativePosition =
       relativePosition > 0
         ? relativePosition - totalItems
         : relativePosition + totalItems;
   }
 
-  // Only show items within a certain distance from the selected item
   const maxVisibleDistance = Math.min(4, Math.ceil(totalItems / 2));
   const visible = distance <= maxVisibleDistance;
 
@@ -168,8 +137,6 @@ function getCarouselScale(
     };
   }
 
-  // More dramatic scaling for centered layout, but adapt based on how well items fit
-  // Compute fit ratio using the container height and total required height
   const containerHeight = installationListContainer
     ? installationListContainer.clientHeight
     : totalItems * 120;
@@ -177,14 +144,12 @@ function getCarouselScale(
   const fitRatio = Math.min(
     1,
     containerHeight / Math.max(1, totalItems * baseItemHeight),
-  ); // 0..1
+  );
 
-  // When items fit well (fitRatio ~ 1) we want smaller spacing and less aggressive scale shrink
-  const spacing = 20 * (1 - fitRatio) + 8; // ranges ~8..28
+  const spacing = 20 * (1 - fitRatio) + 8;
 
   const baseScaleFactors = [1.0, 0.85, 0.7, 0.55, 0.4];
-  // scaleReduction closer to 0 means less shrink (when fitRatio=1), when fitRatio=0 keep original
-  const scaleReduction = 1 - fitRatio * 0.3; // between 0.7 and 1
+  const scaleReduction = 1 - fitRatio * 0.3;
   const scaleFactors = baseScaleFactors.map(
     (s) => 1 - (1 - s) * scaleReduction,
   );
@@ -198,24 +163,19 @@ function getCarouselScale(
   const opacity = opacityFactors[Math.min(distance, opacityFactors.length - 1)];
   const fontSize = fontFactors[Math.min(distance, fontFactors.length - 1)];
 
-  // Calculate vertical offset to center the selected item
-  const itemHeight = baseItemHeight; // base height used for spacing calc
-  // Compress spacing for near neighbors so selected item appears closer
-  const distanceNorm = Math.min(distance, 4) / 4; // 0..1
-  // Use a stronger compression floor so nearest items sit noticeably closer.
-  // compressionFloor controls how much spacing nearest neighbors keep (0.0..1.0)
-  const compressionFloor = 0.5; // previously ~0.6, lower -> tighter grouping
-  const compression = compressionFloor + (1 - compressionFloor) * distanceNorm; // ranges compressionFloor..1.0
+  const itemHeight = baseItemHeight;
+  const distanceNorm = Math.min(distance, 4) / 4;
+  const compressionFloor = 0.5;
+  const compression = compressionFloor + (1 - compressionFloor) * distanceNorm;
   const translateY =
     relativePosition * (itemHeight * scale + spacing * compression);
 
-  // Z-index for layering (selected item on top)
   const zIndex = 100 - distance;
 
   return { scale, opacity, fontSize, translateY, zIndex, visible: true };
 }
 
-//  Loader styling helpers (inspired by InstallationsList)
+// Loader styling helpers
 $: loaderIcons = Object.fromEntries(
   $installations.map((installation) => [
     installation.id,
@@ -233,80 +193,85 @@ $: loaderColors = Object.fromEntries(
   ]),
 );
 
-//  Sort installations by favorite and date (same as InstallationsList)
-$: sortedInstallations = $installations
-  .slice()
-  .sort((a, b) => {
-    // Favorites first
-    if ((a.favorite ? 1 : 0) !== (b.favorite ? 1 : 0)) {
-      return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
-    }
-    // Then by last_used (most recent first)
-    const aTime = a.last_used ? new Date(a.last_used).getTime() : 0;
-    const bTime = b.last_used ? new Date(b.last_used).getTime() : 0;
-    return bTime - aTime;
-  })
-  .filter((i) => InstallationService.getVersionData(i).loader !== "Vanilla");
+// Create Global pseudo-installation
+const globalInstallation: KableInstallation = {
+  id: "global",
+  name: "Global (All Installations)",
+  icon: null,
+  version_id: "global",
+  created: new Date().toISOString(),
+  last_used: new Date().toISOString(),
+  java_args: [],
+  dedicated_mods_folder: null,
+  dedicated_resource_pack_folder: null,
+  dedicated_shaders_folder: null,
+  dedicated_config_folder: null,
+  favorite: false,
+  total_time_played_ms: 0,
+  parameters_map: {},
+  description: null,
+  times_launched: 0,
+  enable_pack_merging: false,
+  pack_order: [],
+};
 
-// Track which installation we've loaded mods for to prevent infinite reactive loops
+// Sort installations and prepend Global
+$: sortedInstallations = [
+  globalInstallation,
+  ...$installations
+    .slice()
+    .sort((a, b) => {
+      if ((a.favorite ? 1 : 0) !== (b.favorite ? 1 : 0)) {
+        return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+      }
+      const aTime = a.last_used ? new Date(a.last_used).getTime() : 0;
+      const bTime = b.last_used ? new Date(b.last_used).getTime() : 0;
+      return bTime - aTime;
+    })
+    .filter((i) => InstallationService.getVersionData(i).loader !== "Vanilla"),
+];
+
 let loadedInstallationId: string | null = null;
 
-// Reactively update currentInstallation and mods when selectedId changes
+// Reactively update currentInstallation and packs
 $: {
-  const inst = get(installations).find((i) => i.id === selectedId) || null;
+  const inst = selectedId === "global" 
+    ? globalInstallation
+    : get(installations).find((i) => i.id === selectedId) || null;
   currentInstallation = inst;
   selectedInstallation.set(inst);
 
-  // Only load mods if we haven't already loaded for this installation and we're not currently loading
   if (
     currentInstallation &&
     currentInstallation.id !== loadedInstallationId &&
     !loading
   ) {
     loadedInstallationId = currentInstallation.id;
-    loadMods(currentInstallation);
+    loadResourcePacks(currentInstallation);
   } else if (!currentInstallation) {
-    mods = [];
+    packs = [];
     loadedInstallationId = null;
   }
 }
 
-// Auto-select first installation if none is selected and installations are available
+// Auto-select Global by default
 $: {
   if (!selectedId && sortedInstallations.length > 0) {
     const firstInstallation = sortedInstallations[0];
     selectedId = firstInstallation.id;
     currentInstallation = firstInstallation;
     selectedInstallation.set(firstInstallation);
-    // The reactive statement above will handle loading mods
   }
 }
 
-// When mods change, trigger async loading of extended mod info for each mod (but NOT in the template)
-$: if (mods && mods.length > 0) {
-  // Only fetch for mods that are missing in the store (undefined means not attempted, null means failed)
-  const missing = mods.filter(
-    (mod) =>
-      $extendedModInfo[mod.file_name] === undefined &&
-      !attemptedExtendedInfo.has(mod.file_name),
-  );
-  if (missing.length > 0) {
-    // Mark these mods as attempted to prevent infinite loops
-    missing.forEach((mod) => attemptedExtendedInfo.add(mod.file_name));
-    Promise.all(missing.map((mod) => ModsService.getExtendedModInfo(mod)));
-  }
-}
-
-//  Fuzzy search helper function
+// Fuzzy search helper
 function fuzzyMatch(text: string, query: string): boolean {
   if (!query) return true;
   const textLower = text.toLowerCase();
   const queryLower = query.toLowerCase();
 
-  // Exact match gets priority
   if (textLower.includes(queryLower)) return true;
 
-  // Fuzzy matching: check if all query characters appear in order
   let textIndex = 0;
   let queryIndex = 0;
 
@@ -320,13 +285,36 @@ function fuzzyMatch(text: string, query: string): boolean {
   return queryIndex === queryLower.length;
 }
 
-//  Semantic search/filter logic with fuzzy matching
-$: filteredMods = mods.filter((mod) => {
-  const info = $extendedModInfo[mod.file_name];
+// Order packs according to currentPackOrder when merging is enabled
+// Add 'id' field for dnd library
+$: orderedPacks = packMergingEnabled && currentPackOrder.length > 0
+  ? (() => {
+      const ordered = [];
+      const packMap = new Map(packs.map(p => [p.file_name, { ...p, id: p.file_name }]));
+      
+      // Add packs in specified order
+      for (const fileName of currentPackOrder) {
+        const pack = packMap.get(fileName);
+        if (pack) {
+          ordered.push(pack);
+          packMap.delete(fileName);
+        }
+      }
+      
+      // Add any remaining packs not in order
+      ordered.push(...Array.from(packMap.values()));
+      
+      return ordered;
+    })()
+  : packs.map(p => ({ ...p, id: p.file_name }));
+
+// Filter packs
+$: filteredPacks = orderedPacks.filter((pack) => {
+  const info = extendedPackInfo[pack.file_name];
   if (searchQuery) {
-    const name = info?.mod_jar_info?.mod_name || mod.mod_name || "";
+    const name = info?.name || pack.name || "";
     const desc = info?.description || "";
-    const file = mod.file_name;
+    const file = pack.file_name;
 
     return (
       fuzzyMatch(name, searchQuery) ||
@@ -337,64 +325,130 @@ $: filteredMods = mods.filter((mod) => {
   return true;
 });
 
-// Handle mod changed event (toggle, delete, etc.)
-function handleModChanged() {
-  // Reload mods to reflect changes
+// Handle pack changed event
+function handlePackChanged() {
   if (currentInstallation) {
-    loadMods(currentInstallation);
+    loadResourcePacks(currentInstallation);
   }
 }
 
-async function handleModClick(mod: ModJarInfo) {
-  const extendedInfo = $extendedModInfo[mod.file_name];
-  if (extendedInfo?.page_uri) {
-    try {
-      await openUrl(extendedInfo.page_uri);
-    } catch (error) {
-      console.error("Failed to open mod page:", error);
-    }
-  }
-}
-
-// Toggle disabled state via the backend API. If Ctrl/Cmd is held when activating,
-// we open the mod page instead (preserves previous behavior).
-async function toggleModDisabledAction(mod: ModJarInfo) {
-  if (!currentInstallation) return;
-  try {
-    const newDisabled = await installationsApi.toggleModDisabled(
-      currentInstallation,
-      mod.file_name,
-    );
-    // Update local list optimistically so UI reacts immediately
-    mods = mods.map((m) =>
-      m.file_name === mod.file_name ? { ...m, disabled: newDisabled } : m,
-    );
-  } catch (err) {
-    console.error("Failed to toggle disabled state for", mod.file_name, err);
-    // Try reloading mods to resync state
-    try {
-      await loadMods(currentInstallation);
-    } catch (_) {}
-  }
-}
-
-async function loadMods(installation: KableInstallation) {
+async function loadResourcePacks(installation: KableInstallation) {
   loading = true;
   error = null;
   try {
-    mods = await InstallationService.getModInfo(installation);
-    // Clear the attempted set when loading new mods
+    if (installation.id === "global") {
+      // Load global resourcepacks from .minecraft/resourcepacks
+      packs = await installationsApi.getGlobalResourcePacks();
+      packMergingEnabled = false; // Global doesn't support merging
+      originalPackOrder = [];
+      currentPackOrder = [];
+      dragDisabled = true;
+    } else {
+      // Load resourcepacks for specific installation
+      packs = await installationsApi.getResourcePackInfo(installation);
+      
+      // Load merging settings
+      packMergingEnabled = installation.enable_pack_merging || false;
+      originalPackOrder = installation.pack_order || [];
+      currentPackOrder = [...originalPackOrder];
+      dragDisabled = !packMergingEnabled;
+      
+      // Initialize order with current packs if not set
+      if (currentPackOrder.length === 0 && packs.length > 0) {
+        currentPackOrder = packs.map(p => p.file_name);
+        originalPackOrder = [...currentPackOrder];
+      }
+    }
+    
+    loadedInstallationId = installation.id;
     attemptedExtendedInfo.clear();
-    // Successfully loaded, keep the loadedInstallationId
+    hasOrderChanged = false;
   } catch (e: any) {
-    error = e?.message || e || "Failed to load mods info";
-    mods = [];
+    error = e?.message || e || "Failed to load resource packs info";
+    packs = [];
     attemptedExtendedInfo.clear();
-    // Reset the loaded installation ID so we can retry if user switches away and back
     loadedInstallationId = null;
   } finally {
     loading = false;
   }
+}
+
+async function togglePackMerging() {
+  if (!currentInstallation || currentInstallation.id === "global") return;
+  
+  packMergingEnabled = !packMergingEnabled;
+  dragDisabled = !packMergingEnabled;
+  
+  // Initialize order if enabling merging
+  if (packMergingEnabled && currentPackOrder.length === 0) {
+    currentPackOrder = packs.map(p => p.file_name);
+    originalPackOrder = [...currentPackOrder];
+  }
+  
+  // Auto-save when toggling
+  try {
+    await installationsApi.updateResourcePackSettings(
+      currentInstallation.id,
+      packMergingEnabled,
+      currentPackOrder
+    );
+    
+    NotificationService.success(
+      packMergingEnabled 
+        ? "Pack merging enabled" 
+        : "Pack merging disabled"
+    );
+    
+    // Refresh installations to update state
+    await installationsApi.refreshInstallations();
+    hasOrderChanged = false;
+  } catch (e: any) {
+    NotificationService.error(`Failed to update settings: ${e}`);
+    packMergingEnabled = !packMergingEnabled; // Revert
+    dragDisabled = !packMergingEnabled;
+  }
+}
+
+async function confirmOrder() {
+  if (!currentInstallation || currentInstallation.id === "global") return;
+  
+  savingOrder = true;
+  try {
+    await installationsApi.updateResourcePackSettings(
+      currentInstallation.id,
+      packMergingEnabled,
+      currentPackOrder
+    );
+    
+    originalPackOrder = [...currentPackOrder];
+    hasOrderChanged = false;
+    
+    NotificationService.success("Pack order saved and applied");
+    
+    // Refresh installations
+    await installationsApi.refreshInstallations();
+  } catch (e: any) {
+    NotificationService.error(`Failed to save order: ${e}`);
+  } finally {
+    savingOrder = false;
+  }
+}
+
+function handleDndConsider(e: CustomEvent<DndEvent>) {
+  const { items } = e.detail;
+  orderedPacks = items as any[];
+}
+
+function handleDndFinalize(e: CustomEvent<DndEvent>) {
+  const { items } = e.detail;
+  orderedPacks = items as any[];
+  currentPackOrder = orderedPacks.map((p: any) => p.file_name);
+  
+  // Check if order changed
+  const orderChanged = currentPackOrder.length !== originalPackOrder.length ||
+    currentPackOrder.some((name, idx) => name !== originalPackOrder[idx]);
+  
+  hasOrderChanged = orderChanged;
 }
 
 onMount(() => {
@@ -402,7 +456,6 @@ onMount(() => {
   if (inst) {
     selectedId = inst.id;
   } else if (sortedInstallations.length > 0) {
-    // If no installation is pre-selected, select the first one (favorite/most recent)
     const firstInstallation = sortedInstallations[0];
     selectedId = firstInstallation.id;
     selectedInstallation.set(firstInstallation);
@@ -410,7 +463,7 @@ onMount(() => {
 });
 </script>
 
-<div class="installation-mods">
+<div class="installation-resourcepacks">
   <div class="main-layout">
     <!-- Left sidebar: Installation carousel -->
     <div class="installation-sidebar">
@@ -477,15 +530,15 @@ onMount(() => {
       </div>
     </div>
 
-    <!-- Right content: Search and mods -->
-    <div class="mods-section">
-      <div class="mods-header">
+    <!-- Right content: Search and packs -->
+    <div class="packs-section">
+      <div class="packs-header">
         <div class="search-controls">
           <div class="search-input-wrapper">
             <span class="search-icon">🔍</span>
             <input
               type="text"
-              placeholder="Search mods (fuzzy search enabled)..."
+              placeholder="Search resource packs (fuzzy search enabled)..."
               bind:value={searchQuery}
               class="search-input"
             />
@@ -500,60 +553,127 @@ onMount(() => {
         </div>
 
         {#if currentInstallation}
-          <div class="mods-title-section">
-            <h3>Mods for {currentInstallation.name}</h3>
-            {#if mods.length > 0}
-              <div class="mods-count-badge">
+          <div class="packs-title-section">
+            <div class="title-and-toggle">
+              <h3>Resource Packs for {currentInstallation.name}</h3>
+              
+              {#if currentInstallation.id !== "global"}
+                <button
+                  class="merge-toggle"
+                  class:enabled={packMergingEnabled}
+                  on:click={togglePackMerging}
+                  title={packMergingEnabled 
+                    ? "Pack merging enabled - packs will be merged into one" 
+                    : "Pack merging disabled - packs loaded individually"}
+                >
+                  <Icon name={packMergingEnabled ? "layers" : "package"} size="sm" />
+                  <span>{packMergingEnabled ? "Merging Enabled" : "Individual Packs"}</span>
+                </button>
+              {/if}
+            </div>
+            
+            {#if packs.length > 0}
+              <div class="packs-count-badge">
                 {#if searchQuery}
-                  <span class="filtered-count">{filteredMods.length}</span>
+                  <span class="filtered-count">{filteredPacks.length}</span>
                   <span class="count-separator">of</span>
-                  <span class="total-count">{mods.length}</span>
-                  <span class="count-label">mods</span>
+                  <span class="total-count">{packs.length}</span>
+                  <span class="count-label">packs</span>
                 {:else}
-                  <span class="total-count">{mods.length}</span>
+                  <span class="total-count">{packs.length}</span>
                   <span class="count-label"
-                    >{mods.length === 1 ? "mod" : "mods"}</span
+                    >{packs.length === 1 ? "pack" : "packs"}</span
                   >
                 {/if}
               </div>
             {/if}
           </div>
+          
+          {#if packMergingEnabled && hasOrderChanged}
+            <div class="order-actions">
+              <div class="order-hint">
+                <Icon name="info" size="sm" />
+                <span>Drag packs to reorder (top = highest priority)</span>
+              </div>
+              <button
+                class="confirm-order-btn"
+                on:click={confirmOrder}
+                disabled={savingOrder}
+              >
+                {#if savingOrder}
+                  <Icon name="refresh" size="sm" className="spin" />
+                  <span>Saving...</span>
+                {:else}
+                  <Icon name="check" size="sm" />
+                  <span>Apply Order</span>
+                {/if}
+              </button>
+            </div>
+          {/if}
         {/if}
       </div>
 
-      <div class="mods-content">
+      <div class="packs-content">
         {#if currentInstallation}
           {#if loading}
             <div class="loading-state">
               <Icon name="refresh" size="md" className="spin" />
-              <span>Loading mods...</span>
+              <span>Loading resource packs...</span>
             </div>
           {:else if error}
             <div class="error-message">
               <Icon name="alert" size="sm" />
               {error}
             </div>
-          {:else if mods.length > 0}
-            <div class="mods-card-grid">
-              {#each filteredMods as mod (mod.file_name)}
-                <InstalledModCard
-                  {mod}
-                  installation={currentInstallation}
-                  extendedInfo={$extendedModInfo[mod.file_name]}
-                  onmodchanged={handleModChanged}
-                />
-              {/each}
-            </div>
+          {:else if packs.length > 0}
+            {#if packMergingEnabled && !searchQuery}
+              <div 
+                class="packs-list-draggable"
+                use:dndzone={{
+                  items: orderedPacks,
+                  flipDurationMs,
+                  dragDisabled: false,
+                  dropTargetStyle: {}
+                }}
+                on:consider={handleDndConsider}
+                on:finalize={handleDndFinalize}
+              >
+                {#each orderedPacks as pack (pack.id)}
+                  <div class="drag-item-wrapper">
+                    <div class="drag-handle">
+                      <Icon name="menu" size="md" />
+                    </div>
+                    <InstalledResourcePackCard
+                      {pack}
+                      installation={currentInstallation}
+                      extendedInfo={extendedPackInfo[pack.file_name]}
+                      onpackchanged={handlePackChanged}
+                    />
+                  </div>
+                {/each}
+              </div>
+            {:else}
+              <div class="packs-card-grid">
+                {#each filteredPacks as pack (pack.file_name)}
+                  <InstalledResourcePackCard
+                    {pack}
+                    installation={currentInstallation}
+                    extendedInfo={extendedPackInfo[pack.file_name]}
+                    onpackchanged={handlePackChanged}
+                  />
+                {/each}
+              </div>
+            {/if}
           {:else}
             <div class="empty-state">
-              <Icon name="cube" size="xl" />
-              <span>No mods installed for this installation.</span>
+              <Icon name="image" size="xl" />
+              <span>No resource packs installed for this installation.</span>
             </div>
           {/if}
         {:else}
           <div class="empty-state">
             <Icon name="package" size="xl" />
-            <span>Select an installation to view mods.</span>
+            <span>Select an installation to view resource packs.</span>
           </div>
         {/if}
       </div>
@@ -563,7 +683,7 @@ onMount(() => {
 
 <style lang="scss">
 @use "@kablan/clean-ui/scss/_variables.scss" as *;
-.installation-mods {
+.installation-resourcepacks {
   margin: 0;
   height: 100%;
   overflow: clip;
@@ -581,7 +701,6 @@ onMount(() => {
   overflow: hidden;
 }
 
-//  Left sidebar: Installation carousel
 .installation-sidebar {
   width: 320px;
   min-width: 320px;
@@ -609,13 +728,12 @@ onMount(() => {
 
 .installation-carousel {
   flex: 1;
-  overflow: hidden; // Change from auto to hidden for custom scroll
-  padding: 0.5rem; // Reduced padding to use more height
+  overflow: hidden;
+  padding: 0.5rem;
   position: relative;
   display: flex;
-  align-items: center; // Center the carousel vertically
+  align-items: center;
 
-  // Remove scrollbar styles since we're not using native scroll
   &:focus {
     outline: none;
   }
@@ -627,31 +745,27 @@ onMount(() => {
   position: relative;
   display: flex;
   flex-direction: column;
-  // align-items: center;
-  // justify-content: center;
-  pointer-events: none; // Allow clicks to pass through to individual items
+  pointer-events: none;
 }
 
 .installation-item {
-  padding: 1rem 1.2rem; // Increased padding for better use of space
+  padding: 1rem 1.2rem;
   margin: 0;
   border-radius: 0.6rem;
   cursor: pointer;
   border: 1px solid transparent;
-  position: absolute; // Absolute positioning for custom carousel layout
-  top: 35%; // Center vertically
-  left: 50%; // Center horizontally
+  position: absolute;
+  top: 35%;
+  left: 50%;
   transform-origin: center center;
   display: flex;
   align-items: center;
-  gap: 0.5rem; // Increased gap
+  gap: 0.5rem;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  width: 100%; // Slightly increased width
-  // margin-left: -145px; // Half of width to center
-  pointer-events: auto; // Re-enable clicks for individual items
+  width: 100%;
+  pointer-events: auto;
 
-  // Enhanced transitions for smooth movement
   transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
   &:hover {
@@ -659,7 +773,6 @@ onMount(() => {
       --loader-color,
       #{"color-mix(in srgb, var(--primary), 15%, transparent)"}
     );
-    // Properly maintain center position on hover
     box-shadow: 0 2px 8px
       #{"color-mix(in srgb, var(--loader-color, var(--primary)), 10%, transparent)"};
   }
@@ -670,13 +783,11 @@ onMount(() => {
       0 4px 16px
         #{"color-mix(in srgb, var(--loader-color, var(--primary)), 15%, transparent)"},
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    z-index: 10; // Bring selected item to front
+    z-index: 10;
 
-    // Add green selection indicator
     border: 2px solid var(--green-800);
 
     &:hover {
-      // Keep the same transform as base state but with slight scale increase
       box-shadow:
         0 6px 20px
           #{"color-mix(in srgb, var(--loader-color, var(--primary)), 20%, transparent)"},
@@ -710,7 +821,7 @@ onMount(() => {
 }
 
 .installation-icon {
-  width: calc(48px * var(--carousel-scale, 1)); // Increased icon size
+  width: calc(48px * var(--carousel-scale, 1));
   height: calc(48px * var(--carousel-scale, 1));
   border-radius: 0.5rem;
   display: flex;
@@ -754,10 +865,8 @@ onMount(() => {
   transition: all 0.25s;
   font-size: calc(var(--carousel-font-size, 1) * 1em);
 
-  // Default state
   color: var(--text);
 
-  // Selected state - use solid color instead of gradient to avoid transparency issues
   .installation-item.selected & {
     color: var(--loader-color, var(--primary));
     font-weight: 700;
@@ -791,15 +900,14 @@ onMount(() => {
   }
 }
 
-//  Right content: Search and mods
-.mods-section {
+.packs-section {
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-.mods-header {
+.packs-header {
   background: linear-gradient(
     135deg,
     var(--card) 0%,
@@ -808,11 +916,18 @@ onMount(() => {
   border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
   padding: 1.2rem 1.5rem;
 
-  .mods-title-section {
+  .packs-title-section {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin: 1rem 0 0.5rem 0;
+
+    .title-and-toggle {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex: 1;
+    }
 
     h3 {
       margin: 0;
@@ -821,9 +936,107 @@ onMount(() => {
       font-size: 1.1em;
     }
   }
+
+.merge-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.5em 1em;
+  border-radius: 0.5rem;
+  border: 1px solid var(--dark-600);
+  background: var(--input);
+  color: var(--text-secondary);
+  font-size: 0.85em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: var(--primary);
+    background: var(--card);
+    color: var(--text);
+  }
+
+  &.enabled {
+    border-color: var(--green-700);
+    background: linear-gradient(
+      135deg,
+      #{"color-mix(in srgb, var(--green-700), 12%, transparent)"} 0%,
+      #{"color-mix(in srgb, var(--green-800), 8%, transparent)"} 100%
+    );
+    color: var(--green-600);
+    box-shadow: 0 1px 6px
+      #{"color-mix(in srgb, var(--green-700), 15%, transparent)"};
+
+    &:hover {
+      border-color: var(--green-600);
+      box-shadow: 0 2px 10px
+        #{"color-mix(in srgb, var(--green-700), 20%, transparent)"};
+    }
+  }
 }
 
-.mods-count-badge {
+.order-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0.75rem 0 0.5rem 0;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(
+    135deg,
+    #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 0%,
+    #{"color-mix(in srgb, var(--secondary), 3%, transparent)"} 100%
+  );
+  border: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+  border-radius: 0.5rem;
+
+  .order-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    color: var(--text-secondary);
+    font-size: 0.85em;
+  }
+}
+
+.confirm-order-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.5em 1.2em;
+  border-radius: 0.5rem;
+  border: 1px solid var(--green-700);
+  background: linear-gradient(
+    135deg,
+    var(--green-700) 0%,
+    var(--green-800) 100%
+  );
+  color: white;
+  font-size: 0.9em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px
+    #{"color-mix(in srgb, var(--green-700), 25%, transparent)"};
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px
+      #{"color-mix(in srgb, var(--green-700), 35%, transparent)"};
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+}
+
+.packs-count-badge {
   display: flex;
   align-items: center;
   gap: 0.3em;
@@ -928,16 +1141,33 @@ onMount(() => {
   }
 }
 
-.mods-content {
+.packs-content {
   flex: 1;
   padding: 1.5rem;
   background: var(--container);
   overflow-y: auto;
   overflow-x: hidden;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--dark-600);
+    border-radius: 4px;
+
+    &:hover {
+      background: var(--dark-500);
+    }
+  }
 }
 
-// Card grid for mods
-.mods-card-grid {
+.packs-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 0.5rem;
@@ -952,96 +1182,79 @@ onMount(() => {
   }
 }
 
-.loading-state {
+.packs-list-draggable {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem;
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--dark-600);
+    border-radius: 4px;
+
+    &:hover {
+      background: var(--dark-500);
+    }
+  }
+}
+
+.drag-item-wrapper {
+  display: flex;
+  align-items: stretch;
+  gap: 0.75rem;
+  background: transparent;
+  border-radius: 0.6rem;
+  padding: 0.5rem;
+  transition: all 0.2s ease;
+  user-select: none;
+  margin-bottom: 0.5rem;
+
+  &:hover {
+    background: color-mix(in srgb, var(--primary), 3%, transparent);
+  }
+}
+
+.drag-handle {
+  flex-shrink: 0;
+  width: 40px;
   display: flex;
   align-items: center;
-  gap: 0.7em;
-  color: var(--placeholder);
-  font-size: 1.1em;
-  padding: 2.5rem 0;
   justify-content: center;
-}
+  color: var(--text-secondary);
+  cursor: grab;
+  transition: all 0.2s ease;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  margin-right: 0.5rem;
 
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.6;
+  &:hover {
+    color: var(--primary);
+    background: var(--bg-tertiary);
+    border-color: color-mix(in srgb, var(--primary), 20%, transparent);
   }
-  50% {
-    opacity: 1;
-  }
-}
 
-// Global tooltip positioning classes to prevent Svelte from removing them
-:global(.mod-tooltip.tooltip-right) {
-  left: 105%;
-  top: 0%;
-  transform: translateY(-8%) scale(0.96);
-
-  &::before {
-    left: -5px;
-    top: 18%;
-    border-left: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-    border-bottom: 1px solid
-      color-mix(in srgb, var(--primary), 25%, transparent);
-    border-right: none;
-    border-top: none;
-    transform: rotate(45deg);
+  &:active {
+    cursor: grabbing;
+    background: var(--bg-tertiary);
+    border-color: var(--primary);
   }
 }
 
-:global(.mod-tooltip.tooltip-left) {
-  right: 105%;
-  left: auto;
-  top: 0%;
-  transform: translateY(-8%) scale(0.96);
-
-  &::before {
-    right: -5px;
-    left: auto;
-    top: 18%;
-    border-right: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-    border-top: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-    border-left: none;
-    border-bottom: none;
-    transform: rotate(45deg);
-  }
-}
-
-:global(.mod-tooltip.tooltip-top) {
-  left: 50%;
-  top: auto;
-  bottom: 105%;
-  transform: translateX(-50%) translateY(8%) scale(0.96);
-
-  &::before {
-    left: 50%;
-    top: auto;
-    bottom: -5px;
-    transform: translateX(-50%) rotate(45deg);
-    border-bottom: 1px solid
-      color-mix(in srgb, var(--primary), 25%, transparent);
-    border-right: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-    border-left: none;
-    border-top: none;
-  }
-}
-
-:global(.mod-tooltip.tooltip-bottom) {
-  left: 50%;
-  top: 105%;
-  transform: translateX(-50%) translateY(-8%) scale(0.96);
-
-  &::before {
-    left: 50%;
-    top: -5px;
-    bottom: auto;
-    transform: translateX(-50%) rotate(45deg);
-    border-top: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-    border-left: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-    border-right: none;
-    border-bottom: none;
-  }
+:global(.drag-item-wrapper .installed-pack-card) {
+  flex: 1;
+  min-width: 0;
 }
 
 .loading-state {
@@ -1053,6 +1266,7 @@ onMount(() => {
   padding: 2.5rem 0;
   justify-content: center;
 }
+
 .error-message {
   color: var(--red);
   background: color-mix(in srgb, var(--red), 8%, transparent);
@@ -1065,6 +1279,7 @@ onMount(() => {
   align-items: center;
   gap: 0.5em;
 }
+
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -1075,6 +1290,7 @@ onMount(() => {
   padding: 2.5rem 0 1.5rem 0;
   gap: 0.5em;
 }
+
 @media (max-width: 900px) {
   .main-layout {
     flex-direction: column;
@@ -1103,14 +1319,14 @@ onMount(() => {
     }
   }
 
-  .mods-section {
+  .packs-section {
     border-left: none;
     border-top: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
   }
 }
 
 @media (max-width: 600px) {
-  .installation-mods {
+  .installation-resourcepacks {
     padding: 0.5rem;
     height: auto;
   }

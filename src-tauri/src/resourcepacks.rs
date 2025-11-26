@@ -359,9 +359,34 @@ pub async fn search_modrinth_resourcepacks_with_facets(
         url.push_str(&format!("&query={}", encoded));
     }
 
+    // Resolve minecraft_version parameter if present
+    let resolved_mc_version = if let Some(v) = &minecraft_version {
+        crate::installations::get_minecraft_version(v).await.or(Some(v.clone()))
+    } else {
+        None
+    };
+
     // Build facets if custom filters provided
-    if let Some(filter_facets) = facets {
-        let facet_arrays = filter_facets.to_modrinth_facets(minecraft_version.as_deref());
+    if let Some(mut filter_facets) = facets {
+        // Resolve game versions to Minecraft versions
+        if let Some(versions) = &mut filter_facets.game_versions {
+            println!("[ResourcePacks] Original game_versions: {:?}", versions);
+            let mut resolved_versions = Vec::new();
+            for v in versions.iter() {
+                if let Some(mc_ver) = crate::installations::get_minecraft_version(v).await {
+                    println!("[ResourcePacks] Resolved '{}' -> '{}'", v, mc_ver);
+                    resolved_versions.push(mc_ver);
+                } else {
+                    // Fallback to original if resolution fails (e.g. it's already a MC version or unknown)
+                    println!("[ResourcePacks] Could not resolve '{}', using as-is", v);
+                    resolved_versions.push(v.clone());
+                }
+            }
+            println!("[ResourcePacks] Final resolved game_versions: {:?}", resolved_versions);
+            *versions = resolved_versions;
+        }
+
+        let facet_arrays = filter_facets.to_modrinth_facets(resolved_mc_version.as_deref());
         if !facet_arrays.is_empty() {
             let facets_json: Vec<String> = facet_arrays
                 .iter()
@@ -378,7 +403,7 @@ pub async fn search_modrinth_resourcepacks_with_facets(
             // Remove default facets and add custom ones
             url = url.replace("&facets=[[\"project_type:resourcepack\"]]", &facets_param);
         }
-    } else if let Some(version) = minecraft_version {
+    } else if let Some(version) = resolved_mc_version {
         // Simple version filter without custom facets
         url.push_str(&format!("&facets=[[\"versions:{}\"]]", version));
     }
@@ -712,4 +737,83 @@ pub async fn delete_resourcepack_from_dedicated(
     }
 
     Ok(())
+}
+
+/// Merge multiple resource packs into a single kable-merged.zip file
+/// Uses the resource_merger crate to properly overlay packs according to pack_order
+/// 
+/// # Arguments
+/// * `dedicated_folder` - Path to the dedicated resourcepacks folder
+/// * `pack_order` - List of pack filenames in priority order (first = highest priority)
+/// * `enabled_packs` - Set of enabled pack filenames (disabled packs are skipped)
+/// 
+/// # Returns
+/// Path to the generated kable-merged.zip file
+pub async fn merge_resourcepacks(
+    dedicated_folder: String,
+    pack_order: Vec<String>,
+    enabled_packs: std::collections::HashSet<String>,
+) -> Result<PathBuf, String> {
+    use resource_merger::{MergeOptions, OverwritePolicy, PackInput, merge_packs_to_file_with_options};
+
+    let kable_dir = crate::get_minecraft_kable_dir()?;
+    let dedicated_path = PathBuf::from(&dedicated_folder);
+
+    // Support both absolute paths and relative paths from .minecraft/kable
+    let packs_dir = if dedicated_path.is_absolute() {
+        dedicated_path
+    } else {
+        kable_dir.join(&dedicated_folder)
+    };
+
+    if !packs_dir.exists() {
+        return Err(format!("Resource pack directory does not exist: {:?}", packs_dir));
+    }
+
+    // Filter to only enabled packs that exist, maintaining order
+    let pack_inputs: Vec<PackInput> = pack_order
+        .iter()
+        .filter(|filename| enabled_packs.contains(*filename))
+        .map(|filename| packs_dir.join(filename))
+        .filter(|path| path.exists())
+        .map(PackInput::from)
+        .collect();
+
+    if pack_inputs.is_empty() {
+        return Err("No enabled resource packs found to merge".to_string());
+    }
+
+    // Create output path for merged pack
+    let output_path = packs_dir.join("kable-merged.zip");
+
+    // Remove existing merged pack if it exists
+    if output_path.exists() {
+        async_fs::remove_file(&output_path)
+            .await
+            .map_err(|e| format!("Failed to remove existing merged pack: {}", e))?;
+    }
+
+    // Create merge options with FirstWins policy (first pack = highest priority)
+    let opts = MergeOptions {
+        overwrite: OverwritePolicy::FirstWins,
+        dry_run: false,
+        buffer_size: 32 * 1024,
+        atomic: true,
+        preserve_timestamps: false,
+        pack_format_override: None,
+        supported_formats_policy: resource_merger::SupportedFormatsPolicy::OneToHighest,
+        description_override: Some("Merged by Kable Launcher".to_string()),
+        tolerate_missing_inputs: false,
+    };
+
+    // Merge packs (pack_order is already in priority order, first = highest priority)
+    let output_clone = output_path.clone();
+    tokio::task::spawn_blocking(move || {
+        merge_packs_to_file_with_options(&pack_inputs, &output_clone, &opts)
+            .map_err(|e| format!("Failed to merge resource packs: {}", e))
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))??;
+
+    Ok(output_path)
 }

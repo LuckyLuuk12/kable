@@ -36,6 +36,22 @@ export async function downloadMod(
   return invoke("download_mod", { provider, modId, versionId, installation });
 }
 
+export async function getProjects(
+  provider: ProviderKind,
+  projectIds: string[],
+): Promise<ModInfoKind[]> {
+  console.log(
+    `[ModsAPI] Calling get_projects with provider: ${provider}, projectIds:`,
+    projectIds,
+  );
+  const result = (await invoke("get_projects", {
+    provider,
+    projectIds,
+  })) as ModInfoKind[];
+  console.log(`[ModsAPI] get_projects returned ${result.length} projects`);
+  return result;
+}
+
 export async function getProjectVersions(
   provider: ProviderKind,
   projectId: string,
@@ -103,4 +119,18 @@ export async function getExtendedModInfo(
   modJarInfo: ModJarInfo,
 ): Promise<ExtendedModInfo> {
   return invoke("get_extended_mod_info", { modJarInfo });
+}
+
+export interface ModMetadata {
+  project_id: string;
+  file_name: string;
+  version_number: string;
+  download_time: string;
+}
+
+export async function getModMetadata(
+  installation: KableInstallation,
+  jarFilename: string,
+): Promise<ModMetadata> {
+  return invoke("get_mod_metadata", { installation, jarFilename });
 }

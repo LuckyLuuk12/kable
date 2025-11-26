@@ -8,17 +8,15 @@ Allows users to browse, filter, and select specific versions to install.
 @prop {KableInstallation | null} [currentInstallation=null] - Current installation context
 @prop {boolean} [open=false] - Whether the modal is open
 @prop {string | null} [installedVersion=null] - Currently installed version to filter out
-
-@event close - Fires when modal is closed
-@event selectVersion - Fires when a version is selected for download
+@prop {(() =► void) | undefined} onclose - Callback when modal is closed
+@prop {((event: { versionId: string; versionNumber: string }) =► void) | undefined} onselectversion - Callback when a version is selected
 
 @example
 ```svelte
-◄ModVersionModal {mod} {currentInstallation} {installedVersion} bind:open on:selectVersion={handleVersionSelect} /►
+◄ModVersionModal {mod} {currentInstallation} {installedVersion} bind:open onclose={handleClose} onselectversion={handleVersionSelect} /►
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher } from "svelte";
 import { Icon, ProviderKind as ProviderKindEnum } from "$lib";
 import * as modsApi from "$lib/api/mods";
 import type {
@@ -32,11 +30,8 @@ export let mod: ModInfoKind;
 export let currentInstallation: KableInstallation | null = null;
 export let open = false;
 export let installedVersion: string | null = null;
-
-const dispatch = createEventDispatcher<{
-  close: void;
-  selectVersion: { versionId: string; versionNumber: string };
-}>();
+export let onclose: (() => void) | undefined = undefined;
+export let onselectversion: ((event: { versionId: string; versionNumber: string }) => void) | undefined = undefined;
 
 let versions: ModrinthVersion[] = [];
 let filteredVersions: ModrinthVersion[] = [];
@@ -56,10 +51,44 @@ $: if (open && mod) {
   loadVersions();
 }
 
-$: {
-  // Apply filters when they change or installedVersion changes
-  applyFilters();
-}
+// Reactively apply filters when any filter changes
+$: filteredVersions = (() => {
+  let result = [...versions];
+
+  // Filter out the currently installed version
+  if (installedVersion) {
+    result = result.filter((v) => v.version_number !== installedVersion);
+  }
+
+  // Filter by loader
+  if (selectedLoader) {
+    result = result.filter((v) =>
+      v.loaders.some((l) => l.toLowerCase() === selectedLoader!.toLowerCase()),
+    );
+  }
+
+  // Filter by game version
+  if (selectedGameVersion) {
+    result = result.filter((v) =>
+      v.game_versions.includes(selectedGameVersion!),
+    );
+  }
+
+  // Filter by search query
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase();
+    result = result.filter(
+      (v) =>
+        v.version_number.toLowerCase().includes(query) ||
+        v.name.toLowerCase().includes(query),
+    );
+  }
+
+  // Sort by version number (descending - newest first)
+  result.sort((a, b) => compareVersions(b.version_number, a.version_number));
+
+  return result;
+})();
 
 async function loadVersions() {
   loading = true;
@@ -104,52 +133,12 @@ async function loadVersions() {
         selectedGameVersion = gameVersion;
       }
     }
-
-    applyFilters();
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
     console.error("[ModVersionModal] Failed to load versions:", e);
   } finally {
     loading = false;
   }
-}
-
-function applyFilters() {
-  let result = [...versions];
-
-  // Filter out the currently installed version
-  if (installedVersion) {
-    result = result.filter((v) => v.version_number !== installedVersion);
-  }
-
-  // Filter by loader
-  if (selectedLoader) {
-    result = result.filter((v) =>
-      v.loaders.some((l) => l.toLowerCase() === selectedLoader!.toLowerCase()),
-    );
-  }
-
-  // Filter by game version
-  if (selectedGameVersion) {
-    result = result.filter((v) =>
-      v.game_versions.includes(selectedGameVersion!),
-    );
-  }
-
-  // Filter by search query
-  if (searchQuery.trim()) {
-    const query = searchQuery.toLowerCase();
-    result = result.filter(
-      (v) =>
-        v.version_number.toLowerCase().includes(query) ||
-        v.name.toLowerCase().includes(query),
-    );
-  }
-
-  // Sort by version number (descending - newest first)
-  result.sort((a, b) => compareVersions(b.version_number, a.version_number));
-
-  filteredVersions = result;
 }
 
 function compareVersions(a: string, b: string): number {
@@ -216,11 +205,11 @@ function getModTitle(mod: ModInfoKind): string {
 
 function handleClose() {
   open = false;
-  dispatch("close");
+  onclose?.();
 }
 
 function handleSelectVersion(version: ModrinthVersion) {
-  dispatch("selectVersion", {
+  onselectversion?.({
     versionId: version.id,
     versionNumber: version.version_number,
   });

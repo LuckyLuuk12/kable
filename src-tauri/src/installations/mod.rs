@@ -207,6 +207,25 @@ pub async fn get_version(version_id: String) -> Option<VersionData> {
     versions.get_version(&version_id).cloned()
 }
 
+/// Extracts the Minecraft version from a version ID (e.g. "fabric-loader-0.14.21-1.19.4" -> "1.19.4")
+pub async fn get_minecraft_version(version_id: &str) -> Option<String> {
+    let version_data = get_version(version_id.to_string()).await?;
+
+    // For Vanilla, the version_id IS the minecraft version
+    if version_data.loader == LoaderKind::Vanilla {
+        return Some(version_data.version_id);
+    }
+
+    // For others, check extra field
+    if let Some(mc_ver) = version_data.extra.get("minecraft_version") {
+        if let Some(s) = mc_ver.as_str() {
+            return Some(s.to_string());
+        }
+    }
+
+    None
+}
+
 /// Returns all Kable installations, using cache. Ensures conversion if needed.
 pub async fn get_installations() -> Result<Vec<KableInstallation>, String> {
     // Try to get from cache first
@@ -935,7 +954,7 @@ fn copy_directory_contents(
 }
 
 /// Get mods directory for an installation
-async fn get_mods_directory(installation: &KableInstallation) -> Result<PathBuf, String> {
+pub async fn get_mods_directory(installation: &KableInstallation) -> Result<PathBuf, String> {
     if let Some(ref dedicated_folder) = installation.dedicated_mods_folder {
         let path = PathBuf::from(dedicated_folder);
         let final_path = if path.is_absolute() {

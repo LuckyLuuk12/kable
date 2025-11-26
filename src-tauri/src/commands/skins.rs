@@ -49,6 +49,48 @@ pub async fn change_skin_model(new_model: SkinModel) -> Result<SkinUploadRespons
     crate::skins::change_skin_model(new_model).await
 }
 
+/// Get skin URL for a specific player by UUID
+#[tauri::command]
+pub async fn get_skin_url_by_uuid(uuid: String) -> Result<String, String> {
+    let client = reqwest::Client::new();
+    let url = format!("https://sessionserver.mojang.com/session/minecraft/profile/{}", uuid);
+    
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch profile: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("Profile fetch failed with status: {}", response.status()));
+    }
+    
+    let profile: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse profile: {}", e))?;
+    
+    // Extract skin URL from profile properties
+    if let Some(properties) = profile["properties"].as_array() {
+        for prop in properties {
+            if prop["name"].as_str() == Some("textures") {
+                if let Some(value) = prop["value"].as_str() {
+                    let decoded = base64::Engine::decode(&base64::engine::general_purpose::STANDARD, value)
+                        .map_err(|e| format!("Failed to decode textures: {}", e))?;
+                    let textures: serde_json::Value = serde_json::from_slice(&decoded)
+                        .map_err(|e| format!("Failed to parse textures: {}", e))?;
+                    
+                    if let Some(skin_url) = textures["textures"]["SKIN"]["url"].as_str() {
+                        return Ok(skin_url.to_string());
+                    }
+                }
+            }
+        }
+    }
+    
+    Err("No skin URL found in profile".to_string())
+}
+
 /// Get the current skin information from Mojang
 #[tauri::command]
 pub async fn get_current_skin_info() -> Result<CurrentSkin, String> {

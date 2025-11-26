@@ -9,17 +9,15 @@ Shows mod icon, name, version, and provides actions:
 @prop {ModJarInfo} mod - The installed mod data
 @prop {KableInstallation} installation - The installation this mod belongs to
 @prop {ExtendedModInfo | null} extendedInfo - Extended mod information from provider
-
-@event modChanged - Fires when mod is toggled, removed, or updated
-@event openVersions - Fires when user wants to manage versions
+@prop {(() =► void) | undefined} onmodchanged - Callback when mod is toggled, removed, or updated
+@prop {((event: { mod: ModJarInfo }) =► void) | undefined} onopenversions - Callback when user wants to manage versions
 
 @example
 ```svelte
-◄InstalledModCard {mod} {installation} {extendedInfo} on:modChanged on:openVersions /►
+◄InstalledModCard {mod} {installation} {extendedInfo} onmodchanged={handleChange} onopenversions={handleVersions} /►
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher } from "svelte";
 import { Icon, NotificationService, ProviderKind } from "$lib";
 import type {
   ModJarInfo,
@@ -30,25 +28,41 @@ import type {
 import * as installationsApi from "$lib/api/installations";
 import * as modsApi from "$lib/api/mods";
 import ModVersionModal from "./ModVersionModal.svelte";
+import Image from "$lib/components/Image.svelte";
 
 export let mod: ModJarInfo;
 export let installation: KableInstallation;
 export let extendedInfo: ExtendedModInfo | null = null;
-
-const dispatch = createEventDispatcher<{
-  modChanged: void;
-  openVersions: { mod: ModJarInfo };
-}>();
+export let onmodchanged: (() => void) | undefined = undefined;
+export let onopenversions: ((event: { mod: ModJarInfo }) => void) | undefined = undefined;
 
 let loading = false;
 let showVersionModal = false;
 let modInfoKind: ModInfoKind | null = null;
 let loadingVersions = false;
+let hasMetadata = false;
 
 $: isDisabled = mod.disabled || false;
 $: displayName = mod.mod_name || mod.file_name.replace(/\.jar$/, "");
 $: version = mod.mod_version || "Unknown";
 $: iconUrl = extendedInfo?.icon_uri || null;
+
+// Check if metadata exists when component mounts or mod changes
+$: {
+  const fileName = mod.file_name;
+  checkMetadata(fileName);
+}
+
+async function checkMetadata(fileName: string) {
+  try {
+    await modsApi.getModMetadata(installation, fileName);
+    hasMetadata = true;
+    console.log(`[InstalledModCard] ${fileName} has metadata - badge should show`);
+  } catch (error) {
+    hasMetadata = false;
+    console.log(`[InstalledModCard] ${fileName} has NO metadata:`, error);
+  }
+}
 
 async function toggleDisabled(event?: MouseEvent) {
   if (event) {
@@ -73,7 +87,7 @@ async function toggleDisabled(event?: MouseEvent) {
         : `Enabled "${displayName}"`,
     );
 
-    dispatch("modChanged");
+    onmodchanged?.();
   } catch (error) {
     NotificationService.error(`Failed to toggle mod: ${error}`);
     console.error("Failed to toggle mod:", error);
@@ -97,7 +111,7 @@ async function handleRemove(event: MouseEvent) {
   try {
     await installationsApi.deleteMod(installation, mod.file_name);
     NotificationService.success(`Removed "${displayName}"`);
-    dispatch("modChanged");
+    onmodchanged?.();
   } catch (error) {
     NotificationService.error(`Failed to remove mod: ${error}`);
     console.error("Failed to remove mod:", error);
@@ -111,37 +125,50 @@ async function handleManageVersions(event: MouseEvent) {
 
   if (loadingVersions) return;
 
-  // If we don't have extended info, we can't fetch versions
-  if (!extendedInfo || !extendedInfo.page_uri) {
-    NotificationService.warning(
-      `Could not find mod information for "${displayName}". Version management requires mod metadata.`,
-    );
-    return;
-  }
-
   loadingVersions = true;
 
   try {
-    // Extract project ID from page_uri (e.g., "https://modrinth.com/mod/sodium" -> "sodium")
-    const projectId = extendedInfo.page_uri.split("/").pop();
+    let projectId: string | null = null;
+
+    // PRIORITY 1: Check for Kable metadata file (exact project ID)
+    try {
+      const metadata = await modsApi.getModMetadata(installation, mod.file_name);
+      projectId = metadata.project_id;
+      console.log(
+        `[InstalledModCard] Found metadata file with project_id: ${projectId}`,
+      );
+    } catch (metaError) {
+      console.log(
+        `[InstalledModCard] No metadata file found for ${mod.file_name}:`,
+        metaError,
+      );
+
+      // PRIORITY 2: Try to extract project ID from extended info page_uri
+      if (extendedInfo?.page_uri) {
+        projectId = extendedInfo.page_uri.split("/").pop() || null;
+        console.log(
+          `[InstalledModCard] Using project_id from page_uri: ${projectId}`,
+        );
+      }
+    }
 
     if (!projectId) {
-      NotificationService.error(
-        `Could not determine project ID for "${displayName}"`,
+      NotificationService.warning(
+        `Could not find mod information for "${displayName}". Please reinstall this mod through Kable to enable version management.`,
       );
       return;
     }
 
-    // Convert ExtendedModInfo to ModInfoKind format for the modal
+    // Convert to ModInfoKind format for the modal
     // We'll use Modrinth format since that's what we have
     modInfoKind = {
       Modrinth: {
         project_id: projectId,
         slug: projectId,
         title: displayName,
-        description: extendedInfo.description || "",
-        author: extendedInfo.authors?.[0] || "Unknown",
-        icon_url: extendedInfo.icon_uri || undefined,
+        description: extendedInfo?.description || "",
+        author: extendedInfo?.authors?.[0] || "Unknown",
+        icon_url: extendedInfo?.icon_uri || undefined,
         downloads: 0,
         follows: 0,
         updated: "",
@@ -181,7 +208,7 @@ async function handleManageVersions(event: MouseEvent) {
     }
 
     showVersionModal = true;
-    dispatch("openVersions", { mod });
+    onopenversions?.({ mod });
   } catch (error) {
     NotificationService.error(`Failed to load versions: ${error}`);
     console.error("Failed to load versions:", error);
@@ -205,9 +232,9 @@ function extractGameVersion(versionId: string): string | null {
 }
 
 async function handleVersionSelect(
-  event: CustomEvent<{ versionId: string; versionNumber: string }>,
+  event: { versionId: string; versionNumber: string },
 ) {
-  const { versionId, versionNumber } = event.detail;
+  const { versionId, versionNumber } = event;
 
   if (!modInfoKind || !("Modrinth" in modInfoKind)) return;
 
@@ -223,7 +250,7 @@ async function handleVersionSelect(
       `Downloading "${displayName}" v${versionNumber}`,
     );
     showVersionModal = false;
-    dispatch("modChanged");
+    onmodchanged?.();
   } catch (error) {
     NotificationService.error(`Failed to download version: ${error}`);
     console.error("Failed to download version:", error);
@@ -275,6 +302,11 @@ function handleKeydown(event: KeyboardEvent) {
         {displayName}
       </div>
       <div class="mod-version">
+        {#if hasMetadata}
+          <span class="kable-badge" title="Installed with Kable - version management available">
+            <Image key="favicon" alt="Kable" width="14px" height="14px" />
+          </span>
+        {/if}
         v{version}
       </div>
     </div>
@@ -311,7 +343,7 @@ function handleKeydown(event: KeyboardEvent) {
     currentInstallation={installation}
     installedVersion={version}
     bind:open={showVersionModal}
-    on:selectVersion={handleVersionSelect}
+    onselectversion={handleVersionSelect}
   />
 {/if}
 
@@ -420,9 +452,23 @@ function handleKeydown(event: KeyboardEvent) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 
   &.disabled-text {
     text-decoration: line-through;
+  }
+}
+
+.kable-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  :global(img) {
+    border-radius: 2px;
   }
 }
 
@@ -430,6 +476,9 @@ function handleKeydown(event: KeyboardEvent) {
   font-size: 0.75rem;
   color: var(--text-secondary);
   font-family: monospace;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .mod-actions {

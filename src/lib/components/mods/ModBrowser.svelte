@@ -7,15 +7,15 @@ Provides interface for discovering, searching, and filtering mods with support f
 - Pagination and infinite scroll
 - Provider switching
 
-@event downloadMod - Fires when user clicks to download a mod
+@prop {((event: { modId: string; versionId?: string; installation: KableInstallation }) =► void) | undefined} ondownloadmod - Callback when user clicks to download a mod
 
 @example
 ```svelte
-◄ModBrowser on:downloadMod={handleDownload} /►
+◄ModBrowser ondownloadmod={handleDownload} /►
 ```
 -->
 <script lang="ts">
-import { onMount, createEventDispatcher } from "svelte";
+import { onMount } from "svelte";
 import { get } from "svelte/store";
 import {
   Icon,
@@ -45,13 +45,7 @@ import type {
 
 type ViewMode = "grid" | "list" | "compact";
 
-const dispatch = createEventDispatcher<{
-  downloadMod: {
-    modId: string;
-    versionId?: string;
-    installation: KableInstallation;
-  };
-}>();
+export let ondownloadmod: ((event: { modId: string; versionId?: string; installation: KableInstallation }) => void) | undefined = undefined;
 
 // Browser state
 let currentProvider: ProviderKind = ProviderKind.Modrinth;
@@ -422,10 +416,10 @@ function applyFilters(modsList: ModInfoKind[]) {
   });
 }
 
-// Handle search query changes
+// Handle search query changes - debounced via handleFiltersChange
 async function handleSearch() {
   if (!modsService) return;
-  await applyFiltersToBackend();
+  handleFiltersChange();
 }
 
 // Filter helper functions
@@ -782,49 +776,31 @@ async function prevPage() {
   }
 }
 
-// Generate dynamic page numbers based on visited pages
-function generatePageNumbers(): (number | "ellipsis")[] {
-  const totalToShow = 10; // Total page numbers to show
+// Generate dynamic page numbers based on current page (reactive)
+$: pageNumbers = (() => {
   const pages: (number | "ellipsis")[] = [];
 
-  // Always show at least pages 1 through current + a few ahead
-  const minEndPage = Math.max(currentPage + 3, 10); // Show at least 10 pages or current + 3
+  // Always show pages 1, 2, 3
+  pages.push(1, 2, 3);
 
-  // Calculate the window around current page
-  const halfWindow = Math.floor(totalToShow / 2);
-  let startPage = Math.max(1, currentPage - halfWindow);
-  let endPage = Math.min(minEndPage, startPage + totalToShow - 1);
-
-  // Adjust if we're near the beginning
-  if (endPage - startPage + 1 < totalToShow && endPage < minEndPage) {
-    endPage = Math.min(minEndPage, startPage + totalToShow - 1);
-  }
-  if (endPage - startPage + 1 < totalToShow) {
-    startPage = Math.max(1, endPage - totalToShow + 1);
-  }
-
-  // If we're showing a window that doesn't start at 1, show first few pages + ellipsis
-  if (startPage > 3) {
-    pages.push(1);
-    pages.push(2);
+  // If current page is beyond 10, show ellipsis and last 7 pages
+  if (currentPage > 10) {
     pages.push("ellipsis");
-  } else if (startPage > 1) {
-    // Fill in the gap if it's small
-    for (let i = 1; i < startPage; i++) {
+    
+    // Show last 7 pages ending at current page (current-6 through current)
+    const startPage = currentPage - 6;
+    for (let i = startPage; i <= currentPage; i++) {
       pages.push(i);
     }
-  }
-
-  // Add the main window of pages
-  for (let i = startPage; i <= endPage; i++) {
-    // Don't duplicate pages we already added
-    if (!pages.includes(i)) {
+  } else {
+    // For pages 1-10, fill in the gap from 4 to 10
+    for (let i = 4; i <= 10; i++) {
       pages.push(i);
     }
   }
 
   return pages;
-}
+})();
 
 function handleModDownload(mod: ModInfoKind) {
   if (!currentInstallation) {
@@ -861,21 +837,19 @@ function handleModDownload(mod: ModInfoKind) {
     return;
   }
 
-  dispatch("downloadMod", {
+  ondownloadmod?.({
     modId,
     versionId,
     installation: currentInstallation,
   });
 }
 
-function handleDownloadVersion(
-  event: CustomEvent<{
-    mod: ModInfoKind;
-    versionId: string;
-    versionNumber: string;
-  }>,
-) {
-  const { mod, versionId } = event.detail;
+function handleDownloadVersion(event: {
+  mod: ModInfoKind;
+  versionId: string;
+  versionNumber: string;
+}) {
+  const { mod, versionId } = event;
 
   if (!currentInstallation) {
     alert("Please select an installation first");
@@ -907,7 +881,7 @@ function handleDownloadVersion(
   }
 
   // Dispatch with specific version ID
-  dispatch("downloadMod", {
+  ondownloadmod?.({
     modId,
     versionId,
     installation: currentInstallation,
@@ -960,12 +934,12 @@ function handleModInfo(mod: ModInfoKind) {
 }
 
 // Event handlers for ModCard component
-function handleDownloadMod(event: CustomEvent<{ mod: ModInfoKind }>) {
-  handleModDownload(event.detail.mod);
+function handleDownloadMod(event: { mod: ModInfoKind }) {
+  handleModDownload(event.mod);
 }
 
-function handleInfoMod(event: CustomEvent<{ mod: ModInfoKind }>) {
-  handleModInfo(event.detail.mod);
+function handleInfoMod(event: { mod: ModInfoKind }) {
+  handleModInfo(event.mod);
 }
 
 function getModDisplayInfo(mod: ModInfoKind): {
@@ -1168,8 +1142,7 @@ onMount(async () => {
         </div>
       {/if}
     </div>
-
-    <!-- Provider tabs -->
+    <!-- !NOTE: Provider tabs has been disabled for now since curseforge isn't supported yet (as fully as modrinth) -- >
     <div class="provider-tabs">
       {#each providers as provider}
         <button
@@ -1180,8 +1153,6 @@ onMount(async () => {
           disabled={!provider.available}
           title={provider.description}
         >
-          <!-- TODO: Change this to use the providers favicon -->
-          <!-- Use Image component so users can override icons via config/images/<key>.* or fall back to /img/<key>.png -->
           {#if provider.id === ProviderKind.Modrinth}
             <Image
               key="modrinth"
@@ -1208,6 +1179,7 @@ onMount(async () => {
         </button>
       {/each}
     </div>
+-->
   </div>
 
   <!-- Main Content Area -->
@@ -1374,7 +1346,7 @@ onMount(async () => {
               <Icon name="arrow-left" size="sm" forceType="svg" />
             </button>
 
-            {#each generatePageNumbers() as pageItem}
+            {#each pageNumbers as pageItem}
               {#if pageItem === "ellipsis"}
                 <span class="pagination-ellipsis">...</span>
               {:else}
@@ -1482,9 +1454,9 @@ onMount(async () => {
                 loading={false}
                 isInstalled={installedInfo.isInstalled}
                 installedVersion={installedInfo.version}
-                on:downloadMod={handleDownloadMod}
-                on:downloadVersion={handleDownloadVersion}
-                on:infoMod={handleInfoMod}
+                ondownloadmod={handleDownloadMod}
+                ondownloadversion={handleDownloadVersion}
+                oninfomod={handleInfoMod}
               />
             {/each}
           </div>
@@ -1576,6 +1548,7 @@ onMount(async () => {
     }
   }
 
+  /* !NOTE: Provider tabs has been disabled for now since curseforge isn't supported yet (as fully as modrinth)
   .provider-tabs {
     display: flex;
     gap: 0.375rem;
@@ -1623,6 +1596,7 @@ onMount(async () => {
       }
     }
   }
+  */
 }
 
 // Main Layout
@@ -2031,11 +2005,10 @@ onMount(async () => {
         }
 
         &.active {
-          background: var(--primary);
-          color: white;
-          border-color: transparent;
-          box-shadow: 0 1px 3px
-            #{"color-mix(in srgb, var(--primary), 30%, transparent)"};
+          background: var(--card);
+          color: var(--primary);
+          border-color: var(--primary);
+          font-weight: 600;
         }
 
         &:disabled {

@@ -84,21 +84,20 @@ pub fn run() {
                             }
                         };
 
-                        let account = match crate::auth::auth_util::get_active_launcher_account()
-                            .await
-                        {
-                            Ok(Some(acc)) => acc,
-                            Ok(None) => {
-                                eprintln!(
+                        let account =
+                            match crate::auth::auth_util::get_active_launcher_account().await {
+                                Ok(Some(acc)) => acc,
+                                Ok(None) => {
+                                    eprintln!(
                                     "No active account found. Please log in through the launcher."
                                 );
-                                std::process::exit(1);
-                            }
-                            Err(e) => {
-                                eprintln!("Failed to get active account: {}", e);
-                                std::process::exit(1);
-                            }
-                        };
+                                    std::process::exit(1);
+                                }
+                                Err(e) => {
+                                    eprintln!("Failed to get active account: {}", e);
+                                    std::process::exit(1);
+                                }
+                            };
 
                         if let Err(e) =
                             crate::launcher::launch_installation(installation, settings, account)
@@ -249,6 +248,13 @@ pub fn run() {
             commands_installations::enable_mod,
             commands_installations::toggle_mod_disabled,
             commands_installations::delete_mod,
+            commands_installations::disable_resourcepack_for_installation,
+            commands_installations::enable_resourcepack_for_installation,
+            commands_installations::toggle_resourcepack_disabled_for_installation,
+            commands_installations::delete_resourcepack_for_installation,
+            commands_installations::get_resourcepack_info_for_installation,
+            commands_installations::get_global_resourcepacks,
+            commands_installations::update_resourcepack_settings,
             commands_installations::import,
             commands_installations::import_from_minecraft_folder,
             commands_installations::export,
@@ -269,12 +275,14 @@ pub fn run() {
             // Mods commands
             commands_mods::get_mods,
             commands_mods::download_mod,
+            commands_mods::get_projects,
             commands_mods::get_project_versions,
             commands_mods::set_provider_filter,
             commands_mods::set_provider_limit,
             commands_mods::clear_provider_cache,
             commands_mods::purge_stale_provider_cache,
             commands_mods::get_extended_mod_info,
+            commands_mods::get_mod_metadata,
             // Shaders commands
             commands_shaders::get_installed_shaders,
             commands_shaders::toggle_shader,
@@ -309,6 +317,7 @@ pub fn run() {
             // Skins commands
             commands_skins::upload_skin_to_account,
             commands_skins::change_skin_model,
+            commands_skins::get_skin_url_by_uuid,
             commands_skins::get_current_skin_info,
             commands_skins::select_skin_file,
             commands_skins::get_all_account_skins,

@@ -10,18 +10,16 @@ author, downloads, and installation status. Supports grid, list, and compact vie
 @prop {boolean} [loading=false] - Whether mod is being downloaded
 @prop {boolean} [isInstalled=false] - Whether mod is already installed
 @prop {string | null} [installedVersion=null] - Version number of installed mod
-
-@event downloadMod - Fires when download button is clicked
-@event infoMod - Fires when info button is clicked
-@event downloadVersion - Fires when specific version is selected from modal
+@prop {((event: { mod: ModInfoKind }) =► void) | undefined} ondownloadmod - Callback when download button is clicked
+@prop {((event: { mod: ModInfoKind }) =► void) | undefined} oninfomod - Callback when info button is clicked
+@prop {((event: { mod: ModInfoKind; versionId: string; versionNumber: string }) =► void) | undefined} ondownloadversion - Callback when specific version is selected
 
 @example
 ```svelte
-◄ModCard {mod} viewMode="grid" on:downloadMod={handleDownload} /►
+◄ModCard {mod} viewMode="grid" ondownloadmod={handleDownload} /►
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher } from "svelte";
 import { Icon, ProviderKind as ProviderKindEnum } from "$lib";
 import ModVersionModal from "./ModVersionModal.svelte";
 import * as modsApi from "$lib/api/mods";
@@ -35,16 +33,9 @@ export let currentInstallation: KableInstallation | null = null;
 export let loading: boolean = false;
 export let isInstalled: boolean = false;
 export let installedVersion: string | null = null;
-
-const dispatch = createEventDispatcher<{
-  downloadMod: { mod: ModInfoKind };
-  infoMod: { mod: ModInfoKind };
-  downloadVersion: {
-    mod: ModInfoKind;
-    versionId: string;
-    versionNumber: string;
-  };
-}>();
+export let ondownloadmod: ((event: { mod: ModInfoKind }) => void) | undefined = undefined;
+export let oninfomod: ((event: { mod: ModInfoKind }) => void) | undefined = undefined;
+export let ondownloadversion: ((event: { mod: ModInfoKind; versionId: string; versionNumber: string }) => void) | undefined = undefined;
 
 let showVersionModal = false;
 let hasNewerVersion = false;
@@ -340,11 +331,11 @@ function handleImageError(event: Event) {
 $: displayInfo = getModDisplayInfo(mod);
 
 function handleDownload() {
-  dispatch("downloadMod", { mod });
+  ondownloadmod?.({ mod });
 }
 
 function handleInfo() {
-  dispatch("infoMod", { mod });
+  oninfomod?.({ mod });
 }
 
 function handleVersions(event?: Event) {
@@ -358,10 +349,10 @@ function handleVersions(event?: Event) {
 }
 
 function handleVersionSelect(
-  event: CustomEvent<{ versionId: string; versionNumber: string }>,
+  event: { versionId: string; versionNumber: string },
 ) {
-  const { versionId, versionNumber } = event.detail;
-  dispatch("downloadVersion", { mod, versionId, versionNumber });
+  const { versionId, versionNumber } = event;
+  ondownloadversion?.({ mod, versionId, versionNumber });
 }
 
 function handleCardClick() {
@@ -724,7 +715,7 @@ function handleCardKeydown(event: KeyboardEvent) {
   {currentInstallation}
   {installedVersion}
   bind:open={showVersionModal}
-  on:selectVersion={handleVersionSelect}
+  onselectversion={handleVersionSelect}
 />
 
 <style lang="scss">

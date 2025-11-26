@@ -100,7 +100,14 @@ pub async fn resolve_image_path(key: String) -> Result<String, String> {
         }
     }
 
-    // Fall back to app static assets under /img/<key>.<ext>
+    // Fall back to app static assets
+    // For special root-level images (favicon, etc.), return root path
+    // Otherwise use /img/ folder
     // Prefer webp then png for better compression / modern assets
-    Ok(format!("/img/{}.webp", key))
+    let root_level_images = ["favicon", "icon"];
+    if root_level_images.contains(&key.as_str()) {
+        Ok(format!("/{}.png", key))
+    } else {
+        Ok(format!("/img/{}.webp", key))
+    }
 }

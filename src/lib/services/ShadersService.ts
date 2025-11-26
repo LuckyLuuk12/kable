@@ -78,7 +78,7 @@ export class ShadersService {
       // Search Modrinth for shaders with current filter
       const shaders = this.currentFilter
         ? await ShadersAPI.searchModrinthShadersWithFacets(
-            "",
+            this.currentFilter.query || "",
             null,
             this.currentFilter,
             limit,

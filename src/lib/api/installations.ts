@@ -90,7 +90,6 @@ export async function disableMod(
 ): Promise<void> {
   return await invoke("disable_mod", {
     installation,
-    file_name: fileName,
     fileName,
   });
 }
@@ -102,7 +101,6 @@ export async function enableMod(
 ): Promise<void> {
   return await invoke("enable_mod", {
     installation,
-    file_name: fileName,
     fileName,
   });
 }
@@ -114,7 +112,6 @@ export async function toggleModDisabled(
 ): Promise<boolean> {
   return await invoke("toggle_mod_disabled", {
     installation,
-    file_name: fileName,
     fileName,
   });
 }
@@ -127,6 +124,75 @@ export async function deleteMod(
   return await invoke("delete_mod", {
     installation,
     fileName,
+  });
+}
+
+// Disable a resource pack by moving it into the disabled/ subfolder
+export async function disableResourcePack(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<void> {
+  return await invoke("disable_resourcepack_for_installation", {
+    installation,
+    fileName,
+  });
+}
+
+// Enable a resource pack by moving it out of the disabled/ subfolder
+export async function enableResourcePack(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<void> {
+  return await invoke("enable_resourcepack_for_installation", {
+    installation,
+    fileName,
+  });
+}
+
+// Toggle the disabled state for a resource pack; returns the new disabled state (true = disabled)
+export async function toggleResourcePackDisabled(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<boolean> {
+  return await invoke("toggle_resourcepack_disabled_for_installation", {
+    installation,
+    fileName,
+  });
+}
+
+// Delete/remove a resource pack from installation
+export async function deleteResourcePack(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<void> {
+  return await invoke("delete_resourcepack_for_installation", {
+    installation,
+    fileName,
+  });
+}
+
+// Get resource pack info for an installation
+export async function getResourcePackInfo(
+  installation: KableInstallation,
+): Promise<any[]> {
+  return await invoke("get_resourcepack_info_for_installation", { installation });
+}
+
+// Get global resource packs from .minecraft/resourcepacks
+export async function getGlobalResourcePacks(): Promise<any[]> {
+  return await invoke("get_global_resourcepacks");
+}
+
+// Update resource pack settings (order and merging)
+export async function updateResourcePackSettings(
+  installationId: string,
+  enablePackMerging: boolean,
+  packOrder: string[]
+): Promise<void> {
+  return await invoke("update_resourcepack_settings", {
+    installationId,
+    enablePackMerging,
+    packOrder,
   });
 }
 

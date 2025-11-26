@@ -6,17 +6,15 @@ resource pack screenshots and preview images.
 
 @prop {Object | null} [ResourcePack=null] - Resource pack with gallery images
 @prop {boolean} [visible=false] - Whether modal is visible
-
-@event close - Fires when modal is closed
+@prop {(() =► void) | undefined} onclose - Callback when modal is closed
 
 @example
 ```svelte
-◄ResourcePackGalleryModal {ResourcePack} {visible} on:close={handleClose} /►
+◄ResourcePackGalleryModal {ResourcePack} {visible} onclose={handleClose} /►
 ```
 -->
 <script lang="ts">
 import { Icon } from "$lib";
-import { createEventDispatcher } from "svelte";
 
 export let ResourcePack: {
   name: string;
@@ -24,8 +22,7 @@ export let ResourcePack: {
   featured_gallery: string | null;
 } | null = null;
 export let visible = false;
-
-const dispatch = createEventDispatcher<{ close: void }>();
+export let onclose: (() => void) | undefined = undefined;
 
 let currentIndex = 0;
 let images: string[] = [];
@@ -53,7 +50,7 @@ $: if (ResourcePack) {
 
 function close() {
   visible = false;
-  dispatch("close");
+  onclose?.();
 }
 
 function nextImage() {

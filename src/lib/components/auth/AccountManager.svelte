@@ -11,7 +11,7 @@ Displays current account status and allows switching between authentication flow
 -->
 <script lang="ts">
 import { onMount, onDestroy } from "svelte";
-import { Icon, AuthService, currentAccount, AuthenticationFlow } from "$lib";
+import { Icon, PlayerHead, AuthService, currentAccount, AuthenticationFlow } from "$lib";
 import type { LauncherAccount } from "$lib";
 
 let isLoading = false;
@@ -153,24 +153,7 @@ async function signOut() {
               title="{$currentAccount.minecraft_profile?.name ||
                 $currentAccount.username}'s avatar"
             >
-              {#if $currentAccount.avatar}
-                <img
-                  src={$currentAccount.avatar}
-                  alt="{$currentAccount.minecraft_profile?.name ||
-                    $currentAccount.username}'s avatar"
-                  class="avatar-image"
-                />
-              {:else}
-                <span class="avatar-letter"
-                  >{(
-                    $currentAccount.minecraft_profile?.name ||
-                    $currentAccount.username ||
-                    "U"
-                  )
-                    .charAt(0)
-                    .toUpperCase()}</span
-                >
-              {/if}
+              <PlayerHead account={$currentAccount} size={64} />
             </div>
             {#if getAccountStatus($currentAccount) === "online"}
               <div class="status-indicator online" title="Online"></div>
@@ -411,17 +394,6 @@ async function signOut() {
   width: 40px;
   height: 40px;
   font-size: 16px;
-
-  .avatar-letter {
-    user-select: none;
-  }
-
-  .avatar-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
-  }
 }
 
 .status-indicator {

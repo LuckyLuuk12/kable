@@ -34,6 +34,22 @@ let imgElement: HTMLImageElement;
 
 onMount(async () => {
   if (!key) return;
+  
+  // If key is already a full URL (http/https/data), use it directly
+  if (key.startsWith("http://") || key.startsWith("https://") || key.startsWith("data:")) {
+    resolvedSrc = key;
+    // Log abbreviated version for data URLs to avoid console spam
+    const logKey = key.startsWith("data:") ? `data:${key.substring(5, 30)}...` : key;
+    console.log(`Image component using direct URL: ${logKey}`);
+    setTimeout(() => {
+      if (imgElement && imgElement.complete && imgElement.naturalHeight !== 0) {
+        isVisible = true;
+        console.log(`Image loaded successfully from direct URL: ${logKey}`);
+      }
+    }, 0);
+    return;
+  }
+  
   try {
     // Call the backend command we added which prefers user images and falls back to /img/<key>.png
     const result = await invoke<string>("resolve_image_path", { key });
@@ -41,12 +57,12 @@ onMount(async () => {
     // If the backend returned a data URL (base64) or a static /img path, use it directly
     if (result && result.startsWith("data:")) {
       resolvedSrc = result;
-    } else if (result && result.startsWith("/img/")) {
-      // static asset path
+    } else if (result && (result.startsWith("/img/") || result.startsWith("/"))) {
+      // static asset path (either /img/ or root static folder)
       resolvedSrc = result;
     } else if (
       result &&
-      (result.startsWith("/") || result.match(/^[a-zA-Z]:\\/))
+      result.match(/^[a-zA-Z]:\\/)
     ) {
       // Absolute filesystem path -> convert to file:// URL
       const normalized = result.replace(/\\/g, "/");
@@ -90,10 +106,10 @@ function handleImgError() {
 
   retryCount++;
 
-  // Fallback logic: if the resolved source was a file:// path, try static images
+  // Fallback logic: try different paths and extensions
   const staticExts = ["webp", "png", "jpg", "jpeg", "svg", "gif"];
 
-  // If we already are using a static /img/ path, try other extensions before falling back
+  // If we already are using a static /img/ path, try other extensions
   if (resolvedSrc.startsWith("/img/")) {
     const base = `/img/${key}`;
     const currentExt = resolvedSrc.split(".").pop()?.toLowerCase();
@@ -106,9 +122,25 @@ function handleImgError() {
     }
   }
 
-  // If it was a file URL that failed, try static images
-  if (resolvedSrc.startsWith("file://")) {
+  // If we're using root static path (not /img/), try extensions then fall back to /img/
+  if (resolvedSrc.startsWith("/") && !resolvedSrc.startsWith("/img/")) {
+    const currentExt = resolvedSrc.split(".").pop()?.toLowerCase();
+    const currentIndex = staticExts.indexOf(currentExt || "");
+
+    // Try next extension in root static folder
+    if (currentIndex >= 0 && currentIndex < staticExts.length - 1) {
+      resolvedSrc = `/${key}.${staticExts[currentIndex + 1]}`;
+      return;
+    }
+
+    // All root extensions failed, try /img/ folder
     resolvedSrc = `/img/${key}.${staticExts[0]}`;
+    return;
+  }
+
+  // If it was a file URL that failed, try root static folder first
+  if (resolvedSrc.startsWith("file://")) {
+    resolvedSrc = `/${key}.${staticExts[0]}`;
     return;
   }
 

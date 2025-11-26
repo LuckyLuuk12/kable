@@ -3,13 +3,11 @@ import { ShaderBrowser } from "$lib";
 import type { KableInstallation, ShaderDownload } from "$lib";
 
 // Handle shader download from browser
-async function handleShaderDownload(
-  event: CustomEvent<{
-    shader: ShaderDownload;
-    installation: KableInstallation | null;
-  }>,
-) {
-  const { shader, installation } = event.detail;
+async function handleShaderDownload(event: {
+  shader: ShaderDownload;
+  installation: KableInstallation | null;
+}) {
+  const { shader, installation } = event;
 
   try {
     const { ShadersService } = await import("$lib");
@@ -33,7 +31,7 @@ async function handleShaderDownload(
 </script>
 
 <div class="shaders-page">
-  <ShaderBrowser on:download={handleShaderDownload} />
+  <ShaderBrowser ondownload={handleShaderDownload} />
 </div>
 
 <style lang="scss">

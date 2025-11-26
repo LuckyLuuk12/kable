@@ -7,15 +7,15 @@ Provides interface for discovering resource packs with support for:
 - Advanced filtering (categories, versions, sorting)
 - Gallery preview modal
 
-@event download - Fires when user clicks to download a resource pack
+@prop {((event: { resourcepack: ResourcePackDownload; installation: KableInstallation | null }) =► void) | undefined} ondownload - Callback when user clicks to download a resource pack
 
 @example
 ```svelte
-◄ResourcePackBrowser on:download={handleDownload} /►
+◄ResourcePackBrowser ondownload={handleDownload} /►
 ```
 -->
 <script lang="ts">
-import { onMount, createEventDispatcher } from "svelte";
+import { onMount } from "svelte";
 import {
   Icon,
   ResourcepacksService,
@@ -38,12 +38,7 @@ import type {
 type ViewMode = "grid" | "list" | "compact";
 type InstallMode = "dedicated" | "global";
 
-const dispatch = createEventDispatcher<{
-  download: {
-    resourcepack: ResourcePackDownload;
-    installation: KableInstallation | null;
-  };
-}>();
+export let ondownload: ((event: { resourcepack: ResourcePackDownload; installation: KableInstallation | null }) => void) | undefined = undefined;
 
 // Browser state
 let viewMode: ViewMode = "grid";
@@ -52,6 +47,7 @@ let searchQuery = "";
 let selectedInstallationId: string = "global";
 let currentInstallation: KableInstallation | null = null;
 let showFilters = true;
+let smartFilteringEnabled = true; // Auto-apply game version filter
 
 // Gallery modal state
 let showGalleryModal = false;
@@ -78,6 +74,8 @@ let maxPageReached = 1;
 
 // Service instance
 let resourcepacksService: ResourcepacksService;
+let isFullyMounted = false;
+let previousInstallationId: string | null = null;
 
 // View mode options
 const viewModes = [
@@ -123,12 +121,39 @@ const filterSections = [
   },
 ];
 
+// Sync with selectedInstallation store
+$: {
+  if ($selectedInstallation) {
+    selectedInstallationId = $selectedInstallation.id;
+  }
+}
+
 // Reactive statements
 $: {
   // Update install mode and installation based on selection
   if (selectedInstallationId === "global") {
     installMode = "global";
     currentInstallation = null;
+    selectedInstallation.set({
+      id: "global",
+      name: "Global (All Installations)",
+      icon: null,
+      version_id: "global",
+      created: new Date().toISOString(),
+      last_used: new Date().toISOString(),
+      java_args: [],
+      dedicated_mods_folder: null,
+      dedicated_resource_pack_folder: null,
+      dedicated_shaders_folder: null,
+      dedicated_config_folder: null,
+      favorite: false,
+      total_time_played_ms: 0,
+      parameters_map: {},
+      description: null,
+      times_launched: 0,
+      enable_pack_merging: false,
+      pack_order: [],
+    });
   } else {
     installMode = "dedicated";
     currentInstallation =
@@ -137,6 +162,19 @@ $: {
       selectedInstallation.set(currentInstallation);
     }
   }
+  // Trigger filter update when installation changes (only after mount and only if it actually changed)
+  if (isFullyMounted && resourcepacksService && previousInstallationId !== null && previousInstallationId !== selectedInstallationId) {
+    console.log(
+      "[ResourcePackBrowser] Installation changed from",
+      previousInstallationId,
+      "to:",
+      selectedInstallationId,
+      "version:",
+      currentInstallation?.version_id,
+    );
+    handleFiltersChange();
+  }
+  previousInstallationId = selectedInstallationId;
 }
 $: resourcePacks = $resourcepackDownloads || [];
 $: loading = $resourcepacksLoading;
@@ -169,11 +207,12 @@ async function applyFiltersToBackend() {
     .filter((f) => f.mode === "exclude")
     .map((f) => f.value);
 
-  // If no filters and no search, clear filters
+  // If no filters and no search and no installation version, clear filters
   if (
     !searchQuery &&
     includeCategories.length === 0 &&
-    excludeCategories.length === 0
+    excludeCategories.length === 0 &&
+    !currentInstallation
   ) {
     currentPage = 1;
     resourcepacksOffset.set(0);
@@ -200,7 +239,10 @@ async function applyFiltersToBackend() {
   const filterFacets: ResourcePackFilterFacets = {
     query: searchQuery || undefined,
     categories: categoryFilters.length > 0 ? categoryFilters : undefined,
-    game_versions: undefined,
+    game_versions:
+      smartFilteringEnabled && currentInstallation && currentInstallation.version_id
+        ? [currentInstallation.version_id]
+        : undefined,
   };
 
   console.log(
@@ -219,10 +261,22 @@ async function applyFiltersToBackend() {
   }
 }
 
-// Handle search query changes
+// Handle search query changes - debounced via handleFiltersChange
 async function handleSearch() {
   if (!resourcepacksService) return;
-  await applyFiltersToBackend();
+  handleFiltersChange();
+}
+
+// Handle smart filtering toggle
+async function onSmartFilteringChange() {
+  console.log(
+    `[ResourcePackBrowser] Smart filtering ${smartFilteringEnabled ? "enabled" : "disabled"}`,
+  );
+
+  // Re-apply filters with new setting
+  if (resourcepacksService) {
+    handleFiltersChange();
+  }
 }
 
 // Functions
@@ -290,59 +344,40 @@ function resetFilters() {
   searchQuery = "";
   currentPage = 1;
   resourcepacksOffset.set(0);
-  // Force reactivity update
+  // Force reactivity update and re-apply filters (preserving installation version)
   filters = { ...filters };
-  if (resourcepacksService) {
-    resourcepacksService.setFilter(null);
-  }
+  handleFiltersChange();
 }
 
 function toggleSection(section: keyof typeof collapsedSections) {
   collapsedSections[section] = !collapsedSections[section];
 }
 
-function generatePageNumbers(): (number | "ellipsis")[] {
-  const totalToShow = 10; // Total page numbers to show
+// Generate dynamic page numbers based on current page (reactive)
+$: pageNumbers = (() => {
   const pages: (number | "ellipsis")[] = [];
 
-  // Always show at least pages 1 through current + a few ahead
-  const minEndPage = Math.max(currentPage + 3, 10); // Show at least 10 pages or current + 3
+  // Always show pages 1, 2, 3
+  pages.push(1, 2, 3);
 
-  // Calculate the window around current page
-  const halfWindow = Math.floor(totalToShow / 2);
-  let startPage = Math.max(1, currentPage - halfWindow);
-  let endPage = Math.min(minEndPage, startPage + totalToShow - 1);
-
-  // Adjust if we're near the beginning
-  if (endPage - startPage + 1 < totalToShow && endPage < minEndPage) {
-    endPage = Math.min(minEndPage, startPage + totalToShow - 1);
-  }
-  if (endPage - startPage + 1 < totalToShow) {
-    startPage = Math.max(1, endPage - totalToShow + 1);
-  }
-
-  // If we're showing a window that doesn't start at 1, show first few pages + ellipsis
-  if (startPage > 3) {
-    pages.push(1);
-    pages.push(2);
+  // If current page is beyond 10, show ellipsis and last 7 pages
+  if (currentPage > 10) {
     pages.push("ellipsis");
-  } else if (startPage > 1) {
-    // Fill in the gap if it's small
-    for (let i = 1; i < startPage; i++) {
+    
+    // Show last 7 pages ending at current page (current-6 through current)
+    const startPage = currentPage - 6;
+    for (let i = startPage; i <= currentPage; i++) {
       pages.push(i);
     }
-  }
-
-  // Add the main window of pages
-  for (let i = startPage; i <= endPage; i++) {
-    // Don't duplicate pages we already added
-    if (!pages.includes(i)) {
+  } else {
+    // For pages 1-10, fill in the gap from 4 to 10
+    for (let i = 4; i <= 10; i++) {
       pages.push(i);
     }
   }
 
   return pages;
-}
+})();
 
 async function changePageSize(newSize: number) {
   itemsPerPage = newSize;
@@ -384,12 +419,12 @@ async function loadResourcepacks() {
 }
 
 async function handleDownload(
-  event: CustomEvent<{
+  event: {
     resourcepack: ResourcePackDownload;
     installation: KableInstallation | null;
-  }>,
+  },
 ) {
-  console.log("[ResourcePackBrowser] Download button clicked:", event.detail);
+  console.log("[ResourcePackBrowser] Download button clicked:", event);
 
   if (!resourcepacksService) {
     console.error("[ResourcePackBrowser] ResourcepacksService not initialized");
@@ -397,7 +432,7 @@ async function handleDownload(
   }
 
   try {
-    const { resourcepack, installation } = event.detail;
+    const { resourcepack, installation } = event;
     console.log(
       "[ResourcePackBrowser] Downloading resourcepack:",
       resourcepack.name,
@@ -410,14 +445,14 @@ async function handleDownload(
     console.error("[ResourcePackBrowser] Download failed:", error);
   }
 
-  dispatch("download", event.detail);
+  ondownload?.(event);
 }
 
 // Handle viewing gallery
 function handleViewGallery(
-  event: CustomEvent<{ resourcepack: ResourcePackDownload }>,
+  event: { resourcepack: ResourcePackDownload },
 ) {
-  selectedResourcePackForGallery = event.detail.resourcepack;
+  selectedResourcePackForGallery = event.resourcepack;
   showGalleryModal = true;
 }
 
@@ -430,10 +465,24 @@ function closeGallery() {
 // Initialize on mount
 onMount(async () => {
   resourcepacksService = new ResourcepacksService();
+  
+  // Read from store if available, otherwise default to global
+  if ($selectedInstallation && $selectedInstallation.id) {
+    selectedInstallationId = $selectedInstallation.id;
+  } else {
+    selectedInstallationId = "global";
+  }
+  
+  // Track initial installation to prevent double-load
+  previousInstallationId = selectedInstallationId;
+  
+  // Initialize after setting installation to avoid double-load
   await resourcepacksService.initialize();
-
-  // Default to global mode
-  selectedInstallationId = "global";
+  
+  // Mark as fully mounted after initialization
+  isFullyMounted = true;
+  
+  console.log("[ResourcePackBrowser] Fully mounted and initialized with installation:", selectedInstallationId);
 });
 </script>
 
@@ -502,6 +551,28 @@ onMount(async () => {
 
       {#if showFilters}
         <div class="filters-content">
+          <!-- Smart Filtering Toggle -->
+          <div class="filter-section smart-filter-section">
+            <label class="smart-filter-toggle">
+              <input
+                type="checkbox"
+                bind:checked={smartFilteringEnabled}
+                on:change={onSmartFilteringChange}
+              />
+              <span
+                class="toggle-label"
+                title="When enabled, only shows resource packs compatible with your installation's Minecraft version. Disable to browse all resource packs."
+              >
+                Smart Filtering
+              </span>
+            </label>
+            <p class="smart-filter-hint">
+              {smartFilteringEnabled
+                ? "Showing packs compatible with your installation"
+                : "Showing all packs (compatibility not filtered)"}
+            </p>
+          </div>
+
           <!-- Search -->
           <div class="filter-section">
             <label class="filter-label" for="search">Search</label>
@@ -622,7 +693,7 @@ onMount(async () => {
               <Icon name="arrow-left" size="sm" forceType="svg" />
             </button>
 
-            {#each generatePageNumbers() as pageItem}
+            {#each pageNumbers as pageItem}
               {#if pageItem === "ellipsis"}
                 <span class="pagination-ellipsis">...</span>
               {:else}
@@ -718,8 +789,8 @@ onMount(async () => {
                   : null}
                 loading={false}
                 isInstalled={false}
-                on:download={handleDownload}
-                on:viewGallery={handleViewGallery}
+                ondownload={handleDownload}
+                onviewgallery={handleViewGallery}
               />
             {/each}
           </div>
@@ -1136,6 +1207,43 @@ onMount(async () => {
         }
       }
     }
+
+    .smart-filter-section {
+      padding: 0.75rem;
+      background: #{"color-mix(in srgb, var(--primary), 5%, transparent)"};
+      border: 1px solid
+        #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+      border-radius: 0.375rem;
+      margin-bottom: 0.75rem;
+
+      .smart-filter-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        user-select: none;
+
+        input[type="checkbox"] {
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+          accent-color: var(--primary);
+        }
+
+        .toggle-label {
+          font-size: 0.85em;
+          font-weight: 600;
+          color: var(--text);
+        }
+      }
+
+      .smart-filter-hint {
+        margin: 0.375rem 0 0 1.5rem;
+        font-size: 0.7em;
+        color: var(--placeholder);
+        line-height: 1.3;
+      }
+    }
   }
 }
 
@@ -1204,11 +1312,10 @@ onMount(async () => {
         }
 
         &.active {
-          background: var(--primary);
-          color: white;
-          border-color: transparent;
-          box-shadow: 0 1px 3px
-            #{"color-mix(in srgb, var(--primary), 30%, transparent)"};
+          background: var(--card);
+          color: var(--primary);
+          border-color: var(--primary);
+          font-weight: 600;
         }
 
         &:disabled {

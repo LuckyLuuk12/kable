@@ -115,3 +115,11 @@ export async function getActiveCape(): Promise<
 export async function applyCape(capeId: string | null): Promise<string> {
   return await invoke("apply_cape", { capeId });
 }
+
+/**
+ * Get skin URL for a specific player by UUID
+ * @param uuid The player's Minecraft UUID
+ */
+export async function getSkinUrlByUuid(uuid: string): Promise<string> {
+  return await invoke("get_skin_url_by_uuid", { uuid });
+}
