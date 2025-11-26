@@ -348,48 +348,31 @@ function toggleSection(section: keyof typeof collapsedSections) {
   collapsedSections[section] = !collapsedSections[section];
 }
 
-function generatePageNumbers(): (number | "ellipsis")[] {
-  const totalToShow = 10; // Total page numbers to show
+// Generate dynamic page numbers based on current page (reactive)
+$: pageNumbers = (() => {
   const pages: (number | "ellipsis")[] = [];
 
-  // Always show at least pages 1 through current + a few ahead
-  const minEndPage = Math.max(currentPage + 3, 10); // Show at least 10 pages or current + 3
+  // Always show pages 1, 2, 3
+  pages.push(1, 2, 3);
 
-  // Calculate the window around current page
-  const halfWindow = Math.floor(totalToShow / 2);
-  let startPage = Math.max(1, currentPage - halfWindow);
-  let endPage = Math.min(minEndPage, startPage + totalToShow - 1);
-
-  // Adjust if we're near the beginning
-  if (endPage - startPage + 1 < totalToShow && endPage < minEndPage) {
-    endPage = Math.min(minEndPage, startPage + totalToShow - 1);
-  }
-  if (endPage - startPage + 1 < totalToShow) {
-    startPage = Math.max(1, endPage - totalToShow + 1);
-  }
-
-  // If we're showing a window that doesn't start at 1, show first few pages + ellipsis
-  if (startPage > 3) {
-    pages.push(1);
-    pages.push(2);
+  // If current page is beyond 10, show ellipsis and last 7 pages
+  if (currentPage > 10) {
     pages.push("ellipsis");
-  } else if (startPage > 1) {
-    // Fill in the gap if it's small
-    for (let i = 1; i < startPage; i++) {
+    
+    // Show last 7 pages ending at current page (current-6 through current)
+    const startPage = currentPage - 6;
+    for (let i = startPage; i <= currentPage; i++) {
       pages.push(i);
     }
-  }
-
-  // Add the main window of pages
-  for (let i = startPage; i <= endPage; i++) {
-    // Don't duplicate pages we already added
-    if (!pages.includes(i)) {
+  } else {
+    // For pages 1-10, fill in the gap from 4 to 10
+    for (let i = 4; i <= 10; i++) {
       pages.push(i);
     }
   }
 
   return pages;
-}
+})();
 
 async function changePageSize(newSize: number) {
   itemsPerPage = newSize;
@@ -673,7 +656,7 @@ onMount(async () => {
               <Icon name="arrow-left" size="sm" forceType="svg" />
             </button>
 
-            {#each generatePageNumbers() as pageItem}
+            {#each pageNumbers as pageItem}
               {#if pageItem === "ellipsis"}
                 <span class="pagination-ellipsis">...</span>
               {:else}
@@ -1292,11 +1275,10 @@ onMount(async () => {
         }
 
         &.active {
-          background: var(--primary);
-          color: white;
-          border-color: transparent;
-          box-shadow: 0 1px 3px
-            #{"color-mix(in srgb, var(--primary), 30%, transparent)"};
+          background: var(--card);
+          color: var(--primary);
+          border-color: var(--primary);
+          font-weight: 600;
         }
 
         &:disabled {
