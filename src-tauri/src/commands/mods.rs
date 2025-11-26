@@ -7,6 +7,14 @@ pub async fn get_mods(provider: ProviderKind, offset: usize) -> Result<Vec<ModIn
 }
 
 #[tauri::command]
+pub async fn get_mod_metadata(
+    installation: KableInstallation,
+    jar_filename: String,
+) -> Result<ModMetadata, String> {
+    crate::mods::get_mod_metadata(&installation, &jar_filename).await
+}
+
+#[tauri::command]
 pub async fn download_mod(
     provider: ProviderKind,
     mod_id: String,
@@ -14,6 +22,22 @@ pub async fn download_mod(
     installation: KableInstallation,
 ) -> Result<(), String> {
     crate::mods::download_mod(provider, &mod_id, version_id.as_deref(), &installation).await
+}
+
+#[tauri::command]
+pub async fn get_projects(
+    provider: ProviderKind,
+    project_ids: Vec<String>,
+) -> Result<Vec<ModInfoKind>, String> {
+    match provider {
+        ProviderKind::Modrinth => {
+            let projects = modrinth::get_projects(project_ids).await?;
+            Ok(projects.into_iter().map(ModInfoKind::Modrinth).collect())
+        }
+        ProviderKind::CurseForge => {
+            Err("CurseForge bulk project fetching not yet implemented".to_string())
+        }
+    }
 }
 
 #[tauri::command]

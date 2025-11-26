@@ -954,7 +954,7 @@ fn copy_directory_contents(
 }
 
 /// Get mods directory for an installation
-async fn get_mods_directory(installation: &KableInstallation) -> Result<PathBuf, String> {
+pub async fn get_mods_directory(installation: &KableInstallation) -> Result<PathBuf, String> {
     if let Some(ref dedicated_folder) = installation.dedicated_mods_folder {
         let path = PathBuf::from(dedicated_folder);
         let final_path = if path.is_absolute() {

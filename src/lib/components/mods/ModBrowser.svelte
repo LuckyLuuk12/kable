@@ -1160,8 +1160,7 @@ onMount(async () => {
         </div>
       {/if}
     </div>
-
-    <!-- Provider tabs -->
+    <!-- !NOTE: Provider tabs has been disabled for now since curseforge isn't supported yet (as fully as modrinth) -- >
     <div class="provider-tabs">
       {#each providers as provider}
         <button
@@ -1172,8 +1171,6 @@ onMount(async () => {
           disabled={!provider.available}
           title={provider.description}
         >
-          <!-- TODO: Change this to use the providers favicon -->
-          <!-- Use Image component so users can override icons via config/images/<key>.* or fall back to /img/<key>.png -->
           {#if provider.id === ProviderKind.Modrinth}
             <Image
               key="modrinth"
@@ -1200,6 +1197,7 @@ onMount(async () => {
         </button>
       {/each}
     </div>
+-->
   </div>
 
   <!-- Main Content Area -->
@@ -1568,6 +1566,7 @@ onMount(async () => {
     }
   }
 
+  /* !NOTE: Provider tabs has been disabled for now since curseforge isn't supported yet (as fully as modrinth)
   .provider-tabs {
     display: flex;
     gap: 0.375rem;
@@ -1615,6 +1614,7 @@ onMount(async () => {
       }
     }
   }
+  */
 }
 
 // Main Layout

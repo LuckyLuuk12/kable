@@ -706,6 +706,41 @@ pub async fn get_mod_versions(mod_id: &str) -> Result<Vec<ModrinthVersion>, Stri
     Ok(versions)
 }
 
+/// Get multiple projects by their IDs
+/// See: https://docs.modrinth.com/api/operations/getprojects/
+#[log_result]
+pub async fn get_projects(
+    project_ids: Vec<String>,
+) -> Result<Vec<ModrinthInfo>, String> {
+    if project_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let client = Client::new();
+    let ids_param = serde_json::to_string(&project_ids)
+        .map_err(|e| format!("Failed to serialize project IDs: {e}"))?;
+    let url = format!(
+        "https://api.modrinth.com/v2/projects?ids={}",
+        urlencoding::encode(&ids_param)
+    );
+
+    println!("[ModrinthAPI] Fetching {} projects", project_ids.len());
+
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth get projects failed: {e}"))?;
+
+    let projects: Vec<ModrinthInfo> = resp
+        .json()
+        .await
+        .map_err(|e| format!("Modrinth get projects parse failed: {e}"))?;
+
+    println!("[ModrinthAPI] Received {} projects", projects.len());
+    Ok(projects)
+}
+
 /// Get versions for a Modrinth project filtered by loaders and game versions
 /// See: https://docs.modrinth.com/api/operations/getprojectversions/
 #[log_result]

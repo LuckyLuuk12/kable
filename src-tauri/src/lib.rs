@@ -275,12 +275,14 @@ pub fn run() {
             // Mods commands
             commands_mods::get_mods,
             commands_mods::download_mod,
+            commands_mods::get_projects,
             commands_mods::get_project_versions,
             commands_mods::set_provider_filter,
             commands_mods::set_provider_limit,
             commands_mods::clear_provider_cache,
             commands_mods::purge_stale_provider_cache,
             commands_mods::get_extended_mod_info,
+            commands_mods::get_mod_metadata,
             // Shaders commands
             commands_shaders::get_installed_shaders,
             commands_shaders::toggle_shader,

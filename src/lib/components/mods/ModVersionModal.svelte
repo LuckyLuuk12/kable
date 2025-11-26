@@ -51,10 +51,44 @@ $: if (open && mod) {
   loadVersions();
 }
 
-$: {
-  // Apply filters when they change or installedVersion changes
-  applyFilters();
-}
+// Reactively apply filters when any filter changes
+$: filteredVersions = (() => {
+  let result = [...versions];
+
+  // Filter out the currently installed version
+  if (installedVersion) {
+    result = result.filter((v) => v.version_number !== installedVersion);
+  }
+
+  // Filter by loader
+  if (selectedLoader) {
+    result = result.filter((v) =>
+      v.loaders.some((l) => l.toLowerCase() === selectedLoader!.toLowerCase()),
+    );
+  }
+
+  // Filter by game version
+  if (selectedGameVersion) {
+    result = result.filter((v) =>
+      v.game_versions.includes(selectedGameVersion!),
+    );
+  }
+
+  // Filter by search query
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase();
+    result = result.filter(
+      (v) =>
+        v.version_number.toLowerCase().includes(query) ||
+        v.name.toLowerCase().includes(query),
+    );
+  }
+
+  // Sort by version number (descending - newest first)
+  result.sort((a, b) => compareVersions(b.version_number, a.version_number));
+
+  return result;
+})();
 
 async function loadVersions() {
   loading = true;
@@ -99,52 +133,12 @@ async function loadVersions() {
         selectedGameVersion = gameVersion;
       }
     }
-
-    applyFilters();
   } catch (e) {
     error = e instanceof Error ? e.message : String(e);
     console.error("[ModVersionModal] Failed to load versions:", e);
   } finally {
     loading = false;
   }
-}
-
-function applyFilters() {
-  let result = [...versions];
-
-  // Filter out the currently installed version
-  if (installedVersion) {
-    result = result.filter((v) => v.version_number !== installedVersion);
-  }
-
-  // Filter by loader
-  if (selectedLoader) {
-    result = result.filter((v) =>
-      v.loaders.some((l) => l.toLowerCase() === selectedLoader!.toLowerCase()),
-    );
-  }
-
-  // Filter by game version
-  if (selectedGameVersion) {
-    result = result.filter((v) =>
-      v.game_versions.includes(selectedGameVersion!),
-    );
-  }
-
-  // Filter by search query
-  if (searchQuery.trim()) {
-    const query = searchQuery.toLowerCase();
-    result = result.filter(
-      (v) =>
-        v.version_number.toLowerCase().includes(query) ||
-        v.name.toLowerCase().includes(query),
-    );
-  }
-
-  // Sort by version number (descending - newest first)
-  result.sort((a, b) => compareVersions(b.version_number, a.version_number));
-
-  filteredVersions = result;
 }
 
 function compareVersions(a: string, b: string): number {

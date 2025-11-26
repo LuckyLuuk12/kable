@@ -28,6 +28,7 @@ import type {
 import * as installationsApi from "$lib/api/installations";
 import * as modsApi from "$lib/api/mods";
 import ModVersionModal from "./ModVersionModal.svelte";
+import Image from "$lib/components/Image.svelte";
 
 export let mod: ModJarInfo;
 export let installation: KableInstallation;
@@ -39,11 +40,29 @@ let loading = false;
 let showVersionModal = false;
 let modInfoKind: ModInfoKind | null = null;
 let loadingVersions = false;
+let hasMetadata = false;
 
 $: isDisabled = mod.disabled || false;
 $: displayName = mod.mod_name || mod.file_name.replace(/\.jar$/, "");
 $: version = mod.mod_version || "Unknown";
 $: iconUrl = extendedInfo?.icon_uri || null;
+
+// Check if metadata exists when component mounts or mod changes
+$: {
+  const fileName = mod.file_name;
+  checkMetadata(fileName);
+}
+
+async function checkMetadata(fileName: string) {
+  try {
+    await modsApi.getModMetadata(installation, fileName);
+    hasMetadata = true;
+    console.log(`[InstalledModCard] ${fileName} has metadata - badge should show`);
+  } catch (error) {
+    hasMetadata = false;
+    console.log(`[InstalledModCard] ${fileName} has NO metadata:`, error);
+  }
+}
 
 async function toggleDisabled(event?: MouseEvent) {
   if (event) {
@@ -106,37 +125,50 @@ async function handleManageVersions(event: MouseEvent) {
 
   if (loadingVersions) return;
 
-  // If we don't have extended info, we can't fetch versions
-  if (!extendedInfo || !extendedInfo.page_uri) {
-    NotificationService.warning(
-      `Could not find mod information for "${displayName}". Version management requires mod metadata.`,
-    );
-    return;
-  }
-
   loadingVersions = true;
 
   try {
-    // Extract project ID from page_uri (e.g., "https://modrinth.com/mod/sodium" -> "sodium")
-    const projectId = extendedInfo.page_uri.split("/").pop();
+    let projectId: string | null = null;
+
+    // PRIORITY 1: Check for Kable metadata file (exact project ID)
+    try {
+      const metadata = await modsApi.getModMetadata(installation, mod.file_name);
+      projectId = metadata.project_id;
+      console.log(
+        `[InstalledModCard] Found metadata file with project_id: ${projectId}`,
+      );
+    } catch (metaError) {
+      console.log(
+        `[InstalledModCard] No metadata file found for ${mod.file_name}:`,
+        metaError,
+      );
+
+      // PRIORITY 2: Try to extract project ID from extended info page_uri
+      if (extendedInfo?.page_uri) {
+        projectId = extendedInfo.page_uri.split("/").pop() || null;
+        console.log(
+          `[InstalledModCard] Using project_id from page_uri: ${projectId}`,
+        );
+      }
+    }
 
     if (!projectId) {
-      NotificationService.error(
-        `Could not determine project ID for "${displayName}"`,
+      NotificationService.warning(
+        `Could not find mod information for "${displayName}". Please reinstall this mod through Kable to enable version management.`,
       );
       return;
     }
 
-    // Convert ExtendedModInfo to ModInfoKind format for the modal
+    // Convert to ModInfoKind format for the modal
     // We'll use Modrinth format since that's what we have
     modInfoKind = {
       Modrinth: {
         project_id: projectId,
         slug: projectId,
         title: displayName,
-        description: extendedInfo.description || "",
-        author: extendedInfo.authors?.[0] || "Unknown",
-        icon_url: extendedInfo.icon_uri || undefined,
+        description: extendedInfo?.description || "",
+        author: extendedInfo?.authors?.[0] || "Unknown",
+        icon_url: extendedInfo?.icon_uri || undefined,
         downloads: 0,
         follows: 0,
         updated: "",
@@ -270,6 +302,11 @@ function handleKeydown(event: KeyboardEvent) {
         {displayName}
       </div>
       <div class="mod-version">
+        {#if hasMetadata}
+          <span class="kable-badge" title="Installed with Kable - version management available">
+            <Image key="favicon" alt="Kable" width="14px" height="14px" />
+          </span>
+        {/if}
         v{version}
       </div>
     </div>
@@ -415,9 +452,23 @@ function handleKeydown(event: KeyboardEvent) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 
   &.disabled-text {
     text-decoration: line-through;
+  }
+}
+
+.kable-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  :global(img) {
+    border-radius: 2px;
   }
 }
 
@@ -425,6 +476,9 @@ function handleKeydown(event: KeyboardEvent) {
   font-size: 0.75rem;
   color: var(--text-secondary);
   font-family: monospace;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .mod-actions {
