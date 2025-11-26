@@ -317,6 +317,7 @@ pub fn run() {
             // Skins commands
             commands_skins::upload_skin_to_account,
             commands_skins::change_skin_model,
+            commands_skins::get_skin_url_by_uuid,
             commands_skins::get_current_skin_info,
             commands_skins::select_skin_file,
             commands_skins::get_all_account_skins,

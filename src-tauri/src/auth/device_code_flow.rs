@@ -2,6 +2,7 @@ use crate::auth::auth_util::{
     get_client_id, write_launcher_account, LauncherAccount, MinecraftProfile,
 };
 use crate::logging::{LogLevel, Logger};
+use base64::{engine::general_purpose, Engine as _};
 use chrono::Utc;
 use minecraft_msa_auth::MinecraftAuthorizationFlow;
 /**
@@ -23,6 +24,45 @@ use tauri;
 const DEVICE_CODE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
 const MSA_AUTHORIZE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
 const MSA_TOKEN_URL: &str = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+
+/// Download avatar from Crafatar and convert to base64 data URL
+async fn download_avatar_as_base64(uuid: &str) -> Result<String, String> {
+    let url = format!("https://crafatar.com/avatars/{}?size=64", uuid);
+    
+    Logger::console_log(
+        LogLevel::Debug,
+        &format!("📥 Downloading avatar from: {}", url),
+        None,
+    );
+    
+    let client = Client::new();
+    let response = client
+        .get(&url)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .await
+        .map_err(|e| format!("Failed to download avatar: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("Avatar download failed with status: {}", response.status()));
+    }
+    
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read avatar bytes: {}", e))?;
+    
+    let base64_data = general_purpose::STANDARD.encode(&bytes);
+    let data_url = format!("data:image/png;base64,{}", base64_data);
+    
+    Logger::console_log(
+        LogLevel::Debug,
+        &format!("✅ Avatar downloaded and converted to base64 ({} bytes)", bytes.len()),
+        None,
+    );
+    
+    Ok(data_url)
+}
 
 // Global state to store device authorization responses for polling
 static DEVICE_AUTH_STORAGE: once_cell::sync::Lazy<
@@ -537,12 +577,25 @@ pub async fn complete_minecraft_auth(
         None,
     );
 
+    // Download avatar and convert to base64, fallback to Crafatar URL if download fails
+    let avatar = match download_avatar_as_base64(&final_uuid).await {
+        Ok(base64_avatar) => base64_avatar,
+        Err(e) => {
+            Logger::console_log(
+                LogLevel::Warning,
+                &format!("⚠️ Failed to download avatar, using URL fallback: {}", e),
+                None,
+            );
+            format!("https://crafatar.com/avatars/{}?size=64", final_uuid)
+        }
+    };
+
     // Create a LauncherAccount from the Minecraft token with proper profile data
     let account = LauncherAccount {
         access_token: access_token.clone(),
         access_token_expires_at: microsoft_token.expires_at.to_rfc3339(),
         encrypted_refresh_token: microsoft_token.encrypted_refresh_token.clone(),
-        avatar: format!("https://crafatar.com/avatars/{}?size=64", final_uuid),
+        avatar,
         eligible_for_free_trials: true,
         eligible_for_migration: false,
         franchise_inventory_id: "1/Mg==".to_string(),

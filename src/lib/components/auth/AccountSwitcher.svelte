@@ -10,7 +10,7 @@ Allows quick switching between accounts and shows account health indicators.
 ```
 -->
 <script lang="ts">
-import { AuthService, currentAccount, availableAccounts, Icon } from "$lib";
+import { AuthService, currentAccount, availableAccounts, Icon, PlayerHead } from "$lib";
 import type { LauncherAccount } from "$lib";
 
 let showDropdown = false;
@@ -88,24 +88,7 @@ $: {
           title="{$currentAccount?.minecraft_profile?.name ||
             $currentAccount?.username}'s avatar"
         >
-          {#if $currentAccount?.avatar}
-            <img
-              src={$currentAccount.avatar}
-              alt="{$currentAccount.minecraft_profile?.name ||
-                $currentAccount.username}'s avatar"
-              class="avatar-image"
-            />
-          {:else}
-            <span class="avatar-letter"
-              >{(
-                $currentAccount?.minecraft_profile?.name ||
-                $currentAccount?.username ||
-                "U"
-              )
-                .charAt(0)
-                .toUpperCase()}</span
-            >
-          {/if}
+          <PlayerHead account={$currentAccount} size={36} />
         </div>
         {#if getAccountStatus($currentAccount) === "online"}
           <div class="status-indicator online" title="Online"></div>
@@ -156,24 +139,7 @@ $: {
                   title="{account.minecraft_profile?.name ||
                     account.username}'s avatar"
                 >
-                  {#if account.avatar}
-                    <img
-                      src={account.avatar}
-                      alt="{account.minecraft_profile?.name ||
-                        account.username}'s avatar"
-                      class="avatar-image"
-                    />
-                  {:else}
-                    <span class="avatar-letter"
-                      >{(
-                        account.minecraft_profile?.name ||
-                        account.username ||
-                        "U"
-                      )
-                        .charAt(0)
-                        .toUpperCase()}</span
-                    >
-                  {/if}
+                  <PlayerHead account={account} size={36} />
                 </div>
                 {#if getAccountStatus(account) === "online"}
                   <div class="status-indicator online" title="Online"></div>
@@ -314,13 +280,6 @@ $: {
 
   .avatar-letter {
     user-select: none;
-  }
-
-  .avatar-image {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    border-radius: 50%;
   }
 }
 

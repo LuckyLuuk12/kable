@@ -22,6 +22,7 @@ import {
   SettingsService,
   InstallationService,
   Icon,
+  PlayerHead,
   logsService,
   LogsService,
   IconService,
@@ -486,15 +487,7 @@ onDestroy(() => {
         class:active={currentPath === "/profile"}
       >
         <div class="user-avatar">
-          {#if $currentAccount?.avatar}
-            <img
-              src={$currentAccount.avatar}
-              alt="User Avatar"
-              class="avatar-image"
-            />
-          {:else}
-            <Icon name="user" size="lg" />
-          {/if}
+          <PlayerHead account={$currentAccount} size={40} />
         </div>
         {#if !isNavCollapsed}
           <div class="header-content">
@@ -637,14 +630,6 @@ onDestroy(() => {
       flex-shrink: 0;
       overflow: hidden;
       position: relative;
-    }
-    .user-avatar .avatar-image {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      border-radius: 40%;
-      display: block;
-      background: color-mix(in srgb, var(--primary), 10%, transparent);
     }
 
     .header-content {

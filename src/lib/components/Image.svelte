@@ -34,6 +34,22 @@ let imgElement: HTMLImageElement;
 
 onMount(async () => {
   if (!key) return;
+  
+  // If key is already a full URL (http/https/data), use it directly
+  if (key.startsWith("http://") || key.startsWith("https://") || key.startsWith("data:")) {
+    resolvedSrc = key;
+    // Log abbreviated version for data URLs to avoid console spam
+    const logKey = key.startsWith("data:") ? `data:${key.substring(5, 30)}...` : key;
+    console.log(`Image component using direct URL: ${logKey}`);
+    setTimeout(() => {
+      if (imgElement && imgElement.complete && imgElement.naturalHeight !== 0) {
+        isVisible = true;
+        console.log(`Image loaded successfully from direct URL: ${logKey}`);
+      }
+    }, 0);
+    return;
+  }
+  
   try {
     // Call the backend command we added which prefers user images and falls back to /img/<key>.png
     const result = await invoke<string>("resolve_image_path", { key });
