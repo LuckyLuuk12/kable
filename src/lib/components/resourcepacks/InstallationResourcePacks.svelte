@@ -7,10 +7,7 @@ Features:
 - Enable/disable/remove packs
 - Drag-drop ordering (when merging enabled)
 - Pack merging toggle
-- Click pack card to toggle enabled state
 - Visit pack pages
-
-@event packChanged - Fires when a pack is modified
 -->
 <script lang="ts">
 import { onMount } from "svelte";
@@ -650,7 +647,7 @@ onMount(() => {
                       {pack}
                       installation={currentInstallation}
                       extendedInfo={extendedPackInfo[pack.file_name]}
-                      on:packChanged={handlePackChanged}
+                      onpackchanged={handlePackChanged}
                     />
                   </div>
                 {/each}
@@ -662,7 +659,7 @@ onMount(() => {
                     {pack}
                     installation={currentInstallation}
                     extendedInfo={extendedPackInfo[pack.file_name]}
-                    on:packChanged={handlePackChanged}
+                    onpackchanged={handlePackChanged}
                   />
                 {/each}
               </div>

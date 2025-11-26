@@ -6,14 +6,12 @@ import type { KableInstallation } from "$lib";
 let currentTab: "installed" | "browse" = "installed";
 
 // Handle mod download from browser
-async function handleModDownload(
-  event: CustomEvent<{
-    modId: string;
-    versionId?: string;
-    installation: KableInstallation;
-  }>,
-) {
-  const { modId, versionId, installation } = event.detail;
+async function handleModDownload(event: {
+  modId: string;
+  versionId?: string;
+  installation: KableInstallation;
+}) {
+  const { modId, versionId, installation } = event;
 
   try {
     // Use the ModsService to download the mod
@@ -60,7 +58,7 @@ async function handleModDownload(
     {#if currentTab === "installed"}
       <InstallationMods />
     {:else if currentTab === "browse"}
-      <ModBrowser on:downloadMod={handleModDownload} />
+      <ModBrowser ondownloadmod={handleModDownload} />
     {/if}
   </div>
 </div>

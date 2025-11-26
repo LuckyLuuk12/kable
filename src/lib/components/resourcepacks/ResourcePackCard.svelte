@@ -9,17 +9,15 @@ author, downloads, and gallery preview. Supports grid, list, and compact views.
 @prop {KableInstallation | null} [installation=null] - Target installation
 @prop {boolean} [loading=false] - Whether pack is being downloaded
 @prop {boolean} [isInstalled=false] - Whether pack is already installed
-
-@event download - Fires when download button is clicked
-@event viewGallery - Fires when gallery preview button is clicked
+@prop {((event: { resourcepack: ResourcePackDownload; installation: KableInstallation | null }) => void) | undefined} ondownload - Callback when download button is clicked
+@prop {((event: { resourcepack: ResourcePackDownload }) => void) | undefined} onviewgallery - Callback when gallery preview button is clicked
 
 @example
 ```svelte
-◄ResourcePackCard {resourcepack} viewMode="grid" on:download={handleDownload} /►
+◄ResourcePackCard {resourcepack} viewMode="grid" ondownload={handleDownload} /►
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher } from "svelte";
 import { Icon } from "$lib";
 import type { ResourcePackDownload, KableInstallation } from "$lib";
 import { openUrl } from "$lib/api/system";
@@ -29,14 +27,8 @@ export let viewMode: "grid" | "list" | "compact" = "grid";
 export let installation: KableInstallation | null = null;
 export let loading = false;
 export let isInstalled = false;
-
-const dispatch = createEventDispatcher<{
-  download: {
-    resourcepack: ResourcePackDownload;
-    installation: KableInstallation | null;
-  };
-  viewGallery: { resourcepack: ResourcePackDownload };
-}>();
+export let ondownload: ((event: { resourcepack: ResourcePackDownload; installation: KableInstallation | null }) => void) | undefined = undefined;
+export let onviewgallery: ((event: { resourcepack: ResourcePackDownload }) => void) | undefined = undefined;
 
 $: hasGallery =
   (resourcepack.gallery && resourcepack.gallery.length > 0) ||
@@ -87,14 +79,14 @@ function handleDownload(e: MouseEvent) {
     "installation:",
     installation?.name || "none",
   );
-  dispatch("download", { resourcepack, installation });
+  ondownload?.({ resourcepack, installation });
 }
 
 // Handle gallery view
 function handleViewGallery(e: MouseEvent) {
   e.stopPropagation(); // Prevent card click
   if (hasGallery) {
-    dispatch("viewGallery", { resourcepack });
+    onviewgallery?.({ resourcepack });
   }
 }
 

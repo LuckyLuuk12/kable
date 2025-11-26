@@ -7,15 +7,15 @@ Provides interface for discovering, searching, and filtering mods with support f
 - Pagination and infinite scroll
 - Provider switching
 
-@event downloadMod - Fires when user clicks to download a mod
+@prop {((event: { modId: string; versionId?: string; installation: KableInstallation }) => void) | undefined} ondownloadmod - Callback when user clicks to download a mod
 
 @example
 ```svelte
-◄ModBrowser on:downloadMod={handleDownload} /►
+◄ModBrowser ondownloadmod={handleDownload} /►
 ```
 -->
 <script lang="ts">
-import { onMount, createEventDispatcher } from "svelte";
+import { onMount } from "svelte";
 import { get } from "svelte/store";
 import {
   Icon,
@@ -45,13 +45,7 @@ import type {
 
 type ViewMode = "grid" | "list" | "compact";
 
-const dispatch = createEventDispatcher<{
-  downloadMod: {
-    modId: string;
-    versionId?: string;
-    installation: KableInstallation;
-  };
-}>();
+export let ondownloadmod: ((event: { modId: string; versionId?: string; installation: KableInstallation }) => void) | undefined = undefined;
 
 // Browser state
 let currentProvider: ProviderKind = ProviderKind.Modrinth;
@@ -861,21 +855,19 @@ function handleModDownload(mod: ModInfoKind) {
     return;
   }
 
-  dispatch("downloadMod", {
+  ondownloadmod?.({
     modId,
     versionId,
     installation: currentInstallation,
   });
 }
 
-function handleDownloadVersion(
-  event: CustomEvent<{
-    mod: ModInfoKind;
-    versionId: string;
-    versionNumber: string;
-  }>,
-) {
-  const { mod, versionId } = event.detail;
+function handleDownloadVersion(event: {
+  mod: ModInfoKind;
+  versionId: string;
+  versionNumber: string;
+}) {
+  const { mod, versionId } = event;
 
   if (!currentInstallation) {
     alert("Please select an installation first");
@@ -907,7 +899,7 @@ function handleDownloadVersion(
   }
 
   // Dispatch with specific version ID
-  dispatch("downloadMod", {
+  ondownloadmod?.({
     modId,
     versionId,
     installation: currentInstallation,
@@ -960,12 +952,12 @@ function handleModInfo(mod: ModInfoKind) {
 }
 
 // Event handlers for ModCard component
-function handleDownloadMod(event: CustomEvent<{ mod: ModInfoKind }>) {
-  handleModDownload(event.detail.mod);
+function handleDownloadMod(event: { mod: ModInfoKind }) {
+  handleModDownload(event.mod);
 }
 
-function handleInfoMod(event: CustomEvent<{ mod: ModInfoKind }>) {
-  handleModInfo(event.detail.mod);
+function handleInfoMod(event: { mod: ModInfoKind }) {
+  handleModInfo(event.mod);
 }
 
 function getModDisplayInfo(mod: ModInfoKind): {
@@ -1482,9 +1474,9 @@ onMount(async () => {
                 loading={false}
                 isInstalled={installedInfo.isInstalled}
                 installedVersion={installedInfo.version}
-                on:downloadMod={handleDownloadMod}
-                on:downloadVersion={handleDownloadVersion}
-                on:infoMod={handleInfoMod}
+                ondownloadmod={handleDownloadMod}
+                ondownloadversion={handleDownloadVersion}
+                oninfomod={handleInfoMod}
               />
             {/each}
           </div>

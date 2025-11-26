@@ -9,17 +9,15 @@ author, downloads, and gallery preview. Supports grid, list, and compact views.
 @prop {KableInstallation | null} [installation=null] - Target installation
 @prop {boolean} [loading=false] - Whether pack is being downloaded
 @prop {boolean} [isInstalled=false] - Whether pack is already installed
-
-@event download - Fires when download button is clicked
-@event viewGallery - Fires when gallery preview button is clicked
+@prop {((event: { shader: ShaderDownload; installation: KableInstallation | null }) => void) | undefined} ondownload - Callback when download button is clicked
+@prop {((event: { shader: ShaderDownload }) => void) | undefined} onviewgallery - Callback when gallery preview button is clicked
 
 @example
 ```svelte
-◄ShaderCard {shader} viewMode="grid" on:download={handleDownload} /►
+◄ShaderCard {shader} viewMode="grid" ondownload={handleDownload} /►
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher } from "svelte";
 import { Icon } from "$lib";
 import type { ShaderDownload, KableInstallation } from "$lib";
 import { openUrl } from "$lib/api/system";
@@ -29,11 +27,8 @@ export let viewMode: "grid" | "list" | "compact" = "grid";
 export let installation: KableInstallation | null = null;
 export let loading = false;
 export let isInstalled = false;
-
-const dispatch = createEventDispatcher<{
-  download: { shader: ShaderDownload; installation: KableInstallation | null };
-  viewGallery: { shader: ShaderDownload };
-}>();
+export let ondownload: ((event: { shader: ShaderDownload; installation: KableInstallation | null }) => void) | undefined = undefined;
+export let onviewgallery: ((event: { shader: ShaderDownload }) => void) | undefined = undefined;
 
 $: hasGallery =
   (shader.gallery && shader.gallery.length > 0) || !!shader.featured_gallery;
@@ -72,14 +67,14 @@ function getLoaderColor(loader: string): string {
 // Handle download
 function handleDownload(e: MouseEvent) {
   e.stopPropagation();
-  dispatch("download", { shader, installation });
+  ondownload?.({ shader, installation });
 }
 
 // Handle gallery view
 function handleViewGallery(e: MouseEvent) {
   e.stopPropagation(); // Prevent card click
   if (hasGallery) {
-    dispatch("viewGallery", { shader });
+    onviewgallery?.({ shader });
   }
 }
 

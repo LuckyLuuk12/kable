@@ -8,17 +8,15 @@ Allows users to browse, filter, and select specific versions to install.
 @prop {KableInstallation | null} [currentInstallation=null] - Current installation context
 @prop {boolean} [open=false] - Whether the modal is open
 @prop {string | null} [installedVersion=null] - Currently installed version to filter out
-
-@event close - Fires when modal is closed
-@event selectVersion - Fires when a version is selected for download
+@prop {(() => void) | undefined} onclose - Callback when modal is closed
+@prop {((event: { versionId: string; versionNumber: string }) => void) | undefined} onselectversion - Callback when a version is selected
 
 @example
 ```svelte
-◄ModVersionModal {mod} {currentInstallation} {installedVersion} bind:open on:selectVersion={handleVersionSelect} /►
+◄ModVersionModal {mod} {currentInstallation} {installedVersion} bind:open onclose={handleClose} onselectversion={handleVersionSelect} /►
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher } from "svelte";
 import { Icon, ProviderKind as ProviderKindEnum } from "$lib";
 import * as modsApi from "$lib/api/mods";
 import type {
@@ -32,11 +30,8 @@ export let mod: ModInfoKind;
 export let currentInstallation: KableInstallation | null = null;
 export let open = false;
 export let installedVersion: string | null = null;
-
-const dispatch = createEventDispatcher<{
-  close: void;
-  selectVersion: { versionId: string; versionNumber: string };
-}>();
+export let onclose: (() => void) | undefined = undefined;
+export let onselectversion: ((event: { versionId: string; versionNumber: string }) => void) | undefined = undefined;
 
 let versions: ModrinthVersion[] = [];
 let filteredVersions: ModrinthVersion[] = [];
@@ -216,11 +211,11 @@ function getModTitle(mod: ModInfoKind): string {
 
 function handleClose() {
   open = false;
-  dispatch("close");
+  onclose?.();
 }
 
 function handleSelectVersion(version: ModrinthVersion) {
-  dispatch("selectVersion", {
+  onselectversion?.({
     versionId: version.id,
     versionNumber: version.version_number,
   });

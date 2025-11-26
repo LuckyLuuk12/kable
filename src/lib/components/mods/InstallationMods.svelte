@@ -540,7 +540,7 @@ onMount(() => {
                   {mod}
                   installation={currentInstallation}
                   extendedInfo={$extendedModInfo[mod.file_name]}
-                  on:modChanged={handleModChanged}
+                  onmodchanged={handleModChanged}
                 />
               {/each}
             </div>

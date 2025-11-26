@@ -9,17 +9,15 @@ Shows mod icon, name, version, and provides actions:
 @prop {ModJarInfo} mod - The installed mod data
 @prop {KableInstallation} installation - The installation this mod belongs to
 @prop {ExtendedModInfo | null} extendedInfo - Extended mod information from provider
-
-@event modChanged - Fires when mod is toggled, removed, or updated
-@event openVersions - Fires when user wants to manage versions
+@prop {(() => void) | undefined} onmodchanged - Callback when mod is toggled, removed, or updated
+@prop {((event: { mod: ModJarInfo }) => void) | undefined} onopenversions - Callback when user wants to manage versions
 
 @example
 ```svelte
-◄InstalledModCard {mod} {installation} {extendedInfo} on:modChanged on:openVersions /►
+◄InstalledModCard {mod} {installation} {extendedInfo} onmodchanged={handleChange} onopenversions={handleVersions} /►
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher } from "svelte";
 import { Icon, NotificationService, ProviderKind } from "$lib";
 import type {
   ModJarInfo,
@@ -34,11 +32,8 @@ import ModVersionModal from "./ModVersionModal.svelte";
 export let mod: ModJarInfo;
 export let installation: KableInstallation;
 export let extendedInfo: ExtendedModInfo | null = null;
-
-const dispatch = createEventDispatcher<{
-  modChanged: void;
-  openVersions: { mod: ModJarInfo };
-}>();
+export let onmodchanged: (() => void) | undefined = undefined;
+export let onopenversions: ((event: { mod: ModJarInfo }) => void) | undefined = undefined;
 
 let loading = false;
 let showVersionModal = false;
@@ -73,7 +68,7 @@ async function toggleDisabled(event?: MouseEvent) {
         : `Enabled "${displayName}"`,
     );
 
-    dispatch("modChanged");
+    onmodchanged?.();
   } catch (error) {
     NotificationService.error(`Failed to toggle mod: ${error}`);
     console.error("Failed to toggle mod:", error);
@@ -97,7 +92,7 @@ async function handleRemove(event: MouseEvent) {
   try {
     await installationsApi.deleteMod(installation, mod.file_name);
     NotificationService.success(`Removed "${displayName}"`);
-    dispatch("modChanged");
+    onmodchanged?.();
   } catch (error) {
     NotificationService.error(`Failed to remove mod: ${error}`);
     console.error("Failed to remove mod:", error);
@@ -181,7 +176,7 @@ async function handleManageVersions(event: MouseEvent) {
     }
 
     showVersionModal = true;
-    dispatch("openVersions", { mod });
+    onopenversions?.({ mod });
   } catch (error) {
     NotificationService.error(`Failed to load versions: ${error}`);
     console.error("Failed to load versions:", error);
@@ -205,9 +200,9 @@ function extractGameVersion(versionId: string): string | null {
 }
 
 async function handleVersionSelect(
-  event: CustomEvent<{ versionId: string; versionNumber: string }>,
+  event: { versionId: string; versionNumber: string },
 ) {
-  const { versionId, versionNumber } = event.detail;
+  const { versionId, versionNumber } = event;
 
   if (!modInfoKind || !("Modrinth" in modInfoKind)) return;
 
@@ -223,7 +218,7 @@ async function handleVersionSelect(
       `Downloading "${displayName}" v${versionNumber}`,
     );
     showVersionModal = false;
-    dispatch("modChanged");
+    onmodchanged?.();
   } catch (error) {
     NotificationService.error(`Failed to download version: ${error}`);
     console.error("Failed to download version:", error);
@@ -311,7 +306,7 @@ function handleKeydown(event: KeyboardEvent) {
     currentInstallation={installation}
     installedVersion={version}
     bind:open={showVersionModal}
-    on:selectVersion={handleVersionSelect}
+    onselectversion={handleVersionSelect}
   />
 {/if}
 

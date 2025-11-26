@@ -2,23 +2,21 @@
 InstalledResourcePackCard - Advanced card for displaying installed resource packs
 
 Shows pack icon, name, and provides actions:
-- Click card to toggle enable/disable
+- Enable/Disable button
 - Remove button
 - Visit page button
 
 @prop {any} pack - The installed resource pack data
 @prop {KableInstallation} installation - The installation this pack belongs to
 @prop {any | null} extendedInfo - Extended pack information from provider
-
-@event packChanged - Fires when pack is toggled or removed
+@prop {(() =► void) | undefined} onpackchanged - Callback invoked when pack is toggled or removed
 
 @example
 ```svelte
-◄InstalledResourcePackCard {pack} {installation} {extendedInfo} on:packChanged /►
+◄InstalledResourcePackCard {pack} {installation} {extendedInfo} onpackchanged={handleChange} /►
 ```
 -->
 <script lang="ts">
-import { createEventDispatcher } from "svelte";
 import { Icon, NotificationService } from "$lib";
 import type { KableInstallation } from "$lib";
 import * as installationsApi from "$lib/api/installations";
@@ -26,10 +24,7 @@ import * as installationsApi from "$lib/api/installations";
 export let pack: any; // ResourcePackInfo type (to be defined)
 export let installation: KableInstallation;
 export let extendedInfo: any | null = null; // ExtendedResourcePackInfo type (to be defined)
-
-const dispatch = createEventDispatcher<{
-  packChanged: void;
-}>();
+export let onpackchanged: (() => void) | undefined = undefined;
 
 let loading = false;
 
@@ -58,7 +53,7 @@ async function toggleDisabled(event: MouseEvent) {
         : `Enabled "${displayName}"`,
     );
 
-    dispatch("packChanged");
+    onpackchanged?.();
   } catch (error) {
     NotificationService.error(`Failed to toggle pack: ${error}`);
     console.error("Failed to toggle pack:", error);
@@ -81,7 +76,7 @@ async function handleRemove(event: MouseEvent) {
   try {
     await installationsApi.deleteResourcePack(installation, pack.file_name);
     NotificationService.success(`Removed "${displayName}"`);
-    dispatch("packChanged");
+    onpackchanged?.();
   } catch (error) {
     NotificationService.error(`Failed to remove pack: ${error}`);
     console.error("Failed to remove pack:", error);

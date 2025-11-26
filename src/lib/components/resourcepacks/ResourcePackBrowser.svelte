@@ -7,15 +7,15 @@ Provides interface for discovering resource packs with support for:
 - Advanced filtering (categories, versions, sorting)
 - Gallery preview modal
 
-@event download - Fires when user clicks to download a resource pack
+@prop {((event: { resourcepack: ResourcePackDownload; installation: KableInstallation | null }) => void) | undefined} ondownload - Callback when user clicks to download a resource pack
 
 @example
 ```svelte
-◄ResourcePackBrowser on:download={handleDownload} /►
+◄ResourcePackBrowser ondownload={handleDownload} /►
 ```
 -->
 <script lang="ts">
-import { onMount, createEventDispatcher } from "svelte";
+import { onMount } from "svelte";
 import {
   Icon,
   ResourcepacksService,
@@ -38,12 +38,7 @@ import type {
 type ViewMode = "grid" | "list" | "compact";
 type InstallMode = "dedicated" | "global";
 
-const dispatch = createEventDispatcher<{
-  download: {
-    resourcepack: ResourcePackDownload;
-    installation: KableInstallation | null;
-  };
-}>();
+export let ondownload: ((event: { resourcepack: ResourcePackDownload; installation: KableInstallation | null }) => void) | undefined = undefined;
 
 // Browser state
 let viewMode: ViewMode = "grid";
@@ -52,6 +47,7 @@ let searchQuery = "";
 let selectedInstallationId: string = "global";
 let currentInstallation: KableInstallation | null = null;
 let showFilters = true;
+let smartFilteringEnabled = true; // Auto-apply game version filter
 
 // Gallery modal state
 let showGalleryModal = false;
@@ -79,6 +75,7 @@ let maxPageReached = 1;
 // Service instance
 let resourcepacksService: ResourcepacksService;
 let isFullyMounted = false;
+let previousInstallationId: string | null = null;
 
 // View mode options
 const viewModes = [
@@ -165,16 +162,19 @@ $: {
       selectedInstallation.set(currentInstallation);
     }
   }
-  // Trigger filter update when installation changes (only after mount)
-  if (isFullyMounted && resourcepacksService) {
+  // Trigger filter update when installation changes (only after mount and only if it actually changed)
+  if (isFullyMounted && resourcepacksService && previousInstallationId !== null && previousInstallationId !== selectedInstallationId) {
     console.log(
-      "[ResourcePackBrowser] Installation changed to:",
+      "[ResourcePackBrowser] Installation changed from",
+      previousInstallationId,
+      "to:",
       selectedInstallationId,
       "version:",
       currentInstallation?.version_id,
     );
     handleFiltersChange();
   }
+  previousInstallationId = selectedInstallationId;
 }
 $: resourcePacks = $resourcepackDownloads || [];
 $: loading = $resourcepacksLoading;
@@ -240,7 +240,7 @@ async function applyFiltersToBackend() {
     query: searchQuery || undefined,
     categories: categoryFilters.length > 0 ? categoryFilters : undefined,
     game_versions:
-      currentInstallation && currentInstallation.version_id
+      smartFilteringEnabled && currentInstallation && currentInstallation.version_id
         ? [currentInstallation.version_id]
         : undefined,
   };
@@ -265,6 +265,18 @@ async function applyFiltersToBackend() {
 async function handleSearch() {
   if (!resourcepacksService) return;
   handleFiltersChange();
+}
+
+// Handle smart filtering toggle
+async function onSmartFilteringChange() {
+  console.log(
+    `[ResourcePackBrowser] Smart filtering ${smartFilteringEnabled ? "enabled" : "disabled"}`,
+  );
+
+  // Re-apply filters with new setting
+  if (resourcepacksService) {
+    handleFiltersChange();
+  }
 }
 
 // Functions
@@ -424,12 +436,12 @@ async function loadResourcepacks() {
 }
 
 async function handleDownload(
-  event: CustomEvent<{
+  event: {
     resourcepack: ResourcePackDownload;
     installation: KableInstallation | null;
-  }>,
+  },
 ) {
-  console.log("[ResourcePackBrowser] Download button clicked:", event.detail);
+  console.log("[ResourcePackBrowser] Download button clicked:", event);
 
   if (!resourcepacksService) {
     console.error("[ResourcePackBrowser] ResourcepacksService not initialized");
@@ -437,7 +449,7 @@ async function handleDownload(
   }
 
   try {
-    const { resourcepack, installation } = event.detail;
+    const { resourcepack, installation } = event;
     console.log(
       "[ResourcePackBrowser] Downloading resourcepack:",
       resourcepack.name,
@@ -450,14 +462,14 @@ async function handleDownload(
     console.error("[ResourcePackBrowser] Download failed:", error);
   }
 
-  dispatch("download", event.detail);
+  ondownload?.(event);
 }
 
 // Handle viewing gallery
 function handleViewGallery(
-  event: CustomEvent<{ resourcepack: ResourcePackDownload }>,
+  event: { resourcepack: ResourcePackDownload },
 ) {
-  selectedResourcePackForGallery = event.detail.resourcepack;
+  selectedResourcePackForGallery = event.resourcepack;
   showGalleryModal = true;
 }
 
@@ -470,14 +482,19 @@ function closeGallery() {
 // Initialize on mount
 onMount(async () => {
   resourcepacksService = new ResourcepacksService();
-  await resourcepacksService.initialize();
-
+  
   // Read from store if available, otherwise default to global
   if ($selectedInstallation && $selectedInstallation.id) {
     selectedInstallationId = $selectedInstallation.id;
   } else {
     selectedInstallationId = "global";
   }
+  
+  // Track initial installation to prevent double-load
+  previousInstallationId = selectedInstallationId;
+  
+  // Initialize after setting installation to avoid double-load
+  await resourcepacksService.initialize();
   
   // Mark as fully mounted after initialization
   isFullyMounted = true;
@@ -551,6 +568,28 @@ onMount(async () => {
 
       {#if showFilters}
         <div class="filters-content">
+          <!-- Smart Filtering Toggle -->
+          <div class="filter-section smart-filter-section">
+            <label class="smart-filter-toggle">
+              <input
+                type="checkbox"
+                bind:checked={smartFilteringEnabled}
+                on:change={onSmartFilteringChange}
+              />
+              <span
+                class="toggle-label"
+                title="When enabled, only shows resource packs compatible with your installation's Minecraft version. Disable to browse all resource packs."
+              >
+                Smart Filtering
+              </span>
+            </label>
+            <p class="smart-filter-hint">
+              {smartFilteringEnabled
+                ? "Showing packs compatible with your installation"
+                : "Showing all packs (compatibility not filtered)"}
+            </p>
+          </div>
+
           <!-- Search -->
           <div class="filter-section">
             <label class="filter-label" for="search">Search</label>
@@ -767,8 +806,8 @@ onMount(async () => {
                   : null}
                 loading={false}
                 isInstalled={false}
-                on:download={handleDownload}
-                on:viewGallery={handleViewGallery}
+                ondownload={handleDownload}
+                onviewgallery={handleViewGallery}
               />
             {/each}
           </div>
@@ -1183,6 +1222,43 @@ onMount(async () => {
             }
           }
         }
+      }
+    }
+
+    .smart-filter-section {
+      padding: 0.75rem;
+      background: #{"color-mix(in srgb, var(--primary), 5%, transparent)"};
+      border: 1px solid
+        #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+      border-radius: 0.375rem;
+      margin-bottom: 0.75rem;
+
+      .smart-filter-toggle {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+        user-select: none;
+
+        input[type="checkbox"] {
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+          accent-color: var(--primary);
+        }
+
+        .toggle-label {
+          font-size: 0.85em;
+          font-weight: 600;
+          color: var(--text);
+        }
+      }
+
+      .smart-filter-hint {
+        margin: 0.375rem 0 0 1.5rem;
+        font-size: 0.7em;
+        color: var(--placeholder);
+        line-height: 1.3;
       }
     }
   }

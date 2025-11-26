@@ -90,7 +90,6 @@ export async function disableMod(
 ): Promise<void> {
   return await invoke("disable_mod", {
     installation,
-    file_name: fileName,
     fileName,
   });
 }
@@ -102,7 +101,6 @@ export async function enableMod(
 ): Promise<void> {
   return await invoke("enable_mod", {
     installation,
-    file_name: fileName,
     fileName,
   });
 }
@@ -114,7 +112,6 @@ export async function toggleModDisabled(
 ): Promise<boolean> {
   return await invoke("toggle_mod_disabled", {
     installation,
-    file_name: fileName,
     fileName,
   });
 }
@@ -137,7 +134,7 @@ export async function disableResourcePack(
 ): Promise<void> {
   return await invoke("disable_resourcepack_for_installation", {
     installation,
-    file_name: fileName,
+    fileName,
   });
 }
 
@@ -148,7 +145,7 @@ export async function enableResourcePack(
 ): Promise<void> {
   return await invoke("enable_resourcepack_for_installation", {
     installation,
-    file_name: fileName,
+    fileName,
   });
 }
 
@@ -159,7 +156,7 @@ export async function toggleResourcePackDisabled(
 ): Promise<boolean> {
   return await invoke("toggle_resourcepack_disabled_for_installation", {
     installation,
-    file_name: fileName,
+    fileName,
   });
 }
 
