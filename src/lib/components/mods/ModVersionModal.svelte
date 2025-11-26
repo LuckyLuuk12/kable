@@ -8,8 +8,8 @@ Allows users to browse, filter, and select specific versions to install.
 @prop {KableInstallation | null} [currentInstallation=null] - Current installation context
 @prop {boolean} [open=false] - Whether the modal is open
 @prop {string | null} [installedVersion=null] - Currently installed version to filter out
-@prop {(() => void) | undefined} onclose - Callback when modal is closed
-@prop {((event: { versionId: string; versionNumber: string }) => void) | undefined} onselectversion - Callback when a version is selected
+@prop {(() =► void) | undefined} onclose - Callback when modal is closed
+@prop {((event: { versionId: string; versionNumber: string }) =► void) | undefined} onselectversion - Callback when a version is selected
 
 @example
 ```svelte

@@ -7,7 +7,7 @@ Provides interface for discovering, searching, and filtering mods with support f
 - Pagination and infinite scroll
 - Provider switching
 
-@prop {((event: { modId: string; versionId?: string; installation: KableInstallation }) => void) | undefined} ondownloadmod - Callback when user clicks to download a mod
+@prop {((event: { modId: string; versionId?: string; installation: KableInstallation }) =► void) | undefined} ondownloadmod - Callback when user clicks to download a mod
 
 @example
 ```svelte

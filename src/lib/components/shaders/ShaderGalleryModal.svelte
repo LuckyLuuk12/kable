@@ -6,7 +6,7 @@ shader pack screenshots and preview images.
 
 @prop {Object | null} [shader=null] - Shader pack with gallery images
 @prop {boolean} [visible=false] - Whether modal is visible
-@prop {(() => void) | undefined} onclose - Callback when modal is closed
+@prop {(() =► void) | undefined} onclose - Callback when modal is closed
 
 @example
 ```svelte

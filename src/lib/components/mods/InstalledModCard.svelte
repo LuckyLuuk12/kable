@@ -9,8 +9,8 @@ Shows mod icon, name, version, and provides actions:
 @prop {ModJarInfo} mod - The installed mod data
 @prop {KableInstallation} installation - The installation this mod belongs to
 @prop {ExtendedModInfo | null} extendedInfo - Extended mod information from provider
-@prop {(() => void) | undefined} onmodchanged - Callback when mod is toggled, removed, or updated
-@prop {((event: { mod: ModJarInfo }) => void) | undefined} onopenversions - Callback when user wants to manage versions
+@prop {(() =► void) | undefined} onmodchanged - Callback when mod is toggled, removed, or updated
+@prop {((event: { mod: ModJarInfo }) =► void) | undefined} onopenversions - Callback when user wants to manage versions
 
 @example
 ```svelte

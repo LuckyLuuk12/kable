@@ -9,8 +9,8 @@ author, downloads, and gallery preview. Supports grid, list, and compact views.
 @prop {KableInstallation | null} [installation=null] - Target installation
 @prop {boolean} [loading=false] - Whether pack is being downloaded
 @prop {boolean} [isInstalled=false] - Whether pack is already installed
-@prop {((event: { shader: ShaderDownload; installation: KableInstallation | null }) => void) | undefined} ondownload - Callback when download button is clicked
-@prop {((event: { shader: ShaderDownload }) => void) | undefined} onviewgallery - Callback when gallery preview button is clicked
+@prop {((event: { shader: ShaderDownload; installation: KableInstallation | null }) =► void) | undefined} ondownload - Callback when download button is clicked
+@prop {((event: { shader: ShaderDownload }) =► void) | undefined} onviewgallery - Callback when gallery preview button is clicked
 
 @example
 ```svelte

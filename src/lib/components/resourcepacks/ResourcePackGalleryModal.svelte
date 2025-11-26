@@ -6,7 +6,7 @@ resource pack screenshots and preview images.
 
 @prop {Object | null} [ResourcePack=null] - Resource pack with gallery images
 @prop {boolean} [visible=false] - Whether modal is visible
-@prop {(() => void) | undefined} onclose - Callback when modal is closed
+@prop {(() =► void) | undefined} onclose - Callback when modal is closed
 
 @example
 ```svelte

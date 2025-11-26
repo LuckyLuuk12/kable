@@ -7,7 +7,7 @@ Provides interface for discovering resource packs with support for:
 - Advanced filtering (categories, versions, sorting)
 - Gallery preview modal
 
-@prop {((event: { resourcepack: ResourcePackDownload; installation: KableInstallation | null }) => void) | undefined} ondownload - Callback when user clicks to download a resource pack
+@prop {((event: { resourcepack: ResourcePackDownload; installation: KableInstallation | null }) =► void) | undefined} ondownload - Callback when user clicks to download a resource pack
 
 @example
 ```svelte

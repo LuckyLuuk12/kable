@@ -7,7 +7,7 @@ Provides interface for discovering shader packs with support for:
 - Advanced filtering (categories, versions, sorting)
 - Gallery preview modal
 
-@prop {((event: { shader: ShaderDownload; installation: KableInstallation | null }) => void) | undefined} ondownload - Callback when user clicks to download a shader pack
+@prop {((event: { shader: ShaderDownload; installation: KableInstallation | null }) =► void) | undefined} ondownload - Callback when user clicks to download a shader pack
 
 @example
 ```svelte

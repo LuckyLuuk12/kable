@@ -10,9 +10,9 @@ author, downloads, and installation status. Supports grid, list, and compact vie
 @prop {boolean} [loading=false] - Whether mod is being downloaded
 @prop {boolean} [isInstalled=false] - Whether mod is already installed
 @prop {string | null} [installedVersion=null] - Version number of installed mod
-@prop {((event: { mod: ModInfoKind }) => void) | undefined} ondownloadmod - Callback when download button is clicked
-@prop {((event: { mod: ModInfoKind }) => void) | undefined} oninfomod - Callback when info button is clicked
-@prop {((event: { mod: ModInfoKind; versionId: string; versionNumber: string }) => void) | undefined} ondownloadversion - Callback when specific version is selected
+@prop {((event: { mod: ModInfoKind }) =► void) | undefined} ondownloadmod - Callback when download button is clicked
+@prop {((event: { mod: ModInfoKind }) =► void) | undefined} oninfomod - Callback when info button is clicked
+@prop {((event: { mod: ModInfoKind; versionId: string; versionNumber: string }) =► void) | undefined} ondownloadversion - Callback when specific version is selected
 
 @example
 ```svelte
