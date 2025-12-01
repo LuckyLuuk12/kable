@@ -167,12 +167,8 @@ impl Launchable for ForgeLaunchable {
         }
 
         // Build command: main class for Forge
-        let java_path = context
-            .settings
-            .general
-            .java_path
-            .clone()
-            .unwrap_or_else(|| "java".to_string());
+        let java_path = crate::launcher::java::find_java_executable(context.settings.general.java_path.as_ref())?;
+        
         let main_class = manifest
             .get("mainClass")
             .and_then(|v| v.as_str())

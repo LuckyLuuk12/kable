@@ -55,3 +55,10 @@ export async function isMinecraftRunning(): Promise<boolean> {
 export async function waitForMinecraftExit(processId: number): Promise<void> {
   return await invoke("wait_for_minecraft_exit", { processId });
 }
+
+/**
+ * Auto-detect Java executable path (matches tauri::command auto_detect_java)
+ */
+export async function autoDetectJava(): Promise<string> {
+  return await invoke<string>("auto_detect_java");
+}

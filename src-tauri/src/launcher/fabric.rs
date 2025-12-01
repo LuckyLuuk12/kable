@@ -738,12 +738,8 @@ impl Launchable for FabricLaunchable {
         let final_game_args_vec = game_args_vec.clone();
 
         // 10. Build command: exactly like vanilla (single -cp, correct order)
-        let java_path = context
-            .settings
-            .general
-            .java_path
-            .clone()
-            .unwrap_or_else(|| "java".to_string());
+        let java_path = crate::launcher::java::find_java_executable(context.settings.general.java_path.as_ref())?;
+
         let main_class = manifest
             .get("mainClass")
             .and_then(|v| v.as_str())

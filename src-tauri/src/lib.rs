@@ -268,6 +268,8 @@ pub fn run() {
             commands_launcher::get_running_minecraft_processes,
             commands_launcher::is_minecraft_running,
             commands_launcher::wait_for_minecraft_exit,
+            commands_launcher::auto_detect_java,
+            commands_launcher::get_java_path,
             // Maps/Worlds commands
             maps::get_local_worlds,
             maps::delete_world,
