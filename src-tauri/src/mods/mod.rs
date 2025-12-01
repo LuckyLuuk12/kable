@@ -146,22 +146,22 @@ pub async fn get_mod_metadata(
     jar_filename: &str,
 ) -> Result<ModMetadata, String> {
     use tokio::fs;
-    
+
     let mods_dir = crate::installations::get_mods_directory(installation).await?;
-    
+
     let metadata_path = mods_dir.join(format!("{}.kable_metadata.json", jar_filename));
-    
+
     if !metadata_path.exists() {
         return Err(format!("No metadata file found for {}", jar_filename));
     }
-    
+
     let content = fs::read_to_string(&metadata_path)
         .await
         .map_err(|e| format!("Failed to read metadata file: {}", e))?;
-    
+
     let metadata: ModMetadata = serde_json::from_str(&content)
         .map_err(|e| format!("Failed to parse metadata file: {}", e))?;
-    
+
     Ok(metadata)
 }
 

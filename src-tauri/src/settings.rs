@@ -51,6 +51,24 @@ pub struct LoggingSettings {
     pub log_retention_days: serde_json::Value,     // number or "disabled"
     pub merge_log_tabs: bool,
     pub default_log_levels: Vec<String>, // 'debug' | 'info' | 'warn' | 'error'
+    #[serde(default = "default_max_memory_logs")]
+    pub max_memory_logs: Option<u32>,
+    #[serde(default = "default_dedupe_window_size")]
+    pub dedupe_window_size: Option<u32>,
+    #[serde(default = "default_enable_dedupe")]
+    pub enable_dedupe: Option<bool>,
+}
+
+fn default_max_memory_logs() -> Option<u32> {
+    Some(5000)
+}
+
+fn default_dedupe_window_size() -> Option<u32> {
+    Some(50)
+}
+
+fn default_enable_dedupe() -> Option<bool> {
+    Some(true)
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -118,6 +136,9 @@ impl Default for CategorizedLauncherSettings {
                     "warn".to_string(),
                     "error".to_string(),
                 ],
+                max_memory_logs: Some(5000),
+                dedupe_window_size: Some(50),
+                enable_dedupe: Some(true),
             },
             network: NetworkSettings {
                 parallel_downloads: 3,

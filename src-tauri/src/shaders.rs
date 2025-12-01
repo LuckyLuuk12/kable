@@ -414,7 +414,9 @@ pub async fn search_modrinth_shaders_with_facets(
 
     // Resolve minecraft_version parameter if present
     let resolved_mc_version = if let Some(v) = &minecraft_version {
-        crate::installations::get_minecraft_version(v).await.or(Some(v.clone()))
+        crate::installations::get_minecraft_version(v)
+            .await
+            .or(Some(v.clone()))
     } else {
         None
     };
@@ -435,7 +437,10 @@ pub async fn search_modrinth_shaders_with_facets(
                     resolved_versions.push(v.clone());
                 }
             }
-            println!("[Shaders] Final resolved game_versions: {:?}", resolved_versions);
+            println!(
+                "[Shaders] Final resolved game_versions: {:?}",
+                resolved_versions
+            );
             *versions = resolved_versions;
         }
 

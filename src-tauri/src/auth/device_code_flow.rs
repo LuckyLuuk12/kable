@@ -28,13 +28,13 @@ const MSA_TOKEN_URL: &str = "https://login.microsoftonline.com/common/oauth2/v2.
 /// Download avatar from Crafatar and convert to base64 data URL
 async fn download_avatar_as_base64(uuid: &str) -> Result<String, String> {
     let url = format!("https://crafatar.com/avatars/{}?size=64", uuid);
-    
+
     Logger::console_log(
         LogLevel::Debug,
         &format!("📥 Downloading avatar from: {}", url),
         None,
     );
-    
+
     let client = Client::new();
     let response = client
         .get(&url)
@@ -42,25 +42,31 @@ async fn download_avatar_as_base64(uuid: &str) -> Result<String, String> {
         .send()
         .await
         .map_err(|e| format!("Failed to download avatar: {}", e))?;
-    
+
     if !response.status().is_success() {
-        return Err(format!("Avatar download failed with status: {}", response.status()));
+        return Err(format!(
+            "Avatar download failed with status: {}",
+            response.status()
+        ));
     }
-    
+
     let bytes = response
         .bytes()
         .await
         .map_err(|e| format!("Failed to read avatar bytes: {}", e))?;
-    
+
     let base64_data = general_purpose::STANDARD.encode(&bytes);
     let data_url = format!("data:image/png;base64,{}", base64_data);
-    
+
     Logger::console_log(
         LogLevel::Debug,
-        &format!("✅ Avatar downloaded and converted to base64 ({} bytes)", bytes.len()),
+        &format!(
+            "✅ Avatar downloaded and converted to base64 ({} bytes)",
+            bytes.len()
+        ),
         None,
     );
-    
+
     Ok(data_url)
 }
 

@@ -18,6 +18,7 @@ Shows mod icon, name, version, and provides actions:
 ```
 -->
 <script lang="ts">
+import { onMount } from "svelte";
 import { Icon, NotificationService, ProviderKind } from "$lib";
 import type {
   ModJarInfo,
@@ -41,26 +42,27 @@ let showVersionModal = false;
 let modInfoKind: ModInfoKind | null = null;
 let loadingVersions = false;
 let hasMetadata = false;
+let metadataChecked = false;
 
 $: isDisabled = mod.disabled || false;
 $: displayName = mod.mod_name || mod.file_name.replace(/\.jar$/, "");
 $: version = mod.mod_version || "Unknown";
 $: iconUrl = extendedInfo?.icon_uri || null;
 
-// Check if metadata exists when component mounts or mod changes
-$: {
-  const fileName = mod.file_name;
-  checkMetadata(fileName);
-}
+// Check metadata only once when component mounts
+onMount(() => {
+  checkMetadata();
+});
 
-async function checkMetadata(fileName: string) {
+async function checkMetadata() {
+  if (metadataChecked) return;
+  metadataChecked = true;
+  
   try {
-    await modsApi.getModMetadata(installation, fileName);
+    await modsApi.getModMetadata(installation, mod.file_name);
     hasMetadata = true;
-    console.log(`[InstalledModCard] ${fileName} has metadata - badge should show`);
   } catch (error) {
     hasMetadata = false;
-    console.log(`[InstalledModCard] ${fileName} has NO metadata:`, error);
   }
 }
 

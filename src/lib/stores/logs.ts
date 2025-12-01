@@ -1,5 +1,14 @@
-import { writable, derived } from "svelte/store";
+import { writable, derived, get } from "svelte/store";
 import type { GameInstance, LogEntry, GameInstanceLogs } from "../types";
+
+// Configuration for log memory management
+const LOG_CONFIG = {
+  maxLogsPerInstance: 5000,      // Maximum logs to keep per instance
+  maxGlobalLogs: 5000,           // Maximum global launcher logs
+  dedupeWindowSize: 50,          // Check last N messages for duplicates
+  enableDedupe: true,            // Enable deduplication
+  dedupeTimeWindow: 10000,       // Time window for duplicate detection (ms)
+};
 
 // Active game instances
 export const gameInstances = writable<Map<string, GameInstance>>(new Map());
@@ -48,6 +57,47 @@ export const currentLogs = derived(
   },
 );
 
+// Helper function to trim log arrays to max size (circular buffer behavior)
+function trimLogsToMaxSize(logs: LogEntry[], maxSize: number): LogEntry[] {
+  if (logs.length <= maxSize) return logs;
+  // Keep the most recent logs
+  return logs.slice(logs.length - maxSize);
+}
+
+// Helper function to normalize message for deduplication (strip timestamp, trim whitespace)
+function normalizeMessage(message: string): string {
+  // Remove common timestamp patterns: [HH:MM:SS], [YYYY-MM-DD HH:MM:SS], etc.
+  return message
+    .replace(/\[\d{2}:\d{2}:\d{2}\]/g, '')
+    .replace(/\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\]/g, '')
+    .replace(/\d{2}:\d{2}:\d{2}/g, '')
+    .trim();
+}
+
+// Helper function to check if message is duplicate within recent logs
+function isDuplicateMessage(
+  newMessage: string,
+  recentLogs: LogEntry[],
+  windowSize: number
+): boolean {
+  if (!LOG_CONFIG.enableDedupe || recentLogs.length === 0) return false;
+  
+  const normalizedNew = normalizeMessage(newMessage);
+  if (!normalizedNew) return false;
+  
+  // Check last N messages
+  const checkWindow = recentLogs.slice(-windowSize);
+  
+  for (const log of checkWindow) {
+    const normalizedExisting = normalizeMessage(log.message);
+    if (normalizedNew === normalizedExisting) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
 // Helper functions
 export const LogsManager = {
   addGameInstance(instance: GameInstance) {
@@ -95,15 +145,15 @@ export const LogsManager = {
     level: LogEntry["level"] = "info",
     instanceId?: string,
   ) {
-    // Enhanced duplicate detection for launcher messages (5 minute window)
+    // Enhanced duplicate detection for launcher messages (time-based window)
     const now = Date.now();
     const messageKey = instanceId
       ? `${instanceId}:${level}:${message}`
       : `global:${level}:${message}`;
     const lastSeen = recentLauncherMessages.get(messageKey);
 
-    if (lastSeen && now - lastSeen < 10 * 1000) {
-      // Skip duplicate message within 10 seconds
+    if (lastSeen && now - lastSeen < LOG_CONFIG.dedupeTimeWindow) {
+      // Skip duplicate message within time window
       return;
     }
 
@@ -131,14 +181,28 @@ export const LogsManager = {
         const newLogs = new Map(logs);
         const instanceLogs = newLogs.get(instanceId);
         if (instanceLogs) {
-          // Use immutable update for Svelte reactivity
-          instanceLogs.launcherLogs = [...instanceLogs.launcherLogs, logEntry];
-          newLogs.set(instanceId, { ...instanceLogs });
+          // Check for duplicates in recent logs
+          if (!isDuplicateMessage(message, instanceLogs.launcherLogs, LOG_CONFIG.dedupeWindowSize)) {
+            // Add new log and trim to max size
+            const updatedLogs = trimLogsToMaxSize(
+              [...instanceLogs.launcherLogs, logEntry],
+              LOG_CONFIG.maxLogsPerInstance
+            );
+            instanceLogs.launcherLogs = updatedLogs;
+            newLogs.set(instanceId, { ...instanceLogs });
+          }
         }
         return newLogs;
       });
     } else {
-      globalLauncherLogs.update((logs) => [...logs, logEntry]);
+      globalLauncherLogs.update((logs) => {
+        // Check for duplicates in recent global logs
+        if (!isDuplicateMessage(message, logs, LOG_CONFIG.dedupeWindowSize)) {
+          // Add new log and trim to max size
+          return trimLogsToMaxSize([...logs, logEntry], LOG_CONFIG.maxGlobalLogs);
+        }
+        return logs;
+      });
     }
   },
 
@@ -160,9 +224,16 @@ export const LogsManager = {
       const newLogs = new Map(logs);
       const instanceLogs = newLogs.get(instanceId);
       if (instanceLogs) {
-        // Use immutable update for Svelte reactivity
-        instanceLogs.gameLogs = [...instanceLogs.gameLogs, logEntry];
-        newLogs.set(instanceId, { ...instanceLogs });
+        // Check for duplicates in recent game logs
+        if (!isDuplicateMessage(message, instanceLogs.gameLogs, LOG_CONFIG.dedupeWindowSize)) {
+          // Add new log and trim to max size
+          const updatedLogs = trimLogsToMaxSize(
+            [...instanceLogs.gameLogs, logEntry],
+            LOG_CONFIG.maxLogsPerInstance
+          );
+          instanceLogs.gameLogs = updatedLogs;
+          newLogs.set(instanceId, { ...instanceLogs });
+        }
       }
       return newLogs;
     });
@@ -192,4 +263,40 @@ export const LogsManager = {
   ) {
     LogsManager.addLauncherLog(message, level);
   },
+
+  // Update log configuration (called from settings)
+  updateLogConfig(config: Partial<typeof LOG_CONFIG>) {
+    Object.assign(LOG_CONFIG, config);
+  },
+
+  // Get current log config
+  getLogConfig() {
+    return { ...LOG_CONFIG };
+  },
+
+  // Get memory usage statistics
+  getMemoryStats() {
+    let totalLogs = 0;
+    let instanceCount = 0;
+    
+    // Use get() instead of subscribe() to avoid memory leaks
+    const logs = get(logsData);
+    logs.forEach(instanceLogs => {
+      totalLogs += instanceLogs.launcherLogs.length + instanceLogs.gameLogs.length;
+      instanceCount++;
+    });
+    
+    const globalLogs = get(globalLauncherLogs);
+    totalLogs += globalLogs.length;
+    
+    return {
+      totalLogs,
+      instanceCount,
+      maxLogsPerInstance: LOG_CONFIG.maxLogsPerInstance,
+      maxGlobalLogs: LOG_CONFIG.maxGlobalLogs,
+    };
+  },
 };
+
+// Export config for external access
+export const logConfig = LOG_CONFIG;
