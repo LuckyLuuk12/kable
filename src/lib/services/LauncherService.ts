@@ -10,6 +10,7 @@ import {
   launchTimeoutHandle,
 } from "$lib";
 import * as launcherApi from "$lib/api/launcher";
+import * as authApi from "$lib/api/auth";
 import type { KableInstallation, LaunchResult } from "$lib";
 
 export class Launcher {
@@ -40,8 +41,28 @@ export class Launcher {
     installation: KableInstallation,
   ): Promise<LaunchResult> {
     try {
-      const account = get(currentAccount);
+      let account = get(currentAccount);
       if (!account) throw new Error("No account selected");
+
+      // Refresh token if expired or expiring soon (within 10 minutes) before launching
+      if (account.access_token_expires_at && account.encrypted_refresh_token) {
+        const expiresAt = new Date(account.access_token_expires_at);
+        const now = new Date();
+        const timeUntilExpiry = expiresAt.getTime() - now.getTime();
+
+        if (timeUntilExpiry < 10 * 60 * 1000) {
+          console.log("🔄 Token expired or expiring soon, refreshing before launch...");
+          try {
+            const refreshed = await authApi.refreshMicrosoftToken(account.local_id);
+            currentAccount.set(refreshed);
+            account = refreshed;
+            console.log("✅ Token refreshed successfully before launch");
+          } catch (error) {
+            console.error("❌ Failed to refresh token before launch:", error);
+            // Continue with launch anyway - the backend will handle it
+          }
+        }
+      }
 
       // Signal UI that a launch is starting
       isLaunching.set(true);
