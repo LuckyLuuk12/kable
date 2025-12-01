@@ -196,6 +196,62 @@ export async function updateResourcePackSettings(
   });
 }
 
+// Disable a shader pack by moving it into the disabled/ subfolder
+export async function disableShader(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<void> {
+  return await invoke("disable_shader_for_installation", {
+    installation,
+    fileName,
+  });
+}
+
+// Enable a shader pack by moving it out of the disabled/ subfolder
+export async function enableShader(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<void> {
+  return await invoke("enable_shader_for_installation", {
+    installation,
+    fileName,
+  });
+}
+
+// Toggle the disabled state for a shader pack; returns the new disabled state (true = disabled)
+export async function toggleShaderDisabled(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<boolean> {
+  return await invoke("toggle_shader_disabled_for_installation", {
+    installation,
+    fileName,
+  });
+}
+
+// Delete/remove a shader pack from installation
+export async function deleteShader(
+  installation: KableInstallation,
+  fileName: string,
+): Promise<void> {
+  return await invoke("delete_shader_for_installation", {
+    installation,
+    fileName,
+  });
+}
+
+// Get shader pack info for an installation
+export async function getShaderPackInfo(
+  installation: KableInstallation,
+): Promise<any[]> {
+  return await invoke("get_shaderpack_info_for_installation", { installation });
+}
+
+// Get global shader packs from .minecraft/shaderpacks
+export async function getGlobalShaderPacks(): Promise<any[]> {
+  return await invoke("get_global_shaderpacks");
+}
+
 // Import an installation from a path
 export async function importInstallation(
   path: string,

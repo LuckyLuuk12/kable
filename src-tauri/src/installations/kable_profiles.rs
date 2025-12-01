@@ -2102,6 +2102,263 @@ impl KableInstallation {
 
         Ok(shortcut_path.to_string_lossy().to_string())
     }
+
+    /// Get the shaderpacks folder path for this installation
+    fn find_shaderpacks_dir(&self) -> Result<PathBuf, String> {
+        if let Some(ref dedicated_folder) = self.dedicated_shaders_folder {
+            let path = PathBuf::from(dedicated_folder);
+            if path.is_absolute() {
+                return Ok(path);
+            } else {
+                let kable_dir = crate::get_minecraft_kable_dir()?;
+                return Ok(kable_dir.join(dedicated_folder));
+            }
+        }
+
+        let minecraft_dir = crate::get_default_minecraft_dir()?;
+        Ok(minecraft_dir.join("shaderpacks"))
+    }
+
+    /// Move the given shader pack into the installation's disabled/ subfolder.
+    pub fn disable_shader(&self, file_name: &str) -> Result<(), String> {
+        use crate::logging::Logger;
+        let shaders_dir = self.find_shaderpacks_dir()?;
+        let disabled_dir = shaders_dir.join("disabled");
+        let src = shaders_dir.join(file_name);
+        let dst = disabled_dir.join(file_name);
+        if !src.exists() {
+            if dst.exists() {
+                return Ok(());
+            }
+            return Err(format!("Shader pack file not found: {}", file_name));
+        }
+        crate::ensure_folder_sync(&disabled_dir)
+            .map_err(|e| format!("Failed to create disabled directory: {}", e))?;
+        fs::rename(&src, &dst)
+            .map_err(|e| format!("Failed to move shader pack to disabled: {}", e))?;
+        Logger::debug_global(
+            &format!("Moved {} -> {}", src.display(), dst.display()),
+            None,
+        );
+        Ok(())
+    }
+
+    /// Move the given shader pack out of the installation's disabled/ subfolder back into the active shaders folder.
+    pub fn enable_shader(&self, file_name: &str) -> Result<(), String> {
+        let shaders_dir = self.find_shaderpacks_dir()?;
+        let disabled_dir = shaders_dir.join("disabled");
+        let src = disabled_dir.join(file_name);
+        let dst = shaders_dir.join(file_name);
+        if !src.exists() {
+            if dst.exists() {
+                return Ok(());
+            }
+            return Err(format!("Disabled shader pack not found: {}", file_name));
+        }
+        fs::rename(&src, &dst)
+            .map_err(|e| format!("Failed to move shader pack to enabled: {}", e))?;
+        Ok(())
+    }
+
+    /// Toggle the disabled state of a shader pack; returns the new disabled state (true = disabled).
+    pub fn toggle_shader_disabled(&self, file_name: &str) -> Result<bool, String> {
+        let shaders_dir = self.find_shaderpacks_dir()?;
+        let src_active = shaders_dir.join(file_name);
+        let src_disabled = shaders_dir.join("disabled").join(file_name);
+        if src_active.exists() {
+            self.disable_shader(file_name)?;
+            return Ok(true);
+        }
+        if src_disabled.exists() {
+            self.enable_shader(file_name)?;
+            return Ok(false);
+        }
+        Err(format!(
+            "Shader pack file not found in either active or disabled folders: {}",
+            file_name
+        ))
+    }
+
+    /// Delete/remove a shader pack from the installation (checks both active and disabled folders)
+    pub fn delete_shader(&self, file_name: &str) -> Result<(), String> {
+        let shaders_dir = self.find_shaderpacks_dir()?;
+        let active_path = shaders_dir.join(file_name);
+        let disabled_path = shaders_dir.join("disabled").join(file_name);
+
+        if active_path.exists() {
+            std::fs::remove_file(&active_path)
+                .map_err(|e| format!("Failed to delete shader pack from active folder: {}", e))?;
+            return Ok(());
+        }
+
+        if disabled_path.exists() {
+            std::fs::remove_file(&disabled_path).map_err(|e| {
+                format!("Failed to delete shader pack from disabled folder: {}", e)
+            })?;
+            return Ok(());
+        }
+
+        Err(format!(
+            "Shader pack file not found in either active or disabled folders: {}",
+            file_name
+        ))
+    }
+
+    /// Scans the shaderpacks folder for this installation and returns info
+    pub fn get_shaderpack_info(&self) -> Result<Vec<ShaderPackInfo>, String> {
+        use crate::logging::Logger;
+        let shaders_dir = self.find_shaderpacks_dir()?;
+
+        Logger::debug_global(
+            &format!(
+                "🔍 get_shaderpack_info for installation: {} (shaders_dir: {})",
+                self.name,
+                shaders_dir.display()
+            ),
+            None,
+        );
+
+        let mut result = Vec::new();
+
+        if !shaders_dir.exists() {
+            return Ok(result);
+        }
+
+        // Scan active shaders (zip and jar files)
+        for entry in fs::read_dir(&shaders_dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            let file_name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+
+            // Skip hidden files and disabled subfolder
+            if file_name.starts_with('.') || file_name == "disabled" {
+                continue;
+            }
+
+            // Check if it's a valid shader pack (zip or jar file)
+            if path.is_file() && (file_name.ends_with(".zip") || file_name.ends_with(".jar")) {
+                result.push(ShaderPackInfo {
+                    file_name,
+                    name: None,
+                    description: None,
+                    disabled: false,
+                });
+            }
+        }
+
+        // Scan disabled shaders (zip and jar files)
+        let disabled_dir = shaders_dir.join("disabled");
+        if disabled_dir.exists() {
+            for entry in fs::read_dir(&disabled_dir).map_err(|e| e.to_string())? {
+                let entry = entry.map_err(|e| e.to_string())?;
+                let path = entry.path();
+                let file_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                // Skip hidden files
+                if file_name.starts_with('.') {
+                    continue;
+                }
+
+                // Check if it's a valid shader pack (zip or jar file)
+                if path.is_file() && (file_name.ends_with(".zip") || file_name.ends_with(".jar")) {
+                    result.push(ShaderPackInfo {
+                        file_name,
+                        name: None,
+                        description: None,
+                        disabled: true,
+                    });
+                }
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Get global shader packs from .minecraft/shaderpacks
+    pub fn get_global_shaderpacks() -> Result<Vec<ShaderPackInfo>, String> {
+        use crate::logging::Logger;
+        let minecraft_dir = crate::get_default_minecraft_dir()?;
+        let packs_dir = minecraft_dir.join("shaderpacks");
+
+        Logger::debug_global(
+            &format!(
+                "🔍 get_global_shaderpacks (packs_dir: {})",
+                packs_dir.display()
+            ),
+            None,
+        );
+
+        let mut result = Vec::new();
+
+        if !packs_dir.exists() {
+            return Ok(result);
+        }
+
+        // Scan active packs (zip and jar files)
+        for entry in fs::read_dir(&packs_dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            let file_name = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("")
+                .to_string();
+
+            // Skip hidden files and disabled subfolder
+            if file_name.starts_with('.') || file_name == "disabled" {
+                continue;
+            }
+
+            // Check if it's a valid shader pack (zip or jar file)
+            if path.is_file() && (file_name.ends_with(".zip") || file_name.ends_with(".jar")) {
+                result.push(ShaderPackInfo {
+                    file_name,
+                    name: None,
+                    description: None,
+                    disabled: false,
+                });
+            }
+        }
+
+        // Scan disabled packs (zip and jar files)
+        let disabled_dir = packs_dir.join("disabled");
+        if disabled_dir.exists() {
+            for entry in fs::read_dir(&disabled_dir).map_err(|e| e.to_string())? {
+                let entry = entry.map_err(|e| e.to_string())?;
+                let path = entry.path();
+                let file_name = path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .unwrap_or("")
+                    .to_string();
+
+                // Skip hidden files
+                if file_name.starts_with('.') {
+                    continue;
+                }
+
+                // Check if it's a valid shader pack (zip or jar file)
+                if path.is_file() && (file_name.ends_with(".zip") || file_name.ends_with(".jar")) {
+                    result.push(ShaderPackInfo {
+                        file_name,
+                        name: None,
+                        description: None,
+                        disabled: true,
+                    });
+                }
+            }
+        }
+
+        Ok(result)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -2116,6 +2373,15 @@ pub struct ModJarInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ResourcePackInfo {
+    pub file_name: String,
+    pub name: Option<String>,
+    pub description: Option<String>,
+    /// true when the pack was found in the installation's disabled/ subfolder
+    pub disabled: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ShaderPackInfo {
     pub file_name: String,
     pub name: Option<String>,
     pub description: Option<String>,

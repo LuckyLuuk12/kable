@@ -1,4 +1,5 @@
 use crate::installations::*;
+use crate::installations::kable_profiles::ShaderPackInfo;
 use tauri_plugin_dialog::DialogExt;
 
 /// Gets all versions, either from cache or by building them, does not modify the cache
@@ -202,6 +203,56 @@ pub async fn update_resourcepack_settings(
         .await?;
 
     Ok(())
+}
+
+/// Get shader pack info for an installation
+#[tauri::command]
+pub async fn get_shaderpack_info_for_installation(
+    installation: KableInstallation,
+) -> Result<Vec<ShaderPackInfo>, String> {
+    installation.get_shaderpack_info()
+}
+
+/// Get global shader packs from .minecraft/shaderpacks
+#[tauri::command]
+pub async fn get_global_shaderpacks() -> Result<Vec<ShaderPackInfo>, String> {
+    KableInstallation::get_global_shaderpacks()
+}
+
+/// Disable a shader pack by moving it into the installation's disabled/ subfolder
+#[tauri::command]
+pub async fn disable_shader_for_installation(
+    installation: KableInstallation,
+    file_name: String,
+) -> Result<(), String> {
+    installation.disable_shader(&file_name)
+}
+
+/// Enable a shader pack by moving it out of the installation's disabled/ subfolder
+#[tauri::command]
+pub async fn enable_shader_for_installation(
+    installation: KableInstallation,
+    file_name: String,
+) -> Result<(), String> {
+    installation.enable_shader(&file_name)
+}
+
+/// Toggle the disabled state for a shader pack; returns the new disabled state (true = disabled)
+#[tauri::command]
+pub async fn toggle_shader_disabled_for_installation(
+    installation: KableInstallation,
+    file_name: String,
+) -> Result<bool, String> {
+    installation.toggle_shader_disabled(&file_name)
+}
+
+/// Delete/remove a shader pack from the installation
+#[tauri::command]
+pub async fn delete_shader_for_installation(
+    installation: KableInstallation,
+    file_name: String,
+) -> Result<(), String> {
+    installation.delete_shader(&file_name)
 }
 
 #[tauri::command]
