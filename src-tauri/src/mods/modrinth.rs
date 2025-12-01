@@ -709,9 +709,7 @@ pub async fn get_mod_versions(mod_id: &str) -> Result<Vec<ModrinthVersion>, Stri
 /// Get multiple projects by their IDs
 /// See: https://docs.modrinth.com/api/operations/getprojects/
 #[log_result]
-pub async fn get_projects(
-    project_ids: Vec<String>,
-) -> Result<Vec<ModrinthInfo>, String> {
+pub async fn get_projects(project_ids: Vec<String>) -> Result<Vec<ModrinthInfo>, String> {
     if project_ids.is_empty() {
         return Ok(Vec::new());
     }

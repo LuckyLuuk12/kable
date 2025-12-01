@@ -659,16 +659,17 @@ impl SymlinkManager {
             return Ok(()); // Installation not found
         };
 
-        let installation_packs_dir = if let Some(ref dedicated_folder) = installation_data.dedicated_resource_pack_folder {
-            let dedicated_path = std::path::PathBuf::from(dedicated_folder);
-            if dedicated_path.is_absolute() {
-                dedicated_path
+        let installation_packs_dir =
+            if let Some(ref dedicated_folder) = installation_data.dedicated_resource_pack_folder {
+                let dedicated_path = std::path::PathBuf::from(dedicated_folder);
+                if dedicated_path.is_absolute() {
+                    dedicated_path
+                } else {
+                    kable_dir.join(dedicated_folder)
+                }
             } else {
-                kable_dir.join(dedicated_folder)
-            }
-        } else {
-            return Ok(()); // No dedicated folder configured
-        };
+                return Ok(()); // No dedicated folder configured
+            };
 
         // Only setup if the installation has a dedicated resource packs folder
         if !installation_packs_dir.exists() {
@@ -715,7 +716,8 @@ impl SymlinkManager {
                     installation_packs_dir.to_string_lossy().to_string(),
                     pack_order,
                     enabled_packs,
-                ).await?;
+                )
+                .await?;
 
                 // Create symlink for the merged pack
                 let target_link = resourcepacks_dir.join("kable-merged.zip");
@@ -732,7 +734,8 @@ impl SymlinkManager {
             };
 
             for entry in entries {
-                let entry = entry.map_err(|e| format!("Failed to read resourcepack entry: {}", e))?;
+                let entry =
+                    entry.map_err(|e| format!("Failed to read resourcepack entry: {}", e))?;
                 let path = entry.path();
 
                 if path.is_file() && path.extension().is_some_and(|ext| ext == "zip") {

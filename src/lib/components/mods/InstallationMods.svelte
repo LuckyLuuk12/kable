@@ -28,7 +28,6 @@ import InstalledModCard from "./InstalledModCard.svelte";
 let currentInstallation: KableInstallation | null = null;
 let selectedId: string = "";
 let mods: ModJarInfo[] = [];
-$: $extendedModInfo;
 let loading = false;
 let error: string | null = null;
 let installationListContainer: HTMLElement;

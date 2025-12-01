@@ -536,6 +536,9 @@ export interface AppearanceSettings {
  *   logRetentionDays: number | 'disabled';
  *   mergeLogTabs: boolean;
  *   defaultLogLevels: ('debug' | 'info' | 'warn' | 'error')[];
+ *   maxMemoryLogs?: number;
+ *   dedupeWindowSize?: number;
+ *   enableDedupe?: boolean;
  * }
  * ```
  */
@@ -554,6 +557,12 @@ export interface LoggingSettings {
   merge_log_tabs: boolean;
   /** Which log levels are shown by default */
   default_log_levels: ("debug" | "info" | "warn" | "error")[];
+  /** Maximum number of log entries to keep in memory per instance (prevents memory overflow, default: 5000) */
+  max_memory_logs?: number;
+  /** Number of recent messages to check for duplicates (default: 50) */
+  dedupe_window_size?: number;
+  /** Enable automatic deduplication of log messages (default: true) */
+  enable_dedupe?: boolean;
 }
 
 /** Network Settings for the launcher

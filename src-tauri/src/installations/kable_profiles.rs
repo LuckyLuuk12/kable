@@ -1324,7 +1324,7 @@ impl KableInstallation {
                 return Ok(kable_dir.join(dedicated_folder));
             }
         }
-        
+
         let minecraft_dir = crate::get_default_minecraft_dir()?;
         Ok(minecraft_dir.join("resourcepacks"))
     }
@@ -1402,8 +1402,9 @@ impl KableInstallation {
         }
 
         if disabled_path.exists() {
-            std::fs::remove_file(&disabled_path)
-                .map_err(|e| format!("Failed to delete resource pack from disabled folder: {}", e))?;
+            std::fs::remove_file(&disabled_path).map_err(|e| {
+                format!("Failed to delete resource pack from disabled folder: {}", e)
+            })?;
             return Ok(());
         }
 
@@ -1417,7 +1418,7 @@ impl KableInstallation {
     pub fn get_resourcepack_info(&self) -> Result<Vec<ResourcePackInfo>, String> {
         use crate::logging::Logger;
         let packs_dir = self.find_resourcepacks_dir()?;
-        
+
         Logger::debug_global(
             &format!(
                 "🔍 get_resourcepack_info for installation: {} (packs_dir: {})",
@@ -1442,12 +1443,15 @@ impl KableInstallation {
                 .and_then(|n| n.to_str())
                 .unwrap_or("")
                 .to_string();
-            
+
             // Skip hidden files, disabled subfolder, and merged pack
-            if file_name.starts_with('.') || file_name == "disabled" || file_name == "kable-merged.zip" {
+            if file_name.starts_with('.')
+                || file_name == "disabled"
+                || file_name == "kable-merged.zip"
+            {
                 continue;
             }
-            
+
             // Check if it's a valid resource pack
             let is_valid = if path.is_file() {
                 // For files, must be .zip
@@ -1458,7 +1462,7 @@ impl KableInstallation {
             } else {
                 false
             };
-            
+
             if is_valid {
                 result.push(ResourcePackInfo {
                     file_name,
@@ -1480,12 +1484,12 @@ impl KableInstallation {
                     .and_then(|n| n.to_str())
                     .unwrap_or("")
                     .to_string();
-                
+
                 // Skip hidden files
                 if file_name.starts_with('.') {
                     continue;
                 }
-                
+
                 // Check if it's a valid resource pack
                 let is_valid = if path.is_file() {
                     file_name.ends_with(".zip")
@@ -1494,7 +1498,7 @@ impl KableInstallation {
                 } else {
                     false
                 };
-                
+
                 if is_valid {
                     result.push(ResourcePackInfo {
                         file_name,
@@ -1516,7 +1520,10 @@ impl KableInstallation {
         let packs_dir = minecraft_dir.join("resourcepacks");
 
         Logger::debug_global(
-            &format!("🔍 get_global_resourcepacks (packs_dir: {})", packs_dir.display()),
+            &format!(
+                "🔍 get_global_resourcepacks (packs_dir: {})",
+                packs_dir.display()
+            ),
             None,
         );
 
@@ -1535,12 +1542,15 @@ impl KableInstallation {
                 .and_then(|n| n.to_str())
                 .unwrap_or("")
                 .to_string();
-            
+
             // Skip hidden files, disabled subfolder, and merged pack
-            if file_name.starts_with('.') || file_name == "disabled" || file_name == "kable-merged.zip" {
+            if file_name.starts_with('.')
+                || file_name == "disabled"
+                || file_name == "kable-merged.zip"
+            {
                 continue;
             }
-            
+
             // Check if it's a valid resource pack
             let is_valid = if path.is_file() {
                 file_name.ends_with(".zip")
@@ -1549,7 +1559,7 @@ impl KableInstallation {
             } else {
                 false
             };
-            
+
             if is_valid {
                 result.push(ResourcePackInfo {
                     file_name,
@@ -1571,12 +1581,12 @@ impl KableInstallation {
                     .and_then(|n| n.to_str())
                     .unwrap_or("")
                     .to_string();
-                
+
                 // Skip hidden files
                 if file_name.starts_with('.') {
                     continue;
                 }
-                
+
                 // Check if it's a valid resource pack
                 let is_valid = if path.is_file() {
                     file_name.ends_with(".zip")
@@ -1585,7 +1595,7 @@ impl KableInstallation {
                 } else {
                     false
                 };
-                
+
                 if is_valid {
                     result.push(ResourcePackInfo {
                         file_name,

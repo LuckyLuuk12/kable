@@ -220,6 +220,109 @@ function disableRetentionDays() {
 
     <div class="setting-item">
       <div class="setting-info">
+        <label for="max-memory-logs">Maximum Logs in Memory</label>
+        <p class="setting-description">
+          Maximum number of log entries to keep in memory per instance (prevents memory overflow)
+        </p>
+      </div>
+      <div class="setting-control slider-control">
+        <input
+          type="range"
+          id="max-memory-logs-slider"
+          min="1000"
+          max="20000"
+          step="500"
+          value={$settings.logging.max_memory_logs ?? 5000}
+          on:input={(e) => {
+            SettingsService.update("logging", {
+              ...$settings.logging,
+              max_memory_logs: Number((e.target as HTMLInputElement).value),
+            });
+          }}
+        />
+        <input
+          type="number"
+          id="max-memory-logs"
+          min="1000"
+          max="20000"
+          value={$settings.logging.max_memory_logs ?? 5000}
+          on:input={(e) => {
+            SettingsService.update("logging", {
+              ...$settings.logging,
+              max_memory_logs: Number((e.target as HTMLInputElement).value),
+            });
+          }}
+        />
+      </div>
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
+        <label for="enable-dedupe">Enable Log Deduplication</label>
+        <p class="setting-description">
+          Automatically filter out duplicate log messages to reduce memory usage
+        </p>
+      </div>
+      <div class="setting-control">
+        <label class="toggle-switch">
+          <input
+            type="checkbox"
+            id="enable-dedupe"
+            checked={$settings.logging.enable_dedupe ?? true}
+            on:change={(e) => {
+              SettingsService.update("logging", {
+                ...$settings.logging,
+                enable_dedupe: (e.target as HTMLInputElement).checked,
+              });
+            }}
+          />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
+        <label for="dedupe-window-size">Deduplication Window Size</label>
+        <p class="setting-description">
+          Number of recent messages to check for duplicates (higher = more accurate, slower)
+        </p>
+      </div>
+      <div class="setting-control slider-control">
+        <input
+          type="range"
+          id="dedupe-window-size-slider"
+          min="10"
+          max="200"
+          step="10"
+          value={$settings.logging.dedupe_window_size ?? 50}
+          disabled={!($settings.logging.enable_dedupe ?? true)}
+          on:input={(e) => {
+            SettingsService.update("logging", {
+              ...$settings.logging,
+              dedupe_window_size: Number((e.target as HTMLInputElement).value),
+            });
+          }}
+        />
+        <input
+          type="number"
+          id="dedupe-window-size"
+          min="10"
+          max="200"
+          value={$settings.logging.dedupe_window_size ?? 50}
+          disabled={!($settings.logging.enable_dedupe ?? true)}
+          on:input={(e) => {
+            SettingsService.update("logging", {
+              ...$settings.logging,
+              dedupe_window_size: Number((e.target as HTMLInputElement).value),
+            });
+          }}
+        />
+      </div>
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>Default Log Levels</label>
         <p class="setting-description">Which log levels are shown by default</p>

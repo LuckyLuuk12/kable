@@ -96,7 +96,9 @@ pub async fn get_mod_info(installation: KableInstallation) -> Result<Vec<ModJarI
 
 /// Get resource pack info for an installation
 #[tauri::command]
-pub async fn get_resourcepack_info_for_installation(installation: KableInstallation) -> Result<Vec<ResourcePackInfo>, String> {
+pub async fn get_resourcepack_info_for_installation(
+    installation: KableInstallation,
+) -> Result<Vec<ResourcePackInfo>, String> {
     installation.get_resourcepack_info()
 }
 
@@ -135,13 +137,19 @@ pub async fn delete_mod(installation: KableInstallation, file_name: String) -> R
 
 /// Disable a resource pack by moving it into the installation's disabled/ subfolder
 #[tauri::command]
-pub async fn disable_resourcepack_for_installation(installation: KableInstallation, file_name: String) -> Result<(), String> {
+pub async fn disable_resourcepack_for_installation(
+    installation: KableInstallation,
+    file_name: String,
+) -> Result<(), String> {
     installation.disable_resourcepack(&file_name)
 }
 
 /// Enable a resource pack by moving it out of the installation's disabled/ subfolder
 #[tauri::command]
-pub async fn enable_resourcepack_for_installation(installation: KableInstallation, file_name: String) -> Result<(), String> {
+pub async fn enable_resourcepack_for_installation(
+    installation: KableInstallation,
+    file_name: String,
+) -> Result<(), String> {
     installation.enable_resourcepack(&file_name)
 }
 
@@ -156,7 +164,10 @@ pub async fn toggle_resourcepack_disabled_for_installation(
 
 /// Delete/remove a resource pack from the installation
 #[tauri::command]
-pub async fn delete_resourcepack_for_installation(installation: KableInstallation, file_name: String) -> Result<(), String> {
+pub async fn delete_resourcepack_for_installation(
+    installation: KableInstallation,
+    file_name: String,
+) -> Result<(), String> {
     installation.delete_resourcepack(&file_name)
 }
 
@@ -168,26 +179,28 @@ pub async fn update_resourcepack_settings(
     pack_order: Vec<String>,
 ) -> Result<(), String> {
     // Read all installations
-    let mut installations = crate::installations::kable_profiles::read_kable_profiles_async().await?;
-    
+    let mut installations =
+        crate::installations::kable_profiles::read_kable_profiles_async().await?;
+
     // Find and update the installation
-    let installation = installations.iter_mut()
+    let installation = installations
+        .iter_mut()
         .find(|i| i.id == installation_id)
         .ok_or_else(|| format!("Installation not found: {}", installation_id))?;
-    
+
     // Update settings
     installation.enable_pack_merging = enable_pack_merging;
     installation.pack_order = pack_order;
-    
+
     // Write back all installations
     crate::installations::kable_profiles::write_kable_profiles_async(&installations).await?;
-    
+
     // Refresh symlinks to apply changes
     let minecraft_dir = crate::get_default_minecraft_dir()?;
     crate::symlink_manager::SymlinkManager::new(minecraft_dir)
         .setup_resourcepack_symlinks(&installation_id)
         .await?;
-    
+
     Ok(())
 }
 

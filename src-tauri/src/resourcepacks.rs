@@ -361,7 +361,9 @@ pub async fn search_modrinth_resourcepacks_with_facets(
 
     // Resolve minecraft_version parameter if present
     let resolved_mc_version = if let Some(v) = &minecraft_version {
-        crate::installations::get_minecraft_version(v).await.or(Some(v.clone()))
+        crate::installations::get_minecraft_version(v)
+            .await
+            .or(Some(v.clone()))
     } else {
         None
     };
@@ -382,7 +384,10 @@ pub async fn search_modrinth_resourcepacks_with_facets(
                     resolved_versions.push(v.clone());
                 }
             }
-            println!("[ResourcePacks] Final resolved game_versions: {:?}", resolved_versions);
+            println!(
+                "[ResourcePacks] Final resolved game_versions: {:?}",
+                resolved_versions
+            );
             *versions = resolved_versions;
         }
 
@@ -741,12 +746,12 @@ pub async fn delete_resourcepack_from_dedicated(
 
 /// Merge multiple resource packs into a single kable-merged.zip file
 /// Uses the resource_merger crate to properly overlay packs according to pack_order
-/// 
+///
 /// # Arguments
 /// * `dedicated_folder` - Path to the dedicated resourcepacks folder
 /// * `pack_order` - List of pack filenames in priority order (first = highest priority)
 /// * `enabled_packs` - Set of enabled pack filenames (disabled packs are skipped)
-/// 
+///
 /// # Returns
 /// Path to the generated kable-merged.zip file
 pub async fn merge_resourcepacks(
@@ -754,7 +759,9 @@ pub async fn merge_resourcepacks(
     pack_order: Vec<String>,
     enabled_packs: std::collections::HashSet<String>,
 ) -> Result<PathBuf, String> {
-    use resource_merger::{MergeOptions, OverwritePolicy, PackInput, merge_packs_to_file_with_options};
+    use resource_merger::{
+        merge_packs_to_file_with_options, MergeOptions, OverwritePolicy, PackInput,
+    };
 
     let kable_dir = crate::get_minecraft_kable_dir()?;
     let dedicated_path = PathBuf::from(&dedicated_folder);
@@ -767,7 +774,10 @@ pub async fn merge_resourcepacks(
     };
 
     if !packs_dir.exists() {
-        return Err(format!("Resource pack directory does not exist: {:?}", packs_dir));
+        return Err(format!(
+            "Resource pack directory does not exist: {:?}",
+            packs_dir
+        ));
     }
 
     // Filter to only enabled packs that exist, maintaining order

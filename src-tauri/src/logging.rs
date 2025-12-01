@@ -37,6 +37,9 @@ pub struct LogConfig {
     pub size_limit_mb: u64,
     pub retention_days: u64,
     pub logs_dir: PathBuf,
+    pub max_memory_logs: usize, // Max logs to keep in memory per instance
+    pub dedupe_window_size: usize, // How many recent messages to check for duplicates
+    pub enable_dedupe: bool,    // Enable deduplication
 }
 
 impl Default for LogConfig {
@@ -47,6 +50,9 @@ impl Default for LogConfig {
             size_limit_mb: 10,
             retention_days: 30,
             logs_dir: PathBuf::new(),
+            max_memory_logs: 5000,  // Keep last 5000 logs in memory
+            dedupe_window_size: 50, // Check last 50 messages for duplicates
+            enable_dedupe: true,    // Enable deduplication by default
         }
     }
 }
@@ -93,6 +99,9 @@ impl LogStorage {
             size_limit_mb: value_to_u64(&settings.logging.log_file_size_limit_mb, 10),
             retention_days: value_to_u64(&settings.logging.log_retention_days, 30),
             logs_dir,
+            max_memory_logs: settings.logging.max_memory_logs.unwrap_or(5000) as usize,
+            dedupe_window_size: settings.logging.dedupe_window_size.unwrap_or(50) as usize,
+            enable_dedupe: settings.logging.enable_dedupe.unwrap_or(true),
         };
 
         // Create a bounded sync channel for log messages and spawn a background thread
@@ -188,24 +197,19 @@ impl LogStorage {
 
     /// Update logging configuration from settings
     pub fn update_config(&mut self, settings: &CategorizedLauncherSettings) {
+        fn value_to_u64(val: &serde_json::Value, default: u64) -> u64 {
+            val.as_u64()
+                .or_else(|| val.as_i64().map(|v| v.max(0) as u64))
+                .unwrap_or(default)
+        }
+
         self.config.enable_persistent_logging = settings.logging.enable_persistent_logging;
         self.config.enable_compression = settings.logging.enable_log_compression;
-        self.config.size_limit_mb = {
-            fn value_to_u64(val: &serde_json::Value, default: u64) -> u64 {
-                val.as_u64()
-                    .or_else(|| val.as_i64().map(|v| v.max(0) as u64))
-                    .unwrap_or(default)
-            }
-            value_to_u64(&settings.logging.log_file_size_limit_mb, 10)
-        };
-        self.config.retention_days = {
-            fn value_to_u64(val: &serde_json::Value, default: u64) -> u64 {
-                val.as_u64()
-                    .or_else(|| val.as_i64().map(|v| v.max(0) as u64))
-                    .unwrap_or(default)
-            }
-            value_to_u64(&settings.logging.log_retention_days, 30)
-        };
+        self.config.size_limit_mb = value_to_u64(&settings.logging.log_file_size_limit_mb, 10);
+        self.config.retention_days = value_to_u64(&settings.logging.log_retention_days, 30);
+        self.config.max_memory_logs = settings.logging.max_memory_logs.unwrap_or(5000) as usize;
+        self.config.dedupe_window_size = settings.logging.dedupe_window_size.unwrap_or(50) as usize;
+        self.config.enable_dedupe = settings.logging.enable_dedupe.unwrap_or(true);
     }
 
     /// Write log message to persistent storage
