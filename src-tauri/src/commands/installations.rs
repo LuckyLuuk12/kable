@@ -1,5 +1,5 @@
-use crate::installations::*;
 use crate::installations::kable_profiles::ShaderPackInfo;
+use crate::installations::*;
 use tauri_plugin_dialog::DialogExt;
 
 /// Gets all versions, either from cache or by building them, does not modify the cache

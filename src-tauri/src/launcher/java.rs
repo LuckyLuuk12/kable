@@ -51,7 +51,7 @@ fn find_java_windows() -> Result<String, String> {
         .args([
             "-NoProfile",
             "-Command",
-            "(Get-Command javaw.exe -ErrorAction SilentlyContinue).Source"
+            "(Get-Command javaw.exe -ErrorAction SilentlyContinue).Source",
         ])
         .output()
     {
@@ -60,7 +60,10 @@ fn find_java_windows() -> Result<String, String> {
             if let Some(path) = stdout.lines().next() {
                 let path = path.trim();
                 // Skip Oracle javapath stub launcher (it's not a real installation)
-                if !path.is_empty() && PathBuf::from(path).exists() && !path.contains("Common Files\\Oracle\\Java\\javapath") {
+                if !path.is_empty()
+                    && PathBuf::from(path).exists()
+                    && !path.contains("Common Files\\Oracle\\Java\\javapath")
+                {
                     crate::logging::Logger::debug_global(
                         &format!("Found javaw.exe via PowerShell: {}", path),
                         None,
@@ -111,7 +114,11 @@ fn find_java_windows() -> Result<String, String> {
         found_javas.sort_by(|a, b| b.1.cmp(&a.1)); // Descending order (highest version first)
         let chosen = &found_javas[0].0;
         crate::logging::Logger::debug_global(
-            &format!("Found {} Java installation(s), chose: {}", found_javas.len(), chosen.display()),
+            &format!(
+                "Found {} Java installation(s), chose: {}",
+                found_javas.len(),
+                chosen.display()
+            ),
             None,
         );
         return Ok(chosen.to_string_lossy().to_string());
@@ -184,7 +191,11 @@ fn find_java_macos() -> Result<String, String> {
         found_javas.sort_by(|a, b| b.1.cmp(&a.1));
         let chosen = &found_javas[0].0;
         crate::logging::Logger::debug_global(
-            &format!("Found {} Java installation(s), chose: {}", found_javas.len(), chosen.display()),
+            &format!(
+                "Found {} Java installation(s), chose: {}",
+                found_javas.len(),
+                chosen.display()
+            ),
             None,
         );
         return Ok(chosen.to_string_lossy().to_string());
@@ -267,7 +278,11 @@ fn find_java_linux() -> Result<String, String> {
         found_javas.sort_by(|a, b| b.1.cmp(&a.1));
         let chosen = &found_javas[0].0;
         crate::logging::Logger::debug_global(
-            &format!("Found {} Java installation(s), chose: {}", found_javas.len(), chosen.display()),
+            &format!(
+                "Found {} Java installation(s), chose: {}",
+                found_javas.len(),
+                chosen.display()
+            ),
             None,
         );
         return Ok(chosen.to_string_lossy().to_string());

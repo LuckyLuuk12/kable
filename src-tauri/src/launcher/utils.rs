@@ -1245,8 +1245,6 @@ pub async fn ensure_assets_for_manifest(
     Ok(())
 }
 
-
-
 //  Native extraction
 /// Extracts native libraries from Minecraft library JARs into the given natives directory.
 ///
@@ -1807,7 +1805,7 @@ pub async fn spawn_and_log_process(
     let mut tokio_cmd = TokioCommand::new(cmd.get_program());
     tokio_cmd.args(cmd.get_args());
     tokio_cmd.current_dir(working_dir);
-    
+
     // On Windows, set creation flags to hide the spawned console window
     #[cfg(target_os = "windows")]
     {

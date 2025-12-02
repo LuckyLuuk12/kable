@@ -2192,9 +2192,8 @@ impl KableInstallation {
         }
 
         if disabled_path.exists() {
-            std::fs::remove_file(&disabled_path).map_err(|e| {
-                format!("Failed to delete shader pack from disabled folder: {}", e)
-            })?;
+            std::fs::remove_file(&disabled_path)
+                .map_err(|e| format!("Failed to delete shader pack from disabled folder: {}", e))?;
             return Ok(());
         }
 
