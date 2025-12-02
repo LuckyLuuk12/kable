@@ -49,12 +49,12 @@ jobs:
           echo "commit_short=${COMMIT_SHORT}" >> $GITHUB_OUTPUT
           echo "commit_numeric=${COMMIT_NUMERIC}" >> $GITHUB_OUTPUT
           
-          # Get commit messages since last tag (or last 10 commits if no tag)
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -z "$LAST_TAG" ]; then
-            COMMITS=$(git log -10 --pretty=format:"- %s (%h)" | sed 's/"/\\"/g')
+          # Get commit messages since last nightly tag (or last 5 commits if no tag)
+          LAST_NIGHTLY=$(git describe --tags --match "nightly-*" --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_NIGHTLY" ]; then
+            COMMITS=$(git log -5 --pretty=format:"- %s (%h)" | sed 's/"/\\"/g')
           else
-            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" | sed 's/"/\\"/g')
+            COMMITS=$(git log ${LAST_NIGHTLY}..HEAD --pretty=format:"- %s (%h)" | sed 's/"/\\"/g')
           fi
           
           # Create release body
