@@ -46,14 +46,9 @@ onMount(async () => {
     // Initialize progressive loading listeners FIRST
     await InstallationService.initializeProgressiveLoading();
 
-    // Start all initialization tasks concurrently. We do not want ordering to block startup.
-    const installPromise = InstallationService.loadInstallations();
+    // Initialize logs service early so we can emit events
     const logsPromise = logsService.initialize();
-    const settingsPromise = SettingsService.initialize();
-    const authInitPromise = AuthService.initialize();
-    const iconPromise = IconService.initialize();
-
-    // Wait for logs service to be ready before emitting any log events that rely on it
+    
     try {
       await logsPromise;
       LogsService.emitLauncherEvent("Kable launcher starting up...", "info");
@@ -65,32 +60,39 @@ onMount(async () => {
       console.error("Failed to initialize logs service:", e);
     }
 
+    // CRITICAL: Initialize auth service FIRST and WAIT for it
+    // This ensures accounts are loaded before user can launch games
+    try {
+      LogsService.emitLauncherEvent("Initializing authentication...", "info");
+      await AuthService.initialize();
+      await AuthService.refreshCurrentAccount();
+      LogsService.emitLauncherEvent("Authentication initialized successfully", "info");
+      
+      // Refresh tokens for all accounts in background to ensure they're ready to use
+      AuthService.refreshAllAccountTokens().catch((error) => {
+        console.error("Failed to refresh all account tokens:", error);
+      });
+    } catch (e) {
+      console.error("Failed to initialize auth service:", e);
+      LogsService.emitLauncherEvent(`Authentication initialization failed: ${e}`, "error");
+    }
+
+    // Now start other initialization tasks concurrently (non-blocking)
+    const installPromise = InstallationService.loadInstallations();
+    const settingsPromise = SettingsService.initialize();
+    const iconPromise = IconService.initialize();
+
     // Load versions in the background AFTER installations start loading
     InstallationService.loadVersions().catch((e) => {
       console.error("Failed to load versions:", e);
     });
 
-    // Await all other initializations but do not fail fast — collect results
+    // Await remaining initializations but do not fail fast — collect results
     const results = await Promise.allSettled([
       installPromise,
       settingsPromise,
-      authInitPromise,
       iconPromise,
     ]);
-
-    // If auth initialized successfully, refresh the current account and all account tokens
-    if (results[2] && results[2].status === "fulfilled") {
-      try {
-        await AuthService.refreshCurrentAccount();
-
-        // Refresh tokens for all accounts in background to ensure they're ready to use
-        AuthService.refreshAllAccountTokens().catch((error) => {
-          console.error("Failed to refresh all account tokens:", error);
-        });
-      } catch (e) {
-        console.error("Failed to refresh auth account after init:", e);
-      }
-    }
 
     // Emit final status and setup listeners (even if some inits failed) — errors are logged above
     try {
