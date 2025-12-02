@@ -1,25 +1,34 @@
-import { checkForUpdates, installUpdate } from "$lib/api/updater";
+import { checkForUpdates, checkForNightlyUpdates, installUpdate } from "$lib/api/updater";
 import { NotificationService } from "./NotificationService";
+import { settings } from "$lib/stores";
+import { get } from "svelte/store";
 
 export class UpdaterService {
   /**
    * Check for updates on app launch
    * Shows a notification if an update is available with click-to-install action
+   * Respects user's nightly update preference
    */
   static async checkForUpdatesOnLaunch(): Promise<void> {
     try {
-      console.log("[UpdaterService] Checking for updates on launch...");
+      const settingsValue = get(settings);
+      const checkNightly = settingsValue?.advanced?.check_nightly_updates ?? false;
+      
+      console.log(`[UpdaterService] Checking for ${checkNightly ? "nightly" : "stable"} updates on launch...`);
 
-      const updateInfo = await checkForUpdates();
+      const updateInfo = checkNightly 
+        ? await checkForNightlyUpdates()
+        : await checkForUpdates();
 
       if (updateInfo && updateInfo.version) {
+        const updateType = checkNightly ? "Nightly update" : "Update";
         console.log(
           `[UpdaterService] Update available: ${updateInfo.current_version} -> ${updateInfo.version}`,
         );
 
         // Show notification with click handler to install
         NotificationService.info(
-          `Update available: v${updateInfo.version}. Click to install and restart.`,
+          `${updateType} available: v${updateInfo.version}. Click to install and restart.`,
           30, // 30 seconds
           false,
           async () => {

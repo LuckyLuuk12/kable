@@ -88,6 +88,15 @@ export interface AuthResponse {
 }
 
 // Microsoft Account Management - Enhanced for session management
+export interface AdvancedSettings {
+  enable_experimental_features?: boolean;
+  default_memory?: number;
+  separate_logs_window?: boolean;
+  show_advanced_page?: boolean;
+  check_nightly_updates?: boolean;
+  extra?: Record<string, any>;
+}
+
 export interface MicrosoftAccount {
   id: string;
   username: string;
