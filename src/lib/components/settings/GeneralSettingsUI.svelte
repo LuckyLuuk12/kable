@@ -12,14 +12,29 @@ game directory, and window behavior settings.
 <script>
 import { settings, AutoUpdater } from "$lib";
 import { onMount } from "svelte";
+import { autoDetectJava } from "$lib/api/launcher";
 
 let isWideScreen = true;
+let detectedJavaPath = "";
+
 function checkScreen() {
   isWideScreen = window.innerWidth >= 700;
 }
+
 onMount(() => {
   checkScreen();
   window.addEventListener("resize", checkScreen);
+  
+  // Auto-detect Java path for placeholder
+  autoDetectJava()
+    .then((path) => {
+      detectedJavaPath = path;
+    })
+    .catch((error) => {
+      console.warn("Failed to auto-detect Java:", error);
+      detectedJavaPath = "Java not found";
+    });
+  
   return () => window.removeEventListener("resize", checkScreen);
 });
 </script>
@@ -38,7 +53,7 @@ onMount(() => {
           type="text"
           id="java-path"
           bind:value={$settings.general.java_path}
-          placeholder="Path to Java executable"
+          placeholder={detectedJavaPath || "Path to Java executable"}
         />
       </div>
     </div>

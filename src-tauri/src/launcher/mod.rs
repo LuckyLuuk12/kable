@@ -1,5 +1,6 @@
 pub mod fabric;
 pub mod forge;
+pub mod java;
 pub mod launchables;
 pub mod utils;
 pub mod vanilla;

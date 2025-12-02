@@ -39,12 +39,12 @@ type ViewMode = "grid" | "list" | "compact";
 type InstallMode = "dedicated" | "global";
 
 export let ondownload: ((event: { shader: ShaderDownload; installation: KableInstallation | null }) => void) | undefined = undefined;
+export let selectedInstallationId: string = "global";
 
 // Browser state
 let viewMode: ViewMode = "grid";
 let installMode: InstallMode = "global";
 let searchQuery = "";
-let selectedInstallationId: string = "global";
 let currentInstallation: KableInstallation | null = null;
 let showFilters = true;
 let smartFilteringEnabled = true; // Auto-apply game version filter

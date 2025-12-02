@@ -79,12 +79,10 @@ impl Launchable for VanillaLaunchable {
 
         // Run pre-launch Java/native compatibility check. This may return Err to abort launch with
         // an actionable message (e.g., 32-bit Java vs 64-bit natives). Use configured java path.
-        let java_path = context
-            .settings
-            .general
-            .java_path
-            .clone()
-            .unwrap_or_else(|| "java".to_string());
+        let java_path = crate::launcher::java::find_java_executable(
+            context.settings.general.java_path.as_ref(),
+        )?;
+
         crate::launcher::utils::pre_launch_java_native_compat_check(
             &java_path,
             &manifest,
@@ -166,12 +164,10 @@ impl Launchable for VanillaLaunchable {
         }
 
         // 6. Build command
-        let java_path = context
-            .settings
-            .general
-            .java_path
-            .clone()
-            .unwrap_or_else(|| "java".to_string());
+        let java_path = match &context.settings.general.java_path {
+            Some(path) => path.clone(),
+            None => crate::launcher::java::find_java_executable(None)?,
+        };
         let main_class = manifest
             .get("mainClass")
             .and_then(|v| v.as_str())

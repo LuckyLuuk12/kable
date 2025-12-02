@@ -847,7 +847,7 @@ $: {
       #{"color-mix(in srgb, var(--primary), 4%, transparent)"} 100%
     );
   box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08); // 2px 4px
-  overflow: scroll;
+  overflow: visible;
   animation: move-dots 32s ease infinite alternate;
 }
 

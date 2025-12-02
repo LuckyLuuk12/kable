@@ -1244,75 +1244,6 @@ pub async fn ensure_assets_for_manifest(
 
     Ok(())
 }
-/// Attempts to find a working Java executable, either from the provided path or common install locations.
-///
-/// Used by all loader modules to locate Java for launching Minecraft.
-///
-/// # Arguments
-/// * `java_path` - Optional user-specified Java path.
-///
-/// # Returns
-/// Ok(path to Java executable) or Err if not found.
-pub fn find_java_executable(java_path: Option<&String>) -> Result<String, String> {
-    if let Some(path) = java_path {
-        // Validate that the path is not empty or whitespace
-        let trimmed = path.trim();
-        if !trimmed.is_empty() {
-            if PathBuf::from(trimmed).exists() {
-                return Ok(trimmed.to_string());
-            }
-            // If a non-empty path was specified but doesn't exist, log a warning
-            // but continue to auto-detection (user might have deleted/moved Java)
-            crate::logging::Logger::warn_global(
-                &format!(
-                    "Specified Java path does not exist: '{}'. Attempting auto-detection.",
-                    trimmed
-                ),
-                None,
-            );
-        }
-    }
-    let java_candidates = if cfg!(windows) {
-        vec![
-            "java".to_string(),
-            "C:\\Program Files\\Java\\jdk-25\\bin\\java.exe".to_string(),
-            "C:\\Program Files\\Java\\jdk-24\\bin\\java.exe".to_string(),
-            "C:\\Program Files\\Java\\jdk-21\\bin\\java.exe".to_string(),
-            "C:\\Program Files\\Java\\jdk-11\\bin\\java.exe".to_string(),
-            "C:\\Program Files\\Java\\jre1.8.0_301\\bin\\java.exe".to_string(),
-            "C:\\Program Files\\Eclipse Adoptium\\jdk-17.0.2.8-hotspot\\bin\\java.exe".to_string(),
-            "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.1.12-hotspot\\bin\\java.exe".to_string(),
-        ]
-    } else {
-        vec![
-            "java".to_string(),
-            "/usr/bin/java".to_string(),
-            "/usr/lib/jvm/default-java/bin/java".to_string(),
-        ]
-    };
-    for candidate in java_candidates {
-        if let Ok(output) = Command::new(&candidate).arg("-version").output() {
-            if output.status.success() {
-                return Ok(candidate);
-            }
-        }
-    }
-    Err("Java not found. Please install Java or specify the Java path in settings.".to_string())
-}
-
-/// Tauri command: Returns the path to a working Java executable, using the provided path or searching common locations.
-///
-/// Used by the frontend to validate or auto-detect Java installations.
-///
-/// # Arguments
-/// * `java_path` - Optional user-specified Java path.
-///
-/// # Returns
-/// Ok(path to Java executable) or Err if not found.
-#[tauri::command]
-pub fn get_java_path(java_path: Option<String>) -> Result<String, String> {
-    find_java_executable(java_path.as_ref())
-}
 
 //  Native extraction
 /// Extracts native libraries from Minecraft library JARs into the given natives directory.
@@ -1874,11 +1805,12 @@ pub async fn spawn_and_log_process(
     let mut tokio_cmd = TokioCommand::new(cmd.get_program());
     tokio_cmd.args(cmd.get_args());
     tokio_cmd.current_dir(working_dir);
+
     // On Windows, set creation flags to hide the spawned console window
     #[cfg(target_os = "windows")]
     {
         // CREATE_NO_WINDOW = 0x08000000
-        tokio_cmd.creation_flags(0x08000000);
+        // tokio_cmd.creation_flags(0x08000000);
     }
     tokio_cmd.stdout(Stdio::piped());
     tokio_cmd.stderr(Stdio::piped());
