@@ -27,8 +27,15 @@ export let viewMode: "grid" | "list" | "compact" = "grid";
 export let installation: KableInstallation | null = null;
 export let loading = false;
 export let isInstalled = false;
-export let ondownload: ((event: { resourcepack: ResourcePackDownload; installation: KableInstallation | null }) => void) | undefined = undefined;
-export let onviewgallery: ((event: { resourcepack: ResourcePackDownload }) => void) | undefined = undefined;
+export let ondownload:
+  | ((event: {
+      resourcepack: ResourcePackDownload;
+      installation: KableInstallation | null;
+    }) => void)
+  | undefined = undefined;
+export let onviewgallery:
+  | ((event: { resourcepack: ResourcePackDownload }) => void)
+  | undefined = undefined;
 
 $: hasGallery =
   (resourcepack.gallery && resourcepack.gallery.length > 0) ||
@@ -110,7 +117,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
   on:click={handleVisit}
   role="button"
   tabindex="0"
-  on:keydown={(e) => e.key === 'Enter' && handleVisit(e)}
+  on:keydown={(e) => e.key === "Enter" && handleVisit(e)}
 >
   <!-- Thumbnail -->
   {#if viewMode !== "compact"}

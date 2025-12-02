@@ -24,6 +24,19 @@ function handleDismiss() {
   NotificationService.dismiss(notification.id);
 }
 
+function handleClick() {
+  if (notification.onClick) {
+    notification.onClick();
+  }
+}
+
+function handleKeyDown(event: KeyboardEvent) {
+  if (notification.onClick && (event.key === "Enter" || event.key === " ")) {
+    event.preventDefault();
+    notification.onClick();
+  }
+}
+
 // Map notification types to icons (using existing IconService icons)
 const iconMap = {
   success: "check", // or "success"
@@ -33,11 +46,17 @@ const iconMap = {
 };
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   class="notification-toast notification-{notification.type}"
+  class:clickable={!!notification.onClick}
   on:mouseenter={handleMouseEnter}
   on:mouseleave={handleMouseLeave}
-  role="alert"
+  on:click={handleClick}
+  on:keydown={handleKeyDown}
+  role={notification.onClick ? "button" : "alert"}
+  tabindex={notification.onClick ? 0 : -1}
   aria-live="polite"
 >
   <div class="notification-icon">
@@ -83,6 +102,18 @@ const iconMap = {
 
   &:hover {
     transform: translateX(-4px);
+  }
+
+  &.clickable {
+    cursor: pointer;
+
+    &:hover {
+      transform: translateX(-6px) scale(1.02);
+    }
+
+    &:active {
+      transform: translateX(-4px) scale(0.98);
+    }
   }
 
   &.notification-success {

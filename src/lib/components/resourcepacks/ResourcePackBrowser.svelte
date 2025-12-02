@@ -38,7 +38,12 @@ import type {
 type ViewMode = "grid" | "list" | "compact";
 type InstallMode = "dedicated" | "global";
 
-export let ondownload: ((event: { resourcepack: ResourcePackDownload; installation: KableInstallation | null }) => void) | undefined = undefined;
+export let ondownload:
+  | ((event: {
+      resourcepack: ResourcePackDownload;
+      installation: KableInstallation | null;
+    }) => void)
+  | undefined = undefined;
 
 // Browser state
 let viewMode: ViewMode = "grid";
@@ -163,7 +168,12 @@ $: {
     }
   }
   // Trigger filter update when installation changes (only after mount and only if it actually changed)
-  if (isFullyMounted && resourcepacksService && previousInstallationId !== null && previousInstallationId !== selectedInstallationId) {
+  if (
+    isFullyMounted &&
+    resourcepacksService &&
+    previousInstallationId !== null &&
+    previousInstallationId !== selectedInstallationId
+  ) {
     console.log(
       "[ResourcePackBrowser] Installation changed from",
       previousInstallationId,
@@ -240,7 +250,9 @@ async function applyFiltersToBackend() {
     query: searchQuery || undefined,
     categories: categoryFilters.length > 0 ? categoryFilters : undefined,
     game_versions:
-      smartFilteringEnabled && currentInstallation && currentInstallation.version_id
+      smartFilteringEnabled &&
+      currentInstallation &&
+      currentInstallation.version_id
         ? [currentInstallation.version_id]
         : undefined,
   };
@@ -363,7 +375,7 @@ $: pageNumbers = (() => {
   // If current page is beyond 10, show ellipsis and last 7 pages
   if (currentPage > 10) {
     pages.push("ellipsis");
-    
+
     // Show last 7 pages ending at current page (current-6 through current)
     const startPage = currentPage - 6;
     for (let i = startPage; i <= currentPage; i++) {
@@ -418,12 +430,10 @@ async function loadResourcepacks() {
   }
 }
 
-async function handleDownload(
-  event: {
-    resourcepack: ResourcePackDownload;
-    installation: KableInstallation | null;
-  },
-) {
+async function handleDownload(event: {
+  resourcepack: ResourcePackDownload;
+  installation: KableInstallation | null;
+}) {
   console.log("[ResourcePackBrowser] Download button clicked:", event);
 
   if (!resourcepacksService) {
@@ -449,9 +459,7 @@ async function handleDownload(
 }
 
 // Handle viewing gallery
-function handleViewGallery(
-  event: { resourcepack: ResourcePackDownload },
-) {
+function handleViewGallery(event: { resourcepack: ResourcePackDownload }) {
   selectedResourcePackForGallery = event.resourcepack;
   showGalleryModal = true;
 }
@@ -465,24 +473,27 @@ function closeGallery() {
 // Initialize on mount
 onMount(async () => {
   resourcepacksService = new ResourcepacksService();
-  
+
   // Read from store if available, otherwise default to global
   if ($selectedInstallation && $selectedInstallation.id) {
     selectedInstallationId = $selectedInstallation.id;
   } else {
     selectedInstallationId = "global";
   }
-  
+
   // Track initial installation to prevent double-load
   previousInstallationId = selectedInstallationId;
-  
+
   // Initialize after setting installation to avoid double-load
   await resourcepacksService.initialize();
-  
+
   // Mark as fully mounted after initialization
   isFullyMounted = true;
-  
-  console.log("[ResourcePackBrowser] Fully mounted and initialized with installation:", selectedInstallationId);
+
+  console.log(
+    "[ResourcePackBrowser] Fully mounted and initialized with installation:",
+    selectedInstallationId,
+  );
 });
 </script>
 

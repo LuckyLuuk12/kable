@@ -240,7 +240,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | search | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L167) | <pre><code class="language-html">&lt;Icon name="search" size="sm" /&gt;</code></pre> |
 | search | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L308) | <pre><code class="language-html">&lt;Icon name="search" size="xl" /&gt;</code></pre> |
 | settings | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L325) | <pre><code class="language-html">&lt;Icon name="settings" size="sm" /&gt;</code></pre> |
-| settings | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L554) | <pre><code class="language-html">&lt;Icon name="settings" size="md" className="nav-icon" /&gt;</code></pre> |
+| settings | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L562) | <pre><code class="language-html">&lt;Icon name="settings" size="md" className="nav-icon" /&gt;</code></pre> |
 | settings | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L263) | <pre><code class="language-html">&lt;Icon name="settings" /&gt;</code></pre> |
 | settings | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L285) | <pre><code class="language-html">&lt;Icon name="settings" /&gt;</code></pre> |
 | skull | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L369) | <pre><code class="language-html">&lt;Icon name="skull" size="md" /&gt;</code></pre> |
@@ -277,7 +277,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1238) | <pre><code class="language-html">&lt;Icon name="x" size="sm" /&gt;</code></pre> |
 | x | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L1301) | <pre><code class="language-html">&lt;Icon name="x" size="sm" forceType="svg" /&gt;</code></pre> |
 | x | [ModVersionModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModVersionModal.svelte#L264) | <pre><code class="language-html">&lt;Icon name="x" size="lg" forceType="svg" /&gt;</code></pre> |
-| x | [NotificationToast](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/notifications/NotificationToast.svelte#L58) | <pre><code class="language-html">&lt;Icon name="x" size="sm" forceType="svg" /&gt;</code></pre> |
+| x | [NotificationToast](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/notifications/NotificationToast.svelte#L77) | <pre><code class="language-html">&lt;Icon name="x" size="sm" forceType="svg" /&gt;</code></pre> |
 | x | [ResourcePackBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/ResourcePackBrowser.svelte#L596) | <pre><code class="language-html">&lt;Icon name="x" size="sm" /&gt;</code></pre> |
 | x | [ResourcePackBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/ResourcePackBrowser.svelte#L639) | <pre><code class="language-html">&lt;Icon name="x" size="sm" forceType="svg" /&gt;</code></pre> |
 | x | [ResourcePackGalleryModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/ResourcePackGalleryModal.svelte#L109) | <pre><code class="language-html">&lt;Icon name="x" size="lg" forceType="svg" /&gt;</code></pre> |
@@ -288,4 +288,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L538) | <pre><code class="language-html">&lt;Icon name="x" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L752) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2025-12-02T16:45:47.590Z_
+_Generated: 2025-12-02T17:34:00.243Z_

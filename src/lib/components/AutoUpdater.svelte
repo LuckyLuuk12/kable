@@ -12,12 +12,14 @@ Displays update information including version numbers and allows users to instal
 <script lang="ts">
 import { onMount } from "svelte";
 import { checkForUpdates, installUpdate, getCurrentVersion } from "$lib";
+import { marked } from "marked";
 
 let currentVersion = "";
 let updateInfo: any = null;
 let isChecking = false;
 let isInstalling = false;
 let error = "";
+let releaseNotesHtml = "";
 
 onMount(async () => {
   try {
@@ -33,6 +35,12 @@ async function handleCheckForUpdates() {
 
   try {
     updateInfo = await checkForUpdates();
+    if (updateInfo?.body) {
+      releaseNotesHtml = await marked.parse(updateInfo.body, {
+        breaks: true,
+        gfm: true,
+      });
+    }
   } catch (e) {
     error = `Failed to check for updates: ${e}`;
   } finally {
@@ -78,10 +86,12 @@ async function handleInstallUpdate() {
     {#if updateInfo}
       <div class="update-available">
         <h4>Update Available: v{updateInfo.version}</h4>
-        {#if updateInfo.body}
+        {#if releaseNotesHtml}
           <div class="update-notes">
             <p><strong>Release Notes:</strong></p>
-            <div class="notes-content">{updateInfo.body}</div>
+            <div class="notes-content markdown-content">
+              {@html releaseNotesHtml}
+            </div>
           </div>
         {/if}
         <button
@@ -200,9 +210,154 @@ async function handleInstallUpdate() {
     color: var(--text-muted);
     font-size: 0.875rem;
     line-height: 1.5;
-    white-space: pre-wrap;
     max-height: 10rem;
     overflow-y: auto;
+
+    &.markdown-content {
+      :global(p) {
+        margin: 0.5rem 0;
+
+        &:first-child {
+          margin-top: 0;
+        }
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+
+      :global(a) {
+        color: var(--primary);
+        text-decoration: underline;
+        transition: opacity 0.15s;
+
+        &:hover {
+          opacity: 0.8;
+        }
+      }
+
+      :global(strong) {
+        color: var(--text);
+        font-weight: 600;
+      }
+
+      :global(em) {
+        font-style: italic;
+      }
+
+      :global(code) {
+        background: var(--container);
+        padding: 0.125rem 0.375rem;
+        border-radius: 0.25rem;
+        font-family: "Courier New", monospace;
+        font-size: 0.85em;
+        color: var(--primary);
+      }
+
+      :global(pre) {
+        background: var(--container);
+        border-radius: 0.375rem;
+        padding: 0.75rem;
+        overflow-x: auto;
+        margin: 0.5rem 0;
+      }
+
+      :global(pre code) {
+        background: none;
+        padding: 0;
+        font-size: 0.875rem;
+      }
+
+      :global(h1),
+      :global(h2),
+      :global(h3),
+      :global(h4),
+      :global(h5),
+      :global(h6) {
+        color: var(--text);
+        margin: 0.75rem 0 0.5rem 0;
+        font-weight: 600;
+
+        &:first-child {
+          margin-top: 0;
+        }
+      }
+
+      :global(h1) {
+        font-size: 1.25rem;
+      }
+
+      :global(h2) {
+        font-size: 1.1rem;
+      }
+
+      :global(h3) {
+        font-size: 1rem;
+      }
+
+      :global(h4),
+      :global(h5),
+      :global(h6) {
+        font-size: 0.95rem;
+      }
+
+      :global(ul),
+      :global(ol) {
+        margin: 0.5rem 0;
+        padding-left: 1.5rem;
+
+        &:first-child {
+          margin-top: 0;
+        }
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+
+      :global(li) {
+        margin: 0.25rem 0;
+      }
+
+      :global(blockquote) {
+        border-left: 3px solid var(--primary);
+        padding-left: 0.75rem;
+        margin: 0.5rem 0;
+        color: var(--text-muted);
+        font-style: italic;
+      }
+
+      :global(hr) {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 0.75rem 0;
+      }
+
+      :global(img) {
+        max-width: 100%;
+        height: auto;
+        border-radius: 0.375rem;
+        margin: 0.5rem 0;
+      }
+
+      :global(table) {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.5rem 0;
+      }
+
+      :global(table th),
+      :global(table td) {
+        padding: 0.5rem;
+        border: 1px solid var(--border);
+        text-align: left;
+      }
+
+      :global(table th) {
+        background: var(--container);
+        font-weight: 600;
+      }
+    }
   }
 }
 

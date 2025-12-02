@@ -98,7 +98,7 @@ onDestroy(() => {
   document.removeEventListener("click", handleClickOutside);
   document.removeEventListener("keydown", handleKeyDown);
   window.removeEventListener("resize", handleResize);
-  
+
   // Clean up all element references
   logElements = {};
   logHeights.clear();
@@ -345,18 +345,18 @@ function cleanupStaleElements() {
   // Remove element references that are no longer visible
   const currentKeys = new Set(lastRenderedKeys);
   const keysToDelete: string[] = [];
-  
+
   for (const key in logElements) {
     if (!currentKeys.has(key)) {
       keysToDelete.push(key);
     }
   }
-  
+
   // Delete stale references
   for (const key of keysToDelete) {
     delete logElements[key];
   }
-  
+
   // Also clean up old height measurements (keep last 1000)
   if (logHeights.size > 1000) {
     const keys = Array.from(logHeights.keys());
@@ -371,7 +371,7 @@ function measureLogHeights() {
   // Measure all currently rendered log elements
   const currentKeys = new Set<string>();
   let heightsChanged = false;
-  
+
   Object.entries(logElements).forEach(([key, element]) => {
     if (element) {
       const height = element.offsetHeight;
@@ -385,15 +385,15 @@ function measureLogHeights() {
       }
     }
   });
-  
+
   lastRenderedKeys = currentKeys;
   heightsNeedRecalculation = false;
-  
+
   // Only increment version if heights actually changed
   if (heightsChanged) {
     heightsVersion++;
   }
-  
+
   // Clean up stale elements periodically
   cleanupStaleElements();
 }
@@ -645,11 +645,16 @@ $: if (heightsVersion >= 0 && filteredLogs && visibleStartIndex >= 0) {
 // Update visible range when filteredLogs changes (tab switch, filters, etc.)
 // Only trigger when filteredLogs length changes or container becomes ready
 let lastFilteredLogsLength = 0;
-$: if (filteredLogs && logContainer && filteredLogs.length !== lastFilteredLogsLength && !recalculationPending) {
+$: if (
+  filteredLogs &&
+  logContainer &&
+  filteredLogs.length !== lastFilteredLogsLength &&
+  !recalculationPending
+) {
   lastFilteredLogsLength = filteredLogs.length;
   recalculationPending = true;
   heightsNeedRecalculation = true;
-  
+
   tick().then(() => {
     if (heightsNeedRecalculation) {
       measureLogHeights();

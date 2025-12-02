@@ -24,7 +24,9 @@ export let onshaderchanged: (() => void) | undefined = undefined;
 let loading = false;
 
 $: isDisabled = shader.disabled || false;
-$: displayName = decodeURIComponent(shader.name || shader.file_name.replace(/\.(zip|jar)$/, ""));
+$: displayName = decodeURIComponent(
+  shader.name || shader.file_name.replace(/\.(zip|jar)$/, ""),
+);
 $: iconUrl = extendedInfo?.icon_uri || null;
 
 async function toggleDisabled(event: MouseEvent) {
@@ -83,9 +85,7 @@ async function handleVisitPage(event: MouseEvent) {
   event.stopPropagation();
 
   if (!extendedInfo || !extendedInfo.page_uri) {
-    NotificationService.warning(
-      `No page URL available for "${displayName}"`,
-    );
+    NotificationService.warning(`No page URL available for "${displayName}"`);
     return;
   }
 
@@ -99,11 +99,7 @@ async function handleVisitPage(event: MouseEvent) {
 }
 </script>
 
-<div
-  class="installed-shader-card"
-  class:disabled={isDisabled}
-  class:loading
->
+<div class="installed-shader-card" class:disabled={isDisabled} class:loading>
   <!-- Shader Icon and Name -->
   <div class="shader-info">
     <div class="shader-icon-wrapper">
@@ -128,7 +124,10 @@ async function handleVisitPage(event: MouseEvent) {
       </div>
       {#if extendedInfo?.description}
         <div class="shader-description">
-          {extendedInfo.description.substring(0, 50)}{extendedInfo.description.length > 50 ? "..." : ""}
+          {extendedInfo.description.substring(0, 50)}{extendedInfo.description
+            .length > 50
+            ? "..."
+            : ""}
         </div>
       {/if}
     </div>
@@ -318,7 +317,7 @@ async function handleVisitPage(event: MouseEvent) {
 
   &.enabled {
     border-color: color-mix(in srgb, var(--green-500), 30%, transparent);
-    
+
     &:hover:not(:disabled) {
       border-color: color-mix(in srgb, var(--green-500), 50%, transparent);
       background: color-mix(in srgb, var(--green-500), 10%, transparent);

@@ -13,3 +13,4 @@ export * from "./ResourcepacksService";
 export * from "./SettingsService";
 export * from "./ShadersService";
 export * from "./SkinsService";
+export * from "./UpdaterService";

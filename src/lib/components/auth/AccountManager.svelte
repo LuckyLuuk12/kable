@@ -11,7 +11,13 @@ Displays current account status and allows switching between authentication flow
 -->
 <script lang="ts">
 import { onMount, onDestroy } from "svelte";
-import { Icon, PlayerHead, AuthService, currentAccount, AuthenticationFlow } from "$lib";
+import {
+  Icon,
+  PlayerHead,
+  AuthService,
+  currentAccount,
+  AuthenticationFlow,
+} from "$lib";
 import type { LauncherAccount } from "$lib";
 
 let isLoading = false;

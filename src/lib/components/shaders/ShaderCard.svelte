@@ -27,8 +27,15 @@ export let viewMode: "grid" | "list" | "compact" = "grid";
 export let installation: KableInstallation | null = null;
 export let loading = false;
 export let isInstalled = false;
-export let ondownload: ((event: { shader: ShaderDownload; installation: KableInstallation | null }) => void) | undefined = undefined;
-export let onviewgallery: ((event: { shader: ShaderDownload }) => void) | undefined = undefined;
+export let ondownload:
+  | ((event: {
+      shader: ShaderDownload;
+      installation: KableInstallation | null;
+    }) => void)
+  | undefined = undefined;
+export let onviewgallery:
+  | ((event: { shader: ShaderDownload }) => void)
+  | undefined = undefined;
 
 $: hasGallery =
   (shader.gallery && shader.gallery.length > 0) || !!shader.featured_gallery;
@@ -98,7 +105,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
   on:click={handleVisit}
   role="button"
   tabindex="0"
-  on:keydown={(e) => e.key === 'Enter' && handleVisit(e)}
+  on:keydown={(e) => e.key === "Enter" && handleVisit(e)}
 >
   <!-- Thumbnail -->
   {#if viewMode !== "compact"}

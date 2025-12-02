@@ -26,6 +26,7 @@ import {
   logsService,
   LogsService,
   IconService,
+  UpdaterService,
   settings,
   isLaunching,
   currentLaunchingInstallation,
@@ -48,7 +49,7 @@ onMount(async () => {
 
     // Initialize logs service early so we can emit events
     const logsPromise = logsService.initialize();
-    
+
     try {
       await logsPromise;
       LogsService.emitLauncherEvent("Kable launcher starting up...", "info");
@@ -66,15 +67,28 @@ onMount(async () => {
       LogsService.emitLauncherEvent("Initializing authentication...", "info");
       await AuthService.initialize();
       await AuthService.refreshCurrentAccount();
-      LogsService.emitLauncherEvent("Authentication initialized successfully", "info");
-      
+      LogsService.emitLauncherEvent(
+        "Authentication initialized successfully",
+        "info",
+      );
+
       // Refresh tokens for all accounts in background to ensure they're ready to use
       AuthService.refreshAllAccountTokens().catch((error) => {
         console.error("Failed to refresh all account tokens:", error);
       });
     } catch (e) {
       console.error("Failed to initialize auth service:", e);
-      LogsService.emitLauncherEvent(`Authentication initialization failed: ${e}`, "error");
+      LogsService.emitLauncherEvent(
+        `Authentication initialization failed: ${e}`,
+        "error",
+      );
+    }
+
+    // Check for updates on launch (if enabled in settings)
+    if ($settings?.general?.auto_update_launcher !== false) {
+      UpdaterService.checkForUpdatesOnLaunch().catch((error: unknown) => {
+        console.error("Failed to check for updates on launch:", error);
+      });
     }
 
     // Now start other initialization tasks concurrently (non-blocking)

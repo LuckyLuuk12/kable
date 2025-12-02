@@ -216,9 +216,10 @@ let loadedInstallationId: string | null = null;
 
 // Reactively update currentInstallation and shaders
 $: {
-  const inst = selectedId === "global" 
-    ? globalInstallation
-    : get(installations).find((i) => i.id === selectedId) || null;
+  const inst =
+    selectedId === "global"
+      ? globalInstallation
+      : get(installations).find((i) => i.id === selectedId) || null;
   currentInstallation = inst;
   selectedInstallation.set(inst);
 
@@ -419,7 +420,7 @@ onMount(() => {
             <div class="title-and-info">
               <h3>Shader Packs for {currentInstallation.name}</h3>
             </div>
-            
+
             {#if shaders.length > 0}
               <div class="shaders-count-badge">
                 {#if searchQuery}

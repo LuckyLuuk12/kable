@@ -33,9 +33,17 @@ export let currentInstallation: KableInstallation | null = null;
 export let loading: boolean = false;
 export let isInstalled: boolean = false;
 export let installedVersion: string | null = null;
-export let ondownloadmod: ((event: { mod: ModInfoKind }) => void) | undefined = undefined;
-export let oninfomod: ((event: { mod: ModInfoKind }) => void) | undefined = undefined;
-export let ondownloadversion: ((event: { mod: ModInfoKind; versionId: string; versionNumber: string }) => void) | undefined = undefined;
+export let ondownloadmod: ((event: { mod: ModInfoKind }) => void) | undefined =
+  undefined;
+export let oninfomod: ((event: { mod: ModInfoKind }) => void) | undefined =
+  undefined;
+export let ondownloadversion:
+  | ((event: {
+      mod: ModInfoKind;
+      versionId: string;
+      versionNumber: string;
+    }) => void)
+  | undefined = undefined;
 
 let showVersionModal = false;
 let hasNewerVersion = false;
@@ -348,9 +356,10 @@ function handleVersions(event?: Event) {
   showVersionModal = true;
 }
 
-function handleVersionSelect(
-  event: { versionId: string; versionNumber: string },
-) {
+function handleVersionSelect(event: {
+  versionId: string;
+  versionNumber: string;
+}) {
   const { versionId, versionNumber } = event;
   ondownloadversion?.({ mod, versionId, versionNumber });
 }
