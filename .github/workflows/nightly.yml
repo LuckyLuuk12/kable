@@ -1,0 +1,92 @@
+name: 'nightly'
+
+on:
+  push:
+    branches:
+      - main
+
+# This workflow will trigger on each push to the `main` branch to create a prerelease with commit hash
+
+jobs:
+  nightly-build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: 'windows-latest'
+            args: ''
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for commit messages
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: install frontend dependencies
+        run: npm install
+
+      - name: Get version and commit info
+        id: version_info
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          COMMIT_SHORT=$(git rev-parse --short HEAD)
+          NIGHTLY_VERSION="${VERSION}-nightly.${COMMIT_SHORT}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "nightly_version=${NIGHTLY_VERSION}" >> $GITHUB_OUTPUT
+          echo "commit_short=${COMMIT_SHORT}" >> $GITHUB_OUTPUT
+          
+          # Get commit messages since last tag (or last 10 commits if no tag)
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_TAG" ]; then
+            COMMITS=$(git log -10 --pretty=format:"- %s (%h)" | sed 's/"/\\"/g')
+          else
+            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" | sed 's/"/\\"/g')
+          fi
+          
+          # Create release body
+          echo "release_body<<EOF" >> $GITHUB_OUTPUT
+          echo "🌙 **Nightly Build** - Commit ${COMMIT_SHORT}" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "This is an automated nightly build from the main branch. It may contain experimental features and bugs." >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### Recent Changes:" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "**⚠️ Warning**: Nightly builds are unstable and intended for testing purposes only." >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Update version in tauri.conf.json
+        shell: bash
+        run: |
+          node -e "
+          const fs = require('fs');
+          const path = 'src-tauri/tauri.conf.json';
+          const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+          config.version = '${{ steps.version_info.outputs.nightly_version }}';
+          fs.writeFileSync(path, JSON.stringify(config, null, 2));
+          "
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: nightly-${{ steps.version_info.outputs.commit_short }}
+          releaseName: 'Nightly ${{ steps.version_info.outputs.nightly_version }}'
+          releaseBody: ${{ steps.version_info.outputs.release_body }}
+          releaseDraft: false
+          prerelease: true
+          includeUpdaterJson: true
+          args: ${{ matrix.args }}
