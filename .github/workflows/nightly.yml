@@ -41,10 +41,13 @@ jobs:
         run: |
           VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
           COMMIT_SHORT=$(git rev-parse --short HEAD)
-          NIGHTLY_VERSION="${VERSION}-nightly.${COMMIT_SHORT}"
+          # Convert commit hash to numeric identifier (first 5 hex digits as decimal, max 65535)
+          COMMIT_NUMERIC=$(printf "%d" "0x${COMMIT_SHORT:0:4}")
+          NIGHTLY_VERSION="${VERSION}-${COMMIT_NUMERIC}"
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "nightly_version=${NIGHTLY_VERSION}" >> $GITHUB_OUTPUT
           echo "commit_short=${COMMIT_SHORT}" >> $GITHUB_OUTPUT
+          echo "commit_numeric=${COMMIT_NUMERIC}" >> $GITHUB_OUTPUT
           
           # Get commit messages since last tag (or last 10 commits if no tag)
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
