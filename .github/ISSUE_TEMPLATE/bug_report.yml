@@ -1,0 +1,141 @@
+name: 🐛 Bug Report
+description: Report a bug or unexpected behavior in Kable
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the information below to help us reproduce and fix the issue.
+
+  - type: checkboxes
+    id: existing-issue
+    attributes:
+      label: Is there an existing issue for this?
+      description: Please search to see if an issue already exists for the bug you encountered.
+      options:
+        - label: I have searched the existing issues
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Tell us what happened
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior
+      placeholder: |
+        1. Go to '...'
+        2. Click on '...'
+        3. Scroll down to '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe what you expected
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Describe what actually happened
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Kable Version
+      description: Which version of Kable are you using?
+      placeholder: e.g., 0.1.7 or 0.1.7-12345 (nightly)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      options:
+        - Windows 10
+        - Windows 11
+        - macOS (Intel)
+        - macOS (Apple Silicon)
+        - Linux (Ubuntu)
+        - Linux (Arch)
+        - Linux (Fedora)
+        - Linux (Other)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: OS Version
+      description: What version of the operating system?
+      placeholder: e.g., Windows 11 23H2, macOS 14.2, Ubuntu 22.04
+    validations:
+      required: false
+
+  - type: input
+    id: minecraft-version
+    attributes:
+      label: Minecraft Version
+      description: Which Minecraft version were you using when the bug occurred?
+      placeholder: e.g., 1.20.4, 1.21.1
+    validations:
+      required: false
+
+  - type: input
+    id: mod-loader
+    attributes:
+      label: Mod Loader
+      description: Which mod loader were you using? (if applicable)
+      placeholder: e.g., Fabric 0.15.7, Forge 49.0.31, NeoForge 21.0.42
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Please copy and paste any relevant log output. This will be automatically formatted into code.
+        You can find logs in Kable's logs page or in the logs folder.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to help explain your problem.
+      placeholder: Drag and drop images here or paste image URLs
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the problem here.
+      placeholder: Any other relevant information...
+    validations:
+      required: false

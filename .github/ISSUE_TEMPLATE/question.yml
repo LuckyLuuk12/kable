@@ -1,0 +1,96 @@
+name: ❓ Question / Support
+description: Ask a question or get help with Kable
+title: "[Question]: "
+labels: ["question", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a question about Kable? We're here to help!
+        
+        **Note:** For general discussions, consider using [GitHub Discussions](https://github.com/LuckyLuuk12/kable/discussions) instead.
+
+  - type: checkboxes
+    id: searched
+    attributes:
+      label: Have you searched for existing answers?
+      description: Please check these resources before asking
+      options:
+        - label: I have searched existing issues
+          required: true
+        - label: I have checked the Wiki/Documentation
+          required: true
+        - label: I have searched GitHub Discussions
+          required: false
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know?
+      placeholder: Ask your question here
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Question Category
+      description: What is your question about?
+      options:
+        - Installation / Setup
+        - Configuration / Settings
+        - Authentication / Accounts
+        - Minecraft Installations
+        - Mods
+        - Resource Packs
+        - Shaders
+        - Worlds / Maps
+        - Skins
+        - Launching Games
+        - Performance
+        - Troubleshooting
+        - Development / Contributing
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Provide any relevant context or what you've tried so far
+      placeholder: |
+        What have you tried?
+        What are you trying to accomplish?
+        Any error messages or unexpected behavior?
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Kable Version
+      description: Which version of Kable are you using?
+      placeholder: e.g., 0.1.7 or 0.1.7-12345 (nightly)
+    validations:
+      required: false
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      options:
+        - Windows 10
+        - Windows 11
+        - macOS (Intel)
+        - macOS (Apple Silicon)
+        - Linux (Ubuntu)
+        - Linux (Arch)
+        - Linux (Fedora)
+        - Linux (Other)
+        - Other
+        - Not Applicable
+    validations:
+      required: false

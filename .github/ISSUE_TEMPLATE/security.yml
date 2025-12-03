@@ -1,0 +1,111 @@
+name: 🔒 Security Vulnerability
+description: Report a security vulnerability (private report recommended)
+title: "[Security]: "
+labels: ["security", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **IMPORTANT: For serious security vulnerabilities, please use [GitHub's Private Security Reporting](https://github.com/LuckyLuuk12/kable/security/advisories/new) instead of creating a public issue.**
+        
+        This ensures the vulnerability is not disclosed publicly before a fix is available.
+        
+        Use this template only for:
+        - Minor security concerns
+        - Security best practice suggestions
+        - Security-related questions
+
+  - type: checkboxes
+    id: severity-check
+    attributes:
+      label: Severity Assessment
+      description: Please confirm the severity of this report
+      options:
+        - label: This is a CRITICAL vulnerability (data breach, remote code execution, authentication bypass)
+          required: false
+        - label: This is a HIGH severity vulnerability (privilege escalation, data exposure)
+          required: false
+        - label: This is a MODERATE vulnerability (information disclosure, minor security flaw)
+          required: false
+        - label: This is a LOW severity issue (security best practice, hardening suggestion)
+          required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        **If you checked CRITICAL or HIGH, please stop and use [Private Security Reporting](https://github.com/LuckyLuuk12/kable/security/advisories/new) instead.**
+
+  - type: dropdown
+    id: vulnerability-type
+    attributes:
+      label: Vulnerability Type
+      description: What kind of security issue is this?
+      options:
+        - Authentication/Authorization
+        - Data Exposure
+        - Injection (XSS, SQL, Command)
+        - Cryptography
+        - Dependency Vulnerability
+        - Configuration Issue
+        - Access Control
+        - Security Best Practice
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the security concern (be mindful of public disclosure)
+      placeholder: What is the security issue?
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Potential Impact
+      description: What could an attacker potentially do?
+      placeholder: Describe the potential impact
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce (if safe to disclose)
+      description: Only include if this won't enable immediate exploitation
+      placeholder: |
+        1. Go to '...'
+        2. Perform action '...'
+        3. Observe security issue
+    validations:
+      required: false
+
+  - type: textarea
+    id: affected-versions
+    attributes:
+      label: Affected Versions
+      description: Which versions of Kable are affected?
+      placeholder: e.g., 0.1.7 and earlier, all versions, nightly builds only
+    validations:
+      required: false
+
+  - type: textarea
+    id: mitigation
+    attributes:
+      label: Suggested Mitigation
+      description: Do you have suggestions for how to fix this?
+      placeholder: Suggested fixes or mitigations
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+      placeholder: References, similar vulnerabilities in other projects, etc.
+    validations:
+      required: false

@@ -1,0 +1,100 @@
+name: 📖 Documentation Request
+description: Request improvements or additions to documentation
+title: "[Docs]: "
+labels: ["documentation", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve our documentation! Clear docs make Kable better for everyone.
+
+  - type: checkboxes
+    id: existing-issue
+    attributes:
+      label: Is there an existing issue for this?
+      description: Please search to see if similar documentation has been requested.
+      options:
+        - label: I have searched the existing issues
+          required: true
+
+  - type: dropdown
+    id: doc-type
+    attributes:
+      label: Documentation Type
+      description: What kind of documentation needs improvement?
+      options:
+        - Missing Documentation
+        - Unclear/Confusing Documentation
+        - Outdated Documentation
+        - Code Comments
+        - README
+        - Wiki/Guides
+        - API Documentation
+        - Installation Guide
+        - Troubleshooting Guide
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Where is this documentation located (or where should it be)?
+      placeholder: |
+        e.g., README.md line 45
+        e.g., Wiki > Installation Guide
+        e.g., src/lib/api/auth.ts
+        e.g., Missing from documentation entirely
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What's the Problem?
+      description: What is unclear, missing, or incorrect?
+      placeholder: Describe what's confusing or missing
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested Improvement
+      description: How would you improve or add to the documentation?
+      placeholder: |
+        What information should be added or clarified?
+        Provide example text if you have it.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Target Audience
+      description: Who would benefit from this documentation?
+      options:
+        - End Users
+        - Contributors/Developers
+        - Both Users and Developers
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: willing-to-contribute
+    attributes:
+      label: Contribution
+      description: Would you be willing to help write this documentation?
+      options:
+        - label: I would be willing to submit a pull request for this documentation
+          required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context, examples, or references.
+      placeholder: Links to related documentation, examples from other projects, etc.
+    validations:
+      required: false
