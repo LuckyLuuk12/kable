@@ -84,13 +84,6 @@ onMount(async () => {
       );
     }
 
-    // Check for updates on launch (if enabled in settings)
-    if ($settings?.general?.auto_update_launcher !== false) {
-      UpdaterService.checkForUpdatesOnLaunch().catch((error: unknown) => {
-        console.error("Failed to check for updates on launch:", error);
-      });
-    }
-
     // Now start other initialization tasks concurrently (non-blocking)
     const installPromise = InstallationService.loadInstallations();
     const settingsPromise = SettingsService.initialize();
@@ -107,6 +100,13 @@ onMount(async () => {
       settingsPromise,
       iconPromise,
     ]);
+
+    // Check for updates on launch (after settings are loaded)
+    if ($settings?.general?.auto_update_launcher !== false) {
+      UpdaterService.checkForUpdatesOnLaunch().catch((error: unknown) => {
+        console.error("Failed to check for updates on launch:", error);
+      });
+    }
 
     // Emit final status and setup listeners (even if some inits failed) — errors are logged above
     try {

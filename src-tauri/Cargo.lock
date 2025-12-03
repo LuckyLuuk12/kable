@@ -2345,7 +2345,7 @@ dependencies = [
 
 [[package]]
 name = "kable"
-version = "0.1.7"
+version = "0.1.8"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -4082,9 +4082,9 @@ dependencies = [
 
 [[package]]
 name = "resource_merger"
-version = "0.1.6"
+version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "948176c5a83caaec6582232264a708cad8c37a75ea7e05122ffd763a1e2bf2a4"
+checksum = "a37451957f7ae5784a24136692af6f9b1048ed94670d1c09bd6c46be929616d3"
 dependencies = [
  "base64 0.22.1",
  "clap",

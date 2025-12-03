@@ -635,6 +635,8 @@ export interface AdvancedSettings {
   auto_save_interval: number | "disabled"; // in seconds, 'disabled' means no auto save
   /** Whether to show the advanced page in the navigation bar */
   show_advanced_page: boolean;
+  /** Whether to check for nightly/prerelease updates */
+  check_nightly_updates?: boolean;
   /** A map with string keys and any type of values for really advanced stuff */
   extra?: Record<string, any>;
 }
