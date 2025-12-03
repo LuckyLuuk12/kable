@@ -87,7 +87,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | cube | [InstallationMods](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstallationMods.svelte#L548) | <pre><code class="language-html">&lt;Icon name="cube" size="xl" /&gt;</code></pre> |
 | cube | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L296) | <pre><code class="language-html">&lt;Icon name="cube" size="md" /&gt;</code></pre> |
 | cube | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L135) | <pre><code class="language-html">&lt;Icon name="cube" size="md" /&gt;</code></pre> |
-| delete | [AdvancedSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AdvancedSettingsUI.svelte#L243) | <pre><code class="language-html">&lt;Icon name="delete" forceType="svg" /&gt;</code></pre> |
+| delete | [AdvancedSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AdvancedSettingsUI.svelte#L244) | <pre><code class="language-html">&lt;Icon name="delete" forceType="svg" /&gt;</code></pre> |
 | delete | [AppearanceSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AppearanceSettingsUI.svelte#L365) | <pre><code class="language-html">&lt;Icon name="delete" /&gt;</code></pre> |
 | delete | [AppearanceSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AppearanceSettingsUI.svelte#L591) | <pre><code class="language-html">&lt;Icon name="delete" /&gt;</code></pre> |
 | download | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L315) | <pre><code class="language-html">&lt;Icon name="download" size="sm" /&gt;</code></pre> |
@@ -288,4 +288,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L538) | <pre><code class="language-html">&lt;Icon name="x" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L757) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2025-12-02T18:07:54.630Z_
+_Generated: 2025-12-03T10:29:06.573Z_

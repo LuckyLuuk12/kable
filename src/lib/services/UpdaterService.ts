@@ -1,4 +1,8 @@
-import { checkForUpdates, checkForNightlyUpdates, installUpdate } from "$lib/api/updater";
+import {
+  checkForUpdates,
+  checkForNightlyUpdates,
+  installUpdate,
+} from "$lib/api/updater";
 import { NotificationService } from "./NotificationService";
 import { settings } from "$lib/stores";
 import { get } from "svelte/store";
@@ -12,11 +16,14 @@ export class UpdaterService {
   static async checkForUpdatesOnLaunch(): Promise<void> {
     try {
       const settingsValue = get(settings);
-      const checkNightly = settingsValue?.advanced?.check_nightly_updates ?? false;
-      
-      console.log(`[UpdaterService] Checking for ${checkNightly ? "nightly" : "stable"} updates on launch...`);
+      const checkNightly =
+        settingsValue?.advanced?.check_nightly_updates ?? false;
 
-      const updateInfo = checkNightly 
+      console.log(
+        `[UpdaterService] Checking for ${checkNightly ? "nightly" : "stable"} updates on launch...`,
+      );
+
+      const updateInfo = checkNightly
         ? await checkForNightlyUpdates()
         : await checkForUpdates();
 

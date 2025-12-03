@@ -163,7 +163,8 @@ function parseValue(val: string): any {
       <div class="setting-info">
         <label for="check-nightly-updates">Check Nightly Updates</label>
         <p class="setting-description">
-          Enable automatic checks for nightly/prerelease builds (unstable, for testing)
+          Enable automatic checks for nightly/prerelease builds (unstable, for
+          testing)
         </p>
       </div>
       <div class="setting-control">
