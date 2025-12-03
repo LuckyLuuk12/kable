@@ -49,12 +49,32 @@ jobs:
         if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
         run: |
           sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-        # webkitgtk 4.0 is for Tauri v1 - webkitgtk 4.1 is for Tauri v2.
-        # You can remove the one that doesn't apply to your app to speed up the workflow a bit.
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: install frontend dependencies
         run: npm ci
+
+      - name: Get version and commit info
+        id: version_info
+        shell: bash
+        run: |
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          
+          # Get commit messages since last stable tag (or last 10 commits if no tag)
+          LAST_STABLE=$(git describe --tags --match "app-v*" --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$LAST_STABLE" ]; then
+            COMMITS=$(git log -10 --pretty=format:"- %s (%h)" | sed 's/"/\\"/g')
+          else
+            COMMITS=$(git log ${LAST_STABLE}..HEAD --pretty=format:"- %s (%h)" | sed 's/"/\\"/g')
+          fi
+          
+          # Create release body
+          echo "release_body<<EOF" >> $GITHUB_OUTPUT
+          echo "See the [Wiki](https://github.com/LuckyLuuk12/kable/wiki) for installation guides or download directly from the [Official Website](https://kable.kablan.nl)." >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "### What's Changed:" >> $GITHUB_OUTPUT
+          echo "$COMMITS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -64,7 +84,7 @@ jobs:
         with:
           tagName: app-v__VERSION__ # the action automatically replaces \_\_VERSION\_\_ with the app version.
           releaseName: 'v__VERSION__'
-          releaseBody: 'See the [Wiki](https://github.com/LuckyLuuk12/kable/wiki) for installation guides or download directly from the [Official Website](https://kable.kablan.nl).'
+          releaseBody: ${{ steps.version_info.outputs.release_body }}
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
