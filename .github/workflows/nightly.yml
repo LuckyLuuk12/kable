@@ -89,9 +89,10 @@ jobs:
           echo "**⚠️ Warning**: Nightly builds are unstable and intended for testing purposes only." >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Update version in tauri.conf.json
+      - name: Update version in tauri.conf.json and Cargo.toml
         shell: bash
         run: |
+          # Update tauri.conf.json
           node -e "
           const fs = require('fs');
           const path = 'src-tauri/tauri.conf.json';
@@ -99,6 +100,9 @@ jobs:
           config.version = '${{ steps.version_info.outputs.nightly_version }}';
           fs.writeFileSync(path, JSON.stringify(config, null, 2));
           "
+          
+          # Update Cargo.toml version (CARGO_PKG_VERSION comes from here)
+          sed -i 's/^version = ".*"/version = "${{ steps.version_info.outputs.nightly_version }}"/' src-tauri/Cargo.toml
 
       - uses: tauri-apps/tauri-action@v0
         env:

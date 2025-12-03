@@ -13,6 +13,7 @@ Displays update information including version numbers and allows users to instal
 import { onMount } from "svelte";
 import { checkForUpdates, installUpdate, getCurrentVersion } from "$lib";
 import { marked } from "marked";
+import { settings } from "$lib/stores";
 
 let currentVersion = "";
 let updateInfo: any = null;
@@ -34,7 +35,10 @@ async function handleCheckForUpdates() {
   error = "";
 
   try {
-    updateInfo = await checkForUpdates();
+    // Respect the user's nightly update preference
+    const checkNightly = $settings?.advanced?.check_nightly_updates ?? false;
+    updateInfo = await checkForUpdates(checkNightly);
+
     if (updateInfo?.body) {
       releaseNotesHtml = await marked.parse(updateInfo.body, {
         breaks: true,
@@ -74,8 +78,7 @@ async function handleInstallUpdate() {
     <button
       class="check-button"
       on:click={handleCheckForUpdates}
-      disabled={isChecking || isInstalling}
-    >
+      disabled={isChecking || isInstalling}>
       {#if isChecking}
         Checking...
       {:else}
@@ -97,8 +100,7 @@ async function handleInstallUpdate() {
         <button
           class="install-button"
           on:click={handleInstallUpdate}
-          disabled={isInstalling}
-        >
+          disabled={isInstalling}>
           {#if isInstalling}
             Installing...
           {:else}
