@@ -94,6 +94,8 @@ pub struct AdvancedSettings {
     pub auto_save_interval: u32, // in seconds, 0 means no auto save
     pub show_advanced_page: bool,
     #[serde(default)]
+    pub check_nightly_updates: bool,
+    #[serde(default)]
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -157,6 +159,7 @@ impl Default for CategorizedLauncherSettings {
                 separate_logs_window: false,
                 auto_save_interval: 30, // in seconds, 0 means no auto save
                 show_advanced_page: false,
+                check_nightly_updates: false,
                 extra: serde_json::Map::new(),
             },
             misc: MiscSettings {

@@ -444,12 +444,12 @@ export interface GeneralSettings {
   on_game_close: "open_logs" | "open_home" | "exit" | "minimize" | "ask";
   /** What to do when the game crashes */
   on_game_crash:
-    | "restart"
-    | "open_logs"
-    | "open_home"
-    | "exit"
-    | "minimize"
-    | "ask";
+  | "restart"
+  | "open_logs"
+  | "open_home"
+  | "exit"
+  | "minimize"
+  | "ask";
   /** Whether to keep the launcher open after launching the game */
   on_game_launch: "keep_open" | "exit" | "open_logs" | "minimize" | "ask";
   /** Whether to automatically check for updates on startup */
@@ -635,6 +635,8 @@ export interface AdvancedSettings {
   auto_save_interval: number | "disabled"; // in seconds, 'disabled' means no auto save
   /** Whether to show the advanced page in the navigation bar */
   show_advanced_page: boolean;
+  /** Whether to check for nightly/prerelease updates */
+  check_nightly_updates?: boolean;
   /** A map with string keys and any type of values for really advanced stuff */
   extra?: Record<string, any>;
 }
