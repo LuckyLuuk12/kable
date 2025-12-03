@@ -84,13 +84,6 @@ onMount(async () => {
       );
     }
 
-    // Check for updates on launch (if enabled in settings)
-    if ($settings?.general?.auto_update_launcher !== false) {
-      UpdaterService.checkForUpdatesOnLaunch().catch((error: unknown) => {
-        console.error("Failed to check for updates on launch:", error);
-      });
-    }
-
     // Now start other initialization tasks concurrently (non-blocking)
     const installPromise = InstallationService.loadInstallations();
     const settingsPromise = SettingsService.initialize();
@@ -107,6 +100,13 @@ onMount(async () => {
       settingsPromise,
       iconPromise,
     ]);
+
+    // Check for updates on launch (after settings are loaded)
+    if ($settings?.general?.auto_update_launcher !== false) {
+      UpdaterService.checkForUpdatesOnLaunch().catch((error: unknown) => {
+        console.error("Failed to check for updates on launch:", error);
+      });
+    }
 
     // Emit final status and setup listeners (even if some inits failed) — errors are logged above
     try {
@@ -492,16 +492,14 @@ onDestroy(() => {
   class:nav-open={!isNavCollapsed}
   on:keydown={handleKeydown}
   role="application"
-  tabindex="-1"
->
+  tabindex="-1">
   <nav class="sidebar" class:collapsed={isNavCollapsed}>
     <!-- Header Section with Profile -->
     <div class="header-section">
       <a
         href="/profile"
         class="user-profile"
-        class:active={currentPath === "/profile"}
-      >
+        class:active={currentPath === "/profile"}>
         <div class="user-avatar">
           <PlayerHead account={$currentAccount} size={40} />
         </div>
@@ -511,8 +509,7 @@ onDestroy(() => {
             <span class="app-subtitle"
               >{!!$currentAccount?.access_token
                 ? "Logged in"
-                : "Not logged in"}</span
-            >
+                : "Not logged in"}</span>
           </div>
         {/if}
       </a>
@@ -528,13 +525,11 @@ onDestroy(() => {
           : "Collapse navigation"}
         data-title={isNavCollapsed
           ? "Expand navigation (Ctrl+B)"
-          : "Collapse navigation (Ctrl+B)"}
-      >
+          : "Collapse navigation (Ctrl+B)"}>
         <Icon
           name={isNavCollapsed ? "arrow-right" : "arrow-left"}
           size="lg"
-          forceType="svg"
-        />
+          forceType="svg" />
       </button>
     </div>
 
@@ -546,8 +541,7 @@ onDestroy(() => {
           class="nav-item"
           class:active={currentPath === item.path}
           data-title={item.label}
-          aria-label={item.label}
-        >
+          aria-label={item.label}>
           <Icon name={item.icon} size="md" className="nav-icon" />
           {#if !isNavCollapsed}
             <span class="label">{item.label}</span>
@@ -563,8 +557,7 @@ onDestroy(() => {
         class="nav-item settings-item"
         class:active={currentPath === "/settings"}
         data-title="Settings"
-        aria-label="Settings"
-      >
+        aria-label="Settings">
         <Icon name="settings" size="md" className="nav-icon" />
         {#if !isNavCollapsed}
           <span class="label">Settings</span>
