@@ -2,44 +2,60 @@ use tauri::command;
 use tauri_plugin_updater::UpdaterExt;
 
 #[command]
-pub async fn check_for_updates(app: tauri::AppHandle) -> Result<Option<serde_json::Value>, String> {
-    match app.updater() {
-        Ok(updater) => match updater.check().await {
-            Ok(Some(update)) => {
-                let update_info = serde_json::json!({
-                    "version": update.version,
-                    "date": update.date.map(|d| d.to_string()),
-                    "body": update.body
-                });
-                Ok(Some(update_info))
-            }
-            Ok(None) => Ok(None),
-            Err(e) => Err(format!("Failed to check for updates: {}", e)),
-        },
-        Err(e) => Err(format!("Failed to get updater: {}", e)),
+pub async fn check_for_updates(
+    app: tauri::AppHandle,
+    include_prerelease: bool,
+) -> Result<Option<serde_json::Value>, String> {
+    let mut builder = app.updater_builder();
+
+    // Configure to include or exclude prereleases
+    if include_prerelease {
+        builder = builder.version_comparator(|current, update| {
+            // Always consider prereleases as updates
+            update.version != current
+        });
+    }
+
+    let updater = match builder.build() {
+        Ok(u) => u,
+        Err(e) => return Err(format!("Failed to build updater: {}", e)),
+    };
+
+    match updater.check().await {
+        Ok(Some(update)) => {
+            let update_info = serde_json::json!({
+                "version": update.version,
+                "date": update.date.map(|d| d.to_string()),
+                "body": update.body,
+                "current_version": env!("CARGO_PKG_VERSION")
+            });
+            Ok(Some(update_info))
+        }
+        Ok(None) => Ok(None),
+        Err(e) => Err(format!("Failed to check for updates: {}", e)),
     }
 }
 
 #[command]
 pub async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
-    match app.updater() {
-        Ok(updater) => {
-            match updater.check().await {
-                Ok(Some(update)) => {
-                    // Download and install with empty callbacks
-                    match update.download_and_install(|_, _| {}, || {}).await {
-                        Ok(_) => {
-                            // App will restart automatically after update
-                            Ok(())
-                        }
-                        Err(e) => Err(format!("Failed to install update: {}", e)),
-                    }
+    let updater = match app.updater_builder().build() {
+        Ok(u) => u,
+        Err(e) => return Err(format!("Failed to get updater: {}", e)),
+    };
+
+    match updater.check().await {
+        Ok(Some(update)) => {
+            // Download and install with empty callbacks
+            match update.download_and_install(|_, _| {}, || {}).await {
+                Ok(_) => {
+                    // App will restart automatically after update
+                    Ok(())
                 }
-                Ok(None) => Err("No update available".to_string()),
-                Err(e) => Err(format!("Failed to check for updates: {}", e)),
+                Err(e) => Err(format!("Failed to install update: {}", e)),
             }
         }
-        Err(e) => Err(format!("Failed to get updater: {}", e)),
+        Ok(None) => Err("No update available".to_string()),
+        Err(e) => Err(format!("Failed to check for updates: {}", e)),
     }
 }
 

@@ -85,7 +85,10 @@ async function handleShaderDownload(event: {
     {#if currentTab === "installed"}
       <InstallationShaders bind:selectedId={sharedInstallationId} />
     {:else if currentTab === "browse"}
-      <ShaderBrowser bind:selectedInstallationId={sharedInstallationId} ondownload={handleShaderDownload} />
+      <ShaderBrowser
+        bind:selectedInstallationId={sharedInstallationId}
+        ondownload={handleShaderDownload}
+      />
     {/if}
   </div>
 </div>

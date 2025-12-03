@@ -51,9 +51,13 @@ export class Launcher {
         const timeUntilExpiry = expiresAt.getTime() - now.getTime();
 
         if (timeUntilExpiry < 10 * 60 * 1000) {
-          console.log("🔄 Token expired or expiring soon, refreshing before launch...");
+          console.log(
+            "🔄 Token expired or expiring soon, refreshing before launch...",
+          );
           try {
-            const refreshed = await authApi.refreshMicrosoftToken(account.local_id);
+            const refreshed = await authApi.refreshMicrosoftToken(
+              account.local_id,
+            );
             currentAccount.set(refreshed);
             account = refreshed;
             console.log("✅ Token refreshed successfully before launch");

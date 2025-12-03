@@ -35,7 +35,8 @@ export let mod: ModJarInfo;
 export let installation: KableInstallation;
 export let extendedInfo: ExtendedModInfo | null = null;
 export let onmodchanged: (() => void) | undefined = undefined;
-export let onopenversions: ((event: { mod: ModJarInfo }) => void) | undefined = undefined;
+export let onopenversions: ((event: { mod: ModJarInfo }) => void) | undefined =
+  undefined;
 
 let loading = false;
 let showVersionModal = false;
@@ -57,7 +58,7 @@ onMount(() => {
 async function checkMetadata() {
   if (metadataChecked) return;
   metadataChecked = true;
-  
+
   try {
     await modsApi.getModMetadata(installation, mod.file_name);
     hasMetadata = true;
@@ -134,7 +135,10 @@ async function handleManageVersions(event: MouseEvent) {
 
     // PRIORITY 1: Check for Kable metadata file (exact project ID)
     try {
-      const metadata = await modsApi.getModMetadata(installation, mod.file_name);
+      const metadata = await modsApi.getModMetadata(
+        installation,
+        mod.file_name,
+      );
       projectId = metadata.project_id;
       console.log(
         `[InstalledModCard] Found metadata file with project_id: ${projectId}`,
@@ -233,9 +237,10 @@ function extractGameVersion(versionId: string): string | null {
   return match ? match[1] : null;
 }
 
-async function handleVersionSelect(
-  event: { versionId: string; versionNumber: string },
-) {
+async function handleVersionSelect(event: {
+  versionId: string;
+  versionNumber: string;
+}) {
   const { versionId, versionNumber } = event;
 
   if (!modInfoKind || !("Modrinth" in modInfoKind)) return;
@@ -305,7 +310,10 @@ function handleKeydown(event: KeyboardEvent) {
       </div>
       <div class="mod-version">
         {#if hasMetadata}
-          <span class="kable-badge" title="Installed with Kable - version management available">
+          <span
+            class="kable-badge"
+            title="Installed with Kable - version management available"
+          >
             <Image key="favicon" alt="Kable" width="14px" height="14px" />
           </span>
         {/if}

@@ -3,11 +3,11 @@ import type { GameInstance, LogEntry, GameInstanceLogs } from "../types";
 
 // Configuration for log memory management
 const LOG_CONFIG = {
-  maxLogsPerInstance: 5000,      // Maximum logs to keep per instance
-  maxGlobalLogs: 5000,           // Maximum global launcher logs
-  dedupeWindowSize: 50,          // Check last N messages for duplicates
-  enableDedupe: true,            // Enable deduplication
-  dedupeTimeWindow: 10000,       // Time window for duplicate detection (ms)
+  maxLogsPerInstance: 5000, // Maximum logs to keep per instance
+  maxGlobalLogs: 5000, // Maximum global launcher logs
+  dedupeWindowSize: 50, // Check last N messages for duplicates
+  enableDedupe: true, // Enable deduplication
+  dedupeTimeWindow: 10000, // Time window for duplicate detection (ms)
 };
 
 // Active game instances
@@ -68,9 +68,9 @@ function trimLogsToMaxSize(logs: LogEntry[], maxSize: number): LogEntry[] {
 function normalizeMessage(message: string): string {
   // Remove common timestamp patterns: [HH:MM:SS], [YYYY-MM-DD HH:MM:SS], etc.
   return message
-    .replace(/\[\d{2}:\d{2}:\d{2}\]/g, '')
-    .replace(/\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\]/g, '')
-    .replace(/\d{2}:\d{2}:\d{2}/g, '')
+    .replace(/\[\d{2}:\d{2}:\d{2}\]/g, "")
+    .replace(/\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\]/g, "")
+    .replace(/\d{2}:\d{2}:\d{2}/g, "")
     .trim();
 }
 
@@ -78,23 +78,23 @@ function normalizeMessage(message: string): string {
 function isDuplicateMessage(
   newMessage: string,
   recentLogs: LogEntry[],
-  windowSize: number
+  windowSize: number,
 ): boolean {
   if (!LOG_CONFIG.enableDedupe || recentLogs.length === 0) return false;
-  
+
   const normalizedNew = normalizeMessage(newMessage);
   if (!normalizedNew) return false;
-  
+
   // Check last N messages
   const checkWindow = recentLogs.slice(-windowSize);
-  
+
   for (const log of checkWindow) {
     const normalizedExisting = normalizeMessage(log.message);
     if (normalizedNew === normalizedExisting) {
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -182,11 +182,17 @@ export const LogsManager = {
         const instanceLogs = newLogs.get(instanceId);
         if (instanceLogs) {
           // Check for duplicates in recent logs
-          if (!isDuplicateMessage(message, instanceLogs.launcherLogs, LOG_CONFIG.dedupeWindowSize)) {
+          if (
+            !isDuplicateMessage(
+              message,
+              instanceLogs.launcherLogs,
+              LOG_CONFIG.dedupeWindowSize,
+            )
+          ) {
             // Add new log and trim to max size
             const updatedLogs = trimLogsToMaxSize(
               [...instanceLogs.launcherLogs, logEntry],
-              LOG_CONFIG.maxLogsPerInstance
+              LOG_CONFIG.maxLogsPerInstance,
             );
             instanceLogs.launcherLogs = updatedLogs;
             newLogs.set(instanceId, { ...instanceLogs });
@@ -199,7 +205,10 @@ export const LogsManager = {
         // Check for duplicates in recent global logs
         if (!isDuplicateMessage(message, logs, LOG_CONFIG.dedupeWindowSize)) {
           // Add new log and trim to max size
-          return trimLogsToMaxSize([...logs, logEntry], LOG_CONFIG.maxGlobalLogs);
+          return trimLogsToMaxSize(
+            [...logs, logEntry],
+            LOG_CONFIG.maxGlobalLogs,
+          );
         }
         return logs;
       });
@@ -225,11 +234,17 @@ export const LogsManager = {
       const instanceLogs = newLogs.get(instanceId);
       if (instanceLogs) {
         // Check for duplicates in recent game logs
-        if (!isDuplicateMessage(message, instanceLogs.gameLogs, LOG_CONFIG.dedupeWindowSize)) {
+        if (
+          !isDuplicateMessage(
+            message,
+            instanceLogs.gameLogs,
+            LOG_CONFIG.dedupeWindowSize,
+          )
+        ) {
           // Add new log and trim to max size
           const updatedLogs = trimLogsToMaxSize(
             [...instanceLogs.gameLogs, logEntry],
-            LOG_CONFIG.maxLogsPerInstance
+            LOG_CONFIG.maxLogsPerInstance,
           );
           instanceLogs.gameLogs = updatedLogs;
           newLogs.set(instanceId, { ...instanceLogs });
@@ -278,17 +293,18 @@ export const LogsManager = {
   getMemoryStats() {
     let totalLogs = 0;
     let instanceCount = 0;
-    
+
     // Use get() instead of subscribe() to avoid memory leaks
     const logs = get(logsData);
-    logs.forEach(instanceLogs => {
-      totalLogs += instanceLogs.launcherLogs.length + instanceLogs.gameLogs.length;
+    logs.forEach((instanceLogs) => {
+      totalLogs +=
+        instanceLogs.launcherLogs.length + instanceLogs.gameLogs.length;
       instanceCount++;
     });
-    
+
     const globalLogs = get(globalLauncherLogs);
     totalLogs += globalLogs.length;
-    
+
     return {
       totalLogs,
       instanceCount,

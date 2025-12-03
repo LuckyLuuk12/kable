@@ -175,7 +175,9 @@ export async function deleteResourcePack(
 export async function getResourcePackInfo(
   installation: KableInstallation,
 ): Promise<any[]> {
-  return await invoke("get_resourcepack_info_for_installation", { installation });
+  return await invoke("get_resourcepack_info_for_installation", {
+    installation,
+  });
 }
 
 // Get global resource packs from .minecraft/resourcepacks
@@ -187,7 +189,7 @@ export async function getGlobalResourcePacks(): Promise<any[]> {
 export async function updateResourcePackSettings(
   installationId: string,
   enablePackMerging: boolean,
-  packOrder: string[]
+  packOrder: string[],
 ): Promise<void> {
   return await invoke("update_resourcepack_settings", {
     installationId,

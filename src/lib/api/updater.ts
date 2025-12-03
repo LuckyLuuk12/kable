@@ -7,10 +7,21 @@ import { invoke } from "@tauri-apps/api/core";
 
 /**
  * Check for available updates
+ * @param includePrerelease - Include prerelease/nightly versions
  * @returns Promise with update info or null if no update available
  */
-export async function checkForUpdates(): Promise<any> {
-  return await invoke("check_for_updates");
+export async function checkForUpdates(
+  includePrerelease: boolean = false,
+): Promise<any> {
+  return await invoke("check_for_updates", { includePrerelease });
+}
+
+/**
+ * Check specifically for nightly updates (prereleases)
+ * @returns Promise with update info or null if no update available
+ */
+export async function checkForNightlyUpdates(): Promise<any> {
+  return await checkForUpdates(true);
 }
 
 /**

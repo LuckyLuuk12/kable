@@ -34,12 +34,18 @@ let imgElement: HTMLImageElement;
 
 onMount(async () => {
   if (!key) return;
-  
+
   // If key is already a full URL (http/https/data), use it directly
-  if (key.startsWith("http://") || key.startsWith("https://") || key.startsWith("data:")) {
+  if (
+    key.startsWith("http://") ||
+    key.startsWith("https://") ||
+    key.startsWith("data:")
+  ) {
     resolvedSrc = key;
     // Log abbreviated version for data URLs to avoid console spam
-    const logKey = key.startsWith("data:") ? `data:${key.substring(5, 30)}...` : key;
+    const logKey = key.startsWith("data:")
+      ? `data:${key.substring(5, 30)}...`
+      : key;
     console.log(`Image component using direct URL: ${logKey}`);
     setTimeout(() => {
       if (imgElement && imgElement.complete && imgElement.naturalHeight !== 0) {
@@ -49,7 +55,7 @@ onMount(async () => {
     }, 0);
     return;
   }
-  
+
   try {
     // Call the backend command we added which prefers user images and falls back to /img/<key>.png
     const result = await invoke<string>("resolve_image_path", { key });
@@ -57,13 +63,13 @@ onMount(async () => {
     // If the backend returned a data URL (base64) or a static /img path, use it directly
     if (result && result.startsWith("data:")) {
       resolvedSrc = result;
-    } else if (result && (result.startsWith("/img/") || result.startsWith("/"))) {
-      // static asset path (either /img/ or root static folder)
-      resolvedSrc = result;
     } else if (
       result &&
-      result.match(/^[a-zA-Z]:\\/)
+      (result.startsWith("/img/") || result.startsWith("/"))
     ) {
+      // static asset path (either /img/ or root static folder)
+      resolvedSrc = result;
+    } else if (result && result.match(/^[a-zA-Z]:\\/)) {
       // Absolute filesystem path -> convert to file:// URL
       const normalized = result.replace(/\\/g, "/");
       resolvedSrc = `file://${normalized}`;

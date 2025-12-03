@@ -24,7 +24,7 @@ function checkScreen() {
 onMount(() => {
   checkScreen();
   window.addEventListener("resize", checkScreen);
-  
+
   // Auto-detect Java path for placeholder
   autoDetectJava()
     .then((path) => {
@@ -34,7 +34,7 @@ onMount(() => {
       console.warn("Failed to auto-detect Java:", error);
       detectedJavaPath = "Java not found";
     });
-  
+
   return () => window.removeEventListener("resize", checkScreen);
 });
 </script>

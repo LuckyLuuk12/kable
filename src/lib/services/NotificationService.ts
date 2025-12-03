@@ -10,6 +10,7 @@ export interface Notification {
   timestamp: Date;
   isHovered: boolean;
   markdown?: boolean; // if true, parse message as markdown/html
+  onClick?: () => void | Promise<void>; // optional click handler
 }
 
 // Store for active notifications
@@ -28,6 +29,7 @@ export class NotificationService {
    * @param type The notification type
    * @param duration Duration in seconds (or milliseconds if > 100). Default: 5 seconds
    * @param markdown Whether to parse message as markdown/html. Default: false
+   * @param onClick Optional click handler for the notification
    * @returns The notification ID
    */
   static send(
@@ -35,6 +37,7 @@ export class NotificationService {
     type: NotificationType = "info",
     duration?: number,
     markdown: boolean = false,
+    onClick?: () => void | Promise<void>,
   ): string {
     const id = crypto.randomUUID();
 
@@ -52,6 +55,7 @@ export class NotificationService {
       timestamp: new Date(),
       isHovered: false,
       markdown,
+      onClick,
     };
 
     // Add to active notifications
@@ -77,32 +81,36 @@ export class NotificationService {
     message: string,
     duration?: number,
     markdown: boolean = false,
+    onClick?: () => void | Promise<void>,
   ): string {
-    return this.send(message, "success", duration, markdown);
+    return this.send(message, "success", duration, markdown, onClick);
   }
 
   static error(
     message: string,
     duration?: number,
     markdown: boolean = false,
+    onClick?: () => void | Promise<void>,
   ): string {
-    return this.send(message, "error", duration, markdown);
+    return this.send(message, "error", duration, markdown, onClick);
   }
 
   static warning(
     message: string,
     duration?: number,
     markdown: boolean = false,
+    onClick?: () => void | Promise<void>,
   ): string {
-    return this.send(message, "warning", duration, markdown);
+    return this.send(message, "warning", duration, markdown, onClick);
   }
 
   static info(
     message: string,
     duration?: number,
     markdown: boolean = false,
+    onClick?: () => void | Promise<void>,
   ): string {
-    return this.send(message, "info", duration, markdown);
+    return this.send(message, "info", duration, markdown, onClick);
   }
 
   /**

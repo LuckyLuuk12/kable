@@ -29,7 +29,9 @@ export let onpackchanged: (() => void) | undefined = undefined;
 let loading = false;
 
 $: isDisabled = pack.disabled || false;
-$: displayName = decodeURIComponent(pack.name || pack.file_name.replace(/\.zip$/, ""));
+$: displayName = decodeURIComponent(
+  pack.name || pack.file_name.replace(/\.zip$/, ""),
+);
 $: iconUrl = extendedInfo?.icon_uri || null;
 
 async function toggleDisabled(event: MouseEvent) {
@@ -89,9 +91,7 @@ async function handleVisitPage(event: MouseEvent) {
   event.stopPropagation();
 
   if (!extendedInfo || !extendedInfo.page_uri) {
-    NotificationService.warning(
-      `No page URL available for "${displayName}"`,
-    );
+    NotificationService.warning(`No page URL available for "${displayName}"`);
     return;
   }
 
@@ -105,11 +105,7 @@ async function handleVisitPage(event: MouseEvent) {
 }
 </script>
 
-<div
-  class="installed-pack-card"
-  class:disabled={isDisabled}
-  class:loading
->
+<div class="installed-pack-card" class:disabled={isDisabled} class:loading>
   <!-- Pack Icon and Name -->
   <div class="pack-info">
     <div class="pack-icon-wrapper">
@@ -134,7 +130,10 @@ async function handleVisitPage(event: MouseEvent) {
       </div>
       {#if extendedInfo?.description}
         <div class="pack-description">
-          {extendedInfo.description.substring(0, 50)}{extendedInfo.description.length > 50 ? "..." : ""}
+          {extendedInfo.description.substring(0, 50)}{extendedInfo.description
+            .length > 50
+            ? "..."
+            : ""}
         </div>
       {/if}
     </div>
@@ -319,19 +318,49 @@ async function handleVisitPage(event: MouseEvent) {
 }
 
 .toggle-btn {
-  border-color: color-mix(in srgb, map.get($variables, "orange-500"), 30%, transparent);
+  border-color: color-mix(
+    in srgb,
+    map.get($variables, "orange-500"),
+    30%,
+    transparent
+  );
 
   &:hover:not(:disabled) {
-    border-color: color-mix(in srgb, map.get($variables, "orange-500"), 50%, transparent);
-    background: color-mix(in srgb, map.get($variables, "orange-500"), 10%, transparent);
+    border-color: color-mix(
+      in srgb,
+      map.get($variables, "orange-500"),
+      50%,
+      transparent
+    );
+    background: color-mix(
+      in srgb,
+      map.get($variables, "orange-500"),
+      10%,
+      transparent
+    );
   }
 
   &.enabled {
-    border-color: color-mix(in srgb, map.get($variables, "green-500"), 30%, transparent);
-    
+    border-color: color-mix(
+      in srgb,
+      map.get($variables, "green-500"),
+      30%,
+      transparent
+    );
+
     &:hover:not(:disabled) {
-      border-color: color-mix(in srgb, map.get($variables, "green-500"), 50%, transparent);
-      background: color-mix(in srgb, map.get($variables, "green-500"), 10%, transparent);
+      border-color: color-mix(
+        in srgb,
+        map.get($variables, "green-500"),
+        50%,
+        transparent
+      );
+      background: color-mix(
+        in srgb,
+        map.get($variables, "green-500"),
+        10%,
+        transparent
+      );
       color: map.get($variables, "green-600");
     }
   }

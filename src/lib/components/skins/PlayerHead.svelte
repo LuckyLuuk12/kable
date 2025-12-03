@@ -57,16 +57,16 @@ async function loadSkin(uuid: string) {
     console.log("No UUID provided to loadSkin");
     return;
   }
-  
+
   console.log("Loading skin for UUID:", uuid);
   isLoading = true;
   hasError = false;
-  
+
   try {
     // Fetch skin URL from backend (avoids CORS issues)
     const url = await skinsApi.getSkinUrlByUuid(uuid);
     console.log("Skin URL from backend:", url);
-    
+
     skinUrl = url;
     isLoading = false;
     // Canvas will be ready after isLoading becomes false
@@ -80,27 +80,30 @@ async function loadSkin(uuid: string) {
 
 function initSkinViewer() {
   if (!canvas || !skinUrl) {
-    console.log("Cannot init skin viewer - missing canvas or skinUrl", { canvas: !!canvas, skinUrl });
+    console.log("Cannot init skin viewer - missing canvas or skinUrl", {
+      canvas: !!canvas,
+      skinUrl,
+    });
     return;
   }
-  
+
   // Clean up existing viewer
   if (skinViewer) {
     skinViewer.dispose();
     skinViewer = null;
   }
-  
+
   try {
     console.log("Initializing skin viewer with URL:", skinUrl);
-    
+
     // Create a small viewer focused on the head
     skinViewer = new skinview3d.SkinViewer({
       canvas,
       width: size,
       height: size,
-      skin: skinUrl
+      skin: skinUrl,
     });
-    
+
     // Position camera to show just the head (head is at y=24 in Minecraft model)
     // skinViewer.camera.position.x = -2;
     // skinViewer.camera.position.y = 12;
@@ -108,19 +111,19 @@ function initSkinViewer() {
     // skinViewer.camera.lookAt(0, 205, 0);
     // skinViewer.camera.setViewOffset(fullWidth: number, fullHeight: number, x: number, y: number, width: number, height: number)
     skinViewer.camera.setViewOffset(215, 500, 5, -5, 210, 200);
-    
+
     // Disable controls for static head display
     if (skinViewer.controls) {
       skinViewer.controls.enableRotate = false;
       skinViewer.controls.enableZoom = false;
       skinViewer.controls.enablePan = false;
     }
-    
+
     // Set idle animation
     if (skinview3d.IdleAnimation) {
       skinViewer.animation = new skinview3d.IdleAnimation();
     }
-    
+
     hasError = false;
     isLoading = false;
     console.log("Skin viewer initialized successfully");

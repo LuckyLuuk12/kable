@@ -159,6 +159,26 @@ function parseValue(val: string): any {
       </div>
     </div>
 
+    <div class="setting-item">
+      <div class="setting-info">
+        <label for="check-nightly-updates">Check Nightly Updates</label>
+        <p class="setting-description">
+          Enable automatic checks for nightly/prerelease builds (unstable, for
+          testing)
+        </p>
+      </div>
+      <div class="setting-control">
+        <label class="toggle-switch">
+          <input
+            type="checkbox"
+            id="check-nightly-updates"
+            bind:checked={$settings.advanced.check_nightly_updates}
+          />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
+
     <div class="setting-item advanced-extra-item">
       <div class="setting-info">
         <!-- svelte-ignore a11y_label_has_associated_control -->

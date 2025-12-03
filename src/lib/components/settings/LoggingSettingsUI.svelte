@@ -222,7 +222,8 @@ function disableRetentionDays() {
       <div class="setting-info">
         <label for="max-memory-logs">Maximum Logs in Memory</label>
         <p class="setting-description">
-          Maximum number of log entries to keep in memory per instance (prevents memory overflow)
+          Maximum number of log entries to keep in memory per instance (prevents
+          memory overflow)
         </p>
       </div>
       <div class="setting-control slider-control">
@@ -285,7 +286,8 @@ function disableRetentionDays() {
       <div class="setting-info">
         <label for="dedupe-window-size">Deduplication Window Size</label>
         <p class="setting-description">
-          Number of recent messages to check for duplicates (higher = more accurate, slower)
+          Number of recent messages to check for duplicates (higher = more
+          accurate, slower)
         </p>
       </div>
       <div class="setting-control slider-control">

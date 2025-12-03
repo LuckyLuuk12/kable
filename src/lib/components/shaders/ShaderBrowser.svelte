@@ -38,7 +38,12 @@ import type {
 type ViewMode = "grid" | "list" | "compact";
 type InstallMode = "dedicated" | "global";
 
-export let ondownload: ((event: { shader: ShaderDownload; installation: KableInstallation | null }) => void) | undefined = undefined;
+export let ondownload:
+  | ((event: {
+      shader: ShaderDownload;
+      installation: KableInstallation | null;
+    }) => void)
+  | undefined = undefined;
 export let selectedInstallationId: string = "global";
 
 // Browser state
@@ -234,7 +239,9 @@ async function applyFiltersToBackend() {
     loaders: loaderFilters.length > 0 ? loaderFilters : undefined,
     categories: categoryFilters.length > 0 ? categoryFilters : undefined,
     game_versions:
-      smartFilteringEnabled && currentInstallation && currentInstallation.version_id
+      smartFilteringEnabled &&
+      currentInstallation &&
+      currentInstallation.version_id
         ? [currentInstallation.version_id]
         : undefined,
   };
@@ -358,7 +365,7 @@ $: pageNumbers = (() => {
   // If current page is beyond 10, show ellipsis and last 7 pages
   if (currentPage > 10) {
     pages.push("ellipsis");
-    
+
     // Show last 7 pages ending at current page (current-6 through current)
     const startPage = currentPage - 6;
     for (let i = startPage; i <= currentPage; i++) {
@@ -413,12 +420,10 @@ async function loadShaders() {
   }
 }
 
-function handleDownload(
-  event: {
-    shader: ShaderDownload;
-    installation: KableInstallation | null;
-  },
-) {
+function handleDownload(event: {
+  shader: ShaderDownload;
+  installation: KableInstallation | null;
+}) {
   ondownload?.(event);
 }
 
@@ -441,10 +446,10 @@ onMount(async () => {
 
   // Default to global mode
   selectedInstallationId = "global";
-  
+
   // Mark as fully mounted after initialization
   isFullyMounted = true;
-  
+
   console.log("[ShaderBrowser] Fully mounted and initialized");
 });
 </script>

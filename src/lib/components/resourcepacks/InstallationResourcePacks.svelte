@@ -18,7 +18,11 @@ import { installations, selectedInstallation } from "$lib/stores";
 import InstalledResourcePackCard from "./InstalledResourcePackCard.svelte";
 import * as installationsApi from "$lib/api/installations";
 import { openUrl } from "$lib/api/system";
-import { dndzone, TRIGGERS, SHADOW_ITEM_MARKER_PROPERTY_NAME } from "svelte-dnd-action";
+import {
+  dndzone,
+  TRIGGERS,
+  SHADOW_ITEM_MARKER_PROPERTY_NAME,
+} from "svelte-dnd-action";
 import type { DndEvent } from "svelte-dnd-action";
 
 let selectedId: string = "";
@@ -235,9 +239,10 @@ let loadedInstallationId: string | null = null;
 
 // Reactively update currentInstallation and packs
 $: {
-  const inst = selectedId === "global" 
-    ? globalInstallation
-    : get(installations).find((i) => i.id === selectedId) || null;
+  const inst =
+    selectedId === "global"
+      ? globalInstallation
+      : get(installations).find((i) => i.id === selectedId) || null;
   currentInstallation = inst;
   selectedInstallation.set(inst);
 
@@ -287,26 +292,29 @@ function fuzzyMatch(text: string, query: string): boolean {
 
 // Order packs according to currentPackOrder when merging is enabled
 // Add 'id' field for dnd library
-$: orderedPacks = packMergingEnabled && currentPackOrder.length > 0
-  ? (() => {
-      const ordered = [];
-      const packMap = new Map(packs.map(p => [p.file_name, { ...p, id: p.file_name }]));
-      
-      // Add packs in specified order
-      for (const fileName of currentPackOrder) {
-        const pack = packMap.get(fileName);
-        if (pack) {
-          ordered.push(pack);
-          packMap.delete(fileName);
+$: orderedPacks =
+  packMergingEnabled && currentPackOrder.length > 0
+    ? (() => {
+        const ordered = [];
+        const packMap = new Map(
+          packs.map((p) => [p.file_name, { ...p, id: p.file_name }]),
+        );
+
+        // Add packs in specified order
+        for (const fileName of currentPackOrder) {
+          const pack = packMap.get(fileName);
+          if (pack) {
+            ordered.push(pack);
+            packMap.delete(fileName);
+          }
         }
-      }
-      
-      // Add any remaining packs not in order
-      ordered.push(...Array.from(packMap.values()));
-      
-      return ordered;
-    })()
-  : packs.map(p => ({ ...p, id: p.file_name }));
+
+        // Add any remaining packs not in order
+        ordered.push(...Array.from(packMap.values()));
+
+        return ordered;
+      })()
+    : packs.map((p) => ({ ...p, id: p.file_name }));
 
 // Filter packs
 $: filteredPacks = orderedPacks.filter((pack) => {
@@ -346,20 +354,20 @@ async function loadResourcePacks(installation: KableInstallation) {
     } else {
       // Load resourcepacks for specific installation
       packs = await installationsApi.getResourcePackInfo(installation);
-      
+
       // Load merging settings
       packMergingEnabled = installation.enable_pack_merging || false;
       originalPackOrder = installation.pack_order || [];
       currentPackOrder = [...originalPackOrder];
       dragDisabled = !packMergingEnabled;
-      
+
       // Initialize order with current packs if not set
       if (currentPackOrder.length === 0 && packs.length > 0) {
-        currentPackOrder = packs.map(p => p.file_name);
+        currentPackOrder = packs.map((p) => p.file_name);
         originalPackOrder = [...currentPackOrder];
       }
     }
-    
+
     loadedInstallationId = installation.id;
     attemptedExtendedInfo.clear();
     hasOrderChanged = false;
@@ -375,30 +383,28 @@ async function loadResourcePacks(installation: KableInstallation) {
 
 async function togglePackMerging() {
   if (!currentInstallation || currentInstallation.id === "global") return;
-  
+
   packMergingEnabled = !packMergingEnabled;
   dragDisabled = !packMergingEnabled;
-  
+
   // Initialize order if enabling merging
   if (packMergingEnabled && currentPackOrder.length === 0) {
-    currentPackOrder = packs.map(p => p.file_name);
+    currentPackOrder = packs.map((p) => p.file_name);
     originalPackOrder = [...currentPackOrder];
   }
-  
+
   // Auto-save when toggling
   try {
     await installationsApi.updateResourcePackSettings(
       currentInstallation.id,
       packMergingEnabled,
-      currentPackOrder
+      currentPackOrder,
     );
-    
+
     NotificationService.success(
-      packMergingEnabled 
-        ? "Pack merging enabled" 
-        : "Pack merging disabled"
+      packMergingEnabled ? "Pack merging enabled" : "Pack merging disabled",
     );
-    
+
     // Refresh installations to update state
     await installationsApi.refreshInstallations();
     hasOrderChanged = false;
@@ -411,20 +417,20 @@ async function togglePackMerging() {
 
 async function confirmOrder() {
   if (!currentInstallation || currentInstallation.id === "global") return;
-  
+
   savingOrder = true;
   try {
     await installationsApi.updateResourcePackSettings(
       currentInstallation.id,
       packMergingEnabled,
-      currentPackOrder
+      currentPackOrder,
     );
-    
+
     originalPackOrder = [...currentPackOrder];
     hasOrderChanged = false;
-    
+
     NotificationService.success("Pack order saved and applied");
-    
+
     // Refresh installations
     await installationsApi.refreshInstallations();
   } catch (e: any) {
@@ -443,11 +449,12 @@ function handleDndFinalize(e: CustomEvent<DndEvent>) {
   const { items } = e.detail;
   orderedPacks = items as any[];
   currentPackOrder = orderedPacks.map((p: any) => p.file_name);
-  
+
   // Check if order changed
-  const orderChanged = currentPackOrder.length !== originalPackOrder.length ||
+  const orderChanged =
+    currentPackOrder.length !== originalPackOrder.length ||
     currentPackOrder.some((name, idx) => name !== originalPackOrder[idx]);
-  
+
   hasOrderChanged = orderChanged;
 }
 
@@ -556,22 +563,29 @@ onMount(() => {
           <div class="packs-title-section">
             <div class="title-and-toggle">
               <h3>Resource Packs for {currentInstallation.name}</h3>
-              
+
               {#if currentInstallation.id !== "global"}
                 <button
                   class="merge-toggle"
                   class:enabled={packMergingEnabled}
                   on:click={togglePackMerging}
-                  title={packMergingEnabled 
-                    ? "Pack merging enabled - packs will be merged into one" 
+                  title={packMergingEnabled
+                    ? "Pack merging enabled - packs will be merged into one"
                     : "Pack merging disabled - packs loaded individually"}
                 >
-                  <Icon name={packMergingEnabled ? "layers" : "package"} size="sm" />
-                  <span>{packMergingEnabled ? "Merging Enabled" : "Individual Packs"}</span>
+                  <Icon
+                    name={packMergingEnabled ? "layers" : "package"}
+                    size="sm"
+                  />
+                  <span
+                    >{packMergingEnabled
+                      ? "Merging Enabled"
+                      : "Individual Packs"}</span
+                  >
                 </button>
               {/if}
             </div>
-            
+
             {#if packs.length > 0}
               <div class="packs-count-badge">
                 {#if searchQuery}
@@ -588,7 +602,7 @@ onMount(() => {
               </div>
             {/if}
           </div>
-          
+
           {#if packMergingEnabled && hasOrderChanged}
             <div class="order-actions">
               <div class="order-hint">
@@ -627,13 +641,13 @@ onMount(() => {
             </div>
           {:else if packs.length > 0}
             {#if packMergingEnabled && !searchQuery}
-              <div 
+              <div
                 class="packs-list-draggable"
                 use:dndzone={{
                   items: orderedPacks,
                   flipDurationMs,
                   dragDisabled: false,
-                  dropTargetStyle: {}
+                  dropTargetStyle: {},
                 }}
                 on:consider={handleDndConsider}
                 on:finalize={handleDndFinalize}
@@ -937,103 +951,103 @@ onMount(() => {
     }
   }
 
-.merge-toggle {
-  display: flex;
-  align-items: center;
-  gap: 0.4em;
-  padding: 0.5em 1em;
-  border-radius: 0.5rem;
-  border: 1px solid var(--dark-600);
-  background: var(--input);
-  color: var(--text-secondary);
-  font-size: 0.85em;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: var(--primary);
-    background: var(--card);
-    color: var(--text);
-  }
-
-  &.enabled {
-    border-color: var(--green-700);
-    background: linear-gradient(
-      135deg,
-      #{"color-mix(in srgb, var(--green-700), 12%, transparent)"} 0%,
-      #{"color-mix(in srgb, var(--green-800), 8%, transparent)"} 100%
-    );
-    color: var(--green-600);
-    box-shadow: 0 1px 6px
-      #{"color-mix(in srgb, var(--green-700), 15%, transparent)"};
-
-    &:hover {
-      border-color: var(--green-600);
-      box-shadow: 0 2px 10px
-        #{"color-mix(in srgb, var(--green-700), 20%, transparent)"};
-    }
-  }
-}
-
-.order-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin: 0.75rem 0 0.5rem 0;
-  padding: 0.75rem 1rem;
-  background: linear-gradient(
-    135deg,
-    #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 0%,
-    #{"color-mix(in srgb, var(--secondary), 3%, transparent)"} 100%
-  );
-  border: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
-  border-radius: 0.5rem;
-
-  .order-hint {
+  .merge-toggle {
     display: flex;
     align-items: center;
     gap: 0.4em;
+    padding: 0.5em 1em;
+    border-radius: 0.5rem;
+    border: 1px solid var(--dark-600);
+    background: var(--input);
     color: var(--text-secondary);
     font-size: 0.85em;
-  }
-}
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
 
-.confirm-order-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.4em;
-  padding: 0.5em 1.2em;
-  border-radius: 0.5rem;
-  border: 1px solid var(--green-700);
-  background: linear-gradient(
-    135deg,
-    var(--green-700) 0%,
-    var(--green-800) 100%
-  );
-  color: white;
-  font-size: 0.9em;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 8px
-    #{"color-mix(in srgb, var(--green-700), 25%, transparent)"};
+    &:hover {
+      border-color: var(--primary);
+      background: var(--card);
+      color: var(--text);
+    }
 
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px
-      #{"color-mix(in srgb, var(--green-700), 35%, transparent)"};
-  }
+    &.enabled {
+      border-color: var(--green-700);
+      background: linear-gradient(
+        135deg,
+        #{"color-mix(in srgb, var(--green-700), 12%, transparent)"} 0%,
+        #{"color-mix(in srgb, var(--green-800), 8%, transparent)"} 100%
+      );
+      color: var(--green-600);
+      box-shadow: 0 1px 6px
+        #{"color-mix(in srgb, var(--green-700), 15%, transparent)"};
 
-  &:active:not(:disabled) {
-    transform: translateY(0);
+      &:hover {
+        border-color: var(--green-600);
+        box-shadow: 0 2px 10px
+          #{"color-mix(in srgb, var(--green-700), 20%, transparent)"};
+      }
+    }
   }
 
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  .order-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 0.75rem 0 0.5rem 0;
+    padding: 0.75rem 1rem;
+    background: linear-gradient(
+      135deg,
+      #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 0%,
+      #{"color-mix(in srgb, var(--secondary), 3%, transparent)"} 100%
+    );
+    border: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+    border-radius: 0.5rem;
+
+    .order-hint {
+      display: flex;
+      align-items: center;
+      gap: 0.4em;
+      color: var(--text-secondary);
+      font-size: 0.85em;
+    }
   }
-}
+
+  .confirm-order-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.4em;
+    padding: 0.5em 1.2em;
+    border-radius: 0.5rem;
+    border: 1px solid var(--green-700);
+    background: linear-gradient(
+      135deg,
+      var(--green-700) 0%,
+      var(--green-800) 100%
+    );
+    color: white;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px
+      #{"color-mix(in srgb, var(--green-700), 25%, transparent)"};
+
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px
+        #{"color-mix(in srgb, var(--green-700), 35%, transparent)"};
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
 }
 
 .packs-count-badge {

@@ -10,7 +10,13 @@ Allows quick switching between accounts and shows account health indicators.
 ```
 -->
 <script lang="ts">
-import { AuthService, currentAccount, availableAccounts, Icon, PlayerHead } from "$lib";
+import {
+  AuthService,
+  currentAccount,
+  availableAccounts,
+  Icon,
+  PlayerHead,
+} from "$lib";
 import type { LauncherAccount } from "$lib";
 
 let showDropdown = false;
@@ -139,7 +145,7 @@ $: {
                   title="{account.minecraft_profile?.name ||
                     account.username}'s avatar"
                 >
-                  <PlayerHead account={account} size={36} />
+                  <PlayerHead {account} size={36} />
                 </div>
                 {#if getAccountStatus(account) === "online"}
                   <div class="status-indicator online" title="Online"></div>

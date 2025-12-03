@@ -31,7 +31,9 @@ export let currentInstallation: KableInstallation | null = null;
 export let open = false;
 export let installedVersion: string | null = null;
 export let onclose: (() => void) | undefined = undefined;
-export let onselectversion: ((event: { versionId: string; versionNumber: string }) => void) | undefined = undefined;
+export let onselectversion:
+  | ((event: { versionId: string; versionNumber: string }) => void)
+  | undefined = undefined;
 
 let versions: ModrinthVersion[] = [];
 let filteredVersions: ModrinthVersion[] = [];

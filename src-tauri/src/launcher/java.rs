@@ -46,6 +46,7 @@ pub fn find_java_executable(java_path: Option<&String>) -> Result<String, String
 
 #[cfg(target_os = "windows")]
 fn find_java_windows() -> Result<String, String> {
+    use std::os::windows::process::CommandExt;
     // Try PowerShell Get-Command first (checks PATH)
     if let Ok(output) = Command::new("powershell")
         .args([
@@ -53,6 +54,7 @@ fn find_java_windows() -> Result<String, String> {
             "-Command",
             "(Get-Command javaw.exe -ErrorAction SilentlyContinue).Source",
         ])
+        .creation_flags(0x08000000)
         .output()
     {
         if output.status.success() {

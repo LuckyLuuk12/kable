@@ -45,7 +45,13 @@ import type {
 
 type ViewMode = "grid" | "list" | "compact";
 
-export let ondownloadmod: ((event: { modId: string; versionId?: string; installation: KableInstallation }) => void) | undefined = undefined;
+export let ondownloadmod:
+  | ((event: {
+      modId: string;
+      versionId?: string;
+      installation: KableInstallation;
+    }) => void)
+  | undefined = undefined;
 
 // Browser state
 let currentProvider: ProviderKind = ProviderKind.Modrinth;
@@ -786,7 +792,7 @@ $: pageNumbers = (() => {
   // If current page is beyond 10, show ellipsis and last 7 pages
   if (currentPage > 10) {
     pages.push("ellipsis");
-    
+
     // Show last 7 pages ending at current page (current-6 through current)
     const startPage = currentPage - 6;
     for (let i = startPage; i <= currentPage; i++) {

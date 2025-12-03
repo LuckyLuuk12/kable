@@ -1810,7 +1810,7 @@ pub async fn spawn_and_log_process(
     #[cfg(target_os = "windows")]
     {
         // CREATE_NO_WINDOW = 0x08000000
-        // tokio_cmd.creation_flags(0x08000000);
+        tokio_cmd.creation_flags(0x08000000);
     }
     tokio_cmd.stdout(Stdio::piped());
     tokio_cmd.stderr(Stdio::piped());

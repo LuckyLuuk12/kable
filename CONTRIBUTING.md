@@ -425,40 +425,67 @@ npm run test:integration
 - Check performance with large installations
 
 ## Releasing
-We have set up the Tauri GitHub Action which triggers on pushes to the `release` branch and builds the packaged app for the appropriate platforms. Follow the checklist and example below to create a release from work on `main`.
 
-Recommended workflow (example)
+### Build Workflows
+We have two automated build workflows:
+- **Nightly builds**: Trigger on every push to `main` (creates prerelease with commit hash)
+- **Release builds**: Trigger on every push to `release` (creates stable release)
 
-- Get your changes merged onto main (by means of testing, PR, etc.).
-- Merge `main` into `release` and push the `release` branch — the Tauri GitHub Action will run on that push and produce build artifacts.
-- Go back to your working branch (or `main`) after pushing `release`.
+### Skipping Nightly Builds
+When preparing a release, you may want to push to `main` without triggering a nightly build. Include one of these markers in your commit message:
+- `[skip nightly]`
+- `[nightly skip]`
+- `[no nightly]`
+- `[skip ci]` (skips all CI)
+- `[ci skip]` (skips all CI)
 
-Example commands
+### Recommended Release Workflow
 
+**Standard release (with nightly build):**
 ```bash
 # on your feature branch
 git add -A
-git commit -m "chore(release): describe changes"
-git push origin main
+git commit -m "feat: describe changes"
+git push origin main  # This triggers nightly build
 
-# merge main into release and push (use PR if your repo requires it)
+# merge main into release and push
 git checkout release
 git pull origin release
 git merge --no-ff main -m "chore(release): merge main into release"
-git push origin release
+git push origin release  # This triggers release build
 
 # return to main
 git checkout main
 git pull origin main
 ```
 
-Notes and best practices
+**Release without nightly build:**
+```bash
+# on your feature branch
+git add -A
+git commit -m "chore(release): prepare v1.2.3 [skip nightly]"
+git push origin main  # Skips nightly build
 
-- If your changes fix a severe (security) issue, prefer creating a PR to update `release` instead of pushing directly. The example above shows the direct git commands for simple workflows.
-- Consider tagging the release after `release` builds succeed, e.g. `git tag -a v1.2.3 -m "Release v1.2.3"` and `git push origin v1.2.3`.
-- Monitor the GitHub Actions build logs for the Tauri build to confirm artifact generation.
+# merge main into release and push
+git checkout release
+git pull origin release
+git merge --no-ff main -m "chore(release): merge main into release"
+git push origin release  # This triggers release build
 
-Following this flow helps keep `main` for active development and `release` for CI-driven packaging and distribution.
+# return to main
+git checkout main
+git pull origin main
+```
+
+### Notes and Best Practices
+
+- **Security fixes**: Create a PR to update `release` instead of pushing directly
+- **Version tagging**: Tag releases after successful builds: `git tag -a v1.2.3 -m "Release v1.2.3"` and `git push origin v1.2.3`
+- **Build monitoring**: Check GitHub Actions logs to confirm artifact generation
+- **Skip markers**: Use `[skip nightly]` when pushing version bumps or release prep commits to avoid unnecessary prerelease builds
+- **Manual nightly**: You can manually trigger nightly builds from the Actions tab if needed
+
+Following this flow keeps `main` for active development with automated nightly builds, and `release` for stable CI-driven releases.
 
 ## 📜 License Agreement
 

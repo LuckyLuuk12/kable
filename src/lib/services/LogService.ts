@@ -167,10 +167,10 @@ export class LogsService {
               status === "crashed" ? "error" : "info",
               instanceId,
             );
-            
+
             // Clean up crash buffer for this instance to prevent memory leaks
             this.crashBuffers.delete(instanceId);
-            
+
             console.log("[LogsService] Exit event processed successfully");
             break;
         }
