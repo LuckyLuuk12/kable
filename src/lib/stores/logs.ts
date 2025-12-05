@@ -1,14 +1,31 @@
 import { writable, derived, get } from "svelte/store";
 import type { GameInstance, LogEntry, GameInstanceLogs } from "../types";
+import { settings } from "./settings";
 
 // Configuration for log memory management
 const LOG_CONFIG = {
-  maxLogsPerInstance: 5000, // Maximum logs to keep per instance
-  maxGlobalLogs: 5000, // Maximum global launcher logs
+  maxLogsPerInstance: 5000, // Maximum logs to keep per instance (overridden by settings)
+  maxGlobalLogs: 5000, // Maximum global launcher logs (overridden by settings)
   dedupeWindowSize: 50, // Check last N messages for duplicates
   enableDedupe: true, // Enable deduplication
   dedupeTimeWindow: 10000, // Time window for duplicate detection (ms)
 };
+
+// Subscribe to settings to update log limits dynamically
+settings.subscribe(($settings) => {
+  if ($settings?.logging?.max_memory_logs) {
+    const limit = $settings.logging.max_memory_logs;
+    // If limit is 0 or negative, disable limit (keep all logs)
+    if (limit > 0) {
+      LOG_CONFIG.maxLogsPerInstance = limit;
+      LOG_CONFIG.maxGlobalLogs = limit;
+    } else {
+      // No limit - use a very high number
+      LOG_CONFIG.maxLogsPerInstance = Number.MAX_SAFE_INTEGER;
+      LOG_CONFIG.maxGlobalLogs = Number.MAX_SAFE_INTEGER;
+    }
+  }
+});
 
 // Active game instances
 export const gameInstances = writable<Map<string, GameInstance>>(new Map());
@@ -40,13 +57,13 @@ export const currentLogs = derived(
       const instanceLogs = $logsData.get($selectedId);
       return instanceLogs
         ? {
-            launcherLogs: instanceLogs.launcherLogs || [],
-            gameLogs: instanceLogs.gameLogs || [],
-          }
+          launcherLogs: instanceLogs.launcherLogs || [],
+          gameLogs: instanceLogs.gameLogs || [],
+        }
         : {
-            launcherLogs: [] as LogEntry[],
-            gameLogs: [] as LogEntry[],
-          };
+          launcherLogs: [] as LogEntry[],
+          gameLogs: [] as LogEntry[],
+        };
     } catch (error) {
       console.error("Error in currentLogs derived store:", error);
       return {
