@@ -84,8 +84,9 @@ $: if ($settings) {
 
 let showLogLevelDropdown = false;
 let showCopyNotification = false;
+let cleanupIntervalId: number | undefined;
 
-onMount(async () => {
+onMount(() => {
   // Logs service is already initialized in the layout
   // No need to initialize again here
 
@@ -113,6 +114,11 @@ onMount(async () => {
   document.addEventListener("keydown", handleKeyDown);
   // Add window resize listener to recalculate heights when width changes
   window.addEventListener("resize", handleResize);
+
+  // Setup periodic cleanup to prevent memory leaks
+  cleanupIntervalId = window.setInterval(() => {
+    cleanupStaleElements();
+  }, 30000) as any; // Every 30 seconds
 });
 
 onDestroy(() => {
@@ -122,10 +128,21 @@ onDestroy(() => {
   document.removeEventListener("keydown", handleKeyDown);
   window.removeEventListener("resize", handleResize);
 
-  // Clean up all element references
+  // Clear intervals
+  if (cleanupIntervalId) {
+    clearInterval(cleanupIntervalId);
+  }
+  if (resizeTimeout) {
+    clearTimeout(resizeTimeout);
+  }
+
+  // Aggressive cleanup of all element references and maps
   logElements = {};
   logHeights.clear();
   lastRenderedKeys.clear();
+
+  // Null out container reference
+  logContainer = null as any;
 });
 
 function selectInstance(instanceId: string | "global") {
@@ -373,6 +390,15 @@ function cleanupStaleElements() {
     for (const key of toDelete) {
       logHeights.delete(key);
     }
+  }
+
+  // Force cleanup if too many element refs
+  const elementCount = Object.keys(logElements).length;
+  if (elementCount > MAX_TRACKED_HEIGHTS * 2) {
+    // Keep only the last MAX_TRACKED_HEIGHTS elements
+    const allKeys = Object.keys(logElements);
+    const keysToRemove = allKeys.slice(0, allKeys.length - MAX_TRACKED_HEIGHTS);
+    keysToRemove.forEach((key) => delete logElements[key]);
   }
 }
 
@@ -675,6 +701,7 @@ $: if (heightsVersion >= 0 && filteredIndices && visibleStartIndex >= 0) {
 // Update visible range when filteredIndices changes (tab switch, filters, etc.)
 // Only trigger when filteredIndices length changes or container becomes ready
 let lastFilteredLogsLength = 0;
+let recalculationTimer: number | undefined;
 $: if (
   filteredIndices &&
   logContainer &&
@@ -685,13 +712,20 @@ $: if (
   recalculationPending = true;
   heightsNeedRecalculation = true;
 
-  tick().then(() => {
-    if (heightsNeedRecalculation) {
-      measureLogHeights();
-      updateVisibleRange();
-    }
-    recalculationPending = false;
-  });
+  // Debounce recalculation to prevent excessive updates
+  if (recalculationTimer) {
+    clearTimeout(recalculationTimer);
+  }
+
+  recalculationTimer = window.setTimeout(() => {
+    tick().then(() => {
+      if (heightsNeedRecalculation) {
+        measureLogHeights();
+        updateVisibleRange();
+      }
+      recalculationPending = false;
+    });
+  }, 100) as any; // 100ms debounce
 }
 
 // Track previous log count to detect new logs
@@ -741,16 +775,14 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       <button
         class="btn btn-danger btn-sm"
         on:click={clearCurrentLogs}
-        title="Clear current logs"
-      >
+        title="Clear current logs">
         <Icon name="trash" size="sm" />
         Clear
       </button>
       <button
         class="btn btn-secondary btn-sm"
         on:click={exportCurrentLogs}
-        title="Export logs to file"
-      >
+        title="Export logs to file">
         <Icon name="download" size="sm" />
         Export
       </button>
@@ -769,28 +801,24 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
             ? 'Fuzzy search (try "frge" for "forge")...'
             : "Search logs..."}
         bind:value={searchTerm}
-        class="search-input"
-      />
+        class="search-input" />
       <div class="search-mode-selector">
         <button
           class="search-mode-button {searchMode === 'normal' ? 'active' : ''}"
           on:click={() => (searchMode = "normal")}
-          title="Normal text search"
-        >
+          title="Normal text search">
           <Icon name="text" size="sm" />
         </button>
         <button
           class="search-mode-button {searchMode === 'fuzzy' ? 'active' : ''}"
           on:click={() => (searchMode = "fuzzy")}
-          title="Fuzzy search (handles typos)"
-        >
+          title="Fuzzy search (handles typos)">
           <Icon name="zap" size="sm" />
         </button>
         <button
           class="search-mode-button {searchMode === 'regex' ? 'active' : ''}"
           on:click={() => (searchMode = "regex")}
-          title="Regular expression search"
-        >
+          title="Regular expression search">
           <Icon name="code" size="sm" />
         </button>
       </div>
@@ -800,13 +828,11 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
         <button
           class="dropdown-trigger"
           on:click={toggleLogLevelDropdown}
-          type="button"
-        >
+          type="button">
           <span>Log Levels ({enabledLogLevelsCount}/4)</span>
           <Icon
             name={showLogLevelDropdown ? "chevron-up" : "chevron-down"}
-            size="sm"
-          />
+            size="sm" />
         </button>
 
         {#if showLogLevelDropdown}
@@ -826,15 +852,13 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
                       ...logLevelFilters,
                       [level]: target.checked,
                     };
-                  }}
-                />
+                  }} />
                 <Icon name={getLogLevelIcon(level)} size="sm" />
                 <span>{getLogLevelDisplayName(level)}</span>
                 <span class="log-level-count"
                   >({(activeLogEntries || []).filter(
                     (log) => (log.level || "info").toLowerCase() === level,
-                  ).length})</span
-                >
+                  ).length})</span>
               </label>
             {/each}
           </div>
@@ -851,8 +875,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
               // When auto-scroll is enabled, immediately jump to bottom
               scrollToBottom();
             }
-          }}
-        />
+          }} />
         <span>Auto-scroll</span>
       </label>
     </div>
@@ -864,8 +887,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       <!-- Global Tab -->
       <button
         class="tab-button {$selectedInstanceId === 'global' ? 'active' : ''}"
-        on:click={() => selectInstance("global")}
-      >
+        on:click={() => selectInstance("global")}>
         <Icon name="globe" size="sm" />
         <span>Launcher</span>
       </button>
@@ -876,8 +898,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
           class="tab-button {$selectedInstanceId === instance.id
             ? 'active'
             : ''}"
-          on:click={() => selectInstance(instance.id)}
-        >
+          on:click={() => selectInstance(instance.id)}>
           <Icon name={getStatusIcon(instance.status)} size="sm" />
           <span>{getInstanceDisplayName(instance)}</span>
           <span class="status-badge {getStatusColor(instance.status)}">
@@ -896,23 +917,19 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
           class="sub-tab-button {selectedLogType === 'launcher'
             ? 'active'
             : ''}"
-          on:click={() => (selectedLogType = "launcher")}
-        >
+          on:click={() => (selectedLogType = "launcher")}>
           <Icon name="rocket" size="sm" />
           <span>Launcher</span>
           <span class="count-badge"
-            >{(currentLogsData.launcherLogs || []).length}</span
-          >
+            >{(currentLogsData.launcherLogs || []).length}</span>
         </button>
         <button
           class="sub-tab-button {selectedLogType === 'game' ? 'active' : ''}"
-          on:click={() => (selectedLogType = "game")}
-        >
+          on:click={() => (selectedLogType = "game")}>
           <Icon name="gamepad" size="sm" />
           <span>Game</span>
           <span class="count-badge"
-            >{(currentLogsData.gameLogs || []).length}</span
-          >
+            >{(currentLogsData.gameLogs || []).length}</span>
         </button>
       </div>
     </div>
@@ -925,8 +942,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       on:scroll={handleScroll}
       class="log-container {showCopyNotification
         ? 'copy-notification-active'
-        : ''}"
-    >
+        : ''}">
       {#if filteredCount === 0}
         <div class="empty-state">
           <div class="empty-icon">
@@ -965,8 +981,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
                     role="button"
                     tabindex="0"
                     on:keydown={(e) =>
-                      e.key === "Enter" && copyLogEntry(logEntry)}
-                  >
+                      e.key === "Enter" && copyLogEntry(logEntry)}>
                     <Icon name="clipboard" size="sm" />
                   </div>
                   <div class="log-timestamp">
@@ -975,18 +990,15 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
                   <div
                     class="log-level badge {getLogLevelClass(
                       logEntry.level || 'info',
-                    )}"
-                  >
+                    )}">
                     <Icon
                       name={getLogLevelIcon(logEntry.level || "info")}
-                      size="sm"
-                    />
+                      size="sm" />
                     {formatLogLevel(logEntry.level || "info")}
                   </div>
                   <div class="log-message">
                     <pre class="log-message-content"><code
-                        >{getDisplayMessage(logEntry)}</code
-                      ></pre>
+                        >{getDisplayMessage(logEntry)}</code></pre>
                   </div>
                 </div>
               {/if}
@@ -1003,8 +1015,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
           <span
             >Copied {filteredCount} log entr{filteredCount === 1
               ? "y"
-              : "ies"}</span
-          >
+              : "ies"}</span>
         </div>
       </div>
     {/if}
@@ -1042,8 +1053,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
     </div>
     <div class="status-right">
       <span class="status-text"
-        >{(sortedInstances || []).length} active instances</span
-      >
+        >{(sortedInstances || []).length} active instances</span>
       {#if autoScroll}
         <span class="auto-scroll-indicator">
           <Icon name="refresh" size="sm" />

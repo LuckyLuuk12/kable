@@ -36,7 +36,8 @@ export const logsData = writable<Map<string, GameInstanceLogs>>(new Map());
 // Global launcher logs (not tied to specific instances)
 export const globalLauncherLogs = writable<LogEntry[]>([]);
 
-// Recent launcher messages for duplicate detection (last 5 minutes)
+// Recent launcher messages for duplicate detection (time-window based for deduplication only)
+// This map only tracks recent message keys for duplicate detection, not actual log storage
 const recentLauncherMessages = new Map<string, number>();
 
 // Currently selected instance/tab
@@ -57,13 +58,13 @@ export const currentLogs = derived(
       const instanceLogs = $logsData.get($selectedId);
       return instanceLogs
         ? {
-            launcherLogs: instanceLogs.launcherLogs || [],
-            gameLogs: instanceLogs.gameLogs || [],
-          }
+          launcherLogs: instanceLogs.launcherLogs || [],
+          gameLogs: instanceLogs.gameLogs || [],
+        }
         : {
-            launcherLogs: [] as LogEntry[],
-            gameLogs: [] as LogEntry[],
-          };
+          launcherLogs: [] as LogEntry[],
+          gameLogs: [] as LogEntry[],
+        };
     } catch (error) {
       console.error("Error in currentLogs derived store:", error);
       return {
@@ -153,8 +154,41 @@ export const LogsManager = {
       return newInstances;
     });
 
-    // Keep logs for historical reference but mark as closed
-    // Could add cleanup logic here if desired
+    // Also remove logs to free memory (only when explicitly removing the instance)
+    logsData.update((logs) => {
+      const newLogs = new Map(logs);
+      newLogs.delete(instanceId);
+      return newLogs;
+    });
+  },
+
+  // Cleanup old closed instances after a delay to free memory
+  // This is called manually from LogService, not automatically by the store
+  cleanupOldInstances(maxAge: number = 30 * 60 * 1000) {
+    // Default 30 minutes
+    const now = Date.now();
+    const instances = get(gameInstances);
+    const toRemove: string[] = [];
+
+    instances.forEach((instance, id) => {
+      if (
+        instance.status === "closed" ||
+        instance.status === "crashed" ||
+        instance.status === "stopped"
+      ) {
+        const lastActivity =
+          instance.lastActivity instanceof Date
+            ? instance.lastActivity.getTime()
+            : new Date(instance.lastActivity).getTime();
+
+        if (now - lastActivity > maxAge) {
+          toRemove.push(id);
+        }
+      }
+    });
+
+    toRemove.forEach((id) => this.removeGameInstance(id));
+    return toRemove.length;
   },
 
   addLauncherLog(
@@ -176,12 +210,17 @@ export const LogsManager = {
 
     recentLauncherMessages.set(messageKey, now);
 
-    // Clean up old entries (older than 5 minutes)
-    const cutoff = now - 5 * 60 * 1000;
-    for (const [key, timestamp] of recentLauncherMessages.entries()) {
-      if (timestamp < cutoff) {
-        recentLauncherMessages.delete(key);
+    // Cleanup old entries inline when map gets too large (keep only recent for dedup)
+    // This prevents unbounded growth while not requiring a timer
+    if (recentLauncherMessages.size > 1000) {
+      const cutoff = now - 5 * 60 * 1000;
+      const keysToDelete: string[] = [];
+      for (const [key, timestamp] of recentLauncherMessages.entries()) {
+        if (timestamp < cutoff) {
+          keysToDelete.push(key);
+        }
       }
+      keysToDelete.forEach((key) => recentLauncherMessages.delete(key));
     }
 
     const logEntry: LogEntry = {

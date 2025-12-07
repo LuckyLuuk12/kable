@@ -14,8 +14,6 @@ struct GitHubRelease {
 }
 
 async fn fetch_latest_release(include_prerelease: bool) -> Result<Option<GitHubRelease>, String> {
-    println!("[Updater] Fetching all releases from GitHub API");
-
     let client = reqwest::Client::new();
     let response = client
         .get("https://api.github.com/repos/LuckyLuuk12/kable/releases")
@@ -29,27 +27,12 @@ async fn fetch_latest_release(include_prerelease: bool) -> Result<Option<GitHubR
         .await
         .map_err(|e| format!("Failed to parse releases: {}", e))?;
 
-    println!("[Updater] Found {} total releases", releases.len());
-
     // Filter out drafts and apply prerelease filter
     let filtered: Vec<GitHubRelease> = releases
         .into_iter()
         .filter(|r| !r.draft)
         .filter(|r| include_prerelease || !r.prerelease)
         .collect();
-
-    println!(
-        "[Updater] After filtering (include_prerelease={}): {} releases",
-        include_prerelease,
-        filtered.len()
-    );
-
-    for release in &filtered {
-        println!(
-            "[Updater]   - {} (prerelease: {})",
-            release.tag_name, release.prerelease
-        );
-    }
 
     // Return the first one (GitHub sorts by date descending)
     Ok(filtered.into_iter().next())
@@ -60,17 +43,10 @@ pub async fn check_for_updates(
     app: tauri::AppHandle,
     include_prerelease: bool,
 ) -> Result<Option<serde_json::Value>, String> {
-    println!(
-        "[Updater] Checking for updates with include_prerelease={}",
-        include_prerelease
-    );
-    println!("[Updater] Current version: {}", env!("CARGO_PKG_VERSION"));
-
     // Fetch the latest release from GitHub API
     let latest_release = match fetch_latest_release(include_prerelease).await? {
         Some(r) => r,
         None => {
-            println!("[Updater] No releases found");
             return Ok(None);
         }
     };
@@ -133,18 +109,10 @@ pub async fn check_for_updates(
         // Same base version - handle nightly logic
         match (current_has_pre, update_has_pre) {
             // Current is nightly, update is base -> reject (0.1.7-12345 -> 0.1.7 is downgrade)
-            (true, false) => {
-                println!(
-                    "[Updater] Rejecting: current is nightly, update is base (would be downgrade)"
-                );
-                false
-            }
+            (true, false) => false,
 
             // Current is base, update is nightly -> allow (0.1.7 -> 0.1.7-12345 is upgrade)
-            (false, true) => {
-                println!("[Updater] Accepting: current is base, update is nightly (is upgrade)");
-                true
-            }
+            (false, true) => true,
 
             // Both nightly -> compare build numbers (0.1.7-12345 -> 0.1.7-54321)
             (true, true) => {
@@ -160,18 +128,11 @@ pub async fn check_for_updates(
                     .unwrap_or(0);
 
                 let is_newer = update_build > current_build;
-                println!(
-                    "[Updater] Both nightly: {} ({}) vs {} ({}) -> {}",
-                    current_str, current_build, update_str, update_build, is_newer
-                );
                 is_newer
             }
 
             // Both base, same version -> no update
-            (false, false) => {
-                println!("[Updater] Both base versions, same version -> no update");
-                false
-            }
+            (false, false) => false,
         }
     });
 
@@ -191,14 +152,8 @@ pub async fn check_for_updates(
             });
             Ok(Some(update_info))
         }
-        Ok(None) => {
-            println!("[Updater] No update available");
-            Ok(None)
-        }
-        Err(e) => {
-            println!("[Updater] Error checking for updates: {}", e);
-            Err(format!("Failed to check for updates: {}", e))
-        }
+        Ok(None) => Ok(None),
+        Err(e) => Err(format!("Failed to check for updates: {}", e)),
     }
 }
 
