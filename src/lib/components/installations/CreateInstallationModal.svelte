@@ -203,9 +203,29 @@ async function confirmCreate() {
 function cancelCreate() {
   close();
 }
+
+function handleBackdropClick(e: MouseEvent) {
+  console.log("[CreateModal] Click detected", {
+    target: e.target,
+    currentTarget: e.currentTarget,
+    dialogRef,
+    isDialogTarget: e.target === dialogRef,
+  });
+
+  // Check if click target is the dialog element itself (backdrop), not its content
+  if (e.target === dialogRef) {
+    console.log("[CreateModal] Closing modal - clicked on backdrop");
+    cancelCreate();
+  } else {
+    console.log("[CreateModal] Not closing - clicked inside content");
+  }
+}
 </script>
 
-<dialog bind:this={dialogRef} class="create-installation-modal">
+<dialog
+  bind:this={dialogRef}
+  class="create-installation-modal"
+  on:click={handleBackdropClick}>
   <h2>Create New Installation</h2>
   {#if error}
     <div class="error-message">{error}</div>
@@ -219,15 +239,13 @@ function cancelCreate() {
           style="background: {InstallationService.getLoaderColor(
             loader,
           )}20; color: {InstallationService.getLoaderColor(loader)};"
-          on:click={() => (selectedLoader = loader)}
-        >
+          on:click={() => (selectedLoader = loader)}>
           <span class="loader-icon">
             <!-- TODO: Change this to Image and add images for all loaders to the assets -->
             <Icon
               name={InstallationService.getLoaderIcon(loader)}
               size="md"
-              forceType="svg"
-            />
+              forceType="svg" />
           </span>
           <span class="loader-label"
             >{loader
@@ -235,8 +253,7 @@ function cancelCreate() {
               .replace(
                 /(^|\s)([a-z])/g,
                 (_, p1, p2) => p1 + p2.toUpperCase(),
-              )}</span
-          >
+              )}</span>
         </button>
       {/each}
     </div>
@@ -248,8 +265,7 @@ function cancelCreate() {
           type="text"
           bind:value={searchQuery}
           placeholder="Search for a version..."
-          class="version-search"
-        />
+          class="version-search" />
       </label>
       <label for="version-select">
         Version:
@@ -259,8 +275,7 @@ function cancelCreate() {
           bind:this={versionListRef}
           on:scroll={handleScroll}
           size="10"
-          class="version-list"
-        >
+          class="version-list">
           {#each displayedVersions as version (version.version_id)}
             <option value={version.version_id}>{version.version_id}</option>
           {/each}
@@ -295,13 +310,11 @@ function cancelCreate() {
           <select
             id="source-installation"
             bind:value={sourceInstallationId}
-            class="source-select"
-          >
+            class="source-select">
             <option value={null}>None - Start fresh</option>
             {#each availableInstallations as installation}
               <option value={installation.id}
-                >{installation.name} ({installation.version_id})</option
-              >
+                >{installation.name} ({installation.version_id})</option>
             {/each}
           </select>
         </label>
@@ -315,8 +328,7 @@ function cancelCreate() {
                   checked={allCopyOptionsSelected}
                   indeterminate={someCopyOptionsSelected &&
                     !allCopyOptionsSelected}
-                  on:change={toggleAllCopyOptions}
-                />
+                  on:change={toggleAllCopyOptions} />
                 <span>Select All</span>
               </label>
             </div>
@@ -329,8 +341,7 @@ function cancelCreate() {
                   <div class="option-text">
                     <span class="option-label">Copy Mods</span>
                     <span class="option-description"
-                      >Mods will be updated/downgraded to match the new version</span
-                    >
+                      >Mods will be updated/downgraded to match the new version</span>
                   </div>
                 </div>
               </label>
@@ -342,8 +353,7 @@ function cancelCreate() {
                   <div class="option-text">
                     <span class="option-label">Copy Resource Packs</span>
                     <span class="option-description"
-                      >Resource packs will be copied as-is</span
-                    >
+                      >Resource packs will be copied as-is</span>
                   </div>
                 </div>
               </label>
@@ -355,8 +365,7 @@ function cancelCreate() {
                   <div class="option-text">
                     <span class="option-label">Copy Shaders</span>
                     <span class="option-description"
-                      >Shaders will be copied as-is</span
-                    >
+                      >Shaders will be copied as-is</span>
                   </div>
                 </div>
               </label>
@@ -367,8 +376,7 @@ function cancelCreate() {
             <Icon name="info" size="sm" />
             <span
               >Select a source installation to copy mods, resource packs, and
-              shaders</span
-            >
+              shaders</span>
           </div>
         {/if}
       </div>
@@ -387,8 +395,7 @@ function cancelCreate() {
         type="button"
         class="btn btn-secondary"
         on:click={cancelCreate}
-        disabled={isLoading}>Cancel</button
-      >
+        disabled={isLoading}>Cancel</button>
     </div>
   </form>
 </dialog>
@@ -401,7 +408,19 @@ function cancelCreate() {
   border-radius: var(--border-radius);
   width: 85%;
   height: 85%;
-  margin: auto auto;
+  max-width: 65vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  border: none;
+  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.3);
+  margin: auto;
+
+  &::backdrop {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.4);
+  }
+
   h2 {
     margin-bottom: 1rem;
     color: var(--text);

@@ -167,9 +167,19 @@ function cancelEdit() {
   // Just close without saving changes
   close();
 }
+
+function handleBackdropClick(e: MouseEvent) {
+  // Only close if clicking the backdrop (dialog element itself), not its children
+  if (e.target === dialogRef) {
+    cancelEdit();
+  }
+}
 </script>
 
-<dialog bind:this={dialogRef} class="edit-installation-modal">
+<dialog
+  bind:this={dialogRef}
+  class="edit-installation-modal"
+  on:click={handleBackdropClick}>
   <h2>
     Edit Installation{#if installation?.name}
       — {installation.name}{/if}
@@ -182,8 +192,7 @@ function cancelEdit() {
           <input
             type="text"
             bind:value={installation.name}
-            on:input={(e) => handleInput(e, "name")}
-          />
+            on:input={(e) => handleInput(e, "name")} />
         </label>
 
         <label>
@@ -192,11 +201,9 @@ function cancelEdit() {
             <input
               type="text"
               bind:value={installation.icon}
-              on:input={(e) => handleInput(e, "icon")}
-            />
+              on:input={(e) => handleInput(e, "icon")} />
             <button type="button" class="btn" on:click={pickIconFile}
-              >Choose...</button
-            >
+              >Choose...</button>
           </div>
         </label>
 
@@ -220,8 +227,7 @@ function cancelEdit() {
               <input
                 type="text"
                 bind:value={javaArgsString}
-                on:input={handleJavaArgsInput}
-              />
+                on:input={handleJavaArgsInput} />
             </label>
 
             <label>
@@ -230,14 +236,12 @@ function cancelEdit() {
                 <input
                   type="text"
                   bind:value={installation.dedicated_mods_folder}
-                  on:input={(e) => handleInput(e, "dedicated_mods_folder")}
-                />
+                  on:input={(e) => handleInput(e, "dedicated_mods_folder")} />
                 <button
                   type="button"
                   class="btn"
                   on:click={() => pickFolder("dedicated_mods_folder")}
-                  >Browse...</button
-                >
+                  >Browse...</button>
               </div>
             </label>
 
@@ -248,14 +252,12 @@ function cancelEdit() {
                   type="text"
                   bind:value={installation.dedicated_resource_pack_folder}
                   on:input={(e) =>
-                    handleInput(e, "dedicated_resource_pack_folder")}
-                />
+                    handleInput(e, "dedicated_resource_pack_folder")} />
                 <button
                   type="button"
                   class="btn"
                   on:click={() => pickFolder("dedicated_resource_pack_folder")}
-                  >Browse...</button
-                >
+                  >Browse...</button>
               </div>
             </label>
 
@@ -265,14 +267,13 @@ function cancelEdit() {
                 <input
                   type="text"
                   bind:value={installation.dedicated_shaders_folder}
-                  on:input={(e) => handleInput(e, "dedicated_shaders_folder")}
-                />
+                  on:input={(e) =>
+                    handleInput(e, "dedicated_shaders_folder")} />
                 <button
                   type="button"
                   class="btn"
                   on:click={() => pickFolder("dedicated_shaders_folder")}
-                  >Browse...</button
-                >
+                  >Browse...</button>
               </div>
             </label>
 
@@ -282,14 +283,12 @@ function cancelEdit() {
                 <input
                   type="text"
                   bind:value={installation.dedicated_config_folder}
-                  on:input={(e) => handleInput(e, "dedicated_config_folder")}
-                />
+                  on:input={(e) => handleInput(e, "dedicated_config_folder")} />
                 <button
                   type="button"
                   class="btn"
                   on:click={() => pickFolder("dedicated_config_folder")}
-                  >Browse...</button
-                >
+                  >Browse...</button>
               </div>
             </label>
 
@@ -304,8 +303,7 @@ function cancelEdit() {
       <div class="actions" style="grid-column: 1 / -1;">
         <button type="submit" class="btn btn-primary">Confirm</button>
         <button type="button" class="btn btn-secondary" on:click={cancelEdit}
-          >Cancel</button
-        >
+          >Cancel</button>
       </div>
     </form>
   {/if}
@@ -315,37 +313,33 @@ function cancelEdit() {
     type="file"
     accept="image/png,image/jpeg,image/svg+xml,image/x-icon,image/webp"
     style="display:none;"
-    on:change={handleIconFileSelect}
-  />
+    on:change={handleIconFileSelect} />
   <!-- Folder inputs: use webkitdirectory to allow picking a folder and read its relative paths -->
   <input
     id="folder-input-dedicated_mods_folder"
     type="file"
     webkitdirectory
     style="display:none;"
-    on:change={(e) => handleFolderSelect(e, "dedicated_mods_folder")}
-  />
+    on:change={(e) => handleFolderSelect(e, "dedicated_mods_folder")} />
   <input
     id="folder-input-dedicated_resource_pack_folder"
     type="file"
     webkitdirectory
     style="display:none;"
-    on:change={(e) => handleFolderSelect(e, "dedicated_resource_pack_folder")}
-  />
+    on:change={(e) =>
+      handleFolderSelect(e, "dedicated_resource_pack_folder")} />
   <input
     id="folder-input-dedicated_shaders_folder"
     type="file"
     webkitdirectory
     style="display:none;"
-    on:change={(e) => handleFolderSelect(e, "dedicated_shaders_folder")}
-  />
+    on:change={(e) => handleFolderSelect(e, "dedicated_shaders_folder")} />
   <input
     id="folder-input-dedicated_config_folder"
     type="file"
     webkitdirectory
     style="display:none;"
-    on:change={(e) => handleFolderSelect(e, "dedicated_config_folder")}
-  />
+    on:change={(e) => handleFolderSelect(e, "dedicated_config_folder")} />
 </dialog>
 
 <style lang="scss">
@@ -354,7 +348,18 @@ function cancelEdit() {
   background: var(--container);
   border-radius: var(--border-radius);
   max-width: 80vw;
-  margin: 0 auto;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: none;
+  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.3);
+  margin: auto;
+
+  &::backdrop {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.4);
+  }
+
   h2 {
     margin-bottom: 1rem;
     color: var(--text);
