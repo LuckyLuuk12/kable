@@ -741,14 +741,16 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       <button
         class="btn btn-danger btn-sm"
         on:click={clearCurrentLogs}
-        title="Clear current logs">
+        title="Clear current logs"
+      >
         <Icon name="trash" size="sm" />
         Clear
       </button>
       <button
         class="btn btn-secondary btn-sm"
         on:click={exportCurrentLogs}
-        title="Export logs to file">
+        title="Export logs to file"
+      >
         <Icon name="download" size="sm" />
         Export
       </button>
@@ -767,24 +769,28 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
             ? 'Fuzzy search (try "frge" for "forge")...'
             : "Search logs..."}
         bind:value={searchTerm}
-        class="search-input" />
+        class="search-input"
+      />
       <div class="search-mode-selector">
         <button
           class="search-mode-button {searchMode === 'normal' ? 'active' : ''}"
           on:click={() => (searchMode = "normal")}
-          title="Normal text search">
+          title="Normal text search"
+        >
           <Icon name="text" size="sm" />
         </button>
         <button
           class="search-mode-button {searchMode === 'fuzzy' ? 'active' : ''}"
           on:click={() => (searchMode = "fuzzy")}
-          title="Fuzzy search (handles typos)">
+          title="Fuzzy search (handles typos)"
+        >
           <Icon name="zap" size="sm" />
         </button>
         <button
           class="search-mode-button {searchMode === 'regex' ? 'active' : ''}"
           on:click={() => (searchMode = "regex")}
-          title="Regular expression search">
+          title="Regular expression search"
+        >
           <Icon name="code" size="sm" />
         </button>
       </div>
@@ -794,11 +800,13 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
         <button
           class="dropdown-trigger"
           on:click={toggleLogLevelDropdown}
-          type="button">
+          type="button"
+        >
           <span>Log Levels ({enabledLogLevelsCount}/4)</span>
           <Icon
             name={showLogLevelDropdown ? "chevron-up" : "chevron-down"}
-            size="sm" />
+            size="sm"
+          />
         </button>
 
         {#if showLogLevelDropdown}
@@ -818,13 +826,15 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
                       ...logLevelFilters,
                       [level]: target.checked,
                     };
-                  }} />
+                  }}
+                />
                 <Icon name={getLogLevelIcon(level)} size="sm" />
                 <span>{getLogLevelDisplayName(level)}</span>
                 <span class="log-level-count"
                   >({(activeLogEntries || []).filter(
                     (log) => (log.level || "info").toLowerCase() === level,
-                  ).length})</span>
+                  ).length})</span
+                >
               </label>
             {/each}
           </div>
@@ -841,7 +851,8 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
               // When auto-scroll is enabled, immediately jump to bottom
               scrollToBottom();
             }
-          }} />
+          }}
+        />
         <span>Auto-scroll</span>
       </label>
     </div>
@@ -853,7 +864,8 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       <!-- Global Tab -->
       <button
         class="tab-button {$selectedInstanceId === 'global' ? 'active' : ''}"
-        on:click={() => selectInstance("global")}>
+        on:click={() => selectInstance("global")}
+      >
         <Icon name="globe" size="sm" />
         <span>Launcher</span>
       </button>
@@ -864,7 +876,8 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
           class="tab-button {$selectedInstanceId === instance.id
             ? 'active'
             : ''}"
-          on:click={() => selectInstance(instance.id)}>
+          on:click={() => selectInstance(instance.id)}
+        >
           <Icon name={getStatusIcon(instance.status)} size="sm" />
           <span>{getInstanceDisplayName(instance)}</span>
           <span class="status-badge {getStatusColor(instance.status)}">
@@ -883,19 +896,23 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
           class="sub-tab-button {selectedLogType === 'launcher'
             ? 'active'
             : ''}"
-          on:click={() => (selectedLogType = "launcher")}>
+          on:click={() => (selectedLogType = "launcher")}
+        >
           <Icon name="rocket" size="sm" />
           <span>Launcher</span>
           <span class="count-badge"
-            >{(currentLogsData.launcherLogs || []).length}</span>
+            >{(currentLogsData.launcherLogs || []).length}</span
+          >
         </button>
         <button
           class="sub-tab-button {selectedLogType === 'game' ? 'active' : ''}"
-          on:click={() => (selectedLogType = "game")}>
+          on:click={() => (selectedLogType = "game")}
+        >
           <Icon name="gamepad" size="sm" />
           <span>Game</span>
           <span class="count-badge"
-            >{(currentLogsData.gameLogs || []).length}</span>
+            >{(currentLogsData.gameLogs || []).length}</span
+          >
         </button>
       </div>
     </div>
@@ -908,7 +925,8 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       on:scroll={handleScroll}
       class="log-container {showCopyNotification
         ? 'copy-notification-active'
-        : ''}">
+        : ''}"
+    >
       {#if filteredCount === 0}
         <div class="empty-state">
           <div class="empty-icon">
@@ -947,7 +965,8 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
                     role="button"
                     tabindex="0"
                     on:keydown={(e) =>
-                      e.key === "Enter" && copyLogEntry(logEntry)}>
+                      e.key === "Enter" && copyLogEntry(logEntry)}
+                  >
                     <Icon name="clipboard" size="sm" />
                   </div>
                   <div class="log-timestamp">
@@ -956,15 +975,18 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
                   <div
                     class="log-level badge {getLogLevelClass(
                       logEntry.level || 'info',
-                    )}">
+                    )}"
+                  >
                     <Icon
                       name={getLogLevelIcon(logEntry.level || "info")}
-                      size="sm" />
+                      size="sm"
+                    />
                     {formatLogLevel(logEntry.level || "info")}
                   </div>
                   <div class="log-message">
                     <pre class="log-message-content"><code
-                        >{getDisplayMessage(logEntry)}</code></pre>
+                        >{getDisplayMessage(logEntry)}</code
+                      ></pre>
                   </div>
                 </div>
               {/if}
@@ -981,7 +1003,8 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
           <span
             >Copied {filteredCount} log entr{filteredCount === 1
               ? "y"
-              : "ies"}</span>
+              : "ies"}</span
+          >
         </div>
       </div>
     {/if}
@@ -1019,7 +1042,8 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
     </div>
     <div class="status-right">
       <span class="status-text"
-        >{(sortedInstances || []).length} active instances</span>
+        >{(sortedInstances || []).length} active instances</span
+      >
       {#if autoScroll}
         <span class="auto-scroll-indicator">
           <Icon name="refresh" size="sm" />
