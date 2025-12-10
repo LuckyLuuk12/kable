@@ -60,8 +60,6 @@ fn is_update(current: &str, update: &str) -> bool {
 //   - tie breaker by published_at timestamp
 
 fn sort_releases(mut list: Vec<GitHubRelease>) -> Vec<GitHubRelease> {
-    let current = env!("CARGO_PKG_VERSION").to_string();
-
     list.sort_by(|a, b| {
         let a_newer = is_update(&b.tag_name, &a.tag_name);
         let b_newer = is_update(&a.tag_name, &b.tag_name);
