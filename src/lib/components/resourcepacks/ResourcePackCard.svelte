@@ -118,7 +118,8 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
   on:click={handleVisit}
   role="button"
   tabindex="0"
-  on:keydown={(e) => e.key === "Enter" && handleVisit(e)}>
+  on:keydown={(e) => e.key === "Enter" && handleVisit(e)}
+>
   <!-- Thumbnail -->
   {#if viewMode !== "compact"}
     <div class="resourcepack-thumbnail">
@@ -135,7 +136,8 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
           class="gallery-overlay"
           on:click={handleViewGallery}
           use:clickSound
-          title="View gallery">
+          title="View gallery"
+        >
           <Icon name="images" size="lg" forceType="svg" />
           <span>View Gallery</span>
         </button>
@@ -178,7 +180,8 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
               class="resolution-badge"
               style="background-color: {getResolutionColor(
                 resourcepack.resolution,
-              )}">
+              )}"
+            >
               {resourcepack.resolution}
             </span>
           </div>
@@ -202,7 +205,8 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
           ? "Already installed"
           : installation
             ? `Install to ${installation.name}`
-            : "Install globally"}>
+            : "Install globally"}
+      >
         {#if loading}
           <Icon name="loader" size="sm" forceType="svg" />
         {:else if isInstalled}

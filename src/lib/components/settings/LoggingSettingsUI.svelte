@@ -43,7 +43,8 @@ function disableRetentionDays() {
           <input
             type="checkbox"
             id="show-logs-page-nav"
-            bind:checked={$settings.logging.show_logs_page_in_nav} />
+            bind:checked={$settings.logging.show_logs_page_in_nav}
+          />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -61,7 +62,8 @@ function disableRetentionDays() {
           <input
             type="checkbox"
             id="enable-persistent-logging"
-            bind:checked={$settings.logging.enable_persistent_logging} />
+            bind:checked={$settings.logging.enable_persistent_logging}
+          />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -79,7 +81,8 @@ function disableRetentionDays() {
           <input
             type="checkbox"
             id="enable-log-compression"
-            bind:checked={$settings.logging.enable_log_compression} />
+            bind:checked={$settings.logging.enable_log_compression}
+          />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -112,7 +115,8 @@ function disableRetentionDays() {
                   ),
                 });
               }
-            }} />
+            }}
+          />
           <input
             type="number"
             id="log-file-size-limit"
@@ -131,11 +135,13 @@ function disableRetentionDays() {
                   ),
                 });
               }
-            }} />
+            }}
+          />
         </div>
         <div class="log-file-size-btn">
           <button use:clickSound type="button" on:click={disableFileSizeLimit}
-            >Disable</button>
+            >Disable</button
+          >
         </div>
       </div>
     </div>
@@ -167,7 +173,8 @@ function disableRetentionDays() {
                   ),
                 });
               }
-            }} />
+            }}
+          />
           <input
             type="number"
             id="log-retention-days"
@@ -186,11 +193,13 @@ function disableRetentionDays() {
                   ),
                 });
               }
-            }} />
+            }}
+          />
         </div>
         <div class="log-retention-btn">
           <button use:clickSound type="button" on:click={disableRetentionDays}
-            >Disable</button>
+            >Disable</button
+          >
         </div>
       </div>
     </div>
@@ -207,7 +216,8 @@ function disableRetentionDays() {
           <input
             type="checkbox"
             id="merge-log-tabs"
-            bind:checked={$settings.logging.merge_log_tabs} />
+            bind:checked={$settings.logging.merge_log_tabs}
+          />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -234,7 +244,8 @@ function disableRetentionDays() {
               ...$settings.logging,
               max_memory_logs: Number((e.target as HTMLInputElement).value),
             });
-          }} />
+          }}
+        />
         <input
           type="number"
           id="max-memory-logs"
@@ -246,7 +257,8 @@ function disableRetentionDays() {
               ...$settings.logging,
               max_memory_logs: Number((e.target as HTMLInputElement).value),
             });
-          }} />
+          }}
+        />
       </div>
     </div>
 
@@ -268,7 +280,8 @@ function disableRetentionDays() {
                 ...$settings.logging,
                 enable_dedupe: (e.target as HTMLInputElement).checked,
               });
-            }} />
+            }}
+          />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -296,7 +309,8 @@ function disableRetentionDays() {
               ...$settings.logging,
               dedupe_window_size: Number((e.target as HTMLInputElement).value),
             });
-          }} />
+          }}
+        />
         <input
           type="number"
           id="dedupe-window-size"
@@ -309,7 +323,8 @@ function disableRetentionDays() {
               ...$settings.logging,
               dedupe_window_size: Number((e.target as HTMLInputElement).value),
             });
-          }} />
+          }}
+        />
       </div>
     </div>
 
@@ -378,12 +393,14 @@ function disableRetentionDays() {
                 }
                 e.preventDefault();
               }
-            }}>
+            }}
+          >
             <input
               type="checkbox"
               bind:group={$settings.logging.default_log_levels}
               value={level}
-              class="visually-hidden" />
+              class="visually-hidden"
+            />
             {level}
           </label>
         {/each}

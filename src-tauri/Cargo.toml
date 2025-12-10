@@ -69,6 +69,7 @@ resource_merger = "0.1"
 
 # Pin problematic dependencies to avoid edition2024 issues
 base64ct = "=1.6.0" # Pin to avoid 1.8.0 which uses edition2024
+semver = "1.0.27"
 
 [target.'cfg(target_os = "windows")'.dependencies]
 mslnk = "0.1"

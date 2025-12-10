@@ -82,7 +82,8 @@ function formatTime(date: Date): string {
     class="tray-toggle"
     on:click|stopPropagation={toggleTray}
     aria-label="Notification history"
-    title="Notification history">
+    title="Notification history"
+  >
     <Icon name="help" size="sm" />
     {#if $notificationHistory.length > 0}
       <span class="notification-badge">{$notificationHistory.length}</span>
@@ -98,7 +99,8 @@ function formatTime(date: Date): string {
             use:clickSound
             class="help-btn"
             on:click={openHelp}
-            title="Get help">
+            title="Get help"
+          >
             Get Help
           </button>
           {#if $notificationHistory.length > 0}

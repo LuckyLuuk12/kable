@@ -86,7 +86,8 @@ async function handleInstallUpdate() {
       class="check-button"
       on:click={handleCheckForUpdates}
       use:clickSound
-      disabled={isChecking || isInstalling}>
+      disabled={isChecking || isInstalling}
+    >
       {#if isChecking}
         Checking...
       {:else}
@@ -109,7 +110,8 @@ async function handleInstallUpdate() {
           class="install-button"
           on:click={handleInstallUpdate}
           use:successSound
-          disabled={isInstalling}>
+          disabled={isInstalling}
+        >
           {#if isInstalling}
             Installing...
           {:else}

@@ -1,9 +1,10 @@
+use chrono::DateTime;
 use serde::Deserialize;
 use tauri::command;
 use tauri_plugin_updater::UpdaterExt;
 use url::Url;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 struct GitHubRelease {
     tag_name: String,
     prerelease: bool,
@@ -15,7 +16,72 @@ struct GitHubRelease {
     published_at: String,
 }
 
-async fn fetch_latest_release(include_prerelease: bool) -> Result<Option<GitHubRelease>, String> {
+// Version comparator logic (same behavior as your closure)
+
+fn is_update(current: &str, update: &str) -> bool {
+    let current_has_pre = current.contains('-');
+    let update_has_pre = update.contains('-');
+
+    let current_base = match semver::Version::parse(current.split('-').next().unwrap_or(current)) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+    let update_base = match semver::Version::parse(update.split('-').next().unwrap_or(update)) {
+        Ok(v) => v,
+        Err(_) => return false,
+    };
+
+    if current_base != update_base {
+        return update_base > current_base;
+    }
+
+    match (current_has_pre, update_has_pre) {
+        (true, false) => false,
+        (false, true) => true,
+        (true, true) => {
+            let current_build: u32 = current
+                .split('-')
+                .nth(1)
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            let update_build: u32 = update
+                .split('-')
+                .nth(1)
+                .and_then(|s| s.parse().ok())
+                .unwrap_or(0);
+            update_build > current_build
+        }
+        (false, false) => false,
+    }
+}
+
+// Sort releases using the same logic
+//   - primarily by version recency (custom comparator)
+//   - tie breaker by published_at timestamp
+
+fn sort_releases(mut list: Vec<GitHubRelease>) -> Vec<GitHubRelease> {
+    let current = env!("CARGO_PKG_VERSION").to_string();
+
+    list.sort_by(|a, b| {
+        let a_newer = is_update(&b.tag_name, &a.tag_name);
+        let b_newer = is_update(&a.tag_name, &b.tag_name);
+
+        if a_newer && !b_newer {
+            return std::cmp::Ordering::Greater;
+        }
+        if b_newer && !a_newer {
+            return std::cmp::Ordering::Less;
+        }
+
+        let ad = DateTime::parse_from_rfc3339(&a.published_at).unwrap();
+        let bd = DateTime::parse_from_rfc3339(&b.published_at).unwrap();
+        bd.cmp(&ad)
+    });
+
+    list
+}
+
+async fn fetch_releases(include_prerelease: bool) -> Result<Vec<GitHubRelease>, String> {
     let client = reqwest::Client::new();
     let response = client
         .get("https://api.github.com/repos/LuckyLuuk12/kable/releases")
@@ -24,20 +90,14 @@ async fn fetch_latest_release(include_prerelease: bool) -> Result<Option<GitHubR
         .await
         .map_err(|e| format!("Failed to fetch releases: {}", e))?;
 
-    let releases: Vec<GitHubRelease> = response
+    let mut releases: Vec<GitHubRelease> = response
         .json()
         .await
         .map_err(|e| format!("Failed to parse releases: {}", e))?;
 
-    // Filter out drafts and apply prerelease filter
-    let filtered: Vec<GitHubRelease> = releases
-        .into_iter()
-        .filter(|r| !r.draft)
-        .filter(|r| include_prerelease || !r.prerelease)
-        .collect();
+    releases.retain(|r| !r.draft && (include_prerelease || !r.prerelease));
 
-    // Return the first one (GitHub sorts by date descending)
-    Ok(filtered.into_iter().next())
+    Ok(sort_releases(releases))
 }
 
 #[command]
@@ -45,112 +105,50 @@ pub async fn check_for_updates(
     app: tauri::AppHandle,
     include_prerelease: bool,
 ) -> Result<Option<serde_json::Value>, String> {
-    // Fetch the latest release from GitHub API
-    let latest_release = match fetch_latest_release(include_prerelease).await? {
-        Some(r) => r,
-        None => {
-            return Ok(None);
-        }
-    };
+    let list = fetch_releases(include_prerelease).await?;
+    let current = env!("CARGO_PKG_VERSION").to_string();
 
-    println!(
-        "[Updater] Latest release from GitHub: {}",
-        latest_release.tag_name
-    );
+    let newer: Vec<_> = list
+        .into_iter()
+        .filter(|r| is_update(&current, &r.tag_name))
+        .collect();
 
-    // Build updater with the specific release's latest.json
-    let tag = &latest_release.tag_name;
+    if newer.is_empty() {
+        return Ok(None);
+    }
+
+    let latest = &newer[0];
+    let tag = &latest.tag_name;
+
     let endpoint_str = format!(
         "https://github.com/LuckyLuuk12/kable/releases/download/{}/latest.json",
         tag
     );
-    println!("[Updater] Using endpoint: {}", endpoint_str);
 
-    let endpoint = match Url::parse(&endpoint_str) {
-        Ok(url) => url,
-        Err(e) => return Err(format!("Failed to parse endpoint URL: {}", e)),
-    };
+    let endpoint =
+        Url::parse(&endpoint_str).map_err(|e| format!("Failed to parse endpoint URL: {}", e))?;
 
-    let mut builder = match app.updater_builder().endpoints(vec![endpoint]) {
-        Ok(b) => b,
-        Err(e) => return Err(format!("Failed to set endpoints: {}", e)),
-    };
+    let mut builder = app
+        .updater_builder()
+        .endpoints(vec![endpoint])
+        .map_err(|e| format!("Failed to set endpoints: {}", e))?;
 
-    // Configure version comparator
-    builder = builder.version_comparator(|current, update| {
-        // When checking nightly builds, compare chronologically using build numbers
-        // Build numbers are minutes since epoch, so higher = newer
-        // Nightly builds (0.1.7-XXXXX) are development versions AFTER the base release (0.1.7)
-        // Examples:
-        // - 0.1.7-12345 (current) -> 0.1.7-54321 (update): true (54321 > 12345, newer nightly)
-        // - 0.1.7-54321 (current) -> 0.1.7-12345 (update): false (12345 < 54321, older nightly)
-        // - 0.1.7-12345 (current) -> 0.1.7 (update): FALSE (nightly is NEWER than base, would be downgrade)
-        // - 0.1.7-12345 (current) -> 0.1.8 (update): true (0.1.8 > 0.1.7)
-        // - 0.1.7 (current) -> 0.1.7-12345 (update): true (nightly is newer development version)
+    builder = builder
+        .version_comparator(|cur, upd| is_update(&cur.to_string(), &upd.version.to_string()));
 
-        let current_str = current.to_string();
-        let update_str = update.version.to_string();
-
-        println!(
-            "[Updater] Comparing versions: {} -> {}",
-            current_str, update_str
-        );
-
-        let current_has_pre = current_str.contains('-');
-        let update_has_pre = update_str.contains('-');
-
-        // Get base versions (before the '-')
-        let current_base = current_str.split('-').next().unwrap_or(&current_str);
-        let update_base = update_str.split('-').next().unwrap_or(&update_str);
-
-        // If base versions differ, use standard semver comparison
-        if current_base != update_base {
-            return update.version > current;
-        }
-
-        // Same base version - handle nightly logic
-        match (current_has_pre, update_has_pre) {
-            // Current is nightly, update is base -> reject (0.1.7-12345 -> 0.1.7 is downgrade)
-            (true, false) => false,
-
-            // Current is base, update is nightly -> allow (0.1.7 -> 0.1.7-12345 is upgrade)
-            (false, true) => true,
-
-            // Both nightly -> compare build numbers (0.1.7-12345 -> 0.1.7-54321)
-            (true, true) => {
-                let current_build: u32 = current_str
-                    .split('-')
-                    .nth(1)
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(0);
-                let update_build: u32 = update_str
-                    .split('-')
-                    .nth(1)
-                    .and_then(|s| s.parse().ok())
-                    .unwrap_or(0);
-                update_build > current_build
-            }
-
-            // Both base, same version -> no update
-            (false, false) => false,
-        }
-    });
-
-    let updater = match builder.build() {
-        Ok(u) => u,
-        Err(e) => return Err(format!("Failed to build updater: {}", e)),
-    };
+    let updater = builder
+        .build()
+        .map_err(|e| format!("Failed to build updater: {}", e))?;
 
     match updater.check().await {
         Ok(Some(update)) => {
-            println!("[Updater] Update found: version {}", update.version);
-            let update_info = serde_json::json!({
+            let info = serde_json::json!({
                 "version": update.version,
                 "date": update.date.map(|d| d.to_string()),
                 "body": update.body,
-                "current_version": env!("CARGO_PKG_VERSION")
+                "current_version": current
             });
-            Ok(Some(update_info))
+            Ok(Some(info))
         }
         Ok(None) => Ok(None),
         Err(e) => Err(format!("Failed to check for updates: {}", e)),
@@ -159,43 +157,43 @@ pub async fn check_for_updates(
 
 #[command]
 pub async fn install_update(app: tauri::AppHandle, include_prerelease: bool) -> Result<(), String> {
-    // Fetch the latest release from GitHub API
-    let latest_release = match fetch_latest_release(include_prerelease).await? {
-        Some(r) => r,
-        None => return Err("No releases found".to_string()),
-    };
+    let list = fetch_releases(include_prerelease).await?;
+    let current = env!("CARGO_PKG_VERSION").to_string();
 
-    let tag = &latest_release.tag_name;
+    let newer: Vec<_> = list
+        .into_iter()
+        .filter(|r| is_update(&current, &r.tag_name))
+        .collect();
+
+    if newer.is_empty() {
+        return Err("No update available".to_string());
+    }
+
+    let latest = &newer[0];
     let endpoint_str = format!(
         "https://github.com/LuckyLuuk12/kable/releases/download/{}/latest.json",
-        tag
+        latest.tag_name
     );
 
-    let endpoint = match Url::parse(&endpoint_str) {
-        Ok(url) => url,
-        Err(e) => return Err(format!("Failed to parse endpoint URL: {}", e)),
-    };
+    let endpoint =
+        Url::parse(&endpoint_str).map_err(|e| format!("Failed to parse endpoint URL: {}", e))?;
 
-    let builder = match app.updater_builder().endpoints(vec![endpoint]) {
-        Ok(b) => b,
-        Err(e) => return Err(format!("Failed to set endpoints: {}", e)),
-    };
+    let builder = app
+        .updater_builder()
+        .endpoints(vec![endpoint])
+        .map_err(|e| format!("Failed to set endpoints: {}", e))?;
 
-    let updater = match builder.build() {
-        Ok(u) => u,
-        Err(e) => return Err(format!("Failed to get updater: {}", e)),
-    };
+    let updater = builder
+        .build()
+        .map_err(|e| format!("Failed to get updater: {}", e))?;
 
     match updater.check().await {
         Ok(Some(update)) => {
-            // Download and install with empty callbacks
-            match update.download_and_install(|_, _| {}, || {}).await {
-                Ok(_) => {
-                    // App will restart automatically after update
-                    Ok(())
-                }
-                Err(e) => Err(format!("Failed to install update: {}", e)),
-            }
+            update
+                .download_and_install(|_, _| {}, || {})
+                .await
+                .map_err(|e| format!("Failed to install update: {}", e))?;
+            Ok(())
         }
         Ok(None) => Err("No update available".to_string()),
         Err(e) => Err(format!("Failed to check for updates: {}", e)),

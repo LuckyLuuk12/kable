@@ -149,7 +149,8 @@ function formatFileSize(bytes: number): string {
         use:clickSound
         class="btn btn-secondary {isRefreshing ? 'spinning' : ''}"
         disabled={isLoading}
-        title="Refresh worlds list">
+        title="Refresh worlds list"
+      >
         <Icon name="refresh" size="sm" forceType="svg" />
       </button>
     </div>
@@ -170,7 +171,8 @@ function formatFileSize(bytes: number): string {
         type="text"
         placeholder="Search worlds by name or game mode..."
         bind:value={searchQuery}
-        class="search-input" />
+        class="search-input"
+      />
     </div>
     <div class="filter-controls">
       <select bind:value={selectedCategory} class="filter-select">
@@ -218,19 +220,22 @@ function formatFileSize(bytes: number): string {
                   name={world.game_mode?.toLowerCase() === "hardcore"
                     ? "skull"
                     : "world"}
-                  size="lg" />
+                  size="lg"
+                />
               </div>
               <div class="world-info">
                 <h3 class="world-name">{world.name}</h3>
                 <div class="world-meta">
                   <span
                     class="badge badge-{world.game_mode?.toLowerCase() ||
-                      'survival'}">
+                      'survival'}"
+                  >
                     <Icon
                       name={categories.find(
                         (c) => c.id === world.game_mode?.toLowerCase(),
                       )?.icon || "map"}
-                      size="sm" />
+                      size="sm"
+                    />
                     {world.game_mode || "Unknown"}
                   </span>
                   {#if world.version}
@@ -246,7 +251,8 @@ function formatFileSize(bytes: number): string {
                   <Icon name="clock" size="sm" />
                   <span class="stat-label">Last Played:</span>
                   <span class="stat-value"
-                    >{new Date(world.last_played).toLocaleDateString()}</span>
+                    >{new Date(world.last_played).toLocaleDateString()}</span
+                  >
                 </div>
               {/if}
 
@@ -255,7 +261,8 @@ function formatFileSize(bytes: number): string {
                   <Icon name="folder" size="sm" />
                   <span class="stat-label">Size:</span>
                   <span class="stat-value"
-                    >{formatFileSize(world.size_mb * 1024 * 1024)}</span>
+                    >{formatFileSize(world.size_mb * 1024 * 1024)}</span
+                  >
                 </div>
               {/if}
 
@@ -279,7 +286,8 @@ function formatFileSize(bytes: number): string {
                 on:click={() => backupWorld(world.name)}
                 use:successSound
                 class="btn btn-secondary btn-sm"
-                title="Create backup">
+                title="Create backup"
+              >
                 <Icon name="archive" size="sm" />
                 Backup
               </button>
@@ -288,7 +296,8 @@ function formatFileSize(bytes: number): string {
                 on:click={() => deleteWorld(world.name)}
                 use:errorSound
                 class="btn btn-danger btn-sm"
-                title="Delete world">
+                title="Delete world"
+              >
                 <Icon name="trash" size="sm" />
                 Delete
               </button>

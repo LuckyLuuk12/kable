@@ -222,7 +222,8 @@ function getModel(m: string): "classic" | "slim" | "auto" {
       use:clickSound
       class="upload-btn"
       on:click={openUploadDialog}
-      disabled={loading}>
+      disabled={loading}
+    >
       <Icon name="upload" size="sm" />
       Upload Skin
     </button>
@@ -233,7 +234,8 @@ function getModel(m: string): "classic" | "slim" | "auto" {
       <Icon name="alert" size="sm" />
       {error}
       <button use:clickSound on:click={() => (error = "")}
-        ><Icon name="close" size="sm" /></button>
+        ><Icon name="close" size="sm" /></button
+      >
     </div>
   {/if}
 
@@ -255,7 +257,8 @@ function getModel(m: string): "classic" | "slim" | "auto" {
             class="cape-card"
             class:active={!activeCape}
             on:click={() => handleApplyCape(null)}
-            disabled={loading}>
+            disabled={loading}
+          >
             <div class="cape-preview no-cape">
               <Icon name="close" size="md" />
             </div>
@@ -268,13 +271,13 @@ function getModel(m: string): "classic" | "slim" | "auto" {
               class="cape-card"
               class:active={SkinsService.isCapeActive(cape)}
               on:click={() => handleApplyCape(cape.id)}
-              disabled={loading}>
+              disabled={loading}
+            >
               <div class="cape-preview">
                 {#if cape.url}<img
                     src={cape.url}
-                    alt={cape.alias || cape.id} />{:else}<Icon
-                    name="image"
-                    size="md" />{/if}
+                    alt={cape.alias || cape.id}
+                  />{:else}<Icon name="image" size="md" />{/if}
               </div>
               <h4>{SkinsService.getCapeDisplayName(cape)}</h4>
               {#if SkinsService.isCapeActive(cape)}<span class="badge"
@@ -297,7 +300,8 @@ function getModel(m: string): "classic" | "slim" | "auto" {
           <h3>No Skins</h3>
           <p>Upload your first skin</p>
           <button use:clickSound on:click={openUploadDialog}
-            ><Icon name="upload" size="sm" />Upload</button>
+            ><Icon name="upload" size="sm" />Upload</button
+          >
         </div>
       {:else}
         <div class="skins-grid">
@@ -308,14 +312,16 @@ function getModel(m: string): "classic" | "slim" | "auto" {
               tabindex="0"
               class:current={SkinsService.isSkinActive(skin)}
               on:mouseenter={() => (hoveredSkinId = skin.id)}
-              on:mouseleave={() => (hoveredSkinId = null)}>
+              on:mouseleave={() => (hoveredSkinId = null)}
+            >
               <div class="preview">
                 {#if skin.url}
                   <SkinViewer3D
                     skinUrl={skin.url}
                     height={180}
                     model={getModel(skin.model)}
-                    animation={hoveredSkinId === skin.id ? "walk" : "idle"} />
+                    animation={hoveredSkinId === skin.id ? "walk" : "idle"}
+                  />
                 {:else}
                   <Icon name="user" size="lg" />
                 {/if}
@@ -333,7 +339,8 @@ function getModel(m: string): "classic" | "slim" | "auto" {
                     <span class="date"
                       ><Icon name="calendar" size="sm" />{new Date(
                         skin.uploaded_date * 1000,
-                      ).toLocaleDateString()}</span>
+                      ).toLocaleDateString()}</span
+                    >
                   {/if}
                 </div>
                 <div class="actions">
@@ -343,20 +350,23 @@ function getModel(m: string): "classic" | "slim" | "auto" {
                       class="apply"
                       on:click={() => handleApplySkin(skin.id)}
                       disabled={loading}
-                      ><Icon name="check" size="sm" />Apply</button>
+                      ><Icon name="check" size="sm" />Apply</button
+                    >
                   {/if}
                   <button
                     use:clickSound
                     on:click={() => openEditModal(skin)}
                     disabled={loading}
-                    title="Edit"><Icon name="edit" size="sm" /></button>
+                    title="Edit"><Icon name="edit" size="sm" /></button
+                  >
                   {#if !SkinsService.isSkinActive(skin)}
                     <button
                       use:errorSound
                       class="danger"
                       on:click={(e) => removeSkin(skin.id, e)}
                       disabled={loading}
-                      title="Remove"><Icon name="trash" size="sm" /></button>
+                      title="Remove"><Icon name="trash" size="sm" /></button
+                    >
                   {/if}
                 </div>
               </div>
@@ -374,52 +384,64 @@ function getModel(m: string): "classic" | "slim" | "auto" {
     on:click={() => (showEditModal = false)}
     on:keypress={(e) => e.key === "Escape" && (showEditModal = false)}
     role="button"
-    tabindex="0">
+    tabindex="0"
+  >
     <div
       class="modal"
       on:click|stopPropagation
       on:keypress={(e) => e.key === "Escape" && (showEditModal = false)}
       role="button"
-      tabindex="0">
+      tabindex="0"
+    >
       <div class="modal-header">
         <h3>Edit Skin</h3>
         <button use:clickSound on:click={() => (showEditModal = false)}
-          ><Icon name="close" size="sm" /></button>
+          ><Icon name="close" size="sm" /></button
+        >
       </div>
       <div class="modal-body">
         <label
           >Name <input
             type="text"
             bind:value={editName}
-            placeholder="Skin name" /></label>
+            placeholder="Skin name"
+          /></label
+        >
         <label
           >Cape <select bind:value={editCapeId}
             ><option value="">None</option>{#each capes as c}<option
                 value={c.id}>{SkinsService.getCapeDisplayName(c)}</option
               >{/each}</select
-          ></label>
+          ></label
+        >
         <label
           >Model <div class="radio-group">
             <label
               ><input
                 type="radio"
                 bind:group={editSlim}
-                value={false} />Classic</label
+                value={false}
+              />Classic</label
             ><label
               ><input
                 type="radio"
                 bind:group={editSlim}
-                value={true} />Slim</label>
-          </div></label>
+                value={true}
+              />Slim</label
+            >
+          </div></label
+        >
       </div>
       <div class="modal-footer">
         <button use:clickSound on:click={() => (showEditModal = false)}
-          >Cancel</button>
+          >Cancel</button
+        >
         <button
           use:successSound
           class="primary"
           on:click={saveEdit}
-          disabled={!editName}><Icon name="check" size="sm" />Save</button>
+          disabled={!editName}><Icon name="check" size="sm" />Save</button
+        >
       </div>
     </div>
   </div>
@@ -431,55 +453,67 @@ function getModel(m: string): "classic" | "slim" | "auto" {
     on:click={() => (showAddModal = false)}
     on:keypress={(e) => e.key === "Escape" && (showAddModal = false)}
     role="button"
-    tabindex="0">
+    tabindex="0"
+  >
     <div
       class="modal"
       on:click|stopPropagation
       on:keypress={(e) => e.key === "Escape" && (showAddModal = false)}
       role="button"
-      tabindex="0">
+      tabindex="0"
+    >
       <div class="modal-header">
         <h3>Upload Skin</h3>
         <button use:clickSound on:click={() => (showAddModal = false)}
-          ><Icon name="close" size="sm" /></button>
+          ><Icon name="close" size="sm" /></button
+        >
       </div>
       <div class="modal-body">
         <label
           >Name <input
             type="text"
             bind:value={addName}
-            placeholder="Skin name" /></label>
+            placeholder="Skin name"
+          /></label
+        >
         <label
           >Cape <select bind:value={addCapeId}
             ><option value="">None</option>{#each capes as c}<option
                 value={c.id}>{SkinsService.getCapeDisplayName(c)}</option
               >{/each}</select
-          ></label>
+          ></label
+        >
         <label
           >Model <div class="radio-group">
             <label
               ><input
                 type="radio"
                 bind:group={addSlim}
-                value={false} />Classic</label
+                value={false}
+              />Classic</label
             ><label
               ><input
                 type="radio"
                 bind:group={addSlim}
-                value={true} />Slim</label>
-          </div></label>
+                value={true}
+              />Slim</label
+            >
+          </div></label
+        >
         <div class="file-info">
           <Icon name="file" size="sm" />{addFilePath.split(/[\\\\/]/).pop()}
         </div>
       </div>
       <div class="modal-footer">
         <button use:clickSound on:click={() => (showAddModal = false)}
-          >Cancel</button>
+          >Cancel</button
+        >
         <button
           use:successSound
           class="primary"
           on:click={uploadSkin}
-          disabled={!addName}><Icon name="upload" size="sm" />Upload</button>
+          disabled={!addName}><Icon name="upload" size="sm" />Upload</button
+        >
       </div>
     </div>
   </div>

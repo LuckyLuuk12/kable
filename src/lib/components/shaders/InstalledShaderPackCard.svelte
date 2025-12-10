@@ -142,7 +142,8 @@ async function handleVisitPage(event: MouseEvent) {
       on:click={toggleDisabled}
       use:clickSound
       title={isDisabled ? "Enable shader" : "Disable shader"}
-      disabled={loading}>
+      disabled={loading}
+    >
       <Icon name={isDisabled ? "eye-off" : "eye"} size="sm" />
       <span>{isDisabled ? "Enable" : "Disable"}</span>
     </button>
@@ -153,7 +154,8 @@ async function handleVisitPage(event: MouseEvent) {
         on:click={handleVisitPage}
         use:clickSound
         title="Visit page"
-        disabled={loading}>
+        disabled={loading}
+      >
         <Icon name="external-link" size="sm" />
         <span>Visit</span>
       </button>
@@ -164,7 +166,8 @@ async function handleVisitPage(event: MouseEvent) {
       on:click={handleRemove}
       use:errorSound
       title="Remove shader"
-      disabled={loading}>
+      disabled={loading}
+    >
       <Icon name="trash" size="sm" />
       <span>Remove</span>
     </button>

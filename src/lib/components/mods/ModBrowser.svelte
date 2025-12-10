@@ -1200,18 +1200,21 @@ onMount(async () => {
             class="reset-filters"
             on:click={resetFilters}
             use:clickSound
-            title="Reset all filters">
+            title="Reset all filters"
+          >
             <Icon name="refresh" size="sm" forceType="svg" />
           </button>
           <button
             class="toggle-filters"
             on:click={() => (showFilters = !showFilters)}
             use:clickSound
-            title="Toggle filters">
+            title="Toggle filters"
+          >
             <Icon
               name={showFilters ? "arrow-left" : "arrow-right"}
               size="sm"
-              forceType="svg" />
+              forceType="svg"
+            />
           </button>
         </div>
       </div>
@@ -1231,7 +1234,8 @@ onMount(async () => {
                 on:keydown={(e) => {
                   if (e.key === "Enter") handleSearch();
                 }}
-                class="search-input" />
+                class="search-input"
+              />
               {#if searchQuery}
                 <button
                   class="clear-btn"
@@ -1239,7 +1243,8 @@ onMount(async () => {
                     searchQuery = "";
                     handleSearch();
                   }}
-                  use:clickSound>
+                  use:clickSound
+                >
                   <Icon name="x" size="sm" />
                 </button>
               {/if}
@@ -1252,10 +1257,12 @@ onMount(async () => {
               <input
                 type="checkbox"
                 bind:checked={smartFilteringEnabled}
-                on:change={onSmartFilteringChange} />
+                on:change={onSmartFilteringChange}
+              />
               <span
                 class="toggle-label"
-                title="When enabled, only shows mods compatible with your installation's loader and Minecraft version. Disable to browse all mods.">
+                title="When enabled, only shows mods compatible with your installation's loader and Minecraft version. Disable to browse all mods."
+              >
                 Smart Filtering
               </span>
             </label>
@@ -1272,14 +1279,16 @@ onMount(async () => {
               <button
                 class="filter-header"
                 on:click={() => toggleSection(section.collapsedKey)}
-                use:clickSound>
+                use:clickSound
+              >
                 <span class="filter-label">{section.label}</span>
                 <Icon
                   name={collapsedSections[section.collapsedKey]
                     ? "chevron-down"
                     : "chevron-up"}
                   size="md"
-                  forceType="svg" />
+                  forceType="svg"
+                />
               </button>
 
               {#if !collapsedSections[section.collapsedKey]}
@@ -1290,13 +1299,15 @@ onMount(async () => {
                       class:included={getFilterState(section.id, option) ===
                         "include"}
                       class:excluded={getFilterState(section.id, option) ===
-                        "exclude"}>
+                        "exclude"}
+                    >
                       <button
                         class="filter-option-btn include-btn"
                         class:active={getFilterState(section.id, option) ===
                           "include"}
                         on:click={() => toggleFilter(section.id, option)}
-                        use:clickSound>
+                        use:clickSound
+                      >
                         <span class="option-label">{option}</span>
                         {#if getFilterState(section.id, option) === "include"}
                           <Icon name="x" size="sm" forceType="svg" />
@@ -1309,7 +1320,8 @@ onMount(async () => {
                         class:active={getFilterState(section.id, option) ===
                           "exclude"}
                         on:click={() => toggleFilterExclude(section.id, option)}
-                        use:clickSound>
+                        use:clickSound
+                      >
                         <Icon name="trash" size="sm" forceType="svg" />
                       </button>
                     </div>
@@ -1330,7 +1342,8 @@ onMount(async () => {
           <button
             class="mobile-filters-toggle"
             on:click={() => (showFilters = !showFilters)}
-            use:clickSound>
+            use:clickSound
+          >
             <Icon name="filter" size="sm" />
             Filters
           </button>
@@ -1343,7 +1356,8 @@ onMount(async () => {
               on:click={prevPage}
               use:clickSound
               disabled={currentPage === 1}
-              title="Previous page">
+              title="Previous page"
+            >
               <Icon name="arrow-left" size="sm" forceType="svg" />
             </button>
 
@@ -1355,7 +1369,8 @@ onMount(async () => {
                   class="page-btn compact"
                   class:active={currentPage === pageItem}
                   on:click={() => goToPage(pageItem)}
-                  use:clickSound>
+                  use:clickSound
+                >
                   {pageItem}
                 </button>
               {/if}
@@ -1365,7 +1380,8 @@ onMount(async () => {
               class="page-btn compact"
               on:click={nextPage}
               use:clickSound
-              title="Next page">
+              title="Next page"
+            >
               <Icon name="arrow-right" size="sm" forceType="svg" />
             </button>
           </div>
@@ -1380,7 +1396,8 @@ onMount(async () => {
                 class:active={viewMode === mode.id}
                 on:click={() => (viewMode = mode.id as ViewMode)}
                 use:clickSound
-                title={mode.name}>
+                title={mode.name}
+              >
                 <Icon name={mode.icon} size="sm" />
               </button>
             {/each}
@@ -1390,7 +1407,8 @@ onMount(async () => {
           <select
             bind:value={itemsPerPage}
             on:change={() => changePageSize(itemsPerPage)}
-            class="page-size-select">
+            class="page-size-select"
+          >
             {#each pageSizeOptions as size}
               <option value={size}>{size}/page</option>
             {/each}
@@ -1440,7 +1458,8 @@ onMount(async () => {
             class="mods-container"
             class:grid={viewMode === "grid"}
             class:list={viewMode === "list"}
-            class:compact={viewMode === "compact"}>
+            class:compact={viewMode === "compact"}
+          >
             {#each paginatedMods as mod (getModKey(mod))}
               {@const installedInfo =
                 currentInstallation && installedModsLoaded
@@ -1455,7 +1474,8 @@ onMount(async () => {
                 installedVersion={installedInfo.version}
                 ondownloadmod={handleDownloadMod}
                 ondownloadversion={handleDownloadVersion}
-                oninfomod={handleInfoMod} />
+                oninfomod={handleInfoMod}
+              />
             {/each}
           </div>
         {/if}

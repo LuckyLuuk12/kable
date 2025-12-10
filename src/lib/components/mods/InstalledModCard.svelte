@@ -285,7 +285,8 @@ function handleKeydown(event: KeyboardEvent) {
   on:keydown={handleKeydown}
   role="button"
   tabindex="0"
-  title={isDisabled ? "Click to enable" : "Click to disable"}>
+  title={isDisabled ? "Click to enable" : "Click to disable"}
+>
   <!-- Mod Icon and Name -->
   <div class="mod-info">
     <div class="mod-icon-wrapper">
@@ -312,7 +313,8 @@ function handleKeydown(event: KeyboardEvent) {
         {#if hasMetadata}
           <span
             class="kable-badge"
-            title="Installed with Kable - version management available">
+            title="Installed with Kable - version management available"
+          >
             <Image key="favicon" alt="Kable" width="14px" height="14px" />
           </span>
         {/if}
@@ -328,7 +330,8 @@ function handleKeydown(event: KeyboardEvent) {
       on:click={handleManageVersions}
       use:clickSound
       title="Manage versions"
-      disabled={loading || loadingVersions}>
+      disabled={loading || loadingVersions}
+    >
       <Icon name="settings" size="sm" />
       <span>Versions</span>
     </button>
@@ -338,7 +341,8 @@ function handleKeydown(event: KeyboardEvent) {
       on:click={handleRemove}
       use:errorSound
       title="Remove mod"
-      disabled={loading}>
+      disabled={loading}
+    >
       <Icon name="trash" size="sm" />
       <span>Remove</span>
     </button>
@@ -352,7 +356,8 @@ function handleKeydown(event: KeyboardEvent) {
     currentInstallation={installation}
     installedVersion={version}
     bind:open={showVersionModal}
-    onselectversion={handleVersionSelect} />
+    onselectversion={handleVersionSelect}
+  />
 {/if}
 
 <style lang="scss">
