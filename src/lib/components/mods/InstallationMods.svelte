@@ -424,7 +424,8 @@ onMount(() => {
         on:wheel={handleWheel}
         on:keydown={handleKeydown}
         tabindex="-1"
-        role="listbox">
+        role="listbox"
+      >
         <div class="carousel-container">
           {#each sortedInstallations as installation, index}
             {@const selectedIndex = sortedInstallations.findIndex(
@@ -458,7 +459,8 @@ onMount(() => {
                 on:keydown={(e) =>
                   e.key === "Enter" && selectInstallation(installation)}
                 tabindex="0"
-                role="button">
+                role="button"
+              >
                 <div class="installation-icon">
                   <Icon name={loaderIcons[installation.id]} size="md" />
                 </div>
@@ -467,7 +469,8 @@ onMount(() => {
                   <div class="installation-details">
                     <span class="installation-version"
                       >{InstallationService.getVersionData(installation)
-                        .version_id}</span>
+                        .version_id}</span
+                    >
                   </div>
                 </div>
               </div>
@@ -487,12 +490,14 @@ onMount(() => {
               type="text"
               placeholder="Search mods (fuzzy search enabled)..."
               bind:value={searchQuery}
-              class="search-input" />
+              class="search-input"
+            />
             {#if searchQuery}
               <button
                 class="clear-btn"
                 on:click={() => (searchQuery = "")}
-                title="Clear search">✕</button>
+                title="Clear search">✕</button
+              >
             {/if}
           </div>
         </div>
@@ -510,7 +515,8 @@ onMount(() => {
                 {:else}
                   <span class="total-count">{mods.length}</span>
                   <span class="count-label"
-                    >{mods.length === 1 ? "mod" : "mods"}</span>
+                    >{mods.length === 1 ? "mod" : "mods"}</span
+                  >
                 {/if}
               </div>
             {/if}
@@ -537,7 +543,8 @@ onMount(() => {
                   {mod}
                   installation={currentInstallation}
                   extendedInfo={$extendedModInfo[mod.file_name]}
-                  onmodchanged={handleModChanged} />
+                  onmodchanged={handleModChanged}
+                />
               {/each}
             </div>
           {:else}

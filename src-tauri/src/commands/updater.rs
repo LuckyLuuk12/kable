@@ -8,8 +8,10 @@ struct GitHubRelease {
     tag_name: String,
     prerelease: bool,
     draft: bool,
+    #[allow(dead_code)]
     #[serde(default)]
     body: String,
+    #[allow(dead_code)]
     published_at: String,
 }
 
@@ -126,9 +128,7 @@ pub async fn check_for_updates(
                     .nth(1)
                     .and_then(|s| s.parse().ok())
                     .unwrap_or(0);
-
-                let is_newer = update_build > current_build;
-                is_newer
+                update_build > current_build
             }
 
             // Both base, same version -> no update

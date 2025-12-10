@@ -58,13 +58,13 @@ export const currentLogs = derived(
       const instanceLogs = $logsData.get($selectedId);
       return instanceLogs
         ? {
-          launcherLogs: instanceLogs.launcherLogs || [],
-          gameLogs: instanceLogs.gameLogs || [],
-        }
+            launcherLogs: instanceLogs.launcherLogs || [],
+            gameLogs: instanceLogs.gameLogs || [],
+          }
         : {
-          launcherLogs: [] as LogEntry[],
-          gameLogs: [] as LogEntry[],
-        };
+            launcherLogs: [] as LogEntry[],
+            gameLogs: [] as LogEntry[],
+          };
     } catch (error) {
       console.error("Error in currentLogs derived store:", error);
       return {
