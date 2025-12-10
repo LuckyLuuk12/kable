@@ -25,6 +25,7 @@ pub mod resourcepacks;
 pub mod settings;
 pub mod shaders;
 pub mod skins;
+pub mod sounds;
 pub mod symlink_manager;
 
 #[macro_use]
@@ -345,12 +346,12 @@ pub fn run() {
             commands_symlinks::select_file_for_symlink,
             commands_symlinks::select_folder_for_symlink,
             // Icons commands
-            icons::get_custom_icon_templates,
-            icons::save_custom_icon_template,
-            icons::delete_custom_icon_template,
-            icons::validate_icon_template,
-            icons::get_icons_directory_path,
-            icons::open_icons_directory,
+            commands::icons::get_custom_icon_templates,
+            commands::icons::save_custom_icon_template,
+            commands::icons::delete_custom_icon_template,
+            commands::icons::validate_icon_template,
+            commands::icons::get_icons_directory_path,
+            commands::icons::open_icons_directory,
             // Image helper
             commands::images::resolve_image_path,
             // Logging commands
@@ -361,6 +362,13 @@ pub fn run() {
             // System commands
             commands_system::open_url,
             commands_system::open_path,
+            // Sounds commands
+            commands::sounds::list_soundpacks,
+            commands::sounds::get_soundpack_metadata,
+            commands::sounds::load_soundpack_file,
+            commands::sounds::import_soundpack_zip,
+            commands::sounds::get_sounds_directory_path,
+            commands::sounds::open_sounds_directory,
             // Updater commands
             commands_updater::check_for_updates,
             commands_updater::install_update,

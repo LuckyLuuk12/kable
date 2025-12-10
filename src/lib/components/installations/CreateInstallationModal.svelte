@@ -20,6 +20,7 @@ import {
   installations,
   versions,
 } from "$lib";
+import { successSound, clickSound } from "$lib/actions";
 import type { VersionData, LoaderKind } from "$lib";
 
 let dialogRef: HTMLDialogElement;
@@ -396,7 +397,12 @@ function handleBackdropClick(e: MouseEvent) {
     </details>
 
     <div class="actions">
-      <button type="submit" class="btn btn-primary" disabled={isLoading}>
+      <button
+        use:successSound
+        type="submit"
+        class="btn btn-primary"
+        disabled={isLoading}
+      >
         {#if isLoading}
           <Icon name="refresh" size="sm" className="spin" />
           Creating...
@@ -405,6 +411,7 @@ function handleBackdropClick(e: MouseEvent) {
         {/if}
       </button>
       <button
+        use:clickSound
         type="button"
         class="btn btn-secondary"
         on:click={cancelCreate}

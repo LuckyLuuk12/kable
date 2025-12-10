@@ -37,6 +37,8 @@ import type {
   BehaviorChoiceEventPayload,
   GameRestartEventPayload,
 } from "$lib";
+import { buttonSound } from "$lib/actions/soundActions";
+import { soundService } from "$lib/services/SoundService";
 
 // Here we initialize all the required managers and services
 onMount(async () => {
@@ -100,6 +102,26 @@ onMount(async () => {
       settingsPromise,
       iconPromise,
     ]);
+
+    // Initialize sound service AFTER settings are loaded
+    try {
+      LogsService.emitLauncherEvent("Initializing sound system...", "info");
+      // Destroy existing instance if already initialized (for HMR)
+      if (soundService.isInitialized()) {
+        await soundService.destroy();
+      }
+      await soundService.initialize();
+      LogsService.emitLauncherEvent(
+        "Sound system initialized successfully",
+        "info",
+      );
+    } catch (e) {
+      console.error("Failed to initialize sound service:", e);
+      LogsService.emitLauncherEvent(
+        `Sound system initialization failed: ${e}`,
+        "error",
+      );
+    }
 
     // Check for updates on launch (after settings are loaded)
     if ($settings?.general?.auto_update_launcher !== false) {
@@ -483,6 +505,11 @@ onDestroy(() => {
   if (tooltipEl && tooltipEl.parentNode)
     tooltipEl.parentNode.removeChild(tooltipEl);
   tooltipEl = null;
+
+  // Cleanup sound service
+  soundService.destroy().catch((err) => {
+    console.error("Failed to destroy sound service:", err);
+  });
 });
 </script>
 
@@ -498,6 +525,7 @@ onDestroy(() => {
     <!-- Header Section with Profile -->
     <div class="header-section">
       <a
+        use:buttonSound
         href="/profile"
         class="user-profile"
         class:active={currentPath === "/profile"}
@@ -521,6 +549,7 @@ onDestroy(() => {
     <!-- Hamburger Toggle -->
     <div class="hamburger-section">
       <button
+        use:buttonSound
         class="hamburger-btn"
         on:click={toggleNavigation}
         aria-label={isNavCollapsed
@@ -542,6 +571,7 @@ onDestroy(() => {
     <div class="nav-items">
       {#each navItems as item}
         <a
+          use:buttonSound
           href={item.path}
           class="nav-item"
           class:active={currentPath === item.path}
@@ -559,6 +589,7 @@ onDestroy(() => {
     <!-- Settings at Bottom -->
     <div class="bottom-section">
       <a
+        use:buttonSound
         href="/settings"
         class="nav-item settings-item"
         class:active={currentPath === "/settings"}

@@ -1,0 +1,28 @@
+{
+  "name": "Example Custom Soundpack",
+  "version": "1.0.0",
+  "author": "Your Name",
+  "sounds": {
+    "click": "sounds/click.mp3",
+    "hover": "sounds/hover.mp3",
+    "success": "sounds/success.mp3",
+    "error": "sounds/error.mp3",
+    "notification": "sounds/notification.mp3",
+    "launch": "sounds/launch.mp3",
+    "install": "sounds/install.mp3",
+    "delete": "sounds/delete.mp3",
+    "download": "sounds/download.mp3",
+    "complete": "sounds/complete.mp3"
+  },
+  "music": {
+    "menu": [
+      "music/menu1.mp3",
+      "music/menu2.mp3",
+      "music/menu3.mp3"
+    ],
+    "ambient": [
+      "music/ambient1.mp3",
+      "music/ambient2.mp3"
+    ]
+  }
+}

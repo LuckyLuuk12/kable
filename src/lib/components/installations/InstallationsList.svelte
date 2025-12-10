@@ -27,6 +27,7 @@ import {
   isLaunching,
   currentLaunchingInstallation,
 } from "$lib";
+import { launchSound, clickSound, errorSound } from "$lib/actions";
 import EditInstallationModal from "./EditInstallationModal.svelte";
 
 export let isGrid: boolean = false;
@@ -288,6 +289,7 @@ $: {
                       1};"
                   >
                     <button
+                      use:clickSound
                       on:click={() => editModal?.open(installation)}
                       title="Edit Installation"
                     >
@@ -295,6 +297,7 @@ $: {
                       Edit
                     </button>
                     <button
+                      use:clickSound
                       on:click={async () =>
                         await InstallationService.createInstallation(
                           installation.version_id,
@@ -305,6 +308,7 @@ $: {
                       Duplicate
                     </button>
                     <button
+                      use:clickSound
                       on:click={async () => {
                         await InstallationService.exportInstallation(
                           installation,
@@ -316,6 +320,7 @@ $: {
                       Export
                     </button>
                     <button
+                      use:clickSound
                       on:click={async () => {
                         try {
                           const path =
@@ -334,6 +339,7 @@ $: {
                     </button>
                     <div class="dropdown-separator"></div>
                     <button
+                      use:errorSound
                       class="danger"
                       on:click={async () =>
                         await InstallationService.deleteInstallation(
@@ -376,6 +382,7 @@ $: {
                   >
                 </div>
                 <button
+                  use:launchSound
                   class="btn btn-primary play-below-icon"
                   style="background: linear-gradient(90deg, {loaderColors[
                     installation.id
@@ -466,6 +473,7 @@ $: {
             {#if !isSmall}
               <div class="installation-actions">
                 <button
+                  use:clickSound
                   class="btn btn-secondary"
                   on:click={() => editModal?.open(installation)}
                   title="Edit Installation"
@@ -474,6 +482,7 @@ $: {
                   Edit
                 </button>
                 <button
+                  use:clickSound
                   class="btn btn-secondary"
                   on:click={async () =>
                     await InstallationService.createInstallation(
@@ -485,6 +494,7 @@ $: {
                   Duplicate
                 </button>
                 <button
+                  use:clickSound
                   class="btn btn-secondary"
                   on:click={async () => {
                     await InstallationService.exportInstallation(installation);
@@ -495,6 +505,7 @@ $: {
                   Export
                 </button>
                 <button
+                  use:clickSound
                   class="btn btn-secondary"
                   on:click={async () => {
                     try {
@@ -511,6 +522,7 @@ $: {
                   Create Shortcut
                 </button>
                 <button
+                  use:errorSound
                   class="btn btn-danger"
                   on:click={async () =>
                     await InstallationService.deleteInstallation(
@@ -561,6 +573,7 @@ $: {
                   >
                 </div>
                 <button
+                  use:launchSound
                   class="btn btn-primary list-play-btn"
                   style="background: linear-gradient(90deg, {loaderColors[
                     installation.id
@@ -617,6 +630,7 @@ $: {
                       class:hidden={useDropdownForActions[installation.id]}
                     >
                       <button
+                        use:clickSound
                         class="list-action-btn"
                         on:click={() => editModal?.open(installation)}
                         title="Edit Installation"
@@ -625,6 +639,7 @@ $: {
                         Edit
                       </button>
                       <button
+                        use:clickSound
                         class="list-action-btn"
                         on:click={async () =>
                           await InstallationService.createInstallation(
@@ -636,6 +651,7 @@ $: {
                         Duplicate
                       </button>
                       <button
+                        use:clickSound
                         class="list-action-btn"
                         on:click={async () =>
                           await InstallationService.exportInstallation(
@@ -647,6 +663,7 @@ $: {
                         Export
                       </button>
                       <button
+                        use:clickSound
                         class="list-action-btn"
                         on:click={async () => {
                           try {
@@ -665,6 +682,7 @@ $: {
                         Create Shortcut
                       </button>
                       <button
+                        use:errorSound
                         class="list-action-btn danger"
                         on:click={async () =>
                           await InstallationService.deleteInstallation(
@@ -687,6 +705,7 @@ $: {
                       </button>
                       <div class="dropdown-menu">
                         <button
+                          use:clickSound
                           on:click={() => editModal?.open(installation)}
                           title="Edit Installation"
                         >
@@ -694,6 +713,7 @@ $: {
                           Edit
                         </button>
                         <button
+                          use:clickSound
                           on:click={async () =>
                             await InstallationService.createInstallation(
                               installation.version_id,
@@ -704,6 +724,7 @@ $: {
                           Duplicate
                         </button>
                         <button
+                          use:clickSound
                           on:click={async () =>
                             await InstallationService.exportInstallation(
                               installation,
@@ -714,6 +735,7 @@ $: {
                           Export
                         </button>
                         <button
+                          use:clickSound
                           on:click={async () => {
                             try {
                               const path =
@@ -732,6 +754,7 @@ $: {
                         </button>
                         <div class="dropdown-separator"></div>
                         <button
+                          use:errorSound
                           class="danger"
                           on:click={async () =>
                             await InstallationService.deleteInstallation(

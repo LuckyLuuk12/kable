@@ -12,6 +12,7 @@ UI scaling, and color schemes. Supports custom theme uploads.
 <script lang="ts">
 import { settings } from "$lib/stores";
 import { Icon, IconService, availableTemplates, SettingsService } from "$lib";
+import { soundService, availableSoundpacks } from "$lib/services/SoundService";
 import { onMount } from "svelte";
 
 let showCustomTemplates = false;
@@ -596,6 +597,149 @@ async function openIconsDirectory() {
           {/if}
         </div>
       </div>
+    {/if}
+
+    <!-- Sound Settings Section -->
+    {#if $settings.appearance.sound}
+      <div class="setting-item">
+        <div class="setting-info">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label>Sound Effects</label>
+          <p class="setting-description">Enable UI sound effects</p>
+        </div>
+        <div class="setting-control">
+          <input
+            type="checkbox"
+            bind:checked={$settings.appearance.sound.enabled}
+            on:change={() => {
+              soundService.setSoundEnabled(
+                $settings.appearance.sound?.enabled ?? true,
+              );
+            }}
+          />
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label>Background Music</label>
+          <p class="setting-description">Enable background music</p>
+        </div>
+        <div class="setting-control">
+          <input
+            type="checkbox"
+            bind:checked={$settings.appearance.sound.music_enabled}
+            on:change={() => {
+              soundService.setMusicEnabled(
+                $settings.appearance.sound?.music_enabled ?? true,
+              );
+            }}
+          />
+        </div>
+      </div>
+
+      {#if $settings.appearance.sound.enabled || $settings.appearance.sound.music_enabled}
+        <div class="setting-item">
+          <div class="setting-info">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label>Master Volume</label>
+            <p class="setting-description">
+              Overall volume: {$settings.appearance.sound.master_volume}%
+            </p>
+          </div>
+          <div class="setting-control slider-control">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              bind:value={$settings.appearance.sound.master_volume}
+              on:input={(e) => {
+                soundService.setMasterVolume(
+                  parseInt((e.target as HTMLInputElement).value),
+                );
+              }}
+            />
+          </div>
+        </div>
+
+        {#if $settings.appearance.sound.enabled}
+          <div class="setting-item">
+            <div class="setting-info">
+              <!-- svelte-ignore a11y_label_has_associated_control -->
+              <label>Sound Effects Volume</label>
+              <p class="setting-description">
+                Volume for UI sounds: {$settings.appearance.sound.sound_volume}%
+              </p>
+            </div>
+            <div class="setting-control slider-control">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                bind:value={$settings.appearance.sound.sound_volume}
+                on:input={(e) => {
+                  soundService.setSoundVolume(
+                    parseInt((e.target as HTMLInputElement).value),
+                  );
+                }}
+              />
+            </div>
+          </div>
+        {/if}
+
+        {#if $settings.appearance.sound.music_enabled}
+          <div class="setting-item">
+            <div class="setting-info">
+              <!-- svelte-ignore a11y_label_has_associated_control -->
+              <label>Music Volume</label>
+              <p class="setting-description">
+                Volume for background music: {$settings.appearance.sound
+                  .music_volume}%
+              </p>
+            </div>
+            <div class="setting-control slider-control">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                bind:value={$settings.appearance.sound.music_volume}
+                on:input={(e) => {
+                  soundService.setMusicVolume(
+                    parseInt((e.target as HTMLInputElement).value),
+                  );
+                }}
+              />
+            </div>
+          </div>
+        {/if}
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label>Soundpack</label>
+            <p class="setting-description">Select a soundpack theme</p>
+          </div>
+          <div class="setting-control">
+            <select
+              bind:value={$settings.appearance.sound.selected_soundpack}
+              on:change={async (e) => {
+                const pack = (e.target as HTMLSelectElement).value;
+                await soundService.loadSoundpack(pack);
+                saveStatus = "Soundpack changed successfully";
+                setTimeout(() => (saveStatus = ""), 2000);
+              }}
+            >
+              {#each $availableSoundpacks as pack}
+                <option value={pack.name}>{pack.displayName}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+      {/if}
     {/if}
   </form>
   {#if saveStatus}

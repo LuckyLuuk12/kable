@@ -13,6 +13,7 @@ Java arguments, resolution, memory allocation, and advanced parameters.
 <script lang="ts">
 import { tick } from "svelte";
 import { InstallationService } from "$lib";
+import { successSound, clickSound } from "$lib/actions";
 import type { KableInstallation } from "$lib";
 
 // Working copy of the installation being edited
@@ -313,9 +314,14 @@ function handleBackdropClick(e: MouseEvent) {
       </div>
 
       <div class="actions" style="grid-column: 1 / -1;">
-        <button type="submit" class="btn btn-primary">Confirm</button>
-        <button type="button" class="btn btn-secondary" on:click={cancelEdit}
-          >Cancel</button
+        <button use:successSound type="submit" class="btn btn-primary"
+          >Confirm</button
+        >
+        <button
+          use:clickSound
+          type="button"
+          class="btn btn-secondary"
+          on:click={cancelEdit}>Cancel</button
         >
       </div>
     </form>

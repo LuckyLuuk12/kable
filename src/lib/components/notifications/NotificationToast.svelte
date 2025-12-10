@@ -6,10 +6,17 @@ Displays a single notification with auto-dismiss, hover-to-persist, and markdown
 @prop {Notification} notification - The notification to display
 -->
 <script lang="ts">
+import { onMount } from "svelte";
 import { Icon, NotificationService } from "$lib";
 import type { Notification } from "$lib/services/NotificationService";
+import { soundService } from "$lib/services/SoundService";
 
 export let notification: Notification;
+
+onMount(() => {
+  // Play notification sound when toast appears
+  soundService.playSound("notification");
+});
 
 function handleMouseEnter() {
   NotificationService.setHovered(notification.id, true);
