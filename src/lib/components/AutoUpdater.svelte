@@ -14,6 +14,7 @@ import { onMount } from "svelte";
 import { checkForUpdates, installUpdate, getCurrentVersion } from "$lib";
 import { marked } from "marked";
 import { settings } from "$lib/stores";
+import { clickSound, successSound } from "$lib/actions";
 
 let currentVersion = "";
 let updateInfo: any = null;
@@ -84,8 +85,8 @@ async function handleInstallUpdate() {
     <button
       class="check-button"
       on:click={handleCheckForUpdates}
-      disabled={isChecking || isInstalling}
-    >
+      use:clickSound
+      disabled={isChecking || isInstalling}>
       {#if isChecking}
         Checking...
       {:else}
@@ -107,8 +108,8 @@ async function handleInstallUpdate() {
         <button
           class="install-button"
           on:click={handleInstallUpdate}
-          disabled={isInstalling}
-        >
+          use:successSound
+          disabled={isInstalling}>
           {#if isInstalling}
             Installing...
           {:else}

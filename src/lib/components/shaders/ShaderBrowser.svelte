@@ -29,6 +29,7 @@ import {
   shadersOffset,
   shadersInstallMode,
 } from "$lib";
+import { clickSound } from "$lib/actions";
 import type {
   ShaderDownload,
   KableInstallation,
@@ -486,22 +487,19 @@ onMount(async () => {
         <label for="installation-select-inline">
           <Icon
             name={selectedInstallationId === "global" ? "globe" : "package"}
-            size="sm"
-          />
+            size="sm" />
           <span>Install to:</span>
         </label>
         <select
           id="installation-select-inline"
           class="installation-select"
-          bind:value={selectedInstallationId}
-        >
+          bind:value={selectedInstallationId}>
           <option value="global">🌍 Global (All Installations)</option>
           {#if $installations.length > 0}
             <optgroup label="Installations">
               {#each $installations as installation}
                 <option value={installation.id}
-                  >📦 {installation.name ?? installation.version_id}</option
-                >
+                  >📦 {installation.name ?? installation.version_id}</option>
               {/each}
             </optgroup>
           {/if}
@@ -520,20 +518,19 @@ onMount(async () => {
           <button
             class="reset-filters"
             on:click={resetFilters}
-            title="Reset all filters"
-          >
+            use:clickSound
+            title="Reset all filters">
             <Icon name="refresh" size="sm" forceType="svg" />
           </button>
           <button
             class="toggle-filters"
             on:click={() => (showFilters = !showFilters)}
-            title="Toggle filters"
-          >
+            use:clickSound
+            title="Toggle filters">
             <Icon
               name={showFilters ? "arrow-left" : "arrow-right"}
               size="sm"
-              forceType="svg"
-            />
+              forceType="svg" />
           </button>
         </div>
       </div>
@@ -546,12 +543,10 @@ onMount(async () => {
               <input
                 type="checkbox"
                 bind:checked={smartFilteringEnabled}
-                on:change={onSmartFilteringChange}
-              />
+                on:change={onSmartFilteringChange} />
               <span
                 class="toggle-label"
-                title="When enabled, only shows shader packs compatible with your installation's Minecraft version. Disable to browse all shader packs."
-              >
+                title="When enabled, only shows shader packs compatible with your installation's Minecraft version. Disable to browse all shader packs.">
                 Smart Filtering
               </span>
             </label>
@@ -572,8 +567,7 @@ onMount(async () => {
                 placeholder="Search shaders..."
                 bind:value={searchQuery}
                 on:input={handleSearch}
-                class="search-input"
-              />
+                class="search-input" />
               {#if searchQuery}
                 <button
                   class="clear-btn"
@@ -581,7 +575,7 @@ onMount(async () => {
                     searchQuery = "";
                     handleSearch();
                   }}
-                >
+                  use:clickSound>
                   <Icon name="x" size="sm" />
                 </button>
               {/if}
@@ -594,15 +588,14 @@ onMount(async () => {
               <button
                 class="filter-header"
                 on:click={() => toggleSection(section.collapsedKey)}
-              >
+                use:clickSound>
                 <span class="filter-label">{section.label}</span>
                 <Icon
                   name={collapsedSections[section.collapsedKey]
                     ? "chevron-down"
                     : "chevron-up"}
                   size="lg"
-                  forceType="svg"
-                />
+                  forceType="svg" />
               </button>
               {#if !collapsedSections[section.collapsedKey]}
                 <div class="filter-options">
@@ -612,17 +605,16 @@ onMount(async () => {
                       class:included={getFilterState(section.id, option) ===
                         "include"}
                       class:excluded={getFilterState(section.id, option) ===
-                        "exclude"}
-                    >
+                        "exclude"}>
                       <button
                         class="filter-option-btn include-btn"
                         class:active={getFilterState(section.id, option) ===
                           "include"}
                         on:click={() => toggleFilter(section.id, option)}
+                        use:clickSound
                         title={getFilterState(section.id, option) === "include"
                           ? "Remove filter"
-                          : "Include filter"}
-                      >
+                          : "Include filter"}>
                         <span class="option-label">{option}</span>
                         {#if getFilterState(section.id, option) === "include"}
                           <Icon name="x" size="sm" forceType="svg" />
@@ -635,10 +627,10 @@ onMount(async () => {
                         class:active={getFilterState(section.id, option) ===
                           "exclude"}
                         on:click={() => toggleFilterExclude(section.id, option)}
+                        use:clickSound
                         title={getFilterState(section.id, option) === "exclude"
                           ? "Remove exclusion"
-                          : "Exclude filter"}
-                      >
+                          : "Exclude filter"}>
                         <Icon name="trash" size="sm" forceType="svg" />
                       </button>
                     </div>
@@ -676,9 +668,9 @@ onMount(async () => {
             <button
               class="page-btn compact"
               on:click={previousPage}
+              use:clickSound
               disabled={currentPage === 1}
-              title="Previous page"
-            >
+              title="Previous page">
               <Icon name="arrow-left" size="sm" forceType="svg" />
             </button>
 
@@ -690,7 +682,7 @@ onMount(async () => {
                   class="page-btn compact"
                   class:active={currentPage === pageItem}
                   on:click={() => goToPage(pageItem)}
-                >
+                  use:clickSound>
                   {pageItem}
                 </button>
               {/if}
@@ -699,8 +691,8 @@ onMount(async () => {
             <button
               class="page-btn compact"
               on:click={nextPage}
-              title="Next page"
-            >
+              use:clickSound
+              title="Next page">
               <Icon name="arrow-right" size="sm" forceType="svg" />
             </button>
           </div>
@@ -713,8 +705,8 @@ onMount(async () => {
                 class="view-mode-btn"
                 class:active={viewMode === mode.id}
                 on:click={() => (viewMode = mode.id as ViewMode)}
-                title={mode.name}
-              >
+                use:clickSound
+                title={mode.name}>
                 <Icon name={mode.icon} size="sm" />
               </button>
             {/each}
@@ -723,8 +715,7 @@ onMount(async () => {
           <select
             class="page-size-select"
             bind:value={itemsPerPage}
-            on:change={() => changePageSize(itemsPerPage)}
-          >
+            on:change={() => changePageSize(itemsPerPage)}>
             {#each pageSizeOptions as size}
               <option value={size}>{size} per page</option>
             {/each}
@@ -767,8 +758,7 @@ onMount(async () => {
             class="shaders-container"
             class:grid={viewMode === "grid"}
             class:list={viewMode === "list"}
-            class:compact={viewMode === "compact"}
-          >
+            class:compact={viewMode === "compact"}>
             {#each paginatedShaders as shader}
               <ShaderCard
                 {shader}
@@ -779,8 +769,7 @@ onMount(async () => {
                 loading={false}
                 isInstalled={false}
                 ondownload={handleDownload}
-                onviewgallery={handleViewGallery}
-              />
+                onviewgallery={handleViewGallery} />
             {/each}
           </div>
         {/if}
@@ -793,8 +782,7 @@ onMount(async () => {
 <ShaderGalleryModal
   shader={selectedShaderForGallery}
   bind:visible={showGalleryModal}
-  on:close={closeGallery}
-/>
+  on:close={closeGallery} />
 
 <style lang="scss">
 @use "@kablan/clean-ui/scss/_variables.scss" as *;

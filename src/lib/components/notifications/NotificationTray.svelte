@@ -7,6 +7,7 @@ Shows recent notifications and allows clearing history.
 <script lang="ts">
 import { notificationHistory } from "$lib/services/NotificationService";
 import { NotificationService, Icon } from "$lib";
+import { clickSound } from "$lib/actions";
 import { onMount, onDestroy } from "svelte";
 import * as systemApi from "$lib/api/system";
 
@@ -77,11 +78,11 @@ function formatTime(date: Date): string {
 
 <div class="notification-tray" bind:this={trayElement}>
   <button
+    use:clickSound
     class="tray-toggle"
     on:click|stopPropagation={toggleTray}
     aria-label="Notification history"
-    title="Notification history"
-  >
+    title="Notification history">
     <Icon name="help" size="sm" />
     {#if $notificationHistory.length > 0}
       <span class="notification-badge">{$notificationHistory.length}</span>
@@ -93,11 +94,15 @@ function formatTime(date: Date): string {
       <div class="tray-header">
         <h3>Notifications</h3>
         <div class="header-actions">
-          <button class="help-btn" on:click={openHelp} title="Get help">
+          <button
+            use:clickSound
+            class="help-btn"
+            on:click={openHelp}
+            title="Get help">
             Get Help
           </button>
           {#if $notificationHistory.length > 0}
-            <button class="clear-btn" on:click={clearHistory}>
+            <button use:clickSound class="clear-btn" on:click={clearHistory}>
               <Icon name="trash" size="sm" />
               Clear
             </button>
