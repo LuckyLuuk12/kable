@@ -5,12 +5,14 @@ This folder contains custom WiX installer configuration for Kable.
 ## Files
 
 - `main.wxs` - Main WiX template with custom UI and branding
-- `lang/en-US.wxl` - English localization strings
-- `lang/nl-NL.wxl` - Dutch localization strings
+- `lang/en-US.wxl` - English localization strings (referenced in tauri.conf.json)
+- `lang/nl-NL.wxl` - Dutch localization strings (referenced in tauri.conf.json)
 - `licenses/License_en-US.rtf` - End User License Agreement (English)
 - `licenses/License_nl-NL.rtf` - End User License Agreement (Dutch)
 - `img/banner.bmp` - Top banner image (493 × 58 pixels)
 - `img/dialog.bmp` - Left sidebar image (164 × 314 pixels)
+
+**Note**: Localization files in `lang/` are referenced via `localePath` in `tauri.conf.json`.
 
 ## Creating Banner and Dialog Images
 

@@ -60,10 +60,14 @@
     "windows": {
       "wix": {
         "template": "wix/main.wxs",
-        "language": [
-          "en-US",
-          "nl-NL"
-        ],
+        "language": {
+          "en-US": {
+            "localePath": "./wix/lang/en-US.wxl"
+          },
+          "nl-NL": {
+            "localePath": "./wix/lang/nl-NL.wxl"
+          }
+        },
         "fragmentPaths": [],
         "componentRefs": [],
         "featureRefs": [],
