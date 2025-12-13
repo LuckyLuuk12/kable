@@ -54,23 +54,8 @@ def create_banner(output_path, logo_path=None):
         fill=hex_to_rgb(COLORS['primary'])
     )
     
-    # Try to add text
-    try:
-        # Attempt to use a nice font
-        font = ImageFont.truetype("arial.ttf", 24)
-        font_small = ImageFont.truetype("arial.ttf", 14)
-    except:
-        # Fallback to default font
-        font = ImageFont.load_default()
-        font_small = ImageFont.load_default()
-    
-    # Add title text
-    title = "KABLE"
-    subtitle = "Minecraft Launcher"
-    
-    # Add logo if available
+    # Add logo if available (skip text since WiX overlays its own)
     logo_x = 25
-    text_x_offset = 0
     
     if logo_path and os.path.exists(logo_path):
         try:
@@ -88,40 +73,8 @@ def create_banner(output_path, logo_path=None):
             # Paste logo on the left side
             logo_y = (height - logo_height) // 2
             img.paste(logo, (logo_x, logo_y), logo)
-            
-            # Adjust text position to be after logo
-            text_x_offset = logo_width + 15
         except Exception as e:
             print(f"Warning: Could not load logo: {e}")
-    
-    x = logo_x + text_x_offset
-    
-    # Calculate title height for vertical centering
-    title_bbox = draw.textbbox((0, 0), title, font=font)
-    title_width = title_bbox[2] - title_bbox[0]
-    title_height = title_bbox[3] - title_bbox[1]
-    
-    subtitle_bbox = draw.textbbox((0, 0), subtitle, font=font_small)
-    subtitle_height = subtitle_bbox[3] - subtitle_bbox[1]
-    
-    # Calculate vertical position - slightly above center for better visual balance
-    total_text_height = title_height + 2
-    y_title = (height - total_text_height) // 2 - 4  # Shift up 4px
-    
-    # Draw title with darker purple shadow
-    shadow_offset = 2
-    # Darker purple shadow (reduce RGB values by ~40%)
-    primary_rgb = hex_to_rgb(COLORS['primary'])
-    dark_purple = tuple(int(c * 0.5) for c in primary_rgb)
-    draw.text((x + shadow_offset, y_title + shadow_offset), title, 
-              fill=dark_purple, font=font)
-    # Main text in magenta/pink
-    draw.text((x, y_title), title, fill=hex_to_rgb(COLORS['secondary']), font=font)
-    
-    # Draw subtitle (vertically centered with title)
-    subtitle_y = y_title + (title_height - subtitle_height) // 2
-    draw.text((x + title_width + 15, subtitle_y), subtitle, 
-              fill=hex_to_rgb(COLORS['text']), font=font_small)
     
     # Add small decorative squares on the right side matching dialog
     square_size = 2

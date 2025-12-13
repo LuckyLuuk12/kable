@@ -34,15 +34,15 @@
 
     <MediaTemplate EmbedCab="yes" />
 
-    <!-- Custom UI with dark theme colors -->
-    <WixVariable Id="WixUILicenseRtf" Value="wix\licenses\License_!(loc.Locale).rtf" />
-    <WixVariable Id="WixUIDialogBmp" Value="wix\img\dialog.bmp" />
-    <WixVariable Id="WixUIBannerBmp" Value="wix\img\banner.bmp" />
+    <!-- Custom UI with images - force overrides -->
+    <WixVariable Id="WixUILicenseRtf" Value="wix\licenses\License_!(loc.Locale).rtf" Overridable="no" />
+    <WixVariable Id="WixUIDialogBmp" Value="wix\img\dialog.bmp" Overridable="no" />
+    <WixVariable Id="WixUIBannerBmp" Value="wix\img\banner.bmp" Overridable="no" />
 
-    <UI Id="WixUI_Advanced">
-      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
-      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
-      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+    <UI Id="WixUI_Kable">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Segoe UI" Size="9" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Segoe UI" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Segoe UI" Size="10" Bold="yes" />
 
       <Property Id="ApplicationFolderName" Value="Kable" />
       <Property Id="WixAppFolder" Value="WixPerMachineFolder" />

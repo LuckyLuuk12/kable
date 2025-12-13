@@ -59,6 +59,7 @@
     ],
     "windows": {
       "wix": {
+        "template": "./wix/main.wxs",
         "language": {
           "en-US": {
             "localePath": "./wix/lang/en-US.wxl"
