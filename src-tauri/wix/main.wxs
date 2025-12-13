@@ -2,11 +2,11 @@
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Product
     Id="*"
-    Name="Kable"
+    Name="{{product_name}}"
     Language="!(loc.Language)"
-    Version="$(var.Version)"
-    Manufacturer="kable"
-    UpgradeCode="{00BB735B-FD65-50FA-83CE-F968C6E0FD40}">
+    Version="{{version}}"
+    Manufacturer="{{manufacturer}}"
+    UpgradeCode="{{upgrade_code}}">
     
     <Package
       InstallerVersion="450"
