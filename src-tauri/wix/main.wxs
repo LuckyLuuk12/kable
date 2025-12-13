@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product
+    Id="*"
+    Name="Kable"
+    Language="1033"
+    Version="$(var.Version)"
+    Manufacturer="Kablan"
+    UpgradeCode="12345678-1234-1234-1234-123456789012">
+    
+    <Package
+      InstallerVersion="450"
+      Compressed="yes"
+      InstallScope="perMachine"
+      Description="Kable - A Modern Minecraft Launcher"
+      Comments="Visit https://kable.kablan.nl for more information" />
+
+    <MajorUpgrade
+      Schedule="afterInstallInitialize"
+      DowngradeErrorMessage="A newer version of [ProductName] is already installed. Setup will now exit." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- Custom UI with dark theme colors -->
+    <WixVariable Id="WixUILicenseRtf" Value="wix\License.rtf" />
+    <WixVariable Id="WixUIDialogBmp" Value="wix\dialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="wix\banner.bmp" />
+    
+    <!-- UI Sequence -->
+    <UI Id="WixUI_Advanced">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
+
+      <Property Id="ApplicationFolderName" Value="Kable" />
+      <Property Id="WixAppFolder" Value="WixPerMachineFolder" />
+      <Property Id="ALLUSERS" Value="1" />
+
+      <DialogRef Id="BrowseDlg" />
+      <DialogRef Id="DiskCostDlg" />
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+      
+      <!-- Custom Welcome Dialog -->
+      <Dialog Id="WelcomeDlg" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
+          <Publish Event="NewDialog" Value="InstallDirDlg">1</Publish>
+        </Control>
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Disabled="yes" Text="!(loc.WixUIBack)" />
+        
+        <Control Id="Title" Type="Text" X="135" Y="20" Width="220" Height="60" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}Welcome to Kable - Minecraft Launcher</Text>
+        </Control>
+        <Control Id="Description" Type="Text" X="135" Y="70" Width="220" Height="80" Transparent="yes" NoPrefix="yes">
+          <Text>This wizard will guide you through the installation of Kable, a modern Minecraft launcher with advanced features.</Text>
+        </Control>
+        
+        <!-- Links Section -->
+        <Control Id="LinksTitle" Type="Text" X="135" Y="155" Width="220" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Normal}Useful Links:</Text>
+        </Control>
+        
+        <!-- Website Link -->
+        <Control Id="WebsiteLink" Type="Hyperlink" X="135" Y="175" Width="220" Height="15" Text="&lt;a href=&quot;https://kable.kablan.nl&quot;&gt;Official Website&lt;/a&gt;" />
+        
+        <!-- Wiki Link -->
+        <Control Id="WikiLink" Type="Hyperlink" X="135" Y="190" Width="220" Height="15" Text="&lt;a href=&quot;https://github.com/LuckyLuuk12/kable/wiki&quot;&gt;Documentation Wiki&lt;/a&gt;" />
+        
+        <!-- Ko-fi Support Link -->
+        <Control Id="SupportLink" Type="Hyperlink" X="135" Y="205" Width="220" Height="15" Text="&lt;a href=&quot;https://ko-fi.com/luckyluuk&quot;&gt;Support Development (Ko-fi)&lt;/a&gt;" />
+        
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+      </Dialog>
+
+      <!-- Custom Install Directory Dialog -->
+      <Dialog Id="InstallDirDlg" Width="370" Height="270" Title="[ProductName] Setup">
+        <Control Id="Next" Type="PushButton" X="236" Y="243" Width="56" Height="17" Default="yes" Text="!(loc.WixUINext)">
+          <Publish Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+        </Control>
+        <Control Id="Back" Type="PushButton" X="180" Y="243" Width="56" Height="17" Text="!(loc.WixUIBack)">
+          <Publish Event="NewDialog" Value="WelcomeDlg">1</Publish>
+        </Control>
+        <Control Id="Cancel" Type="PushButton" X="304" Y="243" Width="56" Height="17" Cancel="yes" Text="!(loc.WixUICancel)">
+          <Publish Event="SpawnDialog" Value="CancelDlg">1</Publish>
+        </Control>
+
+        <Control Id="Title" Type="Text" X="15" Y="6" Width="200" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>{\WixUI_Font_Title}Destination Folder</Text>
+        </Control>
+        <Control Id="Description" Type="Text" X="25" Y="23" Width="280" Height="15" Transparent="yes" NoPrefix="yes">
+          <Text>Choose where to install Kable</Text>
+        </Control>
+        <Control Id="BannerBitmap" Type="Bitmap" X="0" Y="0" Width="370" Height="44" TabSkip="no" Text="!(loc.InstallDirDlgBannerBitmap)" />
+        <Control Id="BannerLine" Type="Line" X="0" Y="44" Width="370" Height="0" />
+
+        <Control Id="FolderLabel" Type="Text" X="20" Y="60" Width="290" Height="30" NoPrefix="yes" Text="!(loc.InstallDirDlgFolderLabel)" />
+        <Control Id="Folder" Type="PathEdit" X="20" Y="100" Width="320" Height="18" Property="APPLICATIONFOLDER" Indirect="yes" />
+        <Control Id="ChangeFolder" Type="PushButton" X="20" Y="120" Width="56" Height="17" Text="!(loc.InstallDirDlgChange)">
+          <Publish Event="SpawnDialog" Value="BrowseDlg">1</Publish>
+        </Control>
+
+        <Control Id="BottomLine" Type="Line" X="0" Y="234" Width="370" Height="0" />
+      </Dialog>
+
+      <!-- Install Sequence -->
+      <InstallUISequence>
+        <Show Dialog="WelcomeDlg" Before="ProgressDlg">NOT Installed</Show>
+        <Show Dialog="ResumeDlg" Before="ProgressDlg">Installed AND (RESUME OR Preselected)</Show>
+      </InstallUISequence>
+
+      <AdminUISequence>
+        <Show Dialog="WelcomeDlg" Before="ProgressDlg" />
+      </AdminUISequence>
+    </UI>
+
+    <UIRef Id="WixUI_Common" />
+
+    <!-- Feature to install -->
+    <Feature
+      Id="MainApplication"
+      Title="Kable"
+      Description="The complete Kable application."
+      Level="1"
+      ConfigurableDirectory="APPLICATIONFOLDER"
+      AllowAdvertise="no"
+      Display="expand"
+      Absent="disallow">
+      
+      <ComponentGroupRef Id="ProductComponents" />
+    </Feature>
+
+    <!-- Directory structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="APPLICATIONFOLDER" Name="Kable" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Kable" />
+      </Directory>
+      <Directory Id="DesktopFolder" Name="Desktop" />
+    </Directory>
+
+    <!-- Start Menu Shortcut -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="*">
+        <Shortcut
+          Id="ApplicationStartMenuShortcut"
+          Name="Kable"
+          Description="Kable - Minecraft Launcher"
+          Target="[APPLICATIONFOLDER]Kable.exe"
+          WorkingDirectory="APPLICATIONFOLDER"
+          Icon="ProductIcon" />
+        <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\Kablan\Kable"
+          Name="installed"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Desktop Shortcut (Optional) -->
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="*">
+        <Shortcut
+          Id="ApplicationDesktopShortcut"
+          Name="Kable"
+          Description="Kable - Minecraft Launcher"
+          Target="[APPLICATIONFOLDER]Kable.exe"
+          WorkingDirectory="APPLICATIONFOLDER"
+          Icon="ProductIcon" />
+        <RegistryValue
+          Root="HKCU"
+          Key="Software\Kablan\Kable"
+          Name="desktopShortcut"
+          Type="integer"
+          Value="1"
+          KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Icon -->
+    <Icon Id="ProductIcon" SourceFile="icons\icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
+
+    <!-- Add/Remove Programs -->
+    <Property Id="ARPHELPLINK" Value="https://github.com/LuckyLuuk12/kable/wiki" />
+    <Property Id="ARPURLINFOABOUT" Value="https://kable.kablan.nl" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/LuckyLuuk12/kable/releases" />
+
+    <!-- Features -->
+    <Feature Id="MainFeature" Title="Kable" Level="1">
+      <ComponentRef Id="ApplicationShortcut" />
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+
+    <!-- Components will be auto-generated by Tauri -->
+    <Fragment>
+      <ComponentGroup Id="ProductComponents" Directory="APPLICATIONFOLDER">
+        <!-- Components auto-generated by Tauri -->
+      </ComponentGroup>
+    </Fragment>
+  </Product>
+</Wix>

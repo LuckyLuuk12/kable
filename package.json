@@ -14,6 +14,7 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "generate:image-keys": "node scripts/generate-image-keys.mjs",
+    "generate:wix-images": "python scripts/generate-wix-images.py",
     "version": "npm run generate:image-keys && node scripts/bump-version.mjs",
     "version:patch": "node scripts/bump-version.mjs patch",
     "version:minor": "node scripts/bump-version.mjs minor",

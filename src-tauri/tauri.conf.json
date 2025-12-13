@@ -56,6 +56,18 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "wix": {
+        "template": "wix/main.wxs",
+        "language": "en-US",
+        "fragmentPaths": [],
+        "componentRefs": [],
+        "featureRefs": [],
+        "mergeRefs": [],
+        "skipWebviewInstall": false,
+        "enableElevatedUpdateInstall": true
+      }
+    }
   }
 }
