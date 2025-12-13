@@ -59,7 +59,6 @@
     ],
     "windows": {
       "wix": {
-        "template": "wix/main.wxs",
         "language": {
           "en-US": {
             "localePath": "./wix/lang/en-US.wxl"
@@ -68,10 +67,8 @@
             "localePath": "./wix/lang/nl-NL.wxl"
           }
         },
-        "fragmentPaths": [],
-        "componentRefs": [],
-        "featureRefs": [],
-        "mergeRefs": []
+        "bannerPath": "./wix/img/banner.bmp",
+        "dialogImagePath": "./wix/img/dialog.bmp"
       }
     }
   }
