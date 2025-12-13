@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?if $(sys.BUILDARCH)="x86"?>
+    <?define Win64 = "no" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+  <?elseif $(sys.BUILDARCH)="x64"?>
+    <?define Win64 = "yes" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+  <?elseif $(sys.BUILDARCH)="arm64"?>
+    <?define Win64 = "yes" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+  <?else?>
+    <?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
+  <?endif?>
+  
   <Product
     Id="*"
     Name="{{product_name}}"
@@ -121,7 +134,7 @@
     <!-- Directory structure -->
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="DesktopFolder" Name="Desktop" />
-      <Directory Id="ProgramFiles64Folder">
+      <Directory Id="$(var.PlatformProgramFilesFolder)">
         <Directory Id="INSTALLDIR" Name="{{product_name}}" />
       </Directory>
       <Directory Id="ProgramMenuFolder">
@@ -150,7 +163,7 @@
 
     <!-- Main executable component -->
     <DirectoryRef Id="INSTALLDIR">
-      <Component Id="Path" Guid="*" Win64="yes">
+      <Component Id="Path" Guid="*" Win64="$(var.Win64)">
         <File Id="Path" Source="{{app_exe_source}}" KeyPath="yes" Checksum="yes" />
       </Component>
       {{resources}}
@@ -207,8 +220,4 @@
     <Property Id="ARPURLUPDATEINFO" Value="https://github.com/LuckyLuuk12/kable/releases" />
 
   </Product>
-
-  <!-- Fragment must be top-level -->
-  <Fragment>
-  </Fragment>
 </Wix>
