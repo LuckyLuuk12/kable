@@ -5,9 +5,12 @@ This folder contains custom WiX installer configuration for Kable.
 ## Files
 
 - `main.wxs` - Main WiX template with custom UI and branding
-- `License.rtf` - End User License Agreement shown during installation
-- `banner.bmp` - Top banner image (493 × 58 pixels)
-- `dialog.bmp` - Left sidebar image (164 × 314 pixels)
+- `lang/en-US.wxl` - English localization strings
+- `lang/nl-NL.wxl` - Dutch localization strings
+- `licenses/License_en-US.rtf` - End User License Agreement (English)
+- `licenses/License_nl-NL.rtf` - End User License Agreement (Dutch)
+- `img/banner.bmp` - Top banner image (493 × 58 pixels)
+- `img/dialog.bmp` - Left sidebar image (164 × 314 pixels)
 
 ## Creating Banner and Dialog Images
 

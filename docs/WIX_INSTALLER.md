@@ -7,9 +7,9 @@ Kable uses a custom WiX installer template for Windows MSI packages with dark th
 The custom WiX configuration is located in `src-tauri/wix/`:
 
 - `main.wxs` - Main WiX template with custom UI
-- `License.rtf` - End User License Agreement
-- `banner.bmp` - Top banner (493 × 58 px)
-- `dialog.bmp` - Side panel (493 × 312 px)
+- `lang/` - Localization files (en-US.wxl, nl-NL.wxl)
+- `licenses/` - End User License Agreements (en-US, nl-NL)
+- `img/` - Installer images (banner.bmp, dialog.bmp)
 
 ## Features
 
@@ -65,12 +65,12 @@ Theme colors are defined in the Python script and SCSS:
 - Background: `#0a0a0f` (dark)
 
 ### License
-Edit `src-tauri/wix/License.rtf` to modify the EULA shown during installation.
+Edit `src-tauri/wix/licenses/License_en-US.rtf` or `License_nl-NL.rtf` to modify the EULA shown during installation.
 
 ### Images
 Run `npm run generate:wix-images` or manually edit:
-- `banner.bmp` - 493 × 58 pixels (top banner)
-- `dialog.bmp` - 164 × 314 pixels (left sidebar)
+- `img/banner.bmp` - 493 × 58 pixels (top banner)
+- `img/dialog.bmp` - 164 × 314 pixels (left sidebar)
 
 Both must be in 24-bit BMP format.
 
@@ -97,7 +97,7 @@ Modify `src-tauri/wix/main.wxs` to change:
 ## Troubleshooting
 
 ### "License.rtf not found"
-Ensure `src-tauri/wix/License.rtf` exists and is in RTF format.
+Ensure `src-tauri/wix/licenses/License_en-US.rtf` and `License_nl-NL.rtf` exist and are in RTF format.
 
 ### "Invalid BMP format"
 Banner and dialog images must be 24-bit BMP format. Use the Python script to generate them or convert with an image editor.

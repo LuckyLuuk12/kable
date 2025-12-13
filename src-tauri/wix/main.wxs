@@ -3,7 +3,7 @@
   <Product
     Id="*"
     Name="Kable"
-    Language="1033"
+    Language="!(loc.Language)"
     Version="$(var.Version)"
     Manufacturer="Kablan"
     UpgradeCode="12345678-1234-1234-1234-123456789012">
@@ -13,7 +13,8 @@
       Compressed="yes"
       InstallScope="perMachine"
       Description="Kable - A Modern Minecraft Launcher"
-      Comments="Visit https://kable.kablan.nl for more information" />
+      Comments="Visit https://kable.kablan.nl for more information"
+      Languages="1033,1043" />
 
     <MajorUpgrade
       Schedule="afterInstallInitialize"
@@ -22,9 +23,9 @@
     <MediaTemplate EmbedCab="yes" />
 
     <!-- Custom UI with dark theme colors -->
-    <WixVariable Id="WixUILicenseRtf" Value="wix\License.rtf" />
-    <WixVariable Id="WixUIDialogBmp" Value="wix\dialog.bmp" />
-    <WixVariable Id="WixUIBannerBmp" Value="wix\banner.bmp" />
+    <WixVariable Id="WixUILicenseRtf" Value="wix\licenses\License_!(loc.Locale).rtf" />
+    <WixVariable Id="WixUIDialogBmp" Value="wix\img\dialog.bmp" />
+    <WixVariable Id="WixUIBannerBmp" Value="wix\img\banner.bmp" />
     
     <!-- UI Sequence -->
     <UI Id="WixUI_Advanced">

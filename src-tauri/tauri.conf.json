@@ -60,13 +60,14 @@
     "windows": {
       "wix": {
         "template": "wix/main.wxs",
-        "language": "en-US",
+        "language": [
+          "en-US",
+          "nl-NL"
+        ],
         "fragmentPaths": [],
         "componentRefs": [],
         "featureRefs": [],
-        "mergeRefs": [],
-        "skipWebviewInstall": false,
-        "enableElevatedUpdateInstall": true
+        "mergeRefs": []
       }
     }
   }

@@ -183,12 +183,13 @@ def main():
     """Generate both WiX installer images"""
     script_dir = os.path.dirname(os.path.abspath(__file__))
     wix_dir = os.path.join(script_dir, '..', 'src-tauri', 'wix')
+    img_dir = os.path.join(wix_dir, 'img')
     
-    # Create wix directory if it doesn't exist
-    os.makedirs(wix_dir, exist_ok=True)
+    # Create img directory if it doesn't exist
+    os.makedirs(img_dir, exist_ok=True)
     
-    banner_path = os.path.join(wix_dir, 'banner.bmp')
-    dialog_path = os.path.join(wix_dir, 'dialog.bmp')
+    banner_path = os.path.join(img_dir, 'banner.bmp')
+    dialog_path = os.path.join(img_dir, 'dialog.bmp')
     
     print("Generating WiX installer images...")
     print(f"Output directory: {wix_dir}")
