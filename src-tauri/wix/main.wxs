@@ -45,6 +45,7 @@
       <DialogRef Id="ProgressDlg" />
       <DialogRef Id="ResumeDlg" />
       <DialogRef Id="UserExit" />
+      <DialogRef Id="VerifyReadyDlg" />
 
       <!-- Custom Welcome Dialog -->
       <Dialog Id="WelcomeDlg" Width="370" Height="270" Title="[ProductName] Setup">
