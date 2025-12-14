@@ -496,7 +496,8 @@ onMount(() => {
         on:wheel={handleWheel}
         on:keydown={handleKeydown}
         tabindex="-1"
-        role="listbox">
+        role="listbox"
+      >
         <div class="carousel-container">
           {#each sortedInstallations as installation, index}
             {@const selectedIndex = sortedInstallations.findIndex(
@@ -530,7 +531,8 @@ onMount(() => {
                 on:keydown={(e) =>
                   e.key === "Enter" && selectInstallation(installation)}
                 tabindex="0"
-                role="button">
+                role="button"
+              >
                 <div class="installation-icon">
                   <Icon name={loaderIcons[installation.id]} size="md" />
                 </div>
@@ -539,7 +541,8 @@ onMount(() => {
                   <div class="installation-details">
                     <span class="installation-version"
                       >{InstallationService.getVersionData(installation)
-                        .version_id}</span>
+                        .version_id}</span
+                    >
                   </div>
                 </div>
               </div>
@@ -559,12 +562,14 @@ onMount(() => {
               type="text"
               placeholder="Search resource packs (fuzzy search enabled)..."
               bind:value={searchQuery}
-              class="search-input" />
+              class="search-input"
+            />
             {#if searchQuery}
               <button
                 class="clear-btn"
                 on:click={() => (searchQuery = "")}
-                title="Clear search">✕</button>
+                title="Clear search">✕</button
+              >
             {/if}
           </div>
         </div>
@@ -581,14 +586,17 @@ onMount(() => {
                   on:click={togglePackMerging}
                   title={packMergingEnabled
                     ? "Pack merging enabled - packs will be merged into one"
-                    : "Pack merging disabled - packs loaded individually"}>
+                    : "Pack merging disabled - packs loaded individually"}
+                >
                   <Icon
                     name={packMergingEnabled ? "layers" : "package"}
-                    size="sm" />
+                    size="sm"
+                  />
                   <span
                     >{packMergingEnabled
                       ? "Merging Enabled"
-                      : "Individual Packs"}</span>
+                      : "Individual Packs"}</span
+                  >
                 </button>
               {/if}
             </div>
@@ -603,7 +611,8 @@ onMount(() => {
                 {:else}
                   <span class="total-count">{packs.length}</span>
                   <span class="count-label"
-                    >{packs.length === 1 ? "pack" : "packs"}</span>
+                    >{packs.length === 1 ? "pack" : "packs"}</span
+                  >
                 {/if}
               </div>
             {/if}
@@ -618,7 +627,8 @@ onMount(() => {
               <button
                 class="confirm-order-btn"
                 on:click={confirmOrder}
-                disabled={savingOrder}>
+                disabled={savingOrder}
+              >
                 {#if savingOrder}
                   <Icon name="refresh" size="sm" className="spin" />
                   <span>Saving...</span>
@@ -658,7 +668,8 @@ onMount(() => {
                     dropTargetStyle: {},
                   }}
                   on:consider={handleDndConsider}
-                  on:finalize={handleDndFinalize}>
+                  on:finalize={handleDndFinalize}
+                >
                   {#each orderedPacks as pack (pack.id)}
                     <div class="drag-item-wrapper">
                       <div class="drag-handle">
@@ -668,7 +679,8 @@ onMount(() => {
                         {pack}
                         installation={currentInstallation}
                         extendedInfo={extendedPackInfo[pack.file_name]}
-                        onpackchanged={handlePackChanged} />
+                        onpackchanged={handlePackChanged}
+                      />
                     </div>
                   {/each}
                 </div>
@@ -686,7 +698,8 @@ onMount(() => {
                     {pack}
                     installation={currentInstallation}
                     extendedInfo={extendedPackInfo[pack.file_name]}
-                    onpackchanged={handlePackChanged} />
+                    onpackchanged={handlePackChanged}
+                  />
                 {/each}
               </div>
             {/if}

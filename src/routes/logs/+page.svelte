@@ -95,6 +95,8 @@ onMount(() => {
   if (instanceParam) {
     // Set the selected instance from the URL parameter
     selectedInstanceId.set(instanceParam);
+    // When navigating via URL parameter (e.g., from game launch), show game logs
+    selectedLogType = "game";
   }
 
   // Initialize container dimensions
@@ -147,8 +149,8 @@ onDestroy(() => {
 
 function selectInstance(instanceId: string | "global") {
   selectedInstanceId.set(instanceId);
-  // Reset to launcher logs when switching instances
-  selectedLogType = "launcher";
+  // Default to game logs for installations, launcher for global
+  selectedLogType = instanceId === "global" ? "launcher" : "game";
 }
 
 function getInstanceDisplayName(instance: GameInstance): string {
@@ -634,37 +636,54 @@ $: sortedInstances = $gameInstances
     )
   : [];
 
+// Reactive: Ensure we're on the game subtab when a valid game instance is selected
+// This handles the case where URL navigation happens before the instance is added to the store
+$: {
+  const currentInstanceId = $selectedInstanceId;
+  if (currentInstanceId !== "global" && $gameInstances) {
+    const instanceExists = $gameInstances.has(currentInstanceId);
+    if (instanceExists && selectedLogType === "launcher") {
+      // Switch to game subtab if we're on an instance but still showing launcher logs
+      selectedLogType = "game";
+    }
+  }
+}
+
 $: currentLogsData = $currentLogs || { launcherLogs: [], gameLogs: [] };
 $: activeLogEntries =
   selectedLogType === "launcher"
     ? currentLogsData.launcherLogs || []
     : currentLogsData.gameLogs || [];
 
-// On-demand filtering function (no stored array)
-function shouldShowLog(log: any): boolean {
-  if (!log) return false;
-  // Use cleaned message for search to avoid searching duplicate timestamps
-  const cleanMessage = getDisplayMessage(log);
-  const matchesSearchTerm = matchesSearch(cleanMessage, searchTerm, searchMode);
-
-  // Check if the log level is enabled in filters
-  const logLevel = (log.level || STRING_POOL.levels.info).toLowerCase();
-  const matchesLevelFilter =
-    logLevel in logLevelFilters
-      ? logLevelFilters[logLevel as keyof typeof logLevelFilters]
-      : true; // Show unknown log levels by default
-
-  return matchesSearchTerm && matchesLevelFilter;
-}
-
-// Compute filtered count and indices on-demand (minimal memory)
+// Compute filtered count and indices with proper reactivity
+// This reactive statement depends on: activeLogEntries, searchTerm, searchMode, logLevelFilters
 $: filteredIndices = (() => {
   const indices: number[] = [];
-  for (let i = 0; i < activeLogEntries.length; i++) {
-    if (shouldShowLog(activeLogEntries[i])) {
+
+  // Explicitly reference reactive dependencies
+  const logs = activeLogEntries;
+  const search = searchTerm;
+  const mode = searchMode;
+  const filters = logLevelFilters;
+
+  for (let i = 0; i < logs.length; i++) {
+    const log = logs[i];
+    if (!log) continue;
+
+    // Use cleaned message for search to avoid searching duplicate timestamps
+    const cleanMessage = getDisplayMessage(log);
+    const matchesSearchTerm = matchesSearch(cleanMessage, search, mode);
+
+    // Check if the log level is enabled in filters
+    const logLevel = (log.level || STRING_POOL.levels.info).toLowerCase();
+    const matchesLevelFilter =
+      logLevel in filters ? filters[logLevel as keyof typeof filters] : true; // Show unknown log levels by default
+
+    if (matchesSearchTerm && matchesLevelFilter) {
       indices.push(i);
     }
   }
+
   return indices;
 })();
 
