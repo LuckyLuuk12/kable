@@ -12,6 +12,8 @@ UI scaling, and color schemes. Supports custom theme uploads.
 <script lang="ts">
 import { settings } from "$lib/stores";
 import { Icon, IconService, availableTemplates, SettingsService } from "$lib";
+import { soundService, availableSoundpacks } from "$lib/services/SoundService";
+import { clickSound, errorSound, successSound } from "$lib/actions";
 import { onMount } from "svelte";
 
 let showCustomTemplates = false;
@@ -267,10 +269,14 @@ async function openIconsDirectory() {
         </p>
       </div>
       <div class="setting-control">
-        <button type="button" on:click={() => (showCssUpload = !showCssUpload)}>
+        <button
+          use:clickSound
+          type="button"
+          on:click={() => (showCssUpload = !showCssUpload)}
+        >
           {showCssUpload ? "Cancel Upload" : "Upload Custom Theme"}
         </button>
-        <button type="button" on:click={openCssThemesDirectory}>
+        <button use:clickSound type="button" on:click={openCssThemesDirectory}>
           Open Themes Directory
         </button>
       </div>
@@ -315,10 +321,13 @@ async function openIconsDirectory() {
                 <div class="file-info">
                   <span class="file-name">{cssUploadFile.name}</span>
                   <div class="file-actions">
-                    <button type="button" on:click={handleCssUpload}
-                      >Upload</button
+                    <button
+                      use:successSound
+                      type="button"
+                      on:click={handleCssUpload}>Upload</button
                     >
                     <button
+                      use:clickSound
                       type="button"
                       on:click={() => (cssUploadFile = null)}>Remove</button
                     >
@@ -345,6 +354,7 @@ async function openIconsDirectory() {
         </div>
         <div class="setting-control custom-templates-list">
           <button
+            use:clickSound
             type="button"
             class="dropdown-toggle"
             on:click={() => (showCustomThemes = !showCustomThemes)}
@@ -357,6 +367,7 @@ async function openIconsDirectory() {
                 <div class="custom-template-row">
                   <span class="template-name">{theme}</span>
                   <button
+                    use:errorSound
                     type="button"
                     class="icon-btn btn-danger"
                     title="Remove Custom Theme"
@@ -489,12 +500,13 @@ async function openIconsDirectory() {
       </div>
       <div class="setting-control template-management">
         <button
+          use:clickSound
           type="button"
           on:click={() => (showIconUpload = !showIconUpload)}
         >
           {showIconUpload ? "Cancel Upload" : "Upload Custom Template"}
         </button>
-        <button type="button" on:click={openIconsDirectory}>
+        <button use:clickSound type="button" on:click={openIconsDirectory}>
           Open Icons Directory
         </button>
       </div>
@@ -540,11 +552,15 @@ async function openIconsDirectory() {
                 <div class="file-info">
                   <span class="file-name">{uploadFile.name}</span>
                   <div class="file-actions">
-                    <button type="button" on:click={handleIconUpload}
-                      >Upload</button
+                    <button
+                      use:successSound
+                      type="button"
+                      on:click={handleIconUpload}>Upload</button
                     >
-                    <button type="button" on:click={() => (uploadFile = null)}
-                      >Remove</button
+                    <button
+                      use:clickSound
+                      type="button"
+                      on:click={() => (uploadFile = null)}>Remove</button
                     >
                   </div>
                 </div>
@@ -567,6 +583,7 @@ async function openIconsDirectory() {
         </div>
         <div class="setting-control custom-templates-list">
           <button
+            use:clickSound
             type="button"
             class="dropdown-toggle"
             on:click={() => (showCustomTemplates = !showCustomTemplates)}
@@ -583,6 +600,7 @@ async function openIconsDirectory() {
                     >{template.displayName || template.name}</span
                   >
                   <button
+                    use:errorSound
                     type="button"
                     class="icon-btn btn-danger"
                     title="Remove"
@@ -596,6 +614,149 @@ async function openIconsDirectory() {
           {/if}
         </div>
       </div>
+    {/if}
+
+    <!-- Sound Settings Section -->
+    {#if $settings.appearance.sound}
+      <div class="setting-item">
+        <div class="setting-info">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label>Sound Effects</label>
+          <p class="setting-description">Enable UI sound effects</p>
+        </div>
+        <div class="setting-control">
+          <input
+            type="checkbox"
+            bind:checked={$settings.appearance.sound.enabled}
+            on:change={() => {
+              soundService.setSoundEnabled(
+                $settings.appearance.sound?.enabled ?? true,
+              );
+            }}
+          />
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label>Background Music</label>
+          <p class="setting-description">Enable background music</p>
+        </div>
+        <div class="setting-control">
+          <input
+            type="checkbox"
+            bind:checked={$settings.appearance.sound.music_enabled}
+            on:change={() => {
+              soundService.setMusicEnabled(
+                $settings.appearance.sound?.music_enabled ?? true,
+              );
+            }}
+          />
+        </div>
+      </div>
+
+      {#if $settings.appearance.sound.enabled || $settings.appearance.sound.music_enabled}
+        <div class="setting-item">
+          <div class="setting-info">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label>Master Volume</label>
+            <p class="setting-description">
+              Overall volume: {$settings.appearance.sound.master_volume}%
+            </p>
+          </div>
+          <div class="setting-control slider-control">
+            <input
+              type="range"
+              min="0"
+              max="100"
+              step="5"
+              bind:value={$settings.appearance.sound.master_volume}
+              on:input={(e) => {
+                soundService.setMasterVolume(
+                  parseInt((e.target as HTMLInputElement).value),
+                );
+              }}
+            />
+          </div>
+        </div>
+
+        {#if $settings.appearance.sound.enabled}
+          <div class="setting-item">
+            <div class="setting-info">
+              <!-- svelte-ignore a11y_label_has_associated_control -->
+              <label>Sound Effects Volume</label>
+              <p class="setting-description">
+                Volume for UI sounds: {$settings.appearance.sound.sound_volume}%
+              </p>
+            </div>
+            <div class="setting-control slider-control">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                bind:value={$settings.appearance.sound.sound_volume}
+                on:input={(e) => {
+                  soundService.setSoundVolume(
+                    parseInt((e.target as HTMLInputElement).value),
+                  );
+                }}
+              />
+            </div>
+          </div>
+        {/if}
+
+        {#if $settings.appearance.sound.music_enabled}
+          <div class="setting-item">
+            <div class="setting-info">
+              <!-- svelte-ignore a11y_label_has_associated_control -->
+              <label>Music Volume</label>
+              <p class="setting-description">
+                Volume for background music: {$settings.appearance.sound
+                  .music_volume}%
+              </p>
+            </div>
+            <div class="setting-control slider-control">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                bind:value={$settings.appearance.sound.music_volume}
+                on:input={(e) => {
+                  soundService.setMusicVolume(
+                    parseInt((e.target as HTMLInputElement).value),
+                  );
+                }}
+              />
+            </div>
+          </div>
+        {/if}
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label>Soundpack</label>
+            <p class="setting-description">Select a soundpack theme</p>
+          </div>
+          <div class="setting-control">
+            <select
+              bind:value={$settings.appearance.sound.selected_soundpack}
+              on:change={async (e) => {
+                const pack = (e.target as HTMLSelectElement).value;
+                await soundService.loadSoundpack(pack);
+                saveStatus = "Soundpack changed successfully";
+                setTimeout(() => (saveStatus = ""), 2000);
+              }}
+            >
+              {#each $availableSoundpacks as pack}
+                <option value={pack.name}>{pack.displayName}</option>
+              {/each}
+            </select>
+          </div>
+        </div>
+      {/if}
     {/if}
   </form>
   {#if saveStatus}

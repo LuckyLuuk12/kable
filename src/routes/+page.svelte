@@ -17,6 +17,7 @@ import {
 } from "$lib/stores/launcher";
 import InstallationsList from "$lib/components/installations/InstallationsList.svelte";
 import { openUrl } from "$lib/api/system";
+import { launchSound } from "$lib/actions";
 
 // State variables
 let lastPlayedInstallations: KableInstallation[] = [];
@@ -377,6 +378,7 @@ async function handleAdClick(url: string) {
       <button
         class="play-button"
         on:click={handlePlay}
+        use:launchSound
         disabled={$isLaunching || lastPlayedInstallations.length === 0}
       >
         {#if $isLaunching}

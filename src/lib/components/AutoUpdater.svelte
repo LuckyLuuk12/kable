@@ -14,6 +14,7 @@ import { onMount } from "svelte";
 import { checkForUpdates, installUpdate, getCurrentVersion } from "$lib";
 import { marked } from "marked";
 import { settings } from "$lib/stores";
+import { clickSound, successSound } from "$lib/actions";
 
 let currentVersion = "";
 let updateInfo: any = null;
@@ -37,6 +38,11 @@ async function handleCheckForUpdates() {
   try {
     // Respect the user's nightly update preference
     const checkNightly = $settings?.advanced?.check_nightly_updates ?? false;
+    console.log(
+      "[AutoUpdater] Checking for updates with checkNightly:",
+      checkNightly,
+    );
+    console.log("[AutoUpdater] Full settings.advanced:", $settings?.advanced);
     updateInfo = await checkForUpdates(checkNightly);
 
     if (updateInfo?.body) {
@@ -59,7 +65,8 @@ async function handleInstallUpdate() {
   error = "";
 
   try {
-    await installUpdate();
+    const checkNightly = $settings?.advanced?.check_nightly_updates ?? false;
+    await installUpdate(checkNightly);
     // App will restart automatically after update
   } catch (e) {
     error = `Failed to install update: ${e}`;
@@ -78,6 +85,7 @@ async function handleInstallUpdate() {
     <button
       class="check-button"
       on:click={handleCheckForUpdates}
+      use:clickSound
       disabled={isChecking || isInstalling}
     >
       {#if isChecking}
@@ -101,6 +109,7 @@ async function handleInstallUpdate() {
         <button
           class="install-button"
           on:click={handleInstallUpdate}
+          use:successSound
           disabled={isInstalling}
         >
           {#if isInstalling}

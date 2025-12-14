@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?>
+<?if $(sys.BUILDARCH)="x86"?>
+    <?define Win64 = "no" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+<?elseif $(sys.BUILDARCH)="x64"?>
+    <?define Win64 = "yes" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?elseif $(sys.BUILDARCH)="arm64"?>
+    <?define Win64 = "yes" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?else?>
+    <?error Unsupported value of sys.BUILDARCH=$(sys.BUILDARCH)?>
+<?endif?>
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product
+        Id="*"
+        Name="{{product_name}}"
+        UpgradeCode="{{upgrade_code}}"
+        Language="!(loc.TauriLanguage)"
+        Manufacturer="{{manufacturer}}"
+        Version="{{version}}">
+
+        <Package Id="*"
+                 Keywords="Installer"
+                 InstallerVersion="450"
+                 Languages="0"
+                 Compressed="yes"
+                 InstallScope="perMachine"
+                 SummaryCodepage="!(loc.TauriCodepage)"/>
+
+        <Property Id="REINSTALLMODE" Value="amus" />
+
+        {{#if allow_downgrades}}
+            <MajorUpgrade Schedule="afterInstallInitialize" AllowDowngrades="yes" />
+        {{else}}
+            <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="!(loc.DowngradeErrorMessage)" AllowSameVersionUpgrades="yes" />
+        {{/if}}
+
+        <Media Id="1" Cabinet="app.cab" EmbedCab="yes" />
+
+        {{#if banner_path}}
+        <WixVariable Id="WixUIBannerBmp" Value="{{banner_path}}" />
+        {{/if}}
+        {{#if dialog_image_path}}
+        <WixVariable Id="WixUIDialogBmp" Value="{{dialog_image_path}}" />
+        {{/if}}
+        {{#if license}}
+        <WixVariable Id="WixUILicenseRtf" Value="{{license}}" />
+        {{/if}}
+
+        <Icon Id="ProductIcon" SourceFile="{{icon_path}}"/>
+        <Property Id="ARPPRODUCTICON" Value="ProductIcon" />
+        <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />
+
+        {{#if homepage}}
+        <Property Id="ARPURLINFOABOUT" Value="{{homepage}}"/>
+        <Property Id="ARPHELPLINK" Value="{{homepage}}"/>
+        <Property Id="ARPURLUPDATEINFO" Value="{{homepage}}"/>
+        {{/if}}
+
+        <Property Id="INSTALLDIR">
+          <RegistrySearch Id="PrevInstallDirWithName" Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="InstallDir" Type="raw" />
+          <RegistrySearch Id="PrevInstallDirNoName" Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Type="raw" />
+        </Property>
+
+        <UI>
+            <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+            {{#unless license}}
+            <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="2">1</Publish>
+            <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2">1</Publish>
+            {{/unless}}
+        </UI>
+
+        <UIRef Id="WixUI_InstallDir" />
+
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="DesktopFolder" Name="Desktop">
+                <Component Id="ApplicationShortcutDesktop" Guid="*">
+                    <Shortcut Id="ApplicationDesktopShortcut" Name="{{product_name}}" Description="Runs {{product_name}}" Target="[!Path]" WorkingDirectory="INSTALLDIR" />
+                    <RemoveFolder Id="DesktopFolder" On="uninstall" />
+                    <RegistryValue Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="Desktop Shortcut" Type="integer" Value="1" KeyPath="yes" />
+                </Component>
+            </Directory>
+            <Directory Id="$(var.PlatformProgramFilesFolder)" Name="PFiles">
+                <Directory Id="INSTALLDIR" Name="{{product_name}}"/>
+            </Directory>
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="{{product_name}}"/>
+            </Directory>
+        </Directory>
+
+        <DirectoryRef Id="INSTALLDIR">
+            <Component Id="RegistryEntries" Guid="*">
+                <RegistryKey Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}">
+                    <RegistryValue Name="InstallDir" Type="string" Value="[INSTALLDIR]" KeyPath="yes" />
+                </RegistryKey>
+            </Component>
+            <Component Id="Path" Guid="{{path_component_guid}}" Win64="$(var.Win64)">
+                <File Id="Path" Source="{{main_binary_path}}" KeyPath="yes" Checksum="yes"/>
+            </Component>
+            {{#each binaries as |bin| ~}}
+            <Component Id="{{ bin.id }}" Guid="{{bin.guid}}" Win64="$(var.Win64)">
+                <File Id="Bin_{{ bin.id }}" Source="{{bin.path}}" KeyPath="yes"/>
+            </Component>
+            {{/each~}}
+            {{resources}}
+        </DirectoryRef>
+
+        <DirectoryRef Id="ApplicationProgramsFolder">
+            <Component Id="ApplicationShortcut" Guid="*">
+                <Shortcut Id="ApplicationStartMenuShortcut"
+                    Name="{{product_name}}"
+                    Description="Runs {{product_name}}"
+                    Target="[!Path]"
+                    Icon="ProductIcon"
+                    WorkingDirectory="INSTALLDIR">
+                    <ShortcutProperty Key="System.AppUserModel.ID" Value="{{bundle_id}}"/>
+                </Shortcut>
+                <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall"/>
+                <RegistryValue Root="HKCU" Key="Software\\{{manufacturer}}\\{{product_name}}" Name="Start Menu Shortcut" Type="integer" Value="1" KeyPath="yes"/>
+            </Component>
+        </DirectoryRef>
+
+        <Feature
+                Id="MainProgram"
+                Title="Application"
+                Description="!(loc.InstallAppFeature)"
+                Level="1"
+                ConfigurableDirectory="INSTALLDIR"
+                AllowAdvertise="no"
+                Display="expand"
+                Absent="disallow">
+
+            <ComponentRef Id="RegistryEntries"/>
+
+            {{#each resource_file_ids as |resource_file_id| ~}}
+            <ComponentRef Id="{{ resource_file_id }}"/>
+            {{/each~}}
+
+            <Feature Id="ShortcutsFeature"
+                Title="Shortcuts"
+                Level="1">
+                <ComponentRef Id="Path"/>
+                <ComponentRef Id="ApplicationShortcut" />
+                <ComponentRef Id="ApplicationShortcutDesktop" />
+            </Feature>
+
+            <Feature
+                Id="Environment"
+                Title="PATH Environment Variable"
+                Description="!(loc.PathEnvVarFeature)"
+                Level="1"
+                Absent="allow">
+                <ComponentRef Id="Path"/>
+            {{#each binaries as |bin| ~}}
+                <ComponentRef Id="{{ bin.id }}"/>
+            {{/each~}}
+            </Feature>
+        </Feature>
+
+        <Feature Id="External" AllowAdvertise="no" Absent="disallow">
+            {{#each component_group_refs as |id| ~}}
+            <ComponentGroupRef Id="{{ id }}"/>
+            {{/each~}}
+            {{#each component_refs as |id| ~}}
+            <ComponentRef Id="{{ id }}"/>
+            {{/each~}}
+            {{#each feature_group_refs as |id| ~}}
+            <FeatureGroupRef Id="{{ id }}"/>
+            {{/each~}}
+            {{#each feature_refs as |id| ~}}
+            <FeatureRef Id="{{ id }}"/>
+            {{/each~}}
+            {{#each merge_refs as |id| ~}}
+            <MergeRef Id="{{ id }}"/>
+            {{/each~}}
+        </Feature>
+
+    </Product>
+</Wix>

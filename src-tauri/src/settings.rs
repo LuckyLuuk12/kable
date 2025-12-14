@@ -31,6 +31,16 @@ pub struct GeneralSettings {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SoundSettings {
+    pub enabled: bool,
+    pub music_enabled: bool,
+    pub master_volume: u32,
+    pub sound_volume: u32,
+    pub music_volume: u32,
+    pub selected_soundpack: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppearanceSettings {
     pub theme: String, // 'light' | 'dark' | 'system'
     pub language: String,
@@ -40,6 +50,8 @@ pub struct AppearanceSettings {
     // For simplicity, icon_settings as raw JSON
     pub icon_settings: serde_json::Value,
     pub selected_css_theme: String,
+    #[serde(default)]
+    pub sound: Option<SoundSettings>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -125,6 +137,14 @@ impl Default for CategorizedLauncherSettings {
                 selected_icon_template: "emoji".to_string(),
                 icon_settings: serde_json::Value::Object(serde_json::Map::new()),
                 selected_css_theme: "default".to_string(),
+                sound: Some(SoundSettings {
+                    enabled: true,
+                    music_enabled: true,
+                    master_volume: 100,
+                    sound_volume: 100,
+                    music_volume: 50,
+                    selected_soundpack: "default".to_string(),
+                }),
             },
             logging: LoggingSettings {
                 show_logs_page_in_nav: true,

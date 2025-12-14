@@ -14,6 +14,7 @@ to the current Microsoft account. Includes 3D preview and management tools.
 <script lang="ts">
 import { onMount } from "svelte";
 import { Icon, SkinViewer3D, SkinsService } from "$lib";
+import { clickSound, successSound, errorSound } from "$lib/actions";
 import type { AccountSkin, AccountCape } from "$lib";
 
 // State
@@ -217,7 +218,12 @@ function getModel(m: string): "classic" | "slim" | "auto" {
       <h1>Skins & Capes</h1>
       <p>Customize your character's appearance</p>
     </div>
-    <button class="upload-btn" on:click={openUploadDialog} disabled={loading}>
+    <button
+      use:clickSound
+      class="upload-btn"
+      on:click={openUploadDialog}
+      disabled={loading}
+    >
       <Icon name="upload" size="sm" />
       Upload Skin
     </button>
@@ -227,7 +233,7 @@ function getModel(m: string): "classic" | "slim" | "auto" {
     <div class="error-msg">
       <Icon name="alert" size="sm" />
       {error}
-      <button on:click={() => (error = "")}
+      <button use:clickSound on:click={() => (error = "")}
         ><Icon name="close" size="sm" /></button
       >
     </div>
@@ -247,6 +253,7 @@ function getModel(m: string): "classic" | "slim" | "auto" {
         </div>
         <div class="capes-grid">
           <button
+            use:successSound
             class="cape-card"
             class:active={!activeCape}
             on:click={() => handleApplyCape(null)}
@@ -260,6 +267,7 @@ function getModel(m: string): "classic" | "slim" | "auto" {
           </button>
           {#each capes as cape}
             <button
+              use:successSound
               class="cape-card"
               class:active={SkinsService.isCapeActive(cape)}
               on:click={() => handleApplyCape(cape.id)}
@@ -291,7 +299,7 @@ function getModel(m: string): "classic" | "slim" | "auto" {
           <Icon name="image" size="xl" />
           <h3>No Skins</h3>
           <p>Upload your first skin</p>
-          <button on:click={openUploadDialog}
+          <button use:clickSound on:click={openUploadDialog}
             ><Icon name="upload" size="sm" />Upload</button
           >
         </div>
@@ -338,6 +346,7 @@ function getModel(m: string): "classic" | "slim" | "auto" {
                 <div class="actions">
                   {#if !SkinsService.isSkinActive(skin)}
                     <button
+                      use:successSound
                       class="apply"
                       on:click={() => handleApplySkin(skin.id)}
                       disabled={loading}
@@ -345,12 +354,14 @@ function getModel(m: string): "classic" | "slim" | "auto" {
                     >
                   {/if}
                   <button
+                    use:clickSound
                     on:click={() => openEditModal(skin)}
                     disabled={loading}
                     title="Edit"><Icon name="edit" size="sm" /></button
                   >
                   {#if !SkinsService.isSkinActive(skin)}
                     <button
+                      use:errorSound
                       class="danger"
                       on:click={(e) => removeSkin(skin.id, e)}
                       disabled={loading}
@@ -384,7 +395,7 @@ function getModel(m: string): "classic" | "slim" | "auto" {
     >
       <div class="modal-header">
         <h3>Edit Skin</h3>
-        <button on:click={() => (showEditModal = false)}
+        <button use:clickSound on:click={() => (showEditModal = false)}
           ><Icon name="close" size="sm" /></button
         >
       </div>
@@ -422,9 +433,14 @@ function getModel(m: string): "classic" | "slim" | "auto" {
         >
       </div>
       <div class="modal-footer">
-        <button on:click={() => (showEditModal = false)}>Cancel</button>
-        <button class="primary" on:click={saveEdit} disabled={!editName}
-          ><Icon name="check" size="sm" />Save</button
+        <button use:clickSound on:click={() => (showEditModal = false)}
+          >Cancel</button
+        >
+        <button
+          use:successSound
+          class="primary"
+          on:click={saveEdit}
+          disabled={!editName}><Icon name="check" size="sm" />Save</button
         >
       </div>
     </div>
@@ -448,7 +464,7 @@ function getModel(m: string): "classic" | "slim" | "auto" {
     >
       <div class="modal-header">
         <h3>Upload Skin</h3>
-        <button on:click={() => (showAddModal = false)}
+        <button use:clickSound on:click={() => (showAddModal = false)}
           ><Icon name="close" size="sm" /></button
         >
       </div>
@@ -489,9 +505,14 @@ function getModel(m: string): "classic" | "slim" | "auto" {
         </div>
       </div>
       <div class="modal-footer">
-        <button on:click={() => (showAddModal = false)}>Cancel</button>
-        <button class="primary" on:click={uploadSkin} disabled={!addName}
-          ><Icon name="upload" size="sm" />Upload</button
+        <button use:clickSound on:click={() => (showAddModal = false)}
+          >Cancel</button
+        >
+        <button
+          use:successSound
+          class="primary"
+          on:click={uploadSkin}
+          disabled={!addName}><Icon name="upload" size="sm" />Upload</button
         >
       </div>
     </div>

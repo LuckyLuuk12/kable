@@ -26,10 +26,13 @@ export async function checkForNightlyUpdates(): Promise<any> {
 
 /**
  * Download and install available update
+ * @param includePrerelease - Include prerelease/nightly versions (should match what was used in checkForUpdates)
  * @returns Promise that resolves when update is installed
  */
-export async function installUpdate(): Promise<void> {
-  return await invoke("install_update");
+export async function installUpdate(
+  includePrerelease: boolean = false,
+): Promise<void> {
+  return await invoke("install_update", { includePrerelease });
 }
 
 /**

@@ -1,4 +1,5 @@
 // Re-export components for convenience
+export * from "./actions/";
 export * from "./components/";
 
 // Export organized structure

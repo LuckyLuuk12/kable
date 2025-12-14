@@ -1,0 +1,150 @@
+name: 🔧 Refactoring / Technical Debt
+description: Propose code improvements, refactoring, or address technical debt
+title: "[Refactor]: "
+labels: ["refactoring", "technical-debt", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Propose improvements to code quality, architecture, or technical debt reduction.
+        This is for internal code improvements, not user-facing features.
+
+  - type: checkboxes
+    id: existing-issue
+    attributes:
+      label: Is there an existing issue for this?
+      description: Please search to see if similar refactoring has been proposed.
+      options:
+        - label: I have searched the existing issues
+          required: true
+
+  - type: dropdown
+    id: refactor-type
+    attributes:
+      label: Refactoring Type
+      description: What kind of refactoring is this?
+      options:
+        - Code Structure / Organization
+        - Performance Optimization
+        - Type Safety / TypeScript
+        - Error Handling
+        - Code Duplication (DRY)
+        - Dependency Management
+        - Architecture / Design Patterns
+        - Testing / Test Coverage
+        - Documentation / Comments
+        - Build / Tooling
+        - Security Hardening
+        - Accessibility
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: current-state
+    attributes:
+      label: Current State
+      description: Describe the current code or architecture that needs improvement
+      placeholder: |
+        What code or pattern needs refactoring?
+        Where is it located?
+        What are the current issues?
+    validations:
+      required: true
+
+  - type: textarea
+    id: problems
+    attributes:
+      label: Problems / Technical Debt
+      description: What problems does the current implementation have?
+      placeholder: |
+        - Hard to maintain
+        - Difficult to test
+        - Performance issues
+        - Security concerns
+        - Code duplication
+        - Poor type safety
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: How would you improve this?
+      placeholder: |
+        Describe the refactoring approach:
+        - What patterns or structures to use
+        - How to organize the code
+        - What dependencies to add/remove
+    validations:
+      required: true
+
+  - type: textarea
+    id: benefits
+    attributes:
+      label: Benefits
+      description: What will improve after this refactoring?
+      placeholder: |
+        - Easier to maintain
+        - Better performance
+        - Improved type safety
+        - Reduced complexity
+        - Better test coverage
+    validations:
+      required: true
+
+  - type: dropdown
+    id: breaking-changes
+    attributes:
+      label: Breaking Changes
+      description: Will this refactoring introduce breaking changes?
+      options:
+        - No breaking changes (internal only)
+        - Minor breaking changes (easy to migrate)
+        - Major breaking changes (significant migration needed)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is this refactoring?
+      options:
+        - Low - Nice to have
+        - Medium - Should address eventually
+        - High - Blocking other work or causing issues
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected-areas
+    attributes:
+      label: Affected Code Areas
+      description: What parts of the codebase will be affected?
+      placeholder: |
+        List files, modules, or components:
+        - src/lib/api/auth.ts
+        - src/routes/installations/
+        - src-tauri/src/launcher/
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: willing-to-contribute
+    attributes:
+      label: Contribution
+      description: Would you be willing to implement this refactoring?
+      options:
+        - label: I would be willing to submit a pull request for this refactoring
+          required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+      placeholder: References, examples from other projects, related issues, etc.
+    validations:
+      required: false

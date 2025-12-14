@@ -263,10 +263,14 @@ $: {
     !loading
   ) {
     loadedInstallationId = currentInstallation.id;
+    // Clear attempted info when switching installations to allow refetch
+    attemptedExtendedInfo.clear();
     loadMods(currentInstallation);
   } else if (!currentInstallation) {
     mods = [];
     loadedInstallationId = null;
+    // Clear attempted info when no installation
+    attemptedExtendedInfo.clear();
   }
 }
 

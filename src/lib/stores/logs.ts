@@ -1,14 +1,31 @@
 import { writable, derived, get } from "svelte/store";
 import type { GameInstance, LogEntry, GameInstanceLogs } from "../types";
+import { settings } from "./settings";
 
 // Configuration for log memory management
 const LOG_CONFIG = {
-  maxLogsPerInstance: 5000, // Maximum logs to keep per instance
-  maxGlobalLogs: 5000, // Maximum global launcher logs
+  maxLogsPerInstance: 5000, // Maximum logs to keep per instance (overridden by settings)
+  maxGlobalLogs: 5000, // Maximum global launcher logs (overridden by settings)
   dedupeWindowSize: 50, // Check last N messages for duplicates
   enableDedupe: true, // Enable deduplication
   dedupeTimeWindow: 10000, // Time window for duplicate detection (ms)
 };
+
+// Subscribe to settings to update log limits dynamically
+settings.subscribe(($settings) => {
+  if ($settings?.logging?.max_memory_logs) {
+    const limit = $settings.logging.max_memory_logs;
+    // If limit is 0 or negative, disable limit (keep all logs)
+    if (limit > 0) {
+      LOG_CONFIG.maxLogsPerInstance = limit;
+      LOG_CONFIG.maxGlobalLogs = limit;
+    } else {
+      // No limit - use a very high number
+      LOG_CONFIG.maxLogsPerInstance = Number.MAX_SAFE_INTEGER;
+      LOG_CONFIG.maxGlobalLogs = Number.MAX_SAFE_INTEGER;
+    }
+  }
+});
 
 // Active game instances
 export const gameInstances = writable<Map<string, GameInstance>>(new Map());
@@ -19,7 +36,8 @@ export const logsData = writable<Map<string, GameInstanceLogs>>(new Map());
 // Global launcher logs (not tied to specific instances)
 export const globalLauncherLogs = writable<LogEntry[]>([]);
 
-// Recent launcher messages for duplicate detection (last 5 minutes)
+// Recent launcher messages for duplicate detection (time-window based for deduplication only)
+// This map only tracks recent message keys for duplicate detection, not actual log storage
 const recentLauncherMessages = new Map<string, number>();
 
 // Currently selected instance/tab
@@ -136,8 +154,41 @@ export const LogsManager = {
       return newInstances;
     });
 
-    // Keep logs for historical reference but mark as closed
-    // Could add cleanup logic here if desired
+    // Also remove logs to free memory (only when explicitly removing the instance)
+    logsData.update((logs) => {
+      const newLogs = new Map(logs);
+      newLogs.delete(instanceId);
+      return newLogs;
+    });
+  },
+
+  // Cleanup old closed instances after a delay to free memory
+  // This is called manually from LogService, not automatically by the store
+  cleanupOldInstances(maxAge: number = 30 * 60 * 1000) {
+    // Default 30 minutes
+    const now = Date.now();
+    const instances = get(gameInstances);
+    const toRemove: string[] = [];
+
+    instances.forEach((instance, id) => {
+      if (
+        instance.status === "closed" ||
+        instance.status === "crashed" ||
+        instance.status === "stopped"
+      ) {
+        const lastActivity =
+          instance.lastActivity instanceof Date
+            ? instance.lastActivity.getTime()
+            : new Date(instance.lastActivity).getTime();
+
+        if (now - lastActivity > maxAge) {
+          toRemove.push(id);
+        }
+      }
+    });
+
+    toRemove.forEach((id) => this.removeGameInstance(id));
+    return toRemove.length;
   },
 
   addLauncherLog(
@@ -159,12 +210,17 @@ export const LogsManager = {
 
     recentLauncherMessages.set(messageKey, now);
 
-    // Clean up old entries (older than 5 minutes)
-    const cutoff = now - 5 * 60 * 1000;
-    for (const [key, timestamp] of recentLauncherMessages.entries()) {
-      if (timestamp < cutoff) {
-        recentLauncherMessages.delete(key);
+    // Cleanup old entries inline when map gets too large (keep only recent for dedup)
+    // This prevents unbounded growth while not requiring a timer
+    if (recentLauncherMessages.size > 1000) {
+      const cutoff = now - 5 * 60 * 1000;
+      const keysToDelete: string[] = [];
+      for (const [key, timestamp] of recentLauncherMessages.entries()) {
+        if (timestamp < cutoff) {
+          keysToDelete.push(key);
+        }
       }
+      keysToDelete.forEach((key) => recentLauncherMessages.delete(key));
     }
 
     const logEntry: LogEntry = {

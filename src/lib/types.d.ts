@@ -533,6 +533,35 @@ export interface AppearanceSettings {
   icon_settings: IconSettings;
   /** The selected CSS theme name */
   selected_css_theme: string;
+  /** Sound settings for the launcher */
+  sound?: SoundSettings;
+}
+
+/** Sound Settings for the launcher
+ * ```ts
+ * export interface SoundSettings {
+ *   enabled: boolean;
+ *   music_enabled: boolean;
+ *   master_volume: number;
+ *   sound_volume: number;
+ *   music_volume: number;
+ *   selected_soundpack: string;
+ * }
+ * ```
+ */
+export interface SoundSettings {
+  /** Whether sound effects are enabled */
+  enabled: boolean;
+  /** Whether background music is enabled */
+  music_enabled: boolean;
+  /** Master volume (0-100) */
+  master_volume: number;
+  /** Sound effects volume (0-100) */
+  sound_volume: number;
+  /** Background music volume (0-100) */
+  music_volume: number;
+  /** The selected soundpack name */
+  selected_soundpack: string;
 }
 
 /** Logging Settings for the launcher

@@ -19,6 +19,12 @@ Thumbs.db
 !.env.example
 !.env.test
 
+# Python
+.venv
+venv/
+*.pyc
+__pycache__/
+
 # Vite
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*

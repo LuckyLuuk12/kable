@@ -11,6 +11,28 @@ import {
   settings,
 } from "$lib";
 
+// String pool for common values to reduce memory
+const STRING_POOL = {
+  levels: {
+    error: "error",
+    warn: "warn",
+    info: "info",
+    debug: "debug",
+  },
+  icons: {
+    error: "alert",
+    warn: "warning",
+    info: "info",
+    debug: "bug",
+  },
+  classes: {
+    error: "danger",
+    warn: "warning",
+    info: "info",
+    debug: "muted",
+  },
+} as const;
+
 let selectedLogType: "launcher" | "game" = "launcher";
 let logContainer: HTMLElement;
 let autoScroll = true; // Ensure auto-scroll is enabled by default
@@ -26,13 +48,15 @@ let visibleStartIndex = 0;
 let visibleEndIndex = 50;
 let isAutoScrolling = false;
 
-// Track measured heights for each log entry
+// Track measured heights for each log entry (only visible range)
 let logHeights = new Map<string, number>();
 let logElements: Record<string, HTMLElement> = {};
 let heightsNeedRecalculation = false;
 
 // Track last rendered keys to clean up old elements
 let lastRenderedKeys = new Set<string>();
+// Maximum heights to keep in memory (visible range + buffer * 2)
+const MAX_TRACKED_HEIGHTS = 100;
 
 // Debounce reactive calculations
 let recalculationPending = false;
@@ -60,8 +84,9 @@ $: if ($settings) {
 
 let showLogLevelDropdown = false;
 let showCopyNotification = false;
+let cleanupIntervalId: number | undefined;
 
-onMount(async () => {
+onMount(() => {
   // Logs service is already initialized in the layout
   // No need to initialize again here
 
@@ -70,7 +95,8 @@ onMount(async () => {
   if (instanceParam) {
     // Set the selected instance from the URL parameter
     selectedInstanceId.set(instanceParam);
-    console.log(`Auto-selected instance from URL: ${instanceParam}`);
+    // When navigating via URL parameter (e.g., from game launch), show game logs
+    selectedLogType = "game";
   }
 
   // Initialize container dimensions
@@ -90,6 +116,11 @@ onMount(async () => {
   document.addEventListener("keydown", handleKeyDown);
   // Add window resize listener to recalculate heights when width changes
   window.addEventListener("resize", handleResize);
+
+  // Setup periodic cleanup to prevent memory leaks
+  cleanupIntervalId = window.setInterval(() => {
+    cleanupStaleElements();
+  }, 30000) as any; // Every 30 seconds
 });
 
 onDestroy(() => {
@@ -99,16 +130,27 @@ onDestroy(() => {
   document.removeEventListener("keydown", handleKeyDown);
   window.removeEventListener("resize", handleResize);
 
-  // Clean up all element references
+  // Clear intervals
+  if (cleanupIntervalId) {
+    clearInterval(cleanupIntervalId);
+  }
+  if (resizeTimeout) {
+    clearTimeout(resizeTimeout);
+  }
+
+  // Aggressive cleanup of all element references and maps
   logElements = {};
   logHeights.clear();
   lastRenderedKeys.clear();
+
+  // Null out container reference
+  logContainer = null as any;
 });
 
 function selectInstance(instanceId: string | "global") {
   selectedInstanceId.set(instanceId);
-  // Reset to launcher logs when switching instances
-  selectedLogType = "launcher";
+  // Default to game logs for installations, launcher for global
+  selectedLogType = instanceId === "global" ? "launcher" : "game";
 }
 
 function getInstanceDisplayName(instance: GameInstance): string {
@@ -169,33 +211,18 @@ function formatLogLevel(level: string): string {
 }
 
 function getLogLevelIcon(level: string): string {
-  switch (level.toLowerCase()) {
-    case "error":
-      return "alert";
-    case "warn":
-      return "warning";
-    case "info":
-      return "info";
-    case "debug":
-      return "bug";
-    default:
-      return "message";
-  }
+  const lowerLevel = level.toLowerCase();
+  return (
+    STRING_POOL.icons[lowerLevel as keyof typeof STRING_POOL.icons] || "message"
+  );
 }
 
 function getLogLevelClass(level: string): string {
-  switch (level.toLowerCase()) {
-    case "error":
-      return "danger";
-    case "warn":
-      return "warning";
-    case "info":
-      return "info";
-    case "debug":
-      return "muted";
-    default:
-      return "secondary";
-  }
+  const lowerLevel = level.toLowerCase();
+  return (
+    STRING_POOL.classes[lowerLevel as keyof typeof STRING_POOL.classes] ||
+    "secondary"
+  );
 }
 
 async function clearCurrentLogs() {
@@ -357,13 +384,23 @@ function cleanupStaleElements() {
     delete logElements[key];
   }
 
-  // Also clean up old height measurements (keep last 1000)
-  if (logHeights.size > 1000) {
+  // More aggressive cleanup: only keep heights for visible range + small buffer
+  if (logHeights.size > MAX_TRACKED_HEIGHTS) {
     const keys = Array.from(logHeights.keys());
-    const toDelete = keys.slice(0, keys.length - 1000);
+    // Keep only the most recent measurements (likely to be in visible range)
+    const toDelete = keys.slice(0, keys.length - MAX_TRACKED_HEIGHTS);
     for (const key of toDelete) {
       logHeights.delete(key);
     }
+  }
+
+  // Force cleanup if too many element refs
+  const elementCount = Object.keys(logElements).length;
+  if (elementCount > MAX_TRACKED_HEIGHTS * 2) {
+    // Keep only the last MAX_TRACKED_HEIGHTS elements
+    const allKeys = Object.keys(logElements);
+    const keysToRemove = allKeys.slice(0, allKeys.length - MAX_TRACKED_HEIGHTS);
+    keysToRemove.forEach((key) => delete logElements[key]);
   }
 }
 
@@ -420,7 +457,7 @@ function scrollToBottom() {
 }
 
 function updateVisibleRange() {
-  if (!logContainer || filteredLogs.length === 0) return;
+  if (!logContainer || filteredIndices.length === 0) return;
 
   const { scrollTop: st, clientHeight } = logContainer;
   scrollTop = st;
@@ -429,11 +466,13 @@ function updateVisibleRange() {
   // Calculate visible range using accumulated heights
   let accumulatedHeight = 0;
   let startIndex = 0;
-  let endIndex = filteredLogs.length;
+  let endIndex = filteredIndices.length;
 
   // Find start index
-  for (let i = 0; i < filteredLogs.length; i++) {
-    const key = getLogKey(filteredLogs[i], i);
+  for (let i = 0; i < filteredIndices.length; i++) {
+    const origIndex = filteredIndices[i];
+    const log = activeLogEntries[origIndex];
+    const key = getLogKey(log, i);
     const height = getLogHeight(key);
 
     if (
@@ -448,8 +487,10 @@ function updateVisibleRange() {
 
   // Find end index
   accumulatedHeight = 0;
-  for (let i = 0; i < filteredLogs.length; i++) {
-    const key = getLogKey(filteredLogs[i], i);
+  for (let i = 0; i < filteredIndices.length; i++) {
+    const origIndex = filteredIndices[i];
+    const log = activeLogEntries[origIndex];
+    const key = getLogKey(log, i);
     const height = getLogHeight(key);
     accumulatedHeight += height;
 
@@ -457,7 +498,7 @@ function updateVisibleRange() {
       accumulatedHeight >
       scrollTop + containerHeight + BUFFER_SIZE * MIN_ITEM_HEIGHT
     ) {
-      endIndex = Math.min(filteredLogs.length, i + 1);
+      endIndex = Math.min(filteredIndices.length, i + 1);
       break;
     }
   }
@@ -541,14 +582,15 @@ function handleResize() {
 
 // Function to select all logs in the current tab
 async function selectAllCurrentLogs() {
-  if (filteredLogs.length === 0) return;
+  if (filteredCount === 0) return;
 
   // Show visual feedback
   showCopyNotification = true;
 
-  // Generate the text for all logs
-  const allLogsText = filteredLogs
-    .map((logEntry) => {
+  // Generate the text for all logs using on-demand access
+  const allLogsText = filteredIndices
+    .map((origIndex) => {
+      const logEntry = activeLogEntries[origIndex];
       if (!logEntry) return "";
 
       const timestamp =
@@ -561,14 +603,13 @@ async function selectAllCurrentLogs() {
         logEntry.message || "",
         timestamp,
       );
-      return `[${formatTime(timestamp)}] ${formatLogLevel(logEntry.level || "info")} ${cleanMessage}`;
+      return `[${formatTime(timestamp)}] ${formatLogLevel(logEntry.level || STRING_POOL.levels.info)} ${cleanMessage}`;
     })
     .filter(Boolean)
     .join("\n");
 
   try {
     await navigator.clipboard.writeText(allLogsText);
-    console.log(`Copied ${filteredLogs.length} log entries to clipboard`);
   } catch (err) {
     console.error("Failed to copy all logs:", err);
   }
@@ -595,73 +636,115 @@ $: sortedInstances = $gameInstances
     )
   : [];
 
+// Reactive: Ensure we're on the game subtab when a valid game instance is selected
+// This handles the case where URL navigation happens before the instance is added to the store
+$: {
+  const currentInstanceId = $selectedInstanceId;
+  if (currentInstanceId !== "global" && $gameInstances) {
+    const instanceExists = $gameInstances.has(currentInstanceId);
+    if (instanceExists && selectedLogType === "launcher") {
+      // Switch to game subtab if we're on an instance but still showing launcher logs
+      selectedLogType = "game";
+    }
+  }
+}
+
 $: currentLogsData = $currentLogs || { launcherLogs: [], gameLogs: [] };
 $: activeLogEntries =
   selectedLogType === "launcher"
     ? currentLogsData.launcherLogs || []
     : currentLogsData.gameLogs || [];
 
-// Filter logs based on search and log level filters
-$: filteredLogs = (activeLogEntries || []).filter((log) => {
-  if (!log) return false;
-  // Use cleaned message for search to avoid searching duplicate timestamps
-  const cleanMessage = getDisplayMessage(log);
-  const matchesSearchTerm = matchesSearch(cleanMessage, searchTerm, searchMode);
+// Compute filtered count and indices with proper reactivity
+// This reactive statement depends on: activeLogEntries, searchTerm, searchMode, logLevelFilters
+$: filteredIndices = (() => {
+  const indices: number[] = [];
 
-  // Check if the log level is enabled in filters
-  const logLevel = (log.level || "info").toLowerCase();
-  const matchesLevelFilter =
-    logLevel in logLevelFilters
-      ? logLevelFilters[logLevel as keyof typeof logLevelFilters]
-      : true; // Show unknown log levels by default
+  // Explicitly reference reactive dependencies
+  const logs = activeLogEntries;
+  const search = searchTerm;
+  const mode = searchMode;
+  const filters = logLevelFilters;
 
-  return matchesSearchTerm && matchesLevelFilter;
-});
+  for (let i = 0; i < logs.length; i++) {
+    const log = logs[i];
+    if (!log) continue;
 
-// Virtual scrolling: only render visible logs
-$: visibleLogs = filteredLogs.slice(visibleStartIndex, visibleEndIndex);
+    // Use cleaned message for search to avoid searching duplicate timestamps
+    const cleanMessage = getDisplayMessage(log);
+    const matchesSearchTerm = matchesSearch(cleanMessage, search, mode);
+
+    // Check if the log level is enabled in filters
+    const logLevel = (log.level || STRING_POOL.levels.info).toLowerCase();
+    const matchesLevelFilter =
+      logLevel in filters ? filters[logLevel as keyof typeof filters] : true; // Show unknown log levels by default
+
+    if (matchesSearchTerm && matchesLevelFilter) {
+      indices.push(i);
+    }
+  }
+
+  return indices;
+})();
+
+$: filteredCount = filteredIndices.length;
+
+// Virtual scrolling: only render visible logs (on-demand access)
+$: visibleLogs = filteredIndices
+  .slice(visibleStartIndex, visibleEndIndex)
+  .map((i) => activeLogEntries[i]);
 
 // Calculate total height and offset using measured heights
 // Use heightsVersion as dependency to only recalculate when heights change
 let totalHeight = 0;
 let offsetY = 0;
 
-$: if (heightsVersion >= 0 && filteredLogs) {
-  totalHeight = filteredLogs.reduce((sum, log, index) => {
-    const key = getLogKey(log, index);
+$: if (heightsVersion >= 0 && filteredIndices) {
+  totalHeight = filteredIndices.reduce((sum, origIndex, filteredIndex) => {
+    const log = activeLogEntries[origIndex];
+    const key = getLogKey(log, filteredIndex);
     return sum + getLogHeight(key);
   }, 0);
 }
 
-$: if (heightsVersion >= 0 && filteredLogs && visibleStartIndex >= 0) {
-  offsetY = filteredLogs
+$: if (heightsVersion >= 0 && filteredIndices && visibleStartIndex >= 0) {
+  offsetY = filteredIndices
     .slice(0, visibleStartIndex)
-    .reduce((sum, log, index) => {
-      const key = getLogKey(log, index);
+    .reduce((sum, origIndex, filteredIndex) => {
+      const log = activeLogEntries[origIndex];
+      const key = getLogKey(log, filteredIndex);
       return sum + getLogHeight(key);
     }, 0);
 }
 
-// Update visible range when filteredLogs changes (tab switch, filters, etc.)
-// Only trigger when filteredLogs length changes or container becomes ready
+// Update visible range when filteredIndices changes (tab switch, filters, etc.)
+// Only trigger when filteredIndices length changes or container becomes ready
 let lastFilteredLogsLength = 0;
+let recalculationTimer: number | undefined;
 $: if (
-  filteredLogs &&
+  filteredIndices &&
   logContainer &&
-  filteredLogs.length !== lastFilteredLogsLength &&
+  filteredCount !== lastFilteredLogsLength &&
   !recalculationPending
 ) {
-  lastFilteredLogsLength = filteredLogs.length;
+  lastFilteredLogsLength = filteredCount;
   recalculationPending = true;
   heightsNeedRecalculation = true;
 
-  tick().then(() => {
-    if (heightsNeedRecalculation) {
-      measureLogHeights();
-      updateVisibleRange();
-    }
-    recalculationPending = false;
-  });
+  // Debounce recalculation to prevent excessive updates
+  if (recalculationTimer) {
+    clearTimeout(recalculationTimer);
+  }
+
+  recalculationTimer = window.setTimeout(() => {
+    tick().then(() => {
+      if (heightsNeedRecalculation) {
+        measureLogHeights();
+        updateVisibleRange();
+      }
+      recalculationPending = false;
+    });
+  }, 100) as any; // 100ms debounce
 }
 
 // Track previous log count to detect new logs
@@ -669,17 +752,17 @@ let previousLogCount = 0;
 
 // Auto-scroll when NEW logs arrive (not on every reactive update)
 $: {
-  if (filteredLogs && filteredLogs.length > previousLogCount && autoScroll) {
-    const currentCount = filteredLogs.length;
+  if (filteredIndices && filteredCount > previousLogCount && autoScroll) {
+    const currentCount = filteredCount;
     tick().then(() => {
       // Only scroll if count still matches and autoScroll is still enabled
-      if (filteredLogs.length === currentCount && autoScroll && logContainer) {
+      if (filteredCount === currentCount && autoScroll && logContainer) {
         scrollToBottom();
       }
     });
     previousLogCount = currentCount;
-  } else if (filteredLogs) {
-    previousLogCount = filteredLogs.length;
+  } else if (filteredIndices) {
+    previousLogCount = filteredCount;
   }
 }
 
@@ -897,7 +980,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
         ? 'copy-notification-active'
         : ''}"
     >
-      {#if filteredLogs.length === 0}
+      {#if filteredCount === 0}
         <div class="empty-state">
           <div class="empty-icon">
             {#if hasActiveFilters}
@@ -971,7 +1054,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
         <div class="overlay-copy-content">
           <Icon name="clipboard" size="md" />
           <span
-            >Copied {filteredLogs.length} log entr{filteredLogs.length === 1
+            >Copied {filteredCount} log entr{filteredCount === 1
               ? "y"
               : "ies"}</span
           >
@@ -985,21 +1068,19 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
     <div class="status-left">
       <span class="status-text">
         {#if $selectedInstanceId === "global"}
-          {#if (filteredLogs || []).length === (currentLogsData.launcherLogs || []).length}
+          {#if filteredCount === (currentLogsData.launcherLogs || []).length}
             Global logs: {(currentLogsData.launcherLogs || []).length} entries
           {:else}
-            Global logs: {(filteredLogs || []).length} / {(
-              currentLogsData.launcherLogs || []
-            ).length} entries
+            Global logs: {filteredCount} / {(currentLogsData.launcherLogs || [])
+              .length} entries
           {/if}
-        {:else if (filteredLogs || []).length === (activeLogEntries || []).length}
+        {:else if filteredCount === (activeLogEntries || []).length}
           {selectedLogType === "launcher" ? "Launcher" : "Game"} logs: {(
             activeLogEntries || []
           ).length} entries
         {:else}
-          {selectedLogType === "launcher" ? "Launcher" : "Game"} logs: {(
-            filteredLogs || []
-          ).length} / {(activeLogEntries || []).length} entries
+          {selectedLogType === "launcher" ? "Launcher" : "Game"} logs: {filteredCount}
+          / {(activeLogEntries || []).length} entries
         {/if}
         {#if searchTerm && searchMode !== "normal"}
           • {searchMode}

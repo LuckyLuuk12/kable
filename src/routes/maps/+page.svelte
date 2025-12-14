@@ -2,6 +2,7 @@
 import { onMount } from "svelte";
 import { MapsService, SettingsService, Icon } from "$lib";
 import type { LocalWorld } from "$lib/types";
+import { clickSound, successSound, errorSound } from "$lib/actions";
 
 let searchQuery = "";
 let selectedCategory = "all";
@@ -145,6 +146,7 @@ function formatFileSize(bytes: number): string {
     <div class="header-actions">
       <button
         on:click={loadWorlds}
+        use:clickSound
         class="btn btn-secondary {isRefreshing ? 'spinning' : ''}"
         disabled={isLoading}
         title="Refresh worlds list"
@@ -282,6 +284,7 @@ function formatFileSize(bytes: number): string {
             <div class="world-actions">
               <button
                 on:click={() => backupWorld(world.name)}
+                use:successSound
                 class="btn btn-secondary btn-sm"
                 title="Create backup"
               >
@@ -291,6 +294,7 @@ function formatFileSize(bytes: number): string {
 
               <button
                 on:click={() => deleteWorld(world.name)}
+                use:errorSound
                 class="btn btn-danger btn-sm"
                 title="Delete world"
               >

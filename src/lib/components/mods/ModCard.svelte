@@ -24,6 +24,7 @@ import { Icon, ProviderKind as ProviderKindEnum } from "$lib";
 import ModVersionModal from "./ModVersionModal.svelte";
 import * as modsApi from "$lib/api/mods";
 import type { KableInstallation, ModInfoKind, ProviderKind } from "$lib";
+import { clickSound, successSound } from "$lib/actions";
 
 type ViewMode = "grid" | "list" | "compact";
 
@@ -418,6 +419,7 @@ function handleCardKeydown(event: KeyboardEvent) {
         <button
           class="compact-versions-btn"
           on:click={handleVersions}
+          use:clickSound
           title="View all versions"
         >
           <Icon name="list" size="sm" />
@@ -428,6 +430,7 @@ function handleCardKeydown(event: KeyboardEvent) {
             <button
               class="compact-update-btn"
               on:click={handleVersions}
+              use:clickSound
               title={hasNewerVersion ? "Update available" : "Change version"}
             >
               <Icon
@@ -441,6 +444,7 @@ function handleCardKeydown(event: KeyboardEvent) {
           <button
             class="compact-download-btn"
             on:click={handleDownload}
+            use:successSound
             disabled={loading}
             title="Download latest version"
           >
@@ -506,6 +510,7 @@ function handleCardKeydown(event: KeyboardEvent) {
               <button
                 class="control-btn versions-btn"
                 on:click|stopPropagation={handleVersions}
+                use:clickSound
                 title="View all versions"
               >
                 <Icon name="list" size="sm" />
@@ -515,6 +520,7 @@ function handleCardKeydown(event: KeyboardEvent) {
                   <button
                     class="control-btn update-btn"
                     on:click|stopPropagation={handleVersions}
+                    use:clickSound
                     title={hasNewerVersion
                       ? "Update available"
                       : "Change version"}
@@ -530,6 +536,7 @@ function handleCardKeydown(event: KeyboardEvent) {
                 <button
                   class="control-btn download-btn"
                   on:click|stopPropagation={handleDownload}
+                  use:successSound
                   disabled={loading}
                   title="Download latest version"
                 >
@@ -653,6 +660,7 @@ function handleCardKeydown(event: KeyboardEvent) {
               <button
                 class="list-versions-btn"
                 on:click={handleVersions}
+                use:clickSound
                 title="View all versions"
               >
                 <Icon name="list" size="sm" />
@@ -682,6 +690,7 @@ function handleCardKeydown(event: KeyboardEvent) {
                     <button
                       class="list-update-btn"
                       on:click={handleVersions}
+                      use:clickSound
                       title={hasNewerVersion
                         ? "Update available"
                         : "Change version"}
@@ -698,6 +707,7 @@ function handleCardKeydown(event: KeyboardEvent) {
                   <button
                     class="list-download-btn"
                     on:click={handleDownload}
+                    use:successSound
                     disabled={loading}
                   >
                     <Icon name="download" size="sm" forceType="svg" />

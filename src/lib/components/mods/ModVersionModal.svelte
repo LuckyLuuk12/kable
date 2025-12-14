@@ -359,7 +359,7 @@ function formatDate(dateString: string): string {
                 </div>
                 <button
                   class="select-btn"
-                  on:click={() => handleSelectVersion(version)}
+                  on:click|stopPropagation={() => handleSelectVersion(version)}
                 >
                   <Icon name="download" size="md" forceType="svg" />
                   Install

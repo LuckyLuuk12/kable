@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="nl-NL" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="Language">1043</String>
+  <String Id="Locale">nl-NL</String>
+  
+  <!-- Product Info -->
+  <String Id="ProductName">Kable - Minecraft Launcher</String>
+  <String Id="Manufacturer">Kablan</String>
+  
+  <!-- Welcome Dialog -->
+  <String Id="WelcomeTitle">Welkom bij Kable - Minecraft Launcher</String>
+  <String Id="WelcomeDescription">Deze wizard begeleidt je door de installatie van Kable, een moderne Minecraft launcher met geavanceerde functies.</String>
+  <String Id="UsefulLinks">Nuttige Links:</String>
+  <String Id="OfficialWebsite">Officiële Website</String>
+  <String Id="DocumentationWiki">Documentatie Wiki</String>
+  <String Id="SupportDevelopment">Ondersteun Ontwikkeling (Ko-fi)</String>
+  
+  <!-- Install Directory Dialog -->
+  <String Id="DestinationFolder">Doelmap</String>
+  <String Id="ChooseInstallLocation">Kies waar je Kable wilt installeren</String>
+  
+  <!-- Buttons -->
+  <String Id="InstallButton">Installeren</String>
+  <String Id="CancelButton">Annuleren</String>
+  <String Id="BackButton">Terug</String>
+  <String Id="NextButton">Volgende</String>
+  <String Id="FinishButton">Voltooien</String>
+</WixLocalization>

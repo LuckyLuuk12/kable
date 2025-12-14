@@ -32,6 +32,7 @@ import {
   ProviderKind,
 } from "$lib";
 import ModCard from "./ModCard.svelte";
+import { clickSound } from "$lib/actions";
 import * as systemApi from "$lib/api/system";
 import * as modsApi from "$lib/api/mods";
 import type {
@@ -1198,6 +1199,7 @@ onMount(async () => {
           <button
             class="reset-filters"
             on:click={resetFilters}
+            use:clickSound
             title="Reset all filters"
           >
             <Icon name="refresh" size="sm" forceType="svg" />
@@ -1205,6 +1207,7 @@ onMount(async () => {
           <button
             class="toggle-filters"
             on:click={() => (showFilters = !showFilters)}
+            use:clickSound
             title="Toggle filters"
           >
             <Icon
@@ -1240,6 +1243,7 @@ onMount(async () => {
                     searchQuery = "";
                     handleSearch();
                   }}
+                  use:clickSound
                 >
                   <Icon name="x" size="sm" />
                 </button>
@@ -1275,6 +1279,7 @@ onMount(async () => {
               <button
                 class="filter-header"
                 on:click={() => toggleSection(section.collapsedKey)}
+                use:clickSound
               >
                 <span class="filter-label">{section.label}</span>
                 <Icon
@@ -1301,6 +1306,7 @@ onMount(async () => {
                         class:active={getFilterState(section.id, option) ===
                           "include"}
                         on:click={() => toggleFilter(section.id, option)}
+                        use:clickSound
                       >
                         <span class="option-label">{option}</span>
                         {#if getFilterState(section.id, option) === "include"}
@@ -1314,6 +1320,7 @@ onMount(async () => {
                         class:active={getFilterState(section.id, option) ===
                           "exclude"}
                         on:click={() => toggleFilterExclude(section.id, option)}
+                        use:clickSound
                       >
                         <Icon name="trash" size="sm" forceType="svg" />
                       </button>
@@ -1335,6 +1342,7 @@ onMount(async () => {
           <button
             class="mobile-filters-toggle"
             on:click={() => (showFilters = !showFilters)}
+            use:clickSound
           >
             <Icon name="filter" size="sm" />
             Filters
@@ -1346,6 +1354,7 @@ onMount(async () => {
             <button
               class="page-btn compact"
               on:click={prevPage}
+              use:clickSound
               disabled={currentPage === 1}
               title="Previous page"
             >
@@ -1360,6 +1369,7 @@ onMount(async () => {
                   class="page-btn compact"
                   class:active={currentPage === pageItem}
                   on:click={() => goToPage(pageItem)}
+                  use:clickSound
                 >
                   {pageItem}
                 </button>
@@ -1369,6 +1379,7 @@ onMount(async () => {
             <button
               class="page-btn compact"
               on:click={nextPage}
+              use:clickSound
               title="Next page"
             >
               <Icon name="arrow-right" size="sm" forceType="svg" />
@@ -1384,6 +1395,7 @@ onMount(async () => {
                 class="view-mode-btn"
                 class:active={viewMode === mode.id}
                 on:click={() => (viewMode = mode.id as ViewMode)}
+                use:clickSound
                 title={mode.name}
               >
                 <Icon name={mode.icon} size="sm" />

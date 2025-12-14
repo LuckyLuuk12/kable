@@ -20,6 +20,7 @@ import {
   installations,
   versions,
 } from "$lib";
+import { successSound, clickSound } from "$lib/actions";
 import type { VersionData, LoaderKind } from "$lib";
 
 let dialogRef: HTMLDialogElement;
@@ -203,9 +204,30 @@ async function confirmCreate() {
 function cancelCreate() {
   close();
 }
+
+function handleBackdropClick(e: MouseEvent) {
+  console.log("[CreateModal] Click detected", {
+    target: e.target,
+    currentTarget: e.currentTarget,
+    dialogRef,
+    isDialogTarget: e.target === dialogRef,
+  });
+
+  // Check if click target is the dialog element itself (backdrop), not its content
+  if (e.target === dialogRef) {
+    console.log("[CreateModal] Closing modal - clicked on backdrop");
+    cancelCreate();
+  } else {
+    console.log("[CreateModal] Not closing - clicked inside content");
+  }
+}
 </script>
 
-<dialog bind:this={dialogRef} class="create-installation-modal">
+<dialog
+  bind:this={dialogRef}
+  class="create-installation-modal"
+  on:click={handleBackdropClick}
+>
   <h2>Create New Installation</h2>
   {#if error}
     <div class="error-message">{error}</div>
@@ -375,7 +397,12 @@ function cancelCreate() {
     </details>
 
     <div class="actions">
-      <button type="submit" class="btn btn-primary" disabled={isLoading}>
+      <button
+        use:successSound
+        type="submit"
+        class="btn btn-primary"
+        disabled={isLoading}
+      >
         {#if isLoading}
           <Icon name="refresh" size="sm" className="spin" />
           Creating...
@@ -384,6 +411,7 @@ function cancelCreate() {
         {/if}
       </button>
       <button
+        use:clickSound
         type="button"
         class="btn btn-secondary"
         on:click={cancelCreate}
@@ -401,7 +429,19 @@ function cancelCreate() {
   border-radius: var(--border-radius);
   width: 85%;
   height: 85%;
-  margin: auto auto;
+  max-width: 65vw;
+  max-height: 85vh;
+  overflow-y: auto;
+  border: none;
+  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.3);
+  margin: auto;
+
+  &::backdrop {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.4);
+  }
+
   h2 {
     margin-bottom: 1rem;
     color: var(--text);

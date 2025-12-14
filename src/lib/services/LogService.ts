@@ -20,10 +20,11 @@ export class LogsService {
   // Small sliding window of recent log lines per instance to make crash detection
   // less sensitive to single 'error' or stack-trace lines coming from mods/plugins.
   private crashBuffers: Map<string, string[]> = new Map();
-  // Increase buffer to capture long stack traces and more context for crash summaries
-  private crashBufferSize: number = 1000;
+  // Reduced buffer size to prevent excessive memory usage (100 lines is enough for crash detection)
+  private crashBufferSize: number = 100;
   private static instance: LogsService;
   private isInitialized: boolean = false;
+  private cleanupInterval: number | null = null;
 
   static getInstance(): LogsService {
     if (!LogsService.instance) {
@@ -236,7 +237,50 @@ export class LogsService {
 
     // Mark as initialized
     this.isInitialized = true;
+
+    // Setup periodic cleanup of crash buffers for closed instances
+    this.cleanupInterval = window.setInterval(() => {
+      this.cleanupCrashBuffers();
+      // Also cleanup old game instances from store
+      const removed = LogsManager.cleanupOldInstances(30 * 60 * 1000); // 30 minutes
+      if (removed > 0) {
+        console.log(`[LogsService] Cleaned up ${removed} old game instances`);
+      }
+    }, 60000); // Every minute
+
     console.log("Logs service initialization complete");
+  }
+
+  private cleanupCrashBuffers() {
+    const instances = get(gameInstances);
+    const toDelete: string[] = [];
+
+    // Remove buffers for instances that no longer exist or are closed
+    for (const instanceId of this.crashBuffers.keys()) {
+      const instance = instances.get(instanceId);
+      if (
+        !instance ||
+        instance.status === "closed" ||
+        instance.status === "crashed" ||
+        instance.status === "stopped"
+      ) {
+        const lastActivity = instance?.lastActivity;
+        if (!lastActivity) {
+          toDelete.push(instanceId);
+        } else {
+          const activityTime =
+            lastActivity instanceof Date
+              ? lastActivity.getTime()
+              : new Date(lastActivity).getTime();
+          // Remove buffers older than 10 minutes
+          if (Date.now() - activityTime > 10 * 60 * 1000) {
+            toDelete.push(instanceId);
+          }
+        }
+      }
+    }
+
+    toDelete.forEach((id) => this.crashBuffers.delete(id));
   }
 
   private parseGameOutput(instanceId: string, line: string) {
@@ -385,6 +429,16 @@ export class LogsService {
       unlisten();
     }
     this.listeners.clear();
+
+    // Clear cleanup interval
+    if (this.cleanupInterval !== null) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+
+    // Clear crash buffers
+    this.crashBuffers.clear();
+
     this.isInitialized = false;
     console.log("Logs service destroyed");
   }

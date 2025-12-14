@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 GitHub Discussions
+    url: https://github.com/LuckyLuuk12/kable/discussions
+    about: Ask questions, discuss features, and connect with the community
+  - name: 📖 Documentation
+    url: https://github.com/LuckyLuuk12/kable/wiki
+    about: Check the wiki for guides and documentation
+  - name: 🌐 Official Website
+    url: https://kable.kablan.nl
+    about: Visit the official Kable website
+  - name: 🔐 Private Security Report
+    url: https://github.com/LuckyLuuk12/kable/security/advisories/new
+    about: Report critical security vulnerabilities privately

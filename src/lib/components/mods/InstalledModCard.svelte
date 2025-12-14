@@ -30,6 +30,7 @@ import * as installationsApi from "$lib/api/installations";
 import * as modsApi from "$lib/api/mods";
 import ModVersionModal from "./ModVersionModal.svelte";
 import Image from "$lib/components/Image.svelte";
+import { clickSound, errorSound } from "$lib/actions";
 
 export let mod: ModJarInfo;
 export let installation: KableInstallation;
@@ -327,6 +328,7 @@ function handleKeydown(event: KeyboardEvent) {
     <button
       class="action-btn manage-btn"
       on:click={handleManageVersions}
+      use:clickSound
       title="Manage versions"
       disabled={loading || loadingVersions}
     >
@@ -337,6 +339,7 @@ function handleKeydown(event: KeyboardEvent) {
     <button
       class="action-btn remove-btn"
       on:click={handleRemove}
+      use:errorSound
       title="Remove mod"
       disabled={loading}
     >

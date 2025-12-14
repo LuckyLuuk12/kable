@@ -15,6 +15,7 @@ Shows shader icon, name, and provides actions:
 import { Icon, NotificationService } from "$lib";
 import type { KableInstallation } from "$lib";
 import * as installationsApi from "$lib/api/installations";
+import { clickSound, errorSound } from "$lib/actions";
 
 export let shader: any;
 export let installation: KableInstallation;
@@ -139,6 +140,7 @@ async function handleVisitPage(event: MouseEvent) {
       class="action-btn toggle-btn"
       class:enabled={!isDisabled}
       on:click={toggleDisabled}
+      use:clickSound
       title={isDisabled ? "Enable shader" : "Disable shader"}
       disabled={loading}
     >
@@ -150,6 +152,7 @@ async function handleVisitPage(event: MouseEvent) {
       <button
         class="action-btn visit-btn"
         on:click={handleVisitPage}
+        use:clickSound
         title="Visit page"
         disabled={loading}
       >
@@ -161,6 +164,7 @@ async function handleVisitPage(event: MouseEvent) {
     <button
       class="action-btn remove-btn"
       on:click={handleRemove}
+      use:errorSound
       title="Remove shader"
       disabled={loading}
     >

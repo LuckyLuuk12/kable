@@ -11,6 +11,7 @@ speed limits, retry policies, and timeout settings.
 -->
 <script lang="ts">
 import { settings, SettingsService } from "$lib";
+import { clickSound } from "$lib/actions";
 
 function setUnlimitedDownloadSpeed() {
   SettingsService.update("network", {
@@ -128,12 +129,14 @@ function setUnlimitedDownloadSpeed() {
         <div class="download-speed-btn">
           {#if $settings.network.download_speed_limit !== "unlimited"}
             <button
+              use:clickSound
               type="button"
               class="primary"
               on:click={setUnlimitedDownloadSpeed}>Unlimited</button
             >
           {:else}
             <button
+              use:clickSound
               type="button"
               class="primary"
               on:click={() =>

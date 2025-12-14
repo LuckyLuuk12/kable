@@ -29,6 +29,7 @@ import {
   shadersOffset,
   shadersInstallMode,
 } from "$lib";
+import { clickSound } from "$lib/actions";
 import type {
   ShaderDownload,
   KableInstallation,
@@ -82,6 +83,7 @@ let maxPageReached = 1;
 // Service instance
 let shadersService: ShadersService;
 let isFullyMounted = false;
+let previousInstallationId: string | null = null;
 
 // View mode options
 const viewModes = [
@@ -146,16 +148,24 @@ $: {
       selectedInstallation.set(currentInstallation);
     }
   }
-  // Trigger filter update when installation changes (only after mount)
-  if (isFullyMounted && shadersService) {
+  // Trigger filter update when installation changes (only after mount and only if it actually changed)
+  if (
+    isFullyMounted &&
+    shadersService &&
+    previousInstallationId !== null &&
+    previousInstallationId !== selectedInstallationId
+  ) {
     console.log(
-      "[ShaderBrowser] Installation changed to:",
+      "[ShaderBrowser] Installation changed from",
+      previousInstallationId,
+      "to:",
       selectedInstallationId,
       "version:",
       currentInstallation?.version_id,
     );
     handleFiltersChange();
   }
+  previousInstallationId = selectedInstallationId;
 }
 $: shaders = $shaderDownloads || [];
 $: loading = $shadersLoading;
@@ -442,15 +452,27 @@ function closeGallery() {
 // Initialize on mount
 onMount(async () => {
   shadersService = new ShadersService();
-  await shadersService.initialize();
 
-  // Default to global mode
-  selectedInstallationId = "global";
+  // Read from store if available, otherwise default to global
+  if ($selectedInstallation && $selectedInstallation.id) {
+    selectedInstallationId = $selectedInstallation.id;
+  } else {
+    selectedInstallationId = "global";
+  }
+
+  // Track initial installation to prevent double-load
+  previousInstallationId = selectedInstallationId;
+
+  // Initialize after setting installation to avoid double-load
+  await shadersService.initialize();
 
   // Mark as fully mounted after initialization
   isFullyMounted = true;
 
-  console.log("[ShaderBrowser] Fully mounted and initialized");
+  console.log(
+    "[ShaderBrowser] Fully mounted and initialized with installation:",
+    selectedInstallationId,
+  );
 });
 </script>
 
@@ -499,6 +521,7 @@ onMount(async () => {
           <button
             class="reset-filters"
             on:click={resetFilters}
+            use:clickSound
             title="Reset all filters"
           >
             <Icon name="refresh" size="sm" forceType="svg" />
@@ -506,6 +529,7 @@ onMount(async () => {
           <button
             class="toggle-filters"
             on:click={() => (showFilters = !showFilters)}
+            use:clickSound
             title="Toggle filters"
           >
             <Icon
@@ -560,6 +584,7 @@ onMount(async () => {
                     searchQuery = "";
                     handleSearch();
                   }}
+                  use:clickSound
                 >
                   <Icon name="x" size="sm" />
                 </button>
@@ -573,6 +598,7 @@ onMount(async () => {
               <button
                 class="filter-header"
                 on:click={() => toggleSection(section.collapsedKey)}
+                use:clickSound
               >
                 <span class="filter-label">{section.label}</span>
                 <Icon
@@ -598,6 +624,7 @@ onMount(async () => {
                         class:active={getFilterState(section.id, option) ===
                           "include"}
                         on:click={() => toggleFilter(section.id, option)}
+                        use:clickSound
                         title={getFilterState(section.id, option) === "include"
                           ? "Remove filter"
                           : "Include filter"}
@@ -614,6 +641,7 @@ onMount(async () => {
                         class:active={getFilterState(section.id, option) ===
                           "exclude"}
                         on:click={() => toggleFilterExclude(section.id, option)}
+                        use:clickSound
                         title={getFilterState(section.id, option) === "exclude"
                           ? "Remove exclusion"
                           : "Exclude filter"}
@@ -655,6 +683,7 @@ onMount(async () => {
             <button
               class="page-btn compact"
               on:click={previousPage}
+              use:clickSound
               disabled={currentPage === 1}
               title="Previous page"
             >
@@ -669,6 +698,7 @@ onMount(async () => {
                   class="page-btn compact"
                   class:active={currentPage === pageItem}
                   on:click={() => goToPage(pageItem)}
+                  use:clickSound
                 >
                   {pageItem}
                 </button>
@@ -678,6 +708,7 @@ onMount(async () => {
             <button
               class="page-btn compact"
               on:click={nextPage}
+              use:clickSound
               title="Next page"
             >
               <Icon name="arrow-right" size="sm" forceType="svg" />
@@ -692,6 +723,7 @@ onMount(async () => {
                 class="view-mode-btn"
                 class:active={viewMode === mode.id}
                 on:click={() => (viewMode = mode.id as ViewMode)}
+                use:clickSound
                 title={mode.name}
               >
                 <Icon name={mode.icon} size="sm" />

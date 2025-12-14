@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod discord;
+pub mod icons;
 pub mod images;
 pub mod installations;
 pub mod launcher;
@@ -7,6 +8,7 @@ pub mod mods;
 pub mod resourcepacks;
 pub mod shaders;
 pub mod skins;
+pub mod sounds;
 pub mod symlinks;
 pub mod system;
 pub mod updater;

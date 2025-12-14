@@ -62,7 +62,13 @@ export class UpdaterService {
       NotificationService.info("Downloading update...", 0); // 0 = no auto-dismiss
 
       // Download and install the update (backend handles relaunch)
-      await installUpdate();
+      // Read the checkNightly setting from localStorage (settings store)
+      const settingsStr = localStorage.getItem("kable-settings");
+      const checkNightly = settingsStr
+        ? (JSON.parse(settingsStr)?.advanced?.check_nightly_updates ?? false)
+        : false;
+
+      await installUpdate(checkNightly);
 
       console.log("[UpdaterService] Update installed, app will restart...");
       NotificationService.success("Update installed! Restarting...", 2);

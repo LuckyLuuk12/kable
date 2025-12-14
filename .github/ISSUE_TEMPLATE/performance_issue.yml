@@ -1,0 +1,183 @@
+name: 🐌 Performance Issue
+description: Report performance problems, slowness, or high resource usage
+title: "[Performance]: "
+labels: ["performance", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a performance issue! Please provide details to help us investigate and optimize.
+
+  - type: checkboxes
+    id: existing-issue
+    attributes:
+      label: Is there an existing issue for this?
+      description: Please search to see if a similar performance issue has been reported.
+      options:
+        - label: I have searched the existing issues
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Performance Issue Description
+      description: Describe the performance problem you're experiencing.
+      placeholder: What is slow or using too many resources?
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      description: How much does this impact your usage?
+      options:
+        - Minor - Slightly noticeable
+        - Moderate - Noticeably slow but usable
+        - Major - Very slow, impacts usability
+        - Critical - Unusable, constant freezing/crashes
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area
+      description: Which part of Kable is experiencing performance issues?
+      options:
+        - Application Startup
+        - UI Responsiveness
+        - Installation Loading
+        - Mod Management
+        - Resource Pack Management
+        - Shader Management
+        - World/Map Loading
+        - Game Launch
+        - File Operations
+        - Network/Downloads
+        - Memory Usage
+        - CPU Usage
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this performance issue?
+      placeholder: |
+        1. Open Kable
+        2. Navigate to '...'
+        3. Perform action '...'
+        4. Observe slowness/high resource usage
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Performance
+      description: What performance did you expect?
+      placeholder: Should load in ~1 second, use ~200MB RAM
+    validations:
+      required: false
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Performance
+      description: What performance are you actually experiencing?
+      placeholder: Takes 10+ seconds, uses 2GB+ RAM
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Kable Version
+      description: Which version of Kable are you using?
+      placeholder: e.g., 0.1.7 or 0.1.7-12345 (nightly)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      description: What operating system are you using?
+      options:
+        - Windows 10
+        - Windows 11
+        - macOS (Intel)
+        - macOS (Apple Silicon)
+        - Linux (Ubuntu)
+        - Linux (Arch)
+        - Linux (Fedora)
+        - Linux (Other)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: system-specs
+    attributes:
+      label: System Specifications
+      description: Provide your system specifications
+      placeholder: |
+        CPU: e.g., Intel i5-10400, AMD Ryzen 5 5600X, Apple M1
+        RAM: e.g., 16GB DDR4
+        Storage: e.g., NVMe SSD, HDD
+        GPU: e.g., NVIDIA GTX 1660, AMD RX 6600
+    validations:
+      required: true
+
+  - type: textarea
+    id: resource-usage
+    attributes:
+      label: Resource Usage
+      description: |
+        If possible, provide resource usage metrics (CPU %, RAM usage, disk usage).
+        You can use Task Manager (Windows), Activity Monitor (macOS), or htop (Linux).
+      placeholder: |
+        CPU: 80% constant
+        RAM: 2.5GB
+        Disk: 100% usage spikes
+    validations:
+      required: false
+
+  - type: input
+    id: installation-count
+    attributes:
+      label: Number of Installations
+      description: How many Minecraft installations do you have?
+      placeholder: e.g., 5, 50, 200
+    validations:
+      required: false
+
+  - type: input
+    id: mod-count
+    attributes:
+      label: Number of Mods
+      description: Approximately how many mods are installed across all installations?
+      placeholder: e.g., 100, 500, 1000+
+    validations:
+      required: false
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / Performance Data
+      description: If applicable, add screenshots of resource usage or performance metrics.
+      placeholder: Drag and drop images here or paste image URLs
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other relevant information about the performance issue.
+      placeholder: Any other details...
+    validations:
+      required: false

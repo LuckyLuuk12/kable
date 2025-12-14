@@ -13,6 +13,7 @@ Java arguments, resolution, memory allocation, and advanced parameters.
 <script lang="ts">
 import { tick } from "svelte";
 import { InstallationService } from "$lib";
+import { successSound, clickSound } from "$lib/actions";
 import type { KableInstallation } from "$lib";
 
 // Working copy of the installation being edited
@@ -167,9 +168,20 @@ function cancelEdit() {
   // Just close without saving changes
   close();
 }
+
+function handleBackdropClick(e: MouseEvent) {
+  // Only close if clicking the backdrop (dialog element itself), not its children
+  if (e.target === dialogRef) {
+    cancelEdit();
+  }
+}
 </script>
 
-<dialog bind:this={dialogRef} class="edit-installation-modal">
+<dialog
+  bind:this={dialogRef}
+  class="edit-installation-modal"
+  on:click={handleBackdropClick}
+>
   <h2>
     Edit Installation{#if installation?.name}
       — {installation.name}{/if}
@@ -302,9 +314,14 @@ function cancelEdit() {
       </div>
 
       <div class="actions" style="grid-column: 1 / -1;">
-        <button type="submit" class="btn btn-primary">Confirm</button>
-        <button type="button" class="btn btn-secondary" on:click={cancelEdit}
-          >Cancel</button
+        <button use:successSound type="submit" class="btn btn-primary"
+          >Confirm</button
+        >
+        <button
+          use:clickSound
+          type="button"
+          class="btn btn-secondary"
+          on:click={cancelEdit}>Cancel</button
         >
       </div>
     </form>
@@ -354,7 +371,18 @@ function cancelEdit() {
   background: var(--container);
   border-radius: var(--border-radius);
   max-width: 80vw;
-  margin: 0 auto;
+  max-height: 90vh;
+  overflow-y: auto;
+  border: none;
+  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.3);
+  margin: auto;
+
+  &::backdrop {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.4);
+  }
+
   h2 {
     margin-bottom: 1rem;
     color: var(--text);

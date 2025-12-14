@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use tauri::command;
 use tokio::fs as async_fs;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -45,7 +44,6 @@ async fn ensure_icons_dir() -> Result<PathBuf, String> {
 }
 
 /// Get all custom icon templates
-#[command]
 pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, String> {
     // Ensure icons directory exists (creates it if missing)
     let icons_dir = ensure_icons_dir().await?;
@@ -109,7 +107,6 @@ async fn load_yaml_template(path: &PathBuf) -> Result<CustomIconTemplate, String
 }
 
 /// Save a custom icon template
-#[command]
 pub async fn save_custom_icon_template(template: CustomIconTemplate) -> Result<String, String> {
     let icons_dir = ensure_icons_dir().await?;
     let file_path = icons_dir.join(format!("{}.json", template.name));
@@ -129,7 +126,6 @@ pub async fn save_custom_icon_template(template: CustomIconTemplate) -> Result<S
 }
 
 /// Delete a custom icon template
-#[command]
 pub async fn delete_custom_icon_template(template_name: String) -> Result<(), String> {
     let icons_dir = ensure_icons_dir().await?;
 
@@ -156,7 +152,6 @@ pub async fn delete_custom_icon_template(template_name: String) -> Result<(), St
 }
 
 /// Validate an icon template
-#[command]
 pub async fn validate_icon_template(
     template_content: String,
     format: String,
@@ -268,14 +263,12 @@ fn is_valid_svg(content: &str) -> bool {
 }
 
 /// Get the icons directory path for frontend file operations
-#[command]
 pub async fn get_icons_directory_path() -> Result<String, String> {
     let icons_dir = ensure_icons_dir().await?;
     Ok(icons_dir.to_string_lossy().to_string())
 }
 
 /// Open the icons directory in the system file explorer
-#[command]
 pub async fn open_icons_directory() -> Result<(), String> {
     let icons_dir = ensure_icons_dir().await?;
 

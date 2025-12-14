@@ -11,6 +11,7 @@ and other content-related settings.
 -->
 <script lang="ts">
 import { settings } from "$lib/stores";
+import { clickSound } from "$lib/actions";
 function disableMaxWorldBackups() {
   $settings.content.max_world_backups = "disabled";
 }
@@ -52,7 +53,9 @@ function disableMaxWorldBackups() {
           min="0"
           bind:value={$settings.content.max_world_backups}
         />
-        <button type="button" on:click={disableMaxWorldBackups}>Disable</button>
+        <button use:clickSound type="button" on:click={disableMaxWorldBackups}
+          >Disable</button
+        >
       </div>
     </div>
 

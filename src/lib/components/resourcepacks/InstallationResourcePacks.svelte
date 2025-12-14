@@ -47,6 +47,16 @@ let orderedPacks: any[] = [];
 let dragDisabled = true;
 const flipDurationMs = 200;
 
+// Scroll tracking for fade indicator
+let dragListElement: HTMLElement | null = null;
+let showScrollFade = false;
+
+function checkScrollFade() {
+  if (!dragListElement) return;
+  const { scrollTop, scrollHeight, clientHeight } = dragListElement;
+  showScrollFade = scrollTop + clientHeight < scrollHeight - 10;
+}
+
 function selectInstallation(installation: KableInstallation) {
   selectedId = installation.id;
   currentInstallation = installation;
@@ -315,6 +325,11 @@ $: orderedPacks =
         return ordered;
       })()
     : packs.map((p) => ({ ...p, id: p.file_name }));
+
+// Check scroll fade when orderedPacks changes
+$: if (orderedPacks.length > 0 && dragListElement) {
+  setTimeout(checkScrollFade, 100);
+}
 
 // Filter packs
 $: filteredPacks = orderedPacks.filter((pack) => {
@@ -641,30 +656,40 @@ onMount(() => {
             </div>
           {:else if packs.length > 0}
             {#if packMergingEnabled && !searchQuery}
-              <div
-                class="packs-list-draggable"
-                use:dndzone={{
-                  items: orderedPacks,
-                  flipDurationMs,
-                  dragDisabled: false,
-                  dropTargetStyle: {},
-                }}
-                on:consider={handleDndConsider}
-                on:finalize={handleDndFinalize}
-              >
-                {#each orderedPacks as pack (pack.id)}
-                  <div class="drag-item-wrapper">
-                    <div class="drag-handle">
-                      <Icon name="menu" size="md" />
+              <div class="packs-list-container">
+                <div
+                  class="packs-list-draggable"
+                  bind:this={dragListElement}
+                  on:scroll={checkScrollFade}
+                  use:dndzone={{
+                    items: orderedPacks,
+                    flipDurationMs,
+                    dragDisabled: false,
+                    dropTargetStyle: {},
+                  }}
+                  on:consider={handleDndConsider}
+                  on:finalize={handleDndFinalize}
+                >
+                  {#each orderedPacks as pack (pack.id)}
+                    <div class="drag-item-wrapper">
+                      <div class="drag-handle">
+                        <Icon name="menu" size="md" />
+                      </div>
+                      <InstalledResourcePackCard
+                        {pack}
+                        installation={currentInstallation}
+                        extendedInfo={extendedPackInfo[pack.file_name]}
+                        onpackchanged={handlePackChanged}
+                      />
                     </div>
-                    <InstalledResourcePackCard
-                      {pack}
-                      installation={currentInstallation}
-                      extendedInfo={extendedPackInfo[pack.file_name]}
-                      onpackchanged={handlePackChanged}
-                    />
+                  {/each}
+                </div>
+                {#if showScrollFade}
+                  <div class="scroll-fade-indicator">
+                    <Icon name="chevron-down" size="sm" />
+                    <span>Scroll for more</span>
                   </div>
-                {/each}
+                {/if}
               </div>
             {:else}
               <div class="packs-card-grid">
@@ -1196,29 +1221,68 @@ onMount(() => {
   }
 }
 
+.packs-list-container {
+  position: relative;
+}
+
 .packs-list-draggable {
   display: flex;
   flex-direction: column;
-  padding: 0.5rem;
+  padding: 0 0.5rem;
   max-height: calc(100vh - 400px);
   overflow-y: auto;
   overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary) transparent;
 
   &::-webkit-scrollbar {
     width: 8px;
   }
 
   &::-webkit-scrollbar-track {
-    background: var(--bg-tertiary);
-    border-radius: 4px;
+    background: transparent;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: var(--dark-600);
+    background: #{"color-mix(in srgb, var(--primary), 60%, transparent)"};
     border-radius: 4px;
 
     &:hover {
-      background: var(--dark-500);
+      background: #{"color-mix(in srgb, var(--primary), 80%, transparent)"};
+    }
+  }
+}
+
+.scroll-fade-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #{"color-mix(in srgb, var(--container), 95%, transparent)"} 50%,
+    var(--container) 100%
+  );
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding-bottom: 0.75rem;
+  gap: 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.85em;
+  pointer-events: none;
+  animation: pulse 2s ease-in-out infinite;
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 0.6;
+    }
+    50% {
+      opacity: 1;
     }
   }
 }
@@ -1226,13 +1290,13 @@ onMount(() => {
 .drag-item-wrapper {
   display: flex;
   align-items: stretch;
-  gap: 0.75rem;
+  gap: 0.5rem;
   background: transparent;
-  border-radius: 0.6rem;
-  padding: 0.5rem;
+  border-radius: 0.5rem;
+  padding: 0.25rem;
   transition: all 0.2s ease;
   user-select: none;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 
   &:hover {
     background: color-mix(in srgb, var(--primary), 3%, transparent);
@@ -1241,7 +1305,7 @@ onMount(() => {
 
 .drag-handle {
   flex-shrink: 0;
-  width: 40px;
+  width: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1249,9 +1313,9 @@ onMount(() => {
   cursor: grab;
   transition: all 0.2s ease;
   background: var(--bg-secondary);
-  border-radius: 0.5rem;
+  border-radius: 0.4rem;
   border: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
-  margin-right: 0.5rem;
+  margin-right: 0.25rem;
 
   &:hover {
     color: var(--primary);

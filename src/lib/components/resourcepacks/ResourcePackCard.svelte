@@ -21,6 +21,7 @@ author, downloads, and gallery preview. Supports grid, list, and compact views.
 import { Icon } from "$lib";
 import type { ResourcePackDownload, KableInstallation } from "$lib";
 import { openUrl } from "$lib/api/system";
+import { clickSound, successSound } from "$lib/actions";
 
 export let resourcepack: ResourcePackDownload;
 export let viewMode: "grid" | "list" | "compact" = "grid";
@@ -134,6 +135,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
         <button
           class="gallery-overlay"
           on:click={handleViewGallery}
+          use:clickSound
           title="View gallery"
         >
           <Icon name="images" size="lg" forceType="svg" />
@@ -198,6 +200,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
         class:loading
         disabled={loading || isInstalled}
         on:click={handleDownload}
+        use:successSound
         title={isInstalled
           ? "Already installed"
           : installation

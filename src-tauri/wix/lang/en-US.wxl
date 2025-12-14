@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="en-US" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="Language">1033</String>
+  <String Id="Locale">en-US</String>
+  
+  <!-- Product Info -->
+  <String Id="ProductName">Kable - Minecraft Launcher</String>
+  <String Id="Manufacturer">Kablan</String>
+  
+  <!-- Welcome Dialog -->
+  <String Id="WelcomeTitle">Welcome to Kable - Minecraft Launcher</String>
+  <String Id="WelcomeDescription">This wizard will guide you through the installation of Kable, a modern Minecraft launcher with advanced features.</String>
+  <String Id="UsefulLinks">Useful Links:</String>
+  <String Id="OfficialWebsite">Official Website</String>
+  <String Id="DocumentationWiki">Documentation Wiki</String>
+  <String Id="SupportDevelopment">Support Development (Ko-fi)</String>
+  
+  <!-- Install Directory Dialog -->
+  <String Id="DestinationFolder">Destination Folder</String>
+  <String Id="ChooseInstallLocation">Choose where to install Kable</String>
+  
+  <!-- Buttons -->
+  <String Id="InstallButton">Install</String>
+  <String Id="CancelButton">Cancel</String>
+  <String Id="BackButton">Back</String>
+  <String Id="NextButton">Next</String>
+  <String Id="FinishButton">Finish</String>
+</WixLocalization>

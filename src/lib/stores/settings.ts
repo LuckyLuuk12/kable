@@ -64,6 +64,14 @@ export function defaultAppearanceSettings(): AppearanceSettings {
       custom_templates: [],
       builtin_templates: ["emoji", "fontawesome", "svg"],
     },
+    sound: {
+      enabled: true,
+      music_enabled: true,
+      master_volume: 100,
+      sound_volume: 100,
+      music_volume: 50,
+      selected_soundpack: "default",
+    },
   };
 }
 

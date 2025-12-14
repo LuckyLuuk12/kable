@@ -9,6 +9,7 @@ import {
   settings,
   DiscordService,
 } from "$lib";
+import { soundService } from "$lib/services/SoundService";
 import { page } from "$app/stores";
 
 let customCSSLoaded = false;

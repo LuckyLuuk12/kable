@@ -12,6 +12,7 @@ and log visibility in the navigation.
 <script lang="ts">
 import { settings } from "$lib/stores";
 import { SettingsService } from "$lib/services/SettingsService";
+import { clickSound } from "$lib/actions";
 const logLevels = ["debug", "info", "warn", "error"];
 function disableFileSizeLimit() {
   SettingsService.update("logging", {
@@ -138,7 +139,9 @@ function disableRetentionDays() {
           />
         </div>
         <div class="log-file-size-btn">
-          <button type="button" on:click={disableFileSizeLimit}>Disable</button>
+          <button use:clickSound type="button" on:click={disableFileSizeLimit}
+            >Disable</button
+          >
         </div>
       </div>
     </div>
@@ -194,7 +197,9 @@ function disableRetentionDays() {
           />
         </div>
         <div class="log-retention-btn">
-          <button type="button" on:click={disableRetentionDays}>Disable</button>
+          <button use:clickSound type="button" on:click={disableRetentionDays}
+            >Disable</button
+          >
         </div>
       </div>
     </div>

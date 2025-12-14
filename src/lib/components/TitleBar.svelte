@@ -13,6 +13,7 @@ Handles window state changes and provides standard window management functionali
 import { onMount } from "svelte";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { NotificationContainer, NotificationTray } from "$lib";
+import { clickSound } from "$lib/actions";
 
 let isMaximized = false;
 
@@ -60,6 +61,7 @@ onMount(async () => {
       <NotificationTray />
 
       <button
+        use:clickSound
         class="titlebar-btn minimize"
         title="Minimize"
         on:click={minimize}
@@ -77,6 +79,7 @@ onMount(async () => {
         </svg>
       </button>
       <button
+        use:clickSound
         class="titlebar-btn maximize"
         title={isMaximized ? "Restore" : "Maximize"}
         on:click={maximize}
@@ -122,6 +125,7 @@ onMount(async () => {
         {/if}
       </button>
       <button
+        use:clickSound
         class="titlebar-btn close"
         title="Close"
         on:click={close}
