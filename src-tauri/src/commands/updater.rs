@@ -19,6 +19,10 @@ struct GitHubRelease {
 // Version comparator logic (same behavior as your closure)
 
 fn is_update(current: &str, update: &str) -> bool {
+    // Strip 'v' prefix if present (e.g., v0.1.9 -> 0.1.9)
+    let current = current.strip_prefix('v').unwrap_or(current);
+    let update = update.strip_prefix('v').unwrap_or(update);
+
     let current_has_pre = current.contains('-');
     let update_has_pre = update.contains('-');
 
