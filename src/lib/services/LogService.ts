@@ -25,6 +25,8 @@ export class LogsService {
   private static instance: LogsService;
   private isInitialized: boolean = false;
   private cleanupInterval: number | null = null;
+  private isPaused: boolean = false;
+  private pausedLogs: Array<{ type: "launcher" | "game"; data: any }> = [];
 
   static getInstance(): LogsService {
     if (!LogsService.instance) {
@@ -184,8 +186,50 @@ export class LogsService {
       }
     });
 
-    // Listen for launcher log events
+    // Listen for batched launcher log events (new optimized system)
+    const launcherLogBatchListener = await listen(
+      "launcher-log-batch",
+      (event) => {
+        if (this.isPaused) {
+          // Queue logs while paused
+          this.pausedLogs.push({ type: "launcher", data: event.payload });
+          return;
+        }
+
+        try {
+          // Backend now sends { logs: [...], maxLogs: number }
+          const payload = event.payload as {
+            logs: Array<{
+              level: LogEntry["level"];
+              message: string;
+              instanceId?: string;
+              timestamp: string;
+            }>;
+            maxLogs: number;
+          };
+
+          // Process batch of logs - backend already handled deduplication
+          for (const log of payload.logs) {
+            LogsManager.addLauncherLog(log.message, log.level, log.instanceId);
+          }
+        } catch (error) {
+          console.error("Error handling launcher log batch event:", error);
+          LogsManager.addLauncherLog(
+            "Error processing launcher log batch event",
+            "error",
+          );
+        }
+      },
+    );
+
+    // Also listen for single launcher log events (backward compatibility)
     const launcherLogListener = await listen("launcher-log", (event) => {
+      if (this.isPaused) {
+        // Queue logs while paused
+        this.pausedLogs.push({ type: "launcher", data: event.payload });
+        return;
+      }
+
       try {
         const { level, message, instanceId } = event.payload as {
           level: LogEntry["level"];
@@ -232,6 +276,7 @@ export class LogsService {
 
     this.listeners.set("game-launched", launchListener);
     this.listeners.set("game-process-event", processListener);
+    this.listeners.set("launcher-log-batch", launcherLogBatchListener);
     this.listeners.set("launcher-log", launcherLogListener);
     this.listeners.set("show-logs-page", showLogsListener);
 
@@ -284,6 +329,12 @@ export class LogsService {
   }
 
   private parseGameOutput(instanceId: string, line: string) {
+    // Skip if paused
+    if (this.isPaused) {
+      this.pausedLogs.push({ type: "game", data: { instanceId, line } });
+      return;
+    }
+
     // Update last activity
     LogsManager.updateGameInstance(instanceId, { lastActivity: new Date() });
 
@@ -422,6 +473,49 @@ export class LogsService {
 
   isReady(): boolean {
     return this.isInitialized;
+  }
+
+  /**
+   * Pause log ingestion temporarily (for operations like copying all logs)
+   */
+  pause(): void {
+    this.isPaused = true;
+    this.pausedLogs = [];
+  }
+
+  /**
+   * Resume log ingestion and flush any queued logs
+   */
+  resume(): void {
+    this.isPaused = false;
+
+    // Process any queued logs
+    const queued = [...this.pausedLogs];
+    this.pausedLogs = [];
+
+    for (const item of queued) {
+      if (item.type === "launcher") {
+        // Handle both new payload format { logs: [...], maxLogs: number } and old formats
+        const data = item.data;
+        if (data.logs && Array.isArray(data.logs)) {
+          // New batch format from backend
+          for (const log of data.logs) {
+            LogsManager.addLauncherLog(log.message, log.level, log.instanceId);
+          }
+        } else if (Array.isArray(data)) {
+          // Old batch format (array of logs)
+          for (const log of data) {
+            LogsManager.addLauncherLog(log.message, log.level, log.instanceId);
+          }
+        } else if (data.level && data.message) {
+          // Single log format
+          LogsManager.addLauncherLog(data.message, data.level, data.instanceId);
+        }
+      } else if (item.type === "game") {
+        const { instanceId, line } = item.data;
+        this.parseGameOutput(instanceId, line);
+      }
+    }
   }
 
   destroy() {

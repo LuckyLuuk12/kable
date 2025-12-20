@@ -17,6 +17,141 @@ pub static GLOBAL_APP_HANDLE: Mutex<Option<Arc<AppHandle>>> = Mutex::new(None);
 /// Global log storage system
 static LOG_STORAGE: Mutex<Option<LogStorage>> = Mutex::new(None);
 
+/// Frontend log batching system to prevent IPC flooding
+static FRONTEND_BATCH: Mutex<Option<FrontendBatch>> = Mutex::new(None);
+
+/// Batch configuration for frontend log emission
+struct FrontendBatch {
+    sender: SyncSender<serde_json::Value>,
+}
+
+impl FrontendBatch {
+    fn new(app: &AppHandle) -> Self {
+        let (tx, rx) = sync_channel::<serde_json::Value>(2048);
+        let app_clone = app.clone();
+
+        std::thread::spawn(move || {
+            // Load settings to get configuration
+            let settings = tauri::async_runtime::block_on(crate::settings::load_settings())
+                .unwrap_or_default();
+
+            // Read truly advanced configuration from advanced.extra (not exposed in UI)
+            let max_batch_size = settings
+                .advanced
+                .extra
+                .get("log_batch_size")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(400) as usize;
+
+            let batch_interval_ms = settings
+                .advanced
+                .extra
+                .get("log_batch_interval_ms")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(1000);
+
+            let max_logs_per_second = settings
+                .advanced
+                .extra
+                .get("log_max_per_second")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(800) as usize;
+
+            // Read from logging settings (exposed in UI)
+            let dedupe_window_size = settings.logging.dedupe_window_size.unwrap_or(50) as usize;
+
+            // Read max memory logs for circular buffer management
+            let max_memory_logs = settings.logging.max_memory_logs.unwrap_or(5000) as usize;
+
+            let mut batch = Vec::with_capacity(max_batch_size);
+            let mut last_emit = std::time::Instant::now();
+            let batch_interval = std::time::Duration::from_millis(batch_interval_ms);
+
+            // Rate limiting: track logs per second
+            let mut logs_this_second = 0;
+            let mut second_start = std::time::Instant::now();
+
+            // Deduplication: track last N messages with hash for performance
+            let mut recent_messages: std::collections::VecDeque<u64> =
+                std::collections::VecDeque::with_capacity(dedupe_window_size);
+
+            // Simple hash function for messages
+            let hash_message = |msg: &str| -> u64 {
+                use std::collections::hash_map::DefaultHasher;
+                use std::hash::{Hash, Hasher};
+                let mut hasher = DefaultHasher::new();
+                msg.hash(&mut hasher);
+                hasher.finish()
+            };
+            loop {
+                // Try to receive with timeout so we can emit batches periodically
+                match rx.recv_timeout(batch_interval) {
+                    Ok(log_data) => {
+                        // Reset rate limit counter every second
+                        if second_start.elapsed() >= std::time::Duration::from_secs(1) {
+                            logs_this_second = 0;
+                            second_start = std::time::Instant::now();
+                        }
+
+                        // Drop logs if we've hit rate limit
+                        if logs_this_second >= max_logs_per_second {
+                            continue; // Skip this log
+                        }
+
+                        // Deduplicate - check if this exact message was recently sent using hash
+                        let msg_str = log_data
+                            .get("message")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
+                        let msg_hash = hash_message(msg_str);
+
+                        if !recent_messages.contains(&msg_hash) {
+                            batch.push(log_data);
+                            recent_messages.push_back(msg_hash);
+                            if recent_messages.len() > dedupe_window_size {
+                                recent_messages.pop_front();
+                            }
+                            logs_this_second += 1;
+                        }
+
+                        // Emit if batch is full
+                        if batch.len() >= max_batch_size && !batch.is_empty() {
+                            // Emit batch with metadata about circular buffer management
+                            let payload = serde_json::json!({
+                                "logs": batch.clone(),
+                                "maxLogs": max_memory_logs,
+                            });
+                            let _ = app_clone.emit_to("main", "launcher-log-batch", payload);
+                            batch.clear();
+                            last_emit = std::time::Instant::now();
+                        }
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                        // Timeout - emit accumulated batch if enough time has passed
+                        if !batch.is_empty() && last_emit.elapsed() >= batch_interval {
+                            let payload = serde_json::json!({
+                                "logs": batch.clone(),
+                                "maxLogs": max_memory_logs,
+                            });
+                            let _ = app_clone.emit_to("main", "launcher-log-batch", payload);
+                            batch.clear();
+                            last_emit = std::time::Instant::now();
+                        }
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => break,
+                }
+            }
+        });
+
+        Self { sender: tx }
+    }
+
+    fn send(&self, log_data: serde_json::Value) {
+        // Non-blocking send - if full, just drop the log (better than freezing)
+        let _ = self.sender.try_send(log_data);
+    }
+}
+
 /// Initialize the global logger with the app handle
 pub fn init_global_logger(app: &AppHandle) {
     let mut handle = GLOBAL_APP_HANDLE.lock().unwrap();
@@ -27,6 +162,10 @@ pub fn init_global_logger(app: &AppHandle) {
     if let Ok(log_storage) = LogStorage::new(app) {
         *storage = Some(log_storage);
     }
+
+    // Initialize frontend batch system
+    let mut batch = FRONTEND_BATCH.lock().unwrap();
+    *batch = Some(FrontendBatch::new(app));
 }
 
 /// Configuration for log storage
@@ -383,7 +522,7 @@ pub struct Logger;
 
 impl Logger {
     /// Log a message to the frontend logging system and persistent storage
-    pub fn log(app: &AppHandle, level: LogLevel, message: &str, instance_id: Option<&str>) {
+    pub fn log(_app: &AppHandle, level: LogLevel, message: &str, instance_id: Option<&str>) {
         let log_data = json!({
             "level": level.to_string(),
             "message": message,
@@ -391,9 +530,11 @@ impl Logger {
             "timestamp": chrono::Utc::now().to_rfc3339()
         });
 
-        // Emit to frontend
-        if let Err(e) = app.emit_to("main", "launcher-log", log_data) {
-            eprintln!("Failed to emit log event: {}", e);
+        // Send to batched frontend emitter (non-blocking, deduplicated, rate-limited)
+        if let Ok(batch_guard) = FRONTEND_BATCH.lock() {
+            if let Some(batch) = batch_guard.as_ref() {
+                batch.send(log_data);
+            }
         }
 
         // Write to persistent storage if enabled

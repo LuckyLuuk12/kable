@@ -38,10 +38,11 @@ let logContainer: HTMLElement;
 let autoScroll = true; // Ensure auto-scroll is enabled by default
 let searchTerm = "";
 let searchMode: "normal" | "regex" | "fuzzy" = "fuzzy";
+let lastLogType: "launcher" | "game" = selectedLogType; // Track tab switches
 
 // Virtual scrolling variables with dynamic heights
 const MIN_ITEM_HEIGHT = 28; // Minimum height for a single-line log
-const BUFFER_SIZE = 20; // Number of extra items to render above/below viewport
+const BUFFER_SIZE = 10; // Reduced from 20 - fewer extra items to render
 let scrollTop = 0;
 let containerHeight = 0;
 let visibleStartIndex = 0;
@@ -55,8 +56,8 @@ let heightsNeedRecalculation = false;
 
 // Track last rendered keys to clean up old elements
 let lastRenderedKeys = new Set<string>();
-// Maximum heights to keep in memory (visible range + buffer * 2)
-const MAX_TRACKED_HEIGHTS = 100;
+// Maximum heights to keep in memory (reduced significantly)
+const MAX_TRACKED_HEIGHTS = 50; // Reduced from 100
 
 // Debounce reactive calculations
 let recalculationPending = false;
@@ -120,7 +121,7 @@ onMount(() => {
   // Setup periodic cleanup to prevent memory leaks
   cleanupIntervalId = window.setInterval(() => {
     cleanupStaleElements();
-  }, 30000) as any; // Every 30 seconds
+  }, 10000) as any; // Every 10 seconds (more frequent than 30s)
 });
 
 onDestroy(() => {
@@ -129,6 +130,12 @@ onDestroy(() => {
   document.removeEventListener("click", handleClickOutside);
   document.removeEventListener("keydown", handleKeyDown);
   window.removeEventListener("resize", handleResize);
+
+  // CRITICAL: Ensure logs are always resumed when leaving the page
+  // This prevents logs from being stuck paused if user navigates away during Ctrl+A
+  if (logsService) {
+    logsService.resume();
+  }
 
   // Clear intervals
   if (cleanupIntervalId) {
@@ -148,9 +155,14 @@ onDestroy(() => {
 });
 
 function selectInstance(instanceId: string | "global") {
+  // Only change the log type if we're switching to a different instance
+  const currentId = $selectedInstanceId;
   selectedInstanceId.set(instanceId);
-  // Default to game logs for installations, launcher for global
-  selectedLogType = instanceId === "global" ? "launcher" : "game";
+
+  // Only auto-select tab when switching instances, not when re-selecting same instance
+  if (currentId !== instanceId) {
+    selectedLogType = instanceId === "global" ? "launcher" : "game";
+  }
 }
 
 function getInstanceDisplayName(instance: GameInstance): string {
@@ -387,20 +399,30 @@ function cleanupStaleElements() {
   // More aggressive cleanup: only keep heights for visible range + small buffer
   if (logHeights.size > MAX_TRACKED_HEIGHTS) {
     const keys = Array.from(logHeights.keys());
-    // Keep only the most recent measurements (likely to be in visible range)
+    // Keep only the most recent measurements
     const toDelete = keys.slice(0, keys.length - MAX_TRACKED_HEIGHTS);
     for (const key of toDelete) {
       logHeights.delete(key);
     }
   }
 
-  // Force cleanup if too many element refs
+  // AGGRESSIVE: Force cleanup if too many element refs (reduced threshold)
   const elementCount = Object.keys(logElements).length;
-  if (elementCount > MAX_TRACKED_HEIGHTS * 2) {
+  if (elementCount > MAX_TRACKED_HEIGHTS) {
     // Keep only the last MAX_TRACKED_HEIGHTS elements
     const allKeys = Object.keys(logElements);
     const keysToRemove = allKeys.slice(0, allKeys.length - MAX_TRACKED_HEIGHTS);
     keysToRemove.forEach((key) => delete logElements[key]);
+  }
+
+  // Force garbage collection hint by nulling out old references
+  if (keysToDelete.length > 20) {
+    // Trigger a micro-optimization: clear the whole object and rebuild
+    const kept: Record<string, HTMLElement> = {};
+    currentKeys.forEach((key) => {
+      if (logElements[key]) kept[key] = logElements[key];
+    });
+    logElements = kept;
   }
 }
 
@@ -584,40 +606,51 @@ function handleResize() {
 async function selectAllCurrentLogs() {
   if (filteredCount === 0) return;
 
-  // Show visual feedback
-  showCopyNotification = true;
-
-  // Generate the text for all logs using on-demand access
-  const allLogsText = filteredIndices
-    .map((origIndex) => {
-      const logEntry = activeLogEntries[origIndex];
-      if (!logEntry) return "";
-
-      const timestamp =
-        logEntry.timestamp instanceof Date
-          ? logEntry.timestamp
-          : new Date(logEntry.timestamp);
-
-      // Clean the message for copy (remove duplicate timestamps)
-      const cleanMessage = removeDuplicateTimestamp(
-        logEntry.message || "",
-        timestamp,
-      );
-      return `[${formatTime(timestamp)}] ${formatLogLevel(logEntry.level || STRING_POOL.levels.info)} ${cleanMessage}`;
-    })
-    .filter(Boolean)
-    .join("\n");
+  // Pause log ingestion to prevent logs from changing during copy
+  logsService.pause();
 
   try {
+    // Create immutable snapshots after pausing
+    const indicesSnapshot = [...filteredIndices];
+    const logsSnapshot = [...activeLogEntries];
+
+    // Generate the text synchronously now that logs are paused
+    const allLogsText = indicesSnapshot
+      .map((origIndex) => {
+        const logEntry = logsSnapshot[origIndex];
+        if (!logEntry) return "";
+
+        const timestamp =
+          logEntry.timestamp instanceof Date
+            ? logEntry.timestamp
+            : new Date(logEntry.timestamp);
+
+        // Clean the message for copy (remove duplicate timestamps)
+        const cleanMessage = removeDuplicateTimestamp(
+          logEntry.message || "",
+          timestamp,
+        );
+        return `[${formatTime(timestamp)}] ${formatLogLevel(logEntry.level || STRING_POOL.levels.info)} ${cleanMessage}`;
+      })
+      .filter(Boolean)
+      .join("\n");
+
+    // Write to clipboard
     await navigator.clipboard.writeText(allLogsText);
+
+    // Show notification after successful copy
+    showCopyNotification = true;
+
+    // Hide notification after delay
+    setTimeout(() => {
+      showCopyNotification = false;
+    }, 3000);
   } catch (err) {
     console.error("Failed to copy all logs:", err);
+  } finally {
+    // Always resume log ingestion
+    logsService.resume();
   }
-
-  // Hide notification after a slightly longer delay so users notice it
-  setTimeout(() => {
-    showCopyNotification = false;
-  }, 3000);
 }
 
 $: sortedInstances = $gameInstances
@@ -636,24 +669,41 @@ $: sortedInstances = $gameInstances
     )
   : [];
 
-// Reactive: Ensure we're on the game subtab when a valid game instance is selected
-// This handles the case where URL navigation happens before the instance is added to the store
-$: {
-  const currentInstanceId = $selectedInstanceId;
-  if (currentInstanceId !== "global" && $gameInstances) {
-    const instanceExists = $gameInstances.has(currentInstanceId);
-    if (instanceExists && selectedLogType === "launcher") {
-      // Switch to game subtab if we're on an instance but still showing launcher logs
-      selectedLogType = "game";
-    }
-  }
-}
-
 $: currentLogsData = $currentLogs || { launcherLogs: [], gameLogs: [] };
 $: activeLogEntries =
   selectedLogType === "launcher"
     ? currentLogsData.launcherLogs || []
     : currentLogsData.gameLogs || [];
+
+// Reset virtual scrolling state when switching tabs
+$: if (selectedLogType !== lastLogType) {
+  lastLogType = selectedLogType;
+
+  // Clear measurements to force recalculation with new data
+  logHeights.clear();
+  heightsNeedRecalculation = true;
+
+  // Reset to top when switching tabs to avoid calculation overload
+  if (logContainer) {
+    logContainer.scrollTop = 0;
+    scrollTop = 0;
+  }
+
+  // Enable auto-scroll for new tab
+  autoScroll = true;
+
+  // Trigger recalculation after a short delay to let reactive statements settle
+  setTimeout(() => {
+    tick().then(() => {
+      if (logContainer) {
+        updateVisibleRange();
+        if (heightsNeedRecalculation) {
+          measureLogHeights();
+        }
+      }
+    });
+  }, 50);
+}
 
 // Compute filtered count and indices with proper reactivity
 // This reactive statement depends on: activeLogEntries, searchTerm, searchMode, logLevelFilters
@@ -737,13 +787,18 @@ $: if (
   }
 
   recalculationTimer = window.setTimeout(() => {
-    tick().then(() => {
-      if (heightsNeedRecalculation) {
-        measureLogHeights();
-        updateVisibleRange();
-      }
-      recalculationPending = false;
-    });
+    tick()
+      .then(() => {
+        if (heightsNeedRecalculation && logContainer) {
+          measureLogHeights();
+          updateVisibleRange();
+        }
+        recalculationPending = false;
+      })
+      .catch((err) => {
+        console.error("Recalculation error:", err);
+        recalculationPending = false; // Always reset flag even on error
+      });
   }, 100) as any; // 100ms debounce
 }
 
