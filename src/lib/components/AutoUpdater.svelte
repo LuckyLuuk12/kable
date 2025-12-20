@@ -223,7 +223,6 @@ async function handleInstallUpdate() {
     color: var(--text-muted);
     font-size: 0.875rem;
     line-height: 1.5;
-    max-height: 10rem;
     overflow-y: auto;
 
     &.markdown-content {

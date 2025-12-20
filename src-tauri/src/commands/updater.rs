@@ -7,6 +7,7 @@ use url::Url;
 #[derive(Debug, Deserialize, Clone)]
 struct GitHubRelease {
     tag_name: String,
+    name: String,
     prerelease: bool,
     draft: bool,
     #[allow(dead_code)]
@@ -16,9 +17,20 @@ struct GitHubRelease {
     published_at: String,
 }
 
-// Version comparator logic (same behavior as your closure)
+// Helper function to extract version from name field
+// Strips everything until the first digit is found
+// Examples: "app-v0.1.9" -> "0.1.9", "nightly 0.1.9-12345" -> "0.1.9-12345"
+fn extract_version(name: &str) -> &str {
+    let start_idx = name.find(|c: char| c.is_ascii_digit()).unwrap_or(0);
+    &name[start_idx..]
+}
 
+// Version comparator logic
 fn is_update(current: &str, update: &str) -> bool {
+    // Extract versions from name field (strips prefixes like "app-v" or "nightly ")
+    let current = extract_version(current);
+    let update = extract_version(update);
+
     // Strip 'v' prefix if present (e.g., v0.1.9 -> 0.1.9)
     let current = current.strip_prefix('v').unwrap_or(current);
     let update = update.strip_prefix('v').unwrap_or(update);
@@ -26,6 +38,7 @@ fn is_update(current: &str, update: &str) -> bool {
     let current_has_pre = current.contains('-');
     let update_has_pre = update.contains('-');
 
+    // Parse base version (before dash)
     let current_base = match semver::Version::parse(current.split('-').next().unwrap_or(current)) {
         Ok(v) => v,
         Err(_) => return false,
@@ -35,27 +48,45 @@ fn is_update(current: &str, update: &str) -> bool {
         Err(_) => return false,
     };
 
+    // If base versions differ, use semver comparison
     if current_base != update_base {
         return update_base > current_base;
     }
 
+    // Base versions are equal, check pre-release/nightly status
     match (current_has_pre, update_has_pre) {
-        (true, false) => false,
-        (false, true) => true,
+        (true, false) => false, // Stable is newer than pre-release/nightly
+        (false, true) => true,  // Pre-release/nightly is newer than stable
         (true, true) => {
-            let current_build: u32 = current
+            // Both are pre-release/nightly, compare hash as integer
+            // For nightlies: "0.1.9-12345" -> 12345 (timestamp-based unique number)
+            let current_hash: u64 = current
                 .split('-')
                 .nth(1)
-                .and_then(|s| s.parse().ok())
+                .and_then(|s| {
+                    // Try to parse the entire hash string as a number
+                    // If it contains non-numeric chars, extract leading digits
+                    s.chars()
+                        .take_while(|c| c.is_ascii_digit())
+                        .collect::<String>()
+                        .parse()
+                        .ok()
+                })
                 .unwrap_or(0);
-            let update_build: u32 = update
+            let update_hash: u64 = update
                 .split('-')
                 .nth(1)
-                .and_then(|s| s.parse().ok())
+                .and_then(|s| {
+                    s.chars()
+                        .take_while(|c| c.is_ascii_digit())
+                        .collect::<String>()
+                        .parse()
+                        .ok()
+                })
                 .unwrap_or(0);
-            update_build > current_build
+            update_hash > current_hash
         }
-        (false, false) => false,
+        (false, false) => false, // Both stable and equal
     }
 }
 
@@ -65,8 +96,8 @@ fn is_update(current: &str, update: &str) -> bool {
 
 fn sort_releases(mut list: Vec<GitHubRelease>) -> Vec<GitHubRelease> {
     list.sort_by(|a, b| {
-        let a_newer = is_update(&b.tag_name, &a.tag_name);
-        let b_newer = is_update(&a.tag_name, &b.tag_name);
+        let a_newer = is_update(&b.name, &a.name);
+        let b_newer = is_update(&a.name, &b.name);
 
         if a_newer && !b_newer {
             return std::cmp::Ordering::Greater;
@@ -112,7 +143,7 @@ pub async fn check_for_updates(
 
     let newer: Vec<_> = list
         .into_iter()
-        .filter(|r| is_update(&current, &r.tag_name))
+        .filter(|r| is_update(&current, &r.name))
         .collect();
 
     if newer.is_empty() {
@@ -120,7 +151,7 @@ pub async fn check_for_updates(
     }
 
     let latest = &newer[0];
-    let tag = &latest.tag_name;
+    let tag = &latest.tag_name; // Still use tag_name for download URL
 
     let endpoint_str = format!(
         "https://github.com/LuckyLuuk12/kable/releases/download/{}/latest.json",
@@ -164,14 +195,14 @@ pub async fn install_update(app: tauri::AppHandle, include_prerelease: bool) -> 
 
     let newer: Vec<_> = list
         .into_iter()
-        .filter(|r| is_update(&current, &r.tag_name))
+        .filter(|r| is_update(&current, &r.name))
         .collect();
 
     if newer.is_empty() {
         return Err("No update available".to_string());
     }
 
-    let latest = &newer[0];
+    let latest = &newer[0]; // Still use tag_name for download URL
     let endpoint_str = format!(
         "https://github.com/LuckyLuuk12/kable/releases/download/{}/latest.json",
         latest.tag_name
