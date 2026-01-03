@@ -58,60 +58,14 @@ fn is_update(current: &str, update: &str) -> bool {
         (true, false) => false, // Stable is newer than pre-release/nightly
         (false, true) => true,  // Pre-release/nightly is newer than stable
         (true, true) => {
-            // Both are pre-release/nightly, compare hash as integer
-            // For nightlies: "0.1.9-12345" -> 12345 (timestamp-based unique number)
-            let current_hash: u64 = current
-                .split('-')
-                .nth(1)
-                .and_then(|s| {
-                    // Try to parse the entire hash string as a number
-                    // If it contains non-numeric chars, extract leading digits
-                    s.chars()
-                        .take_while(|c| c.is_ascii_digit())
-                        .collect::<String>()
-                        .parse()
-                        .ok()
-                })
-                .unwrap_or(0);
-            let update_hash: u64 = update
-                .split('-')
-                .nth(1)
-                .and_then(|s| {
-                    s.chars()
-                        .take_while(|c| c.is_ascii_digit())
-                        .collect::<String>()
-                        .parse()
-                        .ok()
-                })
-                .unwrap_or(0);
-            update_hash > current_hash
+            // Both are pre-release/nightly with same base version
+            // Build numbers wrap around (modulo 65536), so can't compare them
+            // Return true to indicate potential update - caller will use GitHub's
+            // published_at timestamp to determine which is actually newer
+            true
         }
         (false, false) => false, // Both stable and equal
     }
-}
-
-// Sort releases using the same logic
-//   - primarily by version recency (custom comparator)
-//   - tie breaker by published_at timestamp
-
-fn sort_releases(mut list: Vec<GitHubRelease>) -> Vec<GitHubRelease> {
-    list.sort_by(|a, b| {
-        let a_newer = is_update(&b.name, &a.name);
-        let b_newer = is_update(&a.name, &b.name);
-
-        if a_newer && !b_newer {
-            return std::cmp::Ordering::Greater;
-        }
-        if b_newer && !a_newer {
-            return std::cmp::Ordering::Less;
-        }
-
-        let ad = DateTime::parse_from_rfc3339(&a.published_at).unwrap();
-        let bd = DateTime::parse_from_rfc3339(&b.published_at).unwrap();
-        bd.cmp(&ad)
-    });
-
-    list
 }
 
 async fn fetch_releases(include_prerelease: bool) -> Result<Vec<GitHubRelease>, String> {
@@ -130,7 +84,15 @@ async fn fetch_releases(include_prerelease: bool) -> Result<Vec<GitHubRelease>, 
 
     releases.retain(|r| !r.draft && (include_prerelease || !r.prerelease));
 
-    Ok(sort_releases(releases))
+    // Sort by published_at timestamp (most recent first)
+    // This ensures nightlies are ordered correctly even when build numbers wrap around
+    releases.sort_by(|a, b| {
+        let ad = DateTime::parse_from_rfc3339(&a.published_at).unwrap();
+        let bd = DateTime::parse_from_rfc3339(&b.published_at).unwrap();
+        bd.cmp(&ad) // Descending order (newest first)
+    });
+
+    Ok(releases)
 }
 
 #[command]
