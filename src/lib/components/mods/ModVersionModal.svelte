@@ -17,7 +17,7 @@ Allows users to browse, filter, and select specific versions to install.
 ```
 -->
 <script lang="ts">
-import { Icon, ProviderKind as ProviderKindEnum } from "$lib";
+import { Icon, ProviderKind as ProviderKindEnum, VersionUtils } from "$lib";
 import * as modsApi from "$lib/api/mods";
 import type {
   KableInstallation,
@@ -48,6 +48,49 @@ let searchQuery = "";
 // Available filter options (extracted from versions)
 let availableLoaders: string[] = [];
 let availableGameVersions: string[] = [];
+
+// Track expanded patchnotes by version ID
+let expandedPatchnotes = new Set<string>();
+// Track expanded MC versions by version ID
+let expandedMcVersions = new Set<string>();
+
+function togglePatchnotes(versionId: string) {
+  if (expandedPatchnotes.has(versionId)) {
+    expandedPatchnotes.delete(versionId);
+  } else {
+    expandedPatchnotes.add(versionId);
+  }
+  expandedPatchnotes = expandedPatchnotes; // Trigger reactivity
+}
+
+function toggleMcVersions(versionId: string) {
+  if (expandedMcVersions.has(versionId)) {
+    expandedMcVersions.delete(versionId);
+  } else {
+    expandedMcVersions.add(versionId);
+  }
+  expandedMcVersions = expandedMcVersions; // Trigger reactivity
+}
+
+function truncateChangelog(changelog: string, maxLength: number = 150): string {
+  if (changelog.length <= maxLength) return changelog;
+  return changelog.substring(0, maxLength).trim() + "...";
+}
+
+function highlightVersionNumber(
+  name: string,
+  versionNumber: string,
+): { before: string; version: string; after: string } {
+  const index = name.indexOf(versionNumber);
+  if (index === -1) {
+    return { before: name, version: "", after: "" };
+  }
+  return {
+    before: name.substring(0, index),
+    version: versionNumber,
+    after: name.substring(index + versionNumber.length),
+  };
+}
 
 $: if (open && mod) {
   loadVersions();
@@ -143,26 +186,9 @@ async function loadVersions() {
   }
 }
 
+// Use centralized version comparison from VersionUtils
 function compareVersions(a: string, b: string): number {
-  const parseVersion = (v: string) => {
-    const parts = v.split(/[.-]+/).map((p) => parseInt(p) || 0);
-    return parts;
-  };
-
-  const aParts = parseVersion(a);
-  const bParts = parseVersion(b);
-  const maxLength = Math.max(aParts.length, bParts.length);
-
-  for (let i = 0; i < maxLength; i++) {
-    const aPart = aParts[i] || 0;
-    const bPart = bParts[i] || 0;
-
-    if (aPart !== bPart) {
-      return aPart - bPart;
-    }
-  }
-
-  return 0;
+  return VersionUtils.compareVersions(a, b);
 }
 
 function extractLoader(versionId: string): string | null {
@@ -318,18 +344,31 @@ function formatDate(dateString: string): string {
         {:else}
           <div class="versions-list">
             {#each filteredVersions as version}
-              <div
-                class="version-item"
-                on:click={() => handleSelectVersion(version)}
-                on:keydown={(e) =>
-                  e.key === "Enter" && handleSelectVersion(version)}
-                role="button"
-                tabindex="0"
-              >
+              {@const highlighted = highlightVersionNumber(
+                version.name,
+                version.version_number,
+              )}
+              {@const showAllMcVersions = expandedMcVersions.has(version.id)}
+              {@const displayMcVersions = showAllMcVersions
+                ? version.game_versions
+                : version.game_versions.slice(0, 5)}
+              <div class="version-item">
                 <div class="version-info">
                   <div class="version-header">
-                    <span class="version-number">{version.version_number}</span>
-                    <span class="version-name">{version.name}</span>
+                    <div class="version-title-group">
+                      <span class="version-name">
+                        {highlighted.before}<span class="version-highlight"
+                          >{highlighted.version}</span
+                        >{highlighted.after}
+                      </span>
+                    </div>
+                    <button
+                      class="select-btn"
+                      on:click={() => handleSelectVersion(version)}
+                    >
+                      <Icon name="download" size="md" forceType="svg" />
+                      Install
+                    </button>
                   </div>
                   <div class="version-meta">
                     <span class="version-loaders">
@@ -337,33 +376,54 @@ function formatDate(dateString: string): string {
                         <span class="loader-badge">{loader}</span>
                       {/each}
                     </span>
-                    <span class="version-game-versions">
-                      MC {version.game_versions.slice(0, 3).join(", ")}
-                      {#if version.game_versions.length > 3}
-                        <span class="more-versions"
-                          >+{version.game_versions.length - 3}</span
+                    {#if version.files.length > 0}
+                      <span class="file-info">
+                        <Icon name="file" size="sm" />
+                        {version.files[0].filename}
+                        <span class="file-size"
+                          >({formatFileSize(version.files[0].size)})</span
                         >
+                      </span>
+                    {/if}
+                    <span class="version-game-versions">
+                      {#each displayMcVersions as gameVersion}
+                        <span class="mc-version-badge">{gameVersion}</span>
+                      {/each}
+                      {#if version.game_versions.length > 5}
+                        <button
+                          class="more-versions-btn"
+                          on:click|stopPropagation={() =>
+                            toggleMcVersions(version.id)}
+                        >
+                          {showAllMcVersions
+                            ? "show less"
+                            : `+${version.game_versions.length - 5} more`}
+                        </button>
                       {/if}
                     </span>
                   </div>
-                  {#if version.files.length > 0}
-                    <div class="version-files">
-                      {#each version.files.slice(0, 1) as file}
-                        <span class="file-info">
-                          <Icon name="file" size="sm" />
-                          {file.filename} ({formatFileSize(file.size)})
-                        </span>
-                      {/each}
+                  {#if version.changelog}
+                    <div class="version-changelog">
+                      <p
+                        class="changelog-text"
+                        class:expanded={expandedPatchnotes.has(version.id)}
+                      >
+                        {expandedPatchnotes.has(version.id)
+                          ? version.changelog
+                          : truncateChangelog(version.changelog)}
+                      </p>
+                      <button
+                        class="toggle-changelog-btn"
+                        on:click|stopPropagation={() =>
+                          togglePatchnotes(version.id)}
+                      >
+                        {expandedPatchnotes.has(version.id)
+                          ? "hide"
+                          : "read more"}
+                      </button>
                     </div>
                   {/if}
                 </div>
-                <button
-                  class="select-btn"
-                  on:click|stopPropagation={() => handleSelectVersion(version)}
-                >
-                  <Icon name="download" size="md" forceType="svg" />
-                  Install
-                </button>
               </div>
             {/each}
           </div>
@@ -539,7 +599,7 @@ function formatDate(dateString: string): string {
 
 .version-item {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem;
@@ -547,7 +607,6 @@ function formatDate(dateString: string): string {
   border: 1px solid rgba($primary, 0.1);
   border-radius: 0.5rem;
   transition: all 0.2s ease;
-  cursor: pointer;
 
   &:hover {
     background: rgba($primary, 0.05);
@@ -565,18 +624,46 @@ function formatDate(dateString: string): string {
 
   .version-header {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
 
-    .version-number {
-      font-weight: 700;
-      color: var(--primary);
-      font-size: 1rem;
+    .version-title-group {
+      flex: 1;
     }
 
     .version-name {
       color: var(--text);
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1.4;
+
+      .version-highlight {
+        color: var(--primary);
+        font-weight: 700;
+      }
+    }
+
+    .select-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--tertiary);
+      border: none;
+      border-radius: 0.375rem;
+      color: white;
+      font-weight: 600;
       font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      height: fit-content;
+
+      &:hover {
+        background: color-mix(in srgb, var(--tertiary) 85%, black);
+        transform: scale(1.05);
+      }
     }
   }
 
@@ -586,10 +673,12 @@ function formatDate(dateString: string): string {
     gap: 1rem;
     font-size: 0.75rem;
     color: var(--placeholder);
+    flex-wrap: wrap;
 
     .version-loaders {
       display: flex;
       gap: 0.25rem;
+      flex-wrap: wrap;
     }
 
     .loader-badge {
@@ -603,43 +692,88 @@ function formatDate(dateString: string): string {
       text-transform: capitalize;
     }
 
-    .more-versions {
-      color: var(--primary);
-      font-weight: 600;
-    }
-  }
-
-  .version-files {
-    display: flex;
-    gap: 0.5rem;
-    font-size: 0.7rem;
-    color: var(--placeholder);
-
     .file-info {
       display: flex;
       align-items: center;
       gap: 0.25rem;
+      font-size: 0.7rem;
+
+      .file-size {
+        opacity: 0.7;
+      }
+    }
+
+    .version-game-versions {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      flex-wrap: wrap;
+    }
+
+    .mc-version-badge {
+      padding: 0.125rem 0.5rem;
+      background: rgba(#10b981, 0.1);
+      border: 1px solid rgba(#10b981, 0.3);
+      border-radius: 0.25rem;
+      color: #10b981;
+      font-weight: 600;
+      font-size: 0.7rem;
+    }
+
+    .more-versions-btn {
+      padding: 0.125rem 0.5rem;
+      background: rgba($primary, 0.1);
+      border: 1px solid rgba($primary, 0.3);
+      border-radius: 0.25rem;
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 0.7rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba($primary, 0.15);
+        border-color: rgba($primary, 0.4);
+      }
     }
   }
 
-  .select-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.625rem 1rem;
-    background: var(--tertiary);
-    border: none;
-    border-radius: 0.375rem;
-    color: white;
-    font-weight: 600;
-    font-size: 0.875rem;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    flex-shrink: 0;
+  .version-changelog {
+    margin-top: 0.25rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba($primary, 0.05);
 
-    &:hover {
-      background: color-mix(in srgb, var(--tertiary) 85%, black);
-      transform: scale(1.05);
+    .changelog-text {
+      margin: 0 0 0.5rem 0;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+
+      &:not(.expanded) {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+    }
+
+    .toggle-changelog-btn {
+      background: none;
+      border: none;
+      color: var(--primary);
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+      transition: opacity 0.2s ease;
+
+      &:hover {
+        opacity: 0.7;
+      }
     }
   }
 }

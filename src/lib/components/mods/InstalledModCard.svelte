@@ -19,12 +19,13 @@ Shows mod icon, name, version, and provides actions:
 -->
 <script lang="ts">
 import { onMount } from "svelte";
-import { Icon, NotificationService, ProviderKind } from "$lib";
+import { Icon, NotificationService, ProviderKind, VersionUtils } from "$lib";
 import type {
   ModJarInfo,
   KableInstallation,
   ExtendedModInfo,
   ModInfoKind,
+  ModrinthVersion,
 } from "$lib";
 import * as installationsApi from "$lib/api/installations";
 import * as modsApi from "$lib/api/mods";
@@ -46,14 +47,27 @@ let loadingVersions = false;
 let hasMetadata = false;
 let metadataChecked = false;
 
+// Update tracking
+let availableVersions: ModrinthVersion[] = [];
+let latestVersion: string | null = null;
+let hasUpdate = false;
+let checkingUpdate = false;
+let updateChecked = false;
+
 $: isDisabled = mod.disabled || false;
 $: displayName = mod.mod_name || mod.file_name.replace(/\.jar$/, "");
 $: version = mod.mod_version || "Unknown";
 $: iconUrl = extendedInfo?.icon_uri || null;
 
-// Check metadata only once when component mounts
+// Check metadata and updates only once when component mounts
 onMount(() => {
   checkMetadata();
+  // Check for updates after a short delay to avoid initial load spam
+  setTimeout(() => {
+    if (hasMetadata) {
+      checkForUpdates();
+    }
+  }, 1000);
 });
 
 async function checkMetadata() {
@@ -65,6 +79,78 @@ async function checkMetadata() {
     hasMetadata = true;
   } catch (error) {
     hasMetadata = false;
+  }
+}
+
+async function checkForUpdates() {
+  if (updateChecked || checkingUpdate || !extendedInfo) return;
+  updateChecked = true;
+  checkingUpdate = true;
+
+  try {
+    // Try to get project ID from extended info
+    let projectId: string | null = null;
+    const provider = ProviderKind.Modrinth; // Default to Modrinth
+
+    // Check for Kable metadata first
+    try {
+      const metadata = await modsApi.getModMetadata(
+        installation,
+        mod.file_name,
+      );
+      if (metadata?.project_id) {
+        projectId = metadata.project_id;
+      }
+    } catch (e) {
+      // Metadata not available, skip update check
+      console.log(
+        `[InstalledModCard] No metadata for ${displayName}, skipping update check`,
+      );
+    }
+
+    if (!projectId) {
+      console.log(
+        `[InstalledModCard] No project ID for ${displayName}, skipping update check`,
+      );
+      return;
+    }
+
+    // Fetch versions
+    const loader = extractLoader(installation.version_id);
+    const gameVersion = extractGameVersion(installation.version_id);
+
+    const versions = await modsApi.getProjectVersions(
+      provider,
+      projectId,
+      loader ? [loader] : undefined,
+      gameVersion ? [gameVersion] : undefined,
+    );
+
+    if (!versions || versions.length === 0) return;
+
+    availableVersions = versions;
+
+    // Find latest version using our robust version comparison
+    const currentVersion = mod.mod_version || mod.file_name;
+    const versionNumbers = versions.map((v) => v.version_number);
+    latestVersion = VersionUtils.findLatest(versionNumbers);
+
+    // Check if we have an update
+    if (latestVersion && currentVersion) {
+      hasUpdate = VersionUtils.isNewer(latestVersion, currentVersion);
+      if (hasUpdate) {
+        console.log(
+          `[InstalledModCard] Update available for ${displayName}: ${currentVersion} -> ${latestVersion}`,
+        );
+      }
+    }
+  } catch (error) {
+    console.warn(
+      `[InstalledModCard] Failed to check for updates for ${displayName}:`,
+      error,
+    );
+  } finally {
+    checkingUpdate = false;
   }
 }
 
@@ -327,13 +413,16 @@ function handleKeydown(event: KeyboardEvent) {
   <div class="mod-actions">
     <button
       class="action-btn manage-btn"
+      class:has-update={hasUpdate}
       on:click={handleManageVersions}
       use:clickSound
-      title="Manage versions"
+      title={hasUpdate
+        ? `Update available: v${latestVersion}`
+        : "Manage versions"}
       disabled={loading || loadingVersions}
     >
-      <Icon name="settings" size="sm" />
-      <span>Versions</span>
+      <Icon name={hasUpdate ? "sync" : "settings"} size="sm" />
+      <span>{hasUpdate ? "Update" : "Versions"}</span>
     </button>
 
     <button
@@ -537,10 +626,31 @@ function handleKeydown(event: KeyboardEvent) {
 
 .manage-btn {
   border-color: rgba(map.get($variables, "blue-500"), 0.3);
+  position: relative;
 
   &:hover:not(:disabled) {
     border-color: rgba(map.get($variables, "blue-500"), 0.5);
     background: rgba(map.get($variables, "blue-500"), 0.1);
+  }
+
+  &.has-update {
+    border-color: rgba(map.get($variables, "green-500"), 0.4);
+    background: rgba(map.get($variables, "green-500"), 0.05);
+
+    &:hover:not(:disabled) {
+      border-color: rgba(map.get($variables, "green-500"), 0.6);
+      background: rgba(map.get($variables, "green-500"), 0.15);
+    }
+  }
+}
+
+@keyframes pulse-update {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
   }
 }
 

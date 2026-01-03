@@ -1,5 +1,6 @@
 import * as modsApi from "../api/mods";
 import { get } from "svelte/store";
+import * as semver from "semver";
 import {
   modsByProvider,
   modsLoading,
@@ -20,6 +21,155 @@ import type {
   ModJarInfo,
   ExtendedModInfo,
 } from "$lib";
+
+/**
+ * Version comparison utilities for mod version management
+ * Handles various version formats found in mod JARs and metadata:
+ * - Standard semver: 1.2.3
+ * - With metadata: 1.2.3+fabric-1.21.11
+ * - Reversed formats: 1.21.11-fabric-1.2.3
+ * - Pre-release versions: 1.2.3-beta.1
+ */
+export class VersionUtils {
+  /**
+   * Extract version string from various formats
+   * Examples:
+   * - "somemodname-1.2.3+fabric-1.21.11.jar" -> "1.2.3+fabric-1.21.11"
+   * - "mod-fabric-1.21.11-1.2.3.jar" -> "1.2.3"
+   * - "1.2.3-beta" -> "1.2.3-beta"
+   * - "v1.2.3" -> "1.2.3"
+   */
+  static extractVersion(input: string): string | null {
+    if (!input) return null;
+
+    // Remove .jar extension if present
+    let str = input.replace(/\.jar$/i, "");
+
+    // Remove common prefixes like "v", "version-", etc.
+    str = str.replace(/^(v|version[-_]?)/i, "");
+
+    // Try to find semver-like patterns (major.minor.patch with optional pre-release/build metadata)
+    // Match patterns like: 1.2.3, 1.2.3-beta.1, 1.2.3+fabric-1.21.11, etc.
+    const semverPattern = /(\d+\.\d+(?:\.\d+)?(?:[-+][a-zA-Z0-9.-]+)*)/g;
+    const matches = str.match(semverPattern);
+
+    if (!matches || matches.length === 0) return null;
+
+    // If we have multiple version-like strings, try to identify the mod version
+    // Usually the mod version comes before loader/minecraft version
+    // Heuristic: prefer versions that don't start with "1.1[0-9]" or "1.20" (likely Minecraft versions)
+    const modVersions = matches.filter((v) => {
+      // Skip likely Minecraft versions (1.12, 1.16, 1.17, 1.18, 1.19, 1.20, 1.21, etc.)
+      if (/^1\.(1[2-9]|2[0-9])/.test(v)) return false;
+      return true;
+    });
+
+    // Return the first non-Minecraft version, or first match if all look like MC versions
+    return modVersions.length > 0 ? modVersions[0] : matches[0];
+  }
+
+  /**
+   * Normalize version for semver comparison
+   * Converts various formats into valid semver strings
+   */
+  static normalizeVersion(version: string): string | null {
+    const extracted = this.extractVersion(version);
+    if (!extracted) return null;
+
+    // Split on + to separate build metadata
+    const [versionPart, ...buildParts] = extracted.split("+");
+    const buildMetadata = buildParts.join("+");
+
+    // Ensure we have at least major.minor.patch format
+    const parts = versionPart.split(/[-.]/).filter((p) => p);
+    if (parts.length < 2) return null;
+
+    // Take first 3 numeric parts as major.minor.patch
+    const numericParts = parts.filter((p) => /^\d+$/.test(p)).slice(0, 3);
+    while (numericParts.length < 3) {
+      numericParts.push("0");
+    }
+
+    // Find pre-release identifier (everything after first non-numeric part)
+    const firstNonNumericIndex = parts.findIndex((p) => !/^\d+$/.test(p));
+    const preRelease =
+      firstNonNumericIndex >= 0
+        ? parts.slice(firstNonNumericIndex).join(".")
+        : "";
+
+    let normalized = numericParts.join(".");
+    if (preRelease) normalized += `-${preRelease}`;
+    if (buildMetadata) normalized += `+${buildMetadata}`;
+
+    // Validate it's proper semver
+    if (!semver.valid(semver.coerce(normalized))) {
+      return null;
+    }
+
+    return normalized;
+  }
+
+  /**
+   * Compare two version strings
+   * Returns:
+   * - positive number if v1 > v2 (v1 is newer)
+   * - negative number if v1 < v2 (v2 is newer)
+   * - 0 if equal
+   */
+  static compareVersions(v1: string, v2: string): number {
+    const norm1 = this.normalizeVersion(v1);
+    const norm2 = this.normalizeVersion(v2);
+
+    if (!norm1 && !norm2) return 0;
+    if (!norm1) return -1;
+    if (!norm2) return 1;
+
+    try {
+      const result = semver.compare(norm1, norm2);
+      return result;
+    } catch (e) {
+      console.warn(
+        `[VersionUtils] Failed to compare versions: ${v1} vs ${v2}`,
+        e,
+      );
+      // Fallback to string comparison
+      return v1.localeCompare(v2);
+    }
+  }
+
+  /**
+   * Check if version1 is newer than version2
+   */
+  static isNewer(version1: string, version2: string): boolean {
+    return this.compareVersions(version1, version2) > 0;
+  }
+
+  /**
+   * Check if version1 is older than version2
+   */
+  static isOlder(version1: string, version2: string): boolean {
+    return this.compareVersions(version1, version2) < 0;
+  }
+
+  /**
+   * Check if two versions are equal
+   */
+  static isEqual(version1: string, version2: string): boolean {
+    return this.compareVersions(version1, version2) === 0;
+  }
+
+  /**
+   * Find the latest version from an array of version strings
+   */
+  static findLatest(versions: string[]): string | null {
+    if (!versions || versions.length === 0) return null;
+
+    return versions.reduce((latest, current) => {
+      if (!latest) return current;
+      return this.isNewer(current, latest) ? current : latest;
+    }, versions[0]);
+  }
+}
 
 export class ModsService {
   initialized = false;

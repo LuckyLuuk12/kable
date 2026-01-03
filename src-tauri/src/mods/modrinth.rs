@@ -699,10 +699,20 @@ pub async fn get_mod_versions(mod_id: &str) -> Result<Vec<ModrinthVersion>, Stri
         .send()
         .await
         .map_err(|e| format!("Modrinth get versions failed: {e}"))?;
-    let versions: Vec<ModrinthVersion> = resp
-        .json()
+
+    let response_text = resp
+        .text()
         .await
-        .map_err(|e| format!("Modrinth get versions parse failed: {e}"))?;
+        .map_err(|e| format!("Modrinth get versions response read failed: {e}"))?;
+
+    let versions: Vec<ModrinthVersion> = serde_json::from_str(&response_text).map_err(|e| {
+        let preview = if response_text.len() > 500 {
+            format!("{}...", &response_text[..500])
+        } else {
+            response_text.clone()
+        };
+        format!("Modrinth get versions parse failed: {e}\nJSON preview: {preview}")
+    })?;
     Ok(versions)
 }
 
@@ -730,10 +740,19 @@ pub async fn get_projects(project_ids: Vec<String>) -> Result<Vec<ModrinthInfo>,
         .await
         .map_err(|e| format!("Modrinth get projects failed: {e}"))?;
 
-    let projects: Vec<ModrinthInfo> = resp
-        .json()
+    let response_text = resp
+        .text()
         .await
-        .map_err(|e| format!("Modrinth get projects parse failed: {e}"))?;
+        .map_err(|e| format!("Modrinth get projects response read failed: {e}"))?;
+
+    let projects: Vec<ModrinthInfo> = serde_json::from_str(&response_text).map_err(|e| {
+        let preview = if response_text.len() > 500 {
+            format!("{}...", &response_text[..500])
+        } else {
+            response_text.clone()
+        };
+        format!("Modrinth get projects parse failed: {e}\nJSON preview: {preview}")
+    })?;
 
     println!("[ModrinthAPI] Received {} projects", projects.len());
     Ok(projects)
@@ -786,10 +805,36 @@ pub async fn get_project_versions_filtered(
         .await
         .map_err(|e| format!("Modrinth get filtered versions failed: {e}"))?;
 
-    let versions: Vec<ModrinthVersion> = resp
-        .json()
+    // Get the response text first to debug parse errors
+    let response_text = resp
+        .text()
         .await
-        .map_err(|e| format!("Modrinth get filtered versions parse failed: {e}"))?;
+        .map_err(|e| format!("Modrinth get filtered versions response read failed: {e}"))?;
+
+    // Check if Modrinth returned an error response
+    if let Ok(error_check) = serde_json::from_str::<serde_json::Value>(&response_text) {
+        if let Some(error) = error_check.get("error") {
+            let error_type = error.as_str().unwrap_or("unknown");
+            let description = error_check
+                .get("description")
+                .and_then(|d| d.as_str())
+                .unwrap_or("No description provided");
+            return Err(format!(
+                "Modrinth API error ({}): {}",
+                error_type, description
+            ));
+        }
+    }
+
+    let versions: Vec<ModrinthVersion> = serde_json::from_str(&response_text).map_err(|e| {
+        // Show first 500 chars of JSON to help debug
+        let preview = if response_text.len() > 500 {
+            format!("{}...", &response_text[..500])
+        } else {
+            response_text.clone()
+        };
+        format!("Modrinth get filtered versions parse failed: {e}\nJSON preview: {preview}")
+    })?;
 
     println!(
         "[ModrinthAPI] Received {} filtered versions",

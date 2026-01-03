@@ -28,7 +28,7 @@
     "prettier": "^3.6.2",
     "prettier-plugin-svelte": "^3.4.0",
     "sass": "^1.89.2",
-    "semver": "^7.7.2",
+    "semver": "^7.7.3",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",
     "typescript": "^5.0.0",
@@ -39,6 +39,7 @@
     "@tauri-apps/api": "^2.6.0",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.0",
     "@tauri-apps/plugin-window-state": "^2.4.0",
+    "@types/semver": "^7.7.1",
     "marked": "^17.0.1",
     "skinview3d": "^3.4.1",
     "svelte-dnd-action": "^0.9.51"

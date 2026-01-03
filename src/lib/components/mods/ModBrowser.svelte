@@ -20,6 +20,7 @@ import { get } from "svelte/store";
 import {
   Icon,
   ModsService,
+  VersionUtils,
   selectedInstallation,
   InstallationService,
   installations,
@@ -589,7 +590,7 @@ async function fetchVersionFilenames(projectId: string): Promise<Set<string>> {
   }
 }
 
-// Check if a mod is already installed by comparing JAR filenames
+// Check if a mod is already installed by comparing JAR filenames and versions
 async function getInstalledModInfo(
   mod: ModInfoKind,
 ): Promise<{ isInstalled: boolean; version: string | null }> {
@@ -620,7 +621,9 @@ async function getInstalledModInfo(
   const versionFilenames = await fetchVersionFilenames(projectId);
 
   // Check if any of our installed mod filenames match any version filename
+  // Also try to match by mod name and version number for more robust detection
   for (const [filename, installedMod] of installedModsMap.entries()) {
+    // Direct filename match
     if (versionFilenames.has(filename)) {
       const result = {
         isInstalled: true,
@@ -628,6 +631,38 @@ async function getInstalledModInfo(
       };
       installedStatusCache.set(projectId, result);
       return result;
+    }
+
+    // Try version-based matching as fallback
+    // Extract versions from both the JAR filename and mod metadata
+    const installedVersion =
+      installedMod.mod_version || VersionUtils.extractVersion(filename);
+    if (installedVersion) {
+      // Check if this could be the same mod by comparing project names
+      const modTitle =
+        "Modrinth" in mod
+          ? mod.Modrinth.title
+          : "CurseForge" in mod
+            ? mod.CurseForge.name
+            : "";
+      const installedName =
+        installedMod.mod_name || filename.replace(/\.jar$/, "");
+
+      // Fuzzy name matching (case-insensitive, remove special chars)
+      const normalizeName = (name: string) =>
+        name.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+      if (
+        normalizeName(modTitle).includes(normalizeName(installedName)) ||
+        normalizeName(installedName).includes(normalizeName(modTitle))
+      ) {
+        const result = {
+          isInstalled: true,
+          version: installedVersion,
+        };
+        installedStatusCache.set(projectId, result);
+        return result;
+      }
     }
   }
 
