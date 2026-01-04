@@ -18,7 +18,6 @@ Shows mod icon, name, version, and provides actions:
 ```
 -->
 <script lang="ts">
-import { onMount } from "svelte";
 import { Icon, NotificationService, ProviderKind, VersionUtils } from "$lib";
 import type {
   ModJarInfo,
@@ -39,6 +38,15 @@ export let extendedInfo: ExtendedModInfo | null = null;
 export let onmodchanged: (() => void) | undefined = undefined;
 export let onopenversions: ((event: { mod: ModJarInfo }) => void) | undefined =
   undefined;
+export let onupdatereport:
+  | ((event: {
+      fileName: string;
+      hasUpdate: boolean;
+      latestVersion?: string;
+      versionId?: string;
+      mod?: ModJarInfo;
+    }) => void)
+  | undefined = undefined;
 
 let loading = false;
 let showVersionModal = false;
@@ -54,21 +62,46 @@ let hasUpdate = false;
 let checkingUpdate = false;
 let updateChecked = false;
 
+// Track which mod file we last checked to prevent unnecessary rechecks
+let lastCheckedFileName = "";
+let lastCheckedVersion = "";
+
 $: isDisabled = mod.disabled || false;
 $: displayName = mod.mod_name || mod.file_name.replace(/\.jar$/, "");
 $: version = mod.mod_version || "Unknown";
 $: iconUrl = extendedInfo?.icon_uri || null;
 
-// Check metadata and updates only once when component mounts
-onMount(() => {
-  checkMetadata();
-  // Check for updates after a short delay to avoid initial load spam
-  setTimeout(() => {
-    if (hasMetadata) {
-      checkForUpdates();
-    }
-  }, 1000);
-});
+// Reset check state if the mod file or version changed
+$: if (
+  mod.file_name !== lastCheckedFileName ||
+  version !== lastCheckedVersion
+) {
+  lastCheckedFileName = mod.file_name;
+  lastCheckedVersion = version;
+  metadataChecked = false;
+  updateChecked = false;
+  hasMetadata = false;
+  hasUpdate = false;
+  // Report no update initially
+  onupdatereport?.({
+    fileName: mod.file_name,
+    hasUpdate: false,
+  });
+  checkForUpdatesOnce();
+}
+
+function checkForUpdatesOnce() {
+  // Check metadata and updates only once per mod file
+  if (!metadataChecked) {
+    checkMetadata();
+    // Check for updates after a short delay to avoid initial load spam
+    setTimeout(() => {
+      if (hasMetadata && !updateChecked) {
+        checkForUpdates();
+      }
+    }, 100);
+  }
+}
 
 async function checkMetadata() {
   if (metadataChecked) return;
@@ -130,18 +163,44 @@ async function checkForUpdates() {
 
     availableVersions = versions;
 
-    // Find latest version using our robust version comparison
+    // Find latest version using our robust version comparison with MC version context
     const currentVersion = mod.mod_version || mod.file_name;
     const versionNumbers = versions.map((v) => v.version_number);
-    latestVersion = VersionUtils.findLatest(versionNumbers);
+    latestVersion = VersionUtils.findLatest(
+      versionNumbers,
+      gameVersion || undefined,
+    );
 
     // Check if we have an update
     if (latestVersion && currentVersion) {
-      hasUpdate = VersionUtils.isNewer(latestVersion, currentVersion);
+      hasUpdate = VersionUtils.isNewer(
+        latestVersion,
+        currentVersion,
+        gameVersion || undefined,
+      );
       if (hasUpdate) {
         console.log(
           `[InstalledModCard] Update available for ${displayName}: ${currentVersion} -> ${latestVersion}`,
+        ); // Find the version ID for the latest version
+        const latestVersionObj = versions.find(
+          (v) => v.version_number === latestVersion,
         );
+        if (latestVersionObj) {
+          // Report update to parent
+          onupdatereport?.({
+            fileName: mod.file_name,
+            hasUpdate: true,
+            latestVersion: latestVersion,
+            versionId: latestVersionObj.id,
+            mod: mod,
+          });
+        }
+      } else {
+        // No update available
+        onupdatereport?.({
+          fileName: mod.file_name,
+          hasUpdate: false,
+        });
       }
     }
   } catch (error) {
@@ -371,8 +430,7 @@ function handleKeydown(event: KeyboardEvent) {
   on:keydown={handleKeydown}
   role="button"
   tabindex="0"
-  title={isDisabled ? "Click to enable" : "Click to disable"}
->
+  title={isDisabled ? "Click to enable" : "Click to disable"}>
   <!-- Mod Icon and Name -->
   <div class="mod-info">
     <div class="mod-icon-wrapper">
@@ -399,8 +457,7 @@ function handleKeydown(event: KeyboardEvent) {
         {#if hasMetadata}
           <span
             class="kable-badge"
-            title="Installed with Kable - version management available"
-          >
+            title="Installed with Kable - version management available">
             <Image key="favicon" alt="Kable" width="14px" height="14px" />
           </span>
         {/if}
@@ -419,9 +476,8 @@ function handleKeydown(event: KeyboardEvent) {
       title={hasUpdate
         ? `Update available: v${latestVersion}`
         : "Manage versions"}
-      disabled={loading || loadingVersions}
-    >
-      <Icon name={hasUpdate ? "sync" : "settings"} size="sm" />
+      disabled={loading || loadingVersions}>
+      <Icon name={hasUpdate ? "arrow-up" : "settings"} size="sm" />
       <span>{hasUpdate ? "Update" : "Versions"}</span>
     </button>
 
@@ -430,8 +486,7 @@ function handleKeydown(event: KeyboardEvent) {
       on:click={handleRemove}
       use:errorSound
       title="Remove mod"
-      disabled={loading}
-    >
+      disabled={loading}>
       <Icon name="trash" size="sm" />
       <span>Remove</span>
     </button>
@@ -445,8 +500,7 @@ function handleKeydown(event: KeyboardEvent) {
     currentInstallation={installation}
     installedVersion={version}
     bind:open={showVersionModal}
-    onselectversion={handleVersionSelect}
-  />
+    onselectversion={handleVersionSelect} />
 {/if}
 
 <style lang="scss">

@@ -769,6 +769,7 @@ impl Launchable for FabricLaunchable {
             &context.installation.id,
             &manifest,
             &installation_json,
+            &context.settings,
         )
         .await
     }

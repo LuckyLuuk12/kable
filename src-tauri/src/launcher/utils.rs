@@ -1775,6 +1775,7 @@ pub async fn spawn_and_log_process(
     instance_id: &str,
     profile: &serde_json::Value,
     installation: &serde_json::Value,
+    settings: &crate::settings::CategorizedLauncherSettings,
 ) -> Result<crate::launcher::LaunchResult, String> {
     use crate::logging::LogLevel;
     use crate::logging::Logger;
@@ -1958,14 +1959,16 @@ pub async fn spawn_and_log_process(
     }
 
     // Wait for first log line from either stdout or stderr, then emit show-logs-page
+    // BUT only if the on_game_launch setting is "open_logs"
     let instance_id_for_show = instance_id_str.clone();
     let app_for_show = get_app_handle();
+    let should_open_logs = settings.general.on_game_launch == "open_logs";
     task::spawn(async move {
         let mut emitted = false;
         loop {
             tokio::select! {
                 Some(line) = stdout_receiver.recv(), if !emitted => {
-                    if line == "__emit_show_logs_page__" {
+                    if line == "__emit_show_logs_page__" && should_open_logs {
                         if let Some(app) = &app_for_show {
                             let _ = app.emit("show-logs-page", serde_json::json!({
                                 "instanceId": instance_id_for_show,
@@ -1977,7 +1980,7 @@ pub async fn spawn_and_log_process(
                     }
                 },
                 Some(line) = stderr_receiver.recv(), if !emitted => {
-                    if line == "__emit_show_logs_page__" {
+                    if line == "__emit_show_logs_page__" && should_open_logs {
                         if let Some(app) = &app_for_show {
                             let _ = app.emit("show-logs-page", serde_json::json!({
                                 "instanceId": instance_id_for_show,

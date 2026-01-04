@@ -20,7 +20,7 @@ author, downloads, and installation status. Supports grid, list, and compact vie
 ```
 -->
 <script lang="ts">
-import { Icon, ProviderKind as ProviderKindEnum } from "$lib";
+import { Icon, ProviderKind as ProviderKindEnum, VersionUtils } from "$lib";
 import ModVersionModal from "./ModVersionModal.svelte";
 import * as modsApi from "$lib/api/mods";
 import type { KableInstallation, ModInfoKind, ProviderKind } from "$lib";
@@ -50,6 +50,7 @@ let showVersionModal = false;
 let hasNewerVersion = false;
 let hasOtherVersions = false;
 let checkingVersions = false;
+let latestVersion: string | null = null;
 
 // Check for available updates when mod is installed
 $: if (isInstalled && installedVersion && currentInstallation) {
@@ -62,6 +63,7 @@ async function checkForUpdates() {
   checkingVersions = true;
   hasNewerVersion = false;
   hasOtherVersions = false;
+  latestVersion = null;
 
   try {
     const projectId = getProjectId(mod);
@@ -87,10 +89,22 @@ async function checkForUpdates() {
     );
     hasOtherVersions = otherVersions.length > 0;
 
+    // Find the latest version with MC version context
+    if (versions.length > 0) {
+      latestVersion = VersionUtils.findLatest(
+        versions.map((v) => v.version_number),
+        gameVersion || undefined,
+      );
+    }
+
     // Check if any version is newer (higher version number)
     if (hasOtherVersions) {
-      hasNewerVersion = otherVersions.some(
-        (v) => compareVersions(v.version_number, installedVersion) > 0,
+      hasNewerVersion = otherVersions.some((v) =>
+        VersionUtils.isNewer(
+          v.version_number,
+          installedVersion,
+          gameVersion || undefined,
+        ),
       );
     }
   } catch (e) {
@@ -98,28 +112,6 @@ async function checkForUpdates() {
   } finally {
     checkingVersions = false;
   }
-}
-
-function compareVersions(a: string, b: string): number {
-  const parseVersion = (v: string) => {
-    const parts = v.split(/[.-]+/).map((p) => parseInt(p) || 0);
-    return parts;
-  };
-
-  const aParts = parseVersion(a);
-  const bParts = parseVersion(b);
-  const maxLength = Math.max(aParts.length, bParts.length);
-
-  for (let i = 0; i < maxLength; i++) {
-    const aPart = aParts[i] || 0;
-    const bPart = bParts[i] || 0;
-
-    if (aPart !== bPart) {
-      return aPart - bPart;
-    }
-  }
-
-  return 0;
 }
 
 function extractLoader(versionId: string): string | null {
@@ -383,8 +375,7 @@ function handleCardKeydown(event: KeyboardEvent) {
   class:installed={isInstalled}
   class:compact={viewMode === "compact"}
   class:list={viewMode === "list"}
-  class:grid={viewMode === "grid"}
->
+  class:grid={viewMode === "grid"}>
   {#if viewMode === "compact"}
     <!-- !Compact Mode - Icon + Name/Description + Stacked Buttons -->
     <div class="compact-layout">
@@ -394,8 +385,7 @@ function handleCardKeydown(event: KeyboardEvent) {
             src={displayInfo.icon_url}
             alt={displayInfo.title}
             class="compact-mod-icon"
-            on:error={handleImageError}
-          />
+            on:error={handleImageError} />
           <div class="compact-icon-placeholder" style="display: none;">
             <Icon name="package" size="sm" />
           </div>
@@ -420,8 +410,7 @@ function handleCardKeydown(event: KeyboardEvent) {
           class="compact-versions-btn"
           on:click={handleVersions}
           use:clickSound
-          title="View all versions"
-        >
+          title="View all versions">
           <Icon name="list" size="sm" />
         </button>
 
@@ -431,13 +420,13 @@ function handleCardKeydown(event: KeyboardEvent) {
               class="compact-update-btn"
               on:click={handleVersions}
               use:clickSound
-              title={hasNewerVersion ? "Update available" : "Change version"}
-            >
+              title={hasNewerVersion
+                ? `Update from ${installedVersion} to ${latestVersion ?? "???"}`
+                : "Change version"}>
               <Icon
                 name={hasNewerVersion ? "arrow-up" : "edit"}
                 size="sm"
-                forceType="svg"
-              />
+                forceType="svg" />
             </button>
           {/if}
         {:else if currentInstallation}
@@ -446,15 +435,13 @@ function handleCardKeydown(event: KeyboardEvent) {
             on:click={handleDownload}
             use:successSound
             disabled={loading}
-            title="Download latest version"
-          >
+            title="Download latest version">
             <Icon name="download" size="sm" forceType="svg" />
           </button>
         {:else}
           <div
             class="compact-no-installation"
-            title="Select installation first"
-          >
+            title="Select installation first">
             <Icon name="info" size="sm" />
           </div>
         {/if}
@@ -470,8 +457,7 @@ function handleCardKeydown(event: KeyboardEvent) {
         on:keydown={handleCardKeydown}
         role="button"
         tabindex={0}
-        aria-label={`View ${displayInfo.title} on Modrinth`}
-      >
+        aria-label={`View ${displayInfo.title} on Modrinth`}>
         <!-- New Flexbox Layout: Header + Data + Controls -->
         <div class="flex-layout">
           <!-- Header Section -->
@@ -482,8 +468,7 @@ function handleCardKeydown(event: KeyboardEvent) {
                   src={displayInfo.icon_url}
                   alt={displayInfo.title}
                   class="flex-icon-img"
-                  on:error={handleImageError}
-                />
+                  on:error={handleImageError} />
                 <div class="flex-icon-placeholder" style="display: none;">
                   <Icon name="package" size="md" />
                 </div>
@@ -497,8 +482,7 @@ function handleCardKeydown(event: KeyboardEvent) {
             <div class="flex-header-info">
               <h3
                 class="flex-title"
-                title={`${displayInfo.title} - Latest: ${displayInfo.latest_version}`}
-              >
+                title={`${displayInfo.title} - Latest: ${displayInfo.latest_version}`}>
                 {displayInfo.title}
               </h3>
               <div class="flex-author">
@@ -511,8 +495,7 @@ function handleCardKeydown(event: KeyboardEvent) {
                 class="control-btn versions-btn"
                 on:click|stopPropagation={handleVersions}
                 use:clickSound
-                title="View all versions"
-              >
+                title="View all versions">
                 <Icon name="list" size="sm" />
               </button>
               {#if isInstalled && currentInstallation}
@@ -521,15 +504,15 @@ function handleCardKeydown(event: KeyboardEvent) {
                     class="control-btn update-btn"
                     on:click|stopPropagation={handleVersions}
                     use:clickSound
-                    title={hasNewerVersion
-                      ? "Update available"
-                      : "Change version"}
-                  >
+                    title={hasNewerVersion && latestVersion
+                      ? `Update from ${installedVersion} to ${latestVersion}`
+                      : hasNewerVersion
+                        ? "Update available"
+                        : "Change version"}>
                     <Icon
                       name={hasNewerVersion ? "arrow-up" : "edit"}
                       size="sm"
-                      forceType="svg"
-                    />
+                      forceType="svg" />
                   </button>
                 {/if}
               {:else if currentInstallation}
@@ -538,16 +521,14 @@ function handleCardKeydown(event: KeyboardEvent) {
                   on:click|stopPropagation={handleDownload}
                   use:successSound
                   disabled={loading}
-                  title="Download latest version"
-                >
+                  title="Download latest version">
                   <Icon name="download" size="sm" forceType="svg" />
                 </button>
               {:else}
                 <button
                   class="control-btn disabled-btn"
                   disabled
-                  title="Select installation first"
-                >
+                  title="Select installation first">
                   <Icon name="info" size="sm" />
                 </button>
               {/if}
@@ -571,8 +552,7 @@ function handleCardKeydown(event: KeyboardEvent) {
               <div class="flex-stat">
                 <Icon name="star" size="sm" forceType="svg" />
                 <span class="stat-value"
-                  >{displayInfo.follows.toLocaleString()}</span
-                >
+                  >{displayInfo.follows.toLocaleString()}</span>
               </div>
 
               <div class="flex-stat">
@@ -607,8 +587,7 @@ function handleCardKeydown(event: KeyboardEvent) {
                 src={displayInfo.icon_url}
                 alt={displayInfo.title}
                 class="list-icon-img"
-                on:error={handleImageError}
-              />
+                on:error={handleImageError} />
               <div class="list-icon-placeholder" style="display: none;">
                 <Icon name="package" size="lg" />
               </div>
@@ -647,8 +626,7 @@ function handleCardKeydown(event: KeyboardEvent) {
                 <div class="list-stat">
                   <Icon name="star" size="sm" forceType="svg" />
                   <span class="stat-value"
-                    >{displayInfo.follows.toLocaleString()}</span
-                  >
+                    >{displayInfo.follows.toLocaleString()}</span>
                 </div>
 
                 <div class="list-stat">
@@ -661,8 +639,7 @@ function handleCardKeydown(event: KeyboardEvent) {
                 class="list-versions-btn"
                 on:click={handleVersions}
                 use:clickSound
-                title="View all versions"
-              >
+                title="View all versions">
                 <Icon name="list" size="sm" />
                 Versions
               </button>
@@ -691,15 +668,15 @@ function handleCardKeydown(event: KeyboardEvent) {
                       class="list-update-btn"
                       on:click={handleVersions}
                       use:clickSound
-                      title={hasNewerVersion
-                        ? "Update available"
-                        : "Change version"}
-                    >
+                      title={hasNewerVersion && latestVersion
+                        ? `Update from ${installedVersion} to ${latestVersion}`
+                        : hasNewerVersion
+                          ? "Update available"
+                          : "Change version"}>
                       <Icon
                         name={hasNewerVersion ? "arrow-up" : "edit"}
                         size="sm"
-                        forceType="svg"
-                      />
+                        forceType="svg" />
                       {hasNewerVersion ? "Update" : "Change"}
                     </button>
                   {/if}
@@ -708,8 +685,7 @@ function handleCardKeydown(event: KeyboardEvent) {
                     class="list-download-btn"
                     on:click={handleDownload}
                     use:successSound
-                    disabled={loading}
-                  >
+                    disabled={loading}>
                     <Icon name="download" size="sm" forceType="svg" />
                     Download
                   </button>
@@ -734,8 +710,7 @@ function handleCardKeydown(event: KeyboardEvent) {
   {currentInstallation}
   {installedVersion}
   bind:open={showVersionModal}
-  onselectversion={handleVersionSelect}
-/>
+  onselectversion={handleVersionSelect} />
 
 <style lang="scss">
 @use "@kablan/clean-ui/scss/_variables.scss" as *;

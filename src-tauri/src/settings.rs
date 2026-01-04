@@ -140,8 +140,8 @@ impl Default for CategorizedLauncherSettings {
                 sound: Some(SoundSettings {
                     enabled: true,
                     music_enabled: true,
-                    master_volume: 100,
-                    sound_volume: 100,
+                    master_volume: 50,
+                    sound_volume: 50,
                     music_volume: 50,
                     selected_soundpack: "default".to_string(),
                 }),
@@ -153,11 +153,7 @@ impl Default for CategorizedLauncherSettings {
                 log_file_size_limit_mb: serde_json::json!(10),
                 log_retention_days: serde_json::json!(30),
                 merge_log_tabs: false,
-                default_log_levels: vec![
-                    "info".to_string(),
-                    "warn".to_string(),
-                    "error".to_string(),
-                ],
+                default_log_levels: vec!["error".to_string()],
                 max_memory_logs: Some(5000),
                 dedupe_window_size: Some(50),
                 enable_dedupe: Some(true),

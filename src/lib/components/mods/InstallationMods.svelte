@@ -19,9 +19,11 @@ import {
   Icon,
   ModsService,
   extendedModInfo,
+  ProviderKind,
 } from "$lib";
 import { openUrl } from "$lib/api/system";
 import * as installationsApi from "$lib/api/installations";
+import * as modsApi from "$lib/api/mods";
 import type { KableInstallation, ModJarInfo } from "$lib";
 import InstalledModCard from "./InstalledModCard.svelte";
 
@@ -37,6 +39,13 @@ let attemptedExtendedInfo = new Set<string>();
 
 // Semantic search/filter state
 let searchQuery = "";
+
+// Track mods with available updates
+let modsWithUpdates = new Map<
+  string,
+  { mod: ModJarInfo; latestVersion: string; versionId: string }
+>();
+let updatingAll = false;
 
 // Installation carousel logic
 function selectInstallation(installation: KableInstallation) {
@@ -265,12 +274,18 @@ $: {
     loadedInstallationId = currentInstallation.id;
     // Clear attempted info when switching installations to allow refetch
     attemptedExtendedInfo.clear();
+    // Clear update tracking when switching installations
+    modsWithUpdates.clear();
+    modsWithUpdates = modsWithUpdates; // Trigger reactivity
     loadMods(currentInstallation);
   } else if (!currentInstallation) {
     mods = [];
     loadedInstallationId = null;
     // Clear attempted info when no installation
     attemptedExtendedInfo.clear();
+    // Clear update tracking when no installation
+    modsWithUpdates.clear();
+    modsWithUpdates = modsWithUpdates; // Trigger reactivity
   }
 }
 
@@ -348,6 +363,109 @@ function handleModChanged() {
   }
 }
 
+// Handle update reports from individual mod cards
+function handleUpdateReport(event: {
+  fileName: string;
+  hasUpdate: boolean;
+  latestVersion?: string;
+  versionId?: string;
+  mod?: ModJarInfo;
+}) {
+  if (event.hasUpdate && event.latestVersion && event.versionId && event.mod) {
+    modsWithUpdates.set(event.fileName, {
+      mod: event.mod,
+      latestVersion: event.latestVersion,
+      versionId: event.versionId,
+    });
+  } else {
+    modsWithUpdates.delete(event.fileName);
+  }
+  modsWithUpdates = modsWithUpdates; // Trigger reactivity
+}
+
+// Update all mods that have updates available
+async function handleUpdateAll() {
+  if (updatingAll || modsWithUpdates.size === 0 || !currentInstallation) return;
+
+  updatingAll = true;
+  const updates = Array.from(modsWithUpdates.values());
+  let successCount = 0;
+  let failCount = 0;
+
+  for (const { mod, versionId } of updates) {
+    try {
+      const extendedInfo = $extendedModInfo[mod.file_name];
+      if (!extendedInfo) continue;
+
+      // Extract project ID from extended info
+      let projectId: string | null = null;
+      if (extendedInfo.page_uri) {
+        const match = extendedInfo.page_uri.match(/\/mod\/(\w+)/);
+        if (match) projectId = match[1];
+      }
+
+      if (!projectId) {
+        // Try to get from metadata
+        try {
+          const metadata = await modsApi.getModMetadata(
+            currentInstallation,
+            mod.file_name,
+          );
+          projectId = metadata.project_id;
+        } catch (e) {
+          console.warn(`Could not get project ID for ${mod.file_name}`);
+          failCount++;
+          continue;
+        }
+      }
+
+      if (!projectId) {
+        failCount++;
+        continue;
+      }
+
+      await modsApi.downloadMod(
+        ProviderKind.Modrinth,
+        projectId,
+        versionId,
+        currentInstallation,
+      );
+      successCount++;
+    } catch (error) {
+      console.error(`Failed to update ${mod.file_name}:`, error);
+      failCount++;
+    }
+  }
+
+  updatingAll = false;
+
+  // Clear the updates map since we just processed them
+  modsWithUpdates.clear();
+  modsWithUpdates = modsWithUpdates; // Trigger reactivity
+
+  // Show result notification
+  if (successCount > 0) {
+    import("$lib/services/NotificationService").then(
+      ({ NotificationService }) => {
+        NotificationService.success(
+          `Updated ${successCount} mod${successCount !== 1 ? "s" : ""}${failCount > 0 ? `. ${failCount} failed.` : ""}`,
+        );
+      },
+    );
+  } else if (failCount > 0) {
+    import("$lib/services/NotificationService").then(
+      ({ NotificationService }) => {
+        NotificationService.error(
+          `Failed to update ${failCount} mod${failCount !== 1 ? "s" : ""}`,
+        );
+      },
+    );
+  }
+
+  // Reload mods to show updated state
+  handleModChanged();
+}
+
 async function handleModClick(mod: ModJarInfo) {
   const extendedInfo = $extendedModInfo[mod.file_name];
   if (extendedInfo?.page_uri) {
@@ -385,10 +503,29 @@ async function loadMods(installation: KableInstallation) {
   loading = true;
   error = null;
   try {
-    mods = await InstallationService.getModInfo(installation);
-    // Clear the attempted set when loading new mods
-    attemptedExtendedInfo.clear();
-    // Successfully loaded, keep the loadedInstallationId
+    const newMods = await InstallationService.getModInfo(installation);
+
+    // Update in place to preserve component identity and prevent flashing
+    // Create a map of new mods by file_name for quick lookup
+    const newModsMap = new Map(newMods.map((m) => [m.file_name, m]));
+
+    // Update existing mods if they still exist, remove those that don't
+    mods = mods.filter((existingMod) => {
+      const newMod = newModsMap.get(existingMod.file_name);
+      if (newMod) {
+        // Update the existing mod object properties
+        Object.assign(existingMod, newMod);
+        newModsMap.delete(existingMod.file_name);
+        return true;
+      }
+      return false;
+    });
+
+    // Add any new mods that weren't in the previous list
+    mods = [...mods, ...Array.from(newModsMap.values())];
+
+    // Don't clear attemptedExtendedInfo - let it persist so we don't refetch
+    // Only clear it when switching installations (handled in reactive statement)
   } catch (e: any) {
     error = e?.message || e || "Failed to load mods info";
     mods = [];
@@ -424,8 +561,7 @@ onMount(() => {
         on:wheel={handleWheel}
         on:keydown={handleKeydown}
         tabindex="-1"
-        role="listbox"
-      >
+        role="listbox">
         <div class="carousel-container">
           {#each sortedInstallations as installation, index}
             {@const selectedIndex = sortedInstallations.findIndex(
@@ -459,8 +595,7 @@ onMount(() => {
                 on:keydown={(e) =>
                   e.key === "Enter" && selectInstallation(installation)}
                 tabindex="0"
-                role="button"
-              >
+                role="button">
                 <div class="installation-icon">
                   <Icon name={loaderIcons[installation.id]} size="md" />
                 </div>
@@ -469,8 +604,7 @@ onMount(() => {
                   <div class="installation-details">
                     <span class="installation-version"
                       >{InstallationService.getVersionData(installation)
-                        .version_id}</span
-                    >
+                        .version_id}</span>
                   </div>
                 </div>
               </div>
@@ -490,14 +624,12 @@ onMount(() => {
               type="text"
               placeholder="Search mods (fuzzy search enabled)..."
               bind:value={searchQuery}
-              class="search-input"
-            />
+              class="search-input" />
             {#if searchQuery}
               <button
                 class="clear-btn"
                 on:click={() => (searchQuery = "")}
-                title="Clear search">✕</button
-              >
+                title="Clear search">✕</button>
             {/if}
           </div>
         </div>
@@ -515,10 +647,26 @@ onMount(() => {
                 {:else}
                   <span class="total-count">{mods.length}</span>
                   <span class="count-label"
-                    >{mods.length === 1 ? "mod" : "mods"}</span
-                  >
+                    >{mods.length === 1 ? "mod" : "mods"}</span>
                 {/if}
               </div>
+            {/if}
+            {#if modsWithUpdates.size > 0}
+              <button
+                class="update-all-btn"
+                on:click={handleUpdateAll}
+                disabled={updatingAll}
+                title="Update {modsWithUpdates.size} mod{modsWithUpdates.size !==
+                1
+                  ? 's'
+                  : ''}">
+                <Icon name="arrow-up" size="sm" />
+                <span>
+                  {updatingAll
+                    ? "Updating..."
+                    : `Update All (${modsWithUpdates.size})`}
+                </span>
+              </button>
             {/if}
           </div>
         {/if}
@@ -544,7 +692,7 @@ onMount(() => {
                   installation={currentInstallation}
                   extendedInfo={$extendedModInfo[mod.file_name]}
                   onmodchanged={handleModChanged}
-                />
+                  onupdatereport={handleUpdateReport} />
               {/each}
             </div>
           {:else}
@@ -816,6 +964,7 @@ onMount(() => {
     align-items: center;
     justify-content: space-between;
     margin: 1rem 0 0.5rem 0;
+    gap: 1rem;
 
     h3 {
       margin: 0;
@@ -823,6 +972,45 @@ onMount(() => {
       font-weight: 500;
       font-size: 1.1em;
     }
+  }
+}
+
+.update-all-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--tertiary), 100%, transparent) 0%,
+    color-mix(in srgb, var(--tertiary), 85%, transparent) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--tertiary), 50%, transparent);
+  border-radius: 0.5rem;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--tertiary), 110%, white) 0%,
+      color-mix(in srgb, var(--tertiary), 95%, transparent) 100%
+    );
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--tertiary), 30%, transparent);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 }
 

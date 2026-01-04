@@ -1,9 +1,11 @@
 <script lang="ts">
-import { InstallationMods, ModBrowser } from "$lib";
+import { InstallationMods, ModBrowser, Launcher, Icon } from "$lib";
 import { ProviderKind, selectedInstallation } from "$lib";
 import type { KableInstallation } from "$lib";
+import { launchSound } from "$lib/actions";
 
 let currentTab: "installed" | "browse" = "installed";
+let isLaunching = false;
 
 // Handle mod download from browser
 async function handleModDownload(event: {
@@ -26,6 +28,26 @@ async function handleModDownload(event: {
     alert(`Failed to download mod: ${error}`);
   }
 }
+
+// Handle launching the selected installation
+async function handleLaunch() {
+  if (!$selectedInstallation || isLaunching) return;
+
+  isLaunching = true;
+  try {
+    const result = await Launcher.launchInstallation($selectedInstallation);
+    if (!result.success) {
+      alert(`Launch failed: ${result.error || "Unknown error"}`);
+    }
+  } catch (error) {
+    console.error("Failed to launch installation:", error);
+    alert(`Launch failed: ${error}`);
+  } finally {
+    setTimeout(() => {
+      isLaunching = false;
+    }, 2000);
+  }
+}
 </script>
 
 <div class="mods-page">
@@ -34,15 +56,13 @@ async function handleModDownload(event: {
     <button
       class="tab-btn"
       class:active={currentTab === "installed"}
-      on:click={() => (currentTab = "installed")}
-    >
+      on:click={() => (currentTab = "installed")}>
       📦 Installed Mods
     </button>
     <button
       class="tab-btn"
       class:active={currentTab === "browse"}
-      on:click={() => (currentTab = "browse")}
-    >
+      on:click={() => (currentTab = "browse")}>
       🔍 Browse Mods
     </button>
 
@@ -50,6 +70,20 @@ async function handleModDownload(event: {
       <div class="current-installation">
         Selected: <strong>{$selectedInstallation.name}</strong>
       </div>
+
+      <button
+        class="launch-btn"
+        on:click={handleLaunch}
+        use:launchSound
+        disabled={isLaunching}>
+        {#if isLaunching}
+          <Icon name="refresh" size="sm" forceType="svg" className="spin" />
+          <span>Launching...</span>
+        {:else}
+          <Icon name="play" size="sm" forceType="svg" />
+          <span>Launch</span>
+        {/if}
+      </button>
     {/if}
   </div>
 
@@ -121,6 +155,59 @@ async function handleModDownload(event: {
       font-weight: 600;
     }
   }
+
+  .launch-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    border: 1px solid var(--dark-600);
+    border-radius: 0.5rem;
+    background: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--green), 90%, transparent) 0%,
+      color-mix(in srgb, var(--green), 75%, transparent) 100%
+    );
+    color: var(--text-white);
+    font-weight: 600;
+    font-size: 0.9em;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-color: color-mix(in srgb, var(--green), 40%, transparent);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--green), 20%, transparent);
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(
+        135deg,
+        var(--green) 0%,
+        color-mix(in srgb, var(--green), 90%, transparent) 100%
+      );
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px color-mix(in srgb, var(--green), 30%, transparent);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    :global(.spin) {
+      animation: spin 1s linear infinite;
+    }
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .tab-content {
@@ -137,6 +224,11 @@ async function handleModDownload(event: {
     .current-installation {
       margin-left: 0;
       text-align: center;
+    }
+
+    .launch-btn {
+      width: 100%;
+      justify-content: center;
     }
   }
 }

@@ -59,9 +59,14 @@ fn is_update(current: &str, update: &str) -> bool {
         (false, true) => true,  // Pre-release/nightly is newer than stable
         (true, true) => {
             // Both are pre-release/nightly with same base version
-            // Build numbers wrap around (modulo 65536), so can't compare them
-            // Return true to indicate potential update - caller will use GitHub's
-            // published_at timestamp to determine which is actually newer
+            // First check if they're the exact same version
+            if current == update {
+                return false; // Same exact version, not an update
+            }
+            // Different build numbers - build numbers wrap around (modulo 65536)
+            // so we can't compare them numerically. Return true to indicate potential
+            // update - caller will use GitHub's published_at timestamp sorting to
+            // determine which is actually newer (most recent first)
             true
         }
         (false, false) => false, // Both stable and equal

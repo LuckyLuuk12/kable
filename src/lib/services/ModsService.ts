@@ -27,58 +27,103 @@ import type {
  * Handles various version formats found in mod JARs and metadata:
  * - Standard semver: 1.2.3
  * - With metadata: 1.2.3+fabric-1.21.11
- * - Reversed formats: 1.21.11-fabric-1.2.3
+ * - Reversed formats: 1.21.11-fabric-1.2.3 or vmc1.21.10-0.7.3-fabric
  * - Pre-release versions: 1.2.3-beta.1
  */
 export class VersionUtils {
   /**
+   * Normalize a version string by extracting and cleaning the version number
+   * This is used for exact string comparison before attempting semver parsing
+   * Handles various formats:
+   * - vmc1.21.10-1.2.3-fabric → 1.2.3
+   * - 1.2.3-mc1.21.10-fabric → 1.2.3
+   * - 1.2.3+fabric+mc1.21.10 → 1.2.3
+   * - 1.2.3+mc1.21.10-fabric → 1.2.3
+   */
+  static normalizeForComparison(version: string, mcVersion?: string): string {
+    if (!version) return "";
+
+    // First extract the version number (removes MC versions, loaders, etc.)
+    const extracted = this.extractVersion(version, mcVersion);
+    if (!extracted) return version.toLowerCase().trim();
+
+    // Further normalize by removing prefixes and build metadata
+    return extracted
+      .toLowerCase()
+      .replace(/^v+/i, "") // Remove leading v
+      .replace(/[+].*$/, "") // Remove build metadata after +
+      .trim();
+  }
+
+  /**
    * Extract version string from various formats
    * Examples:
-   * - "somemodname-1.2.3+fabric-1.21.11.jar" -> "1.2.3+fabric-1.21.11"
+   * - "somemodname-1.2.3+fabric-1.21.11.jar" -> "1.2.3"
    * - "mod-fabric-1.21.11-1.2.3.jar" -> "1.2.3"
+   * - "vmc1.21.10-0.7.3-fabric" -> "0.7.3"
    * - "1.2.3-beta" -> "1.2.3-beta"
    * - "v1.2.3" -> "1.2.3"
    */
-  static extractVersion(input: string): string | null {
+  static extractVersion(input: string, mcVersion?: string): string | null {
     if (!input) return null;
 
     // Remove .jar extension if present
     let str = input.replace(/\.jar$/i, "");
 
-    // Remove common prefixes like "v", "version-", etc.
-    str = str.replace(/^(v|version[-_]?)/i, "");
+    // Split on common delimiters to get individual segments
+    const segments = str.split(/[-_+]/);
 
-    // Try to find semver-like patterns (major.minor.patch with optional pre-release/build metadata)
-    // Match patterns like: 1.2.3, 1.2.3-beta.1, 1.2.3+fabric-1.21.11, etc.
-    const semverPattern = /(\d+\.\d+(?:\.\d+)?(?:[-+][a-zA-Z0-9.-]+)*)/g;
-    const matches = str.match(semverPattern);
+    // Filter segments to find likely mod version candidates
+    const candidates = segments.filter((seg) => {
+      if (!seg) return false;
 
-    if (!matches || matches.length === 0) return null;
+      // Remove segments containing mc/vmc (Minecraft version indicators)
+      if (/^(v)?mc/i.test(seg)) return false;
 
-    // If we have multiple version-like strings, try to identify the mod version
-    // Usually the mod version comes before loader/minecraft version
-    // Heuristic: prefer versions that don't start with "1.1[0-9]" or "1.20" (likely Minecraft versions)
-    const modVersions = matches.filter((v) => {
-      // Skip likely Minecraft versions (1.12, 1.16, 1.17, 1.18, 1.19, 1.20, 1.21, etc.)
-      if (/^1\.(1[2-9]|2[0-9])/.test(v)) return false;
+      // Remove segments without any numbers
+      if (!/\d/.test(seg)) return false;
+
+      // Remove segments that are just loader names or other non-version text
+      if (/^(fabric|forge|neoforge|quilt|snapshot|alpha|beta|release)$/i.test(seg)) return false;
+
+      // Remove segments that match the known MC version
+      if (mcVersion) {
+        const normalizedMc = mcVersion.replace(/^v+/i, "");
+        const normalizedSeg = seg.replace(/^v+/i, "");
+        if (normalizedSeg === normalizedMc) return false;
+        if (normalizedSeg.startsWith(normalizedMc + ".")) return false;
+      }
+
+      // Keep segments that look like version numbers (contain dots and numbers)
+      if (/\d+\.\d+/.test(seg)) return true;
+
+      // Skip likely Minecraft versions by pattern (1.12, 1.16, 1.17, etc.)
+      if (/^v?1\.(1[2-9]|2[0-9]|3[0-9])(\.\d+)?$/i.test(seg)) return false;
+
       return true;
     });
 
-    // Return the first non-Minecraft version, or first match if all look like MC versions
-    return modVersions.length > 0 ? modVersions[0] : matches[0];
+    if (candidates.length === 0) return null;
+
+    // Take the first candidate (usually the mod version comes first)
+    let version = candidates[0];
+
+    // Remove common prefixes like "v", "version"
+    version = version.replace(/^(v+|version)/i, "");
+
+    return version || null;
   }
 
   /**
    * Normalize version for semver comparison
    * Converts various formats into valid semver strings
    */
-  static normalizeVersion(version: string): string | null {
-    const extracted = this.extractVersion(version);
+  static normalizeVersion(version: string, mcVersion?: string): string | null {
+    const extracted = this.extractVersion(version, mcVersion);
     if (!extracted) return null;
 
-    // Split on + to separate build metadata
-    const [versionPart, ...buildParts] = extracted.split("+");
-    const buildMetadata = buildParts.join("+");
+    // Split on + to separate build metadata (ignored in semver comparison)
+    const [versionPart] = extracted.split("+");
 
     // Ensure we have at least major.minor.patch format
     const parts = versionPart.split(/[-.]/).filter((p) => p);
@@ -99,12 +144,10 @@ export class VersionUtils {
 
     let normalized = numericParts.join(".");
     if (preRelease) normalized += `-${preRelease}`;
-    if (buildMetadata) normalized += `+${buildMetadata}`;
 
     // Validate it's proper semver
-    if (!semver.valid(semver.coerce(normalized))) {
-      return null;
-    }
+    const coerced = semver.coerce(normalized);
+    if (!coerced) return null;
 
     return normalized;
   }
@@ -116,9 +159,16 @@ export class VersionUtils {
    * - negative number if v1 < v2 (v2 is newer)
    * - 0 if equal
    */
-  static compareVersions(v1: string, v2: string): number {
-    const norm1 = this.normalizeVersion(v1);
-    const norm2 = this.normalizeVersion(v2);
+  static compareVersions(v1: string, v2: string, mcVersion?: string): number {
+    // First check if they're exactly the same after normalization
+    const norm1Str = this.normalizeForComparison(v1, mcVersion);
+    const norm2Str = this.normalizeForComparison(v2, mcVersion);
+
+    if (norm1Str === norm2Str) return 0;
+
+    // Try semver comparison
+    const norm1 = this.normalizeVersion(v1, mcVersion);
+    const norm2 = this.normalizeVersion(v2, mcVersion);
 
     if (!norm1 && !norm2) return 0;
     if (!norm1) return -1;
@@ -140,33 +190,33 @@ export class VersionUtils {
   /**
    * Check if version1 is newer than version2
    */
-  static isNewer(version1: string, version2: string): boolean {
-    return this.compareVersions(version1, version2) > 0;
+  static isNewer(version1: string, version2: string, mcVersion?: string): boolean {
+    return this.compareVersions(version1, version2, mcVersion) > 0;
   }
 
   /**
    * Check if version1 is older than version2
    */
-  static isOlder(version1: string, version2: string): boolean {
-    return this.compareVersions(version1, version2) < 0;
+  static isOlder(version1: string, version2: string, mcVersion?: string): boolean {
+    return this.compareVersions(version1, version2, mcVersion) < 0;
   }
 
   /**
    * Check if two versions are equal
    */
-  static isEqual(version1: string, version2: string): boolean {
-    return this.compareVersions(version1, version2) === 0;
+  static isEqual(version1: string, version2: string, mcVersion?: string): boolean {
+    return this.compareVersions(version1, version2, mcVersion) === 0;
   }
 
   /**
    * Find the latest version from an array of version strings
    */
-  static findLatest(versions: string[]): string | null {
+  static findLatest(versions: string[], mcVersion?: string): string | null {
     if (!versions || versions.length === 0) return null;
 
     return versions.reduce((latest, current) => {
       if (!latest) return current;
-      return this.isNewer(current, latest) ? current : latest;
+      return this.isNewer(current, latest, mcVersion) ? current : latest;
     }, versions[0]);
   }
 }

@@ -195,6 +195,7 @@ impl Launchable for VanillaLaunchable {
             &context.installation.id,
             &manifest,
             &installation_json,
+            &context.settings,
         )
         .await
     }

@@ -198,6 +198,7 @@ impl Launchable for ForgeLaunchable {
             &context.installation.id,
             &manifest,
             &installation_json,
+            &context.settings,
         )
         .await
     }
