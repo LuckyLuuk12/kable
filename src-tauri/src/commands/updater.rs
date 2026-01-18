@@ -1,4 +1,3 @@
-use chrono::DateTime;
 use serde::Deserialize;
 use tauri::command;
 use tauri_plugin_updater::UpdaterExt;
@@ -13,8 +12,6 @@ struct GitHubRelease {
     #[allow(dead_code)]
     #[serde(default)]
     body: String,
-    #[allow(dead_code)]
-    published_at: String,
 }
 
 // Helper function to extract version from name field
@@ -30,10 +27,6 @@ fn is_update(current: &str, update: &str) -> bool {
     // Extract versions from name field (strips prefixes like "app-v" or "nightly ")
     let current = extract_version(current);
     let update = extract_version(update);
-
-    // Strip 'v' prefix if present (e.g., v0.1.9 -> 0.1.9)
-    let current = current.strip_prefix('v').unwrap_or(current);
-    let update = update.strip_prefix('v').unwrap_or(update);
 
     let current_has_pre = current.contains('-');
     let update_has_pre = update.contains('-');
@@ -55,19 +48,23 @@ fn is_update(current: &str, update: &str) -> bool {
 
     // Base versions are equal, check pre-release/nightly status
     match (current_has_pre, update_has_pre) {
-        (true, false) => false, // Stable is newer than pre-release/nightly
-        (false, true) => true,  // Pre-release/nightly is newer than stable
+        (true, false) => false, // Stable is older than nightly with same base
+        (false, true) => true,  // Nightly is newer than stable
         (true, true) => {
-            // Both are pre-release/nightly with same base version
-            // First check if they're the exact same version
+            // Both are nightlies with same base version
             if current == update {
                 return false; // Same exact version, not an update
             }
-            // Different build numbers - build numbers wrap around (modulo 65536)
-            // so we can't compare them numerically. Return true to indicate potential
-            // update - caller will use GitHub's published_at timestamp sorting to
-            // determine which is actually newer (most recent first)
-            true
+            // Compare build numbers numerically (monotonically increasing per base version)
+            let cur_build = current
+                .split('-')
+                .nth(1)
+                .and_then(|s| s.parse::<u32>().ok());
+            let upd_build = update.split('-').nth(1).and_then(|s| s.parse::<u32>().ok());
+            match (cur_build, upd_build) {
+                (Some(c), Some(u)) => u > c,
+                _ => false, // Can't parse build numbers, assume not an update
+            }
         }
         (false, false) => false, // Both stable and equal
     }
@@ -88,14 +85,6 @@ async fn fetch_releases(include_prerelease: bool) -> Result<Vec<GitHubRelease>, 
         .map_err(|e| format!("Failed to parse releases: {}", e))?;
 
     releases.retain(|r| !r.draft && (include_prerelease || !r.prerelease));
-
-    // Sort by published_at timestamp (most recent first)
-    // This ensures nightlies are ordered correctly even when build numbers wrap around
-    releases.sort_by(|a, b| {
-        let ad = DateTime::parse_from_rfc3339(&a.published_at).unwrap();
-        let bd = DateTime::parse_from_rfc3339(&b.published_at).unwrap();
-        bd.cmp(&ad) // Descending order (newest first)
-    });
 
     Ok(releases)
 }

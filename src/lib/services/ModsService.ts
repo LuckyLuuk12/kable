@@ -84,7 +84,10 @@ export class VersionUtils {
       if (!/\d/.test(seg)) return false;
 
       // Remove segments that are just loader names or other non-version text
-      if (/^(fabric|forge|neoforge|quilt|snapshot|alpha|beta|release)$/i.test(seg)) return false;
+      if (
+        /^(fabric|forge|neoforge|quilt|snapshot|alpha|beta|release)$/i.test(seg)
+      )
+        return false;
 
       // Remove segments that match the known MC version
       if (mcVersion) {
@@ -190,21 +193,33 @@ export class VersionUtils {
   /**
    * Check if version1 is newer than version2
    */
-  static isNewer(version1: string, version2: string, mcVersion?: string): boolean {
+  static isNewer(
+    version1: string,
+    version2: string,
+    mcVersion?: string,
+  ): boolean {
     return this.compareVersions(version1, version2, mcVersion) > 0;
   }
 
   /**
    * Check if version1 is older than version2
    */
-  static isOlder(version1: string, version2: string, mcVersion?: string): boolean {
+  static isOlder(
+    version1: string,
+    version2: string,
+    mcVersion?: string,
+  ): boolean {
     return this.compareVersions(version1, version2, mcVersion) < 0;
   }
 
   /**
    * Check if two versions are equal
    */
-  static isEqual(version1: string, version2: string, mcVersion?: string): boolean {
+  static isEqual(
+    version1: string,
+    version2: string,
+    mcVersion?: string,
+  ): boolean {
     return this.compareVersions(version1, version2, mcVersion) === 0;
   }
 

@@ -271,13 +271,15 @@ function formatDate(dateString: string): string {
     on:click={handleClose}
     on:keydown={(e) => e.key === "Escape" && handleClose()}
     role="button"
-    tabindex="-1">
+    tabindex="-1"
+  >
     <div
       class="modal-content"
       on:click|stopPropagation
       on:keydown|stopPropagation
       role="dialog"
-      tabindex="-1">
+      tabindex="-1"
+    >
       <div class="modal-header">
         <div class="modal-title">
           <h2>Select Version - {getModTitle(mod)}</h2>
@@ -291,7 +293,8 @@ function formatDate(dateString: string): string {
         <button
           class="close-btn"
           on:click={handleClose}
-          aria-label="Close modal">
+          aria-label="Close modal"
+        >
           <Icon name="x" size="lg" forceType="svg" />
         </button>
       </div>
@@ -323,7 +326,8 @@ function formatDate(dateString: string): string {
             id="version-search"
             type="text"
             bind:value={searchQuery}
-            placeholder="Filter versions..." />
+            placeholder="Filter versions..."
+          />
         </div>
       </div>
 
@@ -366,7 +370,8 @@ function formatDate(dateString: string): string {
                     </div>
                     <button
                       class="select-btn"
-                      on:click={() => handleSelectVersion(version)}>
+                      on:click={() => handleSelectVersion(version)}
+                    >
                       <Icon name="download" size="md" forceType="svg" />
                       Install
                     </button>
@@ -382,7 +387,8 @@ function formatDate(dateString: string): string {
                         <Icon name="file" size="sm" />
                         {version.files[0].filename}
                         <span class="file-size"
-                          >({formatFileSize(version.files[0].size)})</span>
+                          >({formatFileSize(version.files[0].size)})</span
+                        >
                       </span>
                     {/if}
                     <span class="version-game-versions">
@@ -393,7 +399,8 @@ function formatDate(dateString: string): string {
                         <button
                           class="more-versions-btn"
                           on:click|stopPropagation={() =>
-                            toggleMcVersions(version.id)}>
+                            toggleMcVersions(version.id)}
+                        >
                           {showAllMcVersions
                             ? "show less"
                             : `+${version.game_versions.length - 5} more`}
@@ -405,7 +412,8 @@ function formatDate(dateString: string): string {
                     <div class="version-changelog">
                       <p
                         class="changelog-text"
-                        class:expanded={expandedPatchnotes.has(version.id)}>
+                        class:expanded={expandedPatchnotes.has(version.id)}
+                      >
                         {expandedPatchnotes.has(version.id)
                           ? version.changelog
                           : truncateChangelog(version.changelog)}
@@ -413,7 +421,8 @@ function formatDate(dateString: string): string {
                       <button
                         class="toggle-changelog-btn"
                         on:click|stopPropagation={() =>
-                          togglePatchnotes(version.id)}>
+                          togglePatchnotes(version.id)}
+                      >
                         {expandedPatchnotes.has(version.id)
                           ? "hide"
                           : "read more"}

@@ -56,13 +56,15 @@ async function handleLaunch() {
     <button
       class="tab-btn"
       class:active={currentTab === "installed"}
-      on:click={() => (currentTab = "installed")}>
+      on:click={() => (currentTab = "installed")}
+    >
       📦 Installed Mods
     </button>
     <button
       class="tab-btn"
       class:active={currentTab === "browse"}
-      on:click={() => (currentTab = "browse")}>
+      on:click={() => (currentTab = "browse")}
+    >
       🔍 Browse Mods
     </button>
 
@@ -75,7 +77,8 @@ async function handleLaunch() {
         class="launch-btn"
         on:click={handleLaunch}
         use:launchSound
-        disabled={isLaunching}>
+        disabled={isLaunching}
+      >
         {#if isLaunching}
           <Icon name="refresh" size="sm" forceType="svg" className="spin" />
           <span>Launching...</span>
