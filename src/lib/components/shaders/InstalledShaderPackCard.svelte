@@ -71,7 +71,10 @@ async function handleRemove(event: MouseEvent) {
 
   loading = true;
   try {
-    await installationsApi.deleteShader(installation, shader.file_name);
+    await installationsApi.deleteShaderFromInstallation(
+      installation,
+      shader.file_name,
+    );
     NotificationService.success(`Removed "${displayName}"`);
     onshaderchanged?.();
   } catch (error) {

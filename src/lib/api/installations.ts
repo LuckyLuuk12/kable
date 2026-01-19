@@ -232,7 +232,7 @@ export async function toggleShaderDisabled(
 }
 
 // Delete/remove a shader pack from installation
-export async function deleteShader(
+export async function deleteShaderFromInstallation(
   installation: KableInstallation,
   fileName: string,
 ): Promise<void> {

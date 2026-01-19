@@ -71,6 +71,9 @@ resource_merger = "0.1"
 base64ct = "=1.6.0" # Pin to avoid 1.8.0 which uses edition2024
 semver = "1.0.27"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+glib = ">=0.20.0"   # Fix: Unsoundness in `Iterator` and `DoubleEndedIterator` impls for `glib::VariantStrIter`
+
 [target.'cfg(target_os = "windows")'.dependencies]
 mslnk = "0.1"
 

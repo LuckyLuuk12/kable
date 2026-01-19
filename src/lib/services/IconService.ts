@@ -1,4 +1,5 @@
 import { writable, get } from "svelte/store";
+import { invoke } from "@tauri-apps/api/core";
 import { type CustomIconTemplate, SettingsService } from "$lib";
 
 // Icon stores for reactive updates
@@ -679,7 +680,6 @@ export class IconService {
    */
   private static async loadCustomTemplates(): Promise<void> {
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       const templates = await invoke<CustomIconTemplate[]>(
         "get_custom_icon_templates",
       );
@@ -848,8 +848,6 @@ export class IconService {
     templateData: CustomIconTemplate,
   ): Promise<void> {
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
-
       // Save template to backend
       await invoke("save_custom_icon_template", { template: templateData });
 
@@ -870,8 +868,6 @@ export class IconService {
    */
   static async removeCustomTemplate(templateName: string): Promise<void> {
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
-
       // Delete from backend
       await invoke("delete_custom_icon_template", { templateName });
 
@@ -901,7 +897,6 @@ export class IconService {
     format: "json" | "yaml",
   ): Promise<CustomIconTemplate> {
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       return await invoke("validate_icon_template", {
         templateContent: content,
         format,
@@ -916,7 +911,6 @@ export class IconService {
    */
   static async getIconsDirectoryPath(): Promise<string> {
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       return await invoke("get_icons_directory_path");
     } catch (error) {
       throw new Error(`Failed to get icons directory: ${error}`);
@@ -928,7 +922,6 @@ export class IconService {
    */
   static async openIconsDirectory(): Promise<void> {
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       await invoke("open_icons_directory");
     } catch (error) {
       throw new Error(`Failed to open icons directory: ${error}`);

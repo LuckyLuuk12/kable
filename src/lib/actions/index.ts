@@ -1,8 +1,1 @@
-export {
-  clickSound,
-  buttonSound,
-  successSound,
-  errorSound,
-  notificationSound,
-  launchSound,
-} from "./soundActions";
+export * from "./soundActions";
