@@ -48,11 +48,20 @@ export class VersionUtils {
     if (!extracted) return version.toLowerCase().trim();
 
     // Further normalize by removing prefixes and build metadata
-    return extracted
-      .toLowerCase()
-      .replace(/^v+/i, "") // Remove leading v
-      .replace(/[+].*$/, "") // Remove build metadata after +
-      .trim();
+    let normalized = extracted.toLowerCase();
+
+    // Remove leading 'v' characters (avoid polynomial regex)
+    while (normalized.startsWith("v")) {
+      normalized = normalized.substring(1);
+    }
+
+    // Remove build metadata after '+' (avoid polynomial regex)
+    const plusIndex = normalized.indexOf("+");
+    if (plusIndex !== -1) {
+      normalized = normalized.substring(0, plusIndex);
+    }
+
+    return normalized.trim();
   }
 
   /**
@@ -98,7 +107,16 @@ export class VersionUtils {
       }
 
       // Keep segments that look like version numbers (contain dots and numbers)
-      if (/\d+\.\d+/.test(seg)) return true;
+      // Use simple string operations to avoid polynomial regex complexity
+      const dotIndex = seg.indexOf(".");
+      if (dotIndex > 0 && dotIndex < seg.length - 1) {
+        // Check if there's at least one digit before and after the dot
+        const beforeDot = seg.substring(0, dotIndex);
+        const afterDot = seg.substring(dotIndex + 1);
+        if (/\d/.test(beforeDot) && /\d/.test(afterDot)) {
+          return true;
+        }
+      }
 
       // Skip likely Minecraft versions by pattern (1.12, 1.16, 1.17, etc.)
       if (/^v?1\.(1[2-9]|2[0-9]|3[0-9])(\.\d+)?$/i.test(seg)) return false;

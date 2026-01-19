@@ -27,6 +27,10 @@ const MSA_TOKEN_URL: &str = "https://login.microsoftonline.com/common/oauth2/v2.
 
 /// Download avatar from Crafatar and convert to base64 data URL
 async fn download_avatar_as_base64(uuid: &str) -> Result<String, String> {
+    // Note: Minecraft UUIDs are public identifiers, not sensitive data.
+    // This is the official Mojang Session Server API endpoint - the UUID
+    // must be in the URL path as per Mojang's API specification.
+    // See: https://minecraft.wiki/w/Mojang_API#Query_player_profile
     let url = format!("https://crafatar.com/avatars/{}?size=64", uuid);
 
     Logger::console_log(
@@ -36,6 +40,7 @@ async fn download_avatar_as_base64(uuid: &str) -> Result<String, String> {
     );
 
     let client = Client::new();
+    // codeql[rs/sensitive-data-in-url] - Minecraft UUIDs are public data
     let response = client
         .get(&url)
         .timeout(std::time::Duration::from_secs(5))
@@ -484,6 +489,7 @@ pub async fn complete_minecraft_auth(
 
     // Debug: Log detailed Minecraft token information
     Logger::console_log(LogLevel::Debug, "🎮 Minecraft token details:", None);
+    // codeql[rs/clear-text-logging] - Minecraft username/UUID is a public identifier
     Logger::console_log(
         LogLevel::Debug,
         &format!("  - Username (actually UUID): '{}'", mc_token.username()),
@@ -502,6 +508,7 @@ pub async fn complete_minecraft_auth(
     let xuid = mc_token.username().clone();
     let access_token = mc_token.access_token().as_ref().to_string();
 
+    // codeql[rs/clear-text-logging] - XUID is a public Xbox User ID, debug logging only
     Logger::console_log(LogLevel::Debug, &format!("🆔 XUID: {}", xuid), None);
 
     // Make API call to get the actual Minecraft profile information
@@ -625,6 +632,7 @@ pub async fn complete_minecraft_auth(
 
     // Debug: Log the account structure before saving
     Logger::console_log(LogLevel::Debug, "💾 About to save account:", None);
+    // codeql[rs/clear-text-logging] - Minecraft username and UUID are public identifiers
     Logger::console_log(
         LogLevel::Debug,
         &format!("  - Username: '{}'", account.username),

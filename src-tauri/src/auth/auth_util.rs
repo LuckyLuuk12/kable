@@ -272,6 +272,7 @@ pub async fn write_launcher_account(account: LauncherAccount) -> Result<(), Stri
 
 /// Remove an account from launcher_accounts.json
 pub async fn remove_launcher_account(account_id: String) -> Result<(), String> {
+    // codeql[rs/clear-text-logging] - account_id is Minecraft UUID (public identifier)
     Logger::console_log(
         LogLevel::Info,
         &format!("🗑️ Removing account: {}", account_id),
@@ -313,6 +314,7 @@ pub async fn remove_launcher_account(account_id: String) -> Result<(), String> {
 
 /// Set the active account in launcher_accounts.json
 pub async fn set_active_launcher_account(account_id: String) -> Result<(), String> {
+    // codeql[rs/clear-text-logging] - account_id is Minecraft UUID (public identifier)
     Logger::console_log(
         LogLevel::Info,
         &format!("🎯 Setting active account: {}", account_id),

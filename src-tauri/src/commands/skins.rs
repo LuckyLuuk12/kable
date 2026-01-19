@@ -53,11 +53,16 @@ pub async fn change_skin_model(new_model: SkinModel) -> Result<SkinUploadRespons
 #[tauri::command]
 pub async fn get_skin_url_by_uuid(uuid: String) -> Result<String, String> {
     let client = reqwest::Client::new();
+    // Note: Minecraft UUIDs are public identifiers, not sensitive data.
+    // This is the official Mojang Session Server API endpoint - the UUID
+    // must be in the URL path as per Mojang's API specification.
+    // See: https://minecraft.wiki/w/Mojang_API#Query_player_profile
     let url = format!(
         "https://sessionserver.mojang.com/session/minecraft/profile/{}",
         uuid
     );
 
+    // codeql[rs/sensitive-data-in-url] - Minecraft UUIDs are public data
     let response = client
         .get(&url)
         .send()
