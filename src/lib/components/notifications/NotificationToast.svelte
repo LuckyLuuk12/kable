@@ -27,7 +27,8 @@ function handleMouseLeave() {
   // Will auto-dismiss after original duration completes
 }
 
-function handleDismiss() {
+function handleDismiss(event: MouseEvent) {
+  event.stopPropagation();
   NotificationService.dismiss(notification.id);
 }
 

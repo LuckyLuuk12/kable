@@ -5,8 +5,8 @@ let currentTab: "selection" | "editor" = "selection";
 </script>
 
 <div class="skins-page">
-  <!-- Tab Navigation -->
-  <div class="tab-navigation">
+  <!-- Tab Navigation merged with page content -->
+  <div class="tab-header">
     <button
       class="tab-btn"
       class:active={currentTab === "selection"}
@@ -41,29 +41,30 @@ let currentTab: "selection" | "editor" = "selection";
 
 <style lang="scss">
 .skins-page {
-  max-width: 100vw;
-  max-height: 100vh;
-  overflow: auto;
+  width: 100%;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
-.tab-navigation {
+.tab-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem;
   background: var(--background);
   border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  flex-shrink: 0;
 
   .tab-btn {
-    padding: 0.6rem 1.2rem;
+    padding: 0.5rem 1rem;
     border: 1px solid var(--dark-600);
     border-radius: 0.5rem;
     background: var(--card);
     color: var(--text);
     font-weight: 500;
-    font-size: 0.9em;
+    font-size: 0.85em;
     cursor: pointer;
     transition: all 0.15s;
 
@@ -88,6 +89,7 @@ let currentTab: "selection" | "editor" = "selection";
 .tab-content {
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
 .editor-placeholder {
@@ -106,10 +108,10 @@ let currentTab: "selection" | "editor" = "selection";
 }
 
 @media (max-width: 768px) {
-  .tab-navigation {
+  .tab-header {
     flex-direction: column;
     align-items: stretch;
-    gap: 0.75rem;
+    gap: 0.5rem;
   }
 }
 </style>
