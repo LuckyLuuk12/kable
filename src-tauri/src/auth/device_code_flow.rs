@@ -40,7 +40,7 @@ async fn download_avatar_as_base64(uuid: &str) -> Result<String, String> {
     );
 
     let client = Client::new();
-    // codeql[rs/sensitive-data-in-url] - Minecraft UUIDs are public data
+    // codeql[rust/cleartext-transmission] - Minecraft UUIDs are public data
     let response = client
         .get(&url)
         .timeout(std::time::Duration::from_secs(5))

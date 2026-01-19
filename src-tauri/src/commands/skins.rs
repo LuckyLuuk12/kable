@@ -62,7 +62,7 @@ pub async fn get_skin_url_by_uuid(uuid: String) -> Result<String, String> {
         uuid
     );
 
-    // codeql[rs/sensitive-data-in-url] - Minecraft UUIDs are public data
+    // codeql[rust/cleartext-transmission] - Minecraft UUIDs are public data
     let response = client
         .get(&url)
         .send()
