@@ -59,9 +59,23 @@ jobs:
           VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
           COMMIT_SHORT=$(git rev-parse --short HEAD)
           
-          # Count existing nightly releases for this base version
-          EXISTING_COUNT=$(gh release list --limit 1000 --json name --jq "[.[] | select(.name | startswith(\"Nightly ${VERSION}-\"))] | length" || echo "0")
-          BUILD_NUMBER=$((EXISTING_COUNT + 1))
+          # Determine next nightly build number robustly by extracting numeric
+          # suffixes from existing releases named like "Nightly ${VERSION}-<N>".
+          # This avoids duplication when intermediate releases were deleted.
+          NUMBERS=$(gh release list --limit 1000 --json name --jq ".[] | .name" 2>/dev/null \
+            | sed -E 's/\r//g' \
+            | grep -E "^Nightly ${VERSION}-[0-9]+$" || true)
+
+          if [ -z "${NUMBERS}" ]; then
+            BUILD_NUMBER=1
+          else
+            # Extract the numeric suffix for each matching name
+            MAX=$(echo "${NUMBERS}" \
+              | sed -E 's/^.*-([0-9]+)$/\1/' \
+              | sort -n \
+              | tail -n1)
+            BUILD_NUMBER=$((MAX + 1))
+          fi
           
           # Safety check: ensure we don't exceed MSI limit
           if [ $BUILD_NUMBER -ge 65535 ]; then
