@@ -8,6 +8,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 
 | Key | Source | Snippet |
 | --- | --- | --- |
+| advertisement-banner | [non-ambient.d](https://github.com/LuckyLuuk12/kable/blob/main/.svelte-kit/non-ambient.d.ts#L49) | <pre><code class="language-html">Asset(): "/favicon.png" &#124; "/img/advertisement-banner.webp" &#124; "/img/curseforge.webp" &#124; "/img/fabric.png" &#124; "/img/forge.jpeg" &#124; "/img/kablan-logo.png" &#124; "/img/kofi-logo.webp" &#124; "/img/luckybindings-logo.png" &#124; "/img/microsoft-logo.png" &#124; "/img/minecraft_logo.png" &#124; "/img/modrinth.webp" &#124; "/img/neoforge.png" &#124; "/img/quilt.png" &#124; "/sounds/click.mp3" &#124; "/sounds/error.mp3" &#124; "/sounds/hover.mp3" &#124; "/sounds/launch.mp3" &#124; "/sounds/music/.gitignore" &#124; "/sounds/music/menu1.mp3" &#124; "/sounds/notification.mp3" &#124; "/sounds/README.md" &#124; "/sounds/success.mp3" &#124; "/themes/KasaiSora-Theme.css" &#124; "/themes/Minecraft-Regular.woff2" &#124; "/themes/Modrinth-Theme.css" &#124; string &amp; {};</code></pre> |
 | favicon | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L463) | <pre><code class="language-html">&lt;Image key="favicon" alt="Kable" width="14px" height="14px" /&gt;</code></pre> |
 
 ## Icon keys
@@ -291,4 +292,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L538) | <pre><code class="language-html">&lt;Icon name="x" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L895) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2026-01-19T23:35:18.448Z_
+_Generated: 2026-01-20T12:27:55.866Z_

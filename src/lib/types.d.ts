@@ -456,6 +456,8 @@ export interface GeneralSettings {
   auto_update_launcher: boolean;
   /** Whether to show ads; I am a nice guy, no paid subscription needed to disable ads */
   show_ads: boolean;
+  /** Update behaviour: 'instant' | 'on_restart' | 'on_confirm' */
+  update_mode: "instant" | "on_restart" | "on_confirm";
 }
 
 /** Custom Icon Template for the launcher

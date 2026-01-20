@@ -28,6 +28,8 @@ pub struct GeneralSettings {
     pub on_game_launch: String,
     pub auto_update_launcher: bool,
     pub show_ads: bool,
+    /// 'instant' | 'on_restart' | 'on_confirm'
+    pub update_mode: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -128,6 +130,7 @@ impl Default for CategorizedLauncherSettings {
                 on_game_launch: "open_logs".to_string(),
                 auto_update_launcher: true,
                 show_ads: false,
+                update_mode: "on_confirm".to_string(),
             },
             appearance: AppearanceSettings {
                 theme: "dark".to_string(),

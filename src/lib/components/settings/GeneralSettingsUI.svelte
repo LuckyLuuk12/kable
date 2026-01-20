@@ -301,6 +301,28 @@ onMount(() => {
 
     <div class="setting-item">
       <div class="setting-info">
+        <label for="update-mode">Update Mode</label>
+        <p class="setting-description">
+          Choose how updates should be applied: install immediately, download
+          and install on restart, or download on click and install after
+          confirmation.
+        </p>
+      </div>
+      <div class="setting-control">
+        <select id="update-mode" bind:value={$settings.general.update_mode}>
+          <option value="instant">Instant update (install immediately)</option>
+          <option value="on_restart"
+            >Update on restart (download now, install on restart)</option
+          >
+          <option value="on_confirm"
+            >Update on confirm (download on click, install after confirmation)</option
+          >
+        </select>
+      </div>
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
         <label for="show-ads">Show Ads</label>
         <p class="setting-description">
           Show ads in the launcher (no paid subscription required)

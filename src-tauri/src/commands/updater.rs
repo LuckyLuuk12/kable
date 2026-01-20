@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use tauri::command;
 use tauri_plugin_updater::UpdaterExt;
+use tokio::fs as async_fs;
 use url::Url;
 
 #[derive(Debug, Deserialize, Clone)]
@@ -167,10 +168,13 @@ pub async fn install_update(app: tauri::AppHandle, include_prerelease: bool) -> 
     let endpoint =
         Url::parse(&endpoint_str).map_err(|e| format!("Failed to parse endpoint URL: {}", e))?;
 
-    let builder = app
+    let mut builder = app
         .updater_builder()
         .endpoints(vec![endpoint])
         .map_err(|e| format!("Failed to set endpoints: {}", e))?;
+
+    builder = builder
+        .version_comparator(|cur, upd| is_update(&cur.to_string(), &upd.version.to_string()));
 
     let updater = builder
         .build()
@@ -186,6 +190,108 @@ pub async fn install_update(app: tauri::AppHandle, include_prerelease: bool) -> 
         }
         Ok(None) => Err("No update available".to_string()),
         Err(e) => Err(format!("Failed to check for updates: {}", e)),
+    }
+}
+
+#[command]
+pub async fn download_update(
+    app: tauri::AppHandle,
+    include_prerelease: bool,
+) -> Result<String, String> {
+    let list = fetch_releases(include_prerelease).await?;
+    let current = env!("CARGO_PKG_VERSION").to_string();
+
+    let newer: Vec<_> = list
+        .into_iter()
+        .filter(|r| is_update(&current, &r.name))
+        .collect();
+
+    if newer.is_empty() {
+        return Err("No update available".to_string());
+    }
+
+    let latest = &newer[0];
+    let endpoint_str = format!(
+        "https://github.com/LuckyLuuk12/kable/releases/download/{}/latest.json",
+        latest.tag_name
+    );
+
+    let endpoint =
+        Url::parse(&endpoint_str).map_err(|e| format!("Failed to parse endpoint URL: {}", e))?;
+
+    let mut builder = app
+        .updater_builder()
+        .endpoints(vec![endpoint])
+        .map_err(|e| format!("Failed to set endpoints: {}", e))?;
+
+    builder = builder
+        .version_comparator(|cur, upd| is_update(&cur.to_string(), &upd.version.to_string()));
+
+    let updater = builder
+        .build()
+        .map_err(|e| format!("Failed to build updater: {}", e))?;
+
+    match updater.check().await {
+        Ok(Some(update)) => {
+            // Try to download the installer bytes using the updater
+            let downloaded_bytes = update
+                .download(|_, _| {}, || {})
+                .await
+                .map_err(|e| format!("Failed to download update: {}", e))?;
+
+            // Persist the downloaded installer to disk so it can be applied on restart
+            let launcher_dir = crate::get_kable_launcher_dir()?;
+            let filename = format!("kable-installer-{}.bin", update.version);
+            let download_path = launcher_dir.join(&filename);
+            async_fs::write(&download_path, &downloaded_bytes)
+                .await
+                .map_err(|e| format!("Failed to write downloaded installer: {}", e))?;
+
+            let pending_path = launcher_dir.join("pending_update.json");
+            let payload = serde_json::json!({
+                "installer_path": download_path.display().to_string(),
+                "version": update.version.to_string()
+            });
+
+            crate::write_file_atomic_async(
+                &pending_path,
+                serde_json::to_string_pretty(&payload).unwrap().as_bytes(),
+            )
+            .await?;
+
+            Ok(download_path.display().to_string())
+        }
+        Ok(None) => Err("No update available".to_string()),
+        Err(e) => Err(format!("Failed to check for updates: {}", e)),
+    }
+}
+
+#[command]
+pub async fn apply_downloaded_update() -> Result<(), String> {
+    let launcher_dir = crate::get_kable_launcher_dir()?;
+    let pending_path = launcher_dir.join("pending_update.json");
+
+    if !pending_path.exists() {
+        return Err("No pending update found".to_string());
+    }
+
+    let contents = async_fs::read_to_string(&pending_path)
+        .await
+        .map_err(|e| e.to_string())?;
+    let v: serde_json::Value = serde_json::from_str(&contents).map_err(|e| e.to_string())?;
+    let installer = v
+        .get("installer_path")
+        .and_then(|s| s.as_str())
+        .ok_or_else(|| "Invalid pending update data".to_string())?;
+
+    // Spawn the installer and exit to allow it to run
+    match std::process::Command::new(installer).spawn() {
+        Ok(_) => {
+            // remove pending file
+            let _ = async_fs::remove_file(&pending_path).await;
+            std::process::exit(0);
+        }
+        Err(e) => Err(format!("Failed to spawn installer: {}", e)),
     }
 }
 

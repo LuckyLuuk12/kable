@@ -11,7 +11,13 @@ Displays update information including version numbers and allows users to instal
 -->
 <script lang="ts">
 import { onMount } from "svelte";
-import { checkForUpdates, installUpdate, getCurrentVersion } from "$lib";
+import {
+  checkForUpdates,
+  installUpdate,
+  getCurrentVersion,
+  downloadUpdate,
+  applyDownloadedUpdate,
+} from "$lib";
 import { marked } from "marked";
 import { settings } from "$lib/stores";
 import { clickSound, successSound } from "$lib/actions";
@@ -20,8 +26,11 @@ let currentVersion = "";
 let updateInfo: any = null;
 let isChecking = false;
 let isInstalling = false;
+let isDownloading = false;
+let isApplying = false;
 let error = "";
 let releaseNotesHtml = "";
+let downloadedPath: string | null = null;
 
 onMount(async () => {
   try {
@@ -73,6 +82,31 @@ async function handleInstallUpdate() {
     isInstalling = false;
   }
 }
+
+async function handleDownloadUpdate() {
+  if (!updateInfo) return;
+  isDownloading = true;
+  error = "";
+  try {
+    const checkNightly = $settings?.advanced?.check_nightly_updates ?? false;
+    downloadedPath = await downloadUpdate(checkNightly);
+  } catch (e) {
+    error = `Failed to download update: ${e}`;
+  } finally {
+    isDownloading = false;
+  }
+}
+
+async function handleInstallDownloaded() {
+  isApplying = true;
+  error = "";
+  try {
+    await applyDownloadedUpdate();
+  } catch (e) {
+    error = `Failed to apply downloaded update: ${e}`;
+    isApplying = false;
+  }
+}
 </script>
 
 <div class="updater-section">
@@ -106,18 +140,54 @@ async function handleInstallUpdate() {
             </div>
           </div>
         {/if}
-        <button
-          class="install-button"
-          on:click={handleInstallUpdate}
-          use:successSound
-          disabled={isInstalling}
-        >
-          {#if isInstalling}
-            Installing...
-          {:else}
-            Install Update
-          {/if}
-        </button>
+        <div class="update-actions">
+          <button
+            class="download-button"
+            on:click={handleDownloadUpdate}
+            use:clickSound
+            disabled={isDownloading || isInstalling}
+            title="Download installer now; will be applied on restart or when you click 'Install downloaded'"
+          >
+            {#if isDownloading}
+              Downloading...
+            {:else}
+              Download Update
+            {/if}
+            <span class="small-version">v{updateInfo.version}</span>
+          </button>
+
+          <button
+            class="install-button"
+            on:click={handleInstallUpdate}
+            use:successSound
+            disabled={isInstalling}
+            title="App will restart to complete installation"
+          >
+            {#if isInstalling}
+              Installing...
+            {:else}
+              Install Now
+            {/if}
+            <span class="small-version">v{updateInfo.version}</span>
+          </button>
+
+          <button
+            class="install-downloaded-button"
+            on:click={handleInstallDownloaded}
+            use:successSound
+            disabled={!downloadedPath || isApplying}
+            title="Install the previously downloaded update and restart the app"
+          >
+            {#if isApplying}
+              Installing...
+            {:else}
+              Install Downloaded
+            {/if}
+            {#if downloadedPath}
+              <span class="small-version">({downloadedPath})</span>
+            {/if}
+          </button>
+        </div>
       </div>
     {:else if !isChecking && currentVersion}
       <p class="up-to-date">You're running the latest version</p>
@@ -371,6 +441,39 @@ async function handleInstallUpdate() {
       }
     }
   }
+}
+
+.update-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.download-button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.install-downloaded-button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.small-version {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: 0.5rem;
 }
 
 .install-button {

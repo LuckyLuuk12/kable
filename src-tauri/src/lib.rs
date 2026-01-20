@@ -130,6 +130,37 @@ pub fn run() {
             // use GLOBAL_APP_HANDLE (e.g. launcher utils) can emit events.
             crate::logging::init_global_logger(app.handle());
 
+            // On startup: if a pending update was downloaded previously,
+            // try to launch the installer and exit so the installer can run.
+            if let Ok(launcher_dir) = crate::get_kable_launcher_dir() {
+                let pending = launcher_dir.join("pending_update.json");
+                if pending.exists() {
+                    if let Ok(contents) = std::fs::read_to_string(&pending) {
+                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&contents) {
+                            if let Some(installer) =
+                                v.get("installer_path").and_then(|s| s.as_str())
+                            {
+                                if std::path::Path::new(installer).exists() {
+                                    match std::process::Command::new(installer).spawn() {
+                                        Ok(_) => {
+                                            let _ = std::fs::remove_file(&pending);
+                                            std::process::exit(0);
+                                        }
+                                        Err(e) => Logger::warn_global(
+                                            &format!(
+                                                "[STARTUP] Failed to launch pending installer: {}",
+                                                e
+                                            ),
+                                            None,
+                                        ),
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Initialize Discord Rich Presence
             tauri::async_runtime::spawn(async {
                 if let Err(e) = crate::discord::initialize() {
@@ -372,6 +403,8 @@ pub fn run() {
             // Updater commands
             commands_updater::check_for_updates,
             commands_updater::install_update,
+            commands_updater::download_update,
+            commands_updater::apply_downloaded_update,
             commands_updater::get_current_version
         ])
         .plugin(tauri_plugin_dialog::init())

@@ -36,6 +36,23 @@ export async function installUpdate(
 }
 
 /**
+ * Download available update but do not install it.
+ * Returns the path to the downloaded installer.
+ */
+export async function downloadUpdate(
+  includePrerelease: boolean = false,
+): Promise<string> {
+  return await invoke("download_update", { includePrerelease });
+}
+
+/**
+ * Apply a previously downloaded update (runs installer and exits).
+ */
+export async function applyDownloadedUpdate(): Promise<void> {
+  return await invoke("apply_downloaded_update");
+}
+
+/**
  * Get current app version
  * @returns Promise with current version string
  */
