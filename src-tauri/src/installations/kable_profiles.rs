@@ -1999,6 +1999,82 @@ impl KableInstallation {
         let shortcut_name = format!("{}.lnk", self.name);
         let shortcut_path = desktop.join(&shortcut_name);
 
+        // Determine icon location: try to convert self.icon into an .ico under kable_dir/icons/<id>.ico
+        let mut icon_location = exe_path.to_string_lossy().to_string(); // fallback to exe
+
+        if let Some(ref icon_spec) = self.icon {
+            if let Ok(kable_dir) = crate::get_minecraft_kable_dir() {
+                // Try to obtain raw bytes from icon_spec (data: URI, file: URI, or path)
+                let maybe_bytes: Result<Option<Vec<u8>>, String> = (|| {
+                    // data: URI
+                    if icon_spec.starts_with("data:") {
+                        if let Some(comma) = icon_spec.find(',') {
+                            let meta = &icon_spec[5..comma];
+                            let payload = &icon_spec[comma + 1..];
+                            if meta.contains(";base64") {
+                                use base64::Engine;
+                                return base64::engine::general_purpose::STANDARD
+                                    .decode(payload)
+                                    .map(Some)
+                                    .map_err(|e| e.to_string());
+                            } else {
+                                return Ok(Some(
+                                    percent_encoding::percent_decode(payload.as_bytes())
+                                        .collect::<Vec<u8>>(),
+                                ));
+                            }
+                        }
+                        return Ok(None);
+                    }
+
+                    // file: URI
+                    if icon_spec.starts_with("file:") {
+                        if let Ok(url) = url::Url::parse(icon_spec) {
+                            if let Ok(p) = url.to_file_path() {
+                                if p.exists() {
+                                    return fs::read(p).map(Some).map_err(|e| e.to_string());
+                                }
+                            }
+                        }
+                        return Ok(None);
+                    }
+
+                    // plain path (relative or absolute)
+                    let p = std::path::PathBuf::from(icon_spec);
+                    let p = if p.is_absolute() {
+                        p
+                    } else {
+                        kable_dir.join(p)
+                    };
+                    if p.exists() {
+                        return fs::read(p).map(Some).map_err(|e| e.to_string());
+                    }
+                    Ok(None)
+                })();
+
+                if let Ok(Some(img_bytes)) = maybe_bytes {
+                    // Attempt to convert to ICO using image + ico crates
+                    if let Ok(img) = image::load_from_memory(&img_bytes) {
+                        let rgba = img.to_rgba8();
+                        let (w, h) = rgba.dimensions();
+                        let icons_dir = kable_dir.join("icons");
+                        let _ = crate::ensure_folder_sync(&icons_dir);
+                        let icon_path = icons_dir.join(format!("{}.ico", self.id));
+                        let icon_image = ico::IconImage::from_rgba_data(w, h, rgba.into_raw());
+                        let mut dir = ico::IconDir::new(ico::ResourceType::Icon);
+                        if let Ok(entry) = ico::IconDirEntry::encode(&icon_image) {
+                            dir.add_entry(entry);
+                            if let Ok(mut f) = fs::File::create(&icon_path) {
+                                if dir.write(&mut f).is_ok() {
+                                    icon_location = icon_path.to_string_lossy().to_string();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Create shortcut using mslnk library
         let mut shortcut = mslnk::ShellLink::new(exe_path.clone())
             .map_err(|e| format!("Failed to create shortcut: {}", e))?;
@@ -2010,7 +2086,8 @@ impl KableInstallation {
                 .and_then(|p| p.to_str())
                 .map(|s| s.to_string()),
         );
-        shortcut.set_icon_location(exe_path.to_str().map(|s| s.to_string()));
+        // Set the best icon location we could determine (falls back to exe)
+        shortcut.set_icon_location(Some(icon_location));
 
         shortcut
             .create_lnk(&shortcut_path)
@@ -2076,13 +2153,73 @@ impl KableInstallation {
         // Get current executable path
         let exe_path = env::current_exe().map_err(|e| format!("Failed to get exe path: {}", e))?;
 
+        // Determine icon: if installation icon is available and is a file or data: URI, write it as PNG into kable_dir/icons/<id>.png
+        let mut icon_entry = exe_path.to_string_lossy().to_string(); // fallback
+
+        if let Some(ref icon_spec) = self.icon {
+            if let Ok(kable_dir) = crate::get_minecraft_kable_dir() {
+                if let Ok(Some(img_bytes)) = (|| -> Result<Option<Vec<u8>>, String> {
+                    if icon_spec.starts_with("data:") {
+                        if let Some(comma) = icon_spec.find(',') {
+                            let meta = &icon_spec[5..comma];
+                            let payload = &icon_spec[comma + 1..];
+                            if meta.contains(";base64") {
+                                use base64::Engine;
+                                return base64::engine::general_purpose::STANDARD
+                                    .decode(payload)
+                                    .map(Some)
+                                    .map_err(|e| e.to_string());
+                            } else {
+                                return Ok(Some(
+                                    percent_encoding::percent_decode(payload.as_bytes())
+                                        .collect::<Vec<u8>>(),
+                                ));
+                            }
+                        }
+                        return Ok(None);
+                    }
+                    if icon_spec.starts_with("file:") {
+                        if let Ok(url) = url::Url::parse(icon_spec) {
+                            if let Ok(p) = url.to_file_path() {
+                                if p.exists() {
+                                    return fs::read(p).map(Some).map_err(|e| e.to_string());
+                                }
+                            }
+                        }
+                        return Ok(None);
+                    }
+                    let p = std::path::PathBuf::from(icon_spec);
+                    let p = if p.is_absolute() {
+                        p
+                    } else {
+                        kable_dir.join(p)
+                    };
+                    if p.exists() {
+                        return fs::read(p).map(Some).map_err(|e| e.to_string());
+                    }
+                    Ok(None)
+                })() {
+                    if let Some(img_bytes) = img_bytes {
+                        if image::load_from_memory(&img_bytes).is_ok() {
+                            let icons_dir = kable_dir.join("icons");
+                            let _ = crate::ensure_folder_sync(&icons_dir);
+                            let icon_path = icons_dir.join(format!("{}.png", self.id));
+                            if fs::write(&icon_path, &img_bytes).is_ok() {
+                                icon_entry = icon_path.to_string_lossy().to_string();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // Create .desktop file content
         let desktop_entry = format!(
             "[Desktop Entry]\nType=Application\nName={}\nExec=\"{}\" --launch-installation={}\nIcon={}\nTerminal=false\nCategories=Game;\n",
             self.name,
             exe_path.to_string_lossy(),
             self.id,
-            exe_path.to_string_lossy()
+            icon_entry
         );
 
         fs::write(&shortcut_path, desktop_entry)
