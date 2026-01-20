@@ -1197,7 +1197,7 @@ impl KableInstallation {
             if custom_path.is_absolute() {
                 Some(custom_path)
             } else {
-                // Relative paths are relative to .minecraft/kable/
+                // Relative paths are relative to .minecraft/.kable/
                 // They already include the folder type prefix (e.g., "mods/{id}")
                 // Just normalize the separators
                 let normalized = custom_mods.replace('\\', "/");

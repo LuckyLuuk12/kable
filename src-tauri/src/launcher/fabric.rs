@@ -714,9 +714,11 @@ impl Launchable for FabricLaunchable {
             if p.is_absolute() {
                 p
             } else {
-                // Relative paths are relative to .minecraft/kable/
+                // Relative paths are relative to .minecraft/.kable/
                 // They already include the folder type prefix (e.g., "mods/{id}")
-                PathBuf::from(&context.minecraft_dir).join("kable").join(p)
+                let kable_dir = crate::get_minecraft_kable_dir()
+                    .map_err(|e| format!("Failed to get Kable dir: {}", e))?;
+                kable_dir.join(p)
             }
         } else {
             // Default: use standard Fabric mods folder

@@ -333,8 +333,9 @@ pub async fn backup_world(minecraft_path: String, world_folder: String) -> Resul
     let saves_dir = minecraft_dir.join("saves");
     let world_path = saves_dir.join(&world_folder);
 
-    // Use .minecraft/kable/world-backups for backup storage
-    let kable_dir = minecraft_dir.join("kable");
+    // Use .minecraft/.kable/world-backups for backup storage
+    let kable_dir =
+        crate::get_minecraft_kable_dir().map_err(|e| format!("Failed to get Kable dir: {}", e))?;
     let backups_dir = kable_dir.join("world-backups");
 
     if !world_path.exists() {
@@ -380,9 +381,12 @@ pub async fn backup_world(minecraft_path: String, world_folder: String) -> Resul
 }
 
 // Helper function to count backups for a world
-async fn count_world_backups_async(minecraft_path: &str, world_folder: &str) -> u32 {
-    let minecraft_dir = PathBuf::from(minecraft_path);
-    let backups_dir = minecraft_dir.join("kable").join("world-backups");
+async fn count_world_backups_async(_minecraft_path: &str, world_folder: &str) -> u32 {
+    let kable_dir = match crate::get_minecraft_kable_dir() {
+        Ok(dir) => dir,
+        Err(_) => return 0,
+    };
+    let backups_dir = kable_dir.join("world-backups");
 
     if !backups_dir.exists() {
         return 0;

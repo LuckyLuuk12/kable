@@ -33,8 +33,7 @@ pub struct SymlinkInfo {
 // ===== CONFIG FILE FUNCTIONS =====
 
 fn get_custom_symlinks_config_path() -> Result<PathBuf, String> {
-    let minecraft_dir = crate::get_default_minecraft_dir()?;
-    let kable_dir = minecraft_dir.join("kable");
+    let kable_dir = crate::get_minecraft_kable_dir()?;
     Ok(kable_dir.join("custom_symlinks.json"))
 }
 
@@ -141,7 +140,11 @@ fn determine_symlink_type(path: &Path, minecraft_root: &Path) -> String {
 fn extract_installation_from_path(path: &Path) -> Option<String> {
     let path_str = path.to_string_lossy();
 
-    if path_str.contains("kable/resourcepacks/") || path_str.contains("kable\\resourcepacks\\") {
+    if path_str.contains(".kable/resourcepacks/")
+        || path_str.contains(".kable\\resourcepacks\\")
+        || path_str.contains("kable/resourcepacks/")
+        || path_str.contains("kable\\resourcepacks\\")
+    {
         if let Some(pos) = path_str
             .find("resourcepacks/")
             .or_else(|| path_str.find("resourcepacks\\"))
@@ -153,7 +156,11 @@ fn extract_installation_from_path(path: &Path) -> Option<String> {
         }
     }
 
-    if path_str.contains("kable/shaderpacks/") || path_str.contains("kable\\shaderpacks\\") {
+    if path_str.contains(".kable/shaderpacks/")
+        || path_str.contains(".kable\\shaderpacks\\")
+        || path_str.contains("kable/shaderpacks/")
+        || path_str.contains("kable\\shaderpacks\\")
+    {
         if let Some(pos) = path_str
             .find("shaderpacks/")
             .or_else(|| path_str.find("shaderpacks\\"))

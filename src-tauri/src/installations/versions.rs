@@ -40,9 +40,9 @@ const CACHE_TTL_SECONDS: u64 = 24 * 60 * 60; // 24 hours
 
 /// Get the manifests cache directory
 async fn get_manifests_cache_dir() -> Result<PathBuf, String> {
-    let minecraft_dir = crate::get_default_minecraft_dir()
-        .map_err(|e| format!("Failed to get Minecraft dir: {}", e))?;
-    let cache_dir = minecraft_dir.join("kable").join("manifests");
+    let kable_dir =
+        crate::get_minecraft_kable_dir().map_err(|e| format!("Failed to get Kable dir: {}", e))?;
+    let cache_dir = kable_dir.join("manifests");
     crate::ensure_folder(&cache_dir).await?;
     Ok(cache_dir)
 }

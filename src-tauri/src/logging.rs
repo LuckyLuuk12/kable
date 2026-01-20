@@ -212,9 +212,10 @@ struct LogMessage {
 
 impl LogStorage {
     /// Create new log storage instance
-    pub fn new(app: &AppHandle) -> Result<Self, Box<dyn std::error::Error>> {
-        let minecraft_path = Self::get_minecraft_path(app)?;
-        let logs_dir = minecraft_path.join("kable").join("logs");
+    pub fn new(_app: &AppHandle) -> Result<Self, Box<dyn std::error::Error>> {
+        let kable_dir = crate::get_minecraft_kable_dir()
+            .map_err(|e| format!("Failed to get Kable dir: {}", e))?;
+        let logs_dir = kable_dir.join("logs");
 
         // Create logs directory structure using centralized sync helper
         crate::ensure_folder_sync(&logs_dir)?;
@@ -323,15 +324,6 @@ impl LogStorage {
         });
 
         Ok(Self { config, sender: tx })
-    }
-
-    /// Get Minecraft path from app settings or default location
-    fn get_minecraft_path(_app: &AppHandle) -> Result<PathBuf, Box<dyn std::error::Error>> {
-        // For now, use a default path. In a real implementation, you'd read from settings
-        let minecraft_dir = dirs::data_dir()
-            .ok_or("Could not find data directory")?
-            .join(".minecraft");
-        Ok(minecraft_dir)
     }
 
     /// Update logging configuration from settings
@@ -705,19 +697,15 @@ pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
         if let Some(storage) = storage_guard.as_ref() {
             storage.config.logs_dir.clone()
         } else {
-            // Fallback to default minecraft directory
-            dirs::data_dir()
-                .ok_or("Could not find data directory")?
-                .join(".minecraft")
-                .join("kable")
+            // Fallback to get kable directory
+            crate::get_minecraft_kable_dir()
+                .map_err(|e| format!("Failed to get Kable dir: {}", e))?
                 .join("logs")
         }
     } else {
-        // Fallback to default minecraft directory
-        dirs::data_dir()
-            .ok_or("Could not find data directory")?
-            .join(".minecraft")
-            .join("kable")
+        // Fallback to get kable directory
+        crate::get_minecraft_kable_dir()
+            .map_err(|e| format!("Failed to get Kable dir: {}", e))?
             .join("logs")
     };
 

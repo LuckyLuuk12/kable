@@ -32,13 +32,10 @@ async fn ensure_dedicated_mods_folder(
     if is_modded && installation.dedicated_mods_folder.is_none() {
         // Set mods_folder to relative path format: "mods/{id}"
         installation.dedicated_mods_folder = Some(format!("mods/{}", installation.id));
-        // Create .minecraft/kable/mods/<id> if not exists
-        let minecraft_dir = crate::get_default_minecraft_dir()
-            .map_err(|e| format!("Failed to get default Minecraft dir: {e}"))?;
-        let mods_dir = minecraft_dir
-            .join("kable")
-            .join("mods")
-            .join(&installation.id);
+        // Create .minecraft/.kable/mods/<id> if not exists
+        let kable_dir = crate::get_minecraft_kable_dir()
+            .map_err(|e| format!("Failed to get Kable dir: {e}"))?;
+        let mods_dir = kable_dir.join("mods").join(&installation.id);
         if !mods_dir.exists() {
             crate::ensure_folder(&mods_dir)
                 .await
@@ -965,9 +962,9 @@ pub async fn get_mods_directory(installation: &KableInstallation) -> Result<Path
             let cleaned = normalized.strip_prefix("mods/").unwrap_or(&normalized);
 
             // The dedicated_folder is just the installation ID
-            // It should be in .minecraft/kable/mods/<id>
-            let minecraft_dir = crate::get_default_minecraft_dir()?;
-            minecraft_dir.join("kable").join("mods").join(cleaned)
+            // It should be in .minecraft/.kable/mods/<id>
+            let kable_dir = crate::get_minecraft_kable_dir()?;
+            kable_dir.join("mods").join(cleaned)
         };
         async_fs::create_dir_all(&final_path)
             .await
@@ -998,12 +995,9 @@ async fn get_resource_packs_directory(installation: &KableInstallation) -> Resul
                 .unwrap_or(&normalized);
 
             // The dedicated_folder is just the installation ID
-            // It should be in .minecraft/kable/resourcepacks/<id>
-            let minecraft_dir = crate::get_default_minecraft_dir()?;
-            minecraft_dir
-                .join("kable")
-                .join("resourcepacks")
-                .join(cleaned)
+            // It should be in .minecraft/.kable/resourcepacks/<id>
+            let kable_dir = crate::get_minecraft_kable_dir()?;
+            kable_dir.join("resourcepacks").join(cleaned)
         };
         async_fs::create_dir_all(&final_path)
             .await
@@ -1033,12 +1027,9 @@ async fn get_shaders_directory(installation: &KableInstallation) -> Result<PathB
                 .unwrap_or(&normalized);
 
             // The dedicated_folder is just the installation ID
-            // It should be in .minecraft/kable/shaderpacks/<id>
-            let minecraft_dir = crate::get_default_minecraft_dir()?;
-            minecraft_dir
-                .join("kable")
-                .join("shaderpacks")
-                .join(cleaned)
+            // It should be in .minecraft/.kable/shaderpacks/<id>
+            let kable_dir = crate::get_minecraft_kable_dir()?;
+            kable_dir.join("shaderpacks").join(cleaned)
         };
         async_fs::create_dir_all(&final_path)
             .await
