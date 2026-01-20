@@ -433,14 +433,32 @@ fn get_default_minecraft_dir() -> Result<PathBuf, String> {
 }
 
 /// Gets the kable dir inside the .minecraft folder
+/// Automatically migrates from old 'kable' to new '.kable' folder for existing users
 #[tauri::command]
 fn get_minecraft_kable_dir() -> Result<PathBuf, String> {
     let default_dir = get_default_minecraft_dir()?;
-    let kable_dir = default_dir.join("kable");
-    if !kable_dir.exists() {
-        fs::create_dir_all(&kable_dir).map_err(|e| e.to_string())?;
+    let new_kable_dir = default_dir.join(".kable");
+    let old_kable_dir = default_dir.join("kable");
+
+    // Migration logic: if old folder exists and new doesn't, rename it
+    if old_kable_dir.exists() && !new_kable_dir.exists() {
+        fs::rename(&old_kable_dir, &new_kable_dir)
+            .map_err(|e| format!("Failed to migrate kable folder to .kable: {}", e))?;
+        Logger::info_global(
+            &format!(
+                "Migrated kable folder to .kable at {}",
+                new_kable_dir.display()
+            ),
+            None,
+        );
     }
-    Ok(kable_dir)
+
+    // Ensure .kable directory exists
+    if !new_kable_dir.exists() {
+        fs::create_dir_all(&new_kable_dir).map_err(|e| e.to_string())?;
+    }
+
+    Ok(new_kable_dir)
 }
 
 /// Gets the kable-launcher folder, on windows this is inside Roaming/kable-launcher

@@ -29,7 +29,12 @@ pub struct GeneralSettings {
     pub auto_update_launcher: bool,
     pub show_ads: bool,
     /// 'instant' | 'on_restart' | 'on_confirm'
+    #[serde(default = "default_update_mode")]
     pub update_mode: String,
+}
+
+fn default_update_mode() -> String {
+    "on_confirm".to_string()
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -322,6 +322,64 @@ impl KableInstallation {
                 .map_err(|e| format!("Failed to serialize KableInstallation: {}", e))?;
             zip.write_all(json.as_bytes())
                 .map_err(|e| format!("Failed to write KableInstallation data: {}", e))?;
+
+            // Export the custom icon if it exists (as raw data to preserve it)
+            if let Some(ref icon_spec) = self_owned.icon {
+                // Try to extract icon bytes and save to icon.dat in the export
+                let icon_bytes: Option<Vec<u8>> = (|| -> Option<Vec<u8>> {
+                    // data: URI
+                    if icon_spec.starts_with("data:") {
+                        if let Some(comma) = icon_spec.find(',') {
+                            let meta = &icon_spec[5..comma];
+                            let payload = &icon_spec[comma + 1..];
+                            if meta.contains(";base64") {
+                                use base64::Engine;
+                                return base64::engine::general_purpose::STANDARD
+                                    .decode(payload)
+                                    .ok();
+                            } else {
+                                return Some(
+                                    percent_encoding::percent_decode(payload.as_bytes())
+                                        .collect::<Vec<u8>>(),
+                                );
+                            }
+                        }
+                        return None;
+                    }
+
+                    // file: URI
+                    if icon_spec.starts_with("file:") {
+                        if let Ok(url) = url::Url::parse(icon_spec) {
+                            if let Ok(p) = url.to_file_path() {
+                                if p.exists() {
+                                    return fs::read(p).ok();
+                                }
+                            }
+                        }
+                        return None;
+                    }
+
+                    // plain path (relative or absolute)
+                    let p = std::path::PathBuf::from(icon_spec);
+                    let p = if p.is_absolute() {
+                        p
+                    } else {
+                        kable_dir.join(p)
+                    };
+                    if p.exists() {
+                        return fs::read(p).ok();
+                    }
+                    None
+                })();
+
+                if let Some(bytes) = icon_bytes {
+                    zip.start_file("icon.dat", options.clone())
+                        .map_err(|e| format!("Failed to write icon: {}", e))?;
+                    zip.write_all(&bytes)
+                        .map_err(|e| format!("Failed to write icon data: {}", e))?;
+                }
+            }
+
             // If there is a dedicated resource pack folder or file, add it to the zip
             if let Some(ref resource_pack) = self_owned.dedicated_resource_pack_folder {
                 // if resource_pack is absolute, use as-is; otherwise relative to kable_dir
@@ -538,6 +596,40 @@ impl KableInstallation {
                 // Ensure the ID is set to the new one (in case replacement didn't work)
                 installation.id = new_id.clone();
             }
+
+            // Extract and restore the custom icon if it exists
+            if let Ok(mut icon_file) = zip.by_name("icon.dat") {
+                let mut icon_data = Vec::new();
+                if icon_file.read_to_end(&mut icon_data).is_ok() && !icon_data.is_empty() {
+                    // Save icon to kable_dir/icons/<new_id>_icon with appropriate extension
+                    let icons_dir = kable_dir.join("icons");
+                    if let Err(e) = crate::ensure_folder_sync(&icons_dir) {
+                        Logger::debug_global(&format!("Failed to create icons dir: {}", e), None);
+                    } else {
+                        // Detect format from magic bytes
+                        let extension = if icon_data.starts_with(&[0x89, 0x50, 0x4E, 0x47]) {
+                            "png"
+                        } else if icon_data.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                            "jpg"
+                        } else if icon_data.len() > 2
+                            && icon_data[0] == 0x00
+                            && icon_data[1] == 0x00
+                        {
+                            "ico"
+                        } else {
+                            "dat" // unknown format, save as-is
+                        };
+
+                        let icon_path = icons_dir.join(format!("{}_icon.{}", new_id, extension));
+                        if fs::write(&icon_path, &icon_data).is_ok() {
+                            // Set the icon to the saved file path (relative to kable_dir)
+                            installation.icon =
+                                Some(format!("icons/{}_icon.{}", new_id, extension));
+                        }
+                    }
+                }
+            }
+
             // Extract the resource pack if it exists (embedded zip) and unpack into destination
             if let Ok(mut file) = zip.by_name("resource_packs.zip") {
                 // Use the new ID for the destination path
