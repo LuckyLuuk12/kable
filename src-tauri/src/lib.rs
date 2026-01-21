@@ -55,10 +55,6 @@ pub use settings::*;
 pub use shaders::*;
 pub use skins::*;
 
-// !NOTE: READ THIS !!
-// !TODO: Add funny sounds for certain buttons and actions
-// !NOTE: READ THIS !!
-
 /// This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -69,6 +65,22 @@ pub fn run() {
     for arg in args.iter() {
         if arg.starts_with("--launch-installation=") {
             let installation_id = arg.trim_start_matches("--launch-installation=");
+
+            // Hide console window on Windows when launching headlessly
+            #[cfg(windows)]
+            {
+                extern "C" {
+                    fn GetConsoleWindow() -> *mut std::ffi::c_void;
+                    fn ShowWindow(hwnd: *mut std::ffi::c_void, n_cmd_show: i32) -> i32;
+                }
+                const SW_HIDE: i32 = 0;
+                unsafe {
+                    let console_window = GetConsoleWindow();
+                    if !console_window.is_null() {
+                        ShowWindow(console_window, SW_HIDE);
+                    }
+                }
+            }
 
             // Launch the installation directly without showing UI
             tauri::async_runtime::block_on(async {
@@ -85,7 +97,7 @@ pub fn run() {
                             }
                         };
 
-                        let account =
+                        let mut account =
                             match crate::auth::auth_util::get_active_launcher_account().await {
                                 Ok(Some(acc)) => acc,
                                 Ok(None) => {
@@ -99,6 +111,24 @@ pub fn run() {
                                     std::process::exit(1);
                                 }
                             };
+
+                        // Refresh the account token to ensure it's still valid
+                        eprintln!("Refreshing account token...");
+                        account = match crate::auth::auth_util::refresh_microsoft_token(
+                            account.local_id.clone(),
+                        )
+                        .await
+                        {
+                            Ok(refreshed) => {
+                                eprintln!("Account token refreshed successfully");
+                                refreshed
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to refresh account token: {}", e);
+                                eprintln!("Please open the launcher to log in again.");
+                                std::process::exit(1);
+                            }
+                        };
 
                         if let Err(e) =
                             crate::launcher::launch_installation(installation, settings, account)
