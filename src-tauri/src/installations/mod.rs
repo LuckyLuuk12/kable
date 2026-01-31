@@ -602,26 +602,39 @@ async fn copy_and_update_mods(
             match get_mod_info_single(&path).await {
                 Ok(Some(info)) => Some(info),
                 Ok(None) => {
+                    // Can't read mod info, move to disabled folder
+                    let disabled_dir = target_mods_dir.join("disabled");
+                    crate::ensure_folder_sync(&disabled_dir)
+                        .map_err(|e| format!("Failed to create disabled directory: {}", e))?;
+                    let target_path = disabled_dir.join(file_name);
                     crate::logging::Logger::warn_global(
-                        &format!("Could not read mod info from {}, copying as-is", file_name),
+                        &format!(
+                            "Could not read mod info from {}, moving to disabled folder",
+                            file_name
+                        ),
                         None,
                     );
-                    // Just copy the file as-is
-                    let target_path = target_mods_dir.join(file_name);
-                    async_fs::copy(&path, &target_path)
-                        .await
-                        .map_err(|e| format!("Failed to copy mod file: {}", e))?;
+                    async_fs::copy(&path, &target_path).await.map_err(|e| {
+                        format!("Failed to copy mod file to disabled folder: {}", e)
+                    })?;
                     continue;
                 }
                 Err(e) => {
+                    // Error reading mod, move to disabled folder
+                    let disabled_dir = target_mods_dir.join("disabled");
+                    crate::ensure_folder_sync(&disabled_dir)
+                        .map_err(|e| format!("Failed to create disabled directory: {}", e))?;
+                    let target_path = disabled_dir.join(file_name);
                     crate::logging::Logger::warn_global(
-                        &format!("Error reading mod {}: {}, copying as-is", file_name, e),
+                        &format!(
+                            "Error reading mod {}: {}, moving to disabled folder",
+                            file_name, e
+                        ),
                         None,
                     );
-                    let target_path = target_mods_dir.join(file_name);
-                    async_fs::copy(&path, &target_path)
-                        .await
-                        .map_err(|e| format!("Failed to copy mod file: {}", e))?;
+                    async_fs::copy(&path, &target_path).await.map_err(|e| {
+                        format!("Failed to copy mod file to disabled folder: {}", e)
+                    })?;
                     continue;
                 }
             }
@@ -856,15 +869,23 @@ async fn copy_and_update_mods(
             );
         }
 
-        // Fallback: copy the original file
-        crate::logging::info(&format!(
-            "Copying {} as-is (no update available)",
-            file_name
-        ));
-        let target_path = target_mods_dir.join(file_name);
+        // Fallback: copy the original file to the disabled folder
+        // (likely outdated/incompatible with the new version)
+        let disabled_dir = target_mods_dir.join("disabled");
+        crate::ensure_folder_sync(&disabled_dir)
+            .map_err(|e| format!("Failed to create disabled directory: {}", e))?;
+
+        let target_path = disabled_dir.join(file_name);
+        crate::logging::Logger::warn_global(
+            &format!(
+                "No compatible update found for '{}', moving to disabled folder (may be outdated/incompatible)",
+                file_name
+            ),
+            None,
+        );
         async_fs::copy(&path, &target_path)
             .await
-            .map_err(|e| format!("Failed to copy mod file: {}", e))?;
+            .map_err(|e| format!("Failed to copy mod file to disabled folder: {}", e))?;
     }
 
     crate::logging::info("Finished copying and updating mods");
