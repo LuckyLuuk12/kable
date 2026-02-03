@@ -389,7 +389,7 @@ pub async fn get_current_skin(account: &LauncherAccount) -> Result<CurrentSkin, 
         &format!("🌐 Fetching profile from: {}", url),
         None,
     );
-
+    // codeql[rust/cleartext-transmission] - Minecraft UUIDs are public data
     let response = client
         .get(&url)
         .send()

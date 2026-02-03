@@ -17,6 +17,8 @@ jobs:
       !contains(github.event.head_commit.message, '[nightly skip]') &&
       !contains(github.event.head_commit.message, '[no nightly]') &&
       !contains(github.event.head_commit.message, '[skip ci]') &&
+      !contains(github.event.head_commit.message, '[skip-ci]') &&
+      !contains(github.event.head_commit.message, '[ci-skip]') &&
       !contains(github.event.head_commit.message, '[ci skip]')
     permissions:
       contents: write
