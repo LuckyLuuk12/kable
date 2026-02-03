@@ -189,15 +189,29 @@ $: error = $modsError;
 $: paginatedMods = mods;
 $: totalMods = mods.length;
 
-// Update installed status cache when mods change
-$: if (paginatedMods && installedModsLoaded) {
-  updateInstalledStatusCache(paginatedMods);
-}
-
 // Load installed mods when installation changes
 $: if (currentInstallation) {
   installedModsLoaded = false;
   loadInstalledMods(currentInstallation);
+}
+
+// Update installed status cache when mods change (after metadata is loaded)
+$: if (paginatedMods && paginatedMods.length > 0 && installedModsLoaded) {
+  // Force re-check of all mods in view
+  paginatedMods.forEach((mod) => {
+    const projectId =
+      "Modrinth" in mod
+        ? mod.Modrinth.project_id
+        : "CurseForge" in mod
+          ? mod.CurseForge.id.toString()
+          : null;
+    if (projectId && !installedStatusCache.has(projectId)) {
+      installedStatusCache.set(projectId, {
+        isInstalled: false,
+        version: null,
+      });
+    }
+  });
 }
 
 // Handle filter changes - debounced to avoid too many API calls
@@ -532,8 +546,42 @@ async function loadInstalledMods(installation: KableInstallation) {
     versionFilenameCache.clear();
     versionFetchInProgress.clear();
 
+    // Load metadata for all installed mods to get project IDs
+    const metadataPromises = installedMods.map(async (mod) => {
+      try {
+        const metadata = await modsApi.getModMetadata(
+          installation,
+          mod.file_name,
+        );
+        return {
+          fileName: mod.file_name,
+          projectId: metadata.project_id,
+          version: metadata.version_number,
+        };
+      } catch (e) {
+        return null;
+      }
+    });
+
+    const metadataResults = await Promise.all(metadataPromises);
+
+    // Build cache from metadata (use project_id as key)
+    for (const result of metadataResults) {
+      if (result) {
+        installedStatusCache.set(result.projectId, {
+          isInstalled: true,
+          version: result.version,
+        });
+      }
+    }
+
     installedModsLoaded = true;
-    console.log(`[ModBrowser] Loaded ${installedMods.length} installed mods`);
+    // Force reactivity update by incrementing counter and reassigning cache
+    installedStatusCache = installedStatusCache;
+    cacheUpdateCounter++;
+    console.log(
+      `[ModBrowser] Loaded ${installedMods.length} installed mods, ${installedStatusCache.size} with metadata`,
+    );
   } catch (e) {
     console.error("[ModBrowser] Failed to load installed mods:", e);
     installedMods = [];
@@ -590,7 +638,7 @@ async function fetchVersionFilenames(projectId: string): Promise<Set<string>> {
   }
 }
 
-// Check if a mod is already installed by comparing JAR filenames and versions
+// Check if a mod is already installed by comparing project IDs from metadata
 async function getInstalledModInfo(
   mod: ModInfoKind,
 ): Promise<{ isInstalled: boolean; version: string | null }> {
@@ -612,75 +660,15 @@ async function getInstalledModInfo(
     return { isInstalled: false, version: null };
   }
 
-  // Check cache first
+  // Check cache (populated during loadInstalledMods from metadata files)
   if (installedStatusCache.has(projectId)) {
     return installedStatusCache.get(projectId)!;
   }
 
-  // Fetch version filenames for this project
-  const versionFilenames = await fetchVersionFilenames(projectId);
-
-  // Check if any of our installed mod filenames match any version filename
-  // Also try to match by mod name and version number for more robust detection
-  for (const [filename, installedMod] of installedModsMap.entries()) {
-    // Direct filename match
-    if (versionFilenames.has(filename)) {
-      const result = {
-        isInstalled: true,
-        version: installedMod.mod_version || null,
-      };
-      installedStatusCache.set(projectId, result);
-      return result;
-    }
-
-    // Try version-based matching as fallback
-    // Extract versions from both the JAR filename and mod metadata
-    const installedVersion =
-      installedMod.mod_version || VersionUtils.extractVersion(filename);
-    if (installedVersion) {
-      // Check if this could be the same mod by comparing project names
-      const modTitle =
-        "Modrinth" in mod
-          ? mod.Modrinth.title
-          : "CurseForge" in mod
-            ? mod.CurseForge.name
-            : "";
-      const installedName =
-        installedMod.mod_name || filename.replace(/\.jar$/, "");
-
-      // Fuzzy name matching (case-insensitive, remove special chars)
-      const normalizeName = (name: string) =>
-        name.toLowerCase().replace(/[^a-z0-9]/g, "");
-
-      if (
-        normalizeName(modTitle).includes(normalizeName(installedName)) ||
-        normalizeName(installedName).includes(normalizeName(modTitle))
-      ) {
-        const result = {
-          isInstalled: true,
-          version: installedVersion,
-        };
-        installedStatusCache.set(projectId, result);
-        return result;
-      }
-    }
-  }
-
+  // Not installed
   const result = { isInstalled: false, version: null };
   installedStatusCache.set(projectId, result);
   return result;
-}
-
-// Update installed status cache for all visible mods
-async function updateInstalledStatusCache(mods: ModInfoKind[]) {
-  // Process mods in parallel (with limit to avoid overwhelming)
-  const batchSize = 10;
-  for (let i = 0; i < mods.length; i += batchSize) {
-    const batch = mods.slice(i, i + batchSize);
-    await Promise.all(batch.map((mod) => getInstalledModInfo(mod)));
-    // Trigger reactivity after each batch
-    cacheUpdateCounter++;
-  }
 }
 
 // Get cached installed info (synchronous, for template use)
@@ -722,13 +710,27 @@ async function isModInstalled(mod: ModInfoKind): Promise<boolean> {
   return info.isInstalled;
 }
 
+// Track if we're currently initializing to prevent duplicate calls
+let isInitializing = false;
+
 // Initialize service when provider changes
-$: if (currentProvider && currentProvider !== $modsProvider) {
+$: if (
+  currentProvider &&
+  currentProvider !== $modsProvider &&
+  !isInitializing
+) {
   initializeProvider();
 }
 
 async function initializeProvider() {
+  if (isInitializing) {
+    console.log("[ModBrowser] Already initializing, skipping duplicate call");
+    return;
+  }
+
+  isInitializing = true;
   try {
+    console.log(`[ModBrowser] Initializing provider: ${currentProvider}`);
     modsService = new ModsService(currentProvider);
     await modsService.initialize();
 
@@ -738,6 +740,8 @@ async function initializeProvider() {
     }
   } catch (e) {
     console.error("Failed to initialize provider:", e);
+  } finally {
+    isInitializing = false;
   }
 }
 

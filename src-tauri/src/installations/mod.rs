@@ -617,6 +617,12 @@ async fn copy_and_update_mods(
                     async_fs::copy(&path, &target_path).await.map_err(|e| {
                         format!("Failed to copy mod file to disabled folder: {}", e)
                     })?;
+                    // Copy metadata file if it exists
+                    if metadata_file.exists() {
+                        let metadata_target =
+                            disabled_dir.join(format!("{}.kable_metadata.json", file_name));
+                        let _ = async_fs::copy(&metadata_file, &metadata_target).await;
+                    }
                     continue;
                 }
                 Err(e) => {
@@ -635,6 +641,12 @@ async fn copy_and_update_mods(
                     async_fs::copy(&path, &target_path).await.map_err(|e| {
                         format!("Failed to copy mod file to disabled folder: {}", e)
                     })?;
+                    // Copy metadata file if it exists
+                    if metadata_file.exists() {
+                        let metadata_target =
+                            disabled_dir.join(format!("{}.kable_metadata.json", file_name));
+                        let _ = async_fs::copy(&metadata_file, &metadata_target).await;
+                    }
                     continue;
                 }
             }
@@ -826,8 +838,17 @@ async fn copy_and_update_mods(
 
                         modrinth::download_mod_file(&primary_file.url, &target_path).await?;
 
+                        // Save metadata to track this mod properly
+                        modrinth::save_mod_metadata(
+                            &target_mods_dir,
+                            &primary_file.filename,
+                            &project_id,
+                            &version.version_number,
+                        )
+                        .await?;
+
                         crate::logging::info(&format!(
-                            "Successfully downloaded: {}",
+                            "Successfully downloaded: {} (with metadata)",
                             primary_file.filename
                         ));
                         continue;
@@ -886,6 +907,11 @@ async fn copy_and_update_mods(
         async_fs::copy(&path, &target_path)
             .await
             .map_err(|e| format!("Failed to copy mod file to disabled folder: {}", e))?;
+        // Copy metadata file if it exists so user can update it later
+        if metadata_file.exists() {
+            let metadata_target = disabled_dir.join(format!("{}.kable_metadata.json", file_name));
+            let _ = async_fs::copy(&metadata_file, &metadata_target).await;
+        }
     }
 
     crate::logging::info("Finished copying and updating mods");

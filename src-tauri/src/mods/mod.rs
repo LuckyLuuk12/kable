@@ -149,11 +149,25 @@ pub async fn get_mod_metadata(
 
     let mods_dir = crate::installations::get_mods_directory(installation).await?;
 
+    // Check active mods directory first
     let metadata_path = mods_dir.join(format!("{}.kable_metadata.json", jar_filename));
 
-    if !metadata_path.exists() {
-        return Err(format!("No metadata file found for {}", jar_filename));
-    }
+    // If not found in active directory, check disabled directory
+    let metadata_path = if !metadata_path.exists() {
+        let disabled_path = mods_dir
+            .join("disabled")
+            .join(format!("{}.kable_metadata.json", jar_filename));
+        if disabled_path.exists() {
+            disabled_path
+        } else {
+            return Err(format!(
+                "No metadata file found for {} in active or disabled folder",
+                jar_filename
+            ));
+        }
+    } else {
+        metadata_path
+    };
 
     let content = fs::read_to_string(&metadata_path)
         .await

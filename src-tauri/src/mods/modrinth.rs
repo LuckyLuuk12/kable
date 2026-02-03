@@ -198,6 +198,22 @@ pub struct ModrinthFile {
     pub size: u64,
 }
 
+/// Response from /project/{id}/dependencies endpoint
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProjectDependencies {
+    pub projects: Vec<ModrinthInfo>,
+    pub versions: Vec<ModrinthVersion>,
+}
+
+/// Dependency type from version dependencies
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct VersionDependency {
+    pub version_id: Option<String>,
+    pub project_id: Option<String>,
+    pub file_name: Option<String>,
+    pub dependency_type: String, // "required", "optional", "incompatible", "embedded"
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ModrinthProvider {
     pub limit: usize,
@@ -399,7 +415,20 @@ impl ModProvider for ModrinthProvider {
             .map_err(|e| format!("Failed to create mods directory: {}", e))?;
 
         // Disable any existing versions of this mod (same project_id)
-        disable_old_mod_versions(&mods_dir, mod_id).await?;
+        // and check if the old version was in the disabled folder
+        let was_disabled = disable_old_mod_versions(&mods_dir, mod_id).await?;
+
+        // Determine target directory based on whether old mod was disabled
+        let download_dir = if was_disabled {
+            let disabled_dir = mods_dir.join("disabled");
+            crate::ensure_parent_dir_exists_async(&disabled_dir)
+                .await
+                .map_err(|e| format!("Failed to create disabled directory: {}", e))?;
+            println!("[ModrinthProvider] Old mod was disabled, downloading new version to disabled folder");
+            disabled_dir
+        } else {
+            mods_dir.clone()
+        };
 
         // If specific version_id provided, download that version
         if let Some(version_id) = version_id {
@@ -416,11 +445,26 @@ impl ModProvider for ModrinthProvider {
                 .or_else(|| files_iter.next())
                 .ok_or("No mod file found")?;
 
-            // Download the file
-            download_mod_file(&file.url, &mods_dir.join(&file.filename)).await?;
+            // Download the file to appropriate directory (active or disabled)
+            download_mod_file(&file.url, &download_dir.join(&file.filename)).await?;
 
-            // Save metadata
-            save_mod_metadata(&mods_dir, &file.filename, mod_id, &version.version_number).await?;
+            // Save metadata in the same directory as the mod file
+            save_mod_metadata(
+                &download_dir,
+                &file.filename,
+                mod_id,
+                &version.version_number,
+            )
+            .await?;
+
+            // Resolve and install dependencies
+            println!("[ModrinthProvider] Resolving dependencies for {}", mod_id);
+            if let Err(e) = resolve_and_install_dependencies(mod_id, installation, 0).await {
+                println!(
+                    "[ModrinthProvider] Warning: Failed to resolve dependencies: {}",
+                    e
+                );
+            }
 
             return Ok(());
         }
@@ -466,11 +510,27 @@ impl ModProvider for ModrinthProvider {
             .or_else(|| files_iter.next())
             .ok_or("No mod file found")?;
 
-        // Download the file
-        download_mod_file(&file.url, &mods_dir.join(&file.filename)).await?;
+        // Download the file to appropriate directory (active or disabled)
+        download_mod_file(&file.url, &download_dir.join(&file.filename)).await?;
 
-        // Save metadata
-        save_mod_metadata(&mods_dir, &file.filename, mod_id, &version.version_number).await?;
+        // Save metadata in the same directory as the mod file
+        save_mod_metadata(
+            &download_dir,
+            &file.filename,
+            mod_id,
+            &version.version_number,
+        )
+        .await?;
+
+        // Resolve and install dependencies
+        println!("[ModrinthProvider] Resolving dependencies for {}", mod_id);
+        if let Err(e) = resolve_and_install_dependencies(mod_id, installation, 0).await {
+            println!(
+                "[ModrinthProvider] Warning: Failed to resolve dependencies: {}",
+                e
+            );
+            // Don't fail the main download if dependencies fail
+        }
 
         Ok(())
     }
@@ -988,57 +1048,79 @@ fn extract_loader_from_version_id(version_id: &str) -> Option<String> {
 
 /// Remove old versions of a mod before downloading a new version
 /// Checks for mods with the same project_id and removes them completely
+/// Returns true if the old mod was in the disabled folder
 async fn disable_old_mod_versions(
     mods_dir: &std::path::Path,
     project_id: &str,
-) -> Result<(), String> {
+) -> Result<bool, String> {
     use tokio::fs;
 
-    // Read all files in the mods directory
-    let mut entries = fs::read_dir(mods_dir)
-        .await
-        .map_err(|e| format!("Failed to read mods directory: {}", e))?;
+    let mut was_disabled = false;
 
-    while let Some(entry) = entries
-        .next_entry()
-        .await
-        .map_err(|e| format!("Failed to read directory entry: {}", e))?
-    {
-        let path = entry.path();
+    // Check both active mods directory and disabled subdirectory
+    let dirs_to_check = vec![
+        (mods_dir.to_path_buf(), false),
+        (mods_dir.join("disabled"), true),
+    ];
 
-        // Check for .kable_metadata.json files
-        if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
-            if file_name.ends_with(".kable_metadata.json") {
-                // Read the metadata file
-                if let Ok(metadata_content) = fs::read_to_string(&path).await {
-                    if let Ok(metadata) =
-                        serde_json::from_str::<serde_json::Value>(&metadata_content)
-                    {
-                        // Check if this metadata belongs to the same project
-                        if let Some(stored_project_id) =
-                            metadata.get("project_id").and_then(|v| v.as_str())
+    for (dir, is_disabled_dir) in dirs_to_check {
+        if !dir.exists() {
+            continue;
+        }
+
+        // Read all files in the directory
+        let mut entries = fs::read_dir(&dir)
+            .await
+            .map_err(|e| format!("Failed to read mods directory: {}", e))?;
+
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| format!("Failed to read directory entry: {}", e))?
+        {
+            let path = entry.path();
+
+            // Check for .kable_metadata.json files
+            if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
+                if file_name.ends_with(".kable_metadata.json") {
+                    // Read the metadata file
+                    if let Ok(metadata_content) = fs::read_to_string(&path).await {
+                        if let Ok(metadata) =
+                            serde_json::from_str::<serde_json::Value>(&metadata_content)
                         {
-                            if stored_project_id == project_id {
-                                // Get the associated jar file name
-                                if let Some(jar_file) =
-                                    metadata.get("file_name").and_then(|v| v.as_str())
-                                {
-                                    let jar_path = mods_dir.join(jar_file);
+                            // Check if this metadata belongs to the same project
+                            if let Some(stored_project_id) =
+                                metadata.get("project_id").and_then(|v| v.as_str())
+                            {
+                                if stored_project_id == project_id {
+                                    // Get the associated jar file name
+                                    if let Some(jar_file) =
+                                        metadata.get("file_name").and_then(|v| v.as_str())
+                                    {
+                                        let jar_path = dir.join(jar_file);
 
-                                    // Delete the old jar file completely
-                                    if jar_path.exists() {
-                                        fs::remove_file(&jar_path).await.map_err(|e| {
-                                            format!("Failed to remove old mod version: {}", e)
-                                        })?;
+                                        // Delete the old jar file completely
+                                        if jar_path.exists() {
+                                            fs::remove_file(&jar_path).await.map_err(|e| {
+                                                format!("Failed to remove old mod version: {}", e)
+                                            })?;
 
-                                        println!(
-                                            "[ModrinthProvider] Removed old version: {} (project: {})",
-                                            jar_file, project_id
-                                        );
+                                            println!(
+                                                "[ModrinthProvider] Removed old version: {} from {} (project: {})",
+                                                jar_file,
+                                                if is_disabled_dir { "disabled" } else { "active" },
+                                                project_id
+                                            );
+
+                                            // Track if we removed from disabled folder
+                                            if is_disabled_dir {
+                                                was_disabled = true;
+                                            }
+                                        }
+
+                                        // Also remove the metadata file
+                                        let _ = fs::remove_file(&path).await;
                                     }
-
-                                    // Also remove the metadata file
-                                    let _ = fs::remove_file(&path).await;
                                 }
                             }
                         }
@@ -1048,11 +1130,11 @@ async fn disable_old_mod_versions(
         }
     }
 
-    Ok(())
+    Ok(was_disabled)
 }
 
 /// Save metadata for a downloaded mod
-async fn save_mod_metadata(
+pub async fn save_mod_metadata(
     mods_dir: &std::path::Path,
     file_name: &str,
     project_id: &str,
@@ -1074,6 +1156,162 @@ async fn save_mod_metadata(
     fs::write(&metadata_path, metadata_content)
         .await
         .map_err(|e| format!("Failed to write metadata file: {}", e))?;
+
+    Ok(())
+}
+
+/// Get all dependencies for a project
+#[log_result]
+pub async fn get_project_dependencies(project_id: &str) -> Result<ProjectDependencies, String> {
+    let client = Client::new();
+    let url = format!(
+        "https://api.modrinth.com/v2/project/{}/dependencies",
+        project_id
+    );
+
+    println!(
+        "[ModrinthAPI] Fetching dependencies for project: {}",
+        project_id
+    );
+
+    let resp = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Modrinth get dependencies failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Err(format!("Modrinth API error: {}", resp.status()));
+    }
+
+    let deps: ProjectDependencies = resp
+        .json()
+        .await
+        .map_err(|e| format!("Modrinth parse dependencies failed: {}", e))?;
+
+    println!(
+        "[ModrinthAPI] Found {} dependency projects for {}",
+        deps.projects.len(),
+        project_id
+    );
+    Ok(deps)
+}
+
+/// Resolve and install all required dependencies for a project
+#[log_result]
+pub async fn resolve_and_install_dependencies(
+    project_id: &str,
+    installation: &KableInstallation,
+    depth: usize,
+) -> Result<(), String> {
+    // Prevent infinite recursion
+    if depth > 10 {
+        println!("[DependencyResolver] Max recursion depth reached");
+        return Ok(());
+    }
+
+    // Get dependencies from API
+    let deps = match get_project_dependencies(project_id).await {
+        Ok(d) => d,
+        Err(e) => {
+            println!(
+                "[DependencyResolver] Failed to get dependencies for {}: {}",
+                project_id, e
+            );
+            return Ok(()); // Don't fail the main download if dependencies fail
+        }
+    };
+
+    // Get mods directory to check what's already installed
+    let mods_dir: std::path::PathBuf =
+        if let Some(ref custom_mods) = installation.dedicated_mods_folder {
+            let custom_path = std::path::PathBuf::from(custom_mods);
+            if custom_path.is_absolute() {
+                custom_path
+            } else {
+                let mc_dir = crate::get_minecraft_kable_dir()?;
+                mc_dir.join(custom_mods)
+            }
+        } else {
+            let mc_dir = crate::get_minecraft_kable_dir()?;
+            mc_dir.join("mods").join(&installation.version_id)
+        };
+
+    // Load installed mods metadata to check by project_id
+    let mut installed_project_ids = std::collections::HashSet::new();
+    if mods_dir.exists() {
+        if let Ok(entries) = std::fs::read_dir(&mods_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().map(|e| e == "json").unwrap_or(false)
+                    && path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .map(|s| s.ends_with(".kable_metadata.json"))
+                        .unwrap_or(false)
+                {
+                    // Read metadata file
+                    if let Ok(content) = std::fs::read_to_string(&path) {
+                        if let Ok(metadata) =
+                            serde_json::from_str::<crate::mods::ModMetadata>(&content)
+                        {
+                            installed_project_ids.insert(metadata.project_id);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Process each dependency project
+    for dep_project in deps.projects {
+        let dep_project_id = &dep_project.project_id;
+
+        // Skip if already installed
+        if installed_project_ids.contains(dep_project_id) {
+            println!(
+                "[DependencyResolver] Dependency {} already installed, skipping",
+                dep_project_id
+            );
+            continue;
+        }
+
+        println!(
+            "[DependencyResolver] Installing dependency: {} ({})",
+            dep_project.title, dep_project_id
+        );
+
+        // Download the dependency (without version_id to get best match)
+        // Use ModrinthProvider's download logic
+        let provider = ModrinthProvider::default();
+        match provider.download(dep_project_id, None, installation).await {
+            Ok(_) => {
+                println!(
+                    "[DependencyResolver] Successfully installed dependency: {}",
+                    dep_project_id
+                );
+                // Recursively resolve dependencies of this dependency (boxed for async recursion)
+                let dep_id = dep_project_id.to_string();
+                let inst = installation.clone();
+                let resolve_future = Box::pin(async move {
+                    resolve_and_install_dependencies(&dep_id, &inst, depth + 1).await
+                });
+                if let Err(e) = resolve_future.await {
+                    println!(
+                        "[DependencyResolver] Failed to resolve nested dependencies for {}: {}",
+                        dep_project_id, e
+                    );
+                }
+            }
+            Err(e) => {
+                println!(
+                    "[DependencyResolver] Failed to install dependency {}: {}",
+                    dep_project_id, e
+                );
+                // Continue with other dependencies even if one fails
+            }
+        }
+    }
 
     Ok(())
 }
