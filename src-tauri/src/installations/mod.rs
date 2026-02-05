@@ -275,10 +275,13 @@ pub async fn delete_installation(id: &str) -> Result<(), String> {
     let mut installations = kable_profiles::read_kable_profiles_async().await?;
     let orig_len = installations.len();
 
-    // Find the installation to get its dedicated folder paths before deletion
+    // Find the installation to get its data before deletion
     let installation = installations.iter().find(|i| i.id == id);
-    let dedicated_folders = installation.map(|inst| {
+    let deletion_data = installation.map(|inst| {
         (
+            inst.name.clone(),
+            inst.version_id.clone(),
+            inst.created.clone(),
             inst.dedicated_mods_folder.clone(),
             inst.dedicated_resource_pack_folder.clone(),
             inst.dedicated_shaders_folder.clone(),
@@ -295,8 +298,20 @@ pub async fn delete_installation(id: &str) -> Result<(), String> {
         return Err(format!("No Kable installation found with id: {}", id));
     }
 
+    // Also remove from launcher_profiles.json if it exists there (to prevent re-import)
+    if let Some((name, version_id, created, _, _, _, _)) = &deletion_data {
+        if let Err(e) = profiles::remove_launcher_profile_by_match(name, version_id, created).await
+        {
+            crate::logging::Logger::warn_global(
+                &format!("Failed to remove from launcher_profiles.json: {}", e),
+                None,
+            );
+            // Don't fail the deletion if we can't update launcher_profiles.json
+        }
+    }
+
     // Delete dedicated folders if they exist
-    if let Some((mods, resourcepacks, shaders, config)) = dedicated_folders {
+    if let Some((_, _, _, mods, resourcepacks, shaders, config)) = deletion_data {
         let kable_dir = match crate::get_minecraft_kable_dir() {
             Ok(dir) => dir,
             Err(e) => {
