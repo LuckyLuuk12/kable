@@ -7,68 +7,197 @@ use tokio::fs as async_fs;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CategorizedLauncherSettings {
+    #[serde(default)]
     pub general: GeneralSettings,
+    #[serde(default)]
     pub appearance: AppearanceSettings,
+    #[serde(default)]
     pub logging: LoggingSettings,
+    #[serde(default)]
     pub network: NetworkSettings,
+    #[serde(default)]
     pub content: ContentSettings,
+    #[serde(default)]
     pub advanced: AdvancedSettings,
+    #[serde(default)]
     pub misc: MiscSettings,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GeneralSettings {
+    #[serde(default)]
     pub java_path: Option<String>,
+    #[serde(default)]
     pub game_directory: Option<String>,
     /// 'open_logs' | 'open_home' | 'exit' | 'minimize' | 'ask'
+    #[serde(default = "default_on_game_close")]
     pub on_game_close: String,
     /// 'restart' | 'open_logs' | 'open_home' | 'exit' | 'minimize' | 'ask'
+    #[serde(default = "default_on_game_crash")]
     pub on_game_crash: String,
     /// 'keep_open' | 'exit' | 'open_logs' | 'minimize' | 'ask'
+    #[serde(default = "default_on_game_launch")]
     pub on_game_launch: String,
+    #[serde(default = "default_auto_update")]
     pub auto_update_launcher: bool,
+    #[serde(default)]
     pub show_ads: bool,
     /// 'instant' | 'on_restart' | 'on_confirm'
     #[serde(default = "default_update_mode")]
     pub update_mode: String,
 }
 
+fn default_on_game_close() -> String {
+    "open_home".to_string()
+}
+
+fn default_on_game_crash() -> String {
+    "open_logs".to_string()
+}
+
+fn default_on_game_launch() -> String {
+    "open_logs".to_string()
+}
+
+fn default_auto_update() -> bool {
+    true
+}
+
 fn default_update_mode() -> String {
     "on_confirm".to_string()
 }
 
+impl Default for GeneralSettings {
+    fn default() -> Self {
+        Self {
+            java_path: None,
+            game_directory: None,
+            on_game_close: default_on_game_close(),
+            on_game_crash: default_on_game_crash(),
+            on_game_launch: default_on_game_launch(),
+            auto_update_launcher: default_auto_update(),
+            show_ads: false,
+            update_mode: default_update_mode(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct SoundSettings {
+    #[serde(default = "default_sound_enabled")]
     pub enabled: bool,
+    #[serde(default = "default_sound_enabled")]
     pub music_enabled: bool,
+    #[serde(default = "default_volume")]
     pub master_volume: u32,
+    #[serde(default = "default_volume")]
     pub sound_volume: u32,
+    #[serde(default = "default_volume")]
     pub music_volume: u32,
+    #[serde(default = "default_soundpack")]
     pub selected_soundpack: String,
+}
+
+fn default_sound_enabled() -> bool {
+    true
+}
+
+fn default_volume() -> u32 {
+    50
+}
+
+fn default_soundpack() -> String {
+    "default".to_string()
+}
+
+impl Default for SoundSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            music_enabled: true,
+            master_volume: 50,
+            sound_volume: 50,
+            music_volume: 50,
+            selected_soundpack: "default".to_string(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppearanceSettings {
+    #[serde(default = "default_theme")]
     pub theme: String, // 'light' | 'dark' | 'system'
+    #[serde(default = "default_language")]
     pub language: String,
+    #[serde(default)]
     pub extra_spacing: u32,
+    #[serde(default = "default_sidebar_width")]
     pub sidebar_width: u32,
+    #[serde(default = "default_icon_template")]
     pub selected_icon_template: String,
     // For simplicity, icon_settings as raw JSON
-    pub icon_settings: serde_json::Value,
-    pub selected_css_theme: String,
     #[serde(default)]
+    pub icon_settings: serde_json::Value,
+    #[serde(default = "default_css_theme")]
+    pub selected_css_theme: String,
+    #[serde(default = "default_sound_settings")]
     pub sound: Option<SoundSettings>,
+}
+
+fn default_theme() -> String {
+    "dark".to_string()
+}
+
+fn default_language() -> String {
+    "en".to_string()
+}
+
+fn default_sidebar_width() -> u32 {
+    250
+}
+
+fn default_icon_template() -> String {
+    "emoji".to_string()
+}
+
+fn default_css_theme() -> String {
+    "default".to_string()
+}
+
+fn default_sound_settings() -> Option<SoundSettings> {
+    Some(SoundSettings::default())
+}
+
+impl Default for AppearanceSettings {
+    fn default() -> Self {
+        Self {
+            theme: "dark".to_string(),
+            language: "en".to_string(),
+            extra_spacing: 0,
+            sidebar_width: 250,
+            selected_icon_template: "emoji".to_string(),
+            icon_settings: serde_json::Value::Object(serde_json::Map::new()),
+            selected_css_theme: "default".to_string(),
+            sound: Some(SoundSettings::default()),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct LoggingSettings {
+    #[serde(default = "default_show_logs_in_nav")]
     pub show_logs_page_in_nav: bool,
+    #[serde(default)]
     pub enable_persistent_logging: bool,
+    #[serde(default = "default_log_compression")]
     pub enable_log_compression: bool,
+    #[serde(default = "default_log_size_limit")]
     pub log_file_size_limit_mb: serde_json::Value, // number or "disabled"
-    pub log_retention_days: serde_json::Value,     // number or "disabled"
+    #[serde(default = "default_log_retention")]
+    pub log_retention_days: serde_json::Value, // number or "disabled"
+    #[serde(default)]
     pub merge_log_tabs: bool,
+    #[serde(default = "default_log_levels")]
     pub default_log_levels: Vec<String>, // 'debug' | 'info' | 'warn' | 'error'
     #[serde(default = "default_max_memory_logs")]
     pub max_memory_logs: Option<u32>,
@@ -76,6 +205,26 @@ pub struct LoggingSettings {
     pub dedupe_window_size: Option<u32>,
     #[serde(default = "default_enable_dedupe")]
     pub enable_dedupe: Option<bool>,
+}
+
+fn default_show_logs_in_nav() -> bool {
+    true
+}
+
+fn default_log_compression() -> bool {
+    true
+}
+
+fn default_log_size_limit() -> serde_json::Value {
+    serde_json::json!(10)
+}
+
+fn default_log_retention() -> serde_json::Value {
+    serde_json::json!(30)
+}
+
+fn default_log_levels() -> Vec<String> {
+    vec!["error".to_string()]
 }
 
 fn default_max_memory_logs() -> Option<u32> {
@@ -90,27 +239,93 @@ fn default_enable_dedupe() -> Option<bool> {
     Some(true)
 }
 
+impl Default for LoggingSettings {
+    fn default() -> Self {
+        Self {
+            show_logs_page_in_nav: true,
+            enable_persistent_logging: false,
+            enable_log_compression: true,
+            log_file_size_limit_mb: serde_json::json!(10),
+            log_retention_days: serde_json::json!(30),
+            merge_log_tabs: false,
+            default_log_levels: vec!["error".to_string()],
+            max_memory_logs: Some(5000),
+            dedupe_window_size: Some(50),
+            enable_dedupe: Some(true),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NetworkSettings {
+    #[serde(default = "default_parallel_downloads")]
     pub parallel_downloads: u32,
+    #[serde(default = "default_connection_timeout")]
     pub connection_timeout: u32,
+    #[serde(default = "default_download_speed_limit")]
     pub download_speed_limit: serde_json::Value, // number or "unlimited"
+}
+
+fn default_parallel_downloads() -> u32 {
+    3
+}
+
+fn default_connection_timeout() -> u32 {
+    30
+}
+
+fn default_download_speed_limit() -> serde_json::Value {
+    serde_json::json!("unlimited")
+}
+
+impl Default for NetworkSettings {
+    fn default() -> Self {
+        Self {
+            parallel_downloads: 3,
+            connection_timeout: 30,
+            download_speed_limit: serde_json::json!("unlimited"),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct ContentSettings {
+    #[serde(default = "default_max_world_backups")]
     pub max_world_backups: serde_json::Value, // number or "disabled"
+    #[serde(default)]
     pub auto_backup_worlds: bool,
+    #[serde(default)]
     pub use_per_installation_mods_folder: bool,
+    #[serde(default)]
     pub use_per_installation_resource_packs: bool,
+}
+
+fn default_max_world_backups() -> serde_json::Value {
+    serde_json::json!(5)
+}
+
+impl Default for ContentSettings {
+    fn default() -> Self {
+        Self {
+            max_world_backups: serde_json::json!(5),
+            auto_backup_worlds: false,
+            use_per_installation_mods_folder: false,
+            use_per_installation_resource_packs: false,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AdvancedSettings {
+    #[serde(default)]
     pub enable_experimental_features: bool,
+    #[serde(default = "default_memory")]
     pub default_memory: u32,
+    #[serde(default)]
     pub separate_logs_window: bool,
+    #[serde(default = "default_auto_save_interval")]
     pub auto_save_interval: u32, // in seconds, 0 means no auto save
+    #[serde(default)]
     pub show_advanced_page: bool,
     #[serde(default)]
     pub check_nightly_updates: bool,
@@ -118,10 +333,51 @@ pub struct AdvancedSettings {
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
+fn default_memory() -> u32 {
+    2048
+}
+
+fn default_auto_save_interval() -> u32 {
+    30
+}
+
+impl Default for AdvancedSettings {
+    fn default() -> Self {
+        Self {
+            enable_experimental_features: false,
+            default_memory: 2048,
+            separate_logs_window: false,
+            auto_save_interval: 30,
+            show_advanced_page: false,
+            check_nightly_updates: false,
+            extra: serde_json::Map::new(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct MiscSettings {
+    #[serde(default = "default_use_titlebar")]
     pub use_titlebar: bool,
+    #[serde(default = "default_auth_preference")]
     pub auth_preference: String, // 'code' | 'device_code'
+}
+
+fn default_use_titlebar() -> bool {
+    true
+}
+
+fn default_auth_preference() -> String {
+    "code".to_string()
+}
+
+impl Default for MiscSettings {
+    fn default() -> Self {
+        Self {
+            use_titlebar: true,
+            auth_preference: "code".to_string(),
+        }
+    }
 }
 
 impl Default for CategorizedLauncherSettings {
@@ -212,8 +468,29 @@ pub async fn load_settings() -> Result<CategorizedLauncherSettings, String> {
     let contents = async_fs::read_to_string(&settings_path)
         .await
         .map_err(|e| e.to_string())?;
+
+    // Deserialize with field-level defaults - missing/invalid fields use their defaults
     let settings: CategorizedLauncherSettings =
-        serde_json::from_str(&contents).map_err(|e| e.to_string())?;
+        serde_json::from_str(&contents).unwrap_or_else(|e| {
+            Logger::console_log(
+                LogLevel::Warning,
+                &format!("Failed to parse settings, using defaults with error: {}", e),
+                None,
+            );
+            CategorizedLauncherSettings::default()
+        });
+
+    // Save the settings back to ensure any new fields with defaults are written to disk
+    let updated_json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+    if updated_json != contents {
+        Logger::console_log(
+            LogLevel::Info,
+            "Settings updated with new fields or corrected values",
+            None,
+        );
+        crate::write_file_atomic_async(&settings_path, updated_json.as_bytes()).await?;
+    }
+
     Ok(settings)
 }
 
