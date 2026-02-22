@@ -228,15 +228,21 @@ pub fn run() {
             // Clean up symlinks when the main window is closed
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 if window.label() == "main" {
-                    tauri::async_runtime::spawn(async {
-                        // Disconnect Discord RPC
-                        if let Err(e) = crate::discord::disconnect() {
-                            Logger::warn_global(
-                                &format!("[SHUTDOWN] Failed to disconnect Discord RPC: {}", e),
-                                None,
-                            );
-                        }
+                    // Clear Discord presence immediately (blocking to ensure it completes)
+                    if let Err(e) = crate::discord::clear() {
+                        Logger::warn_global(
+                            &format!("[SHUTDOWN] Failed to clear Discord presence: {}", e),
+                            None,
+                        );
+                    }
+                    if let Err(e) = crate::discord::disconnect() {
+                        Logger::warn_global(
+                            &format!("[SHUTDOWN] Failed to disconnect Discord RPC: {}", e),
+                            None,
+                        );
+                    }
 
+                    tauri::async_runtime::spawn(async {
                         if let Ok(minecraft_dir) = get_default_minecraft_dir() {
                             let symlink_manager =
                                 crate::symlink_manager::SymlinkManager::new(minecraft_dir);
