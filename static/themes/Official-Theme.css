@@ -1,0 +1,700 @@
+/* 
+ * Official Minecraft Launcher Theme v1.0
+ * Recreates the authentic look of the official Minecraft Launcher
+ * Uses pixel-art styling with official color palette
+ */
+
+@font-face {
+  font-family: 'Minecraft';
+  src: url('./themes/Minecraft-Regular.woff2') format('woff2'),
+    url('/themes/Minecraft-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ========================================
+     OFFICIAL LAUNCHER BRAND COLORS
+     ======================================== */
+
+  /* Primary Green Palette - Official Minecraft Green */
+  --primary-50: #e8f5e9 !important;
+  --primary-100: #c8e6c9 !important;
+  --primary-200: #a5d6a7 !important;
+  --primary-300: #81c784 !important;
+  --primary-400: #6cc349 !important;
+  /* Play button top */
+  --primary-500: #3c8527 !important;
+  /* Main play button green */
+  --primary-600: #2a641c !important;
+  /* Play button shadow */
+  --primary-700: #1b4c12 !important;
+  --primary-800: #0f3008 !important;
+  --primary-900: #061805 !important;
+
+  /* Secondary Gray-Brown Palette - Official UI elements */
+  --secondary-50: #f5f5f4 !important;
+  --secondary-100: #e7e5e4 !important;
+  --secondary-200: #d6d3d1 !important;
+  --secondary-300: #a8a29e !important;
+  --secondary-400: #78716c !important;
+  --secondary-500: #6b6562 !important;
+  /* Selected tab border */
+  --secondary-600: #514d4c !important;
+  /* Button border top/left */
+  --secondary-700: #44403c !important;
+  --secondary-800: #312d2c !important;
+  /* Navbar background */
+  --secondary-900: #262423 !important;
+  /* Current tab/containers */
+
+  /* Tertiary Orange Accents - Complementary */
+  --tertiary-50: #fff7ed !important;
+  --tertiary-100: #ffedd5 !important;
+  --tertiary-200: #fed7aa !important;
+  --tertiary-300: #fdba74 !important;
+  --tertiary-400: #fb923c !important;
+  --tertiary-500: #f97316 !important;
+  --tertiary-600: #ea580c !important;
+  --tertiary-700: #c2410c !important;
+  --tertiary-800: #9a3412 !important;
+  --tertiary-900: #7c2d12 !important;
+
+  /* ========================================
+     DARK THEME FOUNDATION - OFFICIAL STYLE
+     ======================================== */
+
+  /* Dark color progression - Official Launcher inspired */
+  --dark-50: #f5f5f4 !important;
+  /* Lightest */
+  --dark-100: #e7e5e4 !important;
+  /* Light gray */
+  --dark-200: #d6d3d1 !important;
+  /* Medium-light */
+  --dark-300: #a8a29e !important;
+  /* Medium */
+  --dark-400: #78716c !important;
+  /* Medium-dark */
+  --dark-500: #514d4c !important;
+  /* Border color */
+  --dark-600: #44403c !important;
+  /* Deep gray */
+  --dark-700: #312d2c !important;
+  /* Navbar */
+  --dark-800: #262423 !important;
+  /* Containers/Current tab */
+  --dark-900: #171615 !important;
+  /* Main background */
+  --dark: #171615 !important;
+  /* Alias for dark-900 */
+
+  /* Light colors - High contrast for text on dark theme */
+  --light-50: #ffffff !important;
+  --light-100: #f5f5f4 !important;
+  --light-200: #e7e5e4 !important;
+  --light-300: #d6d3d1 !important;
+  --light-400: #a8a29e !important;
+  --light-500: #78716c !important;
+  --light-600: #57534e !important;
+  --light-700: #44403c !important;
+  --light-800: #292524 !important;
+  --light-900: #1c1917 !important;
+  --light: #ffffff !important;
+
+  /* Status Colors - Official compatible */
+  --red-50: #fef2f2 !important;
+  --red-100: #fee2e2 !important;
+  --red-200: #fecaca !important;
+  --red-300: #fca5a5 !important;
+  --red-400: #f87171 !important;
+  --red-500: #ef4444 !important;
+  --red-600: #dc2626 !important;
+  --red-700: #b91c1c !important;
+  --red-800: #991b1b !important;
+  --red-900: #7f1d1d !important;
+
+  --green-50: #f0fdf4 !important;
+  --green-100: #dcfce7 !important;
+  --green-200: #bbf7d0 !important;
+  --green-300: #86efac !important;
+  --green-400: #6cc349 !important;
+  /* Play button top */
+  --green-500: #3c8527 !important;
+  /* Main green */
+  --green-600: #2a641c !important;
+  /* Dark green */
+  --green-700: #1b4c12 !important;
+  --green-800: #0f3008 !important;
+  --green-900: #061805 !important;
+
+  --blue-50: #eff6ff !important;
+  --blue-100: #dbeafe !important;
+  --blue-200: #bfdbfe !important;
+  --blue-300: #93c5fd !important;
+  --blue-400: #60a5fa !important;
+  --blue-500: #3b82f6 !important;
+  --blue-600: #2563eb !important;
+  --blue-700: #1d4ed8 !important;
+  --blue-800: #1e40af !important;
+  --blue-900: #1e3a8a !important;
+
+  --yellow-50: #fefce8 !important;
+  --yellow-100: #fef9c3 !important;
+  --yellow-200: #fef08a !important;
+  --yellow-300: #fde047 !important;
+  --yellow-400: #facc15 !important;
+  --yellow-500: #eab308 !important;
+  --yellow-600: #ca8a04 !important;
+  --yellow-700: #a16207 !important;
+  --yellow-800: #854d0e !important;
+  --yellow-900: #713f12 !important;
+
+  /* ========================================
+     CORE UI VARIABLES
+     ======================================== */
+
+  /* Font families - Minecraft pixel font with fallbacks */
+  --font: 'Minecraft', 'Courier New', 'Monaco', 'Consolas', monospace !important;
+  --font-code: 'Minecraft', 'Courier New', 'Monaco', 'Consolas', monospace !important;
+  --font-heading: 'Minecraft', 'Impact', 'Arial Black', sans-serif !important;
+  --font-fancy: 'Minecraft', 'Courier New', 'Monaco', monospace !important;
+
+  /* Main theme colors */
+  --primary: var(--primary-500) !important;
+  --secondary: var(--secondary-500) !important;
+  --tertiary: var(--tertiary-500) !important;
+
+  /* Convenience color aliases */
+  --red: var(--red-500) !important;
+  --green: var(--green-500) !important;
+  --blue: var(--blue-500) !important;
+  --yellow: var(--yellow-500) !important;
+
+  /* Layout colors - Official Launcher foundation */
+  --background: #171615 !important;
+  /* Main background */
+  --container: #262423 !important;
+  /* Containers */
+  --card: #312d2c !important;
+  /* Card background */
+  --input: #262423 !important;
+  /* Form elements */
+  --button: #312d2c !important;
+  /* Button backgrounds */
+  --button-hover: #3e3837 !important;
+  /* Button hover states */
+
+  /* Navigation specific colors */
+  --navbar-bg: #312d2c !important;
+  --navbar-tab: #262423 !important;
+  --navbar-border-light: #514d4c !important;
+  --navbar-border-dark: #000000 !important;
+  --navbar-selected-border: #6b6562 !important;
+
+  /* Text colors */
+  --text: #e7e5e4 !important;
+  /* Primary text */
+  --text-secondary: #a8a29e !important;
+  /* Secondary text */
+  --text-muted: #78716c !important;
+  /* Muted text */
+  --placeholder: #78716c !important;
+  /* Placeholder text */
+
+  /* ========================================
+     COMPONENT-SPECIFIC VARIABLES
+     ======================================== */
+
+  /* Text utilities */
+  --text-white: #ffffff !important;
+  --text-black: #000000 !important;
+  --text-transparent: transparent !important;
+
+  /* Gradients */
+  --gradient-primary: var(--primary-500) !important;
+  --gradient-secondary: var(--secondary-500) !important;
+
+  /* Shader previews */
+  --shader-preview-gradient: linear-gradient(135deg, var(--primary-500) 0%, var(--secondary-500) 100%) !important;
+  --shader-preview-primary: var(--primary-500) !important;
+  --shader-preview-secondary: var(--secondary-500) !important;
+
+  /* Status colors - Official compatible */
+  --status-success: var(--primary-500) !important;
+  --status-success-hover: var(--primary-600) !important;
+  --status-success-bg: rgba(60, 133, 39, 0.1) !important;
+  --status-error: var(--red-500) !important;
+  --status-error-bg: rgba(239, 68, 68, 0.1) !important;
+  --status-warning: var(--yellow-500) !important;
+  --status-warning-bg: rgba(234, 179, 8, 0.1) !important;
+  --status-info: var(--blue-500) !important;
+  --status-info-bg: rgba(59, 130, 246, 0.1) !important;
+
+  /* Loader colors */
+  --loader-primary: var(--primary-500) !important;
+  --loader-secondary: var(--secondary-500) !important;
+  --loader-accent: var(--primary-400) !important;
+
+  /* Badge colors */
+  --badge-installed: var(--status-success) !important;
+  --badge-available: var(--input) !important;
+  --badge-premium: var(--yellow-500) !important;
+  --badge-premium-text: #1f2937 !important;
+  --badge-category: #312d2c !important;
+  --badge-category-text: var(--text-white) !important;
+
+  /* ========================================
+     TYPOGRAPHY & FONTS
+     ======================================== */
+
+  /* Font sizes */
+  --font-size-tiny: 0.5rem !important;
+  --font-size-small: 0.75rem !important;
+  --font-size: 1rem !important;
+  --font-size-large: 1.25rem !important;
+  --font-size-huge: 2rem !important;
+
+  /* ========================================
+     SPACING & SIZING - PIXEL PERFECT STYLE
+     ======================================== */
+
+  /* Spacing values */
+  --small: 0.1rem !important;
+  --medium: 0.25rem !important;
+  --normal: 0.5rem !important;
+  --large: 1rem !important;
+  --huge: 1.5rem !important;
+
+  /* Border radius - Minimal for pixel-art aesthetic */
+  --border-radius-tiny: 0 !important;
+  /* Sharp corners */
+  --border-radius-small: 0 !important;
+  /* Sharp corners */
+  --border-radius: 0.1rem !important;
+  /* Minimal rounding */
+  --border-radius-large: 0.15rem !important;
+  /* Slight rounding for large elements */
+
+  /* ========================================
+     BUTTON STYLING
+     ======================================== */
+
+  /* Button colors */
+  --button-text: #ffffff !important;
+  --button-border: #000000 !important;
+  --button-opacity: 1 !important;
+
+  /* Button padding */
+  --button-padding-small: 0.25rem 0.5rem !important;
+  --button-padding: 0.5rem 1rem !important;
+  --button-padding-large: 1rem 1.5rem !important;
+
+  /* ========================================
+     CONTAINER & CARD STYLING
+     ======================================== */
+
+  /* Container styling */
+  --container-padding: 1.5rem !important;
+  --container-border-radius: var(--border-radius) !important;
+
+  /* Card styling */
+  --card-padding: 1rem !important;
+  --card-border-radius: var(--border-radius) !important;
+
+  /* ========================================
+     GLASS MORPHISM & EFFECTS
+     ======================================== */
+
+  /* Minimal glass effects for official launcher style */
+  --glass-bg: rgba(38, 36, 35, 0.8) !important;
+  --glass-border: rgba(81, 77, 76, 0.5) !important;
+  --glass-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+
+  /* Hover states */
+  --hover-overlay: rgba(81, 77, 76, 0.2) !important;
+  --active-overlay: rgba(107, 101, 98, 0.3) !important;
+
+  /* ========================================
+     OFFICIAL LAUNCHER ENHANCEMENTS
+     ======================================== */
+
+  /* Pixel-art inspired styling */
+  --pixel-border: 1px solid #000000 !important;
+  --minecraft-shadow: 0 2px 0 #1e1d1c !important;
+  /* Pixel-style shadow */
+  --blocky-transition: all 0.05s ease-out !important;
+  /* Instant, crisp transitions */
+
+  /* Grid spacing */
+  --grid-gap: 0.25rem !important;
+  --grid-padding: 0.5rem !important;
+}
+
+/* ========================================
+   CUSTOM COMPONENT OVERRIDES
+   ======================================== */
+
+/* Hide notification tray in titlebar - not in official launcher */
+.notification-tray {
+  display: none !important;
+}
+
+/* Main content area - remove padding */
+.content {
+  padding: 0 !important;
+  padding-top: 0 !important;
+}
+
+/* NavBar - Official Launcher Style */
+.navbar,
+nav {
+  background: var(--navbar-bg) !important;
+}
+
+/* NavBar Button Styling - 3D Pixel Effect */
+.navbar a,
+.navbar button,
+nav a,
+nav button {
+  background: var(--navbar-bg) !important;
+  border-top: 2px solid var(--navbar-border-light) !important;
+  border-left: 2px solid var(--navbar-border-light) !important;
+  border-bottom: 2px solid var(--navbar-border-dark) !important;
+  border-right: 2px solid var(--navbar-border-dark) !important;
+  border-radius: 0 !important;
+  transition: all 0.1s ease !important;
+}
+
+.navbar a:hover,
+.navbar button:hover,
+nav a:hover,
+nav button:hover {
+  background: #464242 !important;
+}
+
+/* Selected/Active Tab Styling */
+.navbar a.active,
+.navbar button.active,
+nav a.active,
+nav button.active,
+.navbar a[aria-current="page"],
+nav a[aria-current="page"] {
+  background: var(--navbar-tab) !important;
+  border-top: 2px solid var(--navbar-selected-border) !important;
+  border-left: 2px solid var(--navbar-selected-border) !important;
+  border-bottom: 2px solid transparent !important;
+  border-right: 2px solid transparent !important;
+}
+
+/* Play Button - Official Minecraft Style with Pixel Art */
+.play-button {
+  background: #3c8527 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  position: relative !important;
+  box-shadow:
+    0 -2px 0 #6cc349,
+    /* Top highlight */
+    0 2px 0 #2a641c,
+    /* Bottom shadow */
+    -2px 0 0 #2a641c,
+    /* Left shadow */
+    2px 0 0 #2a641c,
+    /* Right shadow */
+    0 0 0 1px #000000,
+    /* Black border */
+    0 3px 0 #1e1d1c !important;
+  /* Pixel shadow below */
+  transition: var(--blocky-transition) !important;
+  /* Cut out corners for pixel effect */
+  clip-path: polygon(1px 0, calc(100% - 1px) 0,
+      100% 1px, 100% calc(100% - 1px),
+      calc(100% - 1px) 100%, 1px 100%,
+      0 calc(100% - 1px), 0 1px) !important;
+}
+
+.play-button:hover:not(:disabled) {
+  background: #4a9c2f !important;
+  transform: translateY(1px) !important;
+  box-shadow:
+    0 -2px 0 #7dd656,
+    0 1px 0 #2a641c,
+    -2px 0 0 #2a641c,
+    2px 0 0 #2a641c,
+    0 0 0 1px #000000,
+    0 2px 0 #1e1d1c !important;
+}
+
+.play-button:active:not(:disabled) {
+  transform: translateY(2px) !important;
+  box-shadow:
+    0 -5px 0 #6cc349,
+    0 5px 0 #2a641c,
+    -5px 0 0 #2a641c,
+    5px 0 0 #2a641c,
+    0 0 0 2px #000000 !important;
+}
+
+/* Container backgrounds */
+.container,
+.card {
+  background: var(--container) !important;
+  border-radius: var(--border-radius) !important;
+}
+
+/* Input fields - Official style */
+input,
+textarea,
+select {
+  background: var(--input) !important;
+  border: 1px solid #000000 !important;
+  border-radius: var(--border-radius) !important;
+  color: var(--text) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--navbar-border-light) !important;
+  outline: none !important;
+}
+
+/* Buttons - Official style with 3D effect */
+button:not(.play-button):not(.titlebar-btn) {
+  background: var(--button) !important;
+  border: none !important;
+  box-shadow:
+    1px 0 0 var(--navbar-border-light),
+    0 1px 0 var(--navbar-border-light),
+    -1px 0 0 var(--navbar-border-dark),
+    0 -1px 0 var(--navbar-border-dark) !important;
+  border-radius: 0 !important;
+  transition: var(--blocky-transition) !important;
+}
+
+button:not(.play-button):not(.titlebar-btn):hover:not(:disabled) {
+  background: var(--button-hover) !important;
+  transform: translateY(1px) !important;
+}
+
+button:not(.play-button):not(.titlebar-btn):active:not(:disabled) {
+  transform: translateY(2px) !important;
+  box-shadow:
+    0 0 0 var(--navbar-border-light),
+    0 0 0 var(--navbar-border-dark) !important;
+}
+
+/* Scrollbar - Dark theme compatible */
+::-webkit-scrollbar {
+  width: 10px !important;
+  height: 10px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--dark-900) !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--dark-600) !important;
+  border: 1px solid var(--dark-800) !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--dark-500) !important;
+}
+
+/* Remove rounded corners from various elements */
+.installation-card,
+.mod-card,
+.shader-card,
+.resourcepack-card {
+  border-radius: var(--border-radius) !important;
+  background: var(--card) !important;
+}
+
+/* ========================================
+   OFFICIAL LAUNCHER LAYOUT CUSTOMIZATIONS
+   ======================================== */
+
+/* Force sidebar to always be expanded and hide collapse button */
+.sidebar {
+  min-width: 175px !important;
+  width: 175px !important;
+  padding: 0 !important;
+}
+
+.sidebar.collapsed {
+  min-width: 175px !important;
+  width: 175px !important;
+}
+
+/* Hide the hamburger menu button */
+.hamburger-section,
+.hamburger-btn {
+  display: none !important;
+}
+
+/* Remove gaps and padding from nav items - official launcher style */
+.nav-items {
+  gap: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+.nav-item {
+  padding: 0.5rem 0.75rem !important;
+  gap: 0.5rem !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  min-height: 3.5rem !important;
+  height: 3.5rem !important;
+  justify-content: flex-start !important;
+}
+
+.nav-item .label {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  max-width: none !important;
+  width: auto !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+  font-size: 0.875rem !important;
+}
+
+/* Override collapsed class to always show labels */
+.nav-item .label.collapsed {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  max-width: none !important;
+  width: auto !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+}
+
+/* Override collapsed class to always show header content */
+.header-content.collapsed {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Header section padding adjustments */
+.header-section {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.user-profile {
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 4rem !important;
+  height: 4rem !important;
+}
+
+/* Bottom section adjustments */
+.bottom-section {
+  margin-top: auto !important;
+  padding: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* ========================================
+   HOME PAGE CUSTOMIZATIONS - OFFICIAL LAUNCHER STYLE
+   ======================================== */
+
+/* Hide advertisement banner - not in official launcher */
+.advertisement-banner {
+  display: none !important;
+}
+
+/* Hide installations list on home page - official launcher doesn't show this */
+.page-wrapper .installations-section {
+  display: none !important;
+}
+
+/* Hide RAM allocation controls - not in official launcher home page */
+.ram-controls {
+  display: none !important;
+}
+
+/* Adjust play button container positioning when RAM controls are hidden */
+.page-wrapper .bottom-controls {
+  justify-content: center !important;
+}
+
+.page-wrapper .play-section {
+  position: static !important;
+  transform: none !important;
+  margin: 0 auto !important;
+}
+
+/* Style for hero image area - official launcher has a big background image */
+.hero-image-container {
+  display: block !important;
+  width: 100% !important;
+  height: 60vh !important;
+  overflow: visible !important;
+  flex-shrink: 0 !important;
+  padding-top: 4rem !important;
+  background: var(--container) !important;
+}
+
+.home-hero {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* Adjust page wrapper for official launcher layout */
+.page-wrapper {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  padding: 0 !important;
+  height: auto !important;
+}
+
+/* Bottom controls - remove absolute positioning and add top border */
+.page-wrapper .bottom-controls {
+  position: relative !important;
+  margin: 0 !important;
+  background: var(--container) !important;
+  backdrop-filter: none !important;
+  border-top: 2px solid #6b6562 !important;
+}
+
+/* Play button - position slightly above bottom controls */
+.page-wrapper .play-section {
+  margin-top: -35px !important;
+}
+
+/* ========================================
+   FONT OVERRIDES - USE MINECRAFT FONT EVERYWHERE
+   ======================================== */
+
+* {
+  font-family: 'Minecraft', 'Courier New', 'Monaco', 'Consolas', monospace !important;
+}
+
+body,
+html,
+input,
+textarea,
+select,
+button,
+.nav-item,
+.nav-item .label,
+.user-profile,
+.play-button,
+.ram-controls,
+.installation-card,
+.mod-card,
+.shader-card,
+.resourcepack-card {
+  font-family: 'Minecraft', 'Courier New', 'Monaco', 'Consolas', monospace !important;
+}

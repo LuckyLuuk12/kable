@@ -8,7 +8,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 
 | Key | Source | Snippet |
 | --- | --- | --- |
-| advertisement-banner | [non-ambient.d](https://github.com/LuckyLuuk12/kable/blob/main/.svelte-kit/non-ambient.d.ts#L49) | <pre><code class="language-html">Asset(): "/favicon.png" &#124; "/img/advertisement-banner.webp" &#124; "/img/curseforge.webp" &#124; "/img/fabric.png" &#124; "/img/forge.jpeg" &#124; "/img/kablan-logo.png" &#124; "/img/kofi-logo.webp" &#124; "/img/luckybindings-logo.png" &#124; "/img/microsoft-logo.png" &#124; "/img/minecraft_logo.png" &#124; "/img/modrinth.webp" &#124; "/img/neoforge.png" &#124; "/img/quilt.png" &#124; "/sounds/click.mp3" &#124; "/sounds/error.mp3" &#124; "/sounds/hover.mp3" &#124; "/sounds/launch.mp3" &#124; "/sounds/music/.gitignore" &#124; "/sounds/music/menu1.mp3" &#124; "/sounds/notification.mp3" &#124; "/sounds/README.md" &#124; "/sounds/success.mp3" &#124; "/themes/KasaiSora-Theme.css" &#124; "/themes/Minecraft-Regular.woff2" &#124; "/themes/Modrinth-Theme.css" &#124; string &amp; {};</code></pre> |
+| advertisement-banner | [non-ambient.d](https://github.com/LuckyLuuk12/kable/blob/main/.svelte-kit/non-ambient.d.ts#L49) | <pre><code class="language-html">Asset(): "/favicon.png" &#124; "/img/advertisement-banner.webp" &#124; "/img/curseforge.webp" &#124; "/img/fabric.png" &#124; "/img/forge.jpeg" &#124; "/img/kablan-logo.png" &#124; "/img/kofi-logo.webp" &#124; "/img/luckybindings-logo.png" &#124; "/img/microsoft-logo.png" &#124; "/img/minecraft_logo.png" &#124; "/img/modrinth.webp" &#124; "/img/neoforge.png" &#124; "/img/quilt.png" &#124; "/sounds/click.mp3" &#124; "/sounds/error.mp3" &#124; "/sounds/hover.mp3" &#124; "/sounds/launch.mp3" &#124; "/sounds/music/.gitignore" &#124; "/sounds/music/menu1.mp3" &#124; "/sounds/notification.mp3" &#124; "/sounds/README.md" &#124; "/sounds/success.mp3" &#124; "/themes/KasaiSora-Theme.css" &#124; "/themes/Minecraft-Regular.woff2" &#124; "/themes/Modrinth-Theme.css" &#124; "/themes/Official-Theme.css" &#124; string &amp; {};</code></pre> |
 | favicon | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L463) | <pre><code class="language-html">&lt;Image key="favicon" alt="Kable" width="14px" height="14px" /&gt;</code></pre> |
 
 ## Icon keys
@@ -206,7 +206,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | package | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L613) | <pre><code class="language-html">&lt;Icon name="package" size="lg" /&gt;</code></pre> |
 | package | [InstallationResourcePacks](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/InstallationResourcePacks.svelte#L714) | <pre><code class="language-html">&lt;Icon name="package" size="xl" /&gt;</code></pre> |
 | package | [InstallationShaders](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/InstallationShaders.svelte#L474) | <pre><code class="language-html">&lt;Icon name="package" size="xl" /&gt;</code></pre> |
-| play | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L388) | <pre><code class="language-html">&lt;Icon name="play" size="md" forceType="svg" /&gt;</code></pre> |
+| play | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L399) | <pre><code class="language-html">&lt;Icon name="play" size="md" forceType="svg" /&gt;</code></pre> |
 | play | [Mods Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/mods/+page.svelte#L86) | <pre><code class="language-html">&lt;Icon name="play" size="sm" forceType="svg" /&gt;</code></pre> |
 | play | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L196) | <pre><code class="language-html">&lt;Icon name="play" size="md" /&gt;</code></pre> |
 | plus | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L305) | <pre><code class="language-html">&lt;Icon name="plus" forceType="svg" /&gt;</code></pre> |
@@ -229,7 +229,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | refresh | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L759) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L770) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L296) | <pre><code class="language-html">&lt;Icon name="refresh" size="lg" /&gt;</code></pre> |
-| refresh | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L385) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" className="spin" /&gt;</code></pre> |
+| refresh | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L396) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" className="spin" /&gt;</code></pre> |
 | refresh | [Installations Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/installations/+page.svelte#L123) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" /&gt;</code></pre> |
 | refresh | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L1157) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L154) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" forceType="svg" /&gt;</code></pre> |
@@ -244,7 +244,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | search | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L1042) | <pre><code class="language-html">&lt;Icon name="search" size="xl" /&gt;</code></pre> |
 | search | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L169) | <pre><code class="language-html">&lt;Icon name="search" size="sm" /&gt;</code></pre> |
 | search | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L312) | <pre><code class="language-html">&lt;Icon name="search" size="xl" /&gt;</code></pre> |
-| settings | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L599) | <pre><code class="language-html">&lt;Icon name="settings" size="md" className="nav-icon" /&gt;</code></pre> |
+| settings | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L597) | <pre><code class="language-html">&lt;Icon name="settings" size="md" className="nav-icon" /&gt;</code></pre> |
 | settings | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L263) | <pre><code class="language-html">&lt;Icon name="settings" /&gt;</code></pre> |
 | settings | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L285) | <pre><code class="language-html">&lt;Icon name="settings" /&gt;</code></pre> |
 | skull | [Profile Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profile/+page.svelte#L369) | <pre><code class="language-html">&lt;Icon name="skull" size="md" /&gt;</code></pre> |
@@ -292,4 +292,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L538) | <pre><code class="language-html">&lt;Icon name="x" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L895) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2026-02-22T15:28:48.171Z_
+_Generated: 2026-02-22T19:30:16.957Z_

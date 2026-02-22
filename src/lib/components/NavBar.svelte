@@ -519,8 +519,7 @@ onDestroy(() => {
   class:nav-open={!isNavCollapsed}
   on:keydown={handleKeydown}
   role="application"
-  tabindex="-1"
->
+  tabindex="-1">
   <nav class="sidebar" class:collapsed={isNavCollapsed}>
     <!-- Header Section with Profile -->
     <div class="header-section">
@@ -528,21 +527,17 @@ onDestroy(() => {
         use:buttonSound
         href="/profile"
         class="user-profile"
-        class:active={currentPath === "/profile"}
-      >
+        class:active={currentPath === "/profile"}>
         <div class="user-avatar">
           <PlayerHead account={$currentAccount} size={40} />
         </div>
-        {#if !isNavCollapsed}
-          <div class="header-content">
-            <h1 class="app-title">{$currentAccount?.username}</h1>
-            <span class="app-subtitle"
-              >{!!$currentAccount?.access_token
-                ? "Logged in"
-                : "Not logged in"}</span
-            >
-          </div>
-        {/if}
+        <div class="header-content" class:collapsed={isNavCollapsed}>
+          <h1 class="app-title">{$currentAccount?.username}</h1>
+          <span class="app-subtitle"
+            >{!!$currentAccount?.access_token
+              ? "Logged in"
+              : "Not logged in"}</span>
+        </div>
       </a>
     </div>
 
@@ -557,13 +552,11 @@ onDestroy(() => {
           : "Collapse navigation"}
         data-title={isNavCollapsed
           ? "Expand navigation (Ctrl+B)"
-          : "Collapse navigation (Ctrl+B)"}
-      >
+          : "Collapse navigation (Ctrl+B)"}>
         <Icon
           name={isNavCollapsed ? "arrow-right" : "arrow-left"}
           size="lg"
-          forceType="svg"
-        />
+          forceType="svg" />
       </button>
     </div>
 
@@ -576,12 +569,10 @@ onDestroy(() => {
           class="nav-item"
           class:active={currentPath === item.path}
           data-title={item.label}
-          aria-label={item.label}
-        >
+          aria-label={item.label}>
           <Icon name={item.icon} size="md" className="nav-icon" />
-          {#if !isNavCollapsed}
-            <span class="label">{item.label}</span>
-          {/if}
+          <span class="label" class:collapsed={isNavCollapsed}
+            >{item.label}</span>
         </a>
       {/each}
     </div>
@@ -594,12 +585,9 @@ onDestroy(() => {
         class="nav-item settings-item"
         class:active={currentPath === "/settings"}
         data-title="Settings"
-        aria-label="Settings"
-      >
+        aria-label="Settings">
         <Icon name="settings" size="md" className="nav-icon" />
-        {#if !isNavCollapsed}
-          <span class="label">Settings</span>
-        {/if}
+        <span class="label" class:collapsed={isNavCollapsed}>Settings</span>
       </a>
     </div>
   </nav>
@@ -683,6 +671,10 @@ onDestroy(() => {
       display: flex;
       flex-direction: column;
       min-width: 0;
+
+      &.collapsed {
+        display: none;
+      }
 
       .app-title {
         margin: 0;
@@ -768,16 +760,16 @@ onDestroy(() => {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+
+    &.collapsed {
+      display: none;
+    }
   }
 
   // Collapsed state - center icons and show tooltips
   .sidebar.collapsed & {
     justify-content: center;
     padding: 0.75rem;
-
-    .label {
-      display: none;
-    }
 
     // tooltip handled by JS-controlled .nav-tooltip element
   }

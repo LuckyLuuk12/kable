@@ -366,6 +366,17 @@ async function handleAdClick(url: string) {
     </div>
   {/if}
 
+  <!-- Hero Image Section - Official Launcher Style -->
+  <div class="hero-image-container">
+    <Image
+      key="home-hero"
+      alt="Minecraft Hero Banner"
+      className="home-hero"
+      width="100%"
+      height="100%"
+    />
+  </div>
+
   <!-- Installations List Section -->
   <div class="installations-section">
     <InstallationsList isGrid isSmall limit={15} />
@@ -633,6 +644,21 @@ async function handleAdClick(url: string) {
         }
       }
     }
+  }
+}
+
+.hero-image-container {
+  display: none; // Hidden by default, shown only with custom themes
+  width: 100%;
+  height: 0;
+  overflow: hidden;
+  position: relative;
+
+  :global(.home-hero) {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
   }
 }
 
