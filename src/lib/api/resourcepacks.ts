@@ -126,3 +126,37 @@ export async function deleteResourcepackFromDedicated(
     symlinkName,
   });
 }
+
+export async function movePackToMerged(
+  minecraftPath: string,
+  dedicatedFolder: string,
+  packFilename: string,
+): Promise<void> {
+  return invoke("move_pack_to_merged", {
+    minecraftPath,
+    dedicatedFolder,
+    packFilename,
+  });
+}
+
+export async function movePackToIndividual(
+  minecraftPath: string,
+  dedicatedFolder: string,
+  packFilename: string,
+): Promise<void> {
+  return invoke("move_pack_to_individual", {
+    minecraftPath,
+    dedicatedFolder,
+    packFilename,
+  });
+}
+
+export async function migrateResourcepackStructure(
+  dedicatedFolder: string,
+  mergedPacks: string[],
+): Promise<void> {
+  return invoke("migrate_resourcepack_structure", {
+    dedicatedFolder,
+    mergedPacks,
+  });
+}

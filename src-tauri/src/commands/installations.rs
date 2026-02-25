@@ -178,6 +178,7 @@ pub async fn update_resourcepack_settings(
     installation_id: String,
     enable_pack_merging: bool,
     pack_order: Vec<String>,
+    merged_packs: Option<Vec<String>>,
 ) -> Result<(), String> {
     // Read all installations
     let mut installations =
@@ -192,6 +193,20 @@ pub async fn update_resourcepack_settings(
     // Update settings
     installation.enable_pack_merging = enable_pack_merging;
     installation.pack_order = pack_order;
+
+    // Update merged_packs if provided
+    if let Some(merged) = merged_packs {
+        installation.merged_packs = merged;
+
+        // Migrate packs to new folder structure if needed
+        if let Some(ref dedicated_folder) = installation.dedicated_resource_pack_folder {
+            crate::resourcepacks::migrate_resourcepack_structure(
+                dedicated_folder.clone(),
+                installation.merged_packs.clone(),
+            )
+            .await?;
+        }
+    }
 
     // Write back all installations
     crate::installations::kable_profiles::write_kable_profiles_async(&installations).await?;

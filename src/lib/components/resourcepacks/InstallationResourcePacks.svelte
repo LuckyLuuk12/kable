@@ -43,6 +43,29 @@ let hasOrderChanged = false;
 let savingOrder = false;
 let orderedPacks: any[] = [];
 
+// New: Track which packs should be merged
+let mergedPacks: string[] = [];
+let originalMergedPacks: string[] = [];
+let hasMergedPacksChanged = false;
+
+// Separate pack lists for UI
+$: individualPacks = packs.filter((p) => !mergedPacks.includes(p.file_name));
+$: toMergePacks = packs
+  .filter((p) => mergedPacks.includes(p.file_name))
+  .sort((a, b) => {
+    const aIndex = currentPackOrder.indexOf(a.file_name);
+    const bIndex = currentPackOrder.indexOf(b.file_name);
+    return aIndex - bIndex;
+  });
+
+// State for dndzone - must be a separate variable that gets updated from events
+let mergePacksItems: any[] = [];
+
+// Manually update mergePacksItems from toMergePacks (called after loading/moving packs)
+function updateMergePacksItems() {
+  mergePacksItems = toMergePacks.map((p) => ({ ...p, id: p.file_name }));
+}
+
 // Drag-drop state
 let dragDisabled = true;
 const flipDurationMs = 200;
@@ -365,27 +388,65 @@ async function loadResourcePacks(installation: KableInstallation) {
       packMergingEnabled = false; // Global doesn't support merging
       originalPackOrder = [];
       currentPackOrder = [];
+      mergedPacks = [];
+      originalMergedPacks = [];
       dragDisabled = true;
     } else {
       // Load resourcepacks for specific installation
-      packs = await installationsApi.getResourcePackInfo(installation);
+      const rawPacks = await installationsApi.getResourcePackInfo(installation);
 
-      // Load merging settings
-      packMergingEnabled = installation.enable_pack_merging || false;
+      // Infer which packs are in merged vs individual folders from the backend response
+      // Backend returns name as "merged/filename" or "individual/filename"
+      const mergedPacksFromDisk: string[] = [];
+
+      packs = rawPacks.map((pack) => {
+        // Check if pack is in merged folder
+        if (pack.name && pack.name.startsWith("merged/")) {
+          mergedPacksFromDisk.push(pack.file_name);
+          // Strip the prefix for display
+          return { ...pack, name: pack.name.replace(/^merged\//, "") };
+        } else if (pack.name && pack.name.startsWith("individual/")) {
+          // Strip the prefix for display
+          return { ...pack, name: pack.name.replace(/^individual\//, "") };
+        }
+        return pack;
+      });
+
+      // Load pack order from installation state
+      packMergingEnabled = true;
       originalPackOrder = installation.pack_order || [];
       currentPackOrder = [...originalPackOrder];
-      dragDisabled = !packMergingEnabled;
 
-      // Initialize order with current packs if not set
-      if (currentPackOrder.length === 0 && packs.length > 0) {
-        currentPackOrder = packs.map((p) => p.file_name);
-        originalPackOrder = [...currentPackOrder];
+      // Use actual disk state for merged packs, not saved state
+      mergedPacks = mergedPacksFromDisk;
+      originalMergedPacks = [...mergedPacks];
+      dragDisabled = false;
+
+      // Ensure all merged packs are in currentPackOrder
+      // Add any merged packs that aren't in the order yet (append to end)
+      const missingFromOrder = mergedPacks.filter(
+        (pack) => !currentPackOrder.includes(pack),
+      );
+      if (missingFromOrder.length > 0) {
+        currentPackOrder = [...currentPackOrder, ...missingFromOrder];
       }
+
+      // Remove any packs from order that are no longer merged
+      currentPackOrder = currentPackOrder.filter((pack) =>
+        mergedPacks.includes(pack),
+      );
+
+      originalPackOrder = [...currentPackOrder];
     }
 
     loadedInstallationId = installation.id;
     attemptedExtendedInfo.clear();
     hasOrderChanged = false;
+    hasMergedPacksChanged = false;
+
+    // Update mergePacksItems after packs are loaded
+    // Use setTimeout to ensure reactive statements have updated toMergePacks first
+    setTimeout(() => updateMergePacksItems(), 0);
   } catch (e: any) {
     error = e?.message || e || "Failed to load resource packs info";
     packs = [];
@@ -393,40 +454,6 @@ async function loadResourcePacks(installation: KableInstallation) {
     loadedInstallationId = null;
   } finally {
     loading = false;
-  }
-}
-
-async function togglePackMerging() {
-  if (!currentInstallation || currentInstallation.id === "global") return;
-
-  packMergingEnabled = !packMergingEnabled;
-  dragDisabled = !packMergingEnabled;
-
-  // Initialize order if enabling merging
-  if (packMergingEnabled && currentPackOrder.length === 0) {
-    currentPackOrder = packs.map((p) => p.file_name);
-    originalPackOrder = [...currentPackOrder];
-  }
-
-  // Auto-save when toggling
-  try {
-    await installationsApi.updateResourcePackSettings(
-      currentInstallation.id,
-      packMergingEnabled,
-      currentPackOrder,
-    );
-
-    NotificationService.success(
-      packMergingEnabled ? "Pack merging enabled" : "Pack merging disabled",
-    );
-
-    // Refresh installations to update state
-    await installationsApi.refreshInstallations();
-    hasOrderChanged = false;
-  } catch (e: any) {
-    NotificationService.error(`Failed to update settings: ${e}`);
-    packMergingEnabled = !packMergingEnabled; // Revert
-    dragDisabled = !packMergingEnabled;
   }
 }
 
@@ -439,38 +466,106 @@ async function confirmOrder() {
       currentInstallation.id,
       packMergingEnabled,
       currentPackOrder,
+      mergedPacks,
     );
 
     originalPackOrder = [...currentPackOrder];
+    originalMergedPacks = [...mergedPacks];
     hasOrderChanged = false;
+    hasMergedPacksChanged = false;
 
-    NotificationService.success("Pack order saved and applied");
+    NotificationService.success("Pack settings saved and applied");
 
     // Refresh installations
     await installationsApi.refreshInstallations();
   } catch (e: any) {
-    NotificationService.error(`Failed to save order: ${e}`);
+    NotificationService.error(`Failed to save settings: ${e}`);
   } finally {
     savingOrder = false;
   }
 }
 
-function handleDndConsider(e: CustomEvent<DndEvent>) {
-  const { items } = e.detail;
-  orderedPacks = items as any[];
+async function moveToMerge(packFileName: string) {
+  if (!currentInstallation || currentInstallation.id === "global") return;
+
+  try {
+    const dedicatedFolder =
+      currentInstallation.dedicated_resource_pack_folder ||
+      currentInstallation.id;
+
+    await import("$lib/api/resourcepacks").then((api) =>
+      api.movePackToMerged(
+        "", // minecraft_path not used
+        dedicatedFolder,
+        packFileName,
+      ),
+    );
+
+    NotificationService.success(`Moved "${packFileName}" to merge list`);
+
+    // Reload to get updated state from disk
+    await loadResourcePacks(currentInstallation);
+    // updateMergePacksItems is called by loadResourcePacks
+  } catch (e: any) {
+    NotificationService.error(`Failed to move pack: ${e}`);
+  }
 }
 
-function handleDndFinalize(e: CustomEvent<DndEvent>) {
-  const { items } = e.detail;
-  orderedPacks = items as any[];
-  currentPackOrder = orderedPacks.map((p: any) => p.file_name);
+async function moveToIndividual(packFileName: string) {
+  if (!currentInstallation || currentInstallation.id === "global") return;
 
-  // Check if order changed
+  try {
+    const dedicatedFolder =
+      currentInstallation.dedicated_resource_pack_folder ||
+      currentInstallation.id;
+
+    await import("$lib/api/resourcepacks").then((api) =>
+      api.movePackToIndividual(
+        "", // minecraft_path not used
+        dedicatedFolder,
+        packFileName,
+      ),
+    );
+
+    NotificationService.success(`Moved "${packFileName}" to individual list`);
+
+    // Reload to get updated state from disk
+    await loadResourcePacks(currentInstallation);
+    // updateMergePacksItems is called by loadResourcePacks
+  } catch (e: any) {
+    NotificationService.error(`Failed to move pack: ${e}`);
+  }
+}
+
+function checkForChanges() {
   const orderChanged =
     currentPackOrder.length !== originalPackOrder.length ||
     currentPackOrder.some((name, idx) => name !== originalPackOrder[idx]);
 
+  const mergedChanged =
+    mergedPacks.length !== originalMergedPacks.length ||
+    mergedPacks.some((name) => !originalMergedPacks.includes(name)) ||
+    originalMergedPacks.some((name) => !mergedPacks.includes(name));
+
   hasOrderChanged = orderChanged;
+  hasMergedPacksChanged = mergedChanged;
+}
+
+function handleDndConsider(e: CustomEvent<DndEvent>) {
+  const { items } = e.detail;
+  // Just update the visual items during drag - don't touch currentPackOrder
+  mergePacksItems = items as any[];
+}
+
+function handleDndFinalize(e: CustomEvent<DndEvent>) {
+  const { items } = e.detail;
+  // Update items and order after drop
+  mergePacksItems = items as any[];
+  currentPackOrder = mergePacksItems.map((p: any) =>
+    typeof p === "string" ? p : p.file_name,
+  );
+
+  checkForChanges();
 }
 
 onMount(() => {
@@ -578,27 +673,6 @@ onMount(() => {
           <div class="packs-title-section">
             <div class="title-and-toggle">
               <h3>Resource Packs for {currentInstallation.name}</h3>
-
-              {#if currentInstallation.id !== "global"}
-                <button
-                  class="merge-toggle"
-                  class:enabled={packMergingEnabled}
-                  on:click={togglePackMerging}
-                  title={packMergingEnabled
-                    ? "Pack merging enabled - packs will be merged into one"
-                    : "Pack merging disabled - packs loaded individually"}
-                >
-                  <Icon
-                    name={packMergingEnabled ? "layers" : "package"}
-                    size="sm"
-                  />
-                  <span
-                    >{packMergingEnabled
-                      ? "Merging Enabled"
-                      : "Individual Packs"}</span
-                  >
-                </button>
-              {/if}
             </div>
 
             {#if packs.length > 0}
@@ -618,11 +692,19 @@ onMount(() => {
             {/if}
           </div>
 
-          {#if packMergingEnabled && hasOrderChanged}
+          {#if currentInstallation.id !== "global" && (hasOrderChanged || hasMergedPacksChanged)}
             <div class="order-actions">
               <div class="order-hint">
                 <Icon name="info" size="sm" />
-                <span>Drag packs to reorder (top = highest priority)</span>
+                <span>
+                  {#if hasOrderChanged && hasMergedPacksChanged}
+                    Pack order and categories changed - click to apply
+                  {:else if hasOrderChanged}
+                    Drag packs in "To Merge" to reorder (top = highest priority)
+                  {:else}
+                    Pack categories changed - click to apply
+                  {/if}
+                </span>
               </div>
               <button
                 class="confirm-order-btn"
@@ -634,7 +716,7 @@ onMount(() => {
                   <span>Saving...</span>
                 {:else}
                   <Icon name="check" size="sm" />
-                  <span>Apply Order</span>
+                  <span>Apply Changes</span>
                 {/if}
               </button>
             </div>
@@ -655,43 +737,115 @@ onMount(() => {
               {error}
             </div>
           {:else if packs.length > 0}
-            {#if packMergingEnabled && !searchQuery}
-              <div class="packs-list-container">
-                <div
-                  class="packs-list-draggable"
-                  bind:this={dragListElement}
-                  on:scroll={checkScrollFade}
-                  use:dndzone={{
-                    items: orderedPacks,
-                    flipDurationMs,
-                    dragDisabled: false,
-                    dropTargetStyle: {},
-                  }}
-                  on:consider={handleDndConsider}
-                  on:finalize={handleDndFinalize}
-                >
-                  {#each orderedPacks as pack (pack.id)}
-                    <div class="drag-item-wrapper">
-                      <div class="drag-handle">
-                        <Icon name="menu" size="md" />
-                      </div>
-                      <InstalledResourcePackCard
-                        {pack}
-                        installation={currentInstallation}
-                        extendedInfo={extendedPackInfo[pack.file_name]}
-                        onpackchanged={handlePackChanged}
-                      />
+            {#if currentInstallation.id !== "global"}
+              <!-- Two-container layout for installation-specific packs -->
+              <div class="dual-container-layout">
+                <!-- Left: Individual Packs -->
+                <div class="pack-container individual-container">
+                  <div class="container-header">
+                    <div class="header-title">
+                      <Icon name="package" size="sm" />
+                      <span>Individual Packs</span>
                     </div>
-                  {/each}
-                </div>
-                {#if showScrollFade}
-                  <div class="scroll-fade-indicator">
-                    <Icon name="chevron-down" size="sm" />
-                    <span>Scroll for more</span>
+                    <div class="pack-count">{individualPacks.length}</div>
                   </div>
-                {/if}
+                  <div class="container-hint">
+                    These packs load separately (not merged)
+                  </div>
+                  <div class="pack-list">
+                    {#if individualPacks.length === 0}
+                      <div class="empty-container">
+                        <Icon name="inbox" size="md" />
+                        <span>No individual packs</span>
+                      </div>
+                    {:else}
+                      {#each individualPacks as pack (pack.file_name)}
+                        <div class="pack-item">
+                          <InstalledResourcePackCard
+                            {pack}
+                            installation={currentInstallation}
+                            extendedInfo={extendedPackInfo[pack.file_name]}
+                            onpackchanged={handlePackChanged}
+                          />
+                          <button
+                            class="move-btn"
+                            on:click={() => moveToMerge(pack.file_name)}
+                            title="Move to merge list"
+                          >
+                            <Icon
+                              name="arrow-right"
+                              size="sm"
+                              forceType="svg"
+                            />
+                          </button>
+                        </div>
+                      {/each}
+                    {/if}
+                  </div>
+                </div>
+
+                <!-- Right: Packs to Merge -->
+                <div class="pack-container merge-container">
+                  <div class="container-header">
+                    <div class="header-title">
+                      <Icon name="layers" size="sm" />
+                      <span>Packs to Merge</span>
+                    </div>
+                    <div class="pack-count">{mergePacksItems.length}</div>
+                  </div>
+                  <div class="container-hint">
+                    Drag to reorder • Top = highest priority
+                  </div>
+                  <div class="pack-list">
+                    {#if mergePacksItems.length === 0}
+                      <div class="empty-container">
+                        <Icon name="layers" size="md" />
+                        <span>No packs to merge</span>
+                        <small>Move packs here to merge them together</small>
+                      </div>
+                    {:else}
+                      <div
+                        class="draggable-list"
+                        use:dndzone={{
+                          items: mergePacksItems,
+                          flipDurationMs,
+                          dragDisabled: false,
+                          dropTargetStyle: {},
+                        }}
+                        on:consider={handleDndConsider}
+                        on:finalize={handleDndFinalize}
+                      >
+                        {#each mergePacksItems as pack (pack.id)}
+                          <div class="pack-item draggable">
+                            <div class="drag-handle">
+                              <Icon name="menu" size="md" />
+                            </div>
+                            <InstalledResourcePackCard
+                              {pack}
+                              installation={currentInstallation}
+                              extendedInfo={extendedPackInfo[pack.file_name]}
+                              onpackchanged={handlePackChanged}
+                            />
+                            <button
+                              class="move-btn"
+                              on:click={() => moveToIndividual(pack.file_name)}
+                              title="Move to individual list"
+                            >
+                              <Icon
+                                name="arrow-left"
+                                size="sm"
+                                forceType="svg"
+                              />
+                            </button>
+                          </div>
+                        {/each}
+                      </div>
+                    {/if}
+                  </div>
+                </div>
               </div>
             {:else}
+              <!-- Single grid for global packs -->
               <div class="packs-card-grid">
                 {#each filteredPacks as pack (pack.file_name)}
                   <InstalledResourcePackCard
@@ -953,13 +1107,13 @@ onMount(() => {
     color-mix(in srgb, var(--primary), 2%, transparent) 100%
   );
   border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
-  padding: 1.2rem 1.5rem;
+  padding: 1.5rem 1.5rem 0.5rem;
 
   .packs-title-section {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin: 1rem 0 0.5rem 0;
+    margin: 0.5rem 0 0.05rem 0;
 
     .title-and-toggle {
       display: flex;
@@ -973,45 +1127,6 @@ onMount(() => {
       color: var(--text);
       font-weight: 500;
       font-size: 1.1em;
-    }
-  }
-
-  .merge-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.4em;
-    padding: 0.5em 1em;
-    border-radius: 0.5rem;
-    border: 1px solid var(--dark-600);
-    background: var(--input);
-    color: var(--text-secondary);
-    font-size: 0.85em;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    &:hover {
-      border-color: var(--primary);
-      background: var(--card);
-      color: var(--text);
-    }
-
-    &.enabled {
-      border-color: var(--green-700);
-      background: linear-gradient(
-        135deg,
-        #{"color-mix(in srgb, var(--green-700), 12%, transparent)"} 0%,
-        #{"color-mix(in srgb, var(--green-800), 8%, transparent)"} 100%
-      );
-      color: var(--green-600);
-      box-shadow: 0 1px 6px
-        #{"color-mix(in srgb, var(--green-700), 15%, transparent)"};
-
-      &:hover {
-        border-color: var(--green-600);
-        box-shadow: 0 2px 10px
-          #{"color-mix(in srgb, var(--green-700), 20%, transparent)"};
-      }
     }
   }
 
@@ -1182,7 +1297,7 @@ onMount(() => {
 
 .packs-content {
   flex: 1;
-  padding: 1.5rem;
+  padding: 0 1.5rem 1.5rem;
   background: var(--container);
   overflow-y: auto;
   overflow-x: hidden;
@@ -1221,120 +1336,6 @@ onMount(() => {
   }
 }
 
-.packs-list-container {
-  position: relative;
-}
-
-.packs-list-draggable {
-  display: flex;
-  flex-direction: column;
-  padding: 0 0.5rem;
-  max-height: calc(100vh - 400px);
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--primary) transparent;
-
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #{"color-mix(in srgb, var(--primary), 60%, transparent)"};
-    border-radius: 4px;
-
-    &:hover {
-      background: #{"color-mix(in srgb, var(--primary), 80%, transparent)"};
-    }
-  }
-}
-
-.scroll-fade-indicator {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    #{"color-mix(in srgb, var(--container), 95%, transparent)"} 50%,
-    var(--container) 100%
-  );
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  padding-bottom: 0.75rem;
-  gap: 0.25rem;
-  color: var(--text-secondary);
-  font-size: 0.85em;
-  pointer-events: none;
-  animation: pulse 2s ease-in-out infinite;
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 0.6;
-    }
-    50% {
-      opacity: 1;
-    }
-  }
-}
-
-.drag-item-wrapper {
-  display: flex;
-  align-items: stretch;
-  gap: 0.5rem;
-  background: transparent;
-  border-radius: 0.5rem;
-  padding: 0.25rem;
-  transition: all 0.2s ease;
-  user-select: none;
-  margin-bottom: 0.35rem;
-
-  &:hover {
-    background: color-mix(in srgb, var(--primary), 3%, transparent);
-  }
-}
-
-.drag-handle {
-  flex-shrink: 0;
-  width: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  cursor: grab;
-  transition: all 0.2s ease;
-  background: var(--bg-secondary);
-  border-radius: 0.4rem;
-  border: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
-  margin-right: 0.25rem;
-
-  &:hover {
-    color: var(--primary);
-    background: var(--bg-tertiary);
-    border-color: color-mix(in srgb, var(--primary), 20%, transparent);
-  }
-
-  &:active {
-    cursor: grabbing;
-    background: var(--bg-tertiary);
-    border-color: var(--primary);
-  }
-}
-
-:global(.drag-item-wrapper .installed-pack-card) {
-  flex: 1;
-  min-width: 0;
-}
-
 .loading-state {
   display: flex;
   align-items: center;
@@ -1367,6 +1368,227 @@ onMount(() => {
   font-size: 1.1em;
   padding: 2.5rem 0 1.5rem 0;
   gap: 0.5em;
+}
+
+.dual-container-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  height: 100%;
+
+  @media (max-width: 1200px) {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+.pack-container {
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--dark-900), 4%, transparent);
+
+  &.individual-container {
+    border-color: color-mix(in srgb, var(--tertiary), 15%, transparent);
+
+    .container-header {
+      background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--tertiary), 8%, transparent) 0%,
+        color-mix(in srgb, var(--tertiary), 3%, transparent) 100%
+      );
+      border-bottom-color: color-mix(
+        in srgb,
+        var(--tertiary),
+        12%,
+        transparent
+      );
+
+      .header-title {
+        color: var(--tertiary);
+      }
+
+      .pack-count {
+        background: color-mix(in srgb, var(--tertiary), 12%, transparent);
+        color: var(--tertiary);
+        border-color: color-mix(in srgb, var(--tertiary), 20%, transparent);
+      }
+    }
+  }
+
+  &.merge-container {
+    border-color: color-mix(in srgb, var(--primary), 15%, transparent);
+
+    .container-header {
+      background: linear-gradient(
+        135deg,
+        color-mix(in srgb, var(--primary), 8%, transparent) 0%,
+        color-mix(in srgb, var(--secondary), 4%, transparent) 100%
+      );
+      border-bottom-color: color-mix(in srgb, var(--primary), 12%, transparent);
+
+      .header-title {
+        color: var(--primary);
+      }
+
+      .pack-count {
+        background: color-mix(in srgb, var(--primary), 12%, transparent);
+        color: var(--primary);
+        border-color: color-mix(in srgb, var(--primary), 20%, transparent);
+      }
+    }
+  }
+}
+
+.container-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+
+  .header-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 1.05em;
+  }
+
+  .pack-count {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 0.5rem;
+    border-radius: 0.4rem;
+    font-size: 0.85em;
+    font-weight: 600;
+    border: 1px solid;
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--dark-900), 6%, transparent);
+  }
+}
+
+.container-hint {
+  padding: 0.05rem 1.25rem;
+  font-size: 0.8em;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-secondary), 50%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--primary), 5%, transparent);
+  font-style: italic;
+}
+
+.pack-list {
+  flex: 1;
+  padding: 0.75rem;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 300px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--primary), 20%, transparent);
+    border-radius: 3px;
+
+    &:hover {
+      background: color-mix(in srgb, var(--primary), 35%, transparent);
+    }
+  }
+}
+
+.pack-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+
+  &.draggable {
+    padding: 0.35rem;
+    background: var(--bg-secondary);
+    border: 1px solid color-mix(in srgb, var(--primary), 6%, transparent);
+    border-radius: 0.5rem;
+    transition: all 0.2s ease;
+
+    &:hover {
+      background: var(--bg-tertiary);
+      border-color: color-mix(in srgb, var(--primary), 12%, transparent);
+      box-shadow: 0 2px 6px color-mix(in srgb, var(--dark-900), 6%, transparent);
+    }
+  }
+
+  :global(.installed-pack-card) {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .drag-handle {
+    cursor: grab;
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
+}
+
+.move-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border: 1px solid color-mix(in srgb, var(--primary), 10%, transparent);
+  border-radius: 0.4rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+
+  &:hover {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+    transform: scale(1.05);
+    box-shadow: 0 2px 6px color-mix(in srgb, var(--primary), 25%, transparent);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+}
+
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  color: var(--placeholder);
+  gap: 0.5rem;
+  text-align: center;
+
+  small {
+    font-size: 0.85em;
+    opacity: 0.8;
+  }
+}
+
+.draggable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
 }
 
 @media (max-width: 900px) {

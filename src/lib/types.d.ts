@@ -761,6 +761,7 @@ export interface KableInstallation {
   times_launched: number;
   enable_pack_merging?: boolean;
   pack_order?: string[];
+  merged_packs?: string[];
 }
 
 /** LauncherProfile struct

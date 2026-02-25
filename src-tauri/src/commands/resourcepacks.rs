@@ -132,3 +132,32 @@ pub async fn delete_resourcepack_from_dedicated(
     )
     .await
 }
+
+/// Move a resource pack from individual to merged category
+#[tauri::command]
+pub async fn move_pack_to_merged(
+    minecraft_path: String,
+    dedicated_folder: String,
+    pack_filename: String,
+) -> Result<(), String> {
+    resourcepacks::move_pack_to_merged(minecraft_path, dedicated_folder, pack_filename).await
+}
+
+/// Move a resource pack from merged to individual category
+#[tauri::command]
+pub async fn move_pack_to_individual(
+    minecraft_path: String,
+    dedicated_folder: String,
+    pack_filename: String,
+) -> Result<(), String> {
+    resourcepacks::move_pack_to_individual(minecraft_path, dedicated_folder, pack_filename).await
+}
+
+/// Migrate existing packs to the new subfolder structure
+#[tauri::command]
+pub async fn migrate_resourcepack_structure(
+    dedicated_folder: String,
+    merged_packs: Vec<String>,
+) -> Result<(), String> {
+    resourcepacks::migrate_resourcepack_structure(dedicated_folder, merged_packs).await
+}

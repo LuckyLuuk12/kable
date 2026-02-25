@@ -621,6 +621,7 @@ pub async fn download_and_install_resourcepack(
 }
 
 /// Download and install resource pack from Modrinth to a dedicated folder
+/// Default installs to individual/ subfolder (packs can be moved to merged/ later)
 #[log_result]
 pub async fn download_and_install_resourcepack_to_dedicated(
     _minecraft_path: String,
@@ -632,15 +633,17 @@ pub async fn download_and_install_resourcepack_to_dedicated(
     let dedicated_path = PathBuf::from(&dedicated_folder);
 
     // Support both absolute paths and relative paths from .minecraft/kable
-    let packs_dir = if dedicated_path.is_absolute() {
+    let base_dir = if dedicated_path.is_absolute() {
         dedicated_path
     } else {
         kable_dir.join(&dedicated_folder)
     };
 
-    crate::ensure_folder(&packs_dir)
-        .await
-        .map_err(|e| e.to_string())?;
+    // Ensure subfolders exist
+    ensure_resourcepack_subfolders(&base_dir).await?;
+
+    // Default to individual/ subfolder
+    let packs_dir = base_dir.join("individual");
 
     let destination = packs_dir.join(&filename);
 
@@ -826,4 +829,162 @@ pub async fn merge_resourcepacks(
     .map_err(|e| format!("Task join error: {}", e))??;
 
     Ok(output_path)
+}
+
+/// Ensure the merged/ and individual/ subfolders exist for an installation
+async fn ensure_resourcepack_subfolders(dedicated_folder: &std::path::Path) -> Result<(), String> {
+    let merged_dir = dedicated_folder.join("merged");
+    let individual_dir = dedicated_folder.join("individual");
+
+    crate::ensure_folder(&merged_dir).await?;
+    crate::ensure_folder(&individual_dir).await?;
+
+    Ok(())
+}
+
+/// Move a resource pack from individual to merged category
+#[log_result]
+pub async fn move_pack_to_merged(
+    _minecraft_path: String,
+    dedicated_folder: String,
+    pack_filename: String,
+) -> Result<(), String> {
+    let kable_dir = crate::get_minecraft_kable_dir()?;
+    let dedicated_path = PathBuf::from(&dedicated_folder);
+    let base_path = if dedicated_path.is_absolute() {
+        dedicated_path
+    } else {
+        kable_dir.join(dedicated_folder)
+    };
+
+    ensure_resourcepack_subfolders(&base_path).await?;
+
+    let individual_dir = base_path.join("individual");
+    let merged_dir = base_path.join("merged");
+
+    let source = individual_dir.join(&pack_filename);
+    let dest = merged_dir.join(&pack_filename);
+
+    if !source.exists() {
+        return Err(format!(
+            "Pack not found in individual folder: {}",
+            pack_filename
+        ));
+    }
+
+    if dest.exists() {
+        return Err(format!(
+            "Pack already exists in merged folder: {}",
+            pack_filename
+        ));
+    }
+
+    async_fs::rename(&source, &dest)
+        .await
+        .map_err(|e| format!("Failed to move pack to merged folder: {}", e))?;
+
+    Ok(())
+}
+
+/// Move a resource pack from merged to individual category
+#[log_result]
+pub async fn move_pack_to_individual(
+    _minecraft_path: String,
+    dedicated_folder: String,
+    pack_filename: String,
+) -> Result<(), String> {
+    let kable_dir = crate::get_minecraft_kable_dir()?;
+    let dedicated_path = PathBuf::from(&dedicated_folder);
+    let base_path = if dedicated_path.is_absolute() {
+        dedicated_path
+    } else {
+        kable_dir.join(dedicated_folder)
+    };
+
+    ensure_resourcepack_subfolders(&base_path).await?;
+
+    let merged_dir = base_path.join("merged");
+    let individual_dir = base_path.join("individual");
+
+    let source = merged_dir.join(&pack_filename);
+    let dest = individual_dir.join(&pack_filename);
+
+    if !source.exists() {
+        return Err(format!(
+            "Pack not found in merged folder: {}",
+            pack_filename
+        ));
+    }
+
+    if dest.exists() {
+        return Err(format!(
+            "Pack already exists in individual folder: {}",
+            pack_filename
+        ));
+    }
+
+    async_fs::rename(&source, &dest)
+        .await
+        .map_err(|e| format!("Failed to move pack to individual folder: {}", e))?;
+
+    Ok(())
+}
+
+/// Migrate existing packs to the new subfolder structure
+/// This moves all packs from the root dedicated folder into individual/ or merged/ based on merged_packs list
+#[log_result]
+pub async fn migrate_resourcepack_structure(
+    dedicated_folder: String,
+    merged_packs: Vec<String>,
+) -> Result<(), String> {
+    let kable_dir = crate::get_minecraft_kable_dir()?;
+    let dedicated_path = PathBuf::from(&dedicated_folder);
+    let base_path = if dedicated_path.is_absolute() {
+        dedicated_path
+    } else {
+        kable_dir.join(dedicated_folder)
+    };
+
+    if !base_path.exists() {
+        return Ok(()); // Nothing to migrate
+    }
+
+    ensure_resourcepack_subfolders(&base_path).await?;
+
+    let merged_dir = base_path.join("merged");
+    let individual_dir = base_path.join("individual");
+
+    // Get all zip files in the root folder (excluding disabled/)
+    let entries = match std::fs::read_dir(&base_path) {
+        Ok(e) => e,
+        Err(_) => return Ok(()),
+    };
+
+    for entry in entries.filter_map(|e| e.ok()) {
+        let path = entry.path();
+
+        // Only process zip files in the root (not in subfolders)
+        if path.is_file() && path.extension().is_some_and(|ext| ext == "zip") {
+            if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
+                // Skip the merged pack itself
+                if filename == "kable-merged.zip" {
+                    continue;
+                }
+
+                let dest = if merged_packs.contains(&filename.to_string()) {
+                    merged_dir.join(filename)
+                } else {
+                    individual_dir.join(filename)
+                };
+
+                if !dest.exists() {
+                    async_fs::rename(&path, &dest)
+                        .await
+                        .map_err(|e| format!("Failed to migrate pack {}: {}", filename, e))?;
+                }
+            }
+        }
+    }
+
+    Ok(())
 }

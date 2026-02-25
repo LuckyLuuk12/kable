@@ -1,10 +1,14 @@
 use crate::logging::Logger;
 use crate::profiles::LauncherProfile;
 use kable_macros::log_result;
+use once_cell::sync::Lazy;
+use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 use std::fs::File;
 use std::path::PathBuf;
+use std::sync::Mutex;
 use std::{
     fs,
     io::{Read, Write},
@@ -13,6 +17,17 @@ use tokio::fs as async_fs;
 use tokio::task;
 use toml::Value as TomlValue;
 use zip::ZipArchive;
+
+// Profile cache structure
+#[derive(Clone)]
+struct ProfileCache {
+    profiles: Vec<KableInstallation>,
+    last_modified: Option<std::time::SystemTime>,
+}
+
+static PROFILE_CACHE: Lazy<Mutex<Option<ProfileCache>>> = Lazy::new(|| Mutex::new(None));
+static VERSION_MANIFEST_CACHE: Lazy<Mutex<HashMap<String, Option<PathBuf>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KableInstallation {
@@ -42,6 +57,9 @@ pub struct KableInstallation {
     /// Order of resource packs (first = highest priority)
     #[serde(default)]
     pub pack_order: Vec<String>,
+    /// List of resource packs to merge (others remain individual)
+    #[serde(default)]
+    pub merged_packs: Vec<String>,
 }
 
 impl Default for KableInstallation {
@@ -74,6 +92,7 @@ impl Default for KableInstallation {
             times_launched: 0,
             enable_pack_merging: false,
             pack_order: Vec::new(),
+            merged_packs: Vec::new(),
         }
     }
 }
@@ -122,6 +141,7 @@ impl From<LauncherProfile> for KableInstallation {
             times_launched: 0,
             enable_pack_merging: false,
             pack_order: Vec::new(),
+            merged_packs: Vec::new(),
         }
     }
 }
@@ -172,6 +192,23 @@ pub fn read_kable_profiles() -> Result<Vec<KableInstallation>, String> {
 pub async fn read_kable_profiles_async() -> Result<Vec<KableInstallation>, String> {
     let kable_dir = crate::get_minecraft_kable_dir()?;
     let path = kable_dir.join("kable_profiles.json");
+
+    // Check cache first
+    if let Ok(cache) = PROFILE_CACHE.lock() {
+        if let Some(cached) = cache.as_ref() {
+            // Check if file was modified since cache
+            if let Ok(metadata) = std::fs::metadata(&path) {
+                if let Ok(modified) = metadata.modified() {
+                    if Some(modified) == cached.last_modified {
+                        Logger::debug_global("📦 Using cached profiles", None);
+                        return Ok(cached.profiles.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    Logger::debug_global("💾 Reading profiles from disk", None);
     // Ensure the kable_profiles.json file exists. If missing, create it with an empty array.
     let default_profiles: Vec<KableInstallation> = Vec::new();
     let json = serde_json::to_string_pretty(&default_profiles)
@@ -208,6 +245,19 @@ pub async fn read_kable_profiles_async() -> Result<Vec<KableInstallation>, Strin
         write_kable_profiles_async(&installations).await?;
     }
 
+    // Update cache
+    if let Ok(mut cache) = PROFILE_CACHE.lock() {
+        if let Ok(metadata) = std::fs::metadata(&path) {
+            if let Ok(modified) = metadata.modified() {
+                *cache = Some(ProfileCache {
+                    profiles: installations.clone(),
+                    last_modified: Some(modified),
+                });
+                Logger::debug_global("✅ Profile cache updated", None);
+            }
+        }
+    }
+
     Ok(installations)
 }
 pub fn write_kable_profiles(profiles: &[KableInstallation]) -> Result<(), String> {
@@ -235,7 +285,15 @@ pub async fn write_kable_profiles_async(profiles: &[KableInstallation]) -> Resul
     crate::ensure_parent_dir_exists_async(&path).await?;
     crate::write_file_atomic_async(&path, json.as_bytes())
         .await
-        .map_err(|e| format!("Failed to write kable_profiles.json: {}", e))
+        .map_err(|e| format!("Failed to write kable_profiles.json: {}", e))?;
+
+    // Invalidate cache after write
+    if let Ok(mut cache) = PROFILE_CACHE.lock() {
+        *cache = None;
+        Logger::debug_global("🗑️ Profile cache invalidated", None);
+    }
+
+    Ok(())
 }
 
 impl KableInstallation {
@@ -1214,12 +1272,28 @@ impl KableInstallation {
     /// Try to get the mods folder from the version manifest (versions/<version_id>/<version_id>.json)
     fn get_mods_folder_from_version_manifest(&self) -> Option<PathBuf> {
         use crate::logging::Logger;
+
+        // Check cache first
+        if let Ok(cache) = VERSION_MANIFEST_CACHE.lock() {
+            if let Some(cached) = cache.get(&self.version_id) {
+                Logger::debug_global(
+                    &format!("📦 Using cached manifest for {}", self.version_id),
+                    None,
+                );
+                return cached.clone();
+            }
+        }
+
         let mc_dir = crate::get_default_minecraft_dir().ok()?;
         let version_json = mc_dir
             .join("versions")
             .join(&self.version_id)
             .join(format!("{}.json", &self.version_id));
         if !version_json.exists() {
+            // Cache negative result
+            if let Ok(mut cache) = VERSION_MANIFEST_CACHE.lock() {
+                cache.insert(self.version_id.clone(), None);
+            }
             return None;
         }
         let json_str = std::fs::read_to_string(&version_json).ok()?;
@@ -1271,20 +1345,28 @@ impl KableInstallation {
             "custom_mods_folder",
             "mods_folder",
         ];
+        let mut result = None;
         for key in &possible_keys {
             if let Some(val) = json.get(key) {
                 if let Some(path_str) = val.as_str() {
                     let path = PathBuf::from(path_str);
-                    if path.is_absolute() {
-                        return Some(path);
+                    result = if path.is_absolute() {
+                        Some(path)
                     } else {
                         // Relative to .minecraft
-                        return Some(mc_dir.join(path_str));
-                    }
+                        Some(mc_dir.join(path_str))
+                    };
+                    break;
                 }
             }
         }
-        None
+
+        // Cache the result
+        if let Ok(mut cache) = VERSION_MANIFEST_CACHE.lock() {
+            cache.insert(self.version_id.clone(), result.clone());
+        }
+
+        result
     }
 
     /// Try to locate the mods directory for this installation using the same
@@ -1507,6 +1589,7 @@ impl KableInstallation {
     }
 
     /// Scans the resourcepacks folder for this installation and returns info
+    /// Now supports both legacy structure and new merged/individual subfolder structure
     pub fn get_resourcepack_info(&self) -> Result<Vec<ResourcePackInfo>, String> {
         use crate::logging::Logger;
         let packs_dir = self.find_resourcepacks_dir()?;
@@ -1526,49 +1609,120 @@ impl KableInstallation {
             return Ok(result);
         }
 
-        // Scan active packs (both folders and zip files)
-        for entry in fs::read_dir(&packs_dir).map_err(|e| e.to_string())? {
-            let entry = entry.map_err(|e| e.to_string())?;
-            let path = entry.path();
-            let file_name = path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("")
-                .to_string();
+        let merged_dir = packs_dir.join("merged");
+        let individual_dir = packs_dir.join("individual");
+        let using_subfolders = merged_dir.exists() || individual_dir.exists();
 
-            // Skip hidden files, disabled subfolder, and merged pack
-            if file_name.starts_with('.')
-                || file_name == "disabled"
-                || file_name == "kable-merged.zip"
-            {
-                continue;
+        if using_subfolders {
+            // New structure: scan merged/ and individual/ subfolders
+
+            // Scan merged packs
+            if merged_dir.exists() {
+                for entry in fs::read_dir(&merged_dir).map_err(|e| e.to_string())? {
+                    let entry = entry.map_err(|e| e.to_string())?;
+                    let path = entry.path();
+                    let file_name = path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string();
+
+                    if file_name.starts_with('.') || file_name == "kable-merged.zip" {
+                        continue;
+                    }
+
+                    let is_valid = if path.is_file() {
+                        file_name.ends_with(".zip")
+                    } else if path.is_dir() {
+                        path.join("pack.mcmeta").exists()
+                    } else {
+                        false
+                    };
+
+                    if is_valid {
+                        result.push(ResourcePackInfo {
+                            file_name: file_name.clone(),
+                            name: Some(format!("merged/{}", file_name)),
+                            description: None,
+                            disabled: false,
+                        });
+                    }
+                }
             }
 
-            // Check if it's a valid resource pack
-            let is_valid = if path.is_file() {
-                // For files, must be .zip
-                file_name.ends_with(".zip")
-            } else if path.is_dir() {
-                // For folders, must contain pack.mcmeta
-                path.join("pack.mcmeta").exists()
-            } else {
-                false
-            };
+            // Scan individual packs
+            if individual_dir.exists() {
+                for entry in fs::read_dir(&individual_dir).map_err(|e| e.to_string())? {
+                    let entry = entry.map_err(|e| e.to_string())?;
+                    let path = entry.path();
+                    let file_name = path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string();
 
-            if is_valid {
-                result.push(ResourcePackInfo {
-                    file_name,
-                    name: None,
-                    description: None,
-                    disabled: false,
-                });
+                    if file_name.starts_with('.') || file_name == "kable-merged.zip" {
+                        continue;
+                    }
+
+                    let is_valid = if path.is_file() {
+                        file_name.ends_with(".zip")
+                    } else if path.is_dir() {
+                        path.join("pack.mcmeta").exists()
+                    } else {
+                        false
+                    };
+
+                    if is_valid {
+                        result.push(ResourcePackInfo {
+                            file_name: file_name.clone(),
+                            name: Some(format!("individual/{}", file_name)),
+                            description: None,
+                            disabled: false,
+                        });
+                    }
+                }
             }
-        }
 
-        // Scan disabled packs (both folders and zip files)
-        let disabled_dir = packs_dir.join("disabled");
-        if disabled_dir.exists() {
-            for entry in fs::read_dir(&disabled_dir).map_err(|e| e.to_string())? {
+            // Scan disabled packs in both subfolders
+            for subfolder in &["merged", "individual"] {
+                let disabled_dir = packs_dir.join(subfolder).join("disabled");
+                if disabled_dir.exists() {
+                    for entry in fs::read_dir(&disabled_dir).map_err(|e| e.to_string())? {
+                        let entry = entry.map_err(|e| e.to_string())?;
+                        let path = entry.path();
+                        let file_name = path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("")
+                            .to_string();
+
+                        if file_name.starts_with('.') || file_name == "kable-merged.zip" {
+                            continue;
+                        }
+
+                        let is_valid = if path.is_file() {
+                            file_name.ends_with(".zip")
+                        } else if path.is_dir() {
+                            path.join("pack.mcmeta").exists()
+                        } else {
+                            false
+                        };
+
+                        if is_valid {
+                            result.push(ResourcePackInfo {
+                                file_name: file_name.clone(),
+                                name: Some(format!("{}/{}", subfolder, file_name)),
+                                description: None,
+                                disabled: true,
+                            });
+                        }
+                    }
+                }
+            }
+        } else {
+            // Legacy structure: scan root folder
+            for entry in fs::read_dir(&packs_dir).map_err(|e| e.to_string())? {
                 let entry = entry.map_err(|e| e.to_string())?;
                 let path = entry.path();
                 let file_name = path
@@ -1577,15 +1731,20 @@ impl KableInstallation {
                     .unwrap_or("")
                     .to_string();
 
-                // Skip hidden files
-                if file_name.starts_with('.') {
+                // Skip hidden files, disabled subfolder, and merged pack
+                if file_name.starts_with('.')
+                    || file_name == "disabled"
+                    || file_name == "kable-merged.zip"
+                {
                     continue;
                 }
 
                 // Check if it's a valid resource pack
                 let is_valid = if path.is_file() {
+                    // For files, must be .zip
                     file_name.ends_with(".zip")
                 } else if path.is_dir() {
+                    // For folders, must contain pack.mcmeta
                     path.join("pack.mcmeta").exists()
                 } else {
                     false
@@ -1596,13 +1755,127 @@ impl KableInstallation {
                         file_name,
                         name: None,
                         description: None,
-                        disabled: true,
+                        disabled: false,
                     });
+                }
+            }
+
+            // Scan disabled packs (both folders and zip files)
+            let disabled_dir = packs_dir.join("disabled");
+            if disabled_dir.exists() {
+                for entry in fs::read_dir(&disabled_dir).map_err(|e| e.to_string())? {
+                    let entry = entry.map_err(|e| e.to_string())?;
+                    let path = entry.path();
+                    let file_name = path
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string();
+
+                    // Skip hidden files
+                    if file_name.starts_with('.') {
+                        continue;
+                    }
+
+                    // Check if it's a valid resource pack
+                    let is_valid = if path.is_file() {
+                        file_name.ends_with(".zip")
+                    } else if path.is_dir() {
+                        path.join("pack.mcmeta").exists()
+                    } else {
+                        false
+                    };
+
+                    if is_valid {
+                        result.push(ResourcePackInfo {
+                            file_name,
+                            name: None,
+                            description: None,
+                            disabled: true,
+                        });
+                    }
                 }
             }
         }
 
         Ok(result)
+    }
+
+    /// Extract mod metadata from a JAR file (helper function for parallel processing)
+    fn extract_mod_metadata(
+        path: &std::path::Path,
+    ) -> (Option<String>, Option<String>, Option<String>) {
+        let file = match File::open(path) {
+            Ok(f) => f,
+            Err(_) => return (None, None, None),
+        };
+
+        let mut zip = match ZipArchive::new(file) {
+            Ok(z) => z,
+            Err(_) => return (None, None, None),
+        };
+
+        // Try Fabric first (most common)
+        if let Ok(mut f) = zip.by_name("fabric.mod.json") {
+            let mut buf = String::new();
+            if f.read_to_string(&mut buf).is_ok() {
+                if let Ok(json) = serde_json::from_str::<JsonValue>(&buf) {
+                    return (
+                        json.get("name")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
+                        json.get("version")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
+                        Some("fabric".to_string()),
+                    );
+                }
+            }
+        }
+
+        // Try Quilt
+        if let Ok(mut f) = zip.by_name("quilt.mod.json") {
+            let mut buf = String::new();
+            if f.read_to_string(&mut buf).is_ok() {
+                if let Ok(json) = serde_json::from_str::<JsonValue>(&buf) {
+                    return (
+                        json.get("name")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
+                        json.get("version")
+                            .and_then(|v| v.as_str())
+                            .map(|s| s.to_string()),
+                        Some("quilt".to_string()),
+                    );
+                }
+            }
+        }
+
+        // Try Forge
+        if let Ok(mut f) = zip.by_name("META-INF/mods.toml") {
+            let mut buf = String::new();
+            if f.read_to_string(&mut buf).is_ok() {
+                if let Ok(toml) = toml::from_str::<TomlValue>(&buf) {
+                    if let Some(arr) = toml.get("mods").and_then(|v| v.as_array()) {
+                        if let Some(first) = arr.first() {
+                            return (
+                                first
+                                    .get("displayName")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
+                                first
+                                    .get("version")
+                                    .and_then(|v| v.as_str())
+                                    .map(|s| s.to_string()),
+                                Some("forge".to_string()),
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        (None, None, None)
     }
 
     /// Get global resource packs from .minecraft/resourcepacks
@@ -1674,8 +1947,8 @@ impl KableInstallation {
                     .unwrap_or("")
                     .to_string();
 
-                // Skip hidden files
-                if file_name.starts_with('.') {
+                // Skip hidden files and merged pack
+                if file_name.starts_with('.') || file_name == "kable-merged.zip" {
                     continue;
                 }
 
@@ -1740,223 +2013,62 @@ impl KableInstallation {
                 return Ok(vec![]);
             }
         };
-        let mut result = Vec::new();
-        let read_dir = std::fs::read_dir(&mods_dir);
-        if let Err(e) = &read_dir {
-            Logger::debug_global(&format!("Failed to read mods dir: {}", e), None);
-            return Err(format!("Failed to read mods dir: {}", e));
-        }
-        // First, read active mods in the mods_dir
-        for entry in read_dir.unwrap() {
-            let entry = match entry {
-                Ok(e) => e,
-                Err(e) => {
-                    Logger::debug_global(&format!("Failed to read entry: {}", e), None);
-                    continue;
+
+        // Collect all JAR file paths (both active and disabled)
+        let mut jar_paths: Vec<(PathBuf, bool)> = Vec::new();
+
+        // Collect active JARs
+        if let Ok(read_dir) = std::fs::read_dir(&mods_dir) {
+            for entry in read_dir.flatten() {
+                let path = entry.path();
+                if path.extension().map(|e| e == "jar").unwrap_or(false) {
+                    jar_paths.push((path, false));
                 }
-            };
-            let path = entry.path();
-            if path.extension().map(|e| e == "jar").unwrap_or(false) {
+            }
+        } else {
+            Logger::debug_global(
+                &format!("Failed to read mods dir: {}", mods_dir.display()),
+                None,
+            );
+            return Err(format!("Failed to read mods dir: {}", mods_dir.display()));
+        }
+
+        // Collect disabled JARs
+        let disabled_dir = mods_dir.join("disabled");
+        if disabled_dir.exists() {
+            if let Ok(dis_read) = std::fs::read_dir(&disabled_dir) {
+                for entry in dis_read.flatten() {
+                    let path = entry.path();
+                    if path.extension().map(|e| e == "jar").unwrap_or(false) {
+                        jar_paths.push((path, true));
+                    }
+                }
+            }
+        }
+
+        // Process JARs in parallel using rayon
+        let result: Vec<ModJarInfo> = jar_paths
+            .par_iter()
+            .filter_map(|(path, disabled)| {
                 let file_name = path
                     .file_name()
                     .unwrap_or_default()
                     .to_string_lossy()
                     .to_string();
-                let mut mod_name = None;
-                let mut mod_version = None;
-                let mut loader = None;
-                if let Ok(file) = File::open(&path) {
-                    match ZipArchive::new(file) {
-                        Ok(mut zip) => {
-                            // Try Fabric/Quilt/Forge loader files in order
-                            let mut found = false;
-                            if let Ok(mut f) = zip.by_name("fabric.mod.json") {
-                                let mut buf = String::new();
-                                if f.read_to_string(&mut buf).is_ok() {
-                                    if let Ok(json) = serde_json::from_str::<JsonValue>(&buf) {
-                                        mod_name = json
-                                            .get("name")
-                                            .and_then(|v| v.as_str())
-                                            .map(|s| s.to_string());
-                                        mod_version = json
-                                            .get("version")
-                                            .and_then(|v| v.as_str())
-                                            .map(|s| s.to_string());
-                                        loader = Some("fabric".to_string());
-                                        found = true;
-                                    }
-                                }
-                            }
-                            if !found {
-                                if let Ok(mut f) = zip.by_name("quilt.mod.json") {
-                                    let mut buf = String::new();
-                                    if f.read_to_string(&mut buf).is_ok() {
-                                        if let Ok(json) = serde_json::from_str::<JsonValue>(&buf) {
-                                            mod_name = json
-                                                .get("name")
-                                                .and_then(|v| v.as_str())
-                                                .map(|s| s.to_string());
-                                            mod_version = json
-                                                .get("version")
-                                                .and_then(|v| v.as_str())
-                                                .map(|s| s.to_string());
-                                            loader = Some("quilt".to_string());
-                                            found = true;
-                                        }
-                                    }
-                                }
-                            }
-                            if !found {
-                                if let Ok(mut f) = zip.by_name("META-INF/mods.toml") {
-                                    let mut buf = String::new();
-                                    if f.read_to_string(&mut buf).is_ok() {
-                                        if let Ok(toml) = toml::from_str::<TomlValue>(&buf) {
-                                            if let Some(arr) =
-                                                toml.get("mods").and_then(|v| v.as_array())
-                                            {
-                                                if let Some(first) = arr.first() {
-                                                    mod_name = first
-                                                        .get("displayName")
-                                                        .and_then(|v| v.as_str())
-                                                        .map(|s| s.to_string());
-                                                    mod_version = first
-                                                        .get("version")
-                                                        .and_then(|v| v.as_str())
-                                                        .map(|s| s.to_string());
-                                                    loader = Some("forge".to_string());
-                                                    // found = true; // not needed, last fallback
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            Logger::debug_global(
-                                &format!("Failed to open zip for {:?}: {}", path, e),
-                                None,
-                            );
-                            // Skip this JAR
-                        }
-                    }
-                } else {
-                    Logger::debug_global(&format!("Failed to open mod jar: {}", file_name), None);
-                }
-                result.push(ModJarInfo {
+
+                // Extract mod metadata using helper function
+                let (mod_name, mod_version, loader) = Self::extract_mod_metadata(path);
+
+                Some(ModJarInfo {
                     file_name,
                     mod_name,
                     mod_version,
                     loader,
-                    disabled: false,
-                });
-            }
-        }
-        // Then, check for a disabled/ subfolder and include those jars with disabled = true
-        let disabled_dir = mods_dir.join("disabled");
-        if disabled_dir.exists() {
-            if let Ok(dis_read) = std::fs::read_dir(&disabled_dir) {
-                for dentry in dis_read {
-                    match dentry {
-                        Ok(e) => {
-                            let path = e.path();
-                            if path.extension().map(|ext| ext == "jar").unwrap_or(false) {
-                                let file_name = path
-                                    .file_name()
-                                    .unwrap_or_default()
-                                    .to_string_lossy()
-                                    .to_string();
-                                let mut mod_name = None;
-                                let mut mod_version = None;
-                                let mut loader = None;
-                                if let Ok(file) = File::open(&path) {
-                                    if let Ok(mut zip) = ZipArchive::new(file) {
-                                        if let Ok(mut f) = zip.by_name("fabric.mod.json") {
-                                            let mut buf = String::new();
-                                            if f.read_to_string(&mut buf).is_ok() {
-                                                if let Ok(json) =
-                                                    serde_json::from_str::<JsonValue>(&buf)
-                                                {
-                                                    mod_name = json
-                                                        .get("name")
-                                                        .and_then(|v| v.as_str())
-                                                        .map(|s| s.to_string());
-                                                    mod_version = json
-                                                        .get("version")
-                                                        .and_then(|v| v.as_str())
-                                                        .map(|s| s.to_string());
-                                                    loader = Some("fabric".to_string());
-                                                }
-                                            }
-                                        }
-                                        if mod_name.is_none() {
-                                            if let Ok(mut f) = zip.by_name("quilt.mod.json") {
-                                                let mut buf = String::new();
-                                                if f.read_to_string(&mut buf).is_ok() {
-                                                    if let Ok(json) =
-                                                        serde_json::from_str::<JsonValue>(&buf)
-                                                    {
-                                                        mod_name = json
-                                                            .get("name")
-                                                            .and_then(|v| v.as_str())
-                                                            .map(|s| s.to_string());
-                                                        mod_version = json
-                                                            .get("version")
-                                                            .and_then(|v| v.as_str())
-                                                            .map(|s| s.to_string());
-                                                        loader = Some("quilt".to_string());
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        if mod_name.is_none() {
-                                            if let Ok(mut f) = zip.by_name("META-INF/mods.toml") {
-                                                let mut buf = String::new();
-                                                if f.read_to_string(&mut buf).is_ok() {
-                                                    if let Ok(toml) =
-                                                        toml::from_str::<TomlValue>(&buf)
-                                                    {
-                                                        if let Some(arr) = toml
-                                                            .get("mods")
-                                                            .and_then(|v| v.as_array())
-                                                        {
-                                                            if let Some(first) = arr.first() {
-                                                                mod_name = first
-                                                                    .get("displayName")
-                                                                    .and_then(|v| v.as_str())
-                                                                    .map(|s| s.to_string());
-                                                                mod_version = first
-                                                                    .get("version")
-                                                                    .and_then(|v| v.as_str())
-                                                                    .map(|s| s.to_string());
-                                                                loader = Some("forge".to_string());
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                result.push(ModJarInfo {
-                                    file_name,
-                                    mod_name,
-                                    mod_version,
-                                    loader,
-                                    disabled: true,
-                                });
-                            }
-                        }
-                        Err(e) => {
-                            Logger::debug_global(
-                                &format!("Failed to read disabled entry: {}", e),
-                                None,
-                            );
-                        }
-                    }
-                }
-            }
-        }
+                    disabled: *disabled,
+                })
+            })
+            .collect();
+
         Logger::debug_global(
             &format!("Found {} mods in {}", result.len(), mods_dir.display()),
             None,

@@ -386,6 +386,9 @@ pub fn run() {
             commands_resourcepacks::setup_resourcepack_symlink,
             commands_resourcepacks::remove_resourcepack_symlink,
             commands_resourcepacks::delete_resourcepack_from_dedicated,
+            commands_resourcepacks::move_pack_to_merged,
+            commands_resourcepacks::move_pack_to_individual,
+            commands_resourcepacks::migrate_resourcepack_structure,
             // Discord commands
             commands_discord::discord_set_browsing,
             commands_discord::discord_set_enabled,

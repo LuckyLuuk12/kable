@@ -190,11 +190,13 @@ export async function updateResourcePackSettings(
   installationId: string,
   enablePackMerging: boolean,
   packOrder: string[],
+  mergedPacks?: string[],
 ): Promise<void> {
   return await invoke("update_resourcepack_settings", {
     installationId,
     enablePackMerging,
     packOrder,
+    mergedPacks: mergedPacks || null,
   });
 }
 
