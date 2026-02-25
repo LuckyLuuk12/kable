@@ -458,6 +458,8 @@ export interface GeneralSettings {
   show_ads: boolean;
   /** Update behaviour: 'instant' | 'on_restart' | 'on_confirm' */
   update_mode: "instant" | "on_restart" | "on_confirm";
+  /** How to display update notifications: 'modal' | 'notification' */
+  update_notification_style: "modal" | "notification";
 }
 
 /** Custom Icon Template for the launcher

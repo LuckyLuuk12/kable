@@ -49,6 +49,8 @@ export function defaultGeneralSettings(): GeneralSettings {
     on_game_launch: "open_logs",
     auto_update_launcher: true,
     show_ads: true,
+    update_mode: "on_confirm",
+    update_notification_style: "notification",
   };
 }
 export function defaultAppearanceSettings(): AppearanceSettings {

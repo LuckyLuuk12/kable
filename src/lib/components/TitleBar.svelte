@@ -12,8 +12,13 @@ Handles window state changes and provides standard window management functionali
 <script lang="ts">
 import { onMount } from "svelte";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { NotificationContainer, NotificationTray } from "$lib";
+import { NotificationContainer, NotificationTray, UpdateModal } from "$lib";
 import { clickSound } from "$lib/actions";
+import {
+  UpdaterService,
+  updateModalOpen,
+  updateModalInfo,
+} from "$lib/services/UpdaterService";
 
 let isMaximized = false;
 
@@ -34,6 +39,24 @@ async function maximize() {
 async function close() {
   (await appWindow()).close();
 }
+
+async function handleInstallNow() {
+  await UpdaterService.installUpdateWithNotifications();
+}
+
+async function handleDownloadAndRestart() {
+  await UpdaterService.downloadUpdateForLater();
+}
+
+async function handleDownload() {
+  await UpdaterService.downloadUpdateForLater();
+}
+
+function handleModalClose() {
+  updateModalOpen.set(false);
+  updateModalInfo.set(null);
+}
+
 onMount(async () => {
   isMaximized = await (await appWindow()).isMaximized();
   (await appWindow()).onResized(async () => {
@@ -140,6 +163,7 @@ onMount(async () => {
             stroke="currentColor"
             stroke-width="2.5"
           />
+
           <line
             x1="13"
             y1="3"
@@ -152,6 +176,16 @@ onMount(async () => {
       </button>
     </div>
   </div>
+
+  <!-- Global Update Modal -->
+  <UpdateModal
+    bind:open={$updateModalOpen}
+    updateInfo={$updateModalInfo}
+    onclose={handleModalClose}
+    oninstallnow={handleInstallNow}
+    ondownloadandrestart={handleDownloadAndRestart}
+    ondownload={handleDownload}
+  />
 
   <!-- Global Notification Container -->
   <NotificationContainer />

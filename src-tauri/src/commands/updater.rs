@@ -95,6 +95,11 @@ pub async fn check_for_updates(
     app: tauri::AppHandle,
     include_prerelease: bool,
 ) -> Result<Option<serde_json::Value>, String> {
+    // Skip update checks in development builds
+    if cfg!(debug_assertions) {
+        return Ok(None);
+    }
+
     let list = fetch_releases(include_prerelease).await?;
     let current = env!("CARGO_PKG_VERSION").to_string();
 
@@ -147,6 +152,11 @@ pub async fn check_for_updates(
 
 #[command]
 pub async fn install_update(app: tauri::AppHandle, include_prerelease: bool) -> Result<(), String> {
+    // Skip update installation in development builds
+    if cfg!(debug_assertions) {
+        return Err("Updates are disabled in development mode".to_string());
+    }
+
     let list = fetch_releases(include_prerelease).await?;
     let current = env!("CARGO_PKG_VERSION").to_string();
 
@@ -198,6 +208,11 @@ pub async fn download_update(
     app: tauri::AppHandle,
     include_prerelease: bool,
 ) -> Result<String, String> {
+    // Skip update downloads in development builds
+    if cfg!(debug_assertions) {
+        return Err("Updates are disabled in development mode".to_string());
+    }
+
     let list = fetch_releases(include_prerelease).await?;
     let current = env!("CARGO_PKG_VERSION").to_string();
 

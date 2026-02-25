@@ -58,6 +58,9 @@ export class SettingsService {
         loadedSettings,
       );
 
+      // Track if we need to save (only if we modify settings here)
+      let needsSave = false;
+
       // Auto-detect Minecraft directory if not set
       if (!loadedSettings.general.game_directory) {
         console.log("🔍 Auto-detecting Minecraft directory...");
@@ -65,6 +68,7 @@ export class SettingsService {
           const defaultMinecraftPath =
             await minecraftApi.getDefaultMinecraftDir();
           loadedSettings.general.game_directory = defaultMinecraftPath;
+          needsSave = true; // Mark that we modified settings
         } catch (error) {
           console.warn("Could not auto-detect Minecraft directory:", error);
         }
@@ -78,11 +82,14 @@ export class SettingsService {
       settings.set(loadedSettings);
       isSettingsInitialized.set(true);
 
-      // Save updated settings back to backend if we auto-detected the path or filled missing fields
-      await this.save(loadedSettings);
-
       // Initialize custom CSS after settings are loaded
       await this.initializeCustomCss();
+
+      // Only save if we auto-detected paths or made other frontend modifications
+      // NOTE: Backend already handles writing missing fields when loading
+      if (needsSave) {
+        await this.save(loadedSettings);
+      }
     } catch (error) {
       console.error("Failed to load settings:", error);
       settingsError.set(`Failed to load settings: ${error}`);
@@ -101,7 +108,6 @@ export class SettingsService {
     try {
       const currentSettings = newSettings || get(settings);
       await settingsApi.saveSettings(currentSettings);
-      console.log("✅ Settings saved successfully");
     } catch (error) {
       console.error("❌ Failed to save settings:", error);
       settingsError.set(`Failed to save settings: ${error}`);
@@ -201,8 +207,10 @@ export class SettingsService {
   static async setSelectedCssTheme(themeName: string): Promise<void> {
     await settingsApi.setSelectedCssTheme(themeName);
 
-    // Reload settings to update the store
-    await this.initialize();
+    // Update the store directly instead of reinitializing
+    const currentSettings = get(settings);
+    currentSettings.appearance.selected_css_theme = themeName;
+    settings.set(currentSettings);
 
     // Apply the CSS theme
     await this.applyCustomCss(themeName);

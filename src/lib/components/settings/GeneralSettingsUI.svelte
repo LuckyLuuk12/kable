@@ -315,8 +315,27 @@ onMount(() => {
             >Update on restart (download now, install on restart)</option
           >
           <option value="on_confirm"
-            >Update on confirm (download on click, install after confirmation)</option
+            >Update on confirm (ask before installing)</option
           >
+        </select>
+      </div>
+    </div>
+
+    <div class="setting-item">
+      <div class="setting-info">
+        <label for="update-notification-style">Update Notification Style</label>
+        <p class="setting-description">
+          Choose how update notifications are displayed: as a modal dialog or as
+          a notification toast.
+        </p>
+      </div>
+      <div class="setting-control">
+        <select
+          id="update-notification-style"
+          bind:value={$settings.general.update_notification_style}
+        >
+          <option value="notification">Notification Toast</option>
+          <option value="modal">Modal Dialog</option>
         </select>
       </div>
     </div>

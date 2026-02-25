@@ -45,6 +45,9 @@ pub struct GeneralSettings {
     /// 'instant' | 'on_restart' | 'on_confirm'
     #[serde(default = "default_update_mode")]
     pub update_mode: String,
+    /// 'modal' | 'notification'
+    #[serde(default = "default_update_notification_style")]
+    pub update_notification_style: String,
 }
 
 fn default_on_game_close() -> String {
@@ -67,6 +70,10 @@ fn default_update_mode() -> String {
     "on_confirm".to_string()
 }
 
+fn default_update_notification_style() -> String {
+    "notification".to_string()
+}
+
 impl Default for GeneralSettings {
     fn default() -> Self {
         Self {
@@ -78,6 +85,7 @@ impl Default for GeneralSettings {
             auto_update_launcher: default_auto_update(),
             show_ads: false,
             update_mode: default_update_mode(),
+            update_notification_style: default_update_notification_style(),
         }
     }
 }
@@ -392,6 +400,7 @@ impl Default for CategorizedLauncherSettings {
                 auto_update_launcher: true,
                 show_ads: false,
                 update_mode: "on_confirm".to_string(),
+                update_notification_style: "notification".to_string(),
             },
             appearance: AppearanceSettings {
                 theme: "dark".to_string(),
@@ -472,22 +481,15 @@ pub async fn load_settings() -> Result<CategorizedLauncherSettings, String> {
     // Deserialize with field-level defaults - missing/invalid fields use their defaults
     let settings: CategorizedLauncherSettings =
         serde_json::from_str(&contents).unwrap_or_else(|e| {
-            Logger::console_log(
-                LogLevel::Warning,
-                &format!("Failed to parse settings, using defaults with error: {}", e),
-                None,
-            );
+            eprintln!("Failed to parse settings, using defaults with error: {}", e);
             CategorizedLauncherSettings::default()
         });
 
     // Save the settings back to ensure any new fields with defaults are written to disk
     let updated_json = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
+
     if updated_json != contents {
-        Logger::console_log(
-            LogLevel::Info,
-            "Settings updated with new fields or corrected values",
-            None,
-        );
+        eprintln!("Settings updated with new fields or corrected values");
         crate::write_file_atomic_async(&settings_path, updated_json.as_bytes()).await?;
     }
 
@@ -499,11 +501,7 @@ pub async fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), 
     let contents = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     crate::ensure_parent_dir_exists_async(&settings_path).await?;
     crate::write_file_atomic_async(&settings_path, contents.as_bytes()).await?;
-    Logger::console_log(
-        LogLevel::Info,
-        &format!("Settings saved to: {}", settings_path.display()),
-        None,
-    );
+    eprintln!("Settings saved to: {}", settings_path.display());
     Ok(())
 }
 
