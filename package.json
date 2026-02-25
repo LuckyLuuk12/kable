@@ -21,28 +21,28 @@
     "version:major": "node scripts/bump-version.mjs major"
   },
   "devDependencies": {
-    "@sveltejs/adapter-static": "^3.0.8",
-    "@sveltejs/kit": "^2.50.0",
-    "@sveltejs/vite-plugin-svelte": "^6.2.4",
-    "@tauri-apps/cli": "^2.6.2",
+    "@sveltejs/adapter-static": "^3.0.10",
+    "@sveltejs/kit": "^2.53.2",
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@tauri-apps/cli": "^2.10.0",
     "cookie": ">=0.7.0",
     "prettier": "^3.6.2",
-    "prettier-plugin-svelte": "^3.4.0",
+    "prettier-plugin-svelte": "^3.5.0",
     "sass": "^1.89.2",
     "semver": "^7.7.3",
-    "svelte": "^5.0.0",
-    "svelte-check": "^4.0.0",
-    "typescript": "^5.0.0",
+    "svelte": "^5.53.5",
+    "svelte-check": "^4.4.3",
+    "typescript": "^5.9.3",
     "vite": "^7.3.1"
   },
   "dependencies": {
     "@kablan/clean-ui": "1.0.9",
-    "@tauri-apps/api": "^2.6.0",
-    "@tauri-apps/plugin-clipboard-manager": "^2.3.0",
-    "@tauri-apps/plugin-window-state": "^2.4.0",
+    "@tauri-apps/api": "^2.10.1",
+    "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
+    "@tauri-apps/plugin-window-state": "^2.4.1",
     "@types/semver": "^7.7.1",
-    "marked": "^17.0.1",
+    "marked": "^17.0.3",
     "skinview3d": "^3.4.1",
-    "svelte-dnd-action": "^0.9.51"
+    "svelte-dnd-action": "^0.9.69"
   }
 }
