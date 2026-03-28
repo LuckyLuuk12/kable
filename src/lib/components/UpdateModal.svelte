@@ -32,7 +32,6 @@ export let updateInfo: any = null;
 export let open = false;
 export let onclose: (() => void) | undefined = undefined;
 export let oninstallnow: (() => void) | undefined = undefined;
-export let ondownloadandrestart: (() => void) | undefined = undefined;
 export let ondownload: (() => void) | undefined = undefined;
 
 let releaseNotesHtml = "";
@@ -59,17 +58,6 @@ async function handleInstallNow() {
   isProcessing = true;
   try {
     await oninstallnow?.();
-  } finally {
-    isProcessing = false;
-  }
-}
-
-async function handleDownloadAndRestart() {
-  if (isProcessing) return;
-  isProcessing = true;
-  try {
-    await ondownloadandrestart?.();
-    handleClose();
   } finally {
     isProcessing = false;
   }
@@ -166,7 +154,7 @@ function handleKeydown(e: KeyboardEvent) {
           use:clickSound
           disabled={isProcessing}
         >
-          Later
+          Skip
         </button>
 
         <div class="action-buttons">
@@ -179,20 +167,7 @@ function handleKeydown(e: KeyboardEvent) {
               title="Download update for later installation"
             >
               <Icon name="download" size="sm" forceType="svg" />
-              Download
-            </button>
-          {/if}
-
-          {#if ondownloadandrestart}
-            <button
-              class="btn-download-restart"
-              on:click={handleDownloadAndRestart}
-              use:clickSound
-              disabled={isProcessing}
-              title="Download now and install on next restart"
-            >
-              <Icon name="refresh" size="sm" forceType="svg" />
-              {isProcessing ? "Downloading..." : "Download & Restart Later"}
+              Download & Install on Restart
             </button>
           {/if}
 
@@ -563,17 +538,6 @@ function handleKeydown(e: KeyboardEvent) {
     &:hover:not(:disabled) {
       background: color-mix(in srgb, var(--tertiary), 25%, transparent);
       border-color: var(--tertiary);
-    }
-  }
-
-  .btn-download-restart {
-    background: color-mix(in srgb, var(--secondary), 15%, transparent);
-    border: 1px solid color-mix(in srgb, var(--secondary), 30%, transparent);
-    color: var(--secondary);
-
-    &:hover:not(:disabled) {
-      background: color-mix(in srgb, var(--secondary), 25%, transparent);
-      border-color: var(--secondary);
     }
   }
 

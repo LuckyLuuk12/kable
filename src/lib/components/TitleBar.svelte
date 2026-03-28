@@ -10,15 +10,15 @@ Handles window state changes and provides standard window management functionali
 ```
 -->
 <script lang="ts">
-import { onMount } from "svelte";
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import { NotificationContainer, NotificationTray, UpdateModal } from "$lib";
 import { clickSound } from "$lib/actions";
 import {
   UpdaterService,
-  updateModalOpen,
   updateModalInfo,
+  updateModalOpen,
 } from "$lib/services/UpdaterService";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { onMount } from "svelte";
 
 let isMaximized = false;
 
@@ -42,10 +42,6 @@ async function close() {
 
 async function handleInstallNow() {
   await UpdaterService.installUpdateWithNotifications();
-}
-
-async function handleDownloadAndRestart() {
-  await UpdaterService.downloadUpdateForLater();
 }
 
 async function handleDownload() {
@@ -183,7 +179,6 @@ onMount(async () => {
     updateInfo={$updateModalInfo}
     onclose={handleModalClose}
     oninstallnow={handleInstallNow}
-    ondownloadandrestart={handleDownloadAndRestart}
     ondownload={handleDownload}
   />
 

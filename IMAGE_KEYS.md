@@ -46,7 +46,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | arrow-right | [ResourcePackBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/ResourcePackBrowser.svelte#L736) | <pre><code class="language-html">&lt;Icon name="arrow-right" size="sm" forceType="svg" /&gt;</code></pre> |
 | arrow-right | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L714) | <pre><code class="language-html">&lt;Icon name="arrow-right" size="sm" forceType="svg" /&gt;</code></pre> |
 | arrow-up | [InstallationMods](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstallationMods.svelte#L670) | <pre><code class="language-html">&lt;Icon name="arrow-up" size="sm" /&gt;</code></pre> |
-| arrow-up | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L120) | <pre><code class="language-html">&lt;Icon name="arrow-up" size="lg" forceType="svg" /&gt;</code></pre> |
+| arrow-up | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L108) | <pre><code class="language-html">&lt;Icon name="arrow-up" size="lg" forceType="svg" /&gt;</code></pre> |
 | calendar | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L442) | <pre><code class="language-html">&gt;&lt;Icon name="calendar" size="sm" /&gt;</code></pre> |
 | calendar | [InstallationsList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/installations/InstallationsList.svelte#L784) | <pre><code class="language-html">&lt;Icon name="calendar" size="sm" /&gt;</code></pre> |
 | calendar | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L575) | <pre><code class="language-html">&lt;Icon name="calendar" size="sm" forceType="svg" /&gt;</code></pre> |
@@ -63,7 +63,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | check | [ShaderCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderCard.svelte#L195) | <pre><code class="language-html">&lt;Icon name="check" size="sm" forceType="svg" /&gt;</code></pre> |
 | check | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L503) | <pre><code class="language-html">disabled={!editName}&gt;&lt;Icon name="check" size="sm" /&gt;Save&lt;/button</code></pre> |
 | check | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L545) | <pre><code class="language-html">&lt;Icon name="check" size="sm" /&gt;</code></pre> |
-| check | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L207) | <pre><code class="language-html">&lt;Icon name="check" size="sm" forceType="svg" /&gt;</code></pre> |
+| check | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L182) | <pre><code class="language-html">&lt;Icon name="check" size="sm" forceType="svg" /&gt;</code></pre> |
 | check | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L463) | <pre><code class="language-html">&lt;Icon name="check" forceType="svg" /&gt;</code></pre> |
 | check | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L516) | <pre><code class="language-html">&lt;Icon name="check" size="sm" /&gt;</code></pre> |
 | check-circle | [ResourcePackCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/ResourcePackCard.svelte#L148) | <pre><code class="language-html">&lt;Icon name="check-circle" size="sm" /&gt;</code></pre> |
@@ -108,7 +108,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | download | [ResourcePackCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/ResourcePackCard.svelte#L215) | <pre><code class="language-html">&lt;Icon name="download" size="sm" forceType="svg" /&gt;</code></pre> |
 | download | [ShaderCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderCard.svelte#L174) | <pre><code class="language-html">&lt;Icon name="download" size="sm" /&gt;</code></pre> |
 | download | [ShaderCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderCard.svelte#L197) | <pre><code class="language-html">&lt;Icon name="download" size="sm" forceType="svg" /&gt;</code></pre> |
-| download | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L181) | <pre><code class="language-html">&lt;Icon name="download" size="sm" forceType="svg" /&gt;</code></pre> |
+| download | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L169) | <pre><code class="language-html">&lt;Icon name="download" size="sm" forceType="svg" /&gt;</code></pre> |
 | download | [Installations Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/installations/+page.svelte#L103) | <pre><code class="language-html">&lt;Icon name="download" size="md" forceType="svg" /&gt;</code></pre> |
 | download | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L862) | <pre><code class="language-html">&lt;Icon name="download" size="sm" /&gt;</code></pre> |
 | duplicate | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L136) | <pre><code class="language-html">&lt;Icon name="duplicate" size="sm" /&gt;</code></pre> |
@@ -235,7 +235,6 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | refresh | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L759) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L770) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L296) | <pre><code class="language-html">&lt;Icon name="refresh" size="lg" /&gt;</code></pre> |
-| refresh | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L194) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" forceType="svg" /&gt;</code></pre> |
 | refresh | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L396) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" className="spin" /&gt;</code></pre> |
 | refresh | [Installations Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/installations/+page.svelte#L123) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" /&gt;</code></pre> |
 | refresh | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L1157) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
@@ -295,9 +294,9 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L589) | <pre><code class="language-html">&lt;Icon name="x" size="sm" /&gt;</code></pre> |
 | x | [ShaderBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderBrowser.svelte#L634) | <pre><code class="language-html">&lt;Icon name="x" size="sm" forceType="svg" /&gt;</code></pre> |
 | x | [ShaderGalleryModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/shaders/ShaderGalleryModal.svelte#L109) | <pre><code class="language-html">&lt;Icon name="x" size="lg" forceType="svg" /&gt;</code></pre> |
-| x | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L141) | <pre><code class="language-html">&lt;Icon name="x" size="md" forceType="svg" /&gt;</code></pre> |
+| x | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L129) | <pre><code class="language-html">&lt;Icon name="x" size="md" forceType="svg" /&gt;</code></pre> |
 | x | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L470) | <pre><code class="language-html">&lt;Icon name="x" forceType="svg" /&gt;</code></pre> |
 | x | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L538) | <pre><code class="language-html">&lt;Icon name="x" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L895) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2026-02-25T20:33:22.558Z_
+_Generated: 2026-03-28T14:41:19.928Z_
