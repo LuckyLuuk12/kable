@@ -21,6 +21,16 @@ export interface ModpackContext {
   version_id?: string | null;
 }
 
+export interface ModpackSourceRecord {
+  provider: ProviderKind;
+  mod_id: string;
+  version_id?: string | null;
+  modpack_name?: string | null;
+  modpack_version?: string | null;
+  installed_at: string;
+  managed_project_ids: string[];
+}
+
 export type ModpackPrepareResult =
   | { success: true }
   | { modpack: MrPackDetailed; context: ModpackContext };
@@ -470,12 +480,12 @@ export interface GeneralSettings {
   on_game_close: "open_logs" | "open_home" | "exit" | "minimize" | "ask";
   /** What to do when the game crashes */
   on_game_crash:
-    | "restart"
-    | "open_logs"
-    | "open_home"
-    | "exit"
-    | "minimize"
-    | "ask";
+  | "restart"
+  | "open_logs"
+  | "open_home"
+  | "exit"
+  | "minimize"
+  | "ask";
   /** Whether to keep the launcher open after launching the game */
   on_game_launch: "keep_open" | "exit" | "open_logs" | "minimize" | "ask";
   /** Whether to automatically check for updates on startup */
@@ -880,21 +890,17 @@ export interface LaunchResult {
 //|                                Mods Types                                   |
 //|_____________________________________________________________________________|
 
-/** Discriminated union for mod info returned by different providers.
- * Supports both Rust enum serialization format and TypeScript discriminated union format.
+/** Mod info union returned by backend providers.
+ * Uses Rust externally tagged enum serialization format.
  * ```ts
  * export type ModInfoKind =
- *   | { kind: 'Modrinth'; data: ModrinthInfo }        // TypeScript discriminated union
- *   | { Modrinth: ModrinthInfo }                      // Rust enum serialization
- *   | { kind: 'CurseForge'; data: CurseForgeInfo }    // TypeScript discriminated union
- *   | { CurseForge: CurseForgeInfo };                 // Rust enum serialization
+ *   | { Modrinth: ModrinthInfo }
+ *   | { CurseForge: CurseForgeInfo };
  * ```
  */
 export type ModInfoKind =
-  | { kind: "Modrinth"; data: ModrinthInfo } // TypeScript discriminated union format
-  | { Modrinth: ModrinthInfo } // Rust enum serialization format
-  | { kind: "CurseForge"; data: CurseForgeInfo } // TypeScript discriminated union format
-  | { CurseForge: CurseForgeInfo }; // Rust enum serialization format
+  | { Modrinth: ModrinthInfo }
+  | { CurseForge: CurseForgeInfo };
 
 /** Discriminated union for mod filters for each provider.
  * Uses Rust externally tagged enum format for serde compatibility.
@@ -1542,29 +1548,6 @@ export interface MrPackDetailed {
   mods: PackFileDetailedGroup;
   resourcepacks: PackFileDetailedGroup;
   shaderpacks: PackFileDetailedGroup;
-}
-
-export interface MrpackIndex {
-  format_version: number;
-  game: string;
-  version_id: string;
-  name: string;
-  summary?: string;
-  files: any[];
-  dependencies: Record<string, string>;
-}
-
-export interface PackFileGroups {
-  mods: PackFileInfo[];
-  resourcepacks: PackFileInfo[];
-  shaderpacks: PackFileInfo[];
-  others: PackFileInfo[];
-}
-
-export interface ModpackDiffResult {
-  modpack: MrpackIndex;
-  new_files: PackFileInfo[];
-  conflicts: PackFileInfo[];
 }
 
 //|_____________________________________________________________________________|

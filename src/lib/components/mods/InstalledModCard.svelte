@@ -32,6 +32,22 @@ import * as modsApi from "$lib/api/mods";
 import Image from "$lib/components/Image.svelte";
 import ModVersionModal from "./ModVersionModal.svelte";
 
+const metadataCache = new Map<string, modsApi.ModMetadata | null>();
+const metadataInflight = new Map<string, Promise<modsApi.ModMetadata | null>>();
+
+type UpdateCheckResult = {
+  hasUpdate: boolean;
+  latestVersion: string | null;
+  latestVersionId: string | null;
+};
+
+const updateCheckCache = new Map<string, UpdateCheckResult>();
+const updateCheckInflight = new Map<string, Promise<UpdateCheckResult>>();
+
+function getMetadataCacheKey(installationId: string, fileName: string): string {
+  return `${installationId}:${fileName}`;
+}
+
 export let mod: ModJarInfo;
 export let installation: KableInstallation;
 export let extendedInfo: ExtendedModInfo | null = null;
@@ -108,17 +124,41 @@ function checkForUpdatesOnce() {
   }
 }
 
+async function getCachedMetadata(): Promise<modsApi.ModMetadata | null> {
+  const key = getMetadataCacheKey(installation.id, mod.file_name);
+
+  if (metadataCache.has(key)) {
+    return metadataCache.get(key) ?? null;
+  }
+
+  if (metadataInflight.has(key)) {
+    return (await metadataInflight.get(key)) ?? null;
+  }
+
+  const request = (async () => {
+    try {
+      const meta = await modsApi.getModMetadata(installation, mod.file_name);
+      metadataCache.set(key, meta);
+      return meta;
+    } catch {
+      metadataCache.set(key, null);
+      return null;
+    } finally {
+      metadataInflight.delete(key);
+    }
+  })();
+
+  metadataInflight.set(key, request);
+  return (await request) ?? null;
+}
+
 async function checkMetadata() {
   if (metadataChecked) return;
   metadataChecked = true;
 
-  try {
-    modMetadata = await modsApi.getModMetadata(installation, mod.file_name);
-    hasMetadata = true;
-  } catch (error) {
-    hasMetadata = false;
-    modMetadata = null;
-  }
+  const metadata = await getCachedMetadata();
+  modMetadata = metadata;
+  hasMetadata = !!metadata;
 }
 
 async function checkForUpdates() {
@@ -129,20 +169,21 @@ async function checkForUpdates() {
   try {
     // Try to get project ID from extended info
     let projectId: string | null = null;
-    let metadata: modsApi.ModMetadata | null = null;
+    let metadata: modsApi.ModMetadata | null = modMetadata;
     const provider = ProviderKind.Modrinth; // Default to Modrinth
 
     // Check for Kable metadata first
-    try {
-      metadata = await modsApi.getModMetadata(installation, mod.file_name);
-      if (metadata?.project_id) {
-        projectId = metadata.project_id;
+    if (!metadata) {
+      metadata = await getCachedMetadata();
+      if (!metadata) {
+        console.log(
+          `[InstalledModCard] No metadata for ${displayName}, skipping update check`,
+        );
       }
-    } catch (e) {
-      // Metadata not available, skip update check
-      console.log(
-        `[InstalledModCard] No metadata for ${displayName}, skipping update check`,
-      );
+    }
+
+    if (metadata?.project_id) {
+      projectId = metadata.project_id;
     }
 
     if (!projectId) {
@@ -156,62 +197,112 @@ async function checkForUpdates() {
     const loader = extractLoader(installation.version_id);
     const gameVersion = extractGameVersion(installation.version_id);
 
-    const versions = await modsApi.getProjectVersions(
-      provider,
-      projectId,
-      loader ? [loader] : undefined,
-      gameVersion ? [gameVersion] : undefined,
-    );
-
-    if (!versions || versions.length === 0) return;
-
-    availableVersions = versions;
-
-    // Find latest version using our robust version comparison with MC version context
     const currentVersion =
       metadata?.version_number || mod.mod_version || mod.file_name;
     const currentVersionId = metadata?.modrinth_version_id || null;
-    const versionNumbers = versions.map((v) => v.version_number);
-    latestVersion = VersionUtils.findLatest(
-      versionNumbers,
-      gameVersion || undefined,
-    );
+    const updateCacheKey = [
+      installation.id,
+      projectId,
+      loader || "",
+      gameVersion || "",
+      currentVersionId || "",
+      currentVersion,
+    ].join("|");
 
-    // Check if we have an update
-    if (latestVersion && currentVersion) {
-      const latestVersionObj =
-        versions.find((v) => v.version_number === latestVersion) || null;
-      hasUpdate = currentVersionId
-        ? latestVersionObj
-          ? latestVersionObj.id !== currentVersionId
-          : false
-        : VersionUtils.isNewer(
-            latestVersion,
-            currentVersion,
-            gameVersion || undefined,
-          );
-      if (hasUpdate) {
-        console.log(
-          `[InstalledModCard] Update available for ${displayName}: ${currentVersion} -> ${latestVersion}`,
-        );
-        if (latestVersionObj) {
-          // Report update to parent
-          onupdatereport?.({
-            fileName: mod.file_name,
-            hasUpdate: true,
-            latestVersion: latestVersion,
-            versionId: latestVersionObj.id,
-            mod: mod,
-          });
-        }
+    const applyUpdateResult = (result: UpdateCheckResult) => {
+      latestVersion = result.latestVersion;
+      hasUpdate = result.hasUpdate;
+      if (result.hasUpdate && result.latestVersion && result.latestVersionId) {
+        onupdatereport?.({
+          fileName: mod.file_name,
+          hasUpdate: true,
+          latestVersion: result.latestVersion,
+          versionId: result.latestVersionId,
+          mod: mod,
+        });
       } else {
-        // No update available
         onupdatereport?.({
           fileName: mod.file_name,
           hasUpdate: false,
         });
       }
+    };
+
+    if (updateCheckCache.has(updateCacheKey)) {
+      applyUpdateResult(updateCheckCache.get(updateCacheKey)!);
+      return;
     }
+
+    if (updateCheckInflight.has(updateCacheKey)) {
+      const inflightResult = await updateCheckInflight.get(updateCacheKey)!;
+      applyUpdateResult(inflightResult);
+      return;
+    }
+
+    const checkPromise = (async (): Promise<UpdateCheckResult> => {
+      const versions = await modsApi.getProjectVersions(
+        provider,
+        projectId,
+        loader ? [loader] : undefined,
+        gameVersion ? [gameVersion] : undefined,
+      );
+
+      if (!versions || versions.length === 0) {
+        return {
+          hasUpdate: false,
+          latestVersion: null,
+          latestVersionId: null,
+        };
+      }
+
+      availableVersions = versions;
+
+      const versionNumbers = versions.map((v) => v.version_number);
+      const resolvedLatestVersion = VersionUtils.findLatest(
+        versionNumbers,
+        gameVersion || undefined,
+      );
+
+      if (!resolvedLatestVersion || !currentVersion) {
+        return {
+          hasUpdate: false,
+          latestVersion: resolvedLatestVersion,
+          latestVersionId: null,
+        };
+      }
+
+      const latestVersionObj =
+        versions.find((v) => v.version_number === resolvedLatestVersion) ||
+        null;
+      const resolvedHasUpdate = currentVersionId
+        ? latestVersionObj
+          ? latestVersionObj.id !== currentVersionId
+          : false
+        : VersionUtils.isNewer(
+            resolvedLatestVersion,
+            currentVersion,
+            gameVersion || undefined,
+          );
+
+      return {
+        hasUpdate: resolvedHasUpdate,
+        latestVersion: resolvedLatestVersion,
+        latestVersionId: latestVersionObj?.id || null,
+      };
+    })();
+
+    updateCheckInflight.set(updateCacheKey, checkPromise);
+
+    const result = await checkPromise;
+    updateCheckCache.set(updateCacheKey, result);
+    updateCheckInflight.delete(updateCacheKey);
+    applyUpdateResult(result);
+    if (result.hasUpdate && result.latestVersion) {
+      console.log(
+        `[InstalledModCard] Update available for ${displayName}: ${currentVersion} -> ${result.latestVersion}`,
+      );
+    }
+    return;
   } catch (error) {
     console.warn(
       `[InstalledModCard] Failed to check for updates for ${displayName}:`,
@@ -287,21 +378,18 @@ async function handleManageVersions(event: MouseEvent) {
 
   try {
     let projectId: string | null = null;
+    const metadata = modMetadata ?? (await getCachedMetadata());
 
     // PRIORITY 1: Check for Kable metadata file (exact project ID)
-    try {
-      const metadata = await modsApi.getModMetadata(
-        installation,
-        mod.file_name,
-      );
+    if (metadata?.project_id) {
       projectId = metadata.project_id;
       console.log(
         `[InstalledModCard] Found metadata file with project_id: ${projectId}`,
       );
-    } catch (metaError) {
+    } else {
       console.log(
         `[InstalledModCard] No metadata file found for ${mod.file_name}:`,
-        metaError,
+        "not cached/available",
       );
 
       // PRIORITY 2: Try to extract project ID from extended info page_uri
@@ -441,8 +529,7 @@ function handleKeydown(event: KeyboardEvent) {
   on:keydown={handleKeydown}
   role="button"
   tabindex="0"
-  title={isDisabled ? "Click to enable" : "Click to disable"}
->
+  title={isDisabled ? "Click to enable" : "Click to disable"}>
   <!-- Mod Icon and Name -->
   <div class="mod-info">
     <div class="mod-icon-wrapper">
@@ -469,8 +556,7 @@ function handleKeydown(event: KeyboardEvent) {
         {#if hasMetadata}
           <span
             class="kable-badge"
-            title="Installed with Kable - version management available"
-          >
+            title="Installed with Kable - version management available">
             <Image key="favicon" alt="Kable" width="14px" height="14px" />
           </span>
         {/if}
@@ -489,13 +575,11 @@ function handleKeydown(event: KeyboardEvent) {
       title={hasUpdate
         ? `Update available: v${latestVersion}`
         : "Manage versions"}
-      disabled={loading || loadingVersions}
-    >
+      disabled={loading || loadingVersions}>
       <Icon
         name={hasUpdate ? "arrow-up" : "settings"}
         size="sm"
-        forceType="svg"
-      />
+        forceType="svg" />
       <span>{hasUpdate ? "Update" : "Versions"}</span>
     </button>
 
@@ -504,8 +588,7 @@ function handleKeydown(event: KeyboardEvent) {
       on:click={handleRemove}
       use:errorSound
       title="Remove mod"
-      disabled={loading}
-    >
+      disabled={loading}>
       <Icon name="trash" size="sm" forceType="svg" />
       <span>Remove</span>
     </button>
@@ -519,8 +602,7 @@ function handleKeydown(event: KeyboardEvent) {
     currentInstallation={installation}
     installedVersion={version}
     bind:open={showVersionModal}
-    onselectversion={handleVersionSelect}
-  />
+    onselectversion={handleVersionSelect} />
 {/if}
 
 <style lang="scss">

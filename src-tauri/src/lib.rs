@@ -360,6 +360,7 @@ pub fn run() {
             commands_mods::purge_stale_provider_cache,
             commands_mods::get_extended_mod_info,
             commands_mods::get_mod_metadata,
+            commands_mods::get_modpack_source_records,
             commands_mods::apply_modpack_selection,
             // Shaders commands
             commands_shaders::get_installed_shaders,

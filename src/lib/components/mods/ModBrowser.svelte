@@ -21,9 +21,8 @@ import type {
   ModInfoKind,
   ModJarInfo,
   ModpackContext,
-  ModrinthFile,
-  ModrinthVersion,
   MrPackDetailed,
+  NormalizedModInfo,
 } from "$lib";
 import {
   Icon,
@@ -89,14 +88,9 @@ let maxPageReached = 1; // Highest page number user has visited
 
 // Installed mods tracking
 let installedMods: ModJarInfo[] = [];
-let installedModsMap = new Map<string, ModJarInfo>();
 let installedModsLoaded = false;
+let installedModsLoadToken = 0;
 
-// Version filename cache for accurate mod detection
-// Maps: project_id -> Set<filename> (all JAR filenames across all versions)
-let versionFilenameCache = new Map<string, Set<string>>();
-// Track which projects we've already fetched
-let versionFetchInProgress = new Set<string>();
 // Cache of installed status for displayed mods: project_id -> {isInstalled, version}
 let installedStatusCache = new Map<
   string,
@@ -194,25 +188,6 @@ $: totalMods = mods.length;
 $: if (currentInstallation) {
   installedModsLoaded = false;
   loadInstalledMods(currentInstallation);
-}
-
-// Update installed status cache when mods change (after metadata is loaded)
-$: if (paginatedMods && paginatedMods.length > 0 && installedModsLoaded) {
-  // Force re-check of all mods in view
-  paginatedMods.forEach((mod) => {
-    const projectId =
-      "Modrinth" in mod
-        ? mod.Modrinth.project_id
-        : "CurseForge" in mod
-          ? mod.CurseForge.id.toString()
-          : null;
-    if (projectId && !installedStatusCache.has(projectId)) {
-      installedStatusCache.set(projectId, {
-        isInstalled: false,
-        version: null,
-      });
-    }
-  });
 }
 
 // Handle filter changes - debounced to avoid too many API calls
@@ -335,110 +310,6 @@ async function applyFiltersToBackend() {
   }
 }
 
-// Client-side filtering for display (now only used for exclude filters that backend doesn't support)
-function applyFilters(modsList: ModInfoKind[]) {
-  if (!modsList || modsList.length === 0) return [];
-
-  return modsList.filter((mod) => {
-    const info = getModDisplayInfo(mod);
-
-    // Skip if mod info is unavailable
-    if (!info) return false;
-
-    // Search filter
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase();
-      if (
-        !info.title.toLowerCase().includes(searchLower) &&
-        !info.description.toLowerCase().includes(searchLower) &&
-        !info.author.toLowerCase().includes(searchLower)
-      ) {
-        return false;
-      }
-    }
-
-    // Include filters (must match at least one if specified)
-    const includeCategories = filters.categories
-      .filter((f) => f.mode === "include")
-      .map((f) => f.value.toLowerCase());
-    if (includeCategories.length > 0) {
-      const modCategories = info.categories.map((c) => c.toLowerCase());
-      if (!includeCategories.some((cat) => modCategories.includes(cat))) {
-        return false;
-      }
-    }
-
-    const includeEnvironments = filters.environment
-      .filter((f) => f.mode === "include")
-      .map((f) => f.value.toLowerCase());
-    if (includeEnvironments.length > 0) {
-      const clientMatch =
-        includeEnvironments.includes("client") &&
-        info.client_side &&
-        info.client_side !== "unsupported";
-      const serverMatch =
-        includeEnvironments.includes("server") &&
-        info.server_side &&
-        info.server_side !== "unsupported";
-      if (!clientMatch && !serverMatch) {
-        return false;
-      }
-    }
-
-    const includeLicenses = filters.license
-      .filter((f) => f.mode === "include")
-      .map((f) => f.value.toLowerCase());
-    if (includeLicenses.length > 0) {
-      // Check if mod has open source license
-      if (includeLicenses.includes("open source")) {
-        const license = info.license?.toLowerCase() || "";
-        const isOpenSource =
-          license.includes("mit") ||
-          license.includes("gpl") ||
-          license.includes("apache") ||
-          license.includes("bsd") ||
-          license.includes("cc0") ||
-          license.includes("unlicense") ||
-          license.includes("lgpl") ||
-          license.includes("mpl");
-        if (!isOpenSource) {
-          return false;
-        }
-      }
-    }
-
-    // Exclude filters (must not match any)
-    const excludeCategories = filters.categories
-      .filter((f) => f.mode === "exclude")
-      .map((f) => f.value.toLowerCase());
-    if (excludeCategories.length > 0) {
-      const modCategories = info.categories.map((c) => c.toLowerCase());
-      if (excludeCategories.some((cat) => modCategories.includes(cat))) {
-        return false;
-      }
-    }
-
-    const excludeEnvironments = filters.environment
-      .filter((f) => f.mode === "exclude")
-      .map((f) => f.value.toLowerCase());
-    if (excludeEnvironments.length > 0) {
-      const clientMatch =
-        excludeEnvironments.includes("client") &&
-        info.client_side &&
-        info.client_side !== "unsupported";
-      const serverMatch =
-        excludeEnvironments.includes("server") &&
-        info.server_side &&
-        info.server_side !== "unsupported";
-      if (clientMatch || serverMatch) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-}
-
 // Handle search query changes - debounced via handleFiltersChange
 async function handleSearch() {
   if (!modsService) return;
@@ -529,23 +400,10 @@ function resetFilters() {
 
 // Load installed mods for the current installation
 async function loadInstalledMods(installation: KableInstallation) {
+  const loadToken = ++installedModsLoadToken;
+
   try {
     installedMods = await InstallationService.getModInfo(installation);
-
-    // Create a map for quick lookups using JAR filename (exact match)
-    installedModsMap = new Map();
-    installedMods.forEach((mod) => {
-      if (mod.file_name) {
-        // Store by exact filename (with .jar extension)
-        const filename = mod.file_name.toLowerCase();
-        installedModsMap.set(filename, mod);
-      }
-    });
-
-    // Clear caches when installation changes
-    installedStatusCache.clear();
-    versionFilenameCache.clear();
-    versionFetchInProgress.clear();
 
     // Load metadata for all installed mods to get project IDs
     const metadataPromises = installedMods.map(async (mod) => {
@@ -566,110 +424,43 @@ async function loadInstalledMods(installation: KableInstallation) {
 
     const metadataResults = await Promise.all(metadataPromises);
 
+    // Ignore stale async results if installation switched while loading
+    if (loadToken !== installedModsLoadToken) {
+      return;
+    }
+
+    const nextInstalledStatusCache = new Map<
+      string,
+      { isInstalled: boolean; version: string | null }
+    >();
+
     // Build cache from metadata (use project_id as key)
     for (const result of metadataResults) {
       if (result) {
-        installedStatusCache.set(result.projectId, {
+        nextInstalledStatusCache.set(result.projectId, {
           isInstalled: true,
           version: result.version,
         });
       }
     }
 
+    installedStatusCache = nextInstalledStatusCache;
     installedModsLoaded = true;
-    // Force reactivity update by incrementing counter and reassigning cache
-    installedStatusCache = installedStatusCache;
+    // Force reactivity update by incrementing counter
     cacheUpdateCounter++;
     console.log(
-      `[ModBrowser] Loaded ${installedMods.length} installed mods, ${installedStatusCache.size} with metadata`,
+      `[ModBrowser] Loaded ${installedMods.length} installed mods, ${installedStatusCache.size} with metadata project IDs`,
     );
   } catch (e) {
+    if (loadToken !== installedModsLoadToken) {
+      return;
+    }
     console.error("[ModBrowser] Failed to load installed mods:", e);
     installedMods = [];
-    installedModsMap = new Map();
+    installedStatusCache = new Map();
     installedModsLoaded = true;
+    cacheUpdateCounter++;
   }
-}
-
-// Lazy-load version filenames for a mod to check if installed
-async function fetchVersionFilenames(projectId: string): Promise<Set<string>> {
-  // Return cached if available
-  if (versionFilenameCache.has(projectId)) {
-    return versionFilenameCache.get(projectId)!;
-  }
-
-  // Prevent duplicate fetches
-  if (versionFetchInProgress.has(projectId)) {
-    // Wait a bit and try again (primitive lock)
-    await new Promise((resolve) => setTimeout(resolve, 100));
-    if (versionFilenameCache.has(projectId)) {
-      return versionFilenameCache.get(projectId)!;
-    }
-    return new Set(); // Give up if still not ready
-  }
-
-  versionFetchInProgress.add(projectId);
-
-  try {
-    // Fetch ALL versions for this project (no filters)
-    const versions: ModrinthVersion[] = await modsApi.getProjectVersions(
-      currentProvider,
-      projectId,
-    );
-
-    // Extract all filenames from all versions
-    const filenames = new Set<string>();
-    versions.forEach((version: ModrinthVersion) => {
-      version.files.forEach((file: ModrinthFile) => {
-        filenames.add(file.filename.toLowerCase());
-      });
-    });
-
-    versionFilenameCache.set(projectId, filenames);
-    console.log(
-      `[ModBrowser] Cached ${filenames.size} filenames for project ${projectId}`,
-    );
-
-    return filenames;
-  } catch (e) {
-    console.error(`[ModBrowser] Failed to fetch versions for ${projectId}:`, e);
-    return new Set();
-  } finally {
-    versionFetchInProgress.delete(projectId);
-  }
-}
-
-// Check if a mod is already installed by comparing project IDs from metadata
-async function getInstalledModInfo(
-  mod: ModInfoKind,
-): Promise<{ isInstalled: boolean; version: string | null }> {
-  // Don't check if installed mods haven't been loaded yet
-  if (!installedModsLoaded) {
-    return { isInstalled: false, version: null };
-  }
-
-  // Get project ID based on provider
-  let projectId: string | null = null;
-
-  if ("Modrinth" in mod) {
-    projectId = mod.Modrinth.project_id;
-  } else if ("CurseForge" in mod) {
-    projectId = mod.CurseForge.id.toString();
-  }
-
-  if (!projectId) {
-    return { isInstalled: false, version: null };
-  }
-
-  // Check cache (populated during loadInstalledMods from metadata files)
-  if (installedStatusCache.has(projectId)) {
-    return installedStatusCache.get(projectId)!;
-  }
-
-  // Not installed
-  const result = { isInstalled: false, version: null };
-  installedStatusCache.set(projectId, result);
-  return result;
 }
 
 // Get cached installed info (synchronous, for template use)
@@ -678,14 +469,7 @@ function getCachedInstalledInfo(
   mod: ModInfoKind,
   _counter = cacheUpdateCounter,
 ): { isInstalled: boolean; version: string | null } {
-  let projectId: string | null = null;
-
-  if ("Modrinth" in mod) {
-    projectId = mod.Modrinth.project_id;
-  } else if ("CurseForge" in mod) {
-    projectId = mod.CurseForge.id.toString();
-  }
-
+  const projectId = ModsService.getProjectId(mod);
   if (!projectId) {
     return { isInstalled: false, version: null };
   }
@@ -697,18 +481,7 @@ function getCachedInstalledInfo(
 
 // Get unique key for each mod (for keyed each blocks)
 function getModKey(mod: ModInfoKind): string {
-  if ("Modrinth" in mod) {
-    return `modrinth-${mod.Modrinth.project_id}`;
-  } else if ("CurseForge" in mod) {
-    return `curseforge-${mod.CurseForge.id}`;
-  }
-  return `unknown-${Math.random()}`;
-}
-
-// Legacy function for backward compatibility
-async function isModInstalled(mod: ModInfoKind): Promise<boolean> {
-  const info = await getInstalledModInfo(mod);
-  return info.isInstalled;
+  return ModsService.getModKey(mod);
 }
 
 // Track if we're currently initializing to prevent duplicate calls
@@ -855,38 +628,17 @@ function handleModDownload(mod: ModInfoKind) {
     return;
   }
 
-  let modId: string;
-  let versionId: string | undefined;
-
-  // Handle Modrinth - Rust enum format
-  if ("Modrinth" in mod) {
-    modId = mod.Modrinth.project_id;
-    versionId = mod.Modrinth.latest_version || undefined;
-  }
-  // Handle Modrinth - TypeScript discriminated union format
-  else if ("kind" in mod && mod.kind === "Modrinth") {
-    modId = mod.data.project_id;
-    versionId = mod.data.latest_version || undefined;
-  }
-  // Handle CurseForge - Rust enum format
-  else if ("CurseForge" in mod) {
-    modId = mod.CurseForge.id.toString();
-    versionId = mod.CurseForge.main_file_id.toString() || undefined;
-  }
-  // Handle CurseForge - TypeScript discriminated union format
-  else if ("kind" in mod && mod.kind === "CurseForge") {
-    modId = mod.data.id.toString();
-    versionId = mod.data.main_file_id.toString() || undefined;
-  }
-  // Unknown provider
-  else {
+  let normalized: NormalizedModInfo;
+  try {
+    normalized = ModsService.normalizeMod(mod);
+  } catch {
     console.error("[ModBrowser] Unknown mod provider format:", mod);
     return;
   }
 
   ondownloadmod?.({
-    modId,
-    versionId,
+    modId: normalized.projectId,
+    versionId: normalized.versionId || undefined,
     installation: currentInstallation,
   });
 }
@@ -903,80 +655,26 @@ function handleDownloadVersion(event: {
     return;
   }
 
-  let modId: string;
-
-  // Handle Modrinth - Rust enum format
-  if ("Modrinth" in mod) {
-    modId = mod.Modrinth.project_id;
-  }
-  // Handle Modrinth - TypeScript discriminated union format
-  else if ("kind" in mod && mod.kind === "Modrinth") {
-    modId = mod.data.project_id;
-  }
-  // Handle CurseForge - Rust enum format
-  else if ("CurseForge" in mod) {
-    modId = mod.CurseForge.id.toString();
-  }
-  // Handle CurseForge - TypeScript discriminated union format
-  else if ("kind" in mod && mod.kind === "CurseForge") {
-    modId = mod.data.id.toString();
-  }
-  // Unknown provider
-  else {
+  let normalized: NormalizedModInfo;
+  try {
+    normalized = ModsService.normalizeMod(mod);
+  } catch {
     console.error("[ModBrowser] Unknown mod provider format:", mod);
     return;
   }
 
   // Dispatch with specific version ID
   ondownloadmod?.({
-    modId,
+    modId: normalized.projectId,
     versionId,
     installation: currentInstallation,
   });
 }
 
 function handleModInfo(mod: ModInfoKind) {
-  // Handle Modrinth - Rust enum format
-  if ("Modrinth" in mod) {
-    const url =
-      mod.Modrinth.source_url ||
-      mod.Modrinth.wiki_url ||
-      `https://modrinth.com/mod/${mod.Modrinth.slug}`;
-    if (url) {
-      systemApi.openUrl(url);
-    }
-  }
-  // Handle Modrinth - TypeScript discriminated union format
-  else if ("kind" in mod && mod.kind === "Modrinth") {
-    const url =
-      mod.data.source_url ||
-      mod.data.wiki_url ||
-      `https://modrinth.com/mod/${mod.data.slug}`;
-    if (url) {
-      systemApi.openUrl(url);
-    }
-  }
-  // Handle CurseForge - Rust enum format
-  else if ("CurseForge" in mod) {
-    const url =
-      mod.CurseForge.links?.website_url ||
-      mod.CurseForge.links?.source_url ||
-      mod.CurseForge.links?.wiki_url ||
-      `https://www.curseforge.com/minecraft/mc-mods/${mod.CurseForge.slug}`;
-    if (url) {
-      systemApi.openUrl(url);
-    }
-  }
-  // Handle CurseForge - TypeScript discriminated union format
-  else if ("kind" in mod && mod.kind === "CurseForge") {
-    const url =
-      mod.data.links?.website_url ||
-      mod.data.links?.source_url ||
-      mod.data.links?.wiki_url ||
-      `https://www.curseforge.com/minecraft/mc-mods/${mod.data.slug}`;
-    if (url) {
-      systemApi.openUrl(url);
-    }
+  const url = ModsService.getModInfoUrl(mod);
+  if (url) {
+    systemApi.openUrl(url);
   }
 }
 
@@ -990,56 +688,22 @@ let modpackContext: ModpackContext | null = null;
 let downloadError: string | null = null;
 
 async function handleDownloadMod(event: { mod: ModInfoKind }) {
-  const mod = event.mod;
   if (!currentInstallation) {
     downloadError = "Please select an installation first.";
     return;
   }
 
-  // Extract provider, modId, versionId from mod
-  let provider: ProviderKind;
-  let modId: string;
-  let versionId: string | null = null;
-  if ("Modrinth" in mod) {
-    provider = ProviderKind.Modrinth;
-    modId = mod.Modrinth.project_id;
-    versionId = mod.Modrinth.latest_version || null;
-  } else if ("kind" in mod && mod.kind === "Modrinth") {
-    provider = ProviderKind.Modrinth;
-    modId = mod.data.project_id;
-    versionId = mod.data.latest_version || null;
-  } else if ("CurseForge" in mod) {
-    provider = ProviderKind.CurseForge;
-    modId = mod.CurseForge.id.toString();
-    versionId = mod.CurseForge.main_file_id?.toString() || null;
-  } else if ("kind" in mod && mod.kind === "CurseForge") {
-    provider = ProviderKind.CurseForge;
-    modId = mod.data.id.toString();
-    versionId = mod.data.main_file_id?.toString() || null;
-  } else {
-    alert("Unknown mod provider format");
-    return;
-  }
-
   try {
     downloadError = null;
-    const result = await modsApi.downloadOrPrepareMod(
-      provider,
-      modId,
-      versionId,
+    const result = await modsService.downloadOrPrepareFromMod(
+      event.mod,
       currentInstallation,
     );
-    if ("success" in result && result.success) {
-      // Mod was downloaded directly
-      // Optionally show notification or refresh mods list
-      return;
-    } else if ("modpack" in result && "context" in result) {
-      // Modpack: open modal with returned data
+
+    if (result.kind === "modpack") {
       modpackDiff = result.modpack;
       modpackContext = result.context;
       showModpackModal = true;
-    } else {
-      downloadError = "Unknown response from backend.";
     }
   } catch (e: any) {
     downloadError =
@@ -1080,147 +744,7 @@ function getModDisplayInfo(mod: ModInfoKind): {
   date_modified?: string;
   latest_version?: string;
 } {
-  // Handle Modrinth - Rust enum format
-  if ("Modrinth" in mod) {
-    const modrinthData = mod.Modrinth;
-    return {
-      title: modrinthData.title || "Unknown Mod",
-      description: modrinthData.description || "No description available.",
-      author: modrinthData.author || "Unknown Author",
-      downloads: modrinthData.downloads || 0,
-      icon_url: modrinthData.icon_url,
-      categories: modrinthData.categories || ([] as string[]),
-      project_type: modrinthData.project_type || "mod",
-      // Additional Modrinth-specific fields
-      follows: modrinthData.follows,
-      client_side: modrinthData.client_side,
-      server_side: modrinthData.server_side,
-      game_versions: modrinthData.game_versions || ([] as string[]),
-      loaders: modrinthData.loaders,
-      source_url: modrinthData.source_url,
-      wiki_url: modrinthData.wiki_url,
-      license: modrinthData.license,
-      date_created: modrinthData.date_created,
-      date_modified: modrinthData.date_modified,
-      latest_version: modrinthData.latest_version,
-    };
-  }
-
-  // Handle CurseForge - Rust enum format
-  if ("CurseForge" in mod) {
-    const curseforgeData = mod.CurseForge;
-    return {
-      title: curseforgeData.name || "Unknown Mod",
-      description: curseforgeData.summary || "No description available.",
-      author: curseforgeData.authors?.[0]?.name || "Unknown Author",
-      downloads: curseforgeData.download_count || 0,
-      icon_url: curseforgeData.logo?.url || curseforgeData.logo?.thumbnail_url,
-      categories:
-        curseforgeData.categories?.map((cat) => cat.name) || ([] as string[]),
-      project_type: "mod", // CurseForge doesn't distinguish project types the same way
-      // Additional fields mapped from CurseForge
-      follows: curseforgeData.thumbs_up_count, // Use thumbs up as follow count equivalent
-      client_side: undefined, // CurseForge doesn't have this concept
-      server_side: undefined, // CurseForge doesn't have this concept
-      game_versions:
-        curseforgeData.latest_files_indexes?.map((file) => file.game_version) ||
-        ([] as string[]),
-      loaders: undefined, // CurseForge doesn't expose loaders in the same format
-      source_url: curseforgeData.links?.source_url,
-      wiki_url: curseforgeData.links?.wiki_url,
-      license: undefined, // CurseForge doesn't expose license in the same way
-      date_created: curseforgeData.date_created,
-      date_modified: curseforgeData.date_modified,
-      latest_version: curseforgeData.latest_files?.[0]?.display_name,
-    };
-  }
-
-  // Handle Modrinth - TypeScript discriminated union format
-  if ("kind" in mod && mod.kind === "Modrinth") {
-    console.log(
-      "[ModBrowser] Using TypeScript discriminated union data structure:",
-      mod.data,
-    );
-    return {
-      title: mod.data.title || "Unknown Mod",
-      description: mod.data.description || "No description available.",
-      author: mod.data.author || "Unknown Author",
-      downloads: mod.data.downloads || 0,
-      icon_url: mod.data.icon_url,
-      categories: mod.data.categories || ([] as string[]),
-      project_type: mod.data.project_type || "mod",
-      // Additional Modrinth-specific fields
-      follows: mod.data.follows,
-      client_side: mod.data.client_side,
-      server_side: mod.data.server_side,
-      game_versions: mod.data.game_versions || ([] as string[]),
-      loaders: mod.data.loaders,
-      source_url: mod.data.source_url,
-      wiki_url: mod.data.wiki_url,
-      license: mod.data.license,
-      date_created: mod.data.date_created,
-      date_modified: mod.data.date_modified,
-      latest_version: mod.data.latest_version,
-    };
-  }
-
-  // Handle CurseForge - TypeScript discriminated union format
-  if ("kind" in mod && mod.kind === "CurseForge") {
-    console.log(
-      "[ModBrowser] Using CurseForge TypeScript discriminated union data structure:",
-      mod.data,
-    );
-    return {
-      title: mod.data.name || "Unknown Mod",
-      description: mod.data.summary || "No description available.",
-      author: mod.data.authors?.[0]?.name || "Unknown Author",
-      downloads: mod.data.download_count || 0,
-      icon_url: mod.data.logo?.url || mod.data.logo?.thumbnail_url,
-      categories:
-        mod.data.categories?.map((cat) => cat.name) || ([] as string[]),
-      project_type: "mod", // CurseForge doesn't distinguish project types the same way
-      // Additional fields mapped from CurseForge
-      follows: mod.data.thumbs_up_count, // Use thumbs up as follow count equivalent
-      client_side: undefined, // CurseForge doesn't have this concept
-      server_side: undefined, // CurseForge doesn't have this concept
-      game_versions:
-        mod.data.latest_files_indexes?.map((file) => file.game_version) ||
-        ([] as string[]),
-      loaders: undefined, // CurseForge doesn't expose loaders in the same format
-      source_url: mod.data.links?.source_url,
-      wiki_url: mod.data.links?.wiki_url,
-      license: undefined, // CurseForge doesn't expose license in the same way
-      date_created: mod.data.date_created,
-      date_modified: mod.data.date_modified,
-      latest_version: mod.data.latest_files?.[0]?.display_name,
-    };
-  }
-
-  console.log(
-    "[ModBrowser] Using fallback data structure for unknown mod:",
-    mod,
-  );
-
-  // Fallback for other providers or unknown data
-  return {
-    title: "Unknown Mod",
-    description: "No description available.",
-    author: "Unknown Author",
-    downloads: 0,
-    icon_url: null,
-    categories: [] as string[],
-    project_type: "mod",
-    follows: undefined,
-    client_side: undefined,
-    server_side: undefined,
-    game_versions: [] as string[],
-    source_url: undefined,
-    wiki_url: undefined,
-    license: undefined,
-    date_created: undefined,
-    date_modified: undefined,
-    latest_version: undefined,
-  };
+  return ModsService.getDisplayInfo(mod);
 }
 
 // Initialize on mount
@@ -1257,8 +781,7 @@ onMount(async () => {
     modpack={modpackDiff}
     context={modpackContext}
     installation={currentInstallation}
-    onCancel={closeModpackModal}
-  />
+    onCancel={closeModpackModal} />
 {/if}
 
 <div class="mod-browser">
@@ -1324,21 +847,18 @@ onMount(async () => {
             class="reset-filters"
             on:click={resetFilters}
             use:clickSound
-            title="Reset all filters"
-          >
+            title="Reset all filters">
             <Icon name="refresh" size="sm" forceType="svg" />
           </button>
           <button
             class="toggle-filters"
             on:click={() => (showFilters = !showFilters)}
             use:clickSound
-            title="Toggle filters"
-          >
+            title="Toggle filters">
             <Icon
               name={showFilters ? "arrow-left" : "arrow-right"}
               size="sm"
-              forceType="svg"
-            />
+              forceType="svg" />
           </button>
         </div>
       </div>
@@ -1358,8 +878,7 @@ onMount(async () => {
                 on:keydown={(e) => {
                   if (e.key === "Enter") handleSearch();
                 }}
-                class="search-input"
-              />
+                class="search-input" />
               {#if searchQuery}
                 <button
                   class="clear-btn"
@@ -1367,8 +886,7 @@ onMount(async () => {
                     searchQuery = "";
                     handleSearch();
                   }}
-                  use:clickSound
-                >
+                  use:clickSound>
                   <Icon name="x" size="sm" />
                 </button>
               {/if}
@@ -1381,12 +899,10 @@ onMount(async () => {
               <input
                 type="checkbox"
                 bind:checked={smartFilteringEnabled}
-                on:change={onSmartFilteringChange}
-              />
+                on:change={onSmartFilteringChange} />
               <span
                 class="toggle-label"
-                title="When enabled, only shows mods compatible with your installation's loader and Minecraft version. Disable to browse all mods."
-              >
+                title="When enabled, only shows mods compatible with your installation's loader and Minecraft version. Disable to browse all mods.">
                 Smart Filtering
               </span>
             </label>
@@ -1403,16 +919,14 @@ onMount(async () => {
               <button
                 class="filter-header"
                 on:click={() => toggleSection(section.collapsedKey)}
-                use:clickSound
-              >
+                use:clickSound>
                 <span class="filter-label">{section.label}</span>
                 <Icon
                   name={collapsedSections[section.collapsedKey]
                     ? "chevron-down"
                     : "chevron-up"}
                   size="md"
-                  forceType="svg"
-                />
+                  forceType="svg" />
               </button>
 
               {#if !collapsedSections[section.collapsedKey]}
@@ -1423,15 +937,13 @@ onMount(async () => {
                       class:included={getFilterState(section.id, option) ===
                         "include"}
                       class:excluded={getFilterState(section.id, option) ===
-                        "exclude"}
-                    >
+                        "exclude"}>
                       <button
                         class="filter-option-btn include-btn"
                         class:active={getFilterState(section.id, option) ===
                           "include"}
                         on:click={() => toggleFilter(section.id, option)}
-                        use:clickSound
-                      >
+                        use:clickSound>
                         <span class="option-label">{option}</span>
                         {#if getFilterState(section.id, option) === "include"}
                           <Icon name="x" size="sm" forceType="svg" />
@@ -1444,8 +956,7 @@ onMount(async () => {
                         class:active={getFilterState(section.id, option) ===
                           "exclude"}
                         on:click={() => toggleFilterExclude(section.id, option)}
-                        use:clickSound
-                      >
+                        use:clickSound>
                         <Icon name="trash" size="sm" forceType="svg" />
                       </button>
                     </div>
@@ -1466,8 +977,7 @@ onMount(async () => {
           <button
             class="mobile-filters-toggle"
             on:click={() => (showFilters = !showFilters)}
-            use:clickSound
-          >
+            use:clickSound>
             <Icon name="filter" size="sm" />
             Filters
           </button>
@@ -1480,8 +990,7 @@ onMount(async () => {
               on:click={prevPage}
               use:clickSound
               disabled={currentPage === 1}
-              title="Previous page"
-            >
+              title="Previous page">
               <Icon name="arrow-left" size="sm" forceType="svg" />
             </button>
 
@@ -1493,8 +1002,7 @@ onMount(async () => {
                   class="page-btn compact"
                   class:active={currentPage === pageItem}
                   on:click={() => goToPage(pageItem)}
-                  use:clickSound
-                >
+                  use:clickSound>
                   {pageItem}
                 </button>
               {/if}
@@ -1504,8 +1012,7 @@ onMount(async () => {
               class="page-btn compact"
               on:click={nextPage}
               use:clickSound
-              title="Next page"
-            >
+              title="Next page">
               <Icon name="arrow-right" size="sm" forceType="svg" />
             </button>
           </div>
@@ -1520,8 +1027,7 @@ onMount(async () => {
                 class:active={viewMode === mode.id}
                 on:click={() => (viewMode = mode.id as ViewMode)}
                 use:clickSound
-                title={mode.name}
-              >
+                title={mode.name}>
                 <Icon name={mode.icon} size="sm" />
               </button>
             {/each}
@@ -1531,8 +1037,7 @@ onMount(async () => {
           <select
             bind:value={itemsPerPage}
             on:change={() => changePageSize(itemsPerPage)}
-            class="page-size-select"
-          >
+            class="page-size-select">
             {#each pageSizeOptions as size}
               <option value={size}>{size}/page</option>
             {/each}
@@ -1582,8 +1087,7 @@ onMount(async () => {
             class="mods-container"
             class:grid={viewMode === "grid"}
             class:list={viewMode === "list"}
-            class:compact={viewMode === "compact"}
-          >
+            class:compact={viewMode === "compact"}>
             {#each paginatedMods as mod (getModKey(mod))}
               {@const installedInfo =
                 currentInstallation && installedModsLoaded
@@ -1598,8 +1102,7 @@ onMount(async () => {
                 installedVersion={installedInfo.version}
                 ondownloadmod={handleDownloadMod}
                 ondownloadversion={handleDownloadVersion}
-                oninfomod={handleInfoMod}
-              />
+                oninfomod={handleInfoMod} />
             {/each}
           </div>
         {/if}

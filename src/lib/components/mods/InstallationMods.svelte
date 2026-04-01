@@ -10,7 +10,7 @@ Includes installation carousel for quick switching and semantic search filtering
 ```
 -->
 <script lang="ts">
-import type { KableInstallation, ModJarInfo } from "$lib";
+import type { KableInstallation, ModInfoKind, ModJarInfo } from "$lib";
 import {
   extendedModInfo,
   Icon,
@@ -45,9 +45,16 @@ type ModSortMode = "name_asc" | "name_desc" | "date_desc" | "date_asc";
 type DisabledGroupMode = "end" | "start" | "none";
 let modSortMode: ModSortMode = "name_asc"; // Default to alphabetical
 let disabledGroupMode: DisabledGroupMode = "end";
+let sourceViewEnabled = false;
 
 // Cached mod metadata by jar filename (used for date sorting + stable project lookup).
 let modMetadataMap = new Map<string, modsApi.ModMetadata | null>();
+let modpackSources: modsApi.ModpackSourceRecord[] = [];
+let modpackProjectMap = new Map<string, ModInfoKind>();
+const nameCollator = new Intl.Collator(undefined, {
+  sensitivity: "base",
+  numeric: true,
+});
 
 function metadataKey(fileName: string): string {
   return `${selectedId}:${fileName}`;
@@ -59,6 +66,7 @@ let modsWithUpdates = new Map<
   { mod: ModJarInfo; latestVersion: string; versionId: string }
 >();
 let updatingAll = false;
+let loadingModpackSources = false;
 
 // Installation carousel logic
 function selectInstallation(installation: KableInstallation) {
@@ -300,6 +308,8 @@ $: {
     modsWithUpdates.clear();
     modsWithUpdates = modsWithUpdates; // Trigger reactivity
     modMetadataMap = new Map();
+    modpackSources = [];
+    modpackProjectMap = new Map();
   }
 }
 
@@ -416,8 +426,7 @@ $: filteredMods = mods.filter((mod) => {
 });
 
 function getModDisplayName(mod: ModJarInfo): string {
-  const info = $extendedModInfo[mod.file_name];
-  return info?.mod_jar_info?.mod_name || mod.mod_name || mod.file_name;
+  return (mod.mod_name || mod.file_name.replace(/\.jar$/i, "")).trim();
 }
 
 function getModDate(mod: ModJarInfo): number {
@@ -428,69 +437,158 @@ function getModDate(mod: ModJarInfo): number {
 }
 
 function sortMods(a: ModJarInfo, b: ModJarInfo): number {
+  const nameA = getModDisplayName(a);
+  const nameB = getModDisplayName(b);
+
   switch (modSortMode) {
     case "name_asc":
-      return getModDisplayName(a).localeCompare(
-        getModDisplayName(b),
-        undefined,
-        {
-          sensitivity: "base",
-        },
-      );
+      return nameCollator.compare(nameA, nameB);
     case "name_desc":
-      return getModDisplayName(b).localeCompare(
-        getModDisplayName(a),
-        undefined,
-        {
-          sensitivity: "base",
-        },
-      );
+      return nameCollator.compare(nameB, nameA);
     case "date_asc": {
       const da = getModDate(a);
       const db = getModDate(b);
       if (da !== db) return da - db;
-      return getModDisplayName(a).localeCompare(
-        getModDisplayName(b),
-        undefined,
-        {
-          sensitivity: "base",
-        },
-      );
+      return nameCollator.compare(nameA, nameB);
     }
     case "date_desc":
     default: {
       const da = getModDate(a);
       const db = getModDate(b);
       if (da !== db) return db - da;
-      return getModDisplayName(a).localeCompare(
-        getModDisplayName(b),
-        undefined,
-        {
-          sensitivity: "base",
-        },
-      );
+      return nameCollator.compare(nameA, nameB);
     }
   }
 }
 
+$: sortNameStamp = mods.map((mod) => mod.mod_name || mod.file_name).join("|");
+
 $: sortedFilteredMods = (() => {
+  sortNameStamp;
+  const currentSortMode = modSortMode;
+  const currentDisabledGrouping = disabledGroupMode;
+
   const list = filteredMods.slice().sort(sortMods);
-  if (disabledGroupMode === "none") {
+  if (currentSortMode === "name_asc") {
+    // no-op; establishes explicit reactive dependency for Svelte
+  }
+
+  if (currentDisabledGrouping === "none") {
     return list;
   }
 
   const enabled = list.filter((mod) => !mod.disabled);
   const disabled = list.filter((mod) => mod.disabled);
-  return disabledGroupMode === "start"
+  return currentDisabledGrouping === "start"
     ? [...disabled, ...enabled]
     : [...enabled, ...disabled];
 })();
+
+$: managedProjectIds = new Set(
+  modpackSources.flatMap((source) => source.managed_project_ids),
+);
+
+$: standaloneFilteredMods = sortedFilteredMods.filter((mod) => {
+  const metadata = modMetadataMap.get(metadataKey(mod.file_name));
+  const projectId = metadata?.project_id;
+  if (!projectId) return true;
+  return !managedProjectIds.has(projectId);
+});
+
+$: if (currentInstallation && modpackSources.length > 0 && sourceViewEnabled) {
+  const missingProjectIds = modpackSources
+    .filter((source) => source.provider === ProviderKind.Modrinth)
+    .map((source) => source.mod_id)
+    .filter((projectId) => !modpackProjectMap.has(projectId));
+
+  if (missingProjectIds.length > 0) {
+    const uniqueProjectIds = Array.from(new Set(missingProjectIds));
+    modsApi
+      .getProjects(ProviderKind.Modrinth, uniqueProjectIds)
+      .then((projects) => {
+        const next = new Map(modpackProjectMap);
+        for (const project of projects) {
+          if ("Modrinth" in project) {
+            next.set(project.Modrinth.project_id, project);
+          }
+        }
+        modpackProjectMap = next;
+      })
+      .catch((err) => {
+        console.warn("Failed to load modpack project cards:", err);
+      });
+  }
+}
+
+function getModpackCardTitle(source: modsApi.ModpackSourceRecord): string {
+  const project = modpackProjectMap.get(source.mod_id);
+  if (project && "Modrinth" in project) {
+    return project.Modrinth.title || source.modpack_name || source.mod_id;
+  }
+  return source.modpack_name || source.mod_id;
+}
+
+function getModpackCardDescription(
+  source: modsApi.ModpackSourceRecord,
+): string {
+  const project = modpackProjectMap.get(source.mod_id);
+  if (project && "Modrinth" in project) {
+    return project.Modrinth.description || "";
+  }
+  return "";
+}
+
+function getModpackCardIcon(
+  source: modsApi.ModpackSourceRecord,
+): string | null {
+  const project = modpackProjectMap.get(source.mod_id);
+  if (project && "Modrinth" in project) {
+    return project.Modrinth.icon_url || null;
+  }
+  return null;
+}
+
+function getModpackCardUrl(source: modsApi.ModpackSourceRecord): string | null {
+  if (source.provider === ProviderKind.Modrinth) {
+    return `https://modrinth.com/modpack/${source.mod_id}`;
+  }
+  return null;
+}
+
+async function openModpackSource(source: modsApi.ModpackSourceRecord) {
+  const url = getModpackCardUrl(source);
+  if (!url) return;
+  try {
+    await openUrl(url);
+  } catch (err) {
+    console.error("Failed to open modpack page:", err);
+  }
+}
 
 // Handle mod changed event (toggle, delete, etc.)
 function handleModChanged() {
   // Reload mods to reflect changes
   if (currentInstallation) {
     loadMods(currentInstallation, { silent: true });
+  }
+}
+
+async function loadModpackSources(installation: KableInstallation) {
+  loadingModpackSources = true;
+  try {
+    modpackSources = await modsApi.getModpackSourceRecords(installation);
+    const sourceIds = new Set(modpackSources.map((source) => source.mod_id));
+    modpackProjectMap = new Map(
+      Array.from(modpackProjectMap.entries()).filter(([id]) =>
+        sourceIds.has(id),
+      ),
+    );
+  } catch (err) {
+    console.warn("Failed to load modpack source records:", err);
+    modpackSources = [];
+    modpackProjectMap = new Map();
+  } finally {
+    loadingModpackSources = false;
   }
 }
 
@@ -656,11 +754,15 @@ async function loadMods(
     // Add any new mods that weren't in the previous list
     mods = [...mods, ...Array.from(newModsMap.values())];
 
+    await loadModpackSources(installation);
+
     // Don't clear attemptedExtendedInfo - let it persist so we don't refetch
     // Only clear it when switching installations (handled in reactive statement)
   } catch (e: any) {
     error = e?.message || e || "Failed to load mods info";
     mods = [];
+    modpackSources = [];
+    modpackProjectMap = new Map();
     attemptedExtendedInfo.clear();
     // Reset the loaded installation ID so we can retry if user switches away and back
     loadedInstallationId = null;
@@ -695,8 +797,7 @@ onMount(() => {
         on:wheel={handleWheel}
         on:keydown={handleKeydown}
         tabindex="-1"
-        role="listbox"
-      >
+        role="listbox">
         <div class="carousel-container">
           {#each sortedInstallations as installation, index}
             {@const selectedIndex = sortedInstallations.findIndex(
@@ -730,8 +831,7 @@ onMount(() => {
                 on:keydown={(e) =>
                   e.key === "Enter" && selectInstallation(installation)}
                 tabindex="0"
-                role="button"
-              >
+                role="button">
                 <div class="installation-icon">
                   <Icon name={loaderIcons[installation.id]} size="md" />
                 </div>
@@ -740,8 +840,7 @@ onMount(() => {
                   <div class="installation-details">
                     <span class="installation-version"
                       >{InstallationService.getVersionData(installation)
-                        .version_id}</span
-                    >
+                        .version_id}</span>
                   </div>
                 </div>
               </div>
@@ -761,14 +860,12 @@ onMount(() => {
               type="text"
               placeholder="Search mods (fuzzy search enabled)..."
               bind:value={searchQuery}
-              class="search-input"
-            />
+              class="search-input" />
             {#if searchQuery}
               <button
                 class="clear-btn"
                 on:click={() => (searchQuery = "")}
-                title="Clear search">✕</button
-              >
+                title="Clear search">✕</button>
             {/if}
           </div>
         </div>
@@ -787,8 +884,7 @@ onMount(() => {
                   {:else}
                     <span class="total-count">{mods.length}</span>
                     <span class="count-label"
-                      >{mods.length === 1 ? "mod" : "mods"}</span
-                    >
+                      >{mods.length === 1 ? "mod" : "mods"}</span>
                   {/if}
                 </div>
               {/if}
@@ -804,8 +900,7 @@ onMount(() => {
                     title="Update {modsWithUpdates.size} mod{modsWithUpdates.size !==
                     1
                       ? 's'
-                      : ''}"
-                  >
+                      : ''}">
                     <Icon name="arrow-up" size="sm" forceType="svg" />
                     <span>
                       {updatingAll
@@ -814,6 +909,22 @@ onMount(() => {
                     </span>
                   </button>
                 {/if}
+
+                <label class="control-field">
+                  <span>Source View</span>
+                  <button
+                    class="source-toggle-btn"
+                    class:active={sourceViewEnabled}
+                    on:click={() => (sourceViewEnabled = !sourceViewEnabled)}
+                    title={sourceViewEnabled
+                      ? "Showing modpacks + standalone mods"
+                      : "Showing all mods"}>
+                    <Icon name="layers" size="sm" />
+                    <span
+                      >{sourceViewEnabled ? "Source On" : "Source Off"}</span>
+                  </button>
+                </label>
+
                 <label class="control-field">
                   <span class="control-label-with-icon">
                     Sort
@@ -858,17 +969,91 @@ onMount(() => {
               {error}
             </div>
           {:else if mods.length > 0}
-            <div class="mods-card-grid">
-              {#each sortedFilteredMods as mod (mod.file_name)}
-                <InstalledModCard
-                  {mod}
-                  installation={currentInstallation}
-                  extendedInfo={$extendedModInfo[mod.file_name]}
-                  onmodchanged={handleModChanged}
-                  onupdatereport={handleUpdateReport}
-                />
-              {/each}
-            </div>
+            {#if sourceViewEnabled}
+              {#if loadingModpackSources}
+                <div class="loading-state compact-loading">
+                  <Icon name="refresh" size="sm" className="spin" />
+                  <span>Loading source mapping...</span>
+                </div>
+              {/if}
+
+              {#if modpackSources.length > 0}
+                <div class="source-section">
+                  <h4>Installed Modpacks</h4>
+                  <div class="modpack-grid">
+                    {#each modpackSources as source (`${source.provider}:${source.mod_id}:${source.version_id || "latest"}`)}
+                      <button
+                        class="modpack-card"
+                        on:click={() => openModpackSource(source)}
+                        title="Open modpack page">
+                        <div class="modpack-icon">
+                          {#if getModpackCardIcon(source)}
+                            <img
+                              src={getModpackCardIcon(source) || ""}
+                              alt={getModpackCardTitle(source)} />
+                          {:else}
+                            <Icon name="package" size="md" />
+                          {/if}
+                        </div>
+                        <div class="modpack-meta">
+                          <div class="modpack-title">
+                            {getModpackCardTitle(source)}
+                          </div>
+                          <div class="modpack-subtitle">
+                            v{source.modpack_version ||
+                              source.version_id ||
+                              "unknown"}
+                          </div>
+                          <div class="modpack-count">
+                            {source.managed_project_ids.length} managed mod{source
+                              .managed_project_ids.length === 1
+                              ? ""
+                              : "s"}
+                          </div>
+                          {#if getModpackCardDescription(source)}
+                            <div class="modpack-description">
+                              {getModpackCardDescription(source)}
+                            </div>
+                          {/if}
+                        </div>
+                      </button>
+                    {/each}
+                  </div>
+                </div>
+              {/if}
+
+              <div class="source-section">
+                <h4>Standalone Mods</h4>
+                {#if standaloneFilteredMods.length > 0}
+                  <div class="mods-card-grid">
+                    {#each standaloneFilteredMods as mod (mod.file_name)}
+                      <InstalledModCard
+                        {mod}
+                        installation={currentInstallation}
+                        extendedInfo={$extendedModInfo[mod.file_name]}
+                        onmodchanged={handleModChanged}
+                        onupdatereport={handleUpdateReport} />
+                    {/each}
+                  </div>
+                {:else}
+                  <div class="empty-state inline-empty">
+                    <Icon name="cube" size="md" />
+                    <span>No standalone mods found in this view.</span>
+                  </div>
+                {/if}
+              </div>
+            {:else}
+              <div class="mods-card-grid">
+                {#each sortedFilteredMods as mod (mod.file_name)}
+                  <InstalledModCard
+                    {mod}
+                    installation={currentInstallation}
+                    extendedInfo={$extendedModInfo[mod.file_name]}
+                    onmodchanged={handleModChanged}
+                    onupdatereport={handleUpdateReport} />
+                {/each}
+              </div>
+            {/if}
           {:else}
             <div class="empty-state">
               <Icon name="cube" size="xl" />
@@ -1290,6 +1475,30 @@ onMount(() => {
   }
 }
 
+.source-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--dark-600);
+  background: var(--input);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--primary), 50%, transparent);
+  }
+
+  &.active {
+    border-color: color-mix(in srgb, var(--green-700), 60%, transparent);
+    background: color-mix(in srgb, var(--green-800), 12%, transparent);
+    color: var(--green-800);
+  }
+}
+
 .search-input-wrapper {
   position: relative;
   display: flex;
@@ -1355,6 +1564,113 @@ onMount(() => {
   background: var(--container);
   overflow-y: auto;
   overflow-x: hidden;
+}
+
+.source-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-bottom: 1.2rem;
+
+  h4 {
+    margin: 0;
+    font-size: 0.95rem;
+    color: var(--placeholder);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+}
+
+.modpack-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 0.5rem;
+}
+
+.modpack-card {
+  border: 1px solid color-mix(in srgb, var(--primary), 18%, transparent);
+  border-radius: 0.65rem;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--primary), 8%, transparent) 0%,
+    var(--card) 100%
+  );
+  padding: 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--primary), 35%, transparent);
+    transform: translateY(-1px);
+  }
+}
+
+.modpack-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 0.5rem;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.modpack-meta {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.modpack-title {
+  font-weight: 700;
+  color: var(--text);
+}
+
+.modpack-subtitle {
+  font-size: 0.8rem;
+  color: var(--placeholder);
+}
+
+.modpack-count {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--green-800);
+}
+
+.modpack-description {
+  color: var(--text);
+  font-size: 0.8rem;
+  opacity: 0.8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  line-clamp: 2;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.compact-loading {
+  padding: 0.25rem 0;
+  justify-content: flex-start;
+  font-size: 0.9rem;
+}
+
+.inline-empty {
+  align-items: flex-start;
+  padding: 0.7rem 0;
 }
 
 // Card grid for mods

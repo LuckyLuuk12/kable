@@ -1,14 +1,14 @@
 import type {
+  CurseForgeInfo,
   ExtendedModInfo,
   KableInstallation,
   ModFilter,
+  ModInfoKind,
   ModJarInfo,
   ModpackContext,
-  ModpackDiffResult,
-  ModpackSelection,
-  MrpackIndex,
-  PackFileInfo,
-  ProviderKind,
+  ModpackPrepareResult,
+  ModrinthInfo,
+  MrPackDetailed,
 } from "$lib";
 import {
   extendedModInfo,
@@ -21,95 +21,39 @@ import {
   modsOffset,
   modsProvider,
   NotificationService,
+  ProviderKind,
 } from "$lib";
 import * as semver from "semver";
-import { get, writable } from "svelte/store";
+import { get } from "svelte/store";
 import * as modsApi from "../api/mods";
 
-// Store for modpack diff modal state (can be used by ModBrowser)
-export const modpackDiffModalState = writable({
-  open: false,
-  modpack: null as MrpackIndex | null,
-  newFiles: [] as PackFileInfo[],
-  conflicts: [] as PackFileInfo[],
-  selectedFiles: [] as PackFileInfo[],
-  mrpackPath: "",
-  installationDir: "",
-  subfolder: "mods",
-  onConfirm: null as ((selected: string[]) => void) | null,
-});
+export interface NormalizedModInfo {
+  provider: ProviderKind;
+  providerName: "Modrinth" | "CurseForge";
+  projectId: string;
+  versionId: string | null;
+  data: ModrinthInfo | CurseForgeInfo;
+}
 
-export class ModpackService {
-  /**
-   * Orchestrate modpack install: prepare diff, show modal, apply selection
-   * - mrpackPath: path to .mrpack file
-   * - installationDir: path to installation root
-   * - subfolder: e.g. "mods"
-   * - onConfirm: callback(selectedFilePaths)
-   */
-  static async orchestrateModpackInstall({
-    mrpackPath,
-    installationDir,
-    subfolder = "mods",
-    onConfirm,
-  }: {
-    mrpackPath: string;
-    installationDir: string;
-    subfolder?: string;
-    onConfirm: (selected: string[]) => void;
-  }) {
-    // 1. Prepare diff (backend handles extraction, diff, cleanup)
-    const result: ModpackDiffResult = await modsApi.prepareModpackDiff(
-      mrpackPath,
-      installationDir,
-      subfolder,
-    );
-
-    // 2. Always open modal for user selection, even if no new/conflicting files
-    // Gather all files for selection (to_be_installed + optional)
-    let allSelectableFiles: PackFileInfo[] = [];
-    let toBeInstalled: PackFileInfo[] = [];
-    let optional: PackFileInfo[] = [];
-    let disabled: PackFileInfo[] = [];
-    if (result.modpack && (result.modpack as any).mods) {
-      // New backend type: MrPackDetailed
-      const mods = (result.modpack as any).mods;
-      toBeInstalled = mods.to_be_installed || [];
-      optional = mods.optional || [];
-      disabled = mods.disabled || [];
-      allSelectableFiles = [...toBeInstalled, ...optional];
-    } else {
-      // Fallback for legacy: just use new/conflicts
-      allSelectableFiles = [...result.new_files, ...result.conflicts];
-    }
-
-    modpackDiffModalState.set({
-      open: true,
-      modpack: result.modpack,
-      newFiles: result.new_files,
-      conflicts: result.conflicts,
-      selectedFiles: allSelectableFiles,
-      mrpackPath,
-      installationDir,
-      subfolder,
-      onConfirm,
-    });
-  }
-
-  /**
-   * Apply modpack selection (copy files, extract overrides)
-   */
-  static async applySelection({
-    installation,
-    selection,
-    context,
-  }: {
-    installation: KableInstallation;
-    selection: ModpackSelection;
-    context: ModpackContext;
-  }) {
-    return modsApi.applyModpackSelection(installation, selection, context);
-  }
+export interface ModDisplayInfo {
+  title: string;
+  description: string;
+  author: string;
+  downloads: number;
+  icon_url: string | null | undefined;
+  categories: string[];
+  project_type: string;
+  follows?: number;
+  client_side?: string;
+  server_side?: string;
+  game_versions: string[];
+  loaders?: string[];
+  source_url?: string;
+  wiki_url?: string;
+  license?: string;
+  date_created?: string;
+  date_modified?: string;
+  latest_version?: string;
 }
 
 /**
@@ -346,6 +290,190 @@ export class VersionUtils {
 
 export class ModsService {
   initialized = false;
+
+  static normalizeMod(mod: ModInfoKind): NormalizedModInfo {
+    if ("Modrinth" in mod) {
+      return {
+        provider: ProviderKind.Modrinth,
+        providerName: "Modrinth",
+        projectId: mod.Modrinth.project_id,
+        versionId: mod.Modrinth.latest_version || null,
+        data: mod.Modrinth,
+      };
+    }
+
+    if ("CurseForge" in mod) {
+      return {
+        provider: ProviderKind.CurseForge,
+        providerName: "CurseForge",
+        projectId: mod.CurseForge.id.toString(),
+        versionId: mod.CurseForge.main_file_id?.toString() || null,
+        data: mod.CurseForge,
+      };
+    }
+
+    throw new Error("Unknown mod provider format");
+  }
+
+  static getProjectId(mod: ModInfoKind): string | null {
+    try {
+      return ModsService.normalizeMod(mod).projectId;
+    } catch {
+      return null;
+    }
+  }
+
+  static getModKey(mod: ModInfoKind): string {
+    const projectId = ModsService.getProjectId(mod);
+    if (!projectId) {
+      return `unknown-${Math.random().toString(36).slice(2)}`;
+    }
+
+    try {
+      const normalized = ModsService.normalizeMod(mod);
+      return `${normalized.providerName.toLowerCase()}-${projectId}`;
+    } catch {
+      return `unknown-${projectId}`;
+    }
+  }
+
+  static getModInfoUrl(mod: ModInfoKind): string | null {
+    let normalized: NormalizedModInfo;
+    try {
+      normalized = ModsService.normalizeMod(mod);
+    } catch {
+      return null;
+    }
+
+    if (normalized.providerName === "Modrinth") {
+      const data = normalized.data as ModrinthInfo;
+      return data.source_url || data.wiki_url || `https://modrinth.com/mod/${data.slug}`;
+    }
+
+    const data = normalized.data as CurseForgeInfo;
+    return (
+      data.links?.website_url ||
+      data.links?.source_url ||
+      data.links?.wiki_url ||
+      `https://www.curseforge.com/minecraft/mc-mods/${data.slug}`
+    );
+  }
+
+  static getDisplayInfo(mod: ModInfoKind): ModDisplayInfo {
+    let normalized: NormalizedModInfo;
+    try {
+      normalized = ModsService.normalizeMod(mod);
+    } catch {
+      return {
+        title: "Unknown Mod",
+        description: "No description available.",
+        author: "Unknown Author",
+        downloads: 0,
+        icon_url: null,
+        categories: [],
+        project_type: "mod",
+        follows: undefined,
+        client_side: undefined,
+        server_side: undefined,
+        game_versions: [],
+        source_url: undefined,
+        wiki_url: undefined,
+        license: undefined,
+        date_created: undefined,
+        date_modified: undefined,
+        latest_version: undefined,
+      };
+    }
+
+    if (normalized.providerName === "Modrinth") {
+      const data = normalized.data as ModrinthInfo;
+      return {
+        title: data.title || "Unknown Mod",
+        description: data.description || "No description available.",
+        author: data.author || "Unknown Author",
+        downloads: data.downloads || 0,
+        icon_url: data.icon_url,
+        categories: data.categories || [],
+        project_type: data.project_type || "mod",
+        follows: data.follows,
+        client_side: data.client_side,
+        server_side: data.server_side,
+        game_versions: data.game_versions || [],
+        loaders: data.loaders,
+        source_url: data.source_url,
+        wiki_url: data.wiki_url,
+        license: data.license,
+        date_created: data.date_created,
+        date_modified: data.date_modified,
+        latest_version: data.latest_version,
+      };
+    }
+
+    const data = normalized.data as CurseForgeInfo;
+    return {
+      title: data.name || "Unknown Mod",
+      description: data.summary || "No description available.",
+      author: data.authors?.[0]?.name || "Unknown Author",
+      downloads: data.download_count || 0,
+      icon_url: data.logo?.url || data.logo?.thumbnail_url,
+      categories: data.categories?.map((cat) => cat.name) || [],
+      project_type: "mod",
+      follows: data.thumbs_up_count,
+      client_side: undefined,
+      server_side: undefined,
+      game_versions: data.latest_files_indexes?.map((file) => file.game_version) || [],
+      loaders: undefined,
+      source_url: data.links?.source_url,
+      wiki_url: data.links?.wiki_url,
+      license: undefined,
+      date_created: data.date_created,
+      date_modified: data.date_modified,
+      latest_version: data.latest_files?.[0]?.display_name,
+    };
+  }
+
+  private static getDownloadTarget(mod: ModInfoKind): {
+    provider: ProviderKind;
+    modId: string;
+    versionId: string | null;
+  } {
+    const normalized = ModsService.normalizeMod(mod);
+    return {
+      provider: normalized.provider,
+      modId: normalized.projectId,
+      versionId: normalized.versionId,
+    };
+  }
+
+  async downloadOrPrepareFromMod(
+    mod: ModInfoKind,
+    installation: KableInstallation,
+  ): Promise<
+    | { kind: "downloaded" }
+    | { kind: "modpack"; modpack: MrPackDetailed; context: ModpackContext }
+  > {
+    const { provider, modId, versionId } = ModsService.getDownloadTarget(mod);
+    const result: ModpackPrepareResult = await modsApi.downloadOrPrepareMod(
+      provider,
+      modId,
+      versionId,
+      installation,
+    );
+
+    if ("success" in result && result.success) {
+      return { kind: "downloaded" };
+    }
+
+    if ("modpack" in result && "context" in result) {
+      return {
+        kind: "modpack",
+        modpack: result.modpack,
+        context: result.context,
+      };
+    }
+
+    throw new Error("Unknown response from backend.");
+  }
 
   constructor(provider: ProviderKind) {
     console.log(`[ModsService] Initializing with ${provider} provider`);

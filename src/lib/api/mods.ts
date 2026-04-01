@@ -5,7 +5,6 @@ import type {
   ModInfoKind,
   ModJarInfo,
   ModpackContext,
-  ModpackDiffResult,
   ModpackPrepareResult,
   ModrinthVersion,
   ProviderKind,
@@ -24,19 +23,6 @@ export async function downloadOrPrepareMod(
     modId,
     versionId,
     installation,
-  });
-}
-
-// --- Mrpack modpack handling API ---
-export async function prepareModpackDiff(
-  mrpackPath: string,
-  installationDir: string,
-  subfolder?: string,
-): Promise<ModpackDiffResult> {
-  return await invoke("prepare_modpack_diff", {
-    mrpackPath,
-    installationDir,
-    subfolder,
   });
 }
 
@@ -174,9 +160,25 @@ export interface ModMetadata {
   download_time: string;
 }
 
+export interface ModpackSourceRecord {
+  provider: ProviderKind;
+  mod_id: string;
+  version_id?: string | null;
+  modpack_name?: string | null;
+  modpack_version?: string | null;
+  installed_at: string;
+  managed_project_ids: string[];
+}
+
 export async function getModMetadata(
   installation: KableInstallation,
   jarFilename: string,
 ): Promise<ModMetadata> {
   return invoke("get_mod_metadata", { installation, jarFilename });
+}
+
+export async function getModpackSourceRecords(
+  installation: KableInstallation,
+): Promise<ModpackSourceRecord[]> {
+  return invoke("get_modpack_source_records", { installation });
 }

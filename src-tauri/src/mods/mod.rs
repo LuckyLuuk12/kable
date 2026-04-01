@@ -25,8 +25,11 @@ pub struct ModpackContext {
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum DownloadOrPrepareResult {
-    ModInstalled,
+#[serde(untagged)]
+pub enum DownloadOrPrepareResponse {
+    ModInstalled {
+        success: bool,
+    },
     Modpack {
         modpack: crate::installations::mrpack::MrPackDetailed,
         context: ModpackContext,
@@ -39,7 +42,7 @@ pub async fn download_or_prepare_mod(
     mod_id: &str,
     version_id: Option<&str>,
     installation: &crate::installations::kable_profiles::KableInstallation,
-) -> Result<DownloadOrPrepareResult, String> {
+) -> Result<DownloadOrPrepareResponse, String> {
     fn sanitize_for_path(input: &str) -> String {
         input
             .chars()
@@ -112,172 +115,27 @@ pub async fn download_or_prepare_mod(
                     mod_id: mod_id.to_string(),
                     version_id: version_id.map(|s| s.to_string()),
                 };
-                Ok(DownloadOrPrepareResult::Modpack {
+                Ok(DownloadOrPrepareResponse::Modpack {
                     modpack: detailed,
                     context,
                 })
             } else {
                 // Download as normal mod
                 crate::mods::download_mod(provider, mod_id, version_id, installation).await?;
-                Ok(DownloadOrPrepareResult::ModInstalled)
+                Ok(DownloadOrPrepareResponse::ModInstalled { success: true })
             }
         }
         ProviderKind::CurseForge => {
             // TODO: Add modpack detection for CurseForge if needed
             crate::mods::download_mod(provider, mod_id, version_id, installation).await?;
-            Ok(DownloadOrPrepareResult::ModInstalled)
+            Ok(DownloadOrPrepareResponse::ModInstalled { success: true })
         }
     }
 }
-use crate::installations::mrpack::{self, MrpackIndex, PackFileDetailedGroup, PackFileInfo};
+use crate::installations::mrpack::{self};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 
 use crate::get_temp_dir;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ModpackDiffResult {
-    pub modpack: MrpackIndex,
-    pub new_files: Vec<PackFileInfo>,
-    pub conflicts: Vec<PackFileInfo>,
-}
-
-/// Complete modpack download: move/copy files from temp to correct folders based on user selection
-pub async fn complete_modpack_download(
-    instance_id: String,
-    modpack_id: String,
-    mods: PackFileDetailedGroup,
-    resourcepacks: PackFileDetailedGroup,
-    shaderpacks: PackFileDetailedGroup,
-    install_dir: String,
-) -> Result<(), String> {
-    let temp_dir = get_temp_dir(&instance_id, &modpack_id)?;
-    let install_dir = PathBuf::from(install_dir);
-
-    // Helper to move/copy files to their correct location
-    fn move_files(
-        files: &[PackFileInfo],
-        temp_dir: &std::path::Path,
-        install_dir: &std::path::Path,
-        subfolder: &str,
-        disabled: bool,
-    ) -> Result<(), String> {
-        for file in files {
-            let rel_path = std::path::Path::new(&file.path)
-                .strip_prefix(subfolder)
-                .unwrap_or_else(|_| std::path::Path::new(&file.path));
-            let src = temp_dir.join(subfolder).join(rel_path);
-            let dst = if disabled {
-                install_dir.join(subfolder).join("disabled").join(rel_path)
-            } else {
-                install_dir.join(subfolder).join(rel_path)
-            };
-            if let Some(parent) = dst.parent() {
-                std::fs::create_dir_all(parent)
-                    .map_err(|e| format!("Failed to create parent dir: {e}"))?;
-            }
-            std::fs::copy(&src, &dst).map_err(|e| format!("Failed to copy file: {e}"))?;
-        }
-        Ok(())
-    }
-
-    // Mods
-    move_files(
-        &mods.to_be_installed,
-        &temp_dir,
-        &install_dir,
-        "mods",
-        false,
-    )?;
-    move_files(&mods.optional, &temp_dir, &install_dir, "mods", false)?;
-    move_files(&mods.disabled, &temp_dir, &install_dir, "mods", true)?;
-    // Resourcepacks
-    move_files(
-        &resourcepacks.to_be_installed,
-        &temp_dir,
-        &install_dir,
-        "resourcepacks",
-        false,
-    )?;
-    move_files(
-        &resourcepacks.optional,
-        &temp_dir,
-        &install_dir,
-        "resourcepacks",
-        false,
-    )?;
-    move_files(
-        &resourcepacks.disabled,
-        &temp_dir,
-        &install_dir,
-        "resourcepacks",
-        true,
-    )?;
-    // Shaderpacks
-    move_files(
-        &shaderpacks.to_be_installed,
-        &temp_dir,
-        &install_dir,
-        "shaderpacks",
-        false,
-    )?;
-    move_files(
-        &shaderpacks.optional,
-        &temp_dir,
-        &install_dir,
-        "shaderpacks",
-        false,
-    )?;
-    move_files(
-        &shaderpacks.disabled,
-        &temp_dir,
-        &install_dir,
-        "shaderpacks",
-        true,
-    )?;
-
-    // Optionally: clean up temp dir
-    let _ = std::fs::remove_dir_all(&temp_dir);
-    Ok(())
-}
-
-/// Prepare modpack diff: extract, load index, diff mods, cleanup temp after
-pub async fn prepare_modpack_diff(
-    mrpack_path: String,
-    installation_dir: String,
-    subfolder: Option<String>,
-) -> Result<ModpackDiffResult, String> {
-    let mrpack_path = PathBuf::from(mrpack_path);
-    let installation_dir = PathBuf::from(installation_dir);
-    let subfolder = subfolder.unwrap_or_else(|| "mods".to_string());
-    // For now, instance_id and modpack_id must be provided by frontend or derived from install path and manifest
-    // Here, we derive them from installation_dir and mrpack_path for demo (should be improved)
-    let instance_id = installation_dir
-        .file_name()
-        .and_then(|s| s.to_str())
-        .unwrap_or("default_instance");
-    // Load index from mrpack to get modpack_id
-    let temp_extract_dir = get_temp_dir(instance_id, "_extract_for_id")?;
-    crate::ensure_folder_sync(&temp_extract_dir)?;
-    mrpack::extract_mrpack(&mrpack_path, &temp_extract_dir)
-        .map_err(|e| format!("Failed to extract mrpack: {e}"))?;
-    let index = mrpack::load_index(&temp_extract_dir)
-        .map_err(|e| format!("Failed to load modrinth.index.json: {e}"))?;
-    let modpack_id = crate::installations::mrpack::generate_modpack_id(&index);
-    let temp_dir = get_temp_dir(instance_id, &modpack_id)?;
-    crate::ensure_folder_sync(&temp_dir)?;
-    mrpack::extract_mrpack(&mrpack_path, &temp_dir)
-        .map_err(|e| format!("Failed to extract mrpack: {e}"))?;
-    let groups = mrpack::list_pack_files(&index);
-    let (conflicts, new_files) =
-        mrpack::diff_pack_files(&groups.mods, &installation_dir, &subfolder)
-            .map_err(|e| format!("Failed to diff pack files: {e}"))?;
-    Ok(ModpackDiffResult {
-        modpack: index,
-        new_files,
-        conflicts,
-    })
-}
 
 /// Apply modpack selection: takes a KableInstallation and ModpackSelection, moves files accordingly
 pub async fn apply_modpack_selection(
@@ -315,6 +173,7 @@ pub async fn apply_modpack_selection(
     }
 
     async fn install_file(
+        client: &reqwest::Client,
         file: &mrpack::MrpackFile,
         target: &std::path::Path,
         overwrite: bool,
@@ -324,11 +183,6 @@ pub async fn apply_modpack_selection(
         }
 
         let mut last_error: Option<String> = None;
-        let client = reqwest::Client::builder()
-            .user_agent("kable/1.0 (+https://github.com/LuckyLuuk12/kable)")
-            .build()
-            .map_err(|e| format!("Failed to build HTTP client: {e}"))?;
-
         let mut verified_bytes: Option<Vec<u8>> = None;
         for url in &file.downloads {
             let response = match client.get(url).send().await {
@@ -383,22 +237,131 @@ pub async fn apply_modpack_selection(
             .map_err(|e| format!("Failed to write {}: {e}", target.display()))
     }
 
+    fn parse_modrinth_ids(downloads: &[String]) -> Option<(String, String)> {
+        for url in downloads {
+            let clean = url.split('?').next().unwrap_or(url.as_str());
+            let parts: Vec<&str> = clean.split('/').collect();
+
+            let data_idx = parts.iter().position(|p| *p == "data")?;
+            let versions_idx = parts.iter().position(|p| *p == "versions")?;
+
+            let project_id = parts.get(data_idx + 1)?;
+            let version_id = parts.get(versions_idx + 1)?;
+
+            if !project_id.is_empty() && !version_id.is_empty() {
+                return Some(((*project_id).to_string(), (*version_id).to_string()));
+            }
+        }
+
+        None
+    }
+
+    #[derive(Debug, Deserialize)]
+    struct ModrinthVersionDetails {
+        version_number: String,
+    }
+
+    async fn resolve_modrinth_version_number(
+        client: &reqwest::Client,
+        version_id: &str,
+        cache: &mut HashMap<String, Option<String>>,
+    ) -> Option<String> {
+        if let Some(cached) = cache.get(version_id) {
+            return cached.clone();
+        }
+
+        let url = format!("https://api.modrinth.com/v2/version/{version_id}");
+        let result = match client.get(&url).send().await {
+            Ok(resp) if resp.status().is_success() => {
+                match resp.json::<ModrinthVersionDetails>().await {
+                    Ok(details) => Some(details.version_number),
+                    Err(_) => None,
+                }
+            }
+            _ => None,
+        };
+
+        cache.insert(version_id.to_string(), result.clone());
+        result
+    }
+
+    async fn remove_old_mod_versions_by_project_id(
+        mods_dir: &std::path::Path,
+        project_id: &str,
+    ) -> Result<(), String> {
+        for dir in [mods_dir.to_path_buf(), mods_dir.join("disabled")] {
+            if !dir.exists() {
+                continue;
+            }
+
+            let mut entries = tokio::fs::read_dir(&dir)
+                .await
+                .map_err(|e| format!("Failed to read mods folder {}: {e}", dir.display()))?;
+
+            while let Some(entry) = entries
+                .next_entry()
+                .await
+                .map_err(|e| format!("Failed to iterate mods folder {}: {e}", dir.display()))?
+            {
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) != Some("jar") {
+                    continue;
+                }
+
+                let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+                    continue;
+                };
+
+                let metadata_path = dir.join(format!("{}.kable_metadata.json", file_name));
+                if !metadata_path.exists() {
+                    continue;
+                }
+
+                let metadata_content = match tokio::fs::read_to_string(&metadata_path).await {
+                    Ok(content) => content,
+                    Err(_) => continue,
+                };
+
+                let metadata = match serde_json::from_str::<ModMetadata>(&metadata_content) {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                };
+
+                if metadata.project_id == project_id {
+                    let _ = tokio::fs::remove_file(&path).await;
+                    let _ = tokio::fs::remove_file(&metadata_path).await;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     async fn install_group(
         group: &ModpackSelectionGroup,
         subfolder: &str,
         target_root: &std::path::Path,
+        mods_root: &std::path::Path,
         files_by_path: &HashMap<String, mrpack::MrpackFile>,
+        client: &reqwest::Client,
+        version_cache: &mut HashMap<String, Option<String>>,
     ) -> Result<(), String> {
         let overwrite_set: HashSet<&str> =
             group.overwrite_paths.iter().map(String::as_str).collect();
+        let mut removed_projects: HashSet<String> = HashSet::new();
 
+        #[allow(clippy::too_many_arguments)]
         async fn install_paths(
             paths: &[String],
             subfolder: &str,
             target_root: &std::path::Path,
+            mods_root: &std::path::Path,
             files_by_path: &HashMap<String, mrpack::MrpackFile>,
             overwrite_set: &HashSet<&str>,
             disabled: bool,
+            client: &reqwest::Client,
+            version_cache: &mut HashMap<String, Option<String>>,
+            removed_projects: &mut HashSet<String>,
         ) -> Result<(), String> {
             for selected_path in paths {
                 let file = files_by_path.get(selected_path).ok_or_else(|| {
@@ -414,35 +377,82 @@ pub async fn apply_modpack_selection(
                     target_root.join(rel_path)
                 };
 
-                install_file(file, &target, overwrite_set.contains(file.path.as_str())).await?;
+                let identity = if subfolder == "mods" {
+                    parse_modrinth_ids(&file.downloads)
+                } else {
+                    None
+                };
+
+                if let Some((project_id, _version_id)) = &identity {
+                    if !removed_projects.contains(project_id) {
+                        remove_old_mod_versions_by_project_id(mods_root, project_id).await?;
+                        removed_projects.insert(project_id.clone());
+                    }
+                }
+
+                let overwrite = overwrite_set.contains(file.path.as_str()) || identity.is_some();
+                install_file(client, file, &target, overwrite).await?;
+
+                if let Some((project_id, version_id)) = identity {
+                    if let Some(file_name) = target.file_name().and_then(|n| n.to_str()) {
+                        let metadata_dir = target.parent().unwrap_or(mods_root);
+                        let version_number =
+                            resolve_modrinth_version_number(client, &version_id, version_cache)
+                                .await
+                                .unwrap_or_else(|| version_id.clone());
+
+                        // Best-effort metadata write so installed detection can be identity-based.
+                        let _ = crate::mods::modrinth::save_mod_metadata(
+                            metadata_dir,
+                            file_name,
+                            &project_id,
+                            &version_number,
+                            &version_id,
+                        )
+                        .await;
+                    }
+                }
             }
             Ok(())
         }
+
         install_paths(
             &group.enabled,
             subfolder,
             target_root,
+            mods_root,
             files_by_path,
             &overwrite_set,
             false,
+            client,
+            version_cache,
+            &mut removed_projects,
         )
         .await?;
         install_paths(
             &group.optional,
             subfolder,
             target_root,
+            mods_root,
             files_by_path,
             &overwrite_set,
             false,
+            client,
+            version_cache,
+            &mut removed_projects,
         )
         .await?;
         install_paths(
             &group.disabled,
             subfolder,
             target_root,
+            mods_root,
             files_by_path,
             &overwrite_set,
             true,
+            client,
+            version_cache,
+            &mut removed_projects,
         )
         .await
     }
@@ -470,28 +480,111 @@ pub async fn apply_modpack_selection(
     let resourcepacks_root = installation.find_resourcepacks_dir()?;
     let shaderpacks_root = installation.find_shaderpacks_dir()?;
 
-    install_group(&selection.mods, "mods", &mods_root, &files_by_path).await?;
+    let client = reqwest::Client::builder()
+        .user_agent("kable/1.0 (+https://github.com/LuckyLuuk12/kable)")
+        .build()
+        .map_err(|e| format!("Failed to build HTTP client: {e}"))?;
+    let mut version_cache: HashMap<String, Option<String>> = HashMap::new();
+
+    install_group(
+        &selection.mods,
+        "mods",
+        &mods_root,
+        &mods_root,
+        &files_by_path,
+        &client,
+        &mut version_cache,
+    )
+    .await?;
     install_group(
         &selection.resourcepacks,
         "resourcepacks",
         &resourcepacks_root,
+        &mods_root,
         &files_by_path,
+        &client,
+        &mut version_cache,
     )
     .await?;
     install_group(
         &selection.shaderpacks,
         "shaderpacks",
         &shaderpacks_root,
+        &mods_root,
         &files_by_path,
+        &client,
+        &mut version_cache,
     )
     .await?;
+
+    let mut managed_project_ids: HashSet<String> = HashSet::new();
+    for selected_path in selection
+        .mods
+        .enabled
+        .iter()
+        .chain(selection.mods.optional.iter())
+        .chain(selection.mods.disabled.iter())
+    {
+        if let Some(file) = files_by_path.get(selected_path) {
+            if let Some((project_id, _)) = parse_modrinth_ids(&file.downloads) {
+                managed_project_ids.insert(project_id);
+            }
+        }
+    }
+
+    if !managed_project_ids.is_empty() {
+        let mut managed_project_ids: Vec<String> = managed_project_ids.into_iter().collect();
+        managed_project_ids.sort();
+
+        upsert_modpack_source_record(
+            &installation,
+            context.provider,
+            &context.mod_id,
+            context.version_id.clone(),
+            Some(index.name.clone()),
+            Some(index.version_id.clone()),
+            managed_project_ids,
+        )
+        .await?;
+    }
 
     mrpack::extract_overrides_to_profile(&extracted_dir, &installation_root)
         .map_err(|e| format!("Failed to apply modpack overrides: {e}"))?;
 
     // Best-effort temp cleanup after successful install.
-    if let Some(temp_root) = extracted_dir.parent() {
-        let _ = std::fs::remove_dir_all(temp_root);
+    let mrpack_file = std::path::PathBuf::from(&context.mrpack_path);
+
+    if extracted_dir.exists() {
+        let _ = std::fs::remove_dir_all(&extracted_dir);
+    }
+    if mrpack_file.exists() {
+        let _ = std::fs::remove_file(&mrpack_file);
+    }
+
+    let extracted_parent = extracted_dir.parent().map(std::path::Path::to_path_buf);
+    let mrpack_parent = mrpack_file.parent().map(std::path::Path::to_path_buf);
+
+    let mut cleanup_targets = Vec::<std::path::PathBuf>::new();
+    if let Some(p) = extracted_parent {
+        cleanup_targets.push(p);
+    }
+    if let Some(p) = mrpack_parent {
+        cleanup_targets.push(p);
+    }
+
+    cleanup_targets.sort();
+    cleanup_targets.dedup();
+
+    for target in cleanup_targets {
+        if target.exists() {
+            if let Err(e) = std::fs::remove_dir_all(&target) {
+                eprintln!(
+                    "[Modpack] Temp cleanup failed for {}: {}",
+                    target.display(),
+                    e
+                );
+            }
+        }
     }
 
     Ok(())
@@ -640,6 +733,161 @@ pub struct ModMetadata {
     #[serde(default)]
     pub modrinth_version_id: Option<String>,
     pub download_time: String,
+}
+
+const MODPACK_SOURCES_FILE: &str = ".kable_modpack_sources.json";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModpackSourceRecord {
+    pub provider: ProviderKind,
+    pub mod_id: String,
+    pub version_id: Option<String>,
+    pub modpack_name: Option<String>,
+    pub modpack_version: Option<String>,
+    pub installed_at: String,
+    pub managed_project_ids: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+struct ModpackSourcesState {
+    #[serde(default)]
+    records: Vec<ModpackSourceRecord>,
+}
+
+async fn load_modpack_sources_state(
+    mods_dir: &std::path::Path,
+) -> Result<ModpackSourcesState, String> {
+    let state_path = mods_dir.join(MODPACK_SOURCES_FILE);
+    if !state_path.exists() {
+        return Ok(ModpackSourcesState::default());
+    }
+
+    let content = tokio::fs::read_to_string(&state_path)
+        .await
+        .map_err(|e| format!("Failed to read modpack sources file: {}", e))?;
+
+    serde_json::from_str::<ModpackSourcesState>(&content)
+        .map_err(|e| format!("Failed to parse modpack sources file: {}", e))
+}
+
+async fn save_modpack_sources_state(
+    mods_dir: &std::path::Path,
+    state: &ModpackSourcesState,
+) -> Result<(), String> {
+    let state_path = mods_dir.join(MODPACK_SOURCES_FILE);
+    let content = serde_json::to_string_pretty(state)
+        .map_err(|e| format!("Failed to serialize modpack sources file: {}", e))?;
+
+    tokio::fs::write(&state_path, content)
+        .await
+        .map_err(|e| format!("Failed to write modpack sources file: {}", e))
+}
+
+async fn upsert_modpack_source_record(
+    installation: &KableInstallation,
+    provider: ProviderKind,
+    mod_id: &str,
+    version_id: Option<String>,
+    modpack_name: Option<String>,
+    modpack_version: Option<String>,
+    managed_project_ids: Vec<String>,
+) -> Result<(), String> {
+    let mods_dir = installation.find_mods_dir()?;
+    let mut state = load_modpack_sources_state(&mods_dir).await?;
+
+    let now = chrono::Utc::now().to_rfc3339();
+    if let Some(existing) = state
+        .records
+        .iter_mut()
+        .find(|r| r.provider == provider && r.mod_id == mod_id && r.version_id == version_id)
+    {
+        existing.modpack_name = modpack_name;
+        existing.modpack_version = modpack_version;
+        existing.installed_at = now;
+        existing.managed_project_ids = managed_project_ids;
+    } else {
+        state.records.push(ModpackSourceRecord {
+            provider,
+            mod_id: mod_id.to_string(),
+            version_id,
+            modpack_name,
+            modpack_version,
+            installed_at: now,
+            managed_project_ids,
+        });
+    }
+
+    save_modpack_sources_state(&mods_dir, &state).await
+}
+
+async fn collect_installed_project_ids(
+    installation: &KableInstallation,
+) -> Result<std::collections::HashSet<String>, String> {
+    let mods_dir = installation.find_mods_dir()?;
+    let mut project_ids = std::collections::HashSet::new();
+
+    for dir in [mods_dir.clone(), mods_dir.join("disabled")] {
+        if !dir.exists() {
+            continue;
+        }
+
+        let mut entries = tokio::fs::read_dir(&dir)
+            .await
+            .map_err(|e| format!("Failed to read mods folder {}: {}", dir.display(), e))?;
+
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| format!("Failed to iterate mods folder {}: {}", dir.display(), e))?
+        {
+            let path = entry.path();
+            let Some(file_name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if !file_name.ends_with(".kable_metadata.json") {
+                continue;
+            }
+
+            let content = match tokio::fs::read_to_string(&path).await {
+                Ok(c) => c,
+                Err(_) => continue,
+            };
+
+            if let Ok(meta) = serde_json::from_str::<ModMetadata>(&content) {
+                project_ids.insert(meta.project_id);
+            }
+        }
+    }
+
+    Ok(project_ids)
+}
+
+pub async fn get_modpack_source_records(
+    installation: &KableInstallation,
+) -> Result<Vec<ModpackSourceRecord>, String> {
+    let mods_dir = installation.find_mods_dir()?;
+    let state = load_modpack_sources_state(&mods_dir).await?;
+    let installed_project_ids = collect_installed_project_ids(installation).await?;
+
+    let mut visible_records: Vec<ModpackSourceRecord> = state
+        .records
+        .into_iter()
+        .filter_map(|mut record| {
+            let active_ids: Vec<String> = record
+                .managed_project_ids
+                .into_iter()
+                .filter(|id| installed_project_ids.contains(id))
+                .collect();
+            if active_ids.is_empty() {
+                return None;
+            }
+            record.managed_project_ids = active_ids;
+            Some(record)
+        })
+        .collect();
+
+    visible_records.sort_by(|a, b| b.installed_at.cmp(&a.installed_at));
+    Ok(visible_records)
 }
 
 pub async fn get_mod_metadata(
