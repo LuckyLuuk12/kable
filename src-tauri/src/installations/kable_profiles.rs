@@ -1255,14 +1255,14 @@ impl KableInstallation {
             if custom_path.is_absolute() {
                 Some(custom_path)
             } else {
-                // Relative paths are relative to .minecraft/.kable/
-                // They already include the folder type prefix (e.g., "mods/{id}")
-                // Just normalize the separators
+                // Relative paths are rooted under .minecraft/.kable/mods and may be
+                // stored as either "mods/{id}" (new) or just "{id}" (legacy).
                 let normalized = custom_mods.replace('\\', "/");
+                let cleaned = normalized.strip_prefix("mods/").unwrap_or(&normalized);
 
                 crate::get_minecraft_kable_dir()
                     .ok()
-                    .map(|dir| dir.join(normalized))
+                    .map(|dir| dir.join("mods").join(cleaned))
             }
         } else {
             None
@@ -1301,21 +1301,7 @@ impl KableInstallation {
 
         // 1. Look for -Dfabric.modsFolder=... or -DmodsFolder=... in arguments.jvm array (case-insensitive, robust)
         if let Some(arguments) = json.get("arguments") {
-            Logger::debug_global(
-                &format!(
-                    "Checking JVM arguments for mods folder in {}",
-                    version_json.display()
-                ),
-                None,
-            );
             if let Some(jvm_args) = arguments.get("jvm") {
-                Logger::debug_global(
-                    &format!(
-                        "Checking JVM arguments for mods folder in {}",
-                        version_json.display()
-                    ),
-                    None,
-                );
                 if let Some(arr) = jvm_args.as_array() {
                     let re = regex::Regex::new(r"(?i)-d(fabric\.)?modsfolder=(.+)").unwrap();
                     for arg in arr {
@@ -1372,33 +1358,60 @@ impl KableInstallation {
     /// Try to locate the mods directory for this installation using the same
     /// candidate order as get_mod_info. Returns an Err(String) when no
     /// directory could be found.
-    fn find_mods_dir(&self) -> Result<PathBuf, String> {
+    pub fn find_mods_dir(&self) -> Result<PathBuf, String> {
         use crate::logging::Logger;
+        let legacy_default_dir = crate::get_default_minecraft_dir()
+            .ok()
+            .map(|dir| dir.join("mods"));
+        let preferred_kable_dir = crate::get_minecraft_kable_dir()
+            .ok()
+            .map(|dir| dir.join("mods").join(&self.id));
+
         let mods_dirs = [
             self.get_dedicated_mods_folder_path(),
             self.get_mods_folder_from_version_manifest(),
-            crate::get_minecraft_kable_dir()
-                .ok()
-                .map(|dir| dir.join("mods").join(&self.id)), // Use installation ID
+            preferred_kable_dir,
+            legacy_default_dir,
         ];
-        let mut found_dir = None;
-        for (i, dir_opt) in mods_dirs.iter().enumerate() {
-            if let Some(dir) = dir_opt {
-                Logger::debug_global(
-                    &format!("Checking mods dir candidate {}: {}", i, dir.display()),
-                    None,
-                );
+
+        let existing = mods_dirs.iter().find_map(|dir_opt| {
+            dir_opt.as_ref().and_then(|dir| {
                 if dir.exists() {
-                    Logger::debug_global(&format!("✅ Using mods dir: {}", dir.display()), None);
-                    found_dir = Some(dir.clone());
-                    break;
+                    Some(dir.clone())
+                } else {
+                    None
                 }
-            }
-        }
-        match found_dir {
-            Some(d) => Ok(d),
-            None => Err("No mods directory found for installation".to_string()),
-        }
+            })
+        });
+
+        let selected = if let Some(existing) = existing {
+            existing
+        } else {
+            // No candidate existed yet, so create the first meaningful one.
+            mods_dirs.into_iter().flatten().next().ok_or_else(|| {
+                "No mods directory candidate available for installation".to_string()
+            })?
+        };
+
+        std::fs::create_dir_all(&selected).map_err(|e| {
+            format!(
+                "Failed to create mods directory '{}': {}",
+                selected.display(),
+                e
+            )
+        })?;
+
+        let disabled = selected.join("disabled");
+        std::fs::create_dir_all(&disabled).map_err(|e| {
+            format!(
+                "Failed to create disabled mods directory '{}': {}",
+                disabled.display(),
+                e
+            )
+        })?;
+
+        Logger::debug_global(&format!("✅ Using mods dir: {}", selected.display()), None);
+        Ok(selected)
     }
 
     /// Move the given mod JAR into the installation's disabled/ subfolder.
@@ -1488,14 +1501,18 @@ impl KableInstallation {
     }
 
     /// Get the resourcepacks folder path for this installation
-    fn find_resourcepacks_dir(&self) -> Result<PathBuf, String> {
+    pub fn find_resourcepacks_dir(&self) -> Result<PathBuf, String> {
         if let Some(ref dedicated_folder) = self.dedicated_resource_pack_folder {
             let path = PathBuf::from(dedicated_folder);
             if path.is_absolute() {
                 return Ok(path);
             } else {
+                let normalized = dedicated_folder.replace('\\', "/");
+                let cleaned = normalized
+                    .strip_prefix("resourcepacks/")
+                    .unwrap_or(&normalized);
                 let kable_dir = crate::get_minecraft_kable_dir()?;
-                return Ok(kable_dir.join(dedicated_folder));
+                return Ok(kable_dir.join("resourcepacks").join(cleaned));
             }
         }
 
@@ -1985,34 +2002,7 @@ impl KableInstallation {
             ),
             None,
         );
-        let mods_dirs = [
-            self.get_dedicated_mods_folder_path(),
-            self.get_mods_folder_from_version_manifest(),
-            crate::get_minecraft_kable_dir()
-                .ok()
-                .map(|dir| dir.join("mods").join(&self.id)), // Use installation ID, not version ID
-        ];
-        let mut found_dir = None;
-        for (i, dir_opt) in mods_dirs.iter().enumerate() {
-            if let Some(dir) = dir_opt {
-                Logger::debug_global(
-                    &format!("Checking mods dir candidate {}: {}", i, dir.display()),
-                    None,
-                );
-                if dir.exists() {
-                    Logger::debug_global(&format!("✅ Using mods dir: {}", dir.display()), None);
-                    found_dir = Some(dir.clone());
-                    break;
-                }
-            }
-        }
-        let mods_dir = match found_dir {
-            Some(d) => d,
-            None => {
-                Logger::debug_global("No mods directory found for installation", None);
-                return Ok(vec![]);
-            }
-        };
+        let mods_dir = self.find_mods_dir()?;
 
         // Collect all JAR file paths (both active and disabled)
         let mut jar_paths: Vec<(PathBuf, bool)> = Vec::new();
@@ -2445,14 +2435,18 @@ impl KableInstallation {
     }
 
     /// Get the shaderpacks folder path for this installation
-    fn find_shaderpacks_dir(&self) -> Result<PathBuf, String> {
+    pub fn find_shaderpacks_dir(&self) -> Result<PathBuf, String> {
         if let Some(ref dedicated_folder) = self.dedicated_shaders_folder {
             let path = PathBuf::from(dedicated_folder);
             if path.is_absolute() {
                 return Ok(path);
             } else {
+                let normalized = dedicated_folder.replace('\\', "/");
+                let cleaned = normalized
+                    .strip_prefix("shaderpacks/")
+                    .unwrap_or(&normalized);
                 let kable_dir = crate::get_minecraft_kable_dir()?;
-                return Ok(kable_dir.join(dedicated_folder));
+                return Ok(kable_dir.join("shaderpacks").join(cleaned));
             }
         }
 

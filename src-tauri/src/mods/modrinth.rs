@@ -1,4 +1,7 @@
-use crate::{kable_profiles::KableInstallation, mods::cache::ModCache, mods::manager::*};
+use crate::{
+    kable_profiles::KableInstallation, mods::cache::ModCache, mods::manager::*,
+    mods::modrinth_versions_cache::*,
+};
 use kable_macros::log_result;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
@@ -201,8 +204,20 @@ pub struct ModrinthFile {
 /// Response from /project/{id}/dependencies endpoint
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ProjectDependencies {
-    pub projects: Vec<ModrinthInfo>,
+    pub projects: Vec<DependencyProject>,
     pub versions: Vec<ModrinthVersion>,
+}
+
+/// Lightweight project payload used by /project/{id}/dependencies.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DependencyProject {
+    /// The endpoint returns this as `id` (sometimes `project_id` in other payloads).
+    #[serde(rename = "id", alias = "project_id")]
+    pub project_id: String,
+    #[serde(default)]
+    pub slug: String,
+    #[serde(default)]
+    pub title: String,
 }
 
 /// Dependency type from version dependencies
@@ -394,41 +409,8 @@ impl ModProvider for ModrinthProvider {
         version_id: Option<&str>,
         installation: &KableInstallation,
     ) -> Result<(), String> {
-        // Determine the mods directory for the installation
-        use std::path::PathBuf;
-        let mods_dir: PathBuf = if let Some(ref custom_mods) = installation.dedicated_mods_folder {
-            let custom_path = PathBuf::from(custom_mods);
-            if custom_path.is_absolute() {
-                custom_path
-            } else {
-                let mc_dir = crate::get_minecraft_kable_dir()?;
-                mc_dir.join(custom_mods)
-            }
-        } else {
-            let mc_dir = crate::get_minecraft_kable_dir()?;
-            mc_dir.join("mods").join(&installation.version_id)
-        };
-
-        // Ensure the mods directory exists (async)
-        crate::ensure_parent_dir_exists_async(&mods_dir)
-            .await
-            .map_err(|e| format!("Failed to create mods directory: {}", e))?;
-
-        // Disable any existing versions of this mod (same project_id)
-        // and check if the old version was in the disabled folder
-        let was_disabled = disable_old_mod_versions(&mods_dir, mod_id).await?;
-
-        // Determine target directory based on whether old mod was disabled
-        let download_dir = if was_disabled {
-            let disabled_dir = mods_dir.join("disabled");
-            crate::ensure_parent_dir_exists_async(&disabled_dir)
-                .await
-                .map_err(|e| format!("Failed to create disabled directory: {}", e))?;
-            println!("[ModrinthProvider] Old mod was disabled, downloading new version to disabled folder");
-            disabled_dir
-        } else {
-            mods_dir.clone()
-        };
+        // Centralized path resolution and directory creation.
+        let mods_dir = installation.find_mods_dir()?;
 
         // If specific version_id provided, download that version
         if let Some(version_id) = version_id {
@@ -437,6 +419,34 @@ impl ModProvider for ModrinthProvider {
                 .into_iter()
                 .find(|v| v.id == version_id)
                 .ok_or("Specified mod version not found")?;
+
+            // Check if this is a modpack by looking for a .mrpack file
+            if let Some(mrpack_file) = version
+                .files
+                .iter()
+                .find(|f| f.filename.ends_with(".mrpack"))
+            {
+                // Download .mrpack to temp dir
+                let instance_id = &installation.id;
+                let temp_dir = crate::get_temp_dir(instance_id, mod_id)?;
+                crate::ensure_parent_dir_exists_async(&temp_dir).await?;
+                download_mod_file(&mrpack_file.url, &temp_dir.join(&mrpack_file.filename)).await?;
+                // Do not save metadata or resolve dependencies for modpacks here
+                return Ok(());
+            }
+
+            // Normal mod download flow: disable old versions and determine download_dir
+            let was_disabled = disable_old_mod_versions(&mods_dir, mod_id).await?;
+            let download_dir = if was_disabled {
+                let disabled_dir = mods_dir.join("disabled");
+                crate::ensure_parent_dir_exists_async(&disabled_dir)
+                    .await
+                    .map_err(|e| format!("Failed to create disabled directory: {}", e))?;
+                println!("[ModrinthProvider] Old mod was disabled, downloading new version to disabled folder");
+                disabled_dir
+            } else {
+                mods_dir.clone()
+            };
 
             let mut files_iter = version.files.into_iter();
             let file = files_iter
@@ -454,6 +464,7 @@ impl ModProvider for ModrinthProvider {
                 &file.filename,
                 mod_id,
                 &version.version_number,
+                &version.id,
             )
             .await?;
 
@@ -503,6 +514,20 @@ impl ModProvider for ModrinthProvider {
             version.version_number, version.id
         );
 
+        // Disable any existing versions of this mod (same project_id)
+        // and check if the old version was in the disabled folder
+        let was_disabled = disable_old_mod_versions(&mods_dir, mod_id).await?;
+        let download_dir = if was_disabled {
+            let disabled_dir = mods_dir.join("disabled");
+            crate::ensure_parent_dir_exists_async(&disabled_dir)
+                .await
+                .map_err(|e| format!("Failed to create disabled directory: {}", e))?;
+            println!("[ModrinthProvider] Old mod was disabled, downloading new version to disabled folder");
+            disabled_dir
+        } else {
+            mods_dir.clone()
+        };
+
         let mut files_iter = version.files.into_iter();
         let file = files_iter
             .clone()
@@ -519,6 +544,7 @@ impl ModProvider for ModrinthProvider {
             &file.filename,
             mod_id,
             &version.version_number,
+            &version.id,
         )
         .await?;
 
@@ -820,18 +846,32 @@ pub async fn get_projects(project_ids: Vec<String>) -> Result<Vec<ModrinthInfo>,
 
 /// Get versions for a Modrinth project filtered by loaders and game versions
 /// See: https://docs.modrinth.com/api/operations/getprojectversions/
-#[log_result]
 pub async fn get_project_versions_filtered(
     project_id: &str,
     loaders: Option<Vec<String>>,
     game_versions: Option<Vec<String>>,
 ) -> Result<Vec<ModrinthVersion>, String> {
+    // Build a cache key based on project_id, loaders, and game_versions
+    let mut key = project_id.to_string();
+    if let Some(ref l) = loaders {
+        key.push_str(&format!("|loaders:{}", l.join(",")));
+    }
+    if let Some(ref gv) = game_versions {
+        key.push_str(&format!("|game_versions:{}", gv.join(",")));
+    }
+    // Try cache first
+    if let Some(cached) = get_cached_versions(&key) {
+        println!(
+            "[ModrinthAPI] Returning cached filtered versions for key: {} ({} versions)",
+            key,
+            cached.len()
+        );
+        return Ok(cached);
+    }
+    // Not cached or stale, fetch from API
     let client = Client::new();
     let mut url = format!("https://api.modrinth.com/v2/project/{}/version", project_id);
-
     let mut params = Vec::new();
-
-    // Add loaders parameter (e.g., ["fabric", "forge"])
     if let Some(loaders) = loaders {
         if !loaders.is_empty() {
             let loaders_json = serde_json::to_string(&loaders)
@@ -839,8 +879,6 @@ pub async fn get_project_versions_filtered(
             params.push(format!("loaders={}", urlencoding::encode(&loaders_json)));
         }
     }
-
-    // Add game_versions parameter (e.g., ["1.20.1", "1.20.2"])
     if let Some(game_versions) = game_versions {
         if !game_versions.is_empty() {
             let game_versions_json = serde_json::to_string(&game_versions)
@@ -851,27 +889,20 @@ pub async fn get_project_versions_filtered(
             ));
         }
     }
-
     if !params.is_empty() {
         url.push('?');
         url.push_str(&params.join("&"));
     }
-
     println!("[ModrinthAPI] Fetching filtered versions from: {}", url);
-
     let resp = client
         .get(&url)
         .send()
         .await
         .map_err(|e| format!("Modrinth get filtered versions failed: {e}"))?;
-
-    // Get the response text first to debug parse errors
     let response_text = resp
         .text()
         .await
         .map_err(|e| format!("Modrinth get filtered versions response read failed: {e}"))?;
-
-    // Check if Modrinth returned an error response
     if let Ok(error_check) = serde_json::from_str::<serde_json::Value>(&response_text) {
         if let Some(error) = error_check.get("error") {
             let error_type = error.as_str().unwrap_or("unknown");
@@ -885,9 +916,7 @@ pub async fn get_project_versions_filtered(
             ));
         }
     }
-
     let versions: Vec<ModrinthVersion> = serde_json::from_str(&response_text).map_err(|e| {
-        // Show first 500 chars of JSON to help debug
         let preview = if response_text.len() > 500 {
             format!("{}...", &response_text[..500])
         } else {
@@ -895,11 +924,11 @@ pub async fn get_project_versions_filtered(
         };
         format!("Modrinth get filtered versions parse failed: {e}\nJSON preview: {preview}")
     })?;
-
     println!(
         "[ModrinthAPI] Received {} filtered versions",
         versions.len()
     );
+    set_cached_versions(&key, versions.clone());
     Ok(versions)
 }
 
@@ -1139,6 +1168,7 @@ pub async fn save_mod_metadata(
     file_name: &str,
     project_id: &str,
     version_number: &str,
+    modrinth_version_id: &str,
 ) -> Result<(), String> {
     use tokio::fs;
 
@@ -1146,6 +1176,7 @@ pub async fn save_mod_metadata(
         "project_id": project_id,
         "file_name": file_name,
         "version_number": version_number,
+        "modrinth_version_id": modrinth_version_id,
         "download_time": chrono::Utc::now().to_rfc3339(),
     });
 
@@ -1161,7 +1192,6 @@ pub async fn save_mod_metadata(
 }
 
 /// Get all dependencies for a project
-#[log_result]
 pub async fn get_project_dependencies(project_id: &str) -> Result<ProjectDependencies, String> {
     let client = Client::new();
     let url = format!(
@@ -1198,7 +1228,6 @@ pub async fn get_project_dependencies(project_id: &str) -> Result<ProjectDepende
 }
 
 /// Resolve and install all required dependencies for a project
-#[log_result]
 pub async fn resolve_and_install_dependencies(
     project_id: &str,
     installation: &KableInstallation,
@@ -1223,19 +1252,7 @@ pub async fn resolve_and_install_dependencies(
     };
 
     // Get mods directory to check what's already installed
-    let mods_dir: std::path::PathBuf =
-        if let Some(ref custom_mods) = installation.dedicated_mods_folder {
-            let custom_path = std::path::PathBuf::from(custom_mods);
-            if custom_path.is_absolute() {
-                custom_path
-            } else {
-                let mc_dir = crate::get_minecraft_kable_dir()?;
-                mc_dir.join(custom_mods)
-            }
-        } else {
-            let mc_dir = crate::get_minecraft_kable_dir()?;
-            mc_dir.join("mods").join(&installation.version_id)
-        };
+    let mods_dir: std::path::PathBuf = installation.find_mods_dir()?;
 
     // Load installed mods metadata to check by project_id
     let mut installed_project_ids = std::collections::HashSet::new();
@@ -1266,6 +1283,11 @@ pub async fn resolve_and_install_dependencies(
     // Process each dependency project
     for dep_project in deps.projects {
         let dep_project_id = &dep_project.project_id;
+        let dep_title = if dep_project.title.is_empty() {
+            dep_project_id.as_str()
+        } else {
+            dep_project.title.as_str()
+        };
 
         // Skip if already installed
         if installed_project_ids.contains(dep_project_id) {
@@ -1278,7 +1300,7 @@ pub async fn resolve_and_install_dependencies(
 
         println!(
             "[DependencyResolver] Installing dependency: {} ({})",
-            dep_project.title, dep_project_id
+            dep_title, dep_project_id
         );
 
         // Download the dependency (without version_id to get best match)

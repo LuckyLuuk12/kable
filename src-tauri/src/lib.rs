@@ -351,6 +351,7 @@ pub fn run() {
             // Mods commands
             commands_mods::get_mods,
             commands_mods::download_mod,
+            commands_mods::download_or_prepare_mod,
             commands_mods::get_projects,
             commands_mods::get_project_versions,
             commands_mods::set_provider_filter,
@@ -359,6 +360,7 @@ pub fn run() {
             commands_mods::purge_stale_provider_cache,
             commands_mods::get_extended_mod_info,
             commands_mods::get_mod_metadata,
+            commands_mods::apply_modpack_selection,
             // Shaders commands
             commands_shaders::get_installed_shaders,
             commands_shaders::toggle_shader,
@@ -591,6 +593,13 @@ pub async fn ensure_folder(path: &Path) -> Result<PathBuf, String> {
             }
         }
     }
+}
+
+/// Returns the standardized temp directory for modpack operations.
+/// Example: .kable/tmp/<instance_id>/<modpack_id>/
+pub fn get_temp_dir(instance_id: &str, modpack_id: &str) -> Result<PathBuf, String> {
+    let kable_dir = get_minecraft_kable_dir()?;
+    Ok(kable_dir.join("tmp").join(instance_id).join(modpack_id))
 }
 
 /// Synchronous variant of ensure_folder for use in blocking contexts.

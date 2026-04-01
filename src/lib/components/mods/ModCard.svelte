@@ -20,11 +20,11 @@ author, downloads, and installation status. Supports grid, list, and compact vie
 ```
 -->
 <script lang="ts">
-import { Icon, ProviderKind as ProviderKindEnum, VersionUtils } from "$lib";
-import ModVersionModal from "./ModVersionModal.svelte";
-import * as modsApi from "$lib/api/mods";
 import type { KableInstallation, ModInfoKind, ProviderKind } from "$lib";
+import { Icon, ProviderKind as ProviderKindEnum, VersionUtils } from "$lib";
 import { clickSound, successSound } from "$lib/actions";
+import * as modsApi from "$lib/api/mods";
+import ModVersionModal from "./ModVersionModal.svelte";
 
 type ViewMode = "grid" | "list" | "compact";
 
@@ -408,49 +408,57 @@ function handleCardKeydown(event: KeyboardEvent) {
       </div>
 
       <div class="compact-actions">
-        <button
-          class="compact-versions-btn"
-          on:click={handleVersions}
-          use:clickSound
-          title="View all versions"
-        >
-          <Icon name="list" size="sm" />
-        </button>
-
-        {#if isInstalled && currentInstallation}
-          {#if hasNewerVersion || hasOtherVersions}
-            <button
-              class="compact-update-btn"
-              on:click={handleVersions}
-              use:clickSound
-              title={hasNewerVersion
-                ? `Update from ${installedVersion} to ${latestVersion ?? "???"}`
-                : "Change version"}
-            >
-              <Icon
-                name={hasNewerVersion ? "arrow-up" : "edit"}
-                size="sm"
-                forceType="svg"
-              />
-            </button>
-          {/if}
-        {:else if currentInstallation}
-          <button
-            class="compact-download-btn"
-            on:click={handleDownload}
-            use:successSound
-            disabled={loading}
-            title="Download latest version"
-          >
-            <Icon name="download" size="sm" forceType="svg" />
+        {#if loading}
+          <button class="compact-spinner-btn" disabled title="Downloading...">
+            <Icon name="refresh-cw" size="sm" />
           </button>
         {:else}
-          <div
-            class="compact-no-installation"
-            title="Select installation first"
+          <button
+            class="compact-versions-btn"
+            on:click={handleVersions}
+            use:clickSound
+            title="View all versions"
+            disabled={loading}
           >
-            <Icon name="info" size="sm" />
-          </div>
+            <Icon name="list" size="sm" />
+          </button>
+
+          {#if isInstalled && currentInstallation}
+            {#if hasNewerVersion || hasOtherVersions}
+              <button
+                class="compact-update-btn"
+                on:click={handleVersions}
+                use:clickSound
+                title={hasNewerVersion
+                  ? `Update from ${installedVersion} to ${latestVersion ?? "???"}`
+                  : "Change version"}
+                disabled={loading}
+              >
+                <Icon
+                  name={hasNewerVersion ? "arrow-up" : "edit"}
+                  size="sm"
+                  forceType="svg"
+                />
+              </button>
+            {/if}
+          {:else if currentInstallation}
+            <button
+              class="compact-download-btn"
+              on:click={handleDownload}
+              use:successSound
+              disabled={loading}
+              title="Download latest version"
+            >
+              <Icon name="download" size="sm" forceType="svg" />
+            </button>
+          {:else}
+            <div
+              class="compact-no-installation"
+              title="Select installation first"
+            >
+              <Icon name="info" size="sm" />
+            </div>
+          {/if}
         {/if}
       </div>
     </div>
@@ -501,51 +509,63 @@ function handleCardKeydown(event: KeyboardEvent) {
             </div>
 
             <div class="flex-controls">
-              <button
-                class="control-btn versions-btn"
-                on:click|stopPropagation={handleVersions}
-                use:clickSound
-                title="View all versions"
-              >
-                <Icon name="list" size="sm" />
-              </button>
-              {#if isInstalled && currentInstallation}
-                {#if hasNewerVersion || hasOtherVersions}
-                  <button
-                    class="control-btn update-btn"
-                    on:click|stopPropagation={handleVersions}
-                    use:clickSound
-                    title={hasNewerVersion && latestVersion
-                      ? `Update from ${installedVersion} to ${latestVersion}`
-                      : hasNewerVersion
-                        ? "Update available"
-                        : "Change version"}
-                  >
-                    <Icon
-                      name={hasNewerVersion ? "arrow-up" : "edit"}
-                      size="sm"
-                      forceType="svg"
-                    />
-                  </button>
-                {/if}
-              {:else if currentInstallation}
+              {#if loading}
                 <button
-                  class="control-btn download-btn"
-                  on:click|stopPropagation={handleDownload}
-                  use:successSound
-                  disabled={loading}
-                  title="Download latest version"
+                  class="control-btn spinner-btn"
+                  disabled
+                  title="Downloading..."
                 >
-                  <Icon name="download" size="sm" forceType="svg" />
+                  <Icon name="refresh-cw" size="sm" />
                 </button>
               {:else}
                 <button
-                  class="control-btn disabled-btn"
-                  disabled
-                  title="Select installation first"
+                  class="control-btn versions-btn"
+                  on:click|stopPropagation={handleVersions}
+                  use:clickSound
+                  title="View all versions"
+                  disabled={loading}
                 >
-                  <Icon name="info" size="sm" />
+                  <Icon name="list" size="sm" />
                 </button>
+                {#if isInstalled && currentInstallation}
+                  {#if hasNewerVersion || hasOtherVersions}
+                    <button
+                      class="control-btn update-btn"
+                      on:click|stopPropagation={handleVersions}
+                      use:clickSound
+                      title={hasNewerVersion && latestVersion
+                        ? `Update from ${installedVersion} to ${latestVersion}`
+                        : hasNewerVersion
+                          ? "Update available"
+                          : "Change version"}
+                      disabled={loading}
+                    >
+                      <Icon
+                        name={hasNewerVersion ? "arrow-up" : "edit"}
+                        size="sm"
+                        forceType="svg"
+                      />
+                    </button>
+                  {/if}
+                {:else if currentInstallation}
+                  <button
+                    class="control-btn download-btn"
+                    on:click|stopPropagation={handleDownload}
+                    use:successSound
+                    disabled={loading}
+                    title="Download latest version"
+                  >
+                    <Icon name="download" size="sm" forceType="svg" />
+                  </button>
+                {:else}
+                  <button
+                    class="control-btn disabled-btn"
+                    disabled
+                    title="Select installation first"
+                  >
+                    <Icon name="info" size="sm" />
+                  </button>
+                {/if}
               {/if}
             </div>
           </div>
@@ -681,7 +701,15 @@ function handleCardKeydown(event: KeyboardEvent) {
               </div>
 
               <div class="list-action">
-                {#if isInstalled && currentInstallation}
+                {#if loading}
+                  <button
+                    class="list-spinner-btn"
+                    disabled
+                    title="Downloading..."
+                  >
+                    <Icon name="refresh-cw" size="sm" />
+                  </button>
+                {:else if isInstalled && currentInstallation}
                   {#if hasNewerVersion || hasOtherVersions}
                     <button
                       class="list-update-btn"
@@ -692,6 +720,7 @@ function handleCardKeydown(event: KeyboardEvent) {
                         : hasNewerVersion
                           ? "Update available"
                           : "Change version"}
+                      disabled={loading}
                     >
                       <Icon
                         name={hasNewerVersion ? "arrow-up" : "edit"}

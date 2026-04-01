@@ -1,13 +1,58 @@
-import { invoke } from "@tauri-apps/api/core";
 import type {
   ExtendedModInfo,
   KableInstallation,
   ModFilter,
   ModInfoKind,
   ModJarInfo,
+  ModpackContext,
+  ModpackDiffResult,
+  ModpackPrepareResult,
   ModrinthVersion,
   ProviderKind,
 } from "$lib";
+import { invoke } from "@tauri-apps/api/core";
+
+// Unified mod/modpack download/prepare API
+export async function downloadOrPrepareMod(
+  provider: ProviderKind,
+  modId: string,
+  versionId: string | null,
+  installation: KableInstallation,
+): Promise<ModpackPrepareResult> {
+  return await invoke("download_or_prepare_mod", {
+    provider,
+    modId,
+    versionId,
+    installation,
+  });
+}
+
+// --- Mrpack modpack handling API ---
+export async function prepareModpackDiff(
+  mrpackPath: string,
+  installationDir: string,
+  subfolder?: string,
+): Promise<ModpackDiffResult> {
+  return await invoke("prepare_modpack_diff", {
+    mrpackPath,
+    installationDir,
+    subfolder,
+  });
+}
+
+import type { ModpackSelection } from "$lib";
+
+export async function applyModpackSelection(
+  installation: KableInstallation,
+  selection: ModpackSelection,
+  context: ModpackContext,
+): Promise<void> {
+  return await invoke("apply_modpack_selection", {
+    installation,
+    selection,
+    context,
+  });
+}
 
 export async function getMods(
   provider: ProviderKind,
@@ -125,6 +170,7 @@ export interface ModMetadata {
   project_id: string;
   file_name: string;
   version_number: string;
+  modrinth_version_id?: string | null;
   download_time: string;
 }
 

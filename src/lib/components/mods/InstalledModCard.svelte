@@ -18,19 +18,19 @@ Shows mod icon, name, version, and provides actions:
 ```
 -->
 <script lang="ts">
-import { Icon, NotificationService, ProviderKind, VersionUtils } from "$lib";
 import type {
-  ModJarInfo,
-  KableInstallation,
   ExtendedModInfo,
+  KableInstallation,
   ModInfoKind,
+  ModJarInfo,
   ModrinthVersion,
 } from "$lib";
+import { Icon, NotificationService, ProviderKind, VersionUtils } from "$lib";
+import { clickSound, errorSound } from "$lib/actions";
 import * as installationsApi from "$lib/api/installations";
 import * as modsApi from "$lib/api/mods";
-import ModVersionModal from "./ModVersionModal.svelte";
 import Image from "$lib/components/Image.svelte";
-import { clickSound, errorSound } from "$lib/actions";
+import ModVersionModal from "./ModVersionModal.svelte";
 
 export let mod: ModJarInfo;
 export let installation: KableInstallation;
@@ -54,6 +54,7 @@ let modInfoKind: ModInfoKind | null = null;
 let loadingVersions = false;
 let hasMetadata = false;
 let metadataChecked = false;
+let modMetadata: modsApi.ModMetadata | null = null;
 
 // Update tracking
 let availableVersions: ModrinthVersion[] = [];
@@ -68,20 +69,25 @@ let lastCheckedVersion = "";
 
 $: isDisabled = mod.disabled || false;
 $: displayName = mod.mod_name || mod.file_name.replace(/\.jar$/, "");
-$: version = mod.mod_version || "Unknown";
+// Prefer metadata version_number, then mod.mod_version, then fallback
+$: version =
+  modMetadata?.version_number ||
+  mod.mod_version ||
+  mod.file_name.replace(/\.jar$/, "");
 $: iconUrl = extendedInfo?.icon_uri || null;
 
-// Reset check state if the mod file or version changed
+// Reset check state if the mod file or mod.mod_version changed
 $: if (
   mod.file_name !== lastCheckedFileName ||
-  version !== lastCheckedVersion
+  mod.mod_version !== lastCheckedVersion
 ) {
   lastCheckedFileName = mod.file_name;
-  lastCheckedVersion = version;
+  lastCheckedVersion = mod.mod_version || "";
   metadataChecked = false;
   updateChecked = false;
   hasMetadata = false;
   hasUpdate = false;
+  modMetadata = null;
   // Report no update initially
   onupdatereport?.({
     fileName: mod.file_name,
@@ -91,15 +97,14 @@ $: if (
 }
 
 function checkForUpdatesOnce() {
-  // Check metadata and updates only once per mod file
+  // Check metadata and updates only once per mod file.
   if (!metadataChecked) {
-    checkMetadata();
-    // Check for updates after a short delay to avoid initial load spam
-    setTimeout(() => {
-      if (hasMetadata && !updateChecked) {
-        checkForUpdates();
+    void (async () => {
+      await checkMetadata();
+      if (!updateChecked) {
+        await checkForUpdates();
       }
-    }, 100);
+    })();
   }
 }
 
@@ -108,29 +113,28 @@ async function checkMetadata() {
   metadataChecked = true;
 
   try {
-    await modsApi.getModMetadata(installation, mod.file_name);
+    modMetadata = await modsApi.getModMetadata(installation, mod.file_name);
     hasMetadata = true;
   } catch (error) {
     hasMetadata = false;
+    modMetadata = null;
   }
 }
 
 async function checkForUpdates() {
-  if (updateChecked || checkingUpdate || !extendedInfo) return;
+  if (updateChecked || checkingUpdate) return;
   updateChecked = true;
   checkingUpdate = true;
 
   try {
     // Try to get project ID from extended info
     let projectId: string | null = null;
+    let metadata: modsApi.ModMetadata | null = null;
     const provider = ProviderKind.Modrinth; // Default to Modrinth
 
     // Check for Kable metadata first
     try {
-      const metadata = await modsApi.getModMetadata(
-        installation,
-        mod.file_name,
-      );
+      metadata = await modsApi.getModMetadata(installation, mod.file_name);
       if (metadata?.project_id) {
         projectId = metadata.project_id;
       }
@@ -164,7 +168,9 @@ async function checkForUpdates() {
     availableVersions = versions;
 
     // Find latest version using our robust version comparison with MC version context
-    const currentVersion = mod.mod_version || mod.file_name;
+    const currentVersion =
+      metadata?.version_number || mod.mod_version || mod.file_name;
+    const currentVersionId = metadata?.modrinth_version_id || null;
     const versionNumbers = versions.map((v) => v.version_number);
     latestVersion = VersionUtils.findLatest(
       versionNumbers,
@@ -173,17 +179,20 @@ async function checkForUpdates() {
 
     // Check if we have an update
     if (latestVersion && currentVersion) {
-      hasUpdate = VersionUtils.isNewer(
-        latestVersion,
-        currentVersion,
-        gameVersion || undefined,
-      );
+      const latestVersionObj =
+        versions.find((v) => v.version_number === latestVersion) || null;
+      hasUpdate = currentVersionId
+        ? latestVersionObj
+          ? latestVersionObj.id !== currentVersionId
+          : false
+        : VersionUtils.isNewer(
+            latestVersion,
+            currentVersion,
+            gameVersion || undefined,
+          );
       if (hasUpdate) {
         console.log(
           `[InstalledModCard] Update available for ${displayName}: ${currentVersion} -> ${latestVersion}`,
-        ); // Find the version ID for the latest version
-        const latestVersionObj = versions.find(
-          (v) => v.version_number === latestVersion,
         );
         if (latestVersionObj) {
           // Report update to parent
@@ -297,7 +306,9 @@ async function handleManageVersions(event: MouseEvent) {
 
       // PRIORITY 2: Try to extract project ID from extended info page_uri
       if (extendedInfo?.page_uri) {
-        projectId = extendedInfo.page_uri.split("/").pop() || null;
+        const match = extendedInfo.page_uri.match(/\/mod\/([\w-]+)/);
+        projectId =
+          match?.[1] || extendedInfo.page_uri.split("/").pop() || null;
         console.log(
           `[InstalledModCard] Using project_id from page_uri: ${projectId}`,
         );
@@ -480,7 +491,11 @@ function handleKeydown(event: KeyboardEvent) {
         : "Manage versions"}
       disabled={loading || loadingVersions}
     >
-      <Icon name={hasUpdate ? "arrow-up" : "settings"} size="sm" />
+      <Icon
+        name={hasUpdate ? "arrow-up" : "settings"}
+        size="sm"
+        forceType="svg"
+      />
       <span>{hasUpdate ? "Update" : "Versions"}</span>
     </button>
 
@@ -491,7 +506,7 @@ function handleKeydown(event: KeyboardEvent) {
       title="Remove mod"
       disabled={loading}
     >
-      <Icon name="trash" size="sm" />
+      <Icon name="trash" size="sm" forceType="svg" />
       <span>Remove</span>
     </button>
   </div>

@@ -15,35 +15,36 @@ Provides interface for discovering, searching, and filtering mods with support f
 ```
 -->
 <script lang="ts">
-import { onMount } from "svelte";
-import { get } from "svelte/store";
+import type {
+  FilterFacets,
+  KableInstallation,
+  ModInfoKind,
+  ModJarInfo,
+  ModpackContext,
+  ModrinthFile,
+  ModrinthVersion,
+  MrPackDetailed,
+} from "$lib";
 import {
   Icon,
-  ModsService,
-  VersionUtils,
-  selectedInstallation,
   InstallationService,
+  ModsService,
+  ProviderKind,
   installations,
-  Image,
   modsByProvider,
-  modsLoading,
   modsError,
+  modsLoading,
   modsOffset,
   modsProvider,
-  ProviderKind,
+  selectedInstallation,
 } from "$lib";
-import ModCard from "./ModCard.svelte";
 import { clickSound } from "$lib/actions";
-import * as systemApi from "$lib/api/system";
 import * as modsApi from "$lib/api/mods";
-import type {
-  ModInfoKind,
-  KableInstallation,
-  ModJarInfo,
-  FilterFacets,
-  ModrinthVersion,
-  ModrinthFile,
-} from "$lib";
+import * as systemApi from "$lib/api/system";
+import ModpackDiffModal from "$lib/components/mods/ModpackDiffModal.svelte";
+import { onMount } from "svelte";
+import { get } from "svelte/store";
+import ModCard from "./ModCard.svelte";
 
 type ViewMode = "grid" | "list" | "compact";
 
@@ -980,10 +981,81 @@ function handleModInfo(mod: ModInfoKind) {
 }
 
 // Event handlers for ModCard component
-function handleDownloadMod(event: { mod: ModInfoKind }) {
-  handleModDownload(event.mod);
+
+// Modal state for modpack diff/install
+
+let showModpackModal = false;
+let modpackDiff: MrPackDetailed | null = null;
+let modpackContext: ModpackContext | null = null;
+let downloadError: string | null = null;
+
+async function handleDownloadMod(event: { mod: ModInfoKind }) {
+  const mod = event.mod;
+  if (!currentInstallation) {
+    downloadError = "Please select an installation first.";
+    return;
+  }
+
+  // Extract provider, modId, versionId from mod
+  let provider: ProviderKind;
+  let modId: string;
+  let versionId: string | null = null;
+  if ("Modrinth" in mod) {
+    provider = ProviderKind.Modrinth;
+    modId = mod.Modrinth.project_id;
+    versionId = mod.Modrinth.latest_version || null;
+  } else if ("kind" in mod && mod.kind === "Modrinth") {
+    provider = ProviderKind.Modrinth;
+    modId = mod.data.project_id;
+    versionId = mod.data.latest_version || null;
+  } else if ("CurseForge" in mod) {
+    provider = ProviderKind.CurseForge;
+    modId = mod.CurseForge.id.toString();
+    versionId = mod.CurseForge.main_file_id?.toString() || null;
+  } else if ("kind" in mod && mod.kind === "CurseForge") {
+    provider = ProviderKind.CurseForge;
+    modId = mod.data.id.toString();
+    versionId = mod.data.main_file_id?.toString() || null;
+  } else {
+    alert("Unknown mod provider format");
+    return;
+  }
+
+  try {
+    downloadError = null;
+    const result = await modsApi.downloadOrPrepareMod(
+      provider,
+      modId,
+      versionId,
+      currentInstallation,
+    );
+    if ("success" in result && result.success) {
+      // Mod was downloaded directly
+      // Optionally show notification or refresh mods list
+      return;
+    } else if ("modpack" in result && "context" in result) {
+      // Modpack: open modal with returned data
+      modpackDiff = result.modpack;
+      modpackContext = result.context;
+      showModpackModal = true;
+    } else {
+      downloadError = "Unknown response from backend.";
+    }
+  } catch (e: any) {
+    downloadError =
+      "Failed to download or process mod: " + (e && e.message ? e.message : e);
+  }
 }
 
+function closeModpackModal() {
+  showModpackModal = false;
+  modpackDiff = null;
+  modpackContext = null;
+  // Optionally, refresh installed mods after modal closes
+  if (currentInstallation) {
+    loadInstalledMods(currentInstallation);
+  }
+}
 function handleInfoMod(event: { mod: ModInfoKind }) {
   handleModInfo(event.mod);
 }
@@ -1175,6 +1247,19 @@ onMount(async () => {
   initializeProvider();
 });
 </script>
+
+{#if downloadError}
+  <div class="error-banner">{downloadError}</div>
+{/if}
+{#if showModpackModal && modpackDiff && modpackContext}
+  <ModpackDiffModal
+    open={showModpackModal}
+    modpack={modpackDiff}
+    context={modpackContext}
+    installation={currentInstallation}
+    onCancel={closeModpackModal}
+  />
+{/if}
 
 <div class="mod-browser">
   <!-- Compact Header -->

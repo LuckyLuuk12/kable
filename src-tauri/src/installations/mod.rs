@@ -1,8 +1,10 @@
 pub mod kable_profiles;
+pub mod mrpack;
 pub mod profiles;
 pub mod versions;
 
 pub use self::kable_profiles::*;
+pub use self::mrpack::*;
 pub use self::profiles::*;
 pub use self::versions::*;
 use once_cell::sync::Lazy;
@@ -536,9 +538,9 @@ async fn copy_and_update_mods(
         source.name, target.name
     ));
 
-    // Get source mods directory
-    let source_mods_dir = get_mods_directory(source).await?;
-    let target_mods_dir = get_mods_directory(target).await?;
+    // Reuse centralized mods directory resolution on KableInstallation.
+    let source_mods_dir = source.find_mods_dir()?;
+    let target_mods_dir = target.find_mods_dir()?;
 
     // Read all mods from source
     let source_mod_files = async_fs::read_dir(&source_mods_dir)
@@ -859,6 +861,7 @@ async fn copy_and_update_mods(
                             &primary_file.filename,
                             &project_id,
                             &version.version_number,
+                            &version.id,
                         )
                         .await?;
 
@@ -1010,37 +1013,6 @@ fn copy_directory_contents(
 
         Ok(())
     })
-}
-
-/// Get mods directory for an installation
-pub async fn get_mods_directory(installation: &KableInstallation) -> Result<PathBuf, String> {
-    if let Some(ref dedicated_folder) = installation.dedicated_mods_folder {
-        let path = PathBuf::from(dedicated_folder);
-        let final_path = if path.is_absolute() {
-            path
-        } else {
-            // Normalize path separators and strip any leading "mods/" or "mods\" prefix
-            let normalized = dedicated_folder.replace('\\', "/");
-            let cleaned = normalized.strip_prefix("mods/").unwrap_or(&normalized);
-
-            // The dedicated_folder is just the installation ID
-            // It should be in .minecraft/.kable/mods/<id>
-            let kable_dir = crate::get_minecraft_kable_dir()?;
-            kable_dir.join("mods").join(cleaned)
-        };
-        async_fs::create_dir_all(&final_path)
-            .await
-            .map_err(|e| format!("Failed to create dedicated mods folder: {}", e))?;
-        Ok(final_path)
-    } else {
-        // Use default mods folder in .minecraft directory
-        let minecraft_dir = crate::get_default_minecraft_dir()?;
-        let path = minecraft_dir.join("mods");
-        async_fs::create_dir_all(&path)
-            .await
-            .map_err(|e| format!("Failed to create mods folder: {}", e))?;
-        Ok(path)
-    }
 }
 
 /// Get resource packs directory for an installation

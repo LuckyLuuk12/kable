@@ -1,26 +1,116 @@
-import * as modsApi from "../api/mods";
-import { get } from "svelte/store";
-import * as semver from "semver";
-import {
-  modsByProvider,
-  modsLoading,
-  modsError,
-  modsLimit,
-  modsOffset,
-  modsFilter,
-  modsInstallation,
-  modsProvider,
-  extendedModInfo,
-  NotificationService,
-} from "$lib";
 import type {
-  ProviderKind,
-  ModInfoKind,
+  ExtendedModInfo,
   KableInstallation,
   ModFilter,
   ModJarInfo,
-  ExtendedModInfo,
+  ModpackContext,
+  ModpackDiffResult,
+  ModpackSelection,
+  MrpackIndex,
+  PackFileInfo,
+  ProviderKind,
 } from "$lib";
+import {
+  extendedModInfo,
+  modsByProvider,
+  modsError,
+  modsFilter,
+  modsInstallation,
+  modsLimit,
+  modsLoading,
+  modsOffset,
+  modsProvider,
+  NotificationService,
+} from "$lib";
+import * as semver from "semver";
+import { get, writable } from "svelte/store";
+import * as modsApi from "../api/mods";
+
+// Store for modpack diff modal state (can be used by ModBrowser)
+export const modpackDiffModalState = writable({
+  open: false,
+  modpack: null as MrpackIndex | null,
+  newFiles: [] as PackFileInfo[],
+  conflicts: [] as PackFileInfo[],
+  selectedFiles: [] as PackFileInfo[],
+  mrpackPath: "",
+  installationDir: "",
+  subfolder: "mods",
+  onConfirm: null as ((selected: string[]) => void) | null,
+});
+
+export class ModpackService {
+  /**
+   * Orchestrate modpack install: prepare diff, show modal, apply selection
+   * - mrpackPath: path to .mrpack file
+   * - installationDir: path to installation root
+   * - subfolder: e.g. "mods"
+   * - onConfirm: callback(selectedFilePaths)
+   */
+  static async orchestrateModpackInstall({
+    mrpackPath,
+    installationDir,
+    subfolder = "mods",
+    onConfirm,
+  }: {
+    mrpackPath: string;
+    installationDir: string;
+    subfolder?: string;
+    onConfirm: (selected: string[]) => void;
+  }) {
+    // 1. Prepare diff (backend handles extraction, diff, cleanup)
+    const result: ModpackDiffResult = await modsApi.prepareModpackDiff(
+      mrpackPath,
+      installationDir,
+      subfolder,
+    );
+
+    // 2. Always open modal for user selection, even if no new/conflicting files
+    // Gather all files for selection (to_be_installed + optional)
+    let allSelectableFiles: PackFileInfo[] = [];
+    let toBeInstalled: PackFileInfo[] = [];
+    let optional: PackFileInfo[] = [];
+    let disabled: PackFileInfo[] = [];
+    if (result.modpack && (result.modpack as any).mods) {
+      // New backend type: MrPackDetailed
+      const mods = (result.modpack as any).mods;
+      toBeInstalled = mods.to_be_installed || [];
+      optional = mods.optional || [];
+      disabled = mods.disabled || [];
+      allSelectableFiles = [...toBeInstalled, ...optional];
+    } else {
+      // Fallback for legacy: just use new/conflicts
+      allSelectableFiles = [...result.new_files, ...result.conflicts];
+    }
+
+    modpackDiffModalState.set({
+      open: true,
+      modpack: result.modpack,
+      newFiles: result.new_files,
+      conflicts: result.conflicts,
+      selectedFiles: allSelectableFiles,
+      mrpackPath,
+      installationDir,
+      subfolder,
+      onConfirm,
+    });
+  }
+
+  /**
+   * Apply modpack selection (copy files, extract overrides)
+   */
+  static async applySelection({
+    installation,
+    selection,
+    context,
+  }: {
+    installation: KableInstallation;
+    selection: ModpackSelection;
+    context: ModpackContext;
+  }) {
+    return modsApi.applyModpackSelection(installation, selection, context);
+  }
+}
 
 /**
  * Version comparison utilities for mod version management
@@ -493,13 +583,12 @@ export class ModsService {
     modJarInfo: ModJarInfo,
   ): Promise<ExtendedModInfo | null> {
     const fileName = modJarInfo.file_name;
+    // Only check Svelte store (for UI reactivity)
     if (get(extendedModInfo)[fileName]) {
       return get(extendedModInfo)[fileName] || null;
     }
-
+    // Fetch and update store, using concurrency-limited queue
     console.log(`[ModsService] Fetching extended mod info for ${fileName}`);
-
-    // Wrap the actual fetch in a function for the queue
     return new Promise<ExtendedModInfo | null>((resolve) => {
       const task = async () => {
         try {
@@ -522,8 +611,6 @@ export class ModsService {
             `[ModsService] Failed to fetch extended mod info for ${fileName}:`,
             e instanceof Error ? e.message : "Unknown error",
           );
-          // Optionally: log error, set error state, etc.
-          console.warn(`Failed to fetch extended mod info for ${fileName}:`, e);
           resolve(null);
         } finally {
           ModsService.#inFlight--;

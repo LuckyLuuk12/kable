@@ -10,21 +10,21 @@ Includes installation carousel for quick switching and semantic search filtering
 ```
 -->
 <script lang="ts">
-import { onMount } from "svelte";
-import { get } from "svelte/store";
+import type { KableInstallation, ModJarInfo } from "$lib";
 import {
-  installations,
-  selectedInstallation,
-  InstallationService,
-  Icon,
-  ModsService,
   extendedModInfo,
+  Icon,
+  installations,
+  InstallationService,
+  ModsService,
   ProviderKind,
+  selectedInstallation,
 } from "$lib";
-import { openUrl } from "$lib/api/system";
 import * as installationsApi from "$lib/api/installations";
 import * as modsApi from "$lib/api/mods";
-import type { KableInstallation, ModJarInfo } from "$lib";
+import { openUrl } from "$lib/api/system";
+import { onMount } from "svelte";
+import { get } from "svelte/store";
 import InstalledModCard from "./InstalledModCard.svelte";
 
 let currentInstallation: KableInstallation | null = null;
@@ -39,6 +39,19 @@ let attemptedExtendedInfo = new Set<string>();
 
 // Semantic search/filter state
 let searchQuery = "";
+
+// Sorting/grouping controls for installed mods.
+type ModSortMode = "name_asc" | "name_desc" | "date_desc" | "date_asc";
+type DisabledGroupMode = "end" | "start" | "none";
+let modSortMode: ModSortMode = "name_asc"; // Default to alphabetical
+let disabledGroupMode: DisabledGroupMode = "end";
+
+// Cached mod metadata by jar filename (used for date sorting + stable project lookup).
+let modMetadataMap = new Map<string, modsApi.ModMetadata | null>();
+
+function metadataKey(fileName: string): string {
+  return `${selectedId}:${fileName}`;
+}
 
 // Track mods with available updates
 let modsWithUpdates = new Map<
@@ -286,6 +299,7 @@ $: {
     // Clear update tracking when no installation
     modsWithUpdates.clear();
     modsWithUpdates = modsWithUpdates; // Trigger reactivity
+    modMetadataMap = new Map();
   }
 }
 
@@ -300,18 +314,65 @@ $: {
   }
 }
 
-// When mods change, trigger async loading of extended mod info for each mod (but NOT in the template)
-$: if (mods && mods.length > 0) {
-  // Only fetch for mods that are missing in the store (undefined means not attempted, null means failed)
-  const missing = mods.filter(
-    (mod) =>
-      $extendedModInfo[mod.file_name] === undefined &&
-      !attemptedExtendedInfo.has(mod.file_name),
-  );
-  if (missing.length > 0) {
-    // Mark these mods as attempted to prevent infinite loops
-    missing.forEach((mod) => attemptedExtendedInfo.add(mod.file_name));
-    Promise.all(missing.map((mod) => ModsService.getExtendedModInfo(mod)));
+// Only trigger backend fetch for extended mod info when the actual mods list changes (not on sort/group/filter changes)
+let lastFetchedModsKey = "";
+$: {
+  if (mods && mods.length > 0) {
+    // Create a key based on the sorted file names to detect real changes
+    const modsKey = mods
+      .map((m) => m.file_name)
+      .sort()
+      .join("|");
+    if (modsKey !== lastFetchedModsKey) {
+      lastFetchedModsKey = modsKey;
+      // Only fetch for mods that are missing in the store (undefined means not attempted, null means failed)
+      const missing = mods.filter((mod) => {
+        return (
+          $extendedModInfo[mod.file_name] === undefined &&
+          !attemptedExtendedInfo.has(mod.file_name)
+        );
+      });
+      if (missing.length > 0) {
+        // Mark these mods as attempted to prevent infinite loops
+        missing.forEach((mod) => attemptedExtendedInfo.add(mod.file_name));
+        Promise.all(missing.map((mod) => ModsService.getExtendedModInfo(mod)));
+      }
+    }
+  } else {
+    lastFetchedModsKey = "";
+  }
+}
+
+// Fetch metadata lazily for mods that are missing it.
+$: if (selectedId && mods && mods.length > 0) {
+  const installationForMetadata =
+    get(installations).find((i) => i.id === selectedId) || null;
+  if (installationForMetadata) {
+    const missingMeta = mods.filter(
+      (mod) => !modMetadataMap.has(metadataKey(mod.file_name)),
+    );
+    if (missingMeta.length > 0) {
+      Promise.all(
+        missingMeta.map(async (mod) => {
+          try {
+            const meta = await modsApi.getModMetadata(
+              installationForMetadata,
+              mod.file_name,
+            );
+            return [metadataKey(mod.file_name), meta] as const;
+          } catch {
+            return [metadataKey(mod.file_name), null] as const;
+          }
+        }),
+      ).then((pairs) => {
+        if (pairs.length === 0) return;
+        const next = new Map(modMetadataMap);
+        for (const [fileName, meta] of pairs) {
+          next.set(fileName, meta);
+        }
+        modMetadataMap = next;
+      });
+    }
   }
 }
 
@@ -345,7 +406,6 @@ $: filteredMods = mods.filter((mod) => {
     const name = info?.mod_jar_info?.mod_name || mod.mod_name || "";
     const desc = info?.description || "";
     const file = mod.file_name;
-
     return (
       fuzzyMatch(name, searchQuery) ||
       fuzzyMatch(desc, searchQuery) ||
@@ -355,11 +415,82 @@ $: filteredMods = mods.filter((mod) => {
   return true;
 });
 
+function getModDisplayName(mod: ModJarInfo): string {
+  const info = $extendedModInfo[mod.file_name];
+  return info?.mod_jar_info?.mod_name || mod.mod_name || mod.file_name;
+}
+
+function getModDate(mod: ModJarInfo): number {
+  const metadata = modMetadataMap.get(metadataKey(mod.file_name));
+  if (!metadata?.download_time) return 0;
+  const ts = Date.parse(metadata.download_time);
+  return Number.isNaN(ts) ? 0 : ts;
+}
+
+function sortMods(a: ModJarInfo, b: ModJarInfo): number {
+  switch (modSortMode) {
+    case "name_asc":
+      return getModDisplayName(a).localeCompare(
+        getModDisplayName(b),
+        undefined,
+        {
+          sensitivity: "base",
+        },
+      );
+    case "name_desc":
+      return getModDisplayName(b).localeCompare(
+        getModDisplayName(a),
+        undefined,
+        {
+          sensitivity: "base",
+        },
+      );
+    case "date_asc": {
+      const da = getModDate(a);
+      const db = getModDate(b);
+      if (da !== db) return da - db;
+      return getModDisplayName(a).localeCompare(
+        getModDisplayName(b),
+        undefined,
+        {
+          sensitivity: "base",
+        },
+      );
+    }
+    case "date_desc":
+    default: {
+      const da = getModDate(a);
+      const db = getModDate(b);
+      if (da !== db) return db - da;
+      return getModDisplayName(a).localeCompare(
+        getModDisplayName(b),
+        undefined,
+        {
+          sensitivity: "base",
+        },
+      );
+    }
+  }
+}
+
+$: sortedFilteredMods = (() => {
+  const list = filteredMods.slice().sort(sortMods);
+  if (disabledGroupMode === "none") {
+    return list;
+  }
+
+  const enabled = list.filter((mod) => !mod.disabled);
+  const disabled = list.filter((mod) => mod.disabled);
+  return disabledGroupMode === "start"
+    ? [...disabled, ...enabled]
+    : [...enabled, ...disabled];
+})();
+
 // Handle mod changed event (toggle, delete, etc.)
 function handleModChanged() {
   // Reload mods to reflect changes
   if (currentInstallation) {
-    loadMods(currentInstallation);
+    loadMods(currentInstallation, { silent: true });
   }
 }
 
@@ -397,29 +528,24 @@ async function handleUpdateAll() {
       const extendedInfo = $extendedModInfo[mod.file_name];
       if (!extendedInfo) continue;
 
-      // Extract project ID from extended info
       let projectId: string | null = null;
-      if (extendedInfo.page_uri) {
-        const match = extendedInfo.page_uri.match(/\/mod\/(\w+)/);
-        if (match) projectId = match[1];
-      }
 
-      if (!projectId) {
-        // Try to get from metadata
-        try {
-          const metadata = await modsApi.getModMetadata(
-            currentInstallation,
-            mod.file_name,
-          );
-          projectId = metadata.project_id;
-        } catch (e) {
-          console.warn(`Could not get project ID for ${mod.file_name}`);
-          failCount++;
-          continue;
+      // Prefer metadata because it is the most reliable identifier source.
+      try {
+        const metadata = await modsApi.getModMetadata(
+          currentInstallation,
+          mod.file_name,
+        );
+        projectId = metadata.project_id;
+      } catch (e) {
+        if (extendedInfo.page_uri) {
+          const match = extendedInfo.page_uri.match(/\/mod\/([\w-]+)/);
+          if (match) projectId = match[1];
         }
       }
 
       if (!projectId) {
+        console.warn(`Could not get project ID for ${mod.file_name}`);
         failCount++;
         continue;
       }
@@ -499,8 +625,14 @@ async function toggleModDisabledAction(mod: ModJarInfo) {
   }
 }
 
-async function loadMods(installation: KableInstallation) {
-  loading = true;
+async function loadMods(
+  installation: KableInstallation,
+  options?: { silent?: boolean },
+) {
+  const silent = options?.silent === true;
+  if (!silent) {
+    loading = true;
+  }
   error = null;
   try {
     const newMods = await InstallationService.getModInfo(installation);
@@ -533,7 +665,9 @@ async function loadMods(installation: KableInstallation) {
     // Reset the loaded installation ID so we can retry if user switches away and back
     loadedInstallationId = null;
   } finally {
-    loading = false;
+    if (!silent) {
+      loading = false;
+    }
   }
 }
 
@@ -641,40 +775,72 @@ onMount(() => {
 
         {#if currentInstallation}
           <div class="mods-title-section">
-            <h3>Mods for {currentInstallation.name}</h3>
-            {#if mods.length > 0}
-              <div class="mods-count-badge">
-                {#if searchQuery}
-                  <span class="filtered-count">{filteredMods.length}</span>
-                  <span class="count-separator">of</span>
-                  <span class="total-count">{mods.length}</span>
-                  <span class="count-label">mods</span>
-                {:else}
-                  <span class="total-count">{mods.length}</span>
-                  <span class="count-label"
-                    >{mods.length === 1 ? "mod" : "mods"}</span
+            <div class="mods-title-left">
+              <h3>Mods for {currentInstallation.name}</h3>
+              {#if mods.length > 0}
+                <div class="mods-count-badge">
+                  {#if searchQuery}
+                    <span class="filtered-count">{filteredMods.length}</span>
+                    <span class="count-separator">of</span>
+                    <span class="total-count">{mods.length}</span>
+                    <span class="count-label">mods</span>
+                  {:else}
+                    <span class="total-count">{mods.length}</span>
+                    <span class="count-label"
+                      >{mods.length === 1 ? "mod" : "mods"}</span
+                    >
+                  {/if}
+                </div>
+              {/if}
+            </div>
+
+            <div class="mods-title-right">
+              <div class="mod-list-controls">
+                {#if modsWithUpdates.size > 0}
+                  <button
+                    class="update-all-btn"
+                    on:click={handleUpdateAll}
+                    disabled={updatingAll}
+                    title="Update {modsWithUpdates.size} mod{modsWithUpdates.size !==
+                    1
+                      ? 's'
+                      : ''}"
                   >
+                    <Icon name="arrow-up" size="sm" forceType="svg" />
+                    <span>
+                      {updatingAll
+                        ? "Updating..."
+                        : `Update All (${modsWithUpdates.size})`}
+                    </span>
+                  </button>
                 {/if}
+                <label class="control-field">
+                  <span class="control-label-with-icon">
+                    Sort
+                    {#if modSortMode === "date_asc" || modSortMode === "name_asc"}
+                      <Icon name="arrow-up" size="sm" />
+                    {:else}
+                      <Icon name="arrow-down" size="sm" />
+                    {/if}
+                  </span>
+                  <select bind:value={modSortMode} class="control-select">
+                    <option value="date_desc">Date (newest first)</option>
+                    <option value="date_asc">Date (oldest first)</option>
+                    <option value="name_asc">Name (A to Z)</option>
+                    <option value="name_desc">Name (Z to A)</option>
+                  </select>
+                </label>
+
+                <label class="control-field">
+                  <span>Disabled Grouping</span>
+                  <select bind:value={disabledGroupMode} class="control-select">
+                    <option value="end">Group Disabled End</option>
+                    <option value="start">Group Disabled Start</option>
+                    <option value="none">Do Not Group Disabled</option>
+                  </select>
+                </label>
               </div>
-            {/if}
-            {#if modsWithUpdates.size > 0}
-              <button
-                class="update-all-btn"
-                on:click={handleUpdateAll}
-                disabled={updatingAll}
-                title="Update {modsWithUpdates.size} mod{modsWithUpdates.size !==
-                1
-                  ? 's'
-                  : ''}"
-              >
-                <Icon name="arrow-up" size="sm" />
-                <span>
-                  {updatingAll
-                    ? "Updating..."
-                    : `Update All (${modsWithUpdates.size})`}
-                </span>
-              </button>
-            {/if}
+            </div>
           </div>
         {/if}
       </div>
@@ -693,7 +859,7 @@ onMount(() => {
             </div>
           {:else if mods.length > 0}
             <div class="mods-card-grid">
-              {#each filteredMods as mod (mod.file_name)}
+              {#each sortedFilteredMods as mod (mod.file_name)}
                 <InstalledModCard
                   {mod}
                   installation={currentInstallation}
@@ -970,7 +1136,7 @@ onMount(() => {
   .mods-title-section {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     margin: 1rem 0 0.5rem 0;
     gap: 1rem;
 
@@ -983,33 +1149,42 @@ onMount(() => {
   }
 }
 
+.mods-title-left {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  min-width: 0;
+}
+
+.mods-title-right {
+  margin-left: auto;
+  display: flex;
+  align-items: end;
+  gap: 0.75rem;
+}
+
 .update-all-btn {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
   padding: 0.5rem 1rem;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--tertiary), 100%, transparent) 0%,
-    color-mix(in srgb, var(--tertiary), 85%, transparent) 100%
-  );
-  border: 1px solid color-mix(in srgb, var(--tertiary), 50%, transparent);
-  border-radius: 0.5rem;
-  color: white;
+  border-radius: 0.25rem;
+  // Use the same blue as .manage-btn in InstalledModCard, fallback to #3b82f6 (blue-500)
+  $update-blue: #3b82f6;
+  border: 1px solid rgba($update-blue, 0.3);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
   font-weight: 600;
-  font-size: 0.875rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   white-space: nowrap;
+  position: relative;
 
   &:hover:not(:disabled) {
-    background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--tertiary), 110%, white) 0%,
-      color-mix(in srgb, var(--tertiary), 95%, transparent) 100%
-    );
+    border-color: rgba($update-blue, 0.5);
+    background: rgba($update-blue, 0.1);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--tertiary), 30%, transparent);
   }
 
   &:active:not(:disabled) {
@@ -1017,8 +1192,12 @@ onMount(() => {
   }
 
   &:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  span {
+    white-space: nowrap;
   }
 }
 
@@ -1066,6 +1245,49 @@ onMount(() => {
   display: flex;
   flex-direction: column;
   gap: 0.8rem;
+}
+
+.mod-list-controls {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+}
+
+.control-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  span {
+    font-size: 0.75rem;
+    color: var(--placeholder);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+}
+
+.control-label-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.control-select {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--dark-600);
+  border-radius: 0.6rem;
+  background: var(--input);
+  color: var(--text);
+  font-size: 0.9rem;
+
+  &:focus {
+    outline: none;
+    border-color: color-mix(in srgb, var(--primary), 60%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary), 15%, transparent);
+  }
 }
 
 .search-input-wrapper {
@@ -1305,6 +1527,23 @@ onMount(() => {
   .mods-section {
     border-left: none;
     border-top: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  }
+
+  .mods-title-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mods-title-right {
+    margin-left: 0;
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 700px) {
+  .mod-list-controls {
+    grid-template-columns: 1fr;
   }
 }
 

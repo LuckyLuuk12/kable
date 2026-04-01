@@ -707,23 +707,7 @@ impl Launchable for FabricLaunchable {
         }
 
         // 8. Set the correct Fabric mods folder
-        // Priority: dedicated_mods_folder > default Fabric mods folder
-        let mods_path = if let Some(mods_folder) = &context.installation.dedicated_mods_folder {
-            // Use the installation's dedicated mods folder
-            let p = PathBuf::from(mods_folder);
-            if p.is_absolute() {
-                p
-            } else {
-                // Relative paths are relative to .minecraft/.kable/
-                // They already include the folder type prefix (e.g., "mods/{id}")
-                let kable_dir = crate::get_minecraft_kable_dir()
-                    .map_err(|e| format!("Failed to get Kable dir: {}", e))?;
-                kable_dir.join(p)
-            }
-        } else {
-            // Default: use standard Fabric mods folder
-            PathBuf::from(&context.minecraft_dir).join("mods")
-        };
+        let mods_path = context.installation.find_mods_dir()?;
 
         // Set the mods folder via JVM property (this is what Fabric Loader reads)
         cleaned_jvm_args.push(format!(

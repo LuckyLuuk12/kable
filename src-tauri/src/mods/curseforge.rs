@@ -429,24 +429,8 @@ impl ModProvider for CurseForgeProvider {
         version_id: Option<&str>,
         installation: &KableInstallation,
     ) -> Result<(), String> {
-        // Determine the mods directory for the installation
-        let mods_dir: PathBuf = if let Some(ref custom_mods) = installation.dedicated_mods_folder {
-            let custom_path = PathBuf::from(custom_mods);
-            if custom_path.is_absolute() {
-                custom_path
-            } else {
-                let mc_dir = crate::get_minecraft_kable_dir()?;
-                mc_dir.join(custom_mods)
-            }
-        } else {
-            let mc_dir = crate::get_minecraft_kable_dir()?;
-            mc_dir.join("mods").join(&installation.version_id)
-        };
-
-        // Ensure the mods directory exists (async)
-        crate::ensure_parent_dir_exists_async(&mods_dir)
-            .await
-            .map_err(|e| format!("Failed to create mods directory: {}", e))?;
+        // Centralized path resolution and directory creation.
+        let mods_dir: PathBuf = installation.find_mods_dir()?;
 
         let mod_id_u32: u32 = mod_id
             .parse()

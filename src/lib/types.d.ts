@@ -1,3 +1,29 @@
+// --- Modpack Selection Types ---
+export interface ModpackSelectionGroup {
+  enabled: string[];
+  optional: string[];
+  disabled: string[];
+  overwrite_paths?: string[];
+}
+
+export interface ModpackSelection {
+  mods: ModpackSelectionGroup;
+  resourcepacks: ModpackSelectionGroup;
+  shaderpacks: ModpackSelectionGroup;
+}
+
+export interface ModpackContext {
+  mrpack_path: string;
+  extracted_dir: string;
+  installation_dir: string;
+  provider: "Modrinth" | "CurseForge";
+  mod_id: string;
+  version_id?: string | null;
+}
+
+export type ModpackPrepareResult =
+  | { success: true }
+  | { modpack: MrPackDetailed; context: ModpackContext };
 /** Cape info from Mojang profile API */
 export interface AccountCape {
   id: string;
@@ -1489,6 +1515,56 @@ export interface ExtendedModInfo {
   icon_uri: string | null;
   description: string | null;
   authors: string[];
+}
+
+export interface MrpackEnv {
+  client?: string;
+  server?: string;
+}
+
+export interface PackFileInfo {
+  path: string;
+  file_size: number;
+  hashes: Record<string, string>;
+  downloads: string[];
+  env?: MrpackEnv;
+  already_installed: boolean;
+  overwrite: boolean;
+}
+
+export interface PackFileDetailedGroup {
+  disabled: PackFileInfo[];
+  optional: PackFileInfo[];
+  to_be_installed: PackFileInfo[];
+}
+
+export interface MrPackDetailed {
+  mods: PackFileDetailedGroup;
+  resourcepacks: PackFileDetailedGroup;
+  shaderpacks: PackFileDetailedGroup;
+}
+
+export interface MrpackIndex {
+  format_version: number;
+  game: string;
+  version_id: string;
+  name: string;
+  summary?: string;
+  files: any[];
+  dependencies: Record<string, string>;
+}
+
+export interface PackFileGroups {
+  mods: PackFileInfo[];
+  resourcepacks: PackFileInfo[];
+  shaderpacks: PackFileInfo[];
+  others: PackFileInfo[];
+}
+
+export interface ModpackDiffResult {
+  modpack: MrpackIndex;
+  new_files: PackFileInfo[];
+  conflicts: PackFileInfo[];
 }
 
 //|_____________________________________________________________________________|
