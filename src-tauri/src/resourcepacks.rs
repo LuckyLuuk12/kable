@@ -787,6 +787,7 @@ pub async fn merge_resourcepacks(
     let pack_inputs: Vec<PackInput> = pack_order
         .iter()
         .filter(|filename| enabled_packs.contains(*filename))
+        .filter(|filename| filename.as_str() != "kable-merged.zip")
         .map(|filename| packs_dir.join(filename))
         .filter(|path| path.exists())
         .map(PackInput::from)

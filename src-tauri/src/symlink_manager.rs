@@ -517,6 +517,15 @@ impl SymlinkManager {
     /// Setup symlinks for an installation before launching
     /// This removes all existing symlinks and creates new ones for the current installation
     pub async fn setup_for_installation(&self, installation_id: &str) -> Result<(), String> {
+        crate::logging::Logger::warn_global(
+            &format!(
+                "[SYMLINK] setup_for_installation start installation_id={} minecraft_dir={}",
+                installation_id,
+                self.minecraft_dir.display()
+            ),
+            None,
+        );
+
         // Clean up any existing symlinks first (preserves global custom symlinks)
         self.cleanup_for_installation_switch(installation_id)
             .await?;
@@ -529,6 +538,14 @@ impl SymlinkManager {
 
         // Apply custom symlinks for this installation (includes global ones)
         apply_custom_symlinks(Some(installation_id)).await?;
+
+        crate::logging::Logger::warn_global(
+            &format!(
+                "[SYMLINK] setup_for_installation complete installation_id={}",
+                installation_id
+            ),
+            None,
+        );
 
         Ok(())
     }
@@ -657,6 +674,16 @@ impl SymlinkManager {
     ///
     /// Falls back to legacy behavior if subfolders don't exist
     pub async fn setup_resourcepack_symlinks(&self, installation_id: &str) -> Result<(), String> {
+        use crate::logging::Logger;
+
+        Logger::warn_global(
+            &format!(
+                "[SYMLINK] setup_resourcepack_symlinks start installation_id={}",
+                installation_id
+            ),
+            None,
+        );
+
         let kable_dir = crate::get_minecraft_kable_dir()?;
 
         // Read the installation to get the dedicated resource pack folder path
@@ -666,28 +693,67 @@ impl SymlinkManager {
         let installation_data = if let Some(inst) = installation {
             inst
         } else {
+            Logger::warn_global(
+                &format!(
+                    "[SYMLINK] setup_resourcepack_symlinks skipped: installation not found installation_id={}",
+                    installation_id
+                ),
+                None,
+            );
             return Ok(()); // Installation not found
         };
 
-        let installation_packs_dir =
-            if let Some(ref dedicated_folder) = installation_data.dedicated_resource_pack_folder {
-                let dedicated_path = std::path::PathBuf::from(dedicated_folder);
-                if dedicated_path.is_absolute() {
-                    dedicated_path
-                } else {
-                    kable_dir.join(dedicated_folder)
-                }
+        let installation_packs_dir = if let Some(ref dedicated_folder) =
+            installation_data.dedicated_resource_pack_folder
+        {
+            let dedicated_path = std::path::PathBuf::from(dedicated_folder);
+            if dedicated_path.is_absolute() {
+                dedicated_path
             } else {
-                return Ok(()); // No dedicated folder configured
-            };
+                // Normalize relative configured path to the same shape used by
+                // KableInstallation::find_resourcepacks_dir().
+                let normalized = dedicated_folder.replace('\\', "/");
+                let cleaned = normalized
+                    .strip_prefix("resourcepacks/")
+                    .unwrap_or(&normalized);
+                kable_dir.join("resourcepacks").join(cleaned)
+            }
+        } else {
+            Logger::warn_global(
+                    &format!(
+                        "[SYMLINK] setup_resourcepack_symlinks skipped: no dedicated_resource_pack_folder installation_id={}",
+                        installation_id
+                    ),
+                    None,
+                );
+            return Ok(()); // No dedicated folder configured
+        };
+
+        Logger::warn_global(
+            &format!(
+                "[SYMLINK] resourcepack source resolved installation_id={} path={}",
+                installation_id,
+                installation_packs_dir.display()
+            ),
+            None,
+        );
 
         // Only setup if the installation has a dedicated resource packs folder
         if !installation_packs_dir.exists() {
+            Logger::warn_global(
+                &format!(
+                    "[SYMLINK] setup_resourcepack_symlinks skipped: source folder missing installation_id={} path={}",
+                    installation_id,
+                    installation_packs_dir.display()
+                ),
+                None,
+            );
             return Ok(());
         }
 
         let resourcepacks_dir = self.minecraft_dir.join("resourcepacks");
         crate::ensure_folder(&resourcepacks_dir).await?;
+        crate::ensure_symlinks_enabled(&self.minecraft_dir).await?;
 
         let merged_dir = installation_packs_dir.join("merged");
         let individual_dir = installation_packs_dir.join("individual");
@@ -695,19 +761,34 @@ impl SymlinkManager {
         // Check if using new subfolder structure
         let using_subfolders = merged_dir.exists() || individual_dir.exists();
 
+        Logger::warn_global(
+            &format!(
+                "[SYMLINK] resourcepack subfolder detection installation_id={} using_subfolders={} merged_exists={} individual_exists={}",
+                installation_id,
+                using_subfolders,
+                merged_dir.exists(),
+                individual_dir.exists()
+            ),
+            None,
+        );
+
         if using_subfolders {
             // New behavior: handle merged/ and individual/ subfolders
 
             // Handle merged packs
             if merged_dir.exists() {
-                let mut merged_packs = std::collections::HashSet::new();
+                let mut merged_packs: std::collections::HashSet<String> =
+                    std::collections::HashSet::new();
 
                 if let Ok(entries) = std::fs::read_dir(&merged_dir) {
                     for entry in entries.filter_map(|e| e.ok()) {
                         let path = entry.path();
                         if path.is_file() && path.extension().is_some_and(|ext| ext == "zip") {
                             if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
-                                merged_packs.insert(filename.to_string());
+                                // Never treat the generated output as an input pack.
+                                if filename != "kable-merged.zip" {
+                                    merged_packs.insert(filename.to_string());
+                                }
                             }
                         }
                     }
@@ -715,7 +796,7 @@ impl SymlinkManager {
 
                 // Merge packs if any exist
                 if !merged_packs.is_empty() {
-                    let pack_order = if installation_data.pack_order.is_empty() {
+                    let mut pack_order: Vec<String> = if installation_data.pack_order.is_empty() {
                         merged_packs.iter().cloned().collect()
                     } else {
                         // Filter pack_order to only include packs that exist in merged/
@@ -726,6 +807,12 @@ impl SymlinkManager {
                             .cloned()
                             .collect()
                     };
+
+                    // If configured order has no overlap with merged/ contents,
+                    // fall back to all discovered merged packs.
+                    if pack_order.is_empty() {
+                        pack_order = merged_packs.iter().cloned().collect();
+                    }
 
                     // Merge packs into kable-merged.zip
                     let merged_path = crate::resourcepacks::merge_resourcepacks(
@@ -741,11 +828,20 @@ impl SymlinkManager {
                         crate::remove_symlink_if_exists(&target_link).await?;
                     }
                     crate::create_file_symlink(&merged_path, &target_link).await?;
+                } else {
+                    // No merged source packs left; remove stale merged symlink if present.
+                    let target_link = resourcepacks_dir.join("kable-merged.zip");
+                    if target_link.exists() && target_link.is_symlink() {
+                        crate::remove_symlink_if_exists(&target_link).await?;
+                    }
                 }
             }
 
             // Handle individual packs
             if individual_dir.exists() {
+                let mut linked_count = 0usize;
+                let mut skipped_conflicts = 0usize;
+
                 if let Ok(entries) = std::fs::read_dir(&individual_dir) {
                     for entry in entries.filter_map(|e| e.ok()) {
                         let path = entry.path();
@@ -754,14 +850,44 @@ impl SymlinkManager {
                             if let Some(filename) = path.file_name() {
                                 let target_link = resourcepacks_dir.join(filename);
 
-                                // Only create if doesn't exist
-                                if !target_link.exists() {
-                                    crate::create_file_symlink(&path, &target_link).await?;
+                                if target_link.exists() {
+                                    if target_link.is_symlink() {
+                                        crate::remove_symlink_if_exists(&target_link).await?;
+                                    } else {
+                                        skipped_conflicts += 1;
+                                        Logger::warn_global(
+                                            &format!(
+                                                "Skipping resource pack symlink; target exists and is not a symlink: {}",
+                                                target_link.display()
+                                            ),
+                                            None,
+                                        );
+                                        continue;
+                                    }
                                 }
+
+                                crate::create_file_symlink(&path, &target_link).await?;
+                                linked_count += 1;
                             }
                         }
                     }
                 }
+
+                Logger::debug_global(
+                    &format!(
+                        "Resource pack symlink setup complete for installation {} (linked: {}, conflicts: {})",
+                        installation_id, linked_count, skipped_conflicts
+                    ),
+                    None,
+                );
+
+                Logger::warn_global(
+                    &format!(
+                        "[SYMLINK] individual resourcepacks processed installation_id={} linked={} conflicts={}",
+                        installation_id, linked_count, skipped_conflicts
+                    ),
+                    None,
+                );
             }
         } else {
             // Legacy behavior: use enable_pack_merging flag for all packs
@@ -834,6 +960,14 @@ impl SymlinkManager {
                 }
             }
         }
+
+        Logger::warn_global(
+            &format!(
+                "[SYMLINK] setup_resourcepack_symlinks complete installation_id={}",
+                installation_id
+            ),
+            None,
+        );
 
         Ok(())
     }

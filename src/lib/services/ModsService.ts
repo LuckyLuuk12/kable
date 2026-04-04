@@ -347,7 +347,11 @@ export class ModsService {
 
     if (normalized.providerName === "Modrinth") {
       const data = normalized.data as ModrinthInfo;
-      return data.source_url || data.wiki_url || `https://modrinth.com/mod/${data.slug}`;
+      return (
+        data.source_url ||
+        data.wiki_url ||
+        `https://modrinth.com/mod/${data.slug}`
+      );
     }
 
     const data = normalized.data as CurseForgeInfo;
@@ -421,7 +425,8 @@ export class ModsService {
       follows: data.thumbs_up_count,
       client_side: undefined,
       server_side: undefined,
-      game_versions: data.latest_files_indexes?.map((file) => file.game_version) || [],
+      game_versions:
+        data.latest_files_indexes?.map((file) => file.game_version) || [],
       loaders: undefined,
       source_url: data.links?.source_url,
       wiki_url: data.links?.wiki_url,

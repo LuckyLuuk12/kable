@@ -1524,17 +1524,45 @@ impl KableInstallation {
     pub fn disable_resourcepack(&self, file_name: &str) -> Result<(), String> {
         use crate::logging::Logger;
         let packs_dir = self.find_resourcepacks_dir()?;
-        let disabled_dir = packs_dir.join("disabled");
-        let src = packs_dir.join(file_name);
-        let dst = disabled_dir.join(file_name);
-        if !src.exists() {
-            if dst.exists() {
+        let merged_dir = packs_dir.join("merged");
+        let individual_dir = packs_dir.join("individual");
+        let using_subfolders = merged_dir.exists() || individual_dir.exists();
+
+        let (src, dst) = if using_subfolders {
+            let merged_src = merged_dir.join(file_name);
+            let merged_disabled = merged_dir.join("disabled").join(file_name);
+            let individual_src = individual_dir.join(file_name);
+            let individual_disabled = individual_dir.join("disabled").join(file_name);
+
+            if merged_src.exists() {
+                (merged_src, merged_disabled)
+            } else if individual_src.exists() {
+                (individual_src, individual_disabled)
+            } else if merged_disabled.exists() || individual_disabled.exists() {
                 return Ok(());
+            } else {
+                return Err(format!("Resource pack file not found: {}", file_name));
             }
-            return Err(format!("Resource pack file not found: {}", file_name));
+        } else {
+            let disabled_dir = packs_dir.join("disabled");
+            let src = packs_dir.join(file_name);
+            let dst = disabled_dir.join(file_name);
+
+            if !src.exists() {
+                if dst.exists() {
+                    return Ok(());
+                }
+                return Err(format!("Resource pack file not found: {}", file_name));
+            }
+
+            (src, dst)
+        };
+
+        if let Some(parent) = dst.parent() {
+            crate::ensure_folder_sync(parent)
+                .map_err(|e| format!("Failed to create disabled directory: {}", e))?;
         }
-        crate::ensure_folder_sync(&disabled_dir)
-            .map_err(|e| format!("Failed to create disabled directory: {}", e))?;
+
         fs::rename(&src, &dst)
             .map_err(|e| format!("Failed to move resource pack to disabled: {}", e))?;
         Logger::debug_global(
@@ -1547,15 +1575,40 @@ impl KableInstallation {
     /// Move the given resource pack out of the installation's disabled/ subfolder back into the active packs folder.
     pub fn enable_resourcepack(&self, file_name: &str) -> Result<(), String> {
         let packs_dir = self.find_resourcepacks_dir()?;
-        let disabled_dir = packs_dir.join("disabled");
-        let src = disabled_dir.join(file_name);
-        let dst = packs_dir.join(file_name);
-        if !src.exists() {
-            if dst.exists() {
+        let merged_dir = packs_dir.join("merged");
+        let individual_dir = packs_dir.join("individual");
+        let using_subfolders = merged_dir.exists() || individual_dir.exists();
+
+        let (src, dst) = if using_subfolders {
+            let merged_disabled = merged_dir.join("disabled").join(file_name);
+            let merged_active = merged_dir.join(file_name);
+            let individual_disabled = individual_dir.join("disabled").join(file_name);
+            let individual_active = individual_dir.join(file_name);
+
+            if merged_disabled.exists() {
+                (merged_disabled, merged_active)
+            } else if individual_disabled.exists() {
+                (individual_disabled, individual_active)
+            } else if merged_active.exists() || individual_active.exists() {
                 return Ok(());
+            } else {
+                return Err(format!("Disabled resource pack not found: {}", file_name));
             }
-            return Err(format!("Disabled resource pack not found: {}", file_name));
-        }
+        } else {
+            let disabled_dir = packs_dir.join("disabled");
+            let src = disabled_dir.join(file_name);
+            let dst = packs_dir.join(file_name);
+
+            if !src.exists() {
+                if dst.exists() {
+                    return Ok(());
+                }
+                return Err(format!("Disabled resource pack not found: {}", file_name));
+            }
+
+            (src, dst)
+        };
+
         fs::rename(&src, &dst)
             .map_err(|e| format!("Failed to move resource pack to enabled: {}", e))?;
         Ok(())
@@ -1564,16 +1617,38 @@ impl KableInstallation {
     /// Toggle the disabled state of a resource pack; returns the new disabled state (true = disabled).
     pub fn toggle_resourcepack_disabled(&self, file_name: &str) -> Result<bool, String> {
         let packs_dir = self.find_resourcepacks_dir()?;
-        let src_active = packs_dir.join(file_name);
-        let src_disabled = packs_dir.join("disabled").join(file_name);
-        if src_active.exists() {
-            self.disable_resourcepack(file_name)?;
-            return Ok(true);
+        let merged_dir = packs_dir.join("merged");
+        let individual_dir = packs_dir.join("individual");
+        let using_subfolders = merged_dir.exists() || individual_dir.exists();
+
+        if using_subfolders {
+            let active_exists =
+                merged_dir.join(file_name).exists() || individual_dir.join(file_name).exists();
+            let disabled_exists = merged_dir.join("disabled").join(file_name).exists()
+                || individual_dir.join("disabled").join(file_name).exists();
+
+            if active_exists {
+                self.disable_resourcepack(file_name)?;
+                return Ok(true);
+            }
+            if disabled_exists {
+                self.enable_resourcepack(file_name)?;
+                return Ok(false);
+            }
+        } else {
+            let src_active = packs_dir.join(file_name);
+            let src_disabled = packs_dir.join("disabled").join(file_name);
+
+            if src_active.exists() {
+                self.disable_resourcepack(file_name)?;
+                return Ok(true);
+            }
+            if src_disabled.exists() {
+                self.enable_resourcepack(file_name)?;
+                return Ok(false);
+            }
         }
-        if src_disabled.exists() {
-            self.enable_resourcepack(file_name)?;
-            return Ok(false);
-        }
+
         Err(format!(
             "Resource pack file not found in either active or disabled folders: {}",
             file_name
@@ -1583,20 +1658,47 @@ impl KableInstallation {
     /// Delete/remove a resource pack from the installation (checks both active and disabled folders)
     pub fn delete_resourcepack(&self, file_name: &str) -> Result<(), String> {
         let packs_dir = self.find_resourcepacks_dir()?;
-        let active_path = packs_dir.join(file_name);
-        let disabled_path = packs_dir.join("disabled").join(file_name);
+        let merged_dir = packs_dir.join("merged");
+        let individual_dir = packs_dir.join("individual");
+        let using_subfolders = merged_dir.exists() || individual_dir.exists();
 
-        if active_path.exists() {
-            std::fs::remove_file(&active_path)
-                .map_err(|e| format!("Failed to delete resource pack from active folder: {}", e))?;
-            return Ok(());
-        }
+        if using_subfolders {
+            let candidates = [
+                merged_dir.join(file_name),
+                merged_dir.join("disabled").join(file_name),
+                individual_dir.join(file_name),
+                individual_dir.join("disabled").join(file_name),
+            ];
 
-        if disabled_path.exists() {
-            std::fs::remove_file(&disabled_path).map_err(|e| {
-                format!("Failed to delete resource pack from disabled folder: {}", e)
-            })?;
-            return Ok(());
+            for path in candidates {
+                if path.exists() {
+                    std::fs::remove_file(&path).map_err(|e| {
+                        format!(
+                            "Failed to delete resource pack from {}: {}",
+                            path.display(),
+                            e
+                        )
+                    })?;
+                    return Ok(());
+                }
+            }
+        } else {
+            let active_path = packs_dir.join(file_name);
+            let disabled_path = packs_dir.join("disabled").join(file_name);
+
+            if active_path.exists() {
+                std::fs::remove_file(&active_path).map_err(|e| {
+                    format!("Failed to delete resource pack from active folder: {}", e)
+                })?;
+                return Ok(());
+            }
+
+            if disabled_path.exists() {
+                std::fs::remove_file(&disabled_path).map_err(|e| {
+                    format!("Failed to delete resource pack from disabled folder: {}", e)
+                })?;
+                return Ok(());
+            }
         }
 
         Err(format!(
