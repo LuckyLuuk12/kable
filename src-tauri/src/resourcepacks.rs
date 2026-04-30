@@ -598,7 +598,8 @@ pub async fn download_and_install_resourcepack(
         .await
         .map_err(|e| e.to_string())?;
 
-    let destination = resourcepacks_dir.join(&filename);
+    let normalized_filename = normalize_filename(&filename);
+    let destination = resourcepacks_dir.join(&normalized_filename);
 
     let client = reqwest::Client::new();
     let response = client
@@ -617,7 +618,7 @@ pub async fn download_and_install_resourcepack(
         .await
         .map_err(|e| format!("Failed to write resource pack file: {}", e))?;
 
-    Ok(filename)
+    Ok(normalized_filename)
 }
 
 /// Download and install resource pack from Modrinth to a dedicated folder
@@ -645,7 +646,8 @@ pub async fn download_and_install_resourcepack_to_dedicated(
     // Default to individual/ subfolder
     let packs_dir = base_dir.join("individual");
 
-    let destination = packs_dir.join(&filename);
+    let normalized_filename = normalize_filename(&filename);
+    let destination = packs_dir.join(&normalized_filename);
 
     let client = reqwest::Client::new();
     let response = client
@@ -664,7 +666,7 @@ pub async fn download_and_install_resourcepack_to_dedicated(
         .await
         .map_err(|e| format!("Failed to write resource pack file: {}", e))?;
 
-    Ok(filename)
+    Ok(normalized_filename)
 }
 
 /// Setup symbolic link from dedicated resource pack folder to .minecraft/resourcepacks
@@ -929,6 +931,14 @@ pub async fn move_pack_to_individual(
         .map_err(|e| format!("Failed to move pack to individual folder: {}", e))?;
 
     Ok(())
+}
+
+fn normalize_filename(input: &str) -> String {
+    let decoded = urlencoding::decode(input)
+        .map(|s| s.into_owned())
+        .unwrap_or_else(|_| input.to_string());
+    // Replace invalid filename characters with underscores
+    sanitize_filename::sanitize(decoded)
 }
 
 /// Migrate existing packs to the new subfolder structure

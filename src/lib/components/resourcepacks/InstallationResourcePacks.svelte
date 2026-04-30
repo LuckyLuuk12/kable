@@ -10,20 +10,15 @@ Features:
 - Visit pack pages
 -->
 <script lang="ts">
-import { onMount } from "svelte";
-import { get } from "svelte/store";
-import { Icon, NotificationService, InstallationService } from "$lib";
 import type { KableInstallation } from "$lib";
-import { installations, selectedInstallation } from "$lib/stores";
-import InstalledResourcePackCard from "./InstalledResourcePackCard.svelte";
+import { Icon, InstallationService, NotificationService } from "$lib";
 import * as installationsApi from "$lib/api/installations";
-import { openUrl } from "$lib/api/system";
-import {
-  dndzone,
-  TRIGGERS,
-  SHADOW_ITEM_MARKER_PROPERTY_NAME,
-} from "svelte-dnd-action";
+import { installations, selectedInstallation } from "$lib/stores";
+import { onMount } from "svelte";
 import type { DndEvent } from "svelte-dnd-action";
+import { dndzone } from "svelte-dnd-action";
+import { get } from "svelte/store";
+import InstalledResourcePackCard from "./InstalledResourcePackCard.svelte";
 
 let selectedId: string = "";
 let currentInstallation: KableInstallation | null = null;
@@ -674,7 +669,23 @@ onMount(() => {
             <div class="title-and-toggle">
               <h3>Resource Packs for {currentInstallation.name}</h3>
             </div>
-
+            <!-- TODO: FIX THIS: Button to open the folder in explorer -->
+            <!-- {#if currentInstallation}
+              <button
+                class="open-folder-btn"
+                on:click={async () => {
+                  if (!currentInstallation) return;
+                  const resourcePacksInfo =
+                    await getResourcePackInfo(currentInstallation);
+                  console.log(
+                    "Opening resource packs folder:",
+                    resourcePacksInfo,
+                  );
+                  // await openPath(resourcePacksInfo.path);
+                }}>
+                <Icon name="folder" size="sm" />
+              </button>
+            {/if} -->
             {#if packs.length > 0}
               <div class="packs-count-badge">
                 {#if searchQuery}
