@@ -32,6 +32,7 @@ hex = "0.4"
 ico = "0.5"
 image = "0.25.9"
 kable-macros = { path = "../kable-macros" }
+api-types = { path = "../api-types" }
 keyring = "3.6.3"
 lazy_static = "1.4"
 libc = "0.2.182"
@@ -75,6 +76,7 @@ zip = "8.1"
 # Pin problematic dependencies to avoid edition2024 issues
 base64ct = "=1.6.0" # Pin to avoid 1.8.0 which uses edition2024
 semver = "1.0.27"
+clap = "4.6.1"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 glib = ">=0.20.0"   # Fix: Unsoundness in `Iterator` and `DoubleEndedIterator` impls for `glib::VariantStrIter`

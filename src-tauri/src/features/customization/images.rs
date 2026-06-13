@@ -1,0 +1,71 @@
+use base64::Engine;
+use std::path::PathBuf;
+use tokio::fs as async_fs;
+use crate::constants::{CONFIG_DIR, IMAGES_DIR};
+use crate::system::fs::{get_kable_launcher_dir, ensure_folder};
+
+/// Resolve an image key to a filesystem path (user-provided) or fallback static path
+pub async fn resolve_image_path(key: String) -> Result<String, String> {
+    // Allowed extensions to try in order
+    let exts = ["png", "jpg", "jpeg", "webp", "svg", "gif", "ico"];
+
+    // Try launcher config images directory: <kable_launcher_dir>/config/images/
+    let launcher_dir = get_kable_launcher_dir()?;
+    let images_dir = launcher_dir.join(CONFIG_DIR).join(IMAGES_DIR);
+
+    // Ensure the images directory exists
+    ensure_folder(&images_dir)
+        .await
+        .map_err(|e| format!("Failed to create images directory: {}", e))?;
+
+    if images_dir.exists() {
+        // Scan the images directory for any file whose stem matches the key
+        let mut matches: Vec<PathBuf> = Vec::new();
+        if let Ok(mut rd) = async_fs::read_dir(&images_dir).await {
+            while let Ok(Some(entry)) = rd.next_entry().await {
+                let path = entry.path();
+                if path.is_file() {
+                    if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                        if stem.eq_ignore_ascii_case(&key) {
+                            matches.push(path);
+                        }
+                    }
+                }
+            }
+        }
+
+        if !matches.is_empty() {
+            // prefer by extension order specified in `exts`
+            for ext in &exts {
+                for p in &matches {
+                    if let Some(p_ext) = p.extension().and_then(|e| e.to_str()) {
+                        if p_ext.eq_ignore_ascii_case(ext) {
+                            // return as data URL (base64) to avoid file:// restrictions in the webview
+                            if let Ok(bytes) = async_fs::read(p).await {
+                                let mime = match p_ext.to_ascii_lowercase().as_str() {
+                                    "png" => "image/png",
+                                    "jpg" | "jpeg" => "image/jpeg",
+                                    "webp" => "image/webp",
+                                    "svg" => "image/svg+xml",
+                                    "gif" => "image/gif",
+                                    "ico" => "image/x-icon",
+                                    _ => "application/octet-stream",
+                                };
+                                let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                                return Ok(format!("data:{};base64,{}", mime, b64));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Fall back to app static assets
+    let root_level_images = ["favicon", "icon"];
+    if root_level_images.contains(&key.as_str()) {
+        Ok(format!("/{}.png", key))
+    } else {
+        Ok(format!("/img/{}.webp", key))
+    }
+}

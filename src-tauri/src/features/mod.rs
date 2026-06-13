@@ -1,0 +1,7 @@
+// Features top-level module. Subfeatures are declared here.
+pub mod accounts;
+pub mod cli;
+pub mod customization;
+pub mod launcher;
+pub mod mods;
+pub mod profiles;

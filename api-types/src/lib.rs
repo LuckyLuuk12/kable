@@ -1,0 +1,14 @@
+pub mod auth;
+pub mod discord;
+pub mod icons;
+pub mod launcher;
+pub mod maps;
+pub mod mods;
+pub mod mojang;
+pub mod profiles;
+pub mod resourcepacks;
+pub mod settings;
+pub mod shaders;
+pub mod skins;
+pub mod sounds;
+pub mod symlinks;
