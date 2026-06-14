@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, facet::Facet,
+)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
 pub enum ActivityPriority {
     Idle,
     Browsing,
@@ -15,7 +20,7 @@ pub enum ActivityPriority {
 //     pub details: Option<String>,
 // }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
 pub struct PresenceState {
     pub state: String,
     pub details: String,

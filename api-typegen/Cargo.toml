@@ -1,0 +1,14 @@
+[package]
+name = "api-typegen"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+api-types = { path = "../api-types" }
+facet = { version = "0.43.2", features = ["chrono"] }
+facet-typescript = "0.43.2"
+
+[build-dependencies]
+quote = "1.0.44"
+syn = { version = "2.0.114", features = ["full", "extra-traits", "visit"] }
+walkdir = "2.5.0"

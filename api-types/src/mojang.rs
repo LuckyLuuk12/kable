@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct SkinData {
     pub id: String,
     pub state: String,
@@ -9,7 +9,7 @@ pub struct SkinData {
     pub alias: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct CapeData {
     pub id: String,
     pub state: String,
@@ -17,7 +17,7 @@ pub struct CapeData {
     pub alias: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct PlayerProfile {
     pub uuid: String,
     pub username: String,
@@ -26,7 +26,10 @@ pub struct PlayerProfile {
     pub skin_model: SkinModel,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
 pub enum SkinModel {
     Steve,
     Alex,

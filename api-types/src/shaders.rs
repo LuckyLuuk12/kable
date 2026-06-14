@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet)]
 pub struct ShaderFilterFacets {
     pub query: Option<String>,
     pub loaders: Option<Vec<(String, String)>>,
@@ -8,7 +10,7 @@ pub struct ShaderFilterFacets {
     pub game_versions: Option<Vec<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct ShaderPack {
     pub id: String,
     pub name: String,
@@ -27,7 +29,10 @@ pub struct ShaderPack {
     pub last_used: Option<i64>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
 pub enum ShaderLoader {
     Canvas,
     Iris,
@@ -35,7 +40,7 @@ pub enum ShaderLoader {
     Vanilla,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct ShaderSettings {
     pub quality: ShaderQuality,
     pub shadows: bool,
@@ -43,10 +48,13 @@ pub struct ShaderSettings {
     pub anti_aliasing: bool,
     pub bloom: bool,
     pub motion_blur: bool,
-    pub custom_settings: std::collections::HashMap<String, serde_json::Value>,
+    pub custom_settings: HashMap<String, String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
 pub enum ShaderQuality {
     Low,
     Medium,
@@ -55,7 +63,7 @@ pub enum ShaderQuality {
     Custom,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct ShaderDownload {
     pub id: String,
     pub name: String,
@@ -74,7 +82,10 @@ pub struct ShaderDownload {
     pub source: ShaderSource,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
 pub enum ShaderSource {
     Modrinth,
     CurseForge,

@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet)]
 pub struct ResourcePackFilterFacets {
     pub query: Option<String>,
     pub categories: Option<Vec<(String, String)>>,
     pub game_versions: Option<Vec<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct ResourcePack {
     pub id: String,
     pub name: String,
@@ -26,7 +26,7 @@ pub struct ResourcePack {
     pub last_used: Option<i64>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct ResourcePackDownload {
     pub id: String,
     pub name: String,
@@ -45,7 +45,10 @@ pub struct ResourcePackDownload {
     pub source: ResourcePackSource,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
 pub enum ResourcePackSource {
     Modrinth,
     CurseForge,

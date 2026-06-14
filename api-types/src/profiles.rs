@@ -1,5 +1,7 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
 pub struct KableProfile {
     pub id: String,
     pub name: String,
@@ -25,7 +27,10 @@ pub struct KableProfile {
     pub merged_packs: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy, Hash, facet::Facet)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
 pub enum LoaderKind {
     Vanilla,
     Fabric,
@@ -35,19 +40,19 @@ pub enum LoaderKind {
     Quilt,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
 pub struct VersionData {
     pub version_id: String,
     pub loader: LoaderKind,
     pub display_name: String,
     pub is_stable: bool,
-    pub extra: serde_json::Value,
+    pub extra: Option<HashMap<String, String>>,
 }
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
 pub struct Versions(pub Vec<VersionData>);
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
 pub struct ModJarInfo {
     pub file_name: String,
     pub mod_name: Option<String>,
@@ -56,7 +61,7 @@ pub struct ModJarInfo {
     pub disabled: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
 pub struct ResourcePackInfo {
     pub file_name: String,
     pub name: Option<String>,
@@ -64,7 +69,7 @@ pub struct ResourcePackInfo {
     pub disabled: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
 pub struct ShaderPackInfo {
     pub file_name: String,
     pub name: Option<String>,
@@ -72,21 +77,21 @@ pub struct ShaderPackInfo {
     pub disabled: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
 pub struct PackFileDetailedGroup {
     pub disabled: Vec<PackFileInfo>,
     pub optional: Vec<PackFileInfo>,
     pub to_be_installed: Vec<PackFileInfo>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
 pub struct MrPackDetailed {
     pub mods: PackFileDetailedGroup,
     pub resourcepacks: PackFileDetailedGroup,
     pub shaderpacks: PackFileDetailedGroup,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
 pub struct PackFileInfo {
     pub path: String,
     pub file_size: u64,
@@ -97,7 +102,7 @@ pub struct PackFileInfo {
     pub overwrite: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
 pub struct PackFileGroups {
     pub mods: Vec<PackFileInfo>,
     pub resourcepacks: Vec<PackFileInfo>,
@@ -105,7 +110,7 @@ pub struct PackFileGroups {
     pub others: Vec<PackFileInfo>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
 pub struct MrpackIndex {
     pub name: String,
     pub version_id: String,
@@ -113,7 +118,9 @@ pub struct MrpackIndex {
     pub files: Vec<MrpackFile>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub struct MrpackFile {
     pub path: String,
     pub file_size: u64,
@@ -122,7 +129,9 @@ pub struct MrpackFile {
     pub env: Option<MrpackEnv>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
 pub struct MrpackEnv {
     pub client: Option<String>,
     pub server: Option<String>,

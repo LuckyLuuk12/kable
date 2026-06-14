@@ -1,7 +1,10 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Default, facet::Facet)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
 pub enum SkinModel {
     #[default]
     Classic,
@@ -25,27 +28,27 @@ impl SkinModel {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
 pub struct SkinUploadConfig {
     pub model: SkinModel,
     pub file_path: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, facet::Facet)]
 pub struct SkinUploadResponse {
     pub success: bool,
     pub message: String,
     pub model_used: SkinModel,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, facet::Facet)]
 pub struct CurrentSkin {
     pub model: SkinModel,
     pub url: Option<String>,
     pub has_skin: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct AccountSkin {
     pub id: String,
     pub name: String,
@@ -55,7 +58,7 @@ pub struct AccountSkin {
     pub uploaded_date: Option<i64>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct AccountCape {
     pub id: String,
     pub state: String,
@@ -63,7 +66,7 @@ pub struct AccountCape {
     pub alias: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct PlayerProfile {
     pub id: String,
     pub name: String,
@@ -71,14 +74,14 @@ pub struct PlayerProfile {
     pub capes: Vec<AccountCape>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct CustomSkinsRoot {
     #[serde(rename = "customSkins")]
     pub custom_skins: HashMap<String, CustomSkinEntry>,
     pub version: Option<u32>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct CustomSkinEntry {
     #[serde(default, rename = "capeId")]
     pub cape_id: String,

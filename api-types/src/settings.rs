@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
 pub struct CategorizedLauncherSettings {
     #[serde(default)]
     pub general: GeneralSettings,
@@ -18,7 +18,7 @@ pub struct CategorizedLauncherSettings {
     pub misc: MiscSettings,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct GeneralSettings {
     #[serde(default)]
     pub java_path: Option<String>,
@@ -75,7 +75,7 @@ impl Default for GeneralSettings {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct SoundSettings {
     #[serde(default = "default_sound_enabled")]
     pub enabled: bool,
@@ -101,43 +101,43 @@ fn default_soundpack() -> String {
     "default".to_string()
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
 pub struct AppearanceSettings {
     #[serde(default)]
     pub selected_css_theme: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
 pub struct LoggingSettings {
     #[serde(default)]
     pub enabled: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
 pub struct NetworkSettings {
     #[serde(default)]
     pub use_proxy: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
 pub struct ContentSettings {
     #[serde(default)]
     pub allow_adult_content: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
 pub struct AdvancedSettings {
     #[serde(default)]
     pub developer_mode: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
 pub struct MiscSettings {
     #[serde(default)]
     pub check_for_updates_on_start: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
 pub struct MinecraftDirectoryInfo {
     pub path: String,
     pub exists: bool,
