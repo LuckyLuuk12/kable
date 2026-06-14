@@ -1,11 +1,12 @@
 use crate::constants::{
-    LATEST_RELEASE, LATEST_SNAPSHOT, VERSIONS_DIR, MINECRAFT_VERSION_MANIFEST_URL
+    LATEST_RELEASE, LATEST_SNAPSHOT, MINECRAFT_VERSION_MANIFEST_URL, VERSIONS_DIR,
 };
 use crate::features::launcher::{LaunchContext, LaunchResult};
 pub use crate::integrations::minecraft::manifest::{
-    load_and_merge_manifest_sync as load_and_merge_manifest_with_instance,
-    merge_manifests_with_instance, Library, LibraryDownloads, Artifact, Rule, OsRule, Extract, AssetMode,
-    merge_manifests, compare_versions, ensure_assets_for_manifest,
+    compare_versions, ensure_assets_for_manifest,
+    load_and_merge_manifest_sync as load_and_merge_manifest_with_instance, merge_manifests,
+    merge_manifests_with_instance, Artifact, AssetMode, Extract, Library, LibraryDownloads, OsRule,
+    Rule,
 };
 use crate::logging::Logger;
 use api_types::settings::CategorizedLauncherSettings;
@@ -76,7 +77,8 @@ pub fn build_classpath_from_manifest_with_instance(
                     if let Some(name_val) = obj.get("name") {
                         if let Some(name) = name_val.as_str() {
                             lib_name = Some(name.to_string());
-                            if let Some(jar_path) = try_find_library_manually(name, libraries_path) {
+                            if let Some(jar_path) = try_find_library_manually(name, libraries_path)
+                            {
                                 if jar_path.exists() {
                                     jar_path_opt = Some(jar_path.to_string_lossy().to_string());
                                 }
@@ -360,9 +362,9 @@ pub async fn ensure_version_manifest_and_jar(
         };
 
         if let Some(versions) = manifest_list.get("versions").and_then(|v| v.as_array()) {
-            let version_info = versions.iter().find(|v| {
-                v.get("id").and_then(|id| id.as_str()) == Some(&resolved_version)
-            });
+            let version_info = versions
+                .iter()
+                .find(|v| v.get("id").and_then(|id| id.as_str()) == Some(&resolved_version));
             if let Some(info) = version_info {
                 if let Some(url) = info.get("url").and_then(|u| u.as_str()) {
                     let client = Client::new();
@@ -598,7 +600,7 @@ pub fn pre_launch_java_native_compat_check(
     }
 
     if !required_archs.is_empty() && !required_archs.contains(java_arch) {
-         Logger::warn_global(
+        Logger::warn_global(
             &format!(
                 "Potential arch mismatch: Java arch is {}, but manifest requires {:?}",
                 java_arch, required_archs
@@ -619,18 +621,41 @@ pub fn build_variable_map(
     let mut variables = HashMap::new();
 
     variables.insert("auth_player_name".to_string(), context.account.name.clone());
-    variables.insert("version_name".to_string(), context.installation.version_id.clone());
+    variables.insert(
+        "version_name".to_string(),
+        context.installation.version_id.clone(),
+    );
     variables.insert("game_directory".to_string(), context.minecraft_dir.clone());
-    variables.insert("assets_root".to_string(), PathBuf::from(&context.minecraft_dir).join("assets").to_string_lossy().to_string());
-    
-    let assets_index_name = manifest.and_then(|m| m.get("assets").and_then(|v| v.as_str())).unwrap_or("legacy");
-    variables.insert("assets_index_name".to_string(), assets_index_name.to_string());
-    
+    variables.insert(
+        "assets_root".to_string(),
+        PathBuf::from(&context.minecraft_dir)
+            .join("assets")
+            .to_string_lossy()
+            .to_string(),
+    );
+
+    let assets_index_name = manifest
+        .and_then(|m| m.get("assets").and_then(|v| v.as_str()))
+        .unwrap_or("legacy");
+    variables.insert(
+        "assets_index_name".to_string(),
+        assets_index_name.to_string(),
+    );
+
     variables.insert("auth_uuid".to_string(), context.account.uuid.clone());
-    variables.insert("auth_access_token".to_string(), context.account.access_token.clone());
+    variables.insert(
+        "auth_access_token".to_string(),
+        context.account.access_token.clone(),
+    );
     variables.insert("user_type".to_string(), "mojang".to_string());
     variables.insert("version_type".to_string(), "release".to_string());
-    variables.insert("natives_directory".to_string(), PathBuf::from(&context.minecraft_dir).join("natives").to_string_lossy().to_string());
+    variables.insert(
+        "natives_directory".to_string(),
+        PathBuf::from(&context.minecraft_dir)
+            .join("natives")
+            .to_string_lossy()
+            .to_string(),
+    );
     variables.insert("launcher_name".to_string(), "kable".to_string());
     variables.insert("launcher_version".to_string(), "2.0.0".to_string());
     variables.insert("classpath".to_string(), classpath.to_string());
@@ -675,7 +700,7 @@ pub async fn spawn_and_log_process(
     }
     tokio_cmd.stdout(Stdio::piped());
     tokio_cmd.stderr(Stdio::piped());
-    
+
     let mut child = tokio_cmd
         .spawn()
         .map_err(|e| format!("Failed to launch: {e}"))?;
@@ -730,7 +755,12 @@ pub async fn spawn_and_log_process(
                         "data": line
                     }),
                 );
-                Logger::log(app, crate::logging::LogLevel::Info, &line, Some(&instance_id_clone));
+                Logger::log(
+                    app,
+                    crate::logging::LogLevel::Info,
+                    &line,
+                    Some(&instance_id_clone),
+                );
             }
         }
     });
@@ -749,7 +779,12 @@ pub async fn spawn_and_log_process(
                         "data": line
                     }),
                 );
-                Logger::log(app, crate::logging::LogLevel::Error, &line, Some(&instance_id_clone2));
+                Logger::log(
+                    app,
+                    crate::logging::LogLevel::Error,
+                    &line,
+                    Some(&instance_id_clone2),
+                );
             }
         }
     });

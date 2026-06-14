@@ -1,7 +1,7 @@
 //! Mods feature placeholder
-pub mod management;
-pub mod download;
 pub mod browser;
+pub mod download;
+pub mod management;
 pub mod metadata;
-pub mod update;
 pub mod mrpack;
+pub mod update;

@@ -1,5 +1,5 @@
-use crate::features::launcher::{LaunchContext, LaunchResult, Launchable};
 use crate::features::launcher::fabric::FabricLaunchable;
+use crate::features::launcher::{LaunchContext, LaunchResult, Launchable};
 use async_trait::async_trait;
 
 #[derive(Default)]

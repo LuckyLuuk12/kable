@@ -1,8 +1,8 @@
+use crate::constants::{CONFIG_DIR, IMAGES_DIR};
+use crate::system::fs::{ensure_folder, get_kable_launcher_dir};
 use base64::Engine;
 use std::path::PathBuf;
 use tokio::fs as async_fs;
-use crate::constants::{CONFIG_DIR, IMAGES_DIR};
-use crate::system::fs::{get_kable_launcher_dir, ensure_folder};
 
 /// Resolve an image key to a filesystem path (user-provided) or fallback static path
 pub async fn resolve_image_path(key: String) -> Result<String, String> {

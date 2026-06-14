@@ -1,5 +1,4 @@
-use crate::constants::{VERSIONS_DIR, LIBRARIES_DIR};
-use crate::features::launcher::{LaunchContext, LaunchResult, Launchable};
+use crate::constants::{LIBRARIES_DIR, VERSIONS_DIR};
 use crate::features::launcher::utils::{
     build_classpath_from_manifest_with_instance, build_jvm_and_game_args_with_instance,
     build_variable_map, check_lwjgl_classpath_consistency, ensure_assets_for_manifest,
@@ -7,8 +6,9 @@ use crate::features::launcher::utils::{
     load_and_merge_manifest_with_instance, pre_launch_java_native_compat_check,
     spawn_and_log_process, AssetMode, Library,
 };
-use crate::system::java::find_java_executable;
+use crate::features::launcher::{LaunchContext, LaunchResult, Launchable};
 use crate::logging::Logger;
+use crate::system::java::find_java_executable;
 use async_trait::async_trait;
 use std::path::PathBuf;
 use std::process::Command;
@@ -21,18 +21,18 @@ impl Launchable for VanillaLaunchable {
     async fn prepare(&self, context: &LaunchContext) -> Result<(), String> {
         let version_id = &context.installation.version_id;
         let minecraft_dir = &context.minecraft_dir;
-        
+
         let resolved = ensure_version_manifest_and_jar(version_id, minecraft_dir).await?;
-        
+
         let manifest = load_and_merge_manifest_with_instance(
             minecraft_dir,
             &resolved,
             Some(&context.installation.id),
         )?;
-        
+
         let libraries_path = PathBuf::from(minecraft_dir).join(LIBRARIES_DIR);
         ensure_libraries(&manifest, &libraries_path).await?;
-        
+
         ensure_assets_for_manifest(
             minecraft_dir,
             &manifest,
@@ -40,15 +40,15 @@ impl Launchable for VanillaLaunchable {
             Some(&context.installation.id),
         )
         .await?;
-        
+
         Ok(())
     }
 
     async fn launch(&self, context: &LaunchContext) -> Result<LaunchResult, String> {
         let version_id = &context.installation.version_id;
-        
+
         let resolved = ensure_version_manifest_and_jar(version_id, &context.minecraft_dir).await?;
-        
+
         let manifest = load_and_merge_manifest_with_instance(
             &context.minecraft_dir,
             &resolved,
@@ -60,7 +60,7 @@ impl Launchable for VanillaLaunchable {
             .join(VERSIONS_DIR)
             .join(&resolved)
             .join(format!("{}.jar", resolved));
-            
+
         let classpath = build_classpath_from_manifest_with_instance(
             &manifest,
             &libraries_path,
@@ -70,19 +70,12 @@ impl Launchable for VanillaLaunchable {
 
         let java_path = find_java_executable(context.settings.general.java_path.as_ref())?;
 
-        pre_launch_java_native_compat_check(
-            &java_path,
-            &manifest,
-            Some(&context.installation.id),
-        )?;
+        pre_launch_java_native_compat_check(&java_path, &manifest, Some(&context.installation.id))?;
 
-        let _ = check_lwjgl_classpath_consistency(
-            &classpath,
-            Some(&context.installation.id),
-        );
+        let _ = check_lwjgl_classpath_consistency(&classpath, Some(&context.installation.id));
 
         let natives_dir = PathBuf::from(&context.minecraft_dir).join("natives");
-        
+
         if let Some(libs_array) = manifest.get("libraries").and_then(|v| v.as_array()) {
             let libraries: Vec<Library> = libs_array
                 .iter()
@@ -122,7 +115,7 @@ impl Launchable for VanillaLaunchable {
             .get("mainClass")
             .and_then(|v| v.as_str())
             .unwrap_or("net.minecraft.client.main.Main");
-            
+
         let mut cmd = Command::new(&java_path);
         cmd.args(&jvm_args_vec);
         cmd.arg("-cp");

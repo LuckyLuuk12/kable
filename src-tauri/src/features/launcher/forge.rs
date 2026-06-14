@@ -1,13 +1,12 @@
-use crate::constants::{VERSIONS_DIR, LIBRARIES_DIR};
-use crate::features::launcher::{LaunchContext, LaunchResult, Launchable};
+use crate::constants::{LIBRARIES_DIR, VERSIONS_DIR};
 use crate::features::launcher::utils::{
     build_classpath_from_manifest_with_instance, build_jvm_and_game_args_with_instance,
     build_variable_map, check_lwjgl_classpath_consistency, ensure_assets_for_manifest,
     ensure_libraries, ensure_version_manifest_and_jar, extract_natives,
     load_and_merge_manifest_with_instance, merge_manifests_with_instance,
-    pre_launch_java_native_compat_check,
-    spawn_and_log_process, AssetMode, Library,
+    pre_launch_java_native_compat_check, spawn_and_log_process, AssetMode, Library,
 };
+use crate::features::launcher::{LaunchContext, LaunchResult, Launchable};
 use crate::system::java::find_java_executable;
 use async_trait::async_trait;
 use serde_json::Value;
@@ -25,7 +24,8 @@ fn load_forge_manifest(minecraft_dir: &str, version_id: &str) -> Result<Value, S
         .join(format!("{}.json", version_id));
     let contents = fs::read_to_string(&manifest_path)
         .map_err(|e| format!("Failed to read forge manifest: {}", e))?;
-    serde_json::from_str(&contents).map_err(|e| format!("Failed to parse forge manifest JSON: {}", e))
+    serde_json::from_str(&contents)
+        .map_err(|e| format!("Failed to parse forge manifest JSON: {}", e))
 }
 
 #[async_trait]
@@ -39,18 +39,20 @@ impl Launchable for ForgeLaunchable {
     async fn launch(&self, context: &LaunchContext) -> Result<LaunchResult, String> {
         let version_id = &context.installation.version_id;
         let forge_manifest = load_forge_manifest(&context.minecraft_dir, version_id)?;
-        
-        let inherited_id = forge_manifest.get("inheritsFrom").and_then(|v| v.as_str())
+
+        let inherited_id = forge_manifest
+            .get("inheritsFrom")
+            .and_then(|v| v.as_str())
             .ok_or("Forge manifest must inherit from a vanilla version")?;
-            
+
         ensure_version_manifest_and_jar(inherited_id, &context.minecraft_dir).await?;
-        
+
         let vanilla_manifest = load_and_merge_manifest_with_instance(
             &context.minecraft_dir,
             inherited_id,
             Some(&context.installation.id),
         )?;
-        
+
         let merged_manifest = merge_manifests_with_instance(
             vanilla_manifest,
             forge_manifest,
@@ -62,7 +64,7 @@ impl Launchable for ForgeLaunchable {
             .join(VERSIONS_DIR)
             .join(inherited_id)
             .join(format!("{}.jar", inherited_id));
-            
+
         let classpath = build_classpath_from_manifest_with_instance(
             &merged_manifest,
             &libraries_path,
@@ -78,10 +80,7 @@ impl Launchable for ForgeLaunchable {
             Some(&context.installation.id),
         )?;
 
-        let _ = check_lwjgl_classpath_consistency(
-            &classpath,
-            Some(&context.installation.id),
-        );
+        let _ = check_lwjgl_classpath_consistency(&classpath, Some(&context.installation.id));
 
         let natives_dir = PathBuf::from(&context.minecraft_dir).join("natives");
         if let Some(libs_array) = merged_manifest.get("libraries").and_then(|v| v.as_array()) {
@@ -123,7 +122,7 @@ impl Launchable for ForgeLaunchable {
             .get("mainClass")
             .and_then(|v| v.as_str())
             .unwrap_or("net.minecraft.client.main.Main");
-            
+
         let mut cmd = Command::new(&java_path);
         cmd.args(&jvm_args_vec);
         cmd.arg("-cp");

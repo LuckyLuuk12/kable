@@ -67,7 +67,7 @@ pub async fn load_css_theme(theme_name: String, app: AppHandle) -> Result<String
         let name = theme_name.strip_prefix("custom:").unwrap();
         let themes_dir = get_css_themes_dir()?;
         let theme_path = themes_dir.join(format!("{}.css", name));
-        
+
         let content = fs::read_to_string(theme_path)
             .map_err(|e| format!("Failed to read theme file: {}", e))?;
         return Ok(content);
@@ -80,10 +80,9 @@ pub async fn load_css_theme(theme_name: String, app: AppHandle) -> Result<String
 pub async fn save_css_theme(theme_name: String, css_content: String) -> Result<String, String> {
     let themes_dir = ensure_css_themes_dir().await?;
     let theme_path = themes_dir.join(format!("{}.css", theme_name));
-    
-    fs::write(&theme_path, css_content)
-        .map_err(|e| format!("Failed to save theme: {}", e))?;
-    
+
+    fs::write(&theme_path, css_content).map_err(|e| format!("Failed to save theme: {}", e))?;
+
     Ok(format!("custom:{}", theme_name))
 }
 
@@ -96,10 +95,9 @@ pub async fn delete_css_theme(theme_name: String) -> Result<(), String> {
     let name = theme_name.strip_prefix("custom:").unwrap();
     let themes_dir = get_css_themes_dir()?;
     let theme_path = themes_dir.join(format!("{}.css", name));
-    
+
     if theme_path.exists() {
-        fs::remove_file(theme_path)
-            .map_err(|e| format!("Failed to delete theme: {}", e))?;
+        fs::remove_file(theme_path).map_err(|e| format!("Failed to delete theme: {}", e))?;
     }
 
     Ok(())

@@ -193,7 +193,9 @@ fn find_java_macos() -> Result<String, String> {
     if let Ok(output) = Command::new("/usr/libexec/java_home").output() {
         if output.status.success() {
             let java_home = String::from_utf8_lossy(&output.stdout);
-            let java_path = std::path::Path::new(java_home.trim()).join("bin").join("java");
+            let java_path = std::path::Path::new(java_home.trim())
+                .join("bin")
+                .join("java");
             if java_path.exists() {
                 return Ok(java_path.to_string_lossy().to_string());
             }

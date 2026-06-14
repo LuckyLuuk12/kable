@@ -1,2 +1,2 @@
-pub mod versions;
 pub mod manifest;
+pub mod versions;
