@@ -24,7 +24,7 @@ pub async fn add_account(account: LauncherAccount) -> Result<(), String> {
     Ok(())
 }
 
-pub async fn remove_account(account: LauncherAccount) -> Result<(), String> {
+pub async fn remove_account(account: LauncherAccount) -> Result<Vec<LauncherAccount>, String> {
     let mut accounts_json = ensure_accounts_file().await?;
     if !accounts_json.accounts.contains_key(&account.local_id) {
         return Err(format!("Account ID {} does not exist", account.local_id));
@@ -35,7 +35,7 @@ pub async fn remove_account(account: LauncherAccount) -> Result<(), String> {
         accounts_json.active_account_local_id = String::new();
     }
     write_accounts(&accounts_json).await?;
-    Ok(())
+    Ok(accounts_json.accounts.values().cloned().collect())
 }
 
 pub async fn set_active_account(account: LauncherAccount) -> Result<(), String> {

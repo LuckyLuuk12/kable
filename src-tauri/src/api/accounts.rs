@@ -1,11 +1,7 @@
-use api_types::auth::{DeviceCodeResponse, LauncherAccount, MicrosoftToken};
-
 // start_authentication, poll_authentication, list, add, remove, set active, get active accounts
-// use crate::features::accounts::{
-//     add_account, get_active_account, list_accounts, remove_account, set_active_account,
-// };
 use crate::features::accounts::management;
 use crate::integrations::mojang_api::auth;
+use api_types::auth::{DeviceCodeResponse, LauncherAccount, LauncherAccountsJson, MicrosoftToken};
 
 #[tauri::command]
 pub async fn start_authentication() -> Result<DeviceCodeResponse, String> {
@@ -28,7 +24,7 @@ pub async fn add_account(account: LauncherAccount) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn remove_account(account: LauncherAccount) -> Result<(), String> {
+pub async fn remove_account(account: LauncherAccount) -> Result<LauncherAccountsJson, String> {
     management::remove_account(account).await
 }
 

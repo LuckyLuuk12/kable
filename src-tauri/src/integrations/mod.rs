@@ -2,5 +2,6 @@
 pub mod discord;
 
 pub mod minecraft;
+pub mod modrinth;
 // pub mod modrinth;
 pub mod mojang_api;
