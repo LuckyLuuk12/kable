@@ -29,13 +29,8 @@ pub fn default_presence_state() -> PresenceState {
     }
 }
 
-static DISCORD_MANAGER: Lazy<Mutex<DiscordRpcManager>> = Lazy::new(|| {
-    Mutex::new(DiscordRpcManager {
-        client: None,
-        current_state: default_presence_state(),
-        enabled: true,
-    })
-});
+static DISCORD_MANAGER: Lazy<Mutex<DiscordRpcManager>> =
+    Lazy::new(|| Mutex::new(DiscordRpcManager { client: None, current_state: default_presence_state(), enabled: true }));
 
 impl DiscordRpcManager {
     /// Initialize the Discord RPC client
@@ -50,9 +45,7 @@ impl DiscordRpcManager {
 
         let mut client = DiscordIpcClient::new(DISCORD_APP_ID);
 
-        client
-            .connect()
-            .map_err(|e| format!("Failed to connect to Discord: {}", e))?;
+        client.connect().map_err(|e| format!("Failed to connect to Discord: {}", e))?;
 
         self.client = Some(client);
         crate::logging::Logger::info_global("Discord Rich Presence connected", None);
@@ -93,18 +86,13 @@ impl DiscordRpcManager {
             assets = assets.small_text(small_text);
         }
 
-        let mut activity = Activity::new()
-            .state(&state.state)
-            .details(&state.details)
-            .assets(assets);
+        let mut activity = Activity::new().state(&state.state).details(&state.details).assets(assets);
 
         if let Some(timestamp) = state.start_timestamp {
             activity = activity.timestamps(Timestamps::new().start(timestamp));
         }
 
-        client
-            .set_activity(activity)
-            .map_err(|e| format!("Failed to set Discord activity: {}", e))?;
+        client.set_activity(activity).map_err(|e| format!("Failed to set Discord activity: {}", e))?;
 
         Ok(())
     }
@@ -126,9 +114,7 @@ impl DiscordRpcManager {
     /// Clear the presence
     fn clear(&mut self) -> Result<(), String> {
         if let Some(client) = &mut self.client {
-            client
-                .clear_activity()
-                .map_err(|e| format!("Failed to clear Discord activity: {}", e))?;
+            client.clear_activity().map_err(|e| format!("Failed to clear Discord activity: {}", e))?;
         }
         Ok(())
     }
@@ -136,9 +122,7 @@ impl DiscordRpcManager {
     /// Disconnect from Discord
     fn disconnect(&mut self) -> Result<(), String> {
         if let Some(mut client) = self.client.take() {
-            client
-                .close()
-                .map_err(|e| format!("Failed to close Discord connection: {}", e))?;
+            client.close().map_err(|e| format!("Failed to close Discord connection: {}", e))?;
             crate::logging::Logger::info_global("Discord Rich Presence disconnected", None);
         }
         Ok(())
@@ -149,17 +133,13 @@ impl DiscordRpcManager {
 
 /// Initialize Discord Rich Presence
 pub fn initialize() -> Result<(), String> {
-    let mut manager = DISCORD_MANAGER
-        .lock()
-        .map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
+    let mut manager = DISCORD_MANAGER.lock().map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
     manager.initialize()
 }
 
 /// Enable or disable Discord Rich Presence
 pub fn set_enabled(enabled: bool) -> Result<(), String> {
-    let mut manager = DISCORD_MANAGER
-        .lock()
-        .map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
+    let mut manager = DISCORD_MANAGER.lock().map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
 
     manager.enabled = enabled;
 
@@ -174,15 +154,8 @@ pub fn set_enabled(enabled: bool) -> Result<(), String> {
 }
 
 /// Update presence for playing Minecraft
-pub fn set_playing(
-    installation_name: &str,
-    version_id: &str,
-    mod_loader: Option<&str>,
-) -> Result<(), String> {
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs() as i64;
+pub fn set_playing(installation_name: &str, version_id: &str, mod_loader: Option<&str>) -> Result<(), String> {
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i64;
 
     let loader_text = mod_loader.unwrap_or("Vanilla");
     let details = format!("Playing Minecraft {}", version_id);
@@ -207,9 +180,7 @@ pub fn set_playing(
         start_timestamp: Some(timestamp),
     };
 
-    let mut manager = DISCORD_MANAGER
-        .lock()
-        .map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
+    let mut manager = DISCORD_MANAGER.lock().map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
     manager.set_state(new_state)
 }
 
@@ -239,9 +210,7 @@ pub fn set_browsing(section: &str) -> Result<(), String> {
         start_timestamp: None,
     };
 
-    let mut manager = DISCORD_MANAGER
-        .lock()
-        .map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
+    let mut manager = DISCORD_MANAGER.lock().map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
     manager.set_state(new_state)
 }
 
@@ -258,25 +227,19 @@ pub fn clear_playing() -> Result<(), String> {
         start_timestamp: None,
     };
 
-    let mut manager = DISCORD_MANAGER
-        .lock()
-        .map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
+    let mut manager = DISCORD_MANAGER.lock().map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
     manager.current_state = new_state;
     manager.update_presence()
 }
 
 /// Clear all presence
 pub fn clear() -> Result<(), String> {
-    let mut manager = DISCORD_MANAGER
-        .lock()
-        .map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
+    let mut manager = DISCORD_MANAGER.lock().map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
     manager.clear()
 }
 
 /// Disconnect from Discord
 pub fn disconnect() -> Result<(), String> {
-    let mut manager = DISCORD_MANAGER
-        .lock()
-        .map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
+    let mut manager = DISCORD_MANAGER.lock().map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
     manager.disconnect()
 }

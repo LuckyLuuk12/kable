@@ -2,18 +2,13 @@
 pub const DISCORD_APP_ID: &str = "1432139549592649738";
 pub const DEFAULT_AZURE_CLIENT_ID: &str = "4c27a19f-a3d0-4cd2-8e05-9fd961f905df";
 // Trusted URLs for fetching required information
-pub const MINECRAFT_VERSION_MANIFEST_URL: &str =
-    "https://launchermeta.mojang.com/mc/game/version_manifest.json";
+pub const MINECRAFT_VERSION_MANIFEST_URL: &str = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
 pub const FABRIC_META_URL: &str = "https://meta.fabricmc.net";
 pub const QUILT_META_URL: &str = "https://meta.quiltmc.org";
-pub const FORGE_MAVEN_METADATA_URL: &str =
-    "https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.json";
-pub const NEOFORGE_VERSION_URL: &str =
-    "https://maven.neoforged.net/api/maven/versions/releases/net%2Fneoforged%2Fneoforge";
-pub const DEVICE_CODE_URL: &str =
-    "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
-pub const MSA_AUTHORIZE_URL: &str =
-    "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
+pub const FORGE_MAVEN_METADATA_URL: &str = "https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.json";
+pub const NEOFORGE_VERSION_URL: &str = "https://maven.neoforged.net/api/maven/versions/releases/net%2Fneoforged%2Fneoforge";
+pub const DEVICE_CODE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
+pub const MSA_AUTHORIZE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
 pub const MSA_TOKEN_URL: &str = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 pub const DEFAULT_AZURE_REDIRECT_URI: &str = "http://localhost:43110/callback";
 pub const DEFAULT_OAUTH_PORT: u16 = 43110;
@@ -59,26 +54,17 @@ pub const LATEST_SNAPSHOT: &str = "latest-snapshot";
 
 /// Get the Fabric profile JSON URL for a specific Minecraft and loader version
 pub fn fabric_profile_url(mc_version: &str, loader_version: &str) -> String {
-    format!(
-        "{}/v2/versions/loader/{}/{}/profile/json",
-        FABRIC_META_URL, mc_version, loader_version
-    )
+    format!("{}/v2/versions/loader/{}/{}/profile/json", FABRIC_META_URL, mc_version, loader_version)
 }
 
 /// Get the Fabric profile JAR URL for a specific Minecraft and loader version
 pub fn fabric_profile_jar_url(mc_version: &str, loader_version: &str) -> String {
-    format!(
-        "{}/v2/versions/loader/{}/{}/profile/jar",
-        FABRIC_META_URL, mc_version, loader_version
-    )
+    format!("{}/v2/versions/loader/{}/{}/profile/jar", FABRIC_META_URL, mc_version, loader_version)
 }
 
 /// Get the Quilt profile JSON URL for a specific Minecraft and loader version
 pub fn quilt_profile_url(mc_version: &str, loader_version: &str) -> String {
-    format!(
-        "{}/v3/versions/loader/{}/{}/profile/json",
-        QUILT_META_URL, mc_version, loader_version
-    )
+    format!("{}/v3/versions/loader/{}/{}/profile/json", QUILT_META_URL, mc_version, loader_version)
 }
 
 // Note: We assume relative filenames to work from the .minecraft folder

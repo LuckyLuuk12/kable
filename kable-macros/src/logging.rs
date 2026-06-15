@@ -1,9 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{
-    parse::Parse, parse::ParseStream, parse_macro_input, Expr, Ident, ItemFn, Lit, ReturnType,
-    Token, Type, TypePath,
-};
+use syn::{parse::Parse, parse::ParseStream, parse_macro_input, Expr, Ident, ItemFn, Lit, ReturnType, Token, Type, TypePath};
 
 // Configuration for macro behavior
 #[derive(Debug, Clone)]
@@ -15,11 +12,7 @@ struct LogConfig {
 
 impl Default for LogConfig {
     fn default() -> Self {
-        Self {
-            log_values: false,
-            max_length: 200,
-            debug_only: true,
-        }
+        Self { log_values: false, max_length: 200, debug_only: true }
     }
 }
 
@@ -138,11 +131,7 @@ pub fn log_errors_only_with_instance(attr: TokenStream, item: TokenStream) -> To
     generate_instance_logging_wrapper(&input_fn, instance_id, false)
 }
 
-fn generate_logging_wrapper_with_config(
-    input_fn: &ItemFn,
-    config: LogConfig,
-    log_success: bool,
-) -> TokenStream {
+fn generate_logging_wrapper_with_config(input_fn: &ItemFn, config: LogConfig, log_success: bool) -> TokenStream {
     // Check if the function returns a Result type
     let returns_result = match &input_fn.sig.output {
         ReturnType::Type(_, ty) => is_result_type(ty),
@@ -340,19 +329,12 @@ fn generate_custom_logging_wrapper(input_fn: &ItemFn, context: String) -> TokenS
 /// Helper function to check if a type is a Result type
 fn is_result_type(ty: &Type) -> bool {
     match ty {
-        Type::Path(TypePath { path, .. }) => path
-            .segments
-            .iter()
-            .any(|segment| segment.ident == "Result"),
+        Type::Path(TypePath { path, .. }) => path.segments.iter().any(|segment| segment.ident == "Result"),
         _ => false,
     }
 }
 
-fn generate_instance_logging_wrapper(
-    input_fn: &ItemFn,
-    instance_id: String,
-    log_success: bool,
-) -> TokenStream {
+fn generate_instance_logging_wrapper(input_fn: &ItemFn, instance_id: String, log_success: bool) -> TokenStream {
     // Check if the function returns a Result type
     let returns_result = match &input_fn.sig.output {
         ReturnType::Type(_, ty) => is_result_type(ty),

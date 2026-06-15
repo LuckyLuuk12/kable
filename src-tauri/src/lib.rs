@@ -39,36 +39,30 @@ pub fn run() {
                         eprintln!("Launching installation: {}", installation.name);
 
                         // Load settings and account
-                        let settings =
-                            match crate::features::customization::settings::load_settings() {
-                                Ok(s) => s,
-                                Err(e) => {
-                                    eprintln!("Failed to load settings: {}", e);
-                                    std::process::exit(1);
-                                }
-                            };
+                        let settings = match crate::features::customization::settings::load_settings() {
+                            Ok(s) => s,
+                            Err(e) => {
+                                eprintln!("Failed to load settings: {}", e);
+                                std::process::exit(1);
+                            }
+                        };
 
-                        let mut account =
-                            match crate::integrations::mojang_api::auth::auth_util::get_active_launcher_account().await {
-                                Ok(Some(acc)) => acc,
-                                Ok(None) => {
-                                    eprintln!(
-                                    "No active account found. Please log in through the launcher."
-                                );
-                                    std::process::exit(1);
-                                }
-                                Err(e) => {
-                                    eprintln!("Failed to get active account: {}", e);
-                                    std::process::exit(1);
-                                }
-                            };
+                        let mut account = match crate::integrations::mojang_api::auth::auth_util::get_active_launcher_account().await {
+                            Ok(Some(acc)) => acc,
+                            Ok(None) => {
+                                eprintln!("No active account found. Please log in through the launcher.");
+                                std::process::exit(1);
+                            }
+                            Err(e) => {
+                                eprintln!("Failed to get active account: {}", e);
+                                std::process::exit(1);
+                            }
+                        };
 
                         // Refresh the account token to ensure it's still valid
                         eprintln!("Refreshing account token...");
-                        account = match crate::integrations::mojang_api::auth::auth_util::refresh_microsoft_token(
-                            account.local_id.clone(),
-                        )
-                        .await
+                        account = match crate::integrations::mojang_api::auth::auth_util::refresh_microsoft_token(account.local_id.clone())
+                            .await
                         {
                             Ok(refreshed) => {
                                 eprintln!("Account token refreshed successfully");
@@ -81,13 +75,7 @@ pub fn run() {
                             }
                         };
 
-                        if let Err(e) = crate::features::launcher::launch_installation(
-                            installation,
-                            settings,
-                            account,
-                        )
-                        .await
-                        {
+                        if let Err(e) = crate::features::launcher::launch_installation(installation, settings, account).await {
                             eprintln!("Failed to launch installation: {}", e);
                             std::process::exit(1);
                         }
@@ -121,22 +109,16 @@ pub fn run() {
                 if pending.exists() {
                     if let Ok(contents) = std::fs::read_to_string(&pending) {
                         if let Ok(v) = serde_json::from_str::<serde_json::Value>(&contents) {
-                            if let Some(installer) =
-                                v.get("installer_path").and_then(|s| s.as_str())
-                            {
+                            if let Some(installer) = v.get("installer_path").and_then(|s| s.as_str()) {
                                 if std::path::Path::new(installer).exists() {
                                     match std::process::Command::new(installer).spawn() {
                                         Ok(_) => {
                                             let _ = std::fs::remove_file(&pending);
                                             std::process::exit(0);
                                         }
-                                        Err(e) => Logger::warn_global(
-                                            &format!(
-                                                "[STARTUP] Failed to launch pending installer: {}",
-                                                e
-                                            ),
-                                            None,
-                                        ),
+                                        Err(e) => {
+                                            Logger::warn_global(&format!("[STARTUP] Failed to launch pending installer: {}", e), None)
+                                        }
                                     }
                                 }
                             }
@@ -148,10 +130,7 @@ pub fn run() {
             // Initialize Discord Rich Presence
             tauri::async_runtime::spawn(async {
                 if let Err(e) = crate::discord::initialize() {
-                    Logger::warn_global(
-                        &format!("[STARTUP] Failed to initialize Discord RPC: {}", e),
-                        None,
-                    );
+                    Logger::warn_global(&format!("[STARTUP] Failed to initialize Discord RPC: {}", e), None);
                 } else {
                     Logger::info_global("[STARTUP] Discord Rich Presence initialized", None);
                 }
@@ -160,18 +139,11 @@ pub fn run() {
             // Clean up any leftover symlinks from previous crashes/exits
             tauri::async_runtime::spawn(async {
                 if let Ok(minecraft_dir) = get_default_minecraft_dir() {
-                    let symlink_manager =
-                        crate::symlink_manager::SymlinkManager::new(minecraft_dir);
+                    let symlink_manager = crate::symlink_manager::SymlinkManager::new(minecraft_dir);
                     if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
-                        Logger::warn_global(
-                            &format!("[STARTUP] Failed to cleanup leftover symlinks: {}", e),
-                            None,
-                        );
+                        Logger::warn_global(&format!("[STARTUP] Failed to cleanup leftover symlinks: {}", e), None);
                     } else {
-                        Logger::info_global(
-                            "[STARTUP] Cleaned up leftover symlinks from previous session",
-                            None,
-                        );
+                        Logger::info_global("[STARTUP] Cleaned up leftover symlinks from previous session", None);
                     }
                 }
             });
@@ -184,32 +156,19 @@ pub fn run() {
                 if window.label() == "main" {
                     // Clear Discord presence immediately (blocking to ensure it completes)
                     if let Err(e) = crate::discord::clear() {
-                        Logger::warn_global(
-                            &format!("[SHUTDOWN] Failed to clear Discord presence: {}", e),
-                            None,
-                        );
+                        Logger::warn_global(&format!("[SHUTDOWN] Failed to clear Discord presence: {}", e), None);
                     }
                     if let Err(e) = crate::discord::disconnect() {
-                        Logger::warn_global(
-                            &format!("[SHUTDOWN] Failed to disconnect Discord RPC: {}", e),
-                            None,
-                        );
+                        Logger::warn_global(&format!("[SHUTDOWN] Failed to disconnect Discord RPC: {}", e), None);
                     }
 
                     tauri::async_runtime::spawn(async {
                         if let Ok(minecraft_dir) = get_default_minecraft_dir() {
-                            let symlink_manager =
-                                crate::symlink_manager::SymlinkManager::new(minecraft_dir);
+                            let symlink_manager = crate::symlink_manager::SymlinkManager::new(minecraft_dir);
                             if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
-                                Logger::warn_global(
-                                    &format!("[SHUTDOWN] Failed to cleanup symlinks: {}", e),
-                                    None,
-                                );
+                                Logger::warn_global(&format!("[SHUTDOWN] Failed to cleanup symlinks: {}", e), None);
                             } else {
-                                Logger::info_global(
-                                    "[SHUTDOWN] Cleaned up all symlinks on app close",
-                                    None,
-                                );
+                                Logger::info_global("[SHUTDOWN] Cleaned up all symlinks on app close", None);
                             }
                         }
                     });

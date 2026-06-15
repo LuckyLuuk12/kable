@@ -45,10 +45,8 @@ pub async fn kill_process(process_id: u32) -> Result<(), String> {
     }
     #[cfg(not(target_os = "windows"))]
     {
-        let status = Command::new("kill")
-            .args(["-9", &process_id.to_string()])
-            .status()
-            .map_err(|e| format!("Failed to run kill: {}", e))?;
+        let status =
+            Command::new("kill").args(["-9", &process_id.to_string()]).status().map_err(|e| format!("Failed to run kill: {}", e))?;
         if status.success() {
             untrack_process(process_id);
             Ok(())
@@ -70,9 +68,7 @@ pub fn is_process_alive(pid: u32) -> bool {
     #[cfg(target_os = "windows")]
     {
         use windows_sys::Win32::Foundation::CloseHandle;
-        use windows_sys::Win32::System::Threading::{
-            GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
-        };
+        use windows_sys::Win32::System::Threading::{GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
         const STILL_ACTIVE: u32 = 259;
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
@@ -95,9 +91,7 @@ pub fn get_process_exit_code(pid: u32) -> Option<i32> {
     #[cfg(target_os = "windows")]
     {
         use windows_sys::Win32::Foundation::CloseHandle;
-        use windows_sys::Win32::System::Threading::{
-            GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
-        };
+        use windows_sys::Win32::System::Threading::{GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
             if handle.is_null() {

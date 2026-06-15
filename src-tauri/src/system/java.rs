@@ -10,10 +10,7 @@ pub fn find_java_executable(java_path: Option<&String>) -> Result<String, String
                 return Ok(trimmed.to_string());
             }
             crate::logging::Logger::warn_global(
-                &format!(
-                    "Specified Java path does not exist: '{}'. Attempting auto-detection.",
-                    trimmed
-                ),
+                &format!("Specified Java path does not exist: '{}'. Attempting auto-detection.", trimmed),
                 None,
             );
         }
@@ -41,11 +38,7 @@ fn find_java_windows() -> Result<String, String> {
     use std::os::windows::process::CommandExt;
     // Try PowerShell Get-Command first (checks PATH)
     if let Ok(output) = Command::new("powershell")
-        .args([
-            "-NoProfile",
-            "-Command",
-            "(Get-Command javaw.exe -ErrorAction SilentlyContinue).Source",
-        ])
+        .args(["-NoProfile", "-Command", "(Get-Command javaw.exe -ErrorAction SilentlyContinue).Source"])
         .creation_flags(0x08000000)
         .output()
     {
@@ -54,14 +47,8 @@ fn find_java_windows() -> Result<String, String> {
             if let Some(path) = stdout.lines().next() {
                 let path = path.trim();
                 // Skip Oracle javapath stub launcher
-                if !path.is_empty()
-                    && std::path::Path::new(path).exists()
-                    && !path.contains("Common Files\\Oracle\\Java\\javapath")
-                {
-                    crate::logging::Logger::debug_global(
-                        &format!("Found javaw.exe via PowerShell: {}", path),
-                        None,
-                    );
+                if !path.is_empty() && std::path::Path::new(path).exists() && !path.contains("Common Files\\Oracle\\Java\\javapath") {
+                    crate::logging::Logger::debug_global(&format!("Found javaw.exe via PowerShell: {}", path), None);
                     return Ok(path.to_string());
                 }
             }
@@ -70,13 +57,7 @@ fn find_java_windows() -> Result<String, String> {
 
     // Try Minecraft Launcher's bundled runtimes
     if let Some(path) = find_minecraft_launcher_java_windows() {
-        crate::logging::Logger::debug_global(
-            &format!(
-                "Found javaw.exe in Minecraft Launcher runtime: {}",
-                path.display()
-            ),
-            None,
-        );
+        crate::logging::Logger::debug_global(&format!("Found javaw.exe in Minecraft Launcher runtime: {}", path.display()), None);
         return Ok(path.to_string_lossy().to_string());
     }
 
@@ -122,10 +103,7 @@ fn find_java_windows() -> Result<String, String> {
 
 #[cfg(target_os = "windows")]
 fn find_minecraft_launcher_java_windows() -> Option<PathBuf> {
-    let runtime_roots = [
-        "C:\\Program Files (x86)\\Minecraft Launcher\\runtime",
-        "C:\\Program Files\\Minecraft Launcher\\runtime",
-    ];
+    let runtime_roots = ["C:\\Program Files (x86)\\Minecraft Launcher\\runtime", "C:\\Program Files\\Minecraft Launcher\\runtime"];
 
     let mut found_javas: Vec<(PathBuf, u32)> = Vec::new();
 
@@ -176,11 +154,7 @@ fn probe_windows_java_version(javaw_path: &std::path::Path) -> Option<u32> {
         if output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
             let stdout = String::from_utf8_lossy(&output.stdout);
-            let version_info = if stderr.trim().is_empty() {
-                stdout
-            } else {
-                stderr
-            };
+            let version_info = if stderr.trim().is_empty() { stdout } else { stderr };
             return Some(extract_java_version(&version_info));
         }
     }
@@ -193,9 +167,7 @@ fn find_java_macos() -> Result<String, String> {
     if let Ok(output) = Command::new("/usr/libexec/java_home").output() {
         if output.status.success() {
             let java_home = String::from_utf8_lossy(&output.stdout);
-            let java_path = std::path::Path::new(java_home.trim())
-                .join("bin")
-                .join("java");
+            let java_path = std::path::Path::new(java_home.trim()).join("bin").join("java");
             if java_path.exists() {
                 return Ok(java_path.to_string_lossy().to_string());
             }

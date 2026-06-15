@@ -43,18 +43,12 @@ pub async fn async_http_client(request: HttpRequest) -> Result<HttpResponse, OAu
         req_builder = req_builder.header(name.as_str(), value.to_str().unwrap_or_default());
     }
 
-    let resp = req_builder
-        .send()
-        .await
-        .map_err(OAuthRequestError::Reqwest)?;
+    let resp = req_builder.send().await.map_err(OAuthRequestError::Reqwest)?;
     let status = resp.status().as_u16();
     let bytes = resp.bytes().await.map_err(OAuthRequestError::Reqwest)?;
 
     // Build an http::Response<Vec<u8>>
-    let http_resp = RawResponse::builder()
-        .status(status)
-        .body(bytes.to_vec())
-        .map_err(OAuthRequestError::Http)?;
+    let http_resp = RawResponse::builder().status(status).body(bytes.to_vec()).map_err(OAuthRequestError::Http)?;
 
     Ok(http_resp)
 }

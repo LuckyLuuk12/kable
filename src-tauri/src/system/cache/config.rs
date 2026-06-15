@@ -13,9 +13,7 @@ where
 
     std::fs::create_dir_all(&path)?;
 
-    CACHE_ROOT
-        .set(path)
-        .map_err(|_| CacheError::AlreadyInitialized)?;
+    CACHE_ROOT.set(path).map_err(|_| CacheError::AlreadyInitialized)?;
 
     Ok(())
 }

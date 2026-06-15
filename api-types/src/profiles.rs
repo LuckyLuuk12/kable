@@ -6,7 +6,7 @@ pub struct KableProfile {
     pub id: String,
     pub name: String,
     pub icon: Option<String>,
-    pub version_id: String,
+    pub version: ProfileVersion,
     pub created: String,
     pub last_used: String,
     pub java_args: Vec<String>,
@@ -16,7 +16,7 @@ pub struct KableProfile {
     pub dedicated_config_folder: Option<String>,
     pub favorite: bool,
     pub total_time_played_ms: u64,
-    pub parameters_map: std::collections::HashMap<String, String>,
+    pub parameters_map: HashMap<String, String>,
     pub description: Option<String>,
     pub times_launched: u32,
     #[serde(default)]
@@ -25,6 +25,30 @@ pub struct KableProfile {
     pub pack_order: Vec<String>,
     #[serde(default)]
     pub merged_packs: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+pub struct ProfileVersion {
+    /// Raw version ID from the profile, e.g. "1.19.2-forge-43.2.0"
+    pub id: String,
+    pub display_name: String,
+    /// Vanilla, Fabric, Forge, NeoForge, Quilt, etc.
+    pub loader: LoaderKind,
+    /// Optional Minecraft version, e.g. "1.19.2", note that since 2026 minecraft versioning is <year>.<drop>.<patch> (e.g. 26.2.1)
+    pub minecraft_version: Option<String>,
+    /// Optional loader version, e.g. "43.2.0" for forge or "0.14.19" for fabric
+    pub loader_version: Option<String>,
+    /// Release, Snapshot, OldBeta, OldAlpha
+    pub version_type: Option<VersionType>,
+    /// Whether this version is marked as stable in the profile, note that this is not necessarily the same as version_type == Release
+    pub stable: Option<bool>,
+    /// Extra metadata that may be present from the version manifest
+    pub release_time: Option<String>,
+    pub updated_time: Option<String>,
+    pub url: Option<String>,
+    pub sha1: Option<String>,
+    pub compliance_level: Option<u32>,
+    pub recommended: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy, Hash, facet::Facet)]
@@ -40,17 +64,16 @@ pub enum LoaderKind {
     Quilt,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
-pub struct VersionData {
-    pub version_id: String,
-    pub loader: LoaderKind,
-    pub display_name: String,
-    pub is_stable: bool,
-    pub extra: Option<HashMap<String, String>>,
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum VersionType {
+    Release,
+    Snapshot,
+    OldBeta,
+    OldAlpha,
 }
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
-pub struct Versions(pub Vec<VersionData>);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
 pub struct ModJarInfo {
@@ -61,78 +84,90 @@ pub struct ModJarInfo {
     pub disabled: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
-pub struct ResourcePackInfo {
-    pub file_name: String,
-    pub name: Option<String>,
-    pub description: Option<String>,
-    pub disabled: bool,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
+// pub struct VersionData {
+//     pub version_id: String,
+//     pub loader: LoaderKind,
+//     pub display_name: String,
+//     pub is_stable: bool,
+//     pub extra: Option<HashMap<String, String>>,
+// }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
-pub struct ShaderPackInfo {
-    pub file_name: String,
-    pub name: Option<String>,
-    pub description: Option<String>,
-    pub disabled: bool,
-}
+// #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
+// pub struct Versions(pub Vec<VersionData>);
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
-pub struct PackFileDetailedGroup {
-    pub disabled: Vec<PackFileInfo>,
-    pub optional: Vec<PackFileInfo>,
-    pub to_be_installed: Vec<PackFileInfo>,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
+// pub struct ResourcePackInfo {
+//     pub file_name: String,
+//     pub name: Option<String>,
+//     pub description: Option<String>,
+//     pub disabled: bool,
+// }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
-pub struct MrPackDetailed {
-    pub mods: PackFileDetailedGroup,
-    pub resourcepacks: PackFileDetailedGroup,
-    pub shaderpacks: PackFileDetailedGroup,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
+// pub struct ShaderPackInfo {
+//     pub file_name: String,
+//     pub name: Option<String>,
+//     pub description: Option<String>,
+//     pub disabled: bool,
+// }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
-pub struct PackFileInfo {
-    pub path: String,
-    pub file_size: u64,
-    pub hashes: std::collections::HashMap<String, String>,
-    pub downloads: Vec<String>,
-    pub env: Option<MrpackEnv>,
-    pub already_installed: bool,
-    pub overwrite: bool,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+// pub struct PackFileDetailedGroup {
+//     pub disabled: Vec<PackFileInfo>,
+//     pub optional: Vec<PackFileInfo>,
+//     pub to_be_installed: Vec<PackFileInfo>,
+// }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
-pub struct PackFileGroups {
-    pub mods: Vec<PackFileInfo>,
-    pub resourcepacks: Vec<PackFileInfo>,
-    pub shaderpacks: Vec<PackFileInfo>,
-    pub others: Vec<PackFileInfo>,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+// pub struct MrPackDetailed {
+//     pub mods: PackFileDetailedGroup,
+//     pub resourcepacks: PackFileDetailedGroup,
+//     pub shaderpacks: PackFileDetailedGroup,
+// }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
-pub struct MrpackIndex {
-    pub name: String,
-    pub version_id: String,
-    pub format_version: u32,
-    pub files: Vec<MrpackFile>,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+// pub struct PackFileInfo {
+//     pub path: String,
+//     pub file_size: u64,
+//     pub hashes: std::collections::HashMap<String, String>,
+//     pub downloads: Vec<String>,
+//     pub env: Option<MrpackEnv>,
+//     pub already_installed: bool,
+//     pub overwrite: bool,
+// }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
-#[facet(rename_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub struct MrpackFile {
-    pub path: String,
-    pub file_size: u64,
-    pub hashes: std::collections::HashMap<String, String>,
-    pub downloads: Vec<String>,
-    pub env: Option<MrpackEnv>,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+// pub struct PackFileGroups {
+//     pub mods: Vec<PackFileInfo>,
+//     pub resourcepacks: Vec<PackFileInfo>,
+//     pub shaderpacks: Vec<PackFileInfo>,
+//     pub others: Vec<PackFileInfo>,
+// }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
-#[facet(rename_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-pub struct MrpackEnv {
-    pub client: Option<String>,
-    pub server: Option<String>,
-}
+// #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+// pub struct MrpackIndex {
+//     pub name: String,
+//     pub version_id: String,
+//     pub format_version: u32,
+//     pub files: Vec<MrpackFile>,
+// }
+
+// #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+// #[facet(rename_all = "snake_case")]
+// #[serde(rename_all = "snake_case")]
+// pub struct MrpackFile {
+//     pub path: String,
+//     pub file_size: u64,
+//     pub hashes: std::collections::HashMap<String, String>,
+//     pub downloads: Vec<String>,
+//     pub env: Option<MrpackEnv>,
+// }
+
+// #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+// #[facet(rename_all = "snake_case")]
+// #[serde(rename_all = "snake_case")]
+// pub struct MrpackEnv {
+//     pub client: Option<String>,
+//     pub server: Option<String>,
+// }

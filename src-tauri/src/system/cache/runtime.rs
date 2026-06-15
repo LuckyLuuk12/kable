@@ -21,8 +21,7 @@ where
     let _guard = lock.lock().await;
 
     if let Some(raw) = read_file(&path).await? {
-        if let Ok((entry, _)) = bincode::serde::decode_from_slice(&raw, bincode::config::standard())
-        {
+        if let Ok((entry, _)) = bincode::serde::decode_from_slice(&raw, bincode::config::standard()) {
             let now = CacheEntry::<T>::new(entry.value.clone(), entry.ttl_secs, entry.created_at);
 
             if !now.is_expired(crate::entry::now()) {

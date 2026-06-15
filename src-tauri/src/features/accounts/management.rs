@@ -6,9 +6,7 @@ use chrono::Utc;
 
 use crate::constants::KABLE_ACCOUNTS_FILE;
 use crate::features::accounts::secure_token;
-use crate::system::fs::{
-    get_kable_launcher_dir, read_to_string, write_file, write_file_atomic_async,
-};
+use crate::system::fs::{get_kable_launcher_dir, read_to_string, write_file, write_file_atomic_async};
 
 pub async fn add_account(account: LauncherAccount) -> Result<(), String> {
     let mut accounts_json = ensure_accounts_file().await?;
@@ -17,9 +15,7 @@ pub async fn add_account(account: LauncherAccount) -> Result<(), String> {
         return Err(format!("Account ID {} already exists", account.local_id));
     }
 
-    accounts_json
-        .accounts
-        .insert(account.local_id.clone(), account);
+    accounts_json.accounts.insert(account.local_id.clone(), account);
     write_accounts(&accounts_json).await?;
     Ok(())
 }
@@ -52,8 +48,7 @@ pub async fn set_active_account(account: LauncherAccount) -> Result<(), String> 
     };
     write_file(
         &get_kable_accounts_path().await?,
-        &serde_json::to_string_pretty(&updated_json)
-            .map_err(|e| format!("Failed to serialize updated accounts: {}", e))?,
+        &serde_json::to_string_pretty(&updated_json).map_err(|e| format!("Failed to serialize updated accounts: {}", e))?,
     )
     .await?;
     Ok(())
@@ -61,10 +56,7 @@ pub async fn set_active_account(account: LauncherAccount) -> Result<(), String> 
 
 pub async fn get_active_account() -> Result<Option<LauncherAccount>, String> {
     let accounts_json = ensure_accounts_file().await?;
-    Ok(accounts_json
-        .accounts
-        .get(&accounts_json.active_account_local_id)
-        .cloned())
+    Ok(accounts_json.accounts.get(&accounts_json.active_account_local_id).cloned())
 }
 
 pub async fn list_accounts() -> Result<Vec<LauncherAccount>, String> {
@@ -85,8 +77,7 @@ async fn get_kable_accounts_path() -> Result<PathBuf, String> {
     if !accounts_path.exists() {
         // Ensure parent directory exists and atomically create the file (sync helper)
         if let Some(parent_dir) = accounts_path.parent() {
-            crate::ensure_folder_sync(parent_dir)
-                .map_err(|e| format!("Failed to create Kable launcher directory: {}", e))?;
+            crate::ensure_folder_sync(parent_dir).map_err(|e| format!("Failed to create Kable launcher directory: {}", e))?;
         }
         // Write empty structure
         let empty = serde_json::json!({
@@ -94,8 +85,7 @@ async fn get_kable_accounts_path() -> Result<PathBuf, String> {
             "active_account_local_id": "",
             "mojang_client_token": ""
         });
-        let content = serde_json::to_string_pretty(&empty)
-            .map_err(|e| format!("Failed to serialize empty accounts: {}", e))?;
+        let content = serde_json::to_string_pretty(&empty).map_err(|e| format!("Failed to serialize empty accounts: {}", e))?;
         write_file_atomic_async(&accounts_path, content.as_bytes()).await?;
     }
     Ok(accounts_path)
@@ -120,8 +110,7 @@ async fn ensure_accounts_file() -> Result<LauncherAccountsJson, String> {
 
 async fn write_accounts(accounts_json: &LauncherAccountsJson) -> Result<(), String> {
     let accounts_path = get_kable_accounts_path().await?;
-    let content = serde_json::to_string_pretty(accounts_json)
-        .map_err(|e| format!("Failed to serialize accounts: {}", e))?;
+    let content = serde_json::to_string_pretty(accounts_json).map_err(|e| format!("Failed to serialize accounts: {}", e))?;
     write_file(&accounts_path, &content).await?;
     Ok(())
 }
@@ -134,11 +123,7 @@ async fn refresh_account(account: &mut LauncherAccount) -> Result<(), String> {
 
     let refresh_token = secure_token::decrypt_token(encrypted_refresh_token)?;
 
-    let token = MicrosoftToken {
-        access_token: String::new(),
-        expires_at: Utc::now(),
-        refresh_token: Some(refresh_token),
-    };
+    let token = MicrosoftToken { access_token: String::new(), expires_at: Utc::now(), refresh_token: Some(refresh_token) };
 
     let new_token = crate::integrations::mojang_api::auth::refresh_microsoft_token(token).await?;
 
@@ -152,9 +137,7 @@ async fn refresh_account(account: &mut LauncherAccount) -> Result<(), String> {
     Ok(())
 }
 
-async fn refresh_accounts(
-    mut accounts_json: LauncherAccountsJson,
-) -> Result<LauncherAccountsJson, String> {
+async fn refresh_accounts(mut accounts_json: LauncherAccountsJson) -> Result<LauncherAccountsJson, String> {
     for account in accounts_json.accounts.values_mut() {
         if let Err(e) = refresh_account(account).await {
             eprintln!("Failed to refresh account {}: {}", account.local_id, e);

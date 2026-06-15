@@ -33,12 +33,8 @@ pub async fn handle_args(args: Args) -> Result<(), String> {
     // 5. Now we check for args, if any present that prevent UI this here should end process as well
     if let Some(profile_id) = args.launch_profile {
         // Find profile by id, launch with loaded settings and active account.
-        let profile = get_installation(&profile_id.into_boxed_str())
-            .await?
-            .expect("Specified profile `{}` could not be found!");
-        let account = get_active_account()
-            .await?
-            .expect("No active account found!");
+        let profile = get_installation(&profile_id.into_boxed_str()).await?.expect("Specified profile `{}` could not be found!");
+        let account = get_active_account().await?.expect("No active account found!");
         launch_installation(profile, settings, account).await?;
     }
 

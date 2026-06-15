@@ -39,12 +39,7 @@ pub struct CacheEntry<T> {
 impl<T> CacheEntry<T> {
     /// Creates a new cache entry.
     pub fn new(value: T, ttl_secs: Option<u64>, created_at: u64) -> Self {
-        Self {
-            format_version: CACHE_FORMAT_VERSION,
-            created_at,
-            ttl_secs,
-            value,
-        }
+        Self { format_version: CACHE_FORMAT_VERSION, created_at, ttl_secs, value }
     }
 
     /// Returns true if the cache entry has expired.

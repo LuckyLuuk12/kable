@@ -12,10 +12,7 @@ pub fn get_default_minecraft_dir() -> Result<PathBuf, String> {
     let minecraft_dir = home_dir.join("AppData").join("Roaming").join(".minecraft");
 
     #[cfg(target_os = "macos")]
-    let minecraft_dir = home_dir
-        .join("Library")
-        .join("Application Support")
-        .join("minecraft");
+    let minecraft_dir = home_dir.join("Library").join("Application Support").join("minecraft");
 
     #[cfg(target_os = "linux")]
     let minecraft_dir = home_dir.join(".minecraft");
@@ -32,20 +29,8 @@ pub fn get_minecraft_kable_dir() -> Result<PathBuf, String> {
 
     // Migration logic: if old folder exists and new doesn't, rename it
     if old_kable_dir.exists() && !new_kable_dir.exists() {
-        fs::rename(&old_kable_dir, &new_kable_dir).map_err(|e| {
-            format!(
-                "Failed to migrate kable folder to {}: {}",
-                KABLE_DIR_NAME, e
-            )
-        })?;
-        Logger::info_global(
-            &format!(
-                "Migrated kable folder to {} at {}",
-                KABLE_DIR_NAME,
-                new_kable_dir.display()
-            ),
-            None,
-        );
+        fs::rename(&old_kable_dir, &new_kable_dir).map_err(|e| format!("Failed to migrate kable folder to {}: {}", KABLE_DIR_NAME, e))?;
+        Logger::info_global(&format!("Migrated kable folder to {} at {}", KABLE_DIR_NAME, new_kable_dir.display()), None);
     }
 
     // Ensure .kable directory exists
@@ -70,13 +55,9 @@ pub fn get_kable_launcher_dir() -> Result<PathBuf, String> {
 /// path has no parent. Returns Err when directory creation fails.
 pub async fn ensure_parent_dir_exists_async(path: &Path) -> Result<(), String> {
     if let Some(parent) = path.parent() {
-        async_fs::create_dir_all(parent).await.map_err(|e| {
-            format!(
-                "failed to create parent directories {}: {}",
-                parent.display(),
-                e
-            )
-        })?;
+        async_fs::create_dir_all(parent)
+            .await
+            .map_err(|e| format!("failed to create parent directories {}: {}", parent.display(), e))?;
     }
     Ok(())
 }
@@ -129,17 +110,12 @@ pub async fn ensure_folder(path: &Path) -> Result<PathBuf, String> {
             if md.is_dir() {
                 Ok(path.to_path_buf())
             } else {
-                Err(format!(
-                    "path exists but is not a directory: {}",
-                    path.display()
-                ))
+                Err(format!("path exists but is not a directory: {}", path.display()))
             }
         }
         Err(e) => {
             if e.kind() == std::io::ErrorKind::NotFound {
-                async_fs::create_dir_all(path)
-                    .await
-                    .map_err(|e| format!("failed to create directory {}: {}", path.display(), e))?;
+                async_fs::create_dir_all(path).await.map_err(|e| format!("failed to create directory {}: {}", path.display(), e))?;
                 Ok(path.to_path_buf())
             } else {
                 Err(format!("failed to stat path {}: {}", path.display(), e))
@@ -163,16 +139,12 @@ pub fn ensure_folder_sync(path: &Path) -> Result<PathBuf, String> {
             if md.is_dir() {
                 Ok(path.to_path_buf())
             } else {
-                Err(format!(
-                    "path exists but is not a directory: {}",
-                    path.display()
-                ))
+                Err(format!("path exists but is not a directory: {}", path.display()))
             }
         }
         Err(e) => {
             if e.kind() == std::io::ErrorKind::NotFound {
-                std::fs::create_dir_all(path)
-                    .map_err(|e| format!("failed to create directory {}: {}", path.display(), e))?;
+                std::fs::create_dir_all(path).map_err(|e| format!("failed to create directory {}: {}", path.display(), e))?;
                 Ok(path.to_path_buf())
             } else {
                 Err(format!("failed to stat path {}: {}", path.display(), e))
@@ -183,40 +155,23 @@ pub fn ensure_folder_sync(path: &Path) -> Result<PathBuf, String> {
 
 /// Recursively copy a directory and all its contents (async version)
 pub async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
-    async_fs::create_dir_all(dst)
-        .await
-        .map_err(|e| format!("Failed to create directory {}: {}", dst.display(), e))?;
+    async_fs::create_dir_all(dst).await.map_err(|e| format!("Failed to create directory {}: {}", dst.display(), e))?;
 
-    let mut entries = async_fs::read_dir(src)
-        .await
-        .map_err(|e| format!("Failed to read directory {}: {}", src.display(), e))?;
+    let mut entries = async_fs::read_dir(src).await.map_err(|e| format!("Failed to read directory {}: {}", src.display(), e))?;
 
-    while let Some(entry) = entries
-        .next_entry()
-        .await
-        .map_err(|e| format!("Failed to read entry: {}", e))?
-    {
+    while let Some(entry) = entries.next_entry().await.map_err(|e| format!("Failed to read entry: {}", e))? {
         let src_path = entry.path();
-        let file_name = src_path
-            .file_name()
-            .ok_or_else(|| "Invalid file name".to_string())?;
+        let file_name = src_path.file_name().ok_or_else(|| "Invalid file name".to_string())?;
         let dst_path = dst.join(file_name);
 
-        let metadata = async_fs::metadata(&src_path)
-            .await
-            .map_err(|e| format!("Failed to get metadata: {}", e))?;
+        let metadata = async_fs::metadata(&src_path).await.map_err(|e| format!("Failed to get metadata: {}", e))?;
 
         if metadata.is_dir() {
             Box::pin(copy_dir_recursive(&src_path, &dst_path)).await?;
         } else {
-            async_fs::copy(&src_path, &dst_path).await.map_err(|e| {
-                format!(
-                    "Failed to copy file from {} to {}: {}",
-                    src_path.display(),
-                    dst_path.display(),
-                    e
-                )
-            })?;
+            async_fs::copy(&src_path, &dst_path)
+                .await
+                .map_err(|e| format!("Failed to copy file from {} to {}: {}", src_path.display(), dst_path.display(), e))?;
         }
     }
 
@@ -226,31 +181,21 @@ pub async fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
 /// Synchronous variant of copy_dir_recursive for use in blocking contexts
 /// TODO: remove or make it call async version
 pub fn copy_dir_recursive_sync(src: &Path, dst: &Path) -> Result<(), String> {
-    std::fs::create_dir_all(dst)
-        .map_err(|e| format!("Failed to create directory {}: {}", dst.display(), e))?;
+    std::fs::create_dir_all(dst).map_err(|e| format!("Failed to create directory {}: {}", dst.display(), e))?;
 
-    let entries = std::fs::read_dir(src)
-        .map_err(|e| format!("Failed to read directory {}: {}", src.display(), e))?;
+    let entries = std::fs::read_dir(src).map_err(|e| format!("Failed to read directory {}: {}", src.display(), e))?;
 
     for entry in entries {
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
-        let ty = entry
-            .file_type()
-            .map_err(|e| format!("Failed to get file type: {}", e))?;
+        let ty = entry.file_type().map_err(|e| format!("Failed to get file type: {}", e))?;
         let src_path = entry.path();
         let dst_path = dst.join(entry.file_name());
 
         if ty.is_dir() {
             copy_dir_recursive_sync(&src_path, &dst_path)?;
         } else {
-            std::fs::copy(&src_path, &dst_path).map_err(|e| {
-                format!(
-                    "Failed to copy file from {} to {}: {}",
-                    src_path.display(),
-                    dst_path.display(),
-                    e
-                )
-            })?;
+            std::fs::copy(&src_path, &dst_path)
+                .map_err(|e| format!("Failed to copy file from {} to {}: {}", src_path.display(), dst_path.display(), e))?;
         }
     }
 
@@ -265,10 +210,7 @@ pub async fn write_file_atomic_async(path: &Path, bytes: &[u8]) -> Result<(), St
 
     // Work with owned PathBufs so we can move them into the blocking task
     let path_buf = path.to_path_buf();
-    let parent = path_buf
-        .parent()
-        .ok_or_else(|| format!("Path has no parent: {}", path_buf.display()))?
-        .to_path_buf();
+    let parent = path_buf.parent().ok_or_else(|| format!("Path has no parent: {}", path_buf.display()))?.to_path_buf();
 
     // Create a temp filename in the same directory
     let mut tmp = parent.clone();
@@ -276,9 +218,7 @@ pub async fn write_file_atomic_async(path: &Path, bytes: &[u8]) -> Result<(), St
     tmp.push(tmp_name);
 
     // Write to temp file asynchronously
-    async_fs::write(&tmp, bytes)
-        .await
-        .map_err(|e| format!("failed to write temp file {}: {}", tmp.display(), e))?;
+    async_fs::write(&tmp, bytes).await.map_err(|e| format!("failed to write temp file {}: {}", tmp.display(), e))?;
 
     // Move owned PathBufs into the blocking task and rename
     let tmp_move = tmp.clone();
@@ -301,26 +241,19 @@ pub async fn write_file(path: &PathBuf, text: &String) -> Result<(), String> {
 pub fn write_file_atomic_sync(path: &Path, bytes: &[u8]) -> Result<(), String> {
     // Ensure parent exists
     if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|e| format!("failed to create parent dirs {}: {}", parent.display(), e))?;
+        std::fs::create_dir_all(parent).map_err(|e| format!("failed to create parent dirs {}: {}", parent.display(), e))?;
     }
 
-    let parent = path
-        .parent()
-        .ok_or_else(|| format!("Path has no parent: {}", path.display()))?;
+    let parent = path.parent().ok_or_else(|| format!("Path has no parent: {}", path.display()))?;
     let mut tmp = parent.to_path_buf();
     let tmp_name = format!(".{}.tmp", uuid::Uuid::new_v4());
     tmp.push(tmp_name);
 
-    std::fs::write(&tmp, bytes)
-        .map_err(|e| format!("failed to write temp file {}: {}", tmp.display(), e))?;
-    std::fs::rename(&tmp, path)
-        .map_err(|e| format!("failed to rename temp file into place: {}", e))?;
+    std::fs::write(&tmp, bytes).map_err(|e| format!("failed to write temp file {}: {}", tmp.display(), e))?;
+    std::fs::rename(&tmp, path).map_err(|e| format!("failed to rename temp file into place: {}", e))?;
     Ok(())
 }
 
 pub async fn read_to_string(path: &Path) -> Result<String, String> {
-    async_fs::read_to_string(path)
-        .await
-        .map_err(|e| format!("Failed to read file {}: {}", path.display(), e))
+    async_fs::read_to_string(path).await.map_err(|e| format!("Failed to read file {}: {}", path.display(), e))
 }

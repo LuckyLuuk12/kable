@@ -18,10 +18,7 @@ pub async fn delete_profile(id: String) -> Result<Vec<KableProfile>, String> {
 }
 
 #[tauri::command]
-pub async fn modify_profile(
-    id: String,
-    new_installation: KableProfile,
-) -> Result<KableProfile, String> {
+pub async fn modify_profile(id: String, new_installation: KableProfile) -> Result<KableProfile, String> {
     management::modify_profile(&id, new_installation).await
 }
 

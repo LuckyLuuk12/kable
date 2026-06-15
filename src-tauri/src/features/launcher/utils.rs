@@ -1,12 +1,8 @@
-use crate::constants::{
-    LATEST_RELEASE, LATEST_SNAPSHOT, MINECRAFT_VERSION_MANIFEST_URL, VERSIONS_DIR,
-};
+use crate::constants::{LATEST_RELEASE, LATEST_SNAPSHOT, MINECRAFT_VERSION_MANIFEST_URL, VERSIONS_DIR};
 use crate::features::launcher::{LaunchContext, LaunchResult};
 pub use crate::integrations::minecraft::manifest::{
-    compare_versions, ensure_assets_for_manifest,
-    load_and_merge_manifest_sync as load_and_merge_manifest_with_instance, merge_manifests,
-    merge_manifests_with_instance, Artifact, AssetMode, Extract, Library, LibraryDownloads, OsRule,
-    Rule,
+    compare_versions, ensure_assets_for_manifest, load_and_merge_manifest_sync as load_and_merge_manifest_with_instance, merge_manifests,
+    merge_manifests_with_instance, Artifact, AssetMode, Extract, Library, LibraryDownloads, OsRule, Rule,
 };
 use crate::logging::Logger;
 use api_types::settings::CategorizedLauncherSettings;
@@ -20,11 +16,7 @@ use tauri::Emitter;
 use tokio::fs as async_fs;
 use tokio::io::BufReader;
 
-pub fn load_and_merge_manifest_sync(
-    minecraft_dir: &str,
-    version_id: &str,
-    instance_id: Option<&str>,
-) -> Result<Value, String> {
+pub fn load_and_merge_manifest_sync(minecraft_dir: &str, version_id: &str, instance_id: Option<&str>) -> Result<Value, String> {
     load_and_merge_manifest_with_instance(minecraft_dir, version_id, instance_id)
 }
 
@@ -37,11 +29,7 @@ pub fn try_find_library_manually(library_name: &str, libraries_path: &Path) -> O
     let name = parts[1];
     let version = parts[2];
 
-    let path = libraries_path
-        .join(group)
-        .join(name)
-        .join(version)
-        .join(format!("{}-{}.jar", name, version));
+    let path = libraries_path.join(group).join(name).join(version).join(format!("{}-{}.jar", name, version));
 
     if path.exists() {
         Some(path)
@@ -77,8 +65,7 @@ pub fn build_classpath_from_manifest_with_instance(
                     if let Some(name_val) = obj.get("name") {
                         if let Some(name) = name_val.as_str() {
                             lib_name = Some(name.to_string());
-                            if let Some(jar_path) = try_find_library_manually(name, libraries_path)
-                            {
+                            if let Some(jar_path) = try_find_library_manually(name, libraries_path) {
                                 if jar_path.exists() {
                                     jar_path_opt = Some(jar_path.to_string_lossy().to_string());
                                 }
@@ -133,11 +120,7 @@ pub fn build_classpath_from_manifest_with_instance(
     entries.join(sep)
 }
 
-pub fn build_classpath_from_manifest(
-    manifest: &Value,
-    libraries_path: &Path,
-    version_jar_path: &Path,
-) -> String {
+pub fn build_classpath_from_manifest(manifest: &Value, libraries_path: &Path, version_jar_path: &Path) -> String {
     build_classpath_from_manifest_with_instance(manifest, libraries_path, version_jar_path, None)
 }
 
@@ -147,19 +130,10 @@ pub fn build_jvm_and_game_args_with_instance(
     instance_id: Option<&str>,
 ) -> (Vec<String>, Vec<String>) {
     Logger::debug_global(&format!("Variables: {:?}", variables), instance_id);
-    let arguments = manifest
-        .get("arguments")
-        .and_then(|v| v.as_object())
-        .expect("No arguments in manifest");
+    let arguments = manifest.get("arguments").and_then(|v| v.as_object()).expect("No arguments in manifest");
     let empty_vec = Vec::new();
-    let jvm_args = arguments
-        .get("jvm")
-        .and_then(|v| v.as_array())
-        .unwrap_or(&empty_vec);
-    let game_args = arguments
-        .get("game")
-        .and_then(|v| v.as_array())
-        .unwrap_or(&empty_vec);
+    let jvm_args = arguments.get("jvm").and_then(|v| v.as_array()).unwrap_or(&empty_vec);
+    let game_args = arguments.get("game").and_then(|v| v.as_array()).unwrap_or(&empty_vec);
     let jvm_args_vec = process_arguments(jvm_args, variables);
     let game_args_vec = process_arguments(game_args, variables);
     Logger::debug_global(&format!("JVM args: {:?}", jvm_args_vec), instance_id);
@@ -167,10 +141,7 @@ pub fn build_jvm_and_game_args_with_instance(
     (jvm_args_vec, game_args_vec)
 }
 
-pub fn build_jvm_and_game_args(
-    manifest: &Value,
-    variables: &HashMap<String, String>,
-) -> (Vec<String>, Vec<String>) {
+pub fn build_jvm_and_game_args(manifest: &Value, variables: &HashMap<String, String>) -> (Vec<String>, Vec<String>) {
     build_jvm_and_game_args_with_instance(manifest, variables, None)
 }
 
@@ -232,10 +203,7 @@ pub fn evaluate_rules(rules: &Value) -> Result<bool, String> {
     let mut allow = false;
     if let Some(rules_array) = rules.as_array() {
         for rule in rules_array {
-            let action = rule
-                .get("action")
-                .and_then(|v| v.as_str())
-                .ok_or("Missing action in rule")?;
+            let action = rule.get("action").and_then(|v| v.as_str()).ok_or("Missing action in rule")?;
             let mut matches = true;
             if let Some(os_condition) = rule.get("os") {
                 matches = evaluate_os_condition(os_condition)?;
@@ -259,10 +227,7 @@ pub fn evaluate_rules(rules: &Value) -> Result<bool, String> {
     Ok(allow)
 }
 
-pub async fn ensure_version_manifest_and_jar(
-    version_id: &str,
-    minecraft_dir: &str,
-) -> Result<String, String> {
+pub async fn ensure_version_manifest_and_jar(version_id: &str, minecraft_dir: &str) -> Result<String, String> {
     use reqwest::Client;
     use zip::ZipArchive;
 
@@ -271,15 +236,8 @@ pub async fn ensure_version_manifest_and_jar(
     if version_id == LATEST_RELEASE || version_id == LATEST_SNAPSHOT || version_id == "latest" {
         let version_list_url = MINECRAFT_VERSION_MANIFEST_URL;
         let client = Client::new();
-        let resp = client
-            .get(version_list_url)
-            .send()
-            .await
-            .map_err(|e| format!("Failed to fetch version list: {e}"))?;
-        let manifest: Value = resp
-            .json()
-            .await
-            .map_err(|e| format!("Failed to parse version list: {e}"))?;
+        let resp = client.get(version_list_url).send().await.map_err(|e| format!("Failed to fetch version list: {e}"))?;
+        let manifest: Value = resp.json().await.map_err(|e| format!("Failed to parse version list: {e}"))?;
         maybe_version_list = Some(manifest.clone());
         if let Some(latest) = manifest.get("latest") {
             if version_id == LATEST_SNAPSHOT {
@@ -290,25 +248,17 @@ pub async fn ensure_version_manifest_and_jar(
                 resolved_version = release.to_string();
             }
         }
-        Logger::debug_global(
-            &format!("Resolved {} => {}", version_id, resolved_version),
-            None,
-        );
+        Logger::debug_global(&format!("Resolved {} => {}", version_id, resolved_version), None);
     }
 
-    let version_subdir = PathBuf::from(minecraft_dir)
-        .join(VERSIONS_DIR)
-        .join(&resolved_version);
-    crate::system::fs::ensure_folder(&version_subdir)
-        .map_err(|e| format!("Failed to create versions dir: {}", e))?;
+    let version_subdir = PathBuf::from(minecraft_dir).join(VERSIONS_DIR).join(&resolved_version);
+    crate::system::fs::ensure_folder(&version_subdir).map_err(|e| format!("Failed to create versions dir: {}", e))?;
     let manifest_path = version_subdir.join(format!("{}.json", resolved_version));
     let jar_path = version_subdir.join(format!("{}.jar", resolved_version));
 
     fn validate_client_jar(jar_path: &Path) -> Result<(), String> {
-        let file = std::fs::File::open(jar_path)
-            .map_err(|e| format!("Failed to open JAR for validation: {}", e))?;
-        let mut archive =
-            ZipArchive::new(file).map_err(|e| format!("Failed to read JAR archive: {}", e))?;
+        let file = std::fs::File::open(jar_path).map_err(|e| format!("Failed to open JAR for validation: {}", e))?;
+        let mut archive = ZipArchive::new(file).map_err(|e| format!("Failed to read JAR archive: {}", e))?;
         for i in 0..archive.len() {
             if let Ok(entry) = archive.by_index(i) {
                 let name = entry.name();
@@ -324,20 +274,14 @@ pub async fn ensure_version_manifest_and_jar(
         match validate_client_jar(&jar_path) {
             Ok(_) => {
                 Logger::debug_global(
-                    &format!(
-                        "Version folder already exists for {} ({}) - skipping download",
-                        version_id, resolved_version
-                    ),
+                    &format!("Version folder already exists for {} ({}) - skipping download", version_id, resolved_version),
                     None,
                 );
                 return Ok(resolved_version.clone());
             }
             Err(e) => {
                 Logger::debug_global(
-                    &format!(
-                        "Existing JAR failed validation for {} ({}): {}. Will re-download.",
-                        version_id, resolved_version, e
-                    ),
+                    &format!("Existing JAR failed validation for {} ({}): {}. Will re-download.", version_id, resolved_version, e),
                     None,
                 );
                 let _ = std::fs::remove_file(&jar_path);
@@ -351,59 +295,33 @@ pub async fn ensure_version_manifest_and_jar(
         } else {
             let version_list_url = MINECRAFT_VERSION_MANIFEST_URL;
             let client = Client::new();
-            let resp = client
-                .get(version_list_url)
-                .send()
-                .await
-                .map_err(|e| format!("Failed to fetch version list: {e}"))?;
-            resp.json::<Value>()
-                .await
-                .map_err(|e| format!("Failed to parse version list: {e}"))?
+            let resp = client.get(version_list_url).send().await.map_err(|e| format!("Failed to fetch version list: {e}"))?;
+            resp.json::<Value>().await.map_err(|e| format!("Failed to parse version list: {e}"))?
         };
 
         if let Some(versions) = manifest_list.get("versions").and_then(|v| v.as_array()) {
-            let version_info = versions
-                .iter()
-                .find(|v| v.get("id").and_then(|id| id.as_str()) == Some(&resolved_version));
+            let version_info = versions.iter().find(|v| v.get("id").and_then(|id| id.as_str()) == Some(&resolved_version));
             if let Some(info) = version_info {
                 if let Some(url) = info.get("url").and_then(|u| u.as_str()) {
                     let client = Client::new();
-                    let resp = client
-                        .get(url)
-                        .send()
-                        .await
-                        .map_err(|e| format!("Failed to download manifest: {e}"))?;
-                    let bytes = resp
-                        .bytes()
-                        .await
-                        .map_err(|e| format!("Failed to read manifest bytes: {e}"))?;
-                    std::fs::write(&manifest_path, bytes)
-                        .map_err(|e| format!("Failed to save manifest: {e}"))?;
+                    let resp = client.get(url).send().await.map_err(|e| format!("Failed to download manifest: {e}"))?;
+                    let bytes = resp.bytes().await.map_err(|e| format!("Failed to read manifest bytes: {e}"))?;
+                    std::fs::write(&manifest_path, bytes).map_err(|e| format!("Failed to save manifest: {e}"))?;
                 }
             }
         }
     }
 
     if !jar_path.exists() {
-        let manifest_str = std::fs::read_to_string(&manifest_path)
-            .map_err(|e| format!("Failed to read manifest: {e}"))?;
-        let manifest: Value = serde_json::from_str(&manifest_str)
-            .map_err(|e| format!("Failed to parse manifest: {e}"))?;
+        let manifest_str = std::fs::read_to_string(&manifest_path).map_err(|e| format!("Failed to read manifest: {e}"))?;
+        let manifest: Value = serde_json::from_str(&manifest_str).map_err(|e| format!("Failed to parse manifest: {e}"))?;
         if let Some(downloads) = manifest.get("downloads") {
             if let Some(client) = downloads.get("client") {
                 if let Some(url) = client.get("url").and_then(|u| u.as_str()) {
                     let client = Client::new();
-                    let resp = client
-                        .get(url)
-                        .send()
-                        .await
-                        .map_err(|e| format!("Failed to download JAR: {e}"))?;
-                    let bytes = resp
-                        .bytes()
-                        .await
-                        .map_err(|e| format!("Failed to read JAR bytes: {e}"))?;
-                    std::fs::write(&jar_path, bytes)
-                        .map_err(|e| format!("Failed to save JAR: {e}"))?;
+                    let resp = client.get(url).send().await.map_err(|e| format!("Failed to download JAR: {e}"))?;
+                    let bytes = resp.bytes().await.map_err(|e| format!("Failed to read JAR bytes: {e}"))?;
+                    std::fs::write(&jar_path, bytes).map_err(|e| format!("Failed to save JAR: {e}"))?;
                 }
             }
         }
@@ -420,14 +338,10 @@ pub fn extract_natives(
 ) -> Result<(), String> {
     if natives_path.exists() {
         if let Err(e) = std::fs::remove_dir_all(natives_path) {
-            Logger::debug_global(
-                &format!("Failed to clear natives directory (will continue): {}", e),
-                None,
-            );
+            Logger::debug_global(&format!("Failed to clear natives directory (will continue): {}", e), None);
         }
     }
-    crate::system::fs::ensure_folder_sync(natives_path)
-        .map_err(|e| format!("Failed to create natives directory: {}", e))?;
+    crate::system::fs::ensure_folder_sync(natives_path).map_err(|e| format!("Failed to create natives directory: {}", e))?;
     let current_os = if cfg!(windows) {
         "windows"
     } else if cfg!(target_os = "macos") {
@@ -452,8 +366,7 @@ pub fn extract_natives(
 
     for library in libraries {
         if let Some(rules) = &library.rules {
-            let rules_value = serde_json::to_value(rules)
-                .map_err(|e| format!("Failed to serialize rules: {}", e))?;
+            let rules_value = serde_json::to_value(rules).map_err(|e| format!("Failed to serialize rules: {}", e))?;
             if !evaluate_rules(&rules_value)? {
                 continue;
             }
@@ -519,19 +432,12 @@ pub fn extract_natives(
     Ok(())
 }
 
-pub fn pre_launch_java_native_compat_check(
-    java_path: &str,
-    manifest: &Value,
-    instance_id: Option<&str>,
-) -> Result<(), String> {
+pub fn pre_launch_java_native_compat_check(java_path: &str, manifest: &Value, instance_id: Option<&str>) -> Result<(), String> {
     use std::collections::HashSet;
 
     let trimmed_path = java_path.trim();
     if trimmed_path.is_empty() {
-        Logger::warn_global(
-            "Java path is empty or whitespace. Cannot perform pre-launch compatibility check.",
-            instance_id,
-        );
+        Logger::warn_global("Java path is empty or whitespace. Cannot perform pre-launch compatibility check.", instance_id);
         return Ok(());
     }
 
@@ -543,26 +449,14 @@ pub fn pre_launch_java_native_compat_check(
             java_info.push_str(&String::from_utf8_lossy(&o.stderr));
         }
         Err(e) => {
-            Logger::info_global(
-                &format!(
-                    "Failed to execute '{}' to probe java version: {}",
-                    trimmed_path, e
-                ),
-                instance_id,
-            );
+            Logger::info_global(&format!("Failed to execute '{}' to probe java version: {}", trimmed_path, e), instance_id);
             return Ok(());
         }
     }
 
-    let java_arch = if java_info.contains("64-Bit")
-        || java_info.contains("x86_64")
-        || java_info.contains("amd64")
-    {
+    let java_arch = if java_info.contains("64-Bit") || java_info.contains("x86_64") || java_info.contains("amd64") {
         "x86_64"
-    } else if java_info.to_lowercase().contains("arm")
-        || java_info.contains("aarch64")
-        || java_info.contains("arm64")
-    {
+    } else if java_info.to_lowercase().contains("arm") || java_info.contains("aarch64") || java_info.contains("arm64") {
         "arm64"
     } else if java_info.contains("32-Bit") || java_info.contains("x86") {
         "x86"
@@ -601,10 +495,7 @@ pub fn pre_launch_java_native_compat_check(
 
     if !required_archs.is_empty() && !required_archs.contains(java_arch) {
         Logger::warn_global(
-            &format!(
-                "Potential arch mismatch: Java arch is {}, but manifest requires {:?}",
-                java_arch, required_archs
-            ),
+            &format!("Potential arch mismatch: Java arch is {}, but manifest requires {:?}", java_arch, required_archs),
             instance_id,
         );
     }
@@ -621,41 +512,18 @@ pub fn build_variable_map(
     let mut variables = HashMap::new();
 
     variables.insert("auth_player_name".to_string(), context.account.name.clone());
-    variables.insert(
-        "version_name".to_string(),
-        context.installation.version_id.clone(),
-    );
+    variables.insert("version_name".to_string(), context.installation.version_id.clone());
     variables.insert("game_directory".to_string(), context.minecraft_dir.clone());
-    variables.insert(
-        "assets_root".to_string(),
-        PathBuf::from(&context.minecraft_dir)
-            .join("assets")
-            .to_string_lossy()
-            .to_string(),
-    );
+    variables.insert("assets_root".to_string(), PathBuf::from(&context.minecraft_dir).join("assets").to_string_lossy().to_string());
 
-    let assets_index_name = manifest
-        .and_then(|m| m.get("assets").and_then(|v| v.as_str()))
-        .unwrap_or("legacy");
-    variables.insert(
-        "assets_index_name".to_string(),
-        assets_index_name.to_string(),
-    );
+    let assets_index_name = manifest.and_then(|m| m.get("assets").and_then(|v| v.as_str())).unwrap_or("legacy");
+    variables.insert("assets_index_name".to_string(), assets_index_name.to_string());
 
     variables.insert("auth_uuid".to_string(), context.account.uuid.clone());
-    variables.insert(
-        "auth_access_token".to_string(),
-        context.account.access_token.clone(),
-    );
+    variables.insert("auth_access_token".to_string(), context.account.access_token.clone());
     variables.insert("user_type".to_string(), "mojang".to_string());
     variables.insert("version_type".to_string(), "release".to_string());
-    variables.insert(
-        "natives_directory".to_string(),
-        PathBuf::from(&context.minecraft_dir)
-            .join("natives")
-            .to_string_lossy()
-            .to_string(),
-    );
+    variables.insert("natives_directory".to_string(), PathBuf::from(&context.minecraft_dir).join("natives").to_string_lossy().to_string());
     variables.insert("launcher_name".to_string(), "kable".to_string());
     variables.insert("launcher_version".to_string(), "2.0.0".to_string());
     variables.insert("classpath".to_string(), classpath.to_string());
@@ -701,9 +569,7 @@ pub async fn spawn_and_log_process(
     tokio_cmd.stdout(Stdio::piped());
     tokio_cmd.stderr(Stdio::piped());
 
-    let mut child = tokio_cmd
-        .spawn()
-        .map_err(|e| format!("Failed to launch: {e}"))?;
+    let mut child = tokio_cmd.spawn().map_err(|e| format!("Failed to launch: {e}"))?;
     let pid = child.id().unwrap_or(0);
 
     crate::system::processes::track_process(pid);
@@ -730,12 +596,7 @@ pub async fn spawn_and_log_process(
                 "data": { "pid": pid }
             }),
         );
-        Logger::log(
-            app,
-            crate::logging::LogLevel::Info,
-            "=== MINECRAFT PROCESS SPAWNED ===",
-            Some(instance_id),
-        );
+        Logger::log(app, crate::logging::LogLevel::Info, "=== MINECRAFT PROCESS SPAWNED ===", Some(instance_id));
     }
 
     let stdout = child.stdout.take().unwrap();
@@ -755,12 +616,7 @@ pub async fn spawn_and_log_process(
                         "data": line
                     }),
                 );
-                Logger::log(
-                    app,
-                    crate::logging::LogLevel::Info,
-                    &line,
-                    Some(&instance_id_clone),
-                );
+                Logger::log(app, crate::logging::LogLevel::Info, &line, Some(&instance_id_clone));
             }
         }
     });
@@ -779,12 +635,7 @@ pub async fn spawn_and_log_process(
                         "data": line
                     }),
                 );
-                Logger::log(
-                    app,
-                    crate::logging::LogLevel::Error,
-                    &line,
-                    Some(&instance_id_clone2),
-                );
+                Logger::log(app, crate::logging::LogLevel::Error, &line, Some(&instance_id_clone2));
             }
         }
     });
@@ -812,8 +663,5 @@ pub async fn spawn_and_log_process(
         }
     });
 
-    Ok(LaunchResult {
-        pid,
-        command: format!("{:?}", cmd),
-    })
+    Ok(LaunchResult { pid, command: format!("{:?}", cmd) })
 }

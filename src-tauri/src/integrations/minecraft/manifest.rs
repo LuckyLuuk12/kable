@@ -1,6 +1,4 @@
-use crate::constants::{
-    ASSETS_DIR, LATEST_RELEASE, LATEST_SNAPSHOT, MINECRAFT_VERSION_MANIFEST_URL, VERSIONS_DIR,
-};
+use crate::constants::{ASSETS_DIR, LATEST_RELEASE, LATEST_SNAPSHOT, MINECRAFT_VERSION_MANIFEST_URL, VERSIONS_DIR};
 use crate::logging::Logger;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -59,74 +57,37 @@ pub struct Extract {
 
 /// Loads a Minecraft version manifest, recursively merging inherited manifests if needed.
 /// Returns the fully merged manifest as serde_json::Value.
-pub fn load_and_merge_manifest_sync(
-    minecraft_dir: &str,
-    version_id: &str,
-    instance_id: Option<&str>,
-) -> Result<Value, String> {
-    Logger::debug_global(
-        &format!("Loading manifest for version_id: {}", version_id),
-        instance_id,
-    );
+pub fn load_and_merge_manifest_sync(minecraft_dir: &str, version_id: &str, instance_id: Option<&str>) -> Result<Value, String> {
+    Logger::debug_global(&format!("Loading manifest for version_id: {}", version_id), instance_id);
 
     // If version_id is a placeholder like latest-release/latest-snapshot/latest, resolve it first
-    let effective_version = if version_id == LATEST_RELEASE
-        || version_id == LATEST_SNAPSHOT
-        || version_id == "latest"
-    {
+    let effective_version = if version_id == LATEST_RELEASE || version_id == LATEST_SNAPSHOT || version_id == "latest" {
         let client = reqwest::blocking::Client::new();
-        let resp = client
-            .get(MINECRAFT_VERSION_MANIFEST_URL)
-            .send()
-            .map_err(|err| format!("Failed to fetch version list: {}", err))?;
-        let manifest_list: Value = resp
-            .json()
-            .map_err(|err| format!("Failed to parse version list: {}", err))?;
+        let resp = client.get(MINECRAFT_VERSION_MANIFEST_URL).send().map_err(|err| format!("Failed to fetch version list: {}", err))?;
+        let manifest_list: Value = resp.json().map_err(|err| format!("Failed to parse version list: {}", err))?;
         let resolved_version = if let Some(latest) = manifest_list.get("latest") {
             if version_id == LATEST_SNAPSHOT {
-                latest
-                    .get("snapshot")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
+                latest.get("snapshot").and_then(|v| v.as_str()).map(|s| s.to_string())
             } else {
-                latest
-                    .get("release")
-                    .and_then(|v| v.as_str())
-                    .map(|s| s.to_string())
+                latest.get("release").and_then(|v| v.as_str()).map(|s| s.to_string())
             }
         } else {
             None
         };
-        let resolved_version = resolved_version.ok_or_else(|| {
-            format!(
-                "Failed to resolve '{}' to a concrete version from version_manifest.json",
-                version_id
-            )
-        })?;
-        Logger::debug_global(
-            &format!("Resolved {} => {}", version_id, resolved_version),
-            instance_id,
-        );
+        let resolved_version = resolved_version
+            .ok_or_else(|| format!("Failed to resolve '{}' to a concrete version from version_manifest.json", version_id))?;
+        Logger::debug_global(&format!("Resolved {} => {}", version_id, resolved_version), instance_id);
         resolved_version
     } else {
         version_id.to_string()
     };
 
-    let manifest_path = PathBuf::from(minecraft_dir)
-        .join(VERSIONS_DIR)
-        .join(&effective_version)
-        .join(format!("{}.json", effective_version));
+    let manifest_path =
+        PathBuf::from(minecraft_dir).join(VERSIONS_DIR).join(&effective_version).join(format!("{}.json", effective_version));
 
     // Read the manifest for the effective version
     let manifest_str = fs::read_to_string(&manifest_path).map_err(|e| {
-        Logger::debug_global(
-            &format!(
-                "Failed to read manifest: {}. Tried path: {}",
-                e,
-                manifest_path.display()
-            ),
-            instance_id,
-        );
+        Logger::debug_global(&format!("Failed to read manifest: {}. Tried path: {}", e, manifest_path.display()), instance_id);
         format!("Failed to read manifest: {}", e)
     })?;
 
@@ -141,13 +102,7 @@ pub fn load_and_merge_manifest_sync(
 
     // If inheritsFrom, recursively merge
     if let Some(parent_id) = manifest.get("inheritsFrom").and_then(|v| v.as_str()) {
-        Logger::debug_global(
-            &format!(
-                "Manifest {} inherits from {}. Recursively merging...",
-                version_id, parent_id
-            ),
-            instance_id,
-        );
+        Logger::debug_global(&format!("Manifest {} inherits from {}. Recursively merging...", version_id, parent_id), instance_id);
         let parent = load_and_merge_manifest_sync(minecraft_dir, parent_id, instance_id)?;
         manifest = merge_manifests_with_instance(parent, manifest, instance_id);
     }
@@ -155,11 +110,7 @@ pub fn load_and_merge_manifest_sync(
     Ok(manifest)
 }
 
-pub fn merge_manifests_with_instance(
-    parent: Value,
-    child: Value,
-    _instance_id: Option<&str>,
-) -> Value {
+pub fn merge_manifests_with_instance(parent: Value, child: Value, _instance_id: Option<&str>) -> Value {
     let mut merged = parent;
     if let (Some(p_obj), Some(c_obj)) = (merged.as_object_mut(), child.as_object()) {
         for (k, v) in c_obj {
@@ -215,18 +166,10 @@ pub async fn ensure_assets_for_manifest(
         }
     };
 
-    let indexes_dir = PathBuf::from(minecraft_dir)
-        .join(ASSETS_DIR)
-        .join("indexes");
-    let objects_dir = PathBuf::from(minecraft_dir)
-        .join(ASSETS_DIR)
-        .join("objects");
-    crate::system::fs::ensure_folder(&indexes_dir)
-        .await
-        .map_err(|e| format!("Failed to create indexes dir: {}", e))?;
-    crate::system::fs::ensure_folder(&objects_dir)
-        .await
-        .map_err(|e| format!("Failed to create objects dir: {}", e))?;
+    let indexes_dir = PathBuf::from(minecraft_dir).join(ASSETS_DIR).join("indexes");
+    let objects_dir = PathBuf::from(minecraft_dir).join(ASSETS_DIR).join("objects");
+    crate::system::fs::ensure_folder(&indexes_dir).await.map_err(|e| format!("Failed to create indexes dir: {}", e))?;
+    crate::system::fs::ensure_folder(&objects_dir).await.map_err(|e| format!("Failed to create objects dir: {}", e))?;
 
     let index_path = indexes_dir.join(format!("{}.json", assets_index_name));
     let client = Client::new();
@@ -235,45 +178,26 @@ pub async fn ensure_assets_for_manifest(
     if !index_path.exists() {
         if let Some(asset_index_obj) = manifest.get("assetIndex").and_then(|v| v.as_object()) {
             if let Some(url) = asset_index_obj.get("url").and_then(|v| v.as_str()) {
-                let resp = client
-                    .get(url)
-                    .send()
-                    .await
-                    .map_err(|e| format!("Failed to fetch assets index: {e}"))?;
-                let txt = resp
-                    .text()
-                    .await
-                    .map_err(|e| format!("Failed to read assets index text: {e}"))?;
+                let resp = client.get(url).send().await.map_err(|e| format!("Failed to fetch assets index: {e}"))?;
+                let txt = resp.text().await.map_err(|e| format!("Failed to read assets index text: {e}"))?;
                 crate::system::fs::ensure_parent_dir_exists_async(&index_path).await?;
                 crate::system::fs::write_file_atomic_async(&index_path, txt.as_bytes())
                     .await
                     .map_err(|e| format!("Failed to write assets index: {e}"))?;
             } else {
-                Logger::debug_global(
-                    "No assetIndex.url in manifest; skipping index download",
-                    instance_id,
-                );
+                Logger::debug_global("No assetIndex.url in manifest; skipping index download", instance_id);
                 return Ok(());
             }
         } else {
-            Logger::debug_global(
-                "No assetIndex object in manifest; skipping index download",
-                instance_id,
-            );
+            Logger::debug_global("No assetIndex object in manifest; skipping index download", instance_id);
             return Ok(());
         }
     }
 
     // Parse index JSON
-    let index_str = tokio::fs::read_to_string(&index_path)
-        .await
-        .map_err(|e| format!("Failed to read assets index: {}", e))?;
-    let index_json: serde_json::Value = serde_json::from_str(&index_str)
-        .map_err(|e| format!("Failed to parse assets index: {}", e))?;
-    let objects = index_json
-        .get("objects")
-        .and_then(|v| v.as_object())
-        .ok_or("No objects in assets index")?;
+    let index_str = tokio::fs::read_to_string(&index_path).await.map_err(|e| format!("Failed to read assets index: {}", e))?;
+    let index_json: serde_json::Value = serde_json::from_str(&index_str).map_err(|e| format!("Failed to parse assets index: {}", e))?;
+    let objects = index_json.get("objects").and_then(|v| v.as_object()).ok_or("No objects in assets index")?;
 
     // Build list of required object hashes depending on mode
     let mut required_hashes: Vec<String> = Vec::new();
@@ -314,10 +238,7 @@ pub async fn ensure_assets_for_manifest(
         let prefix = &hash[..2];
         let obj_path = objects_dir.join(prefix).join(&hash);
         if !obj_path.exists() {
-            let url = format!(
-                "https://resources.download.minecraft.net/{}/{}",
-                prefix, hash
-            );
+            let url = format!("https://resources.download.minecraft.net/{}/{}", prefix, hash);
             let resp = client.get(url).send().await;
             if let Ok(r) = resp {
                 if let Ok(bytes) = r.bytes().await {

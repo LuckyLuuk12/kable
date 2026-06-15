@@ -30,15 +30,9 @@ fn get_key_path() -> PathBuf {
     // Fallback to the legacy logic if helper isn't available or fails.
     let home_dir = dirs::home_dir().expect("Could not find home directory");
     #[cfg(target_os = "windows")]
-    let kable_dir = home_dir
-        .join("AppData")
-        .join("Roaming")
-        .join("kable-launcher");
+    let kable_dir = home_dir.join("AppData").join("Roaming").join("kable-launcher");
     #[cfg(target_os = "macos")]
-    let kable_dir = home_dir
-        .join("Library")
-        .join("Application Support")
-        .join("kable-launcher");
+    let kable_dir = home_dir.join("Library").join("Application Support").join("kable-launcher");
     #[cfg(target_os = "linux")]
     let kable_dir = home_dir.join(".kable-launcher");
     kable_dir.join(KEY_FILENAME)
@@ -83,12 +77,7 @@ fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
             if let Some(parent) = key_path.parent() {
                 if let Err(e) = crate::ensure_folder_sync(parent) {
                     eprintln!("Failed to create key parent dir for fallback write: {}", e);
-                } else if let Ok(mut file) = OpenOptions::new()
-                    .write(true)
-                    .create(true)
-                    .truncate(false)
-                    .open(&key_path)
-                {
+                } else if let Ok(mut file) = OpenOptions::new().write(true).create(true).truncate(false).open(&key_path) {
                     if let Err(e) = file.write_all(&key) {
                         eprintln!("Failed to write fallback key file: {}", e);
                     }
@@ -102,11 +91,7 @@ fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
     if let Some(parent) = key_path.parent() {
         crate::ensure_folder_sync(parent).map_err(std::io::Error::other)?;
     }
-    let mut file = OpenOptions::new()
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(&key_path)?;
+    let mut file = OpenOptions::new().write(true).create(true).truncate(true).open(&key_path)?;
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -126,9 +111,7 @@ pub fn encrypt_token(token: &str) -> Result<String, String> {
     let mut nonce_bytes = [0u8; NONCE_SIZE];
     OsRng.fill_bytes(&mut nonce_bytes);
     let nonce = Nonce::from_slice(&nonce_bytes);
-    let ciphertext = cipher
-        .encrypt(nonce, token.as_bytes())
-        .map_err(|e| format!("Encrypt error: {}", e))?;
+    let ciphertext = cipher.encrypt(nonce, token.as_bytes()).map_err(|e| format!("Encrypt error: {}", e))?;
     // Store nonce + ciphertext as base64
     let mut combined = Vec::with_capacity(NONCE_SIZE + ciphertext.len());
     combined.extend_from_slice(&nonce_bytes);
@@ -141,16 +124,12 @@ pub fn decrypt_token(data: &str) -> Result<String, String> {
     let key_bytes = get_or_create_key().map_err(|e| format!("Key error: {}", e))?;
     let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
     let cipher = Aes256Gcm::new(key);
-    let combined = base64::engine::general_purpose::STANDARD
-        .decode(data)
-        .map_err(|e| format!("Base64 decode error: {}", e))?;
+    let combined = base64::engine::general_purpose::STANDARD.decode(data).map_err(|e| format!("Base64 decode error: {}", e))?;
     if combined.len() < NONCE_SIZE {
         return Err("Invalid encrypted token format".to_string());
     }
     let nonce = Nonce::from_slice(&combined[..NONCE_SIZE]);
     let ciphertext = &combined[NONCE_SIZE..];
-    let plaintext = cipher
-        .decrypt(nonce, ciphertext)
-        .map_err(|e| format!("Decrypt error: {:?}", e))?;
+    let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|e| format!("Decrypt error: {:?}", e))?;
     String::from_utf8(plaintext).map_err(|e| format!("UTF8 error: {}", e))
 }

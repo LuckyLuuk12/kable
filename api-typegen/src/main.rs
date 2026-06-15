@@ -29,8 +29,7 @@ fn main() {
     let generated_code = generate_typescript_types();
 
     if check_only {
-        let existing_code = std::fs::read_to_string(generated_code_path)
-            .expect("Failed to read existing generated code");
+        let existing_code = std::fs::read_to_string(generated_code_path).expect("Failed to read existing generated code");
         // Normalize line endings for comparison
         let existing_code = existing_code.replace("\r\n", "\n");
         let generated_code = generated_code.replace("\r\n", "\n");
@@ -40,18 +39,9 @@ fn main() {
             );
             dbg!(&existing_code);
             dbg!(&generated_code);
-            for (i, (existing_line, generated_line)) in existing_code
-                .lines()
-                .zip(generated_code.lines())
-                .enumerate()
-            {
+            for (i, (existing_line, generated_line)) in existing_code.lines().zip(generated_code.lines()).enumerate() {
                 if existing_line != generated_line {
-                    eprintln!(
-                        "Difference at line {}:\nExisting: {}\nGenerated: {}",
-                        i + 1,
-                        existing_line,
-                        generated_line
-                    );
+                    eprintln!("Difference at line {}:\nExisting: {}\nGenerated: {}", i + 1, existing_line, generated_line);
                 }
             }
             std::process::exit(1);
@@ -59,11 +49,7 @@ fn main() {
             println!("Generated code matches existing code.");
         }
     } else {
-        std::fs::write(generated_code_path, generated_code)
-            .expect("Failed to write generated code to file");
-        println!(
-            "Generated code written to {}",
-            generated_code_path.display()
-        );
+        std::fs::write(generated_code_path, generated_code).expect("Failed to write generated code to file");
+        println!("Generated code written to {}", generated_code_path.display());
     }
 }

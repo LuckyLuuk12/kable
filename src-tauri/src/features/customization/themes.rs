@@ -68,8 +68,7 @@ pub async fn load_css_theme(theme_name: String, app: AppHandle) -> Result<String
         let themes_dir = get_css_themes_dir()?;
         let theme_path = themes_dir.join(format!("{}.css", name));
 
-        let content = fs::read_to_string(theme_path)
-            .map_err(|e| format!("Failed to read theme file: {}", e))?;
+        let content = fs::read_to_string(theme_path).map_err(|e| format!("Failed to read theme file: {}", e))?;
         return Ok(content);
     }
 

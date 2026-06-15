@@ -43,24 +43,17 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
         use std::os::windows::fs::symlink_dir;
         if target.exists() {
             if target.is_symlink() {
-                async_fs::remove_dir(target)
-                    .await
-                    .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
+                async_fs::remove_dir(target).await.map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
             } else {
-                return Err(format!(
-                    "Target path exists and is not a symlink: {}",
-                    target.display()
-                ));
+                return Err(format!("Target path exists and is not a symlink: {}", target.display()));
             }
         }
         ensure_parent_dir_exists_async(target).await?;
         let s = source.to_path_buf();
         let t = target.to_path_buf();
-        tokio::task::spawn_blocking(move || {
-            symlink_dir(s, t).map_err(|e| format!("Failed to create symlink: {}", e))
-        })
-        .await
-        .map_err(|e| format!("Symlink task failed: {}", e))??;
+        tokio::task::spawn_blocking(move || symlink_dir(s, t).map_err(|e| format!("Failed to create symlink: {}", e)))
+            .await
+            .map_err(|e| format!("Symlink task failed: {}", e))??;
     }
 
     #[cfg(unix)]
@@ -68,24 +61,17 @@ pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<()
         use std::os::unix::fs::symlink;
         if target.exists() {
             if target.is_symlink() {
-                async_fs::remove_file(target)
-                    .await
-                    .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
+                async_fs::remove_file(target).await.map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
             } else {
-                return Err(format!(
-                    "Target path exists and is not a symlink: {}",
-                    target.display()
-                ));
+                return Err(format!("Target path exists and is not a symlink: {}", target.display()));
             }
         }
         ensure_parent_dir_exists_async(target).await?;
         let s = source.to_path_buf();
         let t = target.to_path_buf();
-        tokio::task::spawn_blocking(move || {
-            symlink(s, t).map_err(|e| format!("Failed to create symlink: {}", e))
-        })
-        .await
-        .map_err(|e| format!("Symlink task failed: {}", e))??;
+        tokio::task::spawn_blocking(move || symlink(s, t).map_err(|e| format!("Failed to create symlink: {}", e)))
+            .await
+            .map_err(|e| format!("Symlink task failed: {}", e))??;
     }
 
     Ok(())
@@ -97,24 +83,17 @@ pub async fn create_file_symlink(source: &Path, target: &Path) -> Result<(), Str
         use std::os::windows::fs::symlink_file;
         if target.exists() {
             if target.is_symlink() {
-                async_fs::remove_file(target)
-                    .await
-                    .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
+                async_fs::remove_file(target).await.map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
             } else {
-                return Err(format!(
-                    "Target path exists and is not a symlink: {}",
-                    target.display()
-                ));
+                return Err(format!("Target path exists and is not a symlink: {}", target.display()));
             }
         }
         ensure_parent_dir_exists_async(target).await?;
         let s = source.to_path_buf();
         let t = target.to_path_buf();
-        tokio::task::spawn_blocking(move || {
-            symlink_file(s, t).map_err(|e| format!("Failed to create symlink: {}", e))
-        })
-        .await
-        .map_err(|e| format!("Symlink task failed: {}", e))??;
+        tokio::task::spawn_blocking(move || symlink_file(s, t).map_err(|e| format!("Failed to create symlink: {}", e)))
+            .await
+            .map_err(|e| format!("Symlink task failed: {}", e))??;
     }
 
     #[cfg(unix)]
@@ -122,24 +101,17 @@ pub async fn create_file_symlink(source: &Path, target: &Path) -> Result<(), Str
         use std::os::unix::fs::symlink;
         if target.exists() {
             if target.is_symlink() {
-                async_fs::remove_file(target)
-                    .await
-                    .map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
+                async_fs::remove_file(target).await.map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
             } else {
-                return Err(format!(
-                    "Target path exists and is not a symlink: {}",
-                    target.display()
-                ));
+                return Err(format!("Target path exists and is not a symlink: {}", target.display()));
             }
         }
         ensure_parent_dir_exists_async(target).await?;
         let s = source.to_path_buf();
         let t = target.to_path_buf();
-        tokio::task::spawn_blocking(move || {
-            symlink(s, t).map_err(|e| format!("Failed to create symlink: {}", e))
-        })
-        .await
-        .map_err(|e| format!("Symlink task failed: {}", e))??;
+        tokio::task::spawn_blocking(move || symlink(s, t).map_err(|e| format!("Failed to create symlink: {}", e)))
+            .await
+            .map_err(|e| format!("Symlink task failed: {}", e))??;
     }
 
     Ok(())
@@ -148,13 +120,9 @@ pub async fn create_file_symlink(source: &Path, target: &Path) -> Result<(), Str
 pub async fn remove_symlink_if_exists(path: &Path) -> Result<(), String> {
     if path.exists() && path.is_symlink() {
         if path.is_dir() {
-            async_fs::remove_dir(path)
-                .await
-                .map_err(|e| format!("Failed to remove dir symlink: {}", e))?;
+            async_fs::remove_dir(path).await.map_err(|e| format!("Failed to remove dir symlink: {}", e))?;
         } else {
-            async_fs::remove_file(path)
-                .await
-                .map_err(|e| format!("Failed to remove file symlink: {}", e))?;
+            async_fs::remove_file(path).await.map_err(|e| format!("Failed to remove file symlink: {}", e))?;
         }
     }
     Ok(())

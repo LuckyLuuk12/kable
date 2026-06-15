@@ -36,16 +36,13 @@ impl<'ast> Visit<'ast> for TypeVisitor {
 fn is_facet_type(attrs: &[syn::Attribute]) -> bool {
     for attr in attrs {
         if attr.path().is_ident("derive") {
-            let nested = attr.parse_args_with(
-                syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
-            );
+            let nested = attr.parse_args_with(syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated);
             if let Ok(nested) = nested {
                 for meta in nested {
                     if let syn::Meta::Path(path) = meta {
                         // Check for 'Facet' or 'facet::Facet'
                         // Simple string check on path segments
-                        let segments: Vec<_> =
-                            path.segments.iter().map(|s| s.ident.to_string()).collect();
+                        let segments: Vec<_> = path.segments.iter().map(|s| s.ident.to_string()).collect();
                         if segments.contains(&"Facet".to_string()) {
                             return true;
                         }
@@ -78,10 +75,7 @@ fn main() {
             let relative = path.strip_prefix(api_types_src).unwrap();
             let mut modules = vec!["api_types".to_string()];
 
-            let components: Vec<_> = relative
-                .components()
-                .map(|c| c.as_os_str().to_str().unwrap())
-                .collect();
+            let components: Vec<_> = relative.components().map(|c| c.as_os_str().to_str().unwrap()).collect();
 
             // Handle lib.rs
             if components.len() == 1 && components[0] == "lib.rs" {
@@ -104,10 +98,7 @@ fn main() {
             let content = fs::read_to_string(path).expect("Unable to read file");
             let file_ast = syn::parse_file(&content).expect("Unable to parse file");
 
-            let mut visitor = TypeVisitor {
-                types: Vec::new(),
-                current_module: modules,
-            };
+            let mut visitor = TypeVisitor { types: Vec::new(), current_module: modules };
 
             visitor.visit_file(&file_ast);
             all_types.extend(visitor.types);

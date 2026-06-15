@@ -28,8 +28,7 @@ pub async fn list_soundpacks() -> Result<Vec<String>, String> {
     let mut packs = vec!["default".to_string()];
 
     if soundpacks_dir.exists() {
-        let entries = fs::read_dir(&soundpacks_dir)
-            .map_err(|e| format!("Failed to read soundpacks directory: {}", e))?;
+        let entries = fs::read_dir(&soundpacks_dir).map_err(|e| format!("Failed to read soundpacks directory: {}", e))?;
 
         for entry in entries.flatten() {
             let path = entry.path();
@@ -71,11 +70,10 @@ pub async fn get_soundpack_metadata(pack: String) -> Result<SoundpackMetadata, S
     // Try as directory first
     if pack_path.is_dir() {
         let metadata_path = pack_path.join(SOUNDPACK_FILE);
-        let content = fs::read_to_string(&metadata_path)
-            .map_err(|e| format!("Failed to read {}: {}", SOUNDPACK_FILE, e))?;
+        let content = fs::read_to_string(&metadata_path).map_err(|e| format!("Failed to read {}: {}", SOUNDPACK_FILE, e))?;
 
-        let metadata: SoundpackMetadata = serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse {}: {}", SOUNDPACK_FILE, e))?;
+        let metadata: SoundpackMetadata =
+            serde_json::from_str(&content).map_err(|e| format!("Failed to parse {}: {}", SOUNDPACK_FILE, e))?;
 
         return Ok(metadata);
     }
@@ -83,22 +81,18 @@ pub async fn get_soundpack_metadata(pack: String) -> Result<SoundpackMetadata, S
     // Try as ZIP file
     let zip_path = soundpacks_dir.join(format!("{}.zip", pack));
     if zip_path.exists() {
-        let file =
-            fs::File::open(&zip_path).map_err(|e| format!("Failed to open ZIP file: {}", e))?;
+        let file = fs::File::open(&zip_path).map_err(|e| format!("Failed to open ZIP file: {}", e))?;
 
-        let mut archive =
-            ZipArchive::new(file).map_err(|e| format!("Failed to read ZIP archive: {}", e))?;
+        let mut archive = ZipArchive::new(file).map_err(|e| format!("Failed to read ZIP archive: {}", e))?;
 
-        let mut metadata_file = archive
-            .by_name(SOUNDPACK_FILE)
-            .map_err(|e| format!("{} not found in ZIP: {}", SOUNDPACK_FILE, e))?;
+        let mut metadata_file = archive.by_name(SOUNDPACK_FILE).map_err(|e| format!("{} not found in ZIP: {}", SOUNDPACK_FILE, e))?;
 
         let mut content = String::new();
         std::io::Read::read_to_string(&mut metadata_file, &mut content)
             .map_err(|e| format!("Failed to read {} from ZIP: {}", SOUNDPACK_FILE, e))?;
 
-        let metadata: SoundpackMetadata = serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse {}: {}", SOUNDPACK_FILE, e))?;
+        let metadata: SoundpackMetadata =
+            serde_json::from_str(&content).map_err(|e| format!("Failed to parse {}: {}", SOUNDPACK_FILE, e))?;
 
         return Ok(metadata);
     }
@@ -119,27 +113,21 @@ pub async fn load_soundpack_file(pack: String, file: String) -> Result<Vec<u8>, 
     // Try as directory first
     if pack_path.is_dir() {
         let file_path = pack_path.join(&file);
-        let data = fs::read(&file_path)
-            .map_err(|e| format!("Failed to read sound file {}: {}", file, e))?;
+        let data = fs::read(&file_path).map_err(|e| format!("Failed to read sound file {}: {}", file, e))?;
         return Ok(data);
     }
 
     // Try as ZIP file
     let zip_path = soundpacks_dir.join(format!("{}.zip", pack));
     if zip_path.exists() {
-        let file_handle =
-            fs::File::open(&zip_path).map_err(|e| format!("Failed to open ZIP file: {}", e))?;
+        let file_handle = fs::File::open(&zip_path).map_err(|e| format!("Failed to open ZIP file: {}", e))?;
 
-        let mut archive = ZipArchive::new(file_handle)
-            .map_err(|e| format!("Failed to read ZIP archive: {}", e))?;
+        let mut archive = ZipArchive::new(file_handle).map_err(|e| format!("Failed to read ZIP archive: {}", e))?;
 
-        let mut sound_file = archive
-            .by_name(&file)
-            .map_err(|e| format!("Sound file {} not found in ZIP: {}", file, e))?;
+        let mut sound_file = archive.by_name(&file).map_err(|e| format!("Sound file {} not found in ZIP: {}", file, e))?;
 
         let mut data = Vec::new();
-        std::io::Read::read_to_end(&mut sound_file, &mut data)
-            .map_err(|e| format!("Failed to read sound file from ZIP: {}", e))?;
+        std::io::Read::read_to_end(&mut sound_file, &mut data).map_err(|e| format!("Failed to read sound file from ZIP: {}", e))?;
 
         return Ok(data);
     }
@@ -157,23 +145,17 @@ pub async fn import_soundpack_zip(path: String) -> Result<String, String> {
     }
 
     // Open and validate the ZIP
-    let file =
-        fs::File::open(&source_path).map_err(|e| format!("Failed to open ZIP file: {}", e))?;
+    let file = fs::File::open(&source_path).map_err(|e| format!("Failed to open ZIP file: {}", e))?;
 
-    let mut archive =
-        ZipArchive::new(file).map_err(|e| format!("Failed to read ZIP archive: {}", e))?;
+    let mut archive = ZipArchive::new(file).map_err(|e| format!("Failed to read ZIP archive: {}", e))?;
 
     // Check for soundpack.json
-    let mut metadata_file = archive
-        .by_name(SOUNDPACK_FILE)
-        .map_err(|_| format!("ZIP file does not contain {}", SOUNDPACK_FILE))?;
+    let mut metadata_file = archive.by_name(SOUNDPACK_FILE).map_err(|_| format!("ZIP file does not contain {}", SOUNDPACK_FILE))?;
 
     let mut content = String::new();
-    std::io::Read::read_to_string(&mut metadata_file, &mut content)
-        .map_err(|e| format!("Failed to read {}: {}", SOUNDPACK_FILE, e))?;
+    std::io::Read::read_to_string(&mut metadata_file, &mut content).map_err(|e| format!("Failed to read {}: {}", SOUNDPACK_FILE, e))?;
 
-    let metadata: SoundpackMetadata =
-        serde_json::from_str(&content).map_err(|e| format!("Invalid soundpack.json: {}", e))?;
+    let metadata: SoundpackMetadata = serde_json::from_str(&content).map_err(|e| format!("Invalid soundpack.json: {}", e))?;
 
     let pack_name = metadata.name.clone();
 
@@ -232,10 +214,7 @@ fn get_default_soundpack_metadata() -> SoundpackMetadata {
     sounds.insert("launch".to_string(), "launch.mp3".to_string());
 
     let mut music = HashMap::new();
-    music.insert(
-        "menu".to_string(),
-        vec!["music/menu1.mp3".to_string(), "music/menu2.mp3".to_string()],
-    );
+    music.insert("menu".to_string(), vec!["music/menu1.mp3".to_string(), "music/menu2.mp3".to_string()]);
 
     SoundpackMetadata {
         id: "default".to_string(),

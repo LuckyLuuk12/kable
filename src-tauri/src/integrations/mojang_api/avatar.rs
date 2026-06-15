@@ -19,16 +19,10 @@ pub async fn download_avatar_as_base64(uuid: &str) -> Result<String, String> {
         .map_err(|e| format!("Failed to download avatar: {}", e))?;
 
     if !response.status().is_success() {
-        return Err(format!(
-            "Avatar download failed with status: {}",
-            response.status()
-        ));
+        return Err(format!("Avatar download failed with status: {}", response.status()));
     }
 
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|e| format!("Failed to read avatar bytes: {}", e))?;
+    let bytes = response.bytes().await.map_err(|e| format!("Failed to read avatar bytes: {}", e))?;
 
     let base64_data = general_purpose::STANDARD.encode(&bytes);
     let data_url = format!("data:image/png;base64,{}", base64_data);

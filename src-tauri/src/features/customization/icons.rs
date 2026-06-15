@@ -36,8 +36,7 @@ pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, Stri
     let mut templates = Vec::new();
 
     if icons_dir.exists() {
-        let entries = fs::read_dir(&icons_dir)
-            .map_err(|e| format!("Failed to read icons directory: {}", e))?;
+        let entries = fs::read_dir(&icons_dir).map_err(|e| format!("Failed to read icons directory: {}", e))?;
 
         for entry in entries.flatten() {
             let path = entry.path();
@@ -60,11 +59,9 @@ pub async fn save_custom_icon_template(template: CustomIconTemplate) -> Result<S
     let template_name = template.name.clone();
     let template_path = icons_dir.join(format!("{}.json", template_name));
 
-    let content = serde_json::to_string_pretty(&template)
-        .map_err(|e| format!("Failed to serialize template: {}", e))?;
+    let content = serde_json::to_string_pretty(&template).map_err(|e| format!("Failed to serialize template: {}", e))?;
 
-    fs::write(&template_path, content)
-        .map_err(|e| format!("Failed to write template file: {}", e))?;
+    fs::write(&template_path, content).map_err(|e| format!("Failed to write template file: {}", e))?;
 
     Ok(template_name)
 }
@@ -75,8 +72,7 @@ pub async fn delete_custom_icon_template(template_name: String) -> Result<(), St
     let template_path = icons_dir.join(format!("{}.json", template_name));
 
     if template_path.exists() {
-        fs::remove_file(template_path)
-            .map_err(|e| format!("Failed to delete template file: {}", e))?;
+        fs::remove_file(template_path).map_err(|e| format!("Failed to delete template file: {}", e))?;
     }
 
     Ok(())

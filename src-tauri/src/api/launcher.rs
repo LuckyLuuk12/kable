@@ -31,9 +31,7 @@ pub async fn is_minecraft_running() -> Result<bool, String> {
 
 #[tauri::command]
 pub async fn wait_for_minecraft_exit(process_id: u32) -> Result<(), String> {
-    launcher::wait_for_minecraft_exit(process_id)
-        .await
-        .map(|_| ())
+    launcher::wait_for_minecraft_exit(process_id).await.map(|_| ())
 }
 
 #[tauri::command]

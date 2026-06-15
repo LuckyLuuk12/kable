@@ -1,6 +1,4 @@
-use crate::constants::{
-    CACHE_DIR, FABRIC_META_URL, MANIFESTS_DIR, MINECRAFT_VERSION_MANIFEST_URL, QUILT_META_URL,
-};
+use crate::constants::{CACHE_DIR, FABRIC_META_URL, MANIFESTS_DIR, MINECRAFT_VERSION_MANIFEST_URL, QUILT_META_URL};
 use crate::system::fs::{ensure_folder_sync, get_kable_launcher_dir, write_file_atomic_sync};
 use api_types::profiles::{LoaderKind, VersionData};
 use serde_json::Value;
@@ -16,11 +14,7 @@ pub fn get_manifests_cache_dir() -> Result<PathBuf, String> {
     Ok(cache_dir)
 }
 
-pub fn fetch_with_cache(
-    url: &str,
-    cache_filename: &str,
-    force_refresh: bool,
-) -> Result<Value, String> {
+pub fn fetch_with_cache(url: &str, cache_filename: &str, force_refresh: bool) -> Result<Value, String> {
     let cache_dir = get_manifests_cache_dir()?;
     let cache_path = cache_dir.join(cache_filename);
 
@@ -43,25 +37,13 @@ pub fn fetch_with_cache(
 }
 
 pub fn get_vanilla_versions(force_refresh: bool) -> Result<Vec<VersionData>, String> {
-    let manifest = fetch_with_cache(
-        MINECRAFT_VERSION_MANIFEST_URL,
-        "vanilla.json",
-        force_refresh,
-    )?;
+    let manifest = fetch_with_cache(MINECRAFT_VERSION_MANIFEST_URL, "vanilla.json", force_refresh)?;
 
     let mut versions = Vec::new();
     if let Some(versions_arr) = manifest.get("versions").and_then(|v| v.as_array()) {
         for v in versions_arr {
-            let id = v
-                .get("id")
-                .and_then(|i| i.as_str())
-                .unwrap_or_default()
-                .to_string();
-            let release_type = v
-                .get("type")
-                .and_then(|t| t.as_str())
-                .unwrap_or_default()
-                .to_string();
+            let id = v.get("id").and_then(|i| i.as_str()).unwrap_or_default().to_string();
+            let release_type = v.get("type").and_then(|t| t.as_str()).unwrap_or_default().to_string();
 
             versions.push(VersionData {
                 version_id: id.clone(),

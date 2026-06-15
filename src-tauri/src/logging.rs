@@ -32,30 +32,14 @@ impl FrontendBatch {
 
         std::thread::spawn(move || {
             // Load settings to get configuration
-            let settings = tauri::async_runtime::block_on(crate::settings::load_settings())
-                .unwrap_or_default();
+            let settings = tauri::async_runtime::block_on(crate::settings::load_settings()).unwrap_or_default();
 
             // Read truly advanced configuration from advanced.extra (not exposed in UI)
-            let max_batch_size = settings
-                .advanced
-                .extra
-                .get("log_batch_size")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(400) as usize;
+            let max_batch_size = settings.advanced.extra.get("log_batch_size").and_then(|v| v.as_u64()).unwrap_or(400) as usize;
 
-            let batch_interval_ms = settings
-                .advanced
-                .extra
-                .get("log_batch_interval_ms")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(1000);
+            let batch_interval_ms = settings.advanced.extra.get("log_batch_interval_ms").and_then(|v| v.as_u64()).unwrap_or(1000);
 
-            let max_logs_per_second = settings
-                .advanced
-                .extra
-                .get("log_max_per_second")
-                .and_then(|v| v.as_u64())
-                .unwrap_or(800) as usize;
+            let max_logs_per_second = settings.advanced.extra.get("log_max_per_second").and_then(|v| v.as_u64()).unwrap_or(800) as usize;
 
             // Read from logging settings (exposed in UI)
             let dedupe_window_size = settings.logging.dedupe_window_size.unwrap_or(50) as usize;
@@ -72,8 +56,7 @@ impl FrontendBatch {
             let mut second_start = std::time::Instant::now();
 
             // Deduplication: track last N messages with hash for performance
-            let mut recent_messages: std::collections::VecDeque<u64> =
-                std::collections::VecDeque::with_capacity(dedupe_window_size);
+            let mut recent_messages: std::collections::VecDeque<u64> = std::collections::VecDeque::with_capacity(dedupe_window_size);
 
             // Simple hash function for messages
             let hash_message = |msg: &str| -> u64 {
@@ -99,10 +82,7 @@ impl FrontendBatch {
                         }
 
                         // Deduplicate - check if this exact message was recently sent using hash
-                        let msg_str = log_data
-                            .get("message")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("");
+                        let msg_str = log_data.get("message").and_then(|v| v.as_str()).unwrap_or("");
                         let msg_hash = hash_message(msg_str);
 
                         if !recent_messages.contains(&msg_hash) {
@@ -176,9 +156,9 @@ pub struct LogConfig {
     pub size_limit_mb: u64,
     pub retention_days: u64,
     pub logs_dir: PathBuf,
-    pub max_memory_logs: usize, // Max logs to keep in memory per instance
+    pub max_memory_logs: usize,    // Max logs to keep in memory per instance
     pub dedupe_window_size: usize, // How many recent messages to check for duplicates
-    pub enable_dedupe: bool,    // Enable deduplication
+    pub enable_dedupe: bool,       // Enable deduplication
 }
 
 impl Default for LogConfig {
@@ -213,8 +193,7 @@ struct LogMessage {
 impl LogStorage {
     /// Create new log storage instance
     pub fn new(_app: &AppHandle) -> Result<Self, Box<dyn std::error::Error>> {
-        let kable_dir = crate::get_minecraft_kable_dir()
-            .map_err(|e| format!("Failed to get Kable dir: {}", e))?;
+        let kable_dir = crate::get_minecraft_kable_dir().map_err(|e| format!("Failed to get Kable dir: {}", e))?;
         let logs_dir = kable_dir.join("logs");
 
         // Create logs directory structure using centralized sync helper
@@ -223,13 +202,10 @@ impl LogStorage {
         crate::ensure_folder_sync(&logs_dir.join("installations"))?;
 
         // Load settings to configure logging
-        let settings =
-            tauri::async_runtime::block_on(crate::settings::load_settings()).unwrap_or_default();
+        let settings = tauri::async_runtime::block_on(crate::settings::load_settings()).unwrap_or_default();
 
         fn value_to_u64(val: &serde_json::Value, default: u64) -> u64 {
-            val.as_u64()
-                .or_else(|| val.as_i64().map(|v| v.max(0) as u64))
-                .unwrap_or(default)
+            val.as_u64().or_else(|| val.as_i64().map(|v| v.max(0) as u64)).unwrap_or(default)
         }
 
         // Usage:
@@ -253,19 +229,11 @@ impl LogStorage {
                 // determine log path
                 let filename = format!(
                     "{}-{}.log",
-                    if msg.instance_id.is_some() {
-                        "installations"
-                    } else {
-                        "launcher"
-                    },
+                    if msg.instance_id.is_some() { "installations" } else { "launcher" },
                     msg.timestamp.format("%Y-%m-%d")
                 );
                 let log_path = if let Some(ref id) = msg.instance_id {
-                    config_clone
-                        .logs_dir
-                        .join("installations")
-                        .join(id)
-                        .join(&filename)
+                    config_clone.logs_dir.join("installations").join(id).join(&filename)
                 } else {
                     config_clone.logs_dir.join("launcher").join(&filename)
                 };
@@ -287,17 +255,10 @@ impl LogStorage {
                                 let compressed_path = log_path.with_extension("log.7z");
                                 let file_content = std::fs::read(&log_path)?;
                                 let mut archive_file = File::create(&compressed_path)?;
-                                let mut encoder =
-                                    sevenz_rust::SevenZWriter::new(&mut archive_file)?;
-                                let filename = log_path
-                                    .file_name()
-                                    .and_then(|n| n.to_str())
-                                    .unwrap_or("log.txt");
+                                let mut encoder = sevenz_rust::SevenZWriter::new(&mut archive_file)?;
+                                let filename = log_path.file_name().and_then(|n| n.to_str()).unwrap_or("log.txt");
                                 encoder.push_archive_entry(
-                                    sevenz_rust::SevenZArchiveEntry::from_path(
-                                        filename,
-                                        filename.to_string(),
-                                    ),
+                                    sevenz_rust::SevenZArchiveEntry::from_path(filename, filename.to_string()),
                                     Some(std::io::Cursor::new(file_content)),
                                 )?;
                                 encoder.finish()?;
@@ -310,12 +271,7 @@ impl LogStorage {
 
                 // Append the log line
                 let timestamp = msg.timestamp.format("%Y-%m-%d %H:%M:%S%.3f UTC");
-                let log_line = format!(
-                    "[{}] {} {}\n",
-                    timestamp,
-                    msg.level.to_string().to_uppercase(),
-                    msg.message
-                );
+                let log_line = format!("[{}] {} {}\n", timestamp, msg.level.to_string().to_uppercase(), msg.message);
                 if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
                     let _ = file.write_all(log_line.as_bytes());
                     let _ = file.flush();
@@ -329,9 +285,7 @@ impl LogStorage {
     /// Update logging configuration from settings
     pub fn update_config(&mut self, settings: &CategorizedLauncherSettings) {
         fn value_to_u64(val: &serde_json::Value, default: u64) -> u64 {
-            val.as_u64()
-                .or_else(|| val.as_i64().map(|v| v.max(0) as u64))
-                .unwrap_or(default)
+            val.as_u64().or_else(|| val.as_i64().map(|v| v.max(0) as u64)).unwrap_or(default)
         }
 
         self.config.enable_persistent_logging = settings.logging.enable_persistent_logging;
@@ -344,12 +298,7 @@ impl LogStorage {
     }
 
     /// Write log message to persistent storage
-    pub fn write_log(
-        &self,
-        level: &LogLevel,
-        message: &str,
-        instance_id: Option<&str>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn write_log(&self, level: &LogLevel, message: &str, instance_id: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
         if !self.config.enable_persistent_logging {
             return Ok(());
         }
@@ -371,11 +320,7 @@ impl LogStorage {
                     let _ = {
                         let filename = format!(
                             "{}-{}.log",
-                            if m.instance_id.is_some() {
-                                "installations"
-                            } else {
-                                "launcher"
-                            },
+                            if m.instance_id.is_some() { "installations" } else { "launcher" },
                             m.timestamp.format("%Y-%m-%d")
                         );
                         let log_path = if let Some(ref id) = m.instance_id {
@@ -387,15 +332,8 @@ impl LogStorage {
                             let _ = crate::ensure_folder_sync(parent);
                         }
                         let timestamp = m.timestamp.format("%Y-%m-%d %H:%M:%S%.3f UTC");
-                        let log_line = format!(
-                            "[{}] {} {}\n",
-                            timestamp,
-                            m.level.to_string().to_uppercase(),
-                            m.message
-                        );
-                        if let Ok(mut file) =
-                            OpenOptions::new().create(true).append(true).open(&log_path)
-                        {
+                        let log_line = format!("[{}] {} {}\n", timestamp, m.level.to_string().to_uppercase(), m.message);
+                        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&log_path) {
                             let _ = file.write_all(log_line.as_bytes());
                             let _ = file.flush();
                         }
@@ -422,10 +360,7 @@ impl LogStorage {
         let mut archive_file = File::create(&compressed_path)?;
         let mut encoder = sevenz_rust::SevenZWriter::new(&mut archive_file)?;
 
-        let filename = log_path
-            .file_name()
-            .and_then(|name| name.to_str())
-            .unwrap_or("log.txt");
+        let filename = log_path.file_name().and_then(|name| name.to_str()).unwrap_or("log.txt");
 
         encoder.push_archive_entry(
             sevenz_rust::SevenZArchiveEntry::from_path(filename, filename.to_string()),
@@ -444,10 +379,7 @@ impl LogStorage {
     pub fn cleanup_old_logs(&self) -> Result<(), Box<dyn std::error::Error>> {
         let cutoff_date = Utc::now() - chrono::Duration::days(self.config.retention_days as i64);
 
-        for log_dir in [
-            self.config.logs_dir.join("launcher"),
-            self.config.logs_dir.join("installations"),
-        ] {
+        for log_dir in [self.config.logs_dir.join("launcher"), self.config.logs_dir.join("installations")] {
             if log_dir.exists() {
                 self.cleanup_directory(&log_dir, &cutoff_date)?;
             }
@@ -456,11 +388,7 @@ impl LogStorage {
         Ok(())
     }
     #[allow(clippy::only_used_in_recursion)]
-    fn cleanup_directory(
-        &self,
-        dir: &Path,
-        cutoff_date: &DateTime<Utc>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn cleanup_directory(&self, dir: &Path, cutoff_date: &DateTime<Utc>) -> Result<(), Box<dyn std::error::Error>> {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             let path = entry.path();
@@ -543,9 +471,7 @@ impl Logger {
     pub fn console_log(level: LogLevel, message: &str, instance_id: Option<&str>) {
         // Always log to console first (fallback)
         let timestamp = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC");
-        let instance_str = instance_id
-            .map(|id| format!(" [{}]", id))
-            .unwrap_or_default();
+        let instance_str = instance_id.map(|id| format!(" [{}]", id)).unwrap_or_default();
 
         match level {
             LogLevel::Error => eprintln!("[{}] ERROR{}: {}", timestamp, instance_str, message),
@@ -583,12 +509,7 @@ impl Logger {
     }
 
     /// Log a formatted message (like println! but to the logging system)
-    pub fn log_fmt(
-        app: &AppHandle,
-        level: LogLevel,
-        args: fmt::Arguments<'_>,
-        instance_id: Option<&str>,
-    ) {
+    pub fn log_fmt(app: &AppHandle, level: LogLevel, args: fmt::Arguments<'_>, instance_id: Option<&str>) {
         Self::log(app, level, &format!("{}", args), instance_id);
     }
 
@@ -622,9 +543,7 @@ impl Logger {
     pub fn cleanup_logs() -> Result<(), String> {
         if let Ok(storage_guard) = LOG_STORAGE.lock() {
             if let Some(storage) = storage_guard.as_ref() {
-                storage
-                    .cleanup_old_logs()
-                    .map_err(|e| format!("Failed to cleanup logs: {}", e))?;
+                storage.cleanup_old_logs().map_err(|e| format!("Failed to cleanup logs: {}", e))?;
             }
         }
         Ok(())
@@ -698,15 +617,11 @@ pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
             storage.config.logs_dir.clone()
         } else {
             // Fallback to get kable directory
-            crate::get_minecraft_kable_dir()
-                .map_err(|e| format!("Failed to get Kable dir: {}", e))?
-                .join("logs")
+            crate::get_minecraft_kable_dir().map_err(|e| format!("Failed to get Kable dir: {}", e))?.join("logs")
         }
     } else {
         // Fallback to get kable directory
-        crate::get_minecraft_kable_dir()
-            .map_err(|e| format!("Failed to get Kable dir: {}", e))?
-            .join("logs")
+        crate::get_minecraft_kable_dir().map_err(|e| format!("Failed to get Kable dir: {}", e))?.join("logs")
     };
 
     // Create exports directory (use async helper)
@@ -715,24 +630,15 @@ pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
         .await
         .map_err(|e| format!("Failed to create exports directory parent: {}", e))?;
     // Also ensure the directory itself exists
-    crate::ensure_folder(&exports_dir)
-        .await
-        .map_err(|e| format!("Failed to ensure exports directory exists: {}", e))?;
+    crate::ensure_folder(&exports_dir).await.map_err(|e| format!("Failed to ensure exports directory exists: {}", e))?;
 
     let log_content = if let Some(ref id) = instance_id {
-        format!(
-            "Logs for instance: {}\n\n[Sample log entries for instance {}]",
-            id, id
-        )
+        format!("Logs for instance: {}\n\n[Sample log entries for instance {}]", id, id)
     } else {
         "Global launcher logs\n\n[Sample global log entries]".to_string()
     };
 
-    let filename = if let Some(ref id) = instance_id {
-        format!("kable_logs_{}.txt", id)
-    } else {
-        "kable_logs_global.txt".to_string()
-    };
+    let filename = if let Some(ref id) = instance_id { format!("kable_logs_{}.txt", id) } else { "kable_logs_global.txt".to_string() };
 
     let export_path = exports_dir.join(&filename);
     crate::ensure_parent_dir_exists_async(&export_path)
@@ -743,10 +649,7 @@ pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
         .await
         .map_err(|e| format!("Failed to write log file: {}", e))?;
 
-    Logger::info_global(
-        &format!("Logs exported to: {}", export_path.display()),
-        instance_id.as_deref(),
-    );
+    Logger::info_global(&format!("Logs exported to: {}", export_path.display()), instance_id.as_deref());
     Ok(())
 }
 
@@ -762,9 +665,7 @@ pub async fn update_logging_config(settings: CategorizedLauncherSettings) -> Res
 #[tauri::command]
 pub async fn cleanup_old_logs() -> Result<(), String> {
     // Run the blocking cleanup in a background thread to avoid blocking the async runtime
-    let res = tokio::task::spawn_blocking(Logger::cleanup_logs)
-        .await
-        .map_err(|e| format!("Log cleanup join error: {}", e))?;
+    let res = tokio::task::spawn_blocking(Logger::cleanup_logs).await.map_err(|e| format!("Log cleanup join error: {}", e))?;
     res?;
     Logger::info_global("Log cleanup completed", None);
     Ok(())

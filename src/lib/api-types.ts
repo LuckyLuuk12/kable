@@ -254,80 +254,46 @@ export interface ResourcePack {
   last_used?: number;
 }
 
-export type Versions = VersionData[];
+export type VersionType = "release" | "snapshot" | "old_beta" | "old_alpha";
 
-export interface VersionData {
-  version_id: string;
-  loader: LoaderKind;
+export interface ProfileVersion {
+  /**
+   * Raw version ID from the profile, e.g. "1.19.2-forge-43.2.0"
+   */
+  id: string;
   display_name: string;
-  is_stable: boolean;
-  extra?: Record<string, string>;
+  /**
+   * Vanilla, Fabric, Forge, NeoForge, Quilt, etc.
+   */
+  loader: LoaderKind;
+  /**
+   * Optional Minecraft version, e.g. "1.19.2", note that since 2026 minecraft versioning is <year>.<drop>.<patch> (e.g. 26.2.1)
+   */
+  minecraft_version?: string;
+  /**
+   * Optional loader version, e.g. "43.2.0" for forge or "0.14.19" for fabric
+   */
+  loader_version?: string;
+  /**
+   * Release, Snapshot, OldBeta, OldAlpha
+   */
+  version_type?: VersionType;
+  /**
+   * Whether this version is marked as stable in the profile, note that this is not necessarily the same as version_type == Release
+   */
+  stable?: boolean;
+  /**
+   * Extra metadata that may be present from the version manifest
+   */
+  release_time?: string;
+  updated_time?: string;
+  url?: string;
+  sha1?: string;
+  compliance_level?: number;
+  recommended?: boolean;
 }
 
 export type LoaderKind = "vanilla" | "fabric" | "iris_fabric" | "forge" | "neo_forge" | "quilt";
-
-export interface ShaderPackInfo {
-  file_name: string;
-  name?: string;
-  description?: string;
-  disabled: boolean;
-}
-
-export interface ResourcePackInfo {
-  file_name: string;
-  name?: string;
-  description?: string;
-  disabled: boolean;
-}
-
-export interface PackFileInfo {
-  path: string;
-  file_size: number;
-  hashes: Record<string, string>;
-  downloads: string[];
-  env?: MrpackEnv;
-  already_installed: boolean;
-  overwrite: boolean;
-}
-
-export interface MrpackEnv {
-  client?: string;
-  server?: string;
-}
-
-export interface PackFileGroups {
-  mods: PackFileInfo[];
-  resourcepacks: PackFileInfo[];
-  shaderpacks: PackFileInfo[];
-  others: PackFileInfo[];
-}
-
-export interface PackFileDetailedGroup {
-  disabled: PackFileInfo[];
-  optional: PackFileInfo[];
-  to_be_installed: PackFileInfo[];
-}
-
-export interface MrpackIndex {
-  name: string;
-  version_id: string;
-  format_version: number;
-  files: MrpackFile[];
-}
-
-export interface MrpackFile {
-  path: string;
-  file_size: number;
-  hashes: Record<string, string>;
-  downloads: string[];
-  env?: MrpackEnv;
-}
-
-export interface MrPackDetailed {
-  mods: PackFileDetailedGroup;
-  resourcepacks: PackFileDetailedGroup;
-  shaderpacks: PackFileDetailedGroup;
-}
 
 export interface ModJarInfo {
   file_name: string;
@@ -341,7 +307,7 @@ export interface KableProfile {
   id: string;
   name: string;
   icon?: string;
-  version_id: string;
+  version: ProfileVersion;
   created: string;
   last_used: string;
   java_args: string[];
@@ -373,11 +339,6 @@ export interface CapeData {
   url: string;
   alias?: string;
 }
-
-/**
- * The release channel for this version
- */
-export type VersionType = "release" | "beta" | "alpha";
 
 export interface VersionFileHashes {
   sha512?: string;
@@ -529,7 +490,7 @@ export interface Facet {
 
 export type FacetOperator = "eq" | "not_eq" | "greater" | "greater_eq" | "less" | "less_eq";
 
-export type FacetField = "project_type" | "category" | "version" | "client_side" | "server_side" | "open_source" | "title" | "author" | "follows" | "project_id" | "license" | "downloads" | "color" | "created_timestamp" | "modified_timestamp" | "date_created" | "date_modified";
+export type FacetField = "project_type" | "categories" | "version" | "client_side" | "server_side" | "open_source" | "title" | "author" | "follows" | "project_id" | "license" | "downloads" | "color" | "created_timestamp" | "modified_timestamp" | "date_created" | "date_modified";
 
 export interface Project {
   /**

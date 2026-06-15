@@ -35,9 +35,7 @@ pub trait Launchable: Send + Sync {
     async fn launch(&self, context: &LaunchContext) -> Result<LaunchResult, String>;
 }
 
-pub fn get_launchable_for_installation(
-    installation: &KableProfile,
-) -> Result<Box<dyn Launchable>, String> {
+pub fn get_launchable_for_installation(installation: &KableProfile) -> Result<Box<dyn Launchable>, String> {
     if installation.version_id.contains("fabric") {
         Ok(Box::new(fabric::FabricLaunchable::default()))
     } else if installation.version_id.contains("forge") {
@@ -52,16 +50,9 @@ pub async fn launch_installation(
     settings: CategorizedLauncherSettings,
     account: LauncherAccount,
 ) -> Result<LaunchResult, String> {
-    let minecraft_dir = crate::system::fs::get_default_minecraft_dir()?
-        .to_string_lossy()
-        .to_string();
+    let minecraft_dir = crate::system::fs::get_default_minecraft_dir()?.to_string_lossy().to_string();
 
-    let context = LaunchContext {
-        installation: profile,
-        settings,
-        account,
-        minecraft_dir,
-    };
+    let context = LaunchContext { installation: profile, settings, account, minecraft_dir };
 
     let launchable = get_launchable_for_installation(&context.installation)?;
     launchable.prepare(&context).await?;

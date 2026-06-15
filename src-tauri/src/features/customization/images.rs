@@ -14,9 +14,7 @@ pub async fn resolve_image_path(key: String) -> Result<String, String> {
     let images_dir = launcher_dir.join(CONFIG_DIR).join(IMAGES_DIR);
 
     // Ensure the images directory exists
-    ensure_folder(&images_dir)
-        .await
-        .map_err(|e| format!("Failed to create images directory: {}", e))?;
+    ensure_folder(&images_dir).await.map_err(|e| format!("Failed to create images directory: {}", e))?;
 
     if images_dir.exists() {
         // Scan the images directory for any file whose stem matches the key

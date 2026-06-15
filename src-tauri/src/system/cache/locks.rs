@@ -3,8 +3,7 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use tokio::sync::Mutex;
 
-static LOCKS: once_cell::sync::Lazy<DashMap<String, Arc<Mutex<()>>>> =
-    once_cell::sync::Lazy::new(DashMap::new);
+static LOCKS: once_cell::sync::Lazy<DashMap<String, Arc<Mutex<()>>>> = once_cell::sync::Lazy::new(DashMap::new);
 
 pub fn get_lock(key: &str) -> Arc<Mutex<()>> {
     if let Some(lock) = LOCKS.get(key) {
