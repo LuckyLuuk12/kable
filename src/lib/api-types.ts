@@ -374,7 +374,140 @@ export interface CapeData {
   alias?: string;
 }
 
+/**
+ * The release channel for this version
+ */
+export type VersionType = "release" | "beta" | "alpha";
+
+export interface VersionFileHashes {
+  sha512?: string;
+  sha1?: string;
+}
+
+export interface VersionFile {
+  hashes: VersionFileHashes;
+  /**
+   * A direct link to the file
+   */
+  url: string;
+  /**
+   * The name of the file
+   */
+  filename: string;
+  /**
+   * Whether this file is the primary one for its version. Only a maximum of one file per version will have this set to true. If there are not any primary files, it can be inferred that the first file is the primary one.
+   */
+  primary: boolean;
+  /**
+   * The size of the file in bytes
+   */
+  size: number;
+  /**
+   * The type of the additional file, used mainly for adding resource packs to datapacks
+   */
+  file_type?: FileType | null;
+}
+
+export type FileType = "required_resource_pack" | "optional_resource_pack";
+
+export interface VersionDependency {
+  /**
+   * The ID of the version that this version depends on
+   */
+  version_id?: string | null;
+  /**
+   * The ID of the project that this version depends on
+   */
+  project_id?: string | null;
+  /**
+   * The file name of the dependency, mostly used for showing external dependencies on modpacks
+   */
+  file_name?: string | null;
+  /**
+   * The type of dependency that this version has
+   */
+  dependency_type: DependencyType;
+}
+
+export type DependencyType = "required" | "optional" | "incompatible" | "embedded";
+
+export type Status = "listed" | "archived" | "draft" | "unlisted" | "scheduled" | "unknown";
+
+/**
+ * The server side support of the project
+ */
+export type ServerSide = "required" | "optional" | "unsupported";
+
 export type SearchIndex = "relevance" | "downloads" | "follows" | "newest" | "updated";
+
+export type RequestedStatus = "listed" | "archived" | "draft" | "unlisted";
+
+export interface ProjectVersion {
+  /**
+   * The name of this version
+   */
+  name: string;
+  /**
+   * The version number. Ideally will follow semantic versioning
+   */
+  version_number: string;
+  /**
+   * The changelog for this version
+   */
+  changelog?: string | null;
+  /**
+   * A list of specific versions of projects that this version depends on
+   */
+  dependencies?: VersionDependency[];
+  /**
+   * A list of versions of Minecraft that this version supports
+   */
+  game_versions: string[];
+  /**
+   * The release channel for this version
+   */
+  version_type: VersionType;
+  /**
+   * The mod loaders that this version supports
+   */
+  loaders: string[];
+  /**
+   * Whether the version is featured or not
+   */
+  featured: boolean;
+  status?: Status;
+  requested_status?: RequestedStatus | null;
+  /**
+   * The ID of the version, encoded as a base62 string
+   */
+  id: string;
+  /**
+   * The ID of the project this version is for
+   */
+  project_id: string;
+  /**
+   * The ID of the author who published this version
+   */
+  author_id: string;
+  date_published: string;
+  /**
+   * The number of times this version has been downloaded
+   */
+  downloads: number;
+  /**
+   * A link to the changelog for this version. Always null, only kept for legacy compatibility.
+   */
+  changelog_url?: string | null;
+  /**
+   * A list of files available for download for this version
+   */
+  files: VersionFile[];
+}
+
+/**
+ * The project type of the project
+ */
+export type ProjectType = "mod" | "modpack" | "resourcepack" | "shader";
 
 export interface ProjectSearch {
   query?: string;
@@ -397,6 +530,124 @@ export interface Facet {
 export type FacetOperator = "eq" | "not_eq" | "greater" | "greater_eq" | "less" | "less_eq";
 
 export type FacetField = "project_type" | "category" | "version" | "client_side" | "server_side" | "open_source" | "title" | "author" | "follows" | "project_id" | "license" | "downloads" | "color" | "created_timestamp" | "modified_timestamp" | "date_created" | "date_modified";
+
+export interface Project {
+  /**
+   * The slug of a project, used for vanity URLs. Regex: ```^[\\w!@$()`.+,"\\-']{3,64}$```
+   */
+  slug: string;
+  /**
+   * The title or name of the project
+   */
+  title: string;
+  /**
+   * A short description of the project
+   */
+  description: string;
+  /**
+   * A list of the categories that the project has
+   */
+  categories?: string[];
+  /**
+   * The client side support of the project
+   */
+  client_side: ClientSide;
+  /**
+   * The server side support of the project
+   */
+  server_side: ServerSide;
+  /**
+   * The project type of the project
+   */
+  project_type: ProjectType;
+  /**
+   * The total number of downloads of the project
+   */
+  downloads: number;
+  /**
+   * The URL of the project's icon
+   */
+  icon_url?: string | null;
+  /**
+   * The RGB color of the project, automatically generated from the project icon
+   */
+  color?: number | null;
+  /**
+   * The ID of the moderation thread associated with this project
+   */
+  thread_id?: string;
+  monetization_status?: MonetizationStatus;
+  /**
+   * The ID of the project
+   */
+  project_id: string;
+  /**
+   * The username of the project's author
+   */
+  author: string;
+  /**
+   * A list of the categories that the project has which are not secondary
+   */
+  display_categories?: string[];
+  /**
+   * A list of the minecraft versions supported by the project
+   */
+  versions: ProjectVersion[];
+  /**
+   * The total number of users following the project
+   */
+  follows: number;
+  /**
+   * The date the project was added to search
+   */
+  date_created: string;
+  /**
+   * The date the project was last modified
+   */
+  date_modified: string;
+  /**
+   * The latest version of minecraft that this project supports
+   */
+  latest_version?: string;
+  /**
+   * The SPDX license ID of a project
+   */
+  license: string;
+  /**
+   * All gallery images attached to the project
+   */
+  gallery?: string[];
+  /**
+   * The featured gallery image of the project
+   */
+  featured_gallery?: string | null;
+}
+
+/**
+ * The monetization status of the project
+ */
+export type MonetizationStatus = "monetized" | "demonetized" | "force_demonetized";
+
+export type ClientSide = "required" | "optional" | "unsupported";
+
+export interface ModrinthResults {
+  /**
+   * The list of results
+   */
+  hits: Project[];
+  /**
+   * The number of results that were skipped by the query
+   */
+  offset: number;
+  /**
+   * The number of results that were returned by the query
+   */
+  limit: number;
+  /**
+   * The total number of results that match the query
+   */
+  total_hits: number;
+}
 
 export type WorldSource =
   | { local: "local" }

@@ -9,3 +9,5 @@ serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 facet = { version = "0.43.2", features = ["chrono"] }
 facet-typescript = "0.43.2"
+modrinth-api = "2.7.1"
+serde_with = "3.21.0"

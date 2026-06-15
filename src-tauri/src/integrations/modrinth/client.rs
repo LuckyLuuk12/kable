@@ -8,7 +8,7 @@
 //     pub offset: i32,
 //     pub limit: i32,
 // }
-use api_types::mods::ProjectSearch;
+use api_types::mods::{ModrinthResults, Project, ProjectSearch, ProjectVersion};
 use modrinth_api::{
     apis::projects_api::search_projects, apis::Configuration, models::SearchResults,
 };
@@ -30,6 +30,10 @@ pub const MODRINTH_CONFIGURATION: Configuration = Configuration {
 };
 // With this custom config we now "extend" the modrinth_api crate as it has poor types for things like facets (filters) and such.
 
+//?----------------------------------------------------------------------
+//? SEARCH PROJECTS
+//?----------------------------------------------------------------------
+
 /**
  * We automatically put the filter in for mods and then wrap the project_search parameter into:
  * search_projects(configuration: &configuration::Configuration, query: Option<&str>, facets: Option<&str>, index: Option<&str>, offset: Option<i32>, limit: Option<i32>)
@@ -38,7 +42,7 @@ pub const MODRINTH_CONFIGURATION: Configuration = Configuration {
 async fn search(
     project_type: Option<String>,
     project_search: ProjectSearch,
-) -> Result<SearchResults, String> {
+) -> Result<ModrinthResults, String> {
     let mut facets_str = String::new();
 
     if let Some(pt) = project_type {
@@ -54,7 +58,7 @@ async fn search(
     }
 
     let facets = Some(facets_str).as_deref();
-    search_projects(
+    let projects = search_projects(
         &MODRINTH_CONFIGURATION,
         project_search.query.as_deref(),
         facets,
@@ -63,13 +67,117 @@ async fn search(
         project_search.limit,
     )
     .await
-    .map_err(|e| format!("Failed to search for: {}", e))
+    .map_err(|e| format!("Failed to search for: {}", e))?;
+
+    // Now we make a versions request to fill our custom Project struct with Vec<ProjectVersion> instead of Vec<String> for the versions field.
+    // pub async fn get_project_versions(configuration: &configuration::Configuration, id_pipe_slug: &str, loaders: Option<&str>, game_versions: Option<&str>, featured: Option<bool>) -> Result<Vec<models::Version>, Error<GetProjectVersionsError>>
+    // info like loaders and game_versions will be taken from the ProjectSearch parameter:
+    let loaders = project_search
+        .facets
+        .get("loaders")
+        .map(|v| v.join(","))
+        .as_deref();
+    let game_versions = project_search
+        .facets
+        .get("versions")
+        .map(|v| v.join(","))
+        .as_deref();
+    let featured = project_search
+        .facets
+        .get("featured")
+        .and_then(|v| v.first())
+        .map(|s| s == "true");
+    // Now for each project we get the versions and fill the Project struct with Vec<ProjectVersion> instead of Vec<String> for the versions field.
+    let mut results = Vec::new();
+    for project in projects.hits {
+        let versions = modrinth_api::apis::versions_api::get_project_versions(
+            &MODRINTH_CONFIGURATION,
+            &project.project_id,
+            loaders,
+            game_versions,
+            featured,
+        )
+        .await
+        .map_err(|e| {
+            format!(
+                "Failed to get versions for project {}: {}",
+                project.project_id, e
+            )
+        })?;
+
+        let project_with_versions = Project {
+            versions: versions.into_iter().map(|v| v.into()).collect(),
+            ..project.into_iter().collect()
+        };
+
+        results.push(project_with_versions);
+    }
+    Ok(ModrinthResults {
+        hits: results,
+        offset: projects.offset,
+        limit: projects.limit,
+        total_hits: projects.total_hits,
+    })
 }
 
-pub async fn search_mods(project_search: ProjectSearch) -> Result<SearchResults, String> {
+pub async fn search_mods(project_search: ProjectSearch) -> Result<ModrinthResults, String> {
     search(Some("mod".to_string()), project_search).await
 }
 
-pub async fn search_resourcepacks(project_search: ProjectSearch) -> Result<SearchResults, String> {
+pub async fn search_resourcepacks(
+    project_search: ProjectSearch,
+) -> Result<ModrinthResults, String> {
     search(Some("resourcepack".to_string()), project_search).await
+}
+
+pub async fn search_shaderpacks(project_search: ProjectSearch) -> Result<ModrinthResults, String> {
+    search(Some("shader".to_string()), project_search).await
+}
+
+pub async fn search_modpacks(project_search: ProjectSearch) -> Result<ModrinthResults, String> {
+    search(Some("modpack".to_string()), project_search).await
+}
+
+//?----------------------------------------------------------------------
+//? DOWNLOAD PROJECT FILES
+//?----------------------------------------------------------------------
+
+async fn download_project(
+    project: &Project,
+    version_id: Option<&str>,
+    parent_folder: PathBuf,
+) -> Result<(), String> {
+    const CLIENT: reqwest::Client = reqwest::Client::new();
+    const VERSION: ProjectVersion = project
+        .versions
+        .iter()
+        .find(|v| v.id == version_id.unwrap_or_default())
+        .ok_or_else(|| {
+            format!(
+                "Version ID {} not found in project {}",
+                version_id.unwrap_or_default(),
+                project.project_id
+            )
+        })?;
+    VERSION.files.iter().for_each(async |file| {
+        let url = &file.url;
+        let filename = &file.filename;
+        let path = parent_folder.join(filename);
+        let response = CLIENT
+            .get(url)
+            .send()
+            .await
+            .map_err(|e| format!("Failed to download file {}: {}", filename, e))?;
+        let mut file = std::fs::File::create(&path)
+            .map_err(|e| format!("Failed to create file {}: {}", path.display(), e))?;
+        std::io::copy(
+            &mut response
+                .bytes()
+                .await
+                .map_err(|e| format!("Failed to read response for file {}: {}", filename, e))?,
+            &mut file,
+        )
+        .map_err(|e| format!("Failed to write to file {}: {}", path.display(), e))?;
+    });
+    Ok(())
 }
