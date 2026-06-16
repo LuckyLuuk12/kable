@@ -12,5 +12,5 @@ use serde::Serialize;
 pub fn hash_args<T: Serialize>(args: &T) -> String {
     let bytes = encode_to_vec(args, standard()).expect("failed to encode cache key args");
 
-    hash_bytes(&bytes)
+    super::hashing::hash_bytes(&bytes)
 }

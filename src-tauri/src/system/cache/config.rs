@@ -1,11 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use crate::CacheError;
-
 static CACHE_ROOT: OnceLock<PathBuf> = OnceLock::new();
 
-pub fn initialize<P>(cache_root: P) -> Result<(), CacheError>
+pub fn initialize<P>(cache_root: P) -> Result<(), super::error::CacheError>
 where
     P: AsRef<Path>,
 {
@@ -13,7 +11,7 @@ where
 
     std::fs::create_dir_all(&path)?;
 
-    CACHE_ROOT.set(path).map_err(|_| CacheError::AlreadyInitialized)?;
+    CACHE_ROOT.set(path).map_err(|_| super::error::CacheError::AlreadyInitialized)?;
 
     Ok(())
 }

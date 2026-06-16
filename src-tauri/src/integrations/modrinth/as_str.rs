@@ -6,15 +6,15 @@ pub trait AsStr {
 
 /// Converts the FacetGroup: Vec<Facet> to a string like "facet=project:mod&facet=version:1.0.0" for example
 impl AsStr for FacetGroup {
-    fn as_str(&self) -> String {
-        self.facets.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(",")
+    fn as_str(&self) -> &str {
+        self.facets.iter().map(|f| f.as_str()).collect::<Vec<_>>().join(",").as_str()
     }
 }
 
 /// Converts the Facet: field:operator:value to a string like "facet=project:mod" for example
 impl AsStr for Facet {
-    fn as_str(&self) -> String {
-        format!("{}{}{}", self.field.as_str(), self.operator.as_str(), self.value)
+    fn as_str(&self) -> &str {
+        format!("{}{}{}", self.field.as_str(), self.operator.as_str(), self.value).as_str()
     }
 }
 

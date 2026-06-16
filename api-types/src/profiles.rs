@@ -50,6 +50,8 @@ pub struct ProfileVersion {
     pub compliance_level: Option<u32>,
     pub recommended: Option<bool>,
 }
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+pub struct Versions(pub Vec<ProfileVersion>);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy, Hash, facet::Facet)]
 #[facet(rename_all = "snake_case")]
@@ -84,6 +86,58 @@ pub struct ModJarInfo {
     pub disabled: bool,
 }
 
+//?----------------------------------------------------------------------
+//? .minecraft launcher_profiles.json types
+//?----------------------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LauncherProfiles {
+    // Profile name is key to profile object
+    pub profiles: HashMap<String, Profile>,
+    pub settings: OfficialLauncherSettings,
+    pub version: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Profile {
+    pub created: Option<String>,
+    pub icon: Option<String>,
+    #[serde(rename = "javaArgs")]
+    pub java_args: Option<String>,
+    #[serde(rename = "lastUsed")]
+    pub last_used: Option<String>,
+    #[serde(rename = "lastVersionId")]
+    pub last_version_id: Option<String>,
+    pub name: Option<String>,
+    #[serde(rename = "type")]
+    pub profile_type: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct OfficialLauncherSettings {
+    #[serde(rename = "crashAssistance")]
+    pub crash_assistance: bool,
+    #[serde(rename = "enableAdvanced")]
+    pub enable_advanced: bool,
+    #[serde(rename = "enableAnalytics")]
+    pub enable_analytics: bool,
+    #[serde(rename = "enableHistorical")]
+    pub enable_historical: bool,
+    #[serde(rename = "enableReleases")]
+    pub enable_releases: bool,
+    #[serde(rename = "enableSnapshots")]
+    pub enable_snapshots: bool,
+    #[serde(rename = "keepLauncherOpen")]
+    pub keep_launcher_open: bool,
+    #[serde(rename = "profileSorting")]
+    pub profile_sorting: String,
+    #[serde(rename = "showGameLog")]
+    pub show_game_log: bool,
+    #[serde(rename = "showMenu")]
+    pub show_menu: bool,
+    #[serde(rename = "soundOn")]
+    pub sound_on: bool,
+}
 // #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
 // pub struct VersionData {
 //     pub version_id: String,

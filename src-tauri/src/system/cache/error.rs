@@ -32,4 +32,8 @@ pub enum CacheError {
     /// Generated cache key was invalid.
     #[error("invalid cache key")]
     InvalidKey,
+
+    /// Any system error I can easily convert to a string:
+    #[error("system error: {0}")]
+    SystemError(String),
 }

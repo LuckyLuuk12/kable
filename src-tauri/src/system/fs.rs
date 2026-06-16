@@ -257,3 +257,7 @@ pub fn write_file_atomic_sync(path: &Path, bytes: &[u8]) -> Result<(), String> {
 pub async fn read_to_string(path: &Path) -> Result<String, String> {
     async_fs::read_to_string(path).await.map_err(|e| format!("Failed to read file {}: {}", path.display(), e))
 }
+
+pub async fn read_file(path: &Path) -> Result<Vec<u8>, String> {
+    async_fs::read(path).await.map_err(|e| format!("Failed to read file {}: {}", path.display(), e))
+}

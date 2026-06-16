@@ -1,6 +1,8 @@
 // implementation of the Modrinth API: https://docs.modrinth.com/api/
 // Previously I implemented this myself but I found this crate: https://crates.io/crates/modrinth-api
 
+use std::path::PathBuf;
+
 //  pub struct ProjectSearch {
 //     pub query: Option<String>,
 //     pub facets: Vec<FacetGroup>,
@@ -8,8 +10,8 @@
 //     pub offset: i32,
 //     pub limit: i32,
 // }
-use api_types::mods::{ModrinthResults, Project, ProjectSearch, ProjectVersion};
-use modrinth_api::{apis::projects_api::search_projects, apis::Configuration, models::SearchResults};
+use api_types::mods::{ModrinthResults, Project, ProjectSearch, ProjectVersion, VersionFile};
+use modrinth_api::apis::{configuration::Configuration, projects_api::search_projects};
 
 /**
  * Configuration {
@@ -22,8 +24,9 @@ use modrinth_api::{apis::projects_api::search_projects, apis::Configuration, mod
  *     api_key: None,
  * }
  */
-pub const MODRINTH_CONFIGURATION: Configuration =
-    Configuration { user_agent: Some("minecraft-launcher/Kable".to_owned()), ..Configuration::default() };
+pub fn modrinth_configuration() -> Configuration {
+    Configuration { user_agent: Some("minecraft-launcher/Kable".to_string()), ..Configuration::default() }
+}
 // With this custom config we now "extend" the modrinth_api crate as it has poor types for things like facets (filters) and such.
 
 //?----------------------------------------------------------------------
@@ -52,7 +55,7 @@ async fn search(project_type: Option<String>, project_search: ProjectSearch, wit
 
     let facets = Some(facets_str).as_deref();
     let projects = search_projects(
-        &MODRINTH_CONFIGURATION,
+        &modrinth_configuration(),
         project_search.query.as_deref(),
         facets,
         project_search.index.as_ref().map(|i| i.as_str()),
@@ -66,10 +69,13 @@ async fn search(project_type: Option<String>, project_search: ProjectSearch, wit
     // Now we make a versions request to fill our custom Project struct with Vec<ProjectVersion> instead of Vec<String> for the versions field.
     // pub async fn get_project_versions(configuration: &configuration::Configuration, id_pipe_slug: &str, loaders: Option<&str>, game_versions: Option<&str>, featured: Option<bool>) -> Result<Vec<models::Version>, Error<GetProjectVersionsError>>
     // info like loaders and game_versions will be taken from the ProjectSearch parameter:
+    let loaders = None;
+    let game_versions = None;
+    let featured = None;
     if with_version_data {
-        let loaders = project_search.facets.get("loaders").map(|v| v.join(",")).as_deref();
-        let game_versions = project_search.facets.get("versions").map(|v| v.join(",")).as_deref();
-        let featured = project_search.facets.get("featured").and_then(|v| v.first()).map(|s| s == "true");
+        loaders = project_search.facets.get("loaders").map(|v| v.join(",")).as_deref();
+        game_versions = project_search.facets.get("versions").map(|v| v.join(",")).as_deref();
+        featured = project_search.facets.get("featured").and_then(|v| v.first()).map(|s| s == "true");
     }
     // Now for each project we get the versions and fill the Project struct with Vec<ProjectVersion> instead of Vec<String> for the versions field.
     let mut results = Vec::new();
@@ -77,7 +83,7 @@ async fn search(project_type: Option<String>, project_search: ProjectSearch, wit
         let versions = Vec::new();
         if with_version_data {
             versions = modrinth_api::apis::versions_api::get_project_versions(
-                &MODRINTH_CONFIGURATION,
+                &modrinth_configuration(),
                 &project.project_id,
                 loaders,
                 game_versions,
@@ -114,20 +120,20 @@ pub async fn search_modpacks(project_search: ProjectSearch, with_version_data: b
 //?----------------------------------------------------------------------
 
 pub async fn download_project(project: &Project, version_id: Option<&str>, parent_folder: PathBuf) -> Result<(), String> {
-    const CLIENT: reqwest::Client = reqwest::Client::new();
-    const VERSION: ProjectVersion = project
+    let client: reqwest::Client = reqwest::Client::new();
+    let version: &ProjectVersion = project
         .versions
         .iter()
         .find(|v| v.id == version_id.unwrap_or_default())
         .ok_or_else(|| format!("Version ID {} not found in project {}", version_id.unwrap_or_default(), project.project_id))?;
-    VERSION.files.iter().for_each(async |file| {
+    version.files.iter().for_each(async |file: &VersionFile| {
         let url = &file.url;
         let filename = &file.filename;
         let path = parent_folder.join(filename);
-        let response = CLIENT.get(url).send().await.map_err(|e| format!("Failed to download file {}: {}", filename, e))?;
-        let mut file = std::fs::File::create(&path).map_err(|e| format!("Failed to create file {}: {}", path.display(), e))?;
-        std::io::copy(&mut response.bytes().await.map_err(|e| format!("Failed to read response for file {}: {}", filename, e))?, &mut file)
-            .map_err(|e| format!("Failed to write to file {}: {}", path.display(), e))?;
+        let response = client.get(url).send().await.map_err(|e| format!("Failed to download file {}: {}", filename, e));
+        let mut file = std::fs::File::create(&path).map_err(|e| format!("Failed to create file {}: {}", path.display(), e));
+        std::io::copy(&mut response.bytes().await.map_err(|e| format!("Failed to read response for file {}: {}", filename, e)), &mut file)
+            .map_err(|e| format!("Failed to write to file {}: {}", path.display(), e));
     });
     Ok(())
 }

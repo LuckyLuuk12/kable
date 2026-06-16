@@ -43,10 +43,11 @@ pub const CACHE_DIR: &str = "cache";
 pub const SETTINGS_FILE: &str = "settings.json";
 pub const SOUNDPACK_FILE: &str = "soundpack.json";
 pub const CUSTOM_SYMLINKS_FILE: &str = "custom_symlinks.json";
-pub const PROFILES_FILE: &str = "kable_profiles.json";
+pub const LAUNCHER_PROFILES_FILE: &str = "launcher_profiles.json";
+pub const KABLE_ACCOUNTS_FILE: &str = "kable_accounts.json";
+pub const KABLE_PROFILES_FILE: &str = "kable_profiles.json";
 pub const MODRINTH_CACHE_FILE: &str = "modrinth_cache.json";
 pub const MODRINTH_VERSIONS_CACHE_FILE: &str = "modrinth_versions_cache.json";
-pub const KABLE_ACCOUNTS_FILE: &str = "kable_accounts.json";
 
 // Launcher special values
 pub const LATEST_RELEASE: &str = "latest-release";
