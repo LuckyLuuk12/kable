@@ -100,6 +100,8 @@ pub struct LauncherProfiles {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Profile {
+    pub id: String,
+    pub name: Option<String>,
     pub created: Option<String>,
     pub icon: Option<String>,
     #[serde(rename = "javaArgs")]
@@ -108,7 +110,6 @@ pub struct Profile {
     pub last_used: Option<String>,
     #[serde(rename = "lastVersionId")]
     pub last_version_id: Option<String>,
-    pub name: Option<String>,
     #[serde(rename = "type")]
     pub profile_type: Option<String>,
 }
@@ -138,6 +139,51 @@ pub struct OfficialLauncherSettings {
     #[serde(rename = "soundOn")]
     pub sound_on: bool,
 }
+
+//?----------------------------------------------------------------------
+//? impl blocks for conversion from .minecraft stuff to Kable types
+//?----------------------------------------------------------------------
+
+impl From<Profile> for KableProfile {
+    fn from(profile: Profile) -> Self {
+        KableProfile {
+            id: profile.id.clone(),
+            name: profile.name.clone().unwrap_or_else(|| format!("Kable-{}", profile.id)),
+            icon: profile.icon,
+            version: ProfileVersion {
+                id: profile.last_version_id.clone().unwrap_or_else(|| "unknown".to_string()),
+                display_name: profile.last_version_id.clone().unwrap_or_else(|| "Unknown Version".to_string()),
+                loader: LoaderKind::Vanilla, // We don't have loader info in the official launcher profile, so default to Vanilla
+                minecraft_version: None,
+                loader_version: None,
+                version_type: None,
+                stable: None,
+                release_time: None,
+                updated_time: None,
+                url: None,
+                sha1: None,
+                compliance_level: None,
+                recommended: None,
+            },
+            created: profile.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+            last_used: profile.last_used.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+            java_args: profile.java_args.unwrap_or_default().split_whitespace().map(|s| s.to_string()).collect(),
+            dedicated_mods_folder: None,
+            dedicated_config_folder: None,
+            dedicated_resource_pack_folder: None,
+            dedicated_shaders_folder: None,
+            favorite: false,
+            total_time_played_ms: 0,
+            parameters_map: HashMap::new(),
+            description: None,
+            times_launched: 0,
+            enable_pack_merging: false,
+            pack_order: Vec::new(),
+            merged_packs: Vec::new(),
+        }
+    }
+}
+
 // #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
 // pub struct VersionData {
 //     pub version_id: String,

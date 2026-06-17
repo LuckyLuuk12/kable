@@ -428,7 +428,7 @@
 //     pub filter: CurseForgeFilter,
 //     pub cache_path: std::path::PathBuf,
 // }
-use serde::{Deserialize, Serialize};
+use serde::{ser, Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet)]
 pub struct ProjectSearch {
@@ -745,6 +745,9 @@ pub enum VersionType {
     Beta,
     #[serde(rename = "alpha")]
     Alpha,
+    /// This one is used when converting String to ProjectVersion as they lack a lot of info but the alternative is dropping all version info on converting ProjectResults...
+    #[serde(rename = "incomplete")]
+    Incomplete,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, facet::Facet)]
@@ -820,3 +823,227 @@ pub enum FileType {
     #[serde(rename = "optional-resource-pack")]
     OptionalResourcePack,
 }
+
+//?----------------------------------------------------------------------
+//? Impl blocks for modrinth_api types to convert to our internal types
+//?----------------------------------------------------------------------
+
+impl From<modrinth_api::models::ProjectResult> for Project {
+    fn from(value: modrinth_api::models::ProjectResult) -> Self {
+        Project {
+            slug: value.slug,
+            title: value.title,
+            description: value.description,
+            author: value.author,
+            date_created: value.date_created,
+            date_modified: value.date_modified,
+            latest_version: value.latest_version,
+            license: value.license,
+            categories: value.categories,
+            client_side: value.client_side.into(),
+            server_side: value.server_side.into(),
+            project_type: value.project_type.into(),
+            downloads: value.downloads,
+            icon_url: value.icon_url,
+            color: value.color,
+            thread_id: value.thread_id,
+            monetization_status: value.monetization_status.map(|status| status.into()),
+            project_id: value.project_id,
+            display_categories: value.display_categories,
+            versions: value.versions.into_iter().map(|version| version.into()).collect(),
+            follows: value.follows,
+            gallery: value.gallery,
+            featured_gallery: value.featured_gallery,
+        }
+    }
+}
+
+impl From<String> for ProjectVersion {
+    fn from(value: String) -> Self {
+        ProjectVersion {
+            name: value.clone(),
+            version_number: value,
+            changelog: None,
+            dependencies: None,
+            game_versions: vec![],
+            version_type: VersionType::Incomplete,
+            loaders: vec![],
+            featured: false,
+            status: None,
+            requested_status: None,
+            id: String::new(),
+            project_id: String::new(),
+            author_id: String::new(),
+            date_published: String::new(),
+            downloads: -1,
+            changelog_url: None,
+            files: vec![],
+        }
+    }
+}
+
+impl From<modrinth_api::models::project_result::ProjectType> for ProjectType {
+    fn from(value: modrinth_api::models::project_result::ProjectType) -> Self {
+        match value {
+            modrinth_api::models::project_result::ProjectType::Mod => ProjectType::Mod,
+            modrinth_api::models::project_result::ProjectType::Modpack => ProjectType::Modpack,
+            modrinth_api::models::project_result::ProjectType::Resourcepack => ProjectType::Resourcepack,
+            modrinth_api::models::project_result::ProjectType::Shader => ProjectType::Shader,
+        }
+    }
+}
+
+impl From<modrinth_api::models::project_result::ClientSide> for ClientSide {
+    fn from(value: modrinth_api::models::project_result::ClientSide) -> Self {
+        match value {
+            modrinth_api::models::project_result::ClientSide::Required => ClientSide::Required,
+            modrinth_api::models::project_result::ClientSide::Optional => ClientSide::Optional,
+            modrinth_api::models::project_result::ClientSide::Unsupported => ClientSide::Unsupported,
+        }
+    }
+}
+
+impl From<modrinth_api::models::project_result::ServerSide> for ServerSide {
+    fn from(value: modrinth_api::models::project_result::ServerSide) -> Self {
+        match value {
+            modrinth_api::models::project_result::ServerSide::Required => ServerSide::Required,
+            modrinth_api::models::project_result::ServerSide::Optional => ServerSide::Optional,
+            modrinth_api::models::project_result::ServerSide::Unsupported => ServerSide::Unsupported,
+        }
+    }
+}
+
+impl From<modrinth_api::models::project_result::MonetizationStatus> for MonetizationStatus {
+    fn from(value: modrinth_api::models::project_result::MonetizationStatus) -> Self {
+        match value {
+            modrinth_api::models::project_result::MonetizationStatus::Monetized => MonetizationStatus::Monetized,
+            modrinth_api::models::project_result::MonetizationStatus::Demonetized => MonetizationStatus::Demonetized,
+            modrinth_api::models::project_result::MonetizationStatus::ForceDemonetized => MonetizationStatus::ForceDemonetized,
+        }
+    }
+}
+
+impl From<modrinth_api::models::Version> for ProjectVersion {
+    fn from(value: modrinth_api::models::Version) -> Self {
+        ProjectVersion {
+            name: value.name,
+            version_number: value.version_number,
+            changelog: value.changelog,
+            dependencies: value.dependencies.map(|deps| deps.into_iter().map(|dep| dep.into()).collect()),
+            game_versions: value.game_versions,
+            version_type: value.version_type.into(),
+            loaders: value.loaders,
+            featured: value.featured,
+            status: value.status.map(|status| status.into()),
+            requested_status: value.requested_status.map(|os| os.map(|s| s.into())),
+            id: value.id,
+            project_id: value.project_id,
+            author_id: value.author_id,
+            date_published: value.date_published,
+            downloads: value.downloads,
+            changelog_url: value.changelog_url,
+            files: value.files.into_iter().map(|file| file.into()).collect(),
+        }
+    }
+}
+
+impl From<modrinth_api::models::version_dependency::VersionDependency> for VersionDependency {
+    fn from(value: modrinth_api::models::version_dependency::VersionDependency) -> Self {
+        VersionDependency {
+            version_id: value.version_id,
+            project_id: value.project_id,
+            file_name: value.file_name,
+            dependency_type: match value.dependency_type {
+                modrinth_api::models::version_dependency::DependencyType::Required => DependencyType::Required,
+                modrinth_api::models::version_dependency::DependencyType::Optional => DependencyType::Optional,
+                modrinth_api::models::version_dependency::DependencyType::Incompatible => DependencyType::Incompatible,
+                modrinth_api::models::version_dependency::DependencyType::Embedded => DependencyType::Embedded,
+            },
+        }
+    }
+}
+
+impl From<modrinth_api::models::version::VersionType> for VersionType {
+    fn from(value: modrinth_api::models::version::VersionType) -> Self {
+        match value {
+            modrinth_api::models::version::VersionType::Release => VersionType::Release,
+            modrinth_api::models::version::VersionType::Beta => VersionType::Beta,
+            modrinth_api::models::version::VersionType::Alpha => VersionType::Alpha,
+        }
+    }
+}
+
+impl From<modrinth_api::models::version::Status> for Status {
+    fn from(value: modrinth_api::models::version::Status) -> Self {
+        match value {
+            modrinth_api::models::version::Status::Listed => Status::Listed,
+            modrinth_api::models::version::Status::Archived => Status::Archived,
+            modrinth_api::models::version::Status::Draft => Status::Draft,
+            modrinth_api::models::version::Status::Unlisted => Status::Unlisted,
+            modrinth_api::models::version::Status::Scheduled => Status::Scheduled,
+            modrinth_api::models::version::Status::Unknown => Status::Unknown,
+        }
+    }
+}
+
+impl From<modrinth_api::models::version::RequestedStatus> for RequestedStatus {
+    fn from(value: modrinth_api::models::version::RequestedStatus) -> Self {
+        match value {
+            modrinth_api::models::version::RequestedStatus::Listed => RequestedStatus::Listed,
+            modrinth_api::models::version::RequestedStatus::Archived => RequestedStatus::Archived,
+            modrinth_api::models::version::RequestedStatus::Draft => RequestedStatus::Draft,
+            modrinth_api::models::version::RequestedStatus::Unlisted => RequestedStatus::Unlisted,
+        }
+    }
+}
+
+impl From<modrinth_api::models::version_file::VersionFile> for VersionFile {
+    fn from(value: modrinth_api::models::version_file::VersionFile) -> Self {
+        VersionFile {
+            hashes: VersionFileHashes { sha512: value.hashes.sha512, sha1: value.hashes.sha1 },
+            url: value.url,
+            filename: value.filename,
+            primary: value.primary,
+            size: value.size,
+            file_type: value.file_type.map(|ft| ft.map(|f| f.into())),
+        }
+    }
+}
+
+impl From<modrinth_api::models::version_file::FileType> for FileType {
+    fn from(value: modrinth_api::models::version_file::FileType) -> Self {
+        match value {
+            modrinth_api::models::version_file::FileType::RequiredResourcePack => FileType::RequiredResourcePack,
+            modrinth_api::models::version_file::FileType::OptionalResourcePack => FileType::OptionalResourcePack,
+        }
+    }
+}
+
+// impl Into<ProjectType> for modrinth_api::models::project::ProjectType {
+//     fn into(self) -> ProjectType {
+//         match self {
+//             modrinth_api::models::project::ProjectType::Mod => ProjectType::Mod,
+//             modrinth_api::models::project::ProjectType::Modpack => ProjectType::Modpack,
+//             modrinth_api::models::project::ProjectType::Resourcepack => ProjectType::Resourcepack,
+//             modrinth_api::models::project::ProjectType::Shader => ProjectType::Shader,
+//         }
+//     }
+// }
+
+// impl Into<ProjectSearch> for modrinth_api::models::search::SearchQuery {
+//     fn into(self) -> ProjectSearch {
+//         ProjectSearch {
+//             query: self.query,
+//             facets: self.facets.into_iter().map(|group| FacetGroup { facets: group.facets }).collect(),
+//             index: self.index.map(|index| match index {
+//                 modrinth_api::models::project::SearchIndex::Relevance => SearchIndex::Relevance,
+//                 modrinth_api::models::search::SearchIndex::Downloads => SearchIndex::Downloads,
+//                 modrinth_api::models::search::SearchIndex::Follows => SearchIndex::Follows,
+//                 modrinth_api::models::search::SearchIndex::Newest => SearchIndex::Newest,
+//                 modrinth_api::models::search::SearchIndex::Updated => SearchIndex::Updated,
+//             }),
+//             offset: self.offset,
+//             limit: self.limit,
+//         }
+//     }
+// }

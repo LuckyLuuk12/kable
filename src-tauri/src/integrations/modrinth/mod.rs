@@ -1,2 +1,2 @@
-// pub mod as_str;
+mod as_string;
 pub mod client;
