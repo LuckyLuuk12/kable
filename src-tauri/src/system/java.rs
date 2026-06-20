@@ -1,3 +1,4 @@
+use crate::features::logging::Logger;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -9,10 +10,7 @@ pub fn find_java_executable(java_path: Option<&String>) -> Result<String, String
             if std::path::Path::new(trimmed).exists() {
                 return Ok(trimmed.to_string());
             }
-            crate::logging::Logger::warn_global(
-                &format!("Specified Java path does not exist: '{}'. Attempting auto-detection.", trimmed),
-                None,
-            );
+            Logger::warn_global(&format!("Specified Java path does not exist: '{}'. Attempting auto-detection.", trimmed), None);
         }
     }
 
@@ -48,7 +46,7 @@ fn find_java_windows() -> Result<String, String> {
                 let path = path.trim();
                 // Skip Oracle javapath stub launcher
                 if !path.is_empty() && std::path::Path::new(path).exists() && !path.contains("Common Files\\Oracle\\Java\\javapath") {
-                    crate::logging::Logger::debug_global(&format!("Found javaw.exe via PowerShell: {}", path), None);
+                    Logger::debug_global(&format!("Found javaw.exe via PowerShell: {}", path), None);
                     return Ok(path.to_string());
                 }
             }
@@ -57,7 +55,7 @@ fn find_java_windows() -> Result<String, String> {
 
     // Try Minecraft Launcher's bundled runtimes
     if let Some(path) = find_minecraft_launcher_java_windows() {
-        crate::logging::Logger::debug_global(&format!("Found javaw.exe in Minecraft Launcher runtime: {}", path.display()), None);
+        Logger::debug_global(&format!("Found javaw.exe in Minecraft Launcher runtime: {}", path.display()), None);
         return Ok(path.to_string_lossy().to_string());
     }
 

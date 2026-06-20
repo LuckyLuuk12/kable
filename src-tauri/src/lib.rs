@@ -10,15 +10,10 @@ pub mod integrations;
 
 #[macro_use]
 pub mod system;
-pub mod logging;
+pub use features::logging::Logger;
 
 // Shared DTOs live in api-types.
 pub use api_types::*;
-
-// Re-export common system utilities for backward compatibility or easier access
-pub use crate::system::fs::*;
-use crate::system::processes::hide_console_window;
-pub use crate::system::symlinks::*;
 
 /// This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -27,84 +22,84 @@ pub fn run() {
     let args: Vec<String> = std::env::args().collect();
     crate::features::cli::args::handle_args(crate::features::cli::args::parse_args());
     // Check for --launch-installation argument
-    for arg in args.iter() {
-        if arg.starts_with("--launch-installation=") {
-            let installation_id = arg.trim_start_matches("--launch-installation=");
-            hide_console_window();
+    // for arg in args.iter() {
+    //     if arg.starts_with("--launch-installation=") {
+    //         let installation_id = arg.trim_start_matches("--launch-installation=");
+    //         hide_console_window();
 
-            // Launch the installation directly without showing UI
-            tauri::async_runtime::block_on(async {
-                match crate::features::profiles::get_installation(installation_id).await {
-                    Ok(Some(installation)) => {
-                        eprintln!("Launching installation: {}", installation.name);
+    //         // Launch the installation directly without showing UI
+    //         tauri::async_runtime::block_on(async {
+    //             match crate::features::profiles::get_installation(installation_id).await {
+    //                 Ok(Some(installation)) => {
+    //                     eprintln!("Launching installation: {}", installation.name);
 
-                        // Load settings and account
-                        let settings = match crate::features::customization::settings::load_settings() {
-                            Ok(s) => s,
-                            Err(e) => {
-                                eprintln!("Failed to load settings: {}", e);
-                                std::process::exit(1);
-                            }
-                        };
+    //                     // Load settings and account
+    //                     let settings = match crate::features::customization::settings::load_settings() {
+    //                         Ok(s) => s,
+    //                         Err(e) => {
+    //                             eprintln!("Failed to load settings: {}", e);
+    //                             std::process::exit(1);
+    //                         }
+    //                     };
 
-                        let mut account = match crate::integrations::mojang_api::auth::auth_util::get_active_launcher_account().await {
-                            Ok(Some(acc)) => acc,
-                            Ok(None) => {
-                                eprintln!("No active account found. Please log in through the launcher.");
-                                std::process::exit(1);
-                            }
-                            Err(e) => {
-                                eprintln!("Failed to get active account: {}", e);
-                                std::process::exit(1);
-                            }
-                        };
+    //                     let mut account = match crate::integrations::mojang_api::auth::auth_util::get_active_launcher_account().await {
+    //                         Ok(Some(acc)) => acc,
+    //                         Ok(None) => {
+    //                             eprintln!("No active account found. Please log in through the launcher.");
+    //                             std::process::exit(1);
+    //                         }
+    //                         Err(e) => {
+    //                             eprintln!("Failed to get active account: {}", e);
+    //                             std::process::exit(1);
+    //                         }
+    //                     };
 
-                        // Refresh the account token to ensure it's still valid
-                        eprintln!("Refreshing account token...");
-                        account = match crate::integrations::mojang_api::auth::auth_util::refresh_microsoft_token(account.local_id.clone())
-                            .await
-                        {
-                            Ok(refreshed) => {
-                                eprintln!("Account token refreshed successfully");
-                                refreshed
-                            }
-                            Err(e) => {
-                                eprintln!("Failed to refresh account token: {}", e);
-                                eprintln!("Please open the launcher to log in again.");
-                                std::process::exit(1);
-                            }
-                        };
+    //                     // Refresh the account token to ensure it's still valid
+    //                     eprintln!("Refreshing account token...");
+    //                     account = match crate::integrations::mojang_api::auth::auth_util::refresh_microsoft_token(account.local_id.clone())
+    //                         .await
+    //                     {
+    //                         Ok(refreshed) => {
+    //                             eprintln!("Account token refreshed successfully");
+    //                             refreshed
+    //                         }
+    //                         Err(e) => {
+    //                             eprintln!("Failed to refresh account token: {}", e);
+    //                             eprintln!("Please open the launcher to log in again.");
+    //                             std::process::exit(1);
+    //                         }
+    //                     };
 
-                        if let Err(e) = crate::features::launcher::launch_installation(installation, settings, account).await {
-                            eprintln!("Failed to launch installation: {}", e);
-                            std::process::exit(1);
-                        }
+    //                     if let Err(e) = crate::features::launcher::launch_installation(installation, settings, account).await {
+    //                         eprintln!("Failed to launch installation: {}", e);
+    //                         std::process::exit(1);
+    //                     }
 
-                        eprintln!("Installation launched successfully");
-                        std::process::exit(0);
-                    }
-                    Ok(None) => {
-                        eprintln!("Installation not found: {}", installation_id);
-                        std::process::exit(1);
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to get installation: {}", e);
-                        std::process::exit(1);
-                    }
-                }
-            });
-        }
-    }
+    //                     eprintln!("Installation launched successfully");
+    //                     std::process::exit(0);
+    //                 }
+    //                 Ok(None) => {
+    //                     eprintln!("Installation not found: {}", installation_id);
+    //                     std::process::exit(1);
+    //                 }
+    //                 Err(e) => {
+    //                     eprintln!("Failed to get installation: {}", e);
+    //                     std::process::exit(1);
+    //                 }
+    //             }
+    //         });
+    //     }
+    // }
 
     tauri::Builder::default()
         .setup(|app| {
             // Initialize global logger with the app handle so modules that
             // use GLOBAL_APP_HANDLE (e.g. launcher utils) can emit events.
-            crate::logging::init_global_logger(app.handle());
+            Logger::init(app.handle());
 
             // On startup: if a pending update was downloaded previously,
             // try to launch the installer and exit so the installer can run.
-            if let Ok(launcher_dir) = crate::get_kable_launcher_dir() {
+            if let Ok(launcher_dir) = crate::system::fs::launcher_dir() {
                 let pending = launcher_dir.join("pending_update.json");
                 if pending.exists() {
                     if let Ok(contents) = std::fs::read_to_string(&pending) {
@@ -129,7 +124,7 @@ pub fn run() {
 
             // Initialize Discord Rich Presence
             tauri::async_runtime::spawn(async {
-                if let Err(e) = crate::discord::initialize() {
+                if let Err(e) = crate::integrations::discord::initialize() {
                     Logger::warn_global(&format!("[STARTUP] Failed to initialize Discord RPC: {}", e), None);
                 } else {
                     Logger::info_global("[STARTUP] Discord Rich Presence initialized", None);
@@ -138,8 +133,8 @@ pub fn run() {
 
             // Clean up any leftover symlinks from previous crashes/exits
             tauri::async_runtime::spawn(async {
-                if let Ok(minecraft_dir) = get_default_minecraft_dir() {
-                    let symlink_manager = crate::symlink_manager::SymlinkManager::new(minecraft_dir);
+                if let Ok(minecraft_dir) = crate::system::fs::mc_dir() {
+                    let symlink_manager = crate::system::symlinks::SymlinkManager::new(minecraft_dir);
                     if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
                         Logger::warn_global(&format!("[STARTUP] Failed to cleanup leftover symlinks: {}", e), None);
                     } else {
@@ -155,16 +150,16 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 if window.label() == "main" {
                     // Clear Discord presence immediately (blocking to ensure it completes)
-                    if let Err(e) = crate::discord::clear() {
+                    if let Err(e) = crate::integrations::discord::clear() {
                         Logger::warn_global(&format!("[SHUTDOWN] Failed to clear Discord presence: {}", e), None);
                     }
-                    if let Err(e) = crate::discord::disconnect() {
+                    if let Err(e) = crate::integrations::discord::disconnect() {
                         Logger::warn_global(&format!("[SHUTDOWN] Failed to disconnect Discord RPC: {}", e), None);
                     }
 
                     tauri::async_runtime::spawn(async {
                         if let Ok(minecraft_dir) = get_default_minecraft_dir() {
-                            let symlink_manager = crate::symlink_manager::SymlinkManager::new(minecraft_dir);
+                            let symlink_manager = crate::system::symlinks::SymlinkManager::new(minecraft_dir);
                             if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
                                 Logger::warn_global(&format!("[SHUTDOWN] Failed to cleanup symlinks: {}", e), None);
                             } else {

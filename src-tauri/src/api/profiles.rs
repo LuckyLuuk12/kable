@@ -1,25 +1,25 @@
 use crate::features::profiles::management;
 use crate::integrations::minecraft::versions;
-use api_types::profiles::{KableProfile, VersionData};
+use api_types::profiles::{KableProfile, Versions};
 
 #[tauri::command]
 pub async fn get_profiles() -> Result<Vec<KableProfile>, String> {
-    crate::features::profiles::read_kable_profiles().await
+    management::list_profiles().await
 }
 
 #[tauri::command]
-pub async fn get_profile(id: String) -> Result<Option<KableProfile>, String> {
-    crate::features::profiles::get_profile(&id).await
+pub async fn get_profile(id: String) -> Result<KableProfile, String> {
+    management::get_profile(&id).await
 }
 
 #[tauri::command]
-pub async fn delete_profile(id: String) -> Result<Vec<KableProfile>, String> {
+pub async fn delete_profile(id: String) -> Result<(), String> {
     management::delete_profile(&id).await
 }
 
 #[tauri::command]
-pub async fn modify_profile(id: String, new_installation: KableProfile) -> Result<KableProfile, String> {
-    management::modify_profile(&id, new_installation).await
+pub async fn modify_profile(old_profile: KableProfile, new_profile: KableProfile) -> Result<KableProfile, String> {
+    management::modify_profile(old_profile, new_profile).await
 }
 
 // #[tauri::command]
@@ -34,6 +34,6 @@ pub async fn modify_profile(id: String, new_installation: KableProfile) -> Resul
 // - from any combination of the above, where the user can choose which data to take from each source (e.g. version data from version_data, mods from mrpack, etc.)
 
 #[tauri::command]
-pub fn get_versions(force_refresh: bool) -> Result<Vec<VersionData>, String> {
-    versions::get_vanilla_versions(force_refresh)
+pub async fn get_versions() -> Result<Versions, String> {
+    versions::get_versions().await
 }

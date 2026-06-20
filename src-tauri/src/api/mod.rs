@@ -10,10 +10,14 @@ pub mod icons;
 pub mod images;
 pub mod launcher;
 pub mod profiles;
+pub mod symlink;
 
-pub mod maps {
-    pub use crate::maps::*;
-}
+pub use accounts::*;
+pub use icons::*;
+pub use images::*;
+pub use launcher::*;
+pub use profiles::*;
+pub use symlink::*;
 
 // pub mod mods {
 //     pub use crate::commands::mods::*;

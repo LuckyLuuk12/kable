@@ -10,7 +10,7 @@ pub async fn get_profile(profile_id: &str) -> Result<KableProfile, String> {
     profiles.into_iter().find(|p| p.id == profile_id).ok_or_else(|| format!("Profile with id {} not found", profile_id))
 }
 
-pub async fn update_profile(old: KableProfile, new: KableProfile) -> Result<KableProfile, String> {
+pub async fn modify_profile(old: KableProfile, new: KableProfile) -> Result<KableProfile, String> {
     let mut profiles = load_profiles().await?;
     // check if both have same id, otherwise error:
     if old.id != new.id {

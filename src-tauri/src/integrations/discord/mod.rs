@@ -1,4 +1,5 @@
 use crate::constants::DISCORD_APP_ID;
+use crate::features::logging::Logger;
 pub use api_types::discord::{ActivityPriority, PresenceState};
 use discord_rich_presence::{
     activity::{Activity, Assets, Timestamps},
@@ -48,7 +49,7 @@ impl DiscordRpcManager {
         client.connect().map_err(|e| format!("Failed to connect to Discord: {}", e))?;
 
         self.client = Some(client);
-        crate::logging::Logger::info_global("Discord Rich Presence connected", None);
+        Logger::info_global("Discord Rich Presence connected", None);
 
         // Set initial presence
         self.update_presence()?;
@@ -123,7 +124,7 @@ impl DiscordRpcManager {
     fn disconnect(&mut self) -> Result<(), String> {
         if let Some(mut client) = self.client.take() {
             client.close().map_err(|e| format!("Failed to close Discord connection: {}", e))?;
-            crate::logging::Logger::info_global("Discord Rich Presence disconnected", None);
+            Logger::info_global("Discord Rich Presence disconnected", None);
         }
         Ok(())
     }

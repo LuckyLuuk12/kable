@@ -1,5 +1,5 @@
-use crate::logging::manager::LogManager;
-use crate::logging::process::{LogEvent, LogLevel};
+use crate::features::logging::manager::LogManager;
+use crate::features::logging::process::{LogEvent, LogLevel};
 use serde_json::json;
 use std::fmt;
 use tauri::AppHandle;
@@ -12,7 +12,7 @@ use tauri::AppHandle;
 pub struct Logger;
 
 impl Logger {
-    pub fn init(app: AppHandle) {
+    pub fn init(app: &AppHandle) {
         LogManager::init(app);
     }
 

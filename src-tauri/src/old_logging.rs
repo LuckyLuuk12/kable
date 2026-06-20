@@ -208,14 +208,14 @@ impl LogStorage {
 
         // Usage:
         let config = LogConfig {
-            enable_persistent_logging: settings.logging.enable_persistent_logging,
-            enable_compression: settings.logging.enable_log_compression,
-            size_limit_mb: settings.logging.log_file_size_limit_mb,
-            retention_days: settings.logging.log_retention_days,
+            enable_persistent_logging: settings.logging.persistent,
+            enable_compression: settings.logging.compression,
+            size_limit_mb: settings.logging.max_file_size_mb,
+            retention_days: settings.logging.retention_days,
             logs_dir,
             max_memory_logs: settings.logging.max_memory_logs,
             dedupe_window_size: settings.logging.dedupe_window_size,
-            enable_dedupe: settings.logging.enable_dedupe,
+            enable_dedupe: settings.logging.dedupe_enabled,
         };
 
         // Create a bounded sync channel for log messages and spawn a background thread
@@ -286,13 +286,13 @@ impl LogStorage {
             val.as_u64().or_else(|| val.as_i64().map(|v| v.max(0) as u64)).unwrap_or(default)
         }
 
-        self.config.enable_persistent_logging = settings.logging.enable_persistent_logging;
-        self.config.enable_compression = settings.logging.enable_log_compression;
-        self.config.size_limit_mb = settings.logging.log_file_size_limit_mb;
-        self.config.retention_days = settings.logging.log_retention_days;
+        self.config.enable_persistent_logging = settings.logging.persistent;
+        self.config.enable_compression = settings.logging.compression;
+        self.config.size_limit_mb = settings.logging.max_file_size_mb;
+        self.config.retention_days = settings.logging.retention_days;
         self.config.max_memory_logs = settings.logging.max_memory_logs;
         self.config.dedupe_window_size = settings.logging.dedupe_window_size;
-        self.config.enable_dedupe = settings.logging.enable_dedupe;
+        self.config.enable_dedupe = settings.logging.dedupe_enabled;
     }
 
     /// Write log message to persistent storage

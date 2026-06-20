@@ -10,13 +10,13 @@ pub use process::{LogEvent, LogLevel};
 use tauri::AppHandle;
 
 /// Initialize logging system (call once during app startup)
-pub fn init(app: AppHandle) {
+pub fn init(app: &AppHandle) {
     logger::Logger::init(app);
 }
 
-/// -------------------------
-/// Proc-macro bridge layer
-/// -------------------------
+//? -------------------------
+//? Proc-macro bridge layer
+//? -------------------------
 
 pub fn log_success(fn_name: &str, value: Option<String>, instance_id: Option<String>, context: String) {
     let message = match value {

@@ -1,9 +1,9 @@
-use crate::logging::process::LogEvent;
+use crate::features::logging::process::LogEvent;
 use serde_json::Value;
 use std::collections::VecDeque;
 use std::sync::mpsc::{sync_channel, RecvTimeoutError, SyncSender};
 use std::time::{Duration, Instant};
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
 
 /// Frontend-only emission pipeline:
 /// batching, rate limiting, dedupe, IPC emit

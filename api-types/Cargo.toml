@@ -11,3 +11,4 @@ facet = { version = "0.43.2", features = ["chrono"] }
 facet-typescript = "0.43.2"
 modrinth-api = "2.7.1"
 serde_with = "3.21.0"
+uuid = "1.23.3"

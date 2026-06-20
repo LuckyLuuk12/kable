@@ -1,7 +1,7 @@
-use crate::logging::emitter::LogEmitter;
-use crate::logging::file::LogFileWriter;
-use crate::logging::process::{LogEvent, LogLevel};
-use crate::settings::CategorizedLauncherSettings;
+use crate::features::logging::emitter::LogEmitter;
+use crate::features::logging::file::LogFileWriter;
+use crate::features::logging::process::{LogEvent, LogLevel};
+use api_types::settings::CategorizedLauncherSettings;
 use std::sync::{Arc, Mutex};
 use tauri::AppHandle;
 
@@ -17,7 +17,7 @@ struct Inner {
 }
 
 impl LogManager {
-    pub fn init(app: AppHandle) {
+    pub fn init(app: &AppHandle) {
         let manager = Self::global();
         let mut inner = manager.inner.lock().unwrap();
 

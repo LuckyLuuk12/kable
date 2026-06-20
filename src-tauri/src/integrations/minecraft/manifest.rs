@@ -1,5 +1,5 @@
 use crate::constants::{ASSETS_DIR, LATEST_RELEASE, LATEST_SNAPSHOT, MINECRAFT_VERSION_MANIFEST_URL, VERSIONS_DIR};
-use crate::logging::Logger;
+use crate::features::logging::Logger;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;

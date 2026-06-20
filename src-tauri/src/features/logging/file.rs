@@ -1,14 +1,13 @@
-use crate::logging::process::LogEvent;
+use crate::features::logging::process::LogEvent;
 use crate::settings::CategorizedLauncherSettings;
 use chrono::{DateTime, Utc};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{
-    mpsc::{sync_channel, RecvTimeoutError, SyncSender, TrySendError},
+    mpsc::{sync_channel, SyncSender},
     Arc, Mutex,
 };
-use std::time::Duration;
 
 /// Persistent logging pipeline:
 /// - file writing
@@ -32,10 +31,10 @@ struct FileConfig {
 }
 
 impl LogFileWriter {
-    pub fn new(_app: tauri::AppHandle) -> Self {
+    pub fn new(_app: &tauri::AppHandle) -> Self {
         let (tx, rx) = sync_channel::<LogEvent>(1024);
 
-        let logs_dir = crate::kable_dir().unwrap().join("logs");
+        let logs_dir = crate::system::fs::kable_dir().unwrap().join("logs");
 
         let config = FileConfig { enable_persistent: true, enable_compression: true, size_limit_mb: 10, retention_days: 30, logs_dir };
 
@@ -85,10 +84,10 @@ impl LogFileWriter {
 
     pub fn update_settings(&self, settings: &CategorizedLauncherSettings) {
         if let Ok(mut cfg) = self.config.lock() {
-            cfg.enable_persistent = settings.logging.enable_persistent_logging;
-            cfg.enable_compression = settings.logging.enable_log_compression;
-            cfg.size_limit_mb = settings.logging.log_file_size_limit_mb;
-            cfg.retention_days = settings.logging.log_retention_days;
+            cfg.enable_persistent = settings.logging.persistent;
+            cfg.enable_compression = settings.logging.compression;
+            cfg.size_limit_mb = settings.logging.max_file_size_mb;
+            cfg.retention_days = settings.logging.retention_days;
         }
     }
 
@@ -139,7 +138,7 @@ impl LogFileWriter {
         let mut encoder = sevenz_rust::SevenZWriter::new(&mut archive)?;
         let name = path.file_name().unwrap().to_string_lossy().to_string();
 
-        encoder.push_archive_entry(sevenz_rust::SevenZArchiveEntry::from_path(&name, name), Some(std::io::Cursor::new(data)))?;
+        encoder.push_archive_entry(sevenz_rust::SevenZArchiveEntry::from_path(&name.clone(), name), Some(std::io::Cursor::new(data)))?;
 
         encoder.finish()?;
 

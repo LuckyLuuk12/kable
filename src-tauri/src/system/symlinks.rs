@@ -8,7 +8,7 @@ type FsResult<T> = Result<T, String>;
 // INTERNAL HELPERS
 // ============================================================
 
-async fn is_symlink(path: &Path) -> FsResult<bool> {
+pub async fn is_symlink(path: &Path) -> FsResult<bool> {
     match async_fs::symlink_metadata(path).await {
         Ok(md) => Ok(md.file_type().is_symlink()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
