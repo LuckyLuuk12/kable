@@ -1,69 +1,55 @@
+use crate::constants::{CONFIG_DIR, KABLE_PROFILES_FILE, MODS_DIR, RESOURCEPACKS_DIR, SHADERPACKS_DIR};
+use crate::integrations::minecraft::profiles::parse_launcher_profiles;
+use crate::integrations::minecraft::versions::get_versions;
+use crate::system::fs::{launcher_dir, read_str, write_str};
+use api_types::profiles::LauncherProfiles;
+use api_types::profiles::{KableProfile, Profile};
 use std::collections::HashMap;
 
-use crate::constants::{CONFIG_DIR, KABLE_PROFILES_FILE, LAUNCHER_PROFILES_FILE, MODS_DIR, RESOURCEPACKS_DIR, SHADERPACKS_DIR};
-use crate::system::fs::{get_default_minecraft_dir, get_kable_launcher_dir, read_to_string, write_file_atomic_async};
-use api_types::profiles::LauncherProfiles;
-pub use api_types::profiles::{KableProfile, Profile};
-use 
-
-// pub struct Profile {
-//     pub created: Option<String>,
-//     pub icon: Option<String>,
-//     #[serde(rename = "javaArgs")]
-//     pub java_args: Option<String>,
-//     #[serde(rename = "lastUsed")]
-//     pub last_used: Option<String>,
-//     #[serde(rename = "lastVersionId")]
-//     pub last_version_id: Option<String>,
-//     pub name: Option<String>,
-//     #[serde(rename = "type")]
-//     pub profile_type: Option<String>,
-// }
-
 /// A way to convert a official launcher profile into a KableProfile, which is the internal representation of a profile in Kable
-fn into(profile: Profile) -> KableProfile {
-    KableProfile {
-        id: profile.id,
-        name: profile.name.unwrap_or(format!("Kable-{}", profile.id)),
-        icon: profile.icon,
-        version: profile.version.into(),
-        // using "2022-03-24T13:12:01.740Z" format
-        created: profile.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-        last_used: profile.last_used.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-        // Map java arg string to hashmap of key-value pairs, or empty hashmap if None
-        java_args: profile.java_args.map_or(Vec::new(), |argstr| {
-            argstr
-                .split_whitespace()
-                .filter_map(|s| {
-                    let mut parts = s.splitn(2, '=');
-                    let key = parts.next()?;
-                    let value = parts.next().unwrap_or("");
-                    Some((key.to_string(), value.to_string()))
-                })
-                .collect()
-        }),
-        dedicated_mods_folder: Some(format!("{}/{}", MODS_DIR, profile.id)),
-        dedicated_config_folder: Some(format!("{}/{}", CONFIG_DIR, profile.id)),
-        dedicated_resource_pack_folder: Some(format!("{}/{}", RESOURCEPACKS_DIR, profile.id)),
-        dedicated_shaders_folder: Some(format!("{}/{}", SHADERPACKS_DIR, profile.id)),
-        favorite: false,
-        total_time_played_ms: profile.total_time_played_ms,
-        parameters_map: HashMap::new(),
-        description: profile.description,
-        times_launched: profile.times_launched,
-        enable_pack_merging: profile.enable_pack_merging,
-        pack_order: profile.pack_order,
-        merged_packs: profile.merged_packs,
+async fn into(profile: Profile) -> Result<KableProfile, String> {
+    let all_versions = get_versions().await?;
+    let version_data = all_versions.0.into_iter().find(|v| v.id == profile.last_version_id.clone().unwrap_or_default());
+    if let Some(version) = &version_data {
+        Ok(KableProfile {
+            id: profile.id.clone(),
+            name: profile.name.unwrap_or(format!("{}", profile.id)),
+            icon: profile.icon,
+            version: version_data.expect("kable_profiles.rs : async fn into - "),
+            // using "2022-03-24T13:12:01.740Z" format
+            created: profile.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+            last_used: profile.last_used.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+            // Map java arg string to vec of arguments
+            java_args: profile.java_args.map(|args| args.split_whitespace().map(|s| s.to_string()).collect()).unwrap_or_else(|| Vec::new()),
+            dedicated_mods_folder: Some(format!("{}/{}", MODS_DIR, profile.id)),
+            dedicated_config_folder: Some(format!("{}/{}", CONFIG_DIR, profile.id)),
+            dedicated_resource_pack_folder: Some(format!("{}/{}", RESOURCEPACKS_DIR, profile.id)),
+            dedicated_shaders_folder: Some(format!("{}/{}", SHADERPACKS_DIR, profile.id)),
+            favorite: false,
+            total_time_played_ms: 0,
+            parameters_map: HashMap::new(),
+            description: None,
+            times_launched: 0,
+            enable_pack_merging: true,
+            pack_order: Vec::new(),
+            merged_packs: Vec::new(),
+        })
+    } else {
+        Err(format!(
+            "Version data not found for profile {} with version id {:?}",
+            profile.name.unwrap_or_default(),
+            profile.last_version_id
+        ))
     }
 }
 
 async fn parse_kable_profiles() -> Result<Vec<KableProfile>, String> {
-    let launcher_dir = get_kable_launcher_dir()?;
+    let launcher_dir = launcher_dir()?;
     let profiles_file = launcher_dir.join(KABLE_PROFILES_FILE);
     if !profiles_file.exists() {
         return Ok(Vec::new());
     }
-    let content = read_to_string(&profiles_file).await?;
+    let content = read_str(&profiles_file).await?;
     let kable_profiles: Vec<KableProfile> = serde_json::from_str(&content).map_err(|e| format!("Failed to parse kable profiles: {e}"))?;
     Ok(kable_profiles)
 }
@@ -82,7 +68,7 @@ async fn merge_profiles(launcher_profiles: LauncherProfiles, kable_profiles: Vec
     // Iterate over launcher profiles and convert them to KableProfiles
     for (id, profile) in launcher_profiles.profiles {
         if !kable_profiles_map.contains_key(&id) {
-            merged_profiles.push(into(profile));
+            merged_profiles.push(into(profile).await?);
         }
     }
 
@@ -106,11 +92,11 @@ pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
 }
 
 pub async fn save_profiles(profiles: &[KableProfile]) -> Result<(), String> {
-    let launcher_dir = get_kable_launcher_dir()?;
+    let launcher_dir = launcher_dir()?;
     let profiles_file = launcher_dir.join(KABLE_PROFILES_FILE);
     let content = serde_json::to_string_pretty(profiles).map_err(|e| format!("Failed to serialize profiles: {e}"))?;
 
-    write_file_atomic_async(&profiles_file, content.as_bytes()).await?;
+    write_str(&profiles_file, &content, false).await?;
 
     Ok(())
 }

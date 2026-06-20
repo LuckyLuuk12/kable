@@ -1,58 +1,48 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse::Parse, parse::ParseStream, parse_macro_input, Expr, Ident, ItemFn, Lit, ReturnType, Token, Type, TypePath};
+use syn::{parse_macro_input, FnArg, ItemFn, Pat, ReturnType, Type, TypePath};
 
-// Configuration for macro behavior
-#[derive(Debug, Clone)]
-struct LogConfig {
-    log_values: bool,
-    max_length: usize,
-    debug_only: bool,
+use syn::{
+    parse::{Parse, ParseStream},
+    Ident, LitStr, Result, Token,
+};
+
+#[derive(Default)]
+pub struct LogConfig {
+    pub success: bool,
+    pub values: bool,
+    pub instance: bool,
+    pub context: Option<String>,
 }
 
-impl Default for LogConfig {
-    fn default() -> Self {
-        Self { log_values: false, max_length: 200, debug_only: true }
-    }
-}
-
-// Custom parser for macro attributes
-struct MacroArgs {
-    config: LogConfig,
-}
-
-impl Parse for MacroArgs {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let mut config = LogConfig::default();
+impl Parse for LogConfig {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut cfg = Self::default();
 
         while !input.is_empty() {
             let ident: Ident = input.parse()?;
-            input.parse::<Token![=]>()?;
 
             match ident.to_string().as_str() {
-                "log_values" => {
-                    let lit: Lit = input.parse()?;
-                    if let Lit::Bool(lit_bool) = lit {
-                        config.log_values = lit_bool.value;
-                    }
+                "success" => {
+                    cfg.success = true;
                 }
-                "max_length" => {
-                    let lit: Lit = input.parse()?;
-                    if let Lit::Int(lit_int) = lit {
-                        if let Ok(val) = lit_int.base10_parse::<usize>() {
-                            config.max_length = val;
-                        }
-                    }
+
+                "values" => {
+                    cfg.values = true;
                 }
-                "debug_only" => {
-                    let lit: Lit = input.parse()?;
-                    if let Lit::Bool(lit_bool) = lit {
-                        config.debug_only = lit_bool.value;
-                    }
+
+                "instance" => {
+                    cfg.instance = true;
                 }
+
+                "context" => {
+                    input.parse::<Token![=]>()?;
+                    let value: LitStr = input.parse()?;
+                    cfg.context = Some(value.value());
+                }
+
                 _ => {
-                    // Skip unknown parameters
-                    let _: Expr = input.parse()?;
+                    return Err(syn::Error::new(ident.span(), "unknown log option"));
                 }
             }
 
@@ -61,344 +51,116 @@ impl Parse for MacroArgs {
             }
         }
 
-        Ok(MacroArgs { config })
+        Ok(cfg)
     }
 }
 
-/// A simple macro that adds a wrapper around your function that logs errors.
-/// For functions that return Result<T, E>, it will log errors automatically.
-///
-/// Parameters:
-/// - log_values: bool (default: false) - Log return values for successful calls
-/// - max_length: usize (default: 200) - Maximum length for logged values
-/// - debug_only: bool (default: true) - Only log values in debug builds
-///
-/// Examples:
-/// - #[log_result] - Basic error logging
-/// - #[log_result(log_values = true)] - Log errors and return values
-/// - #[log_result(log_values = true, max_length = 500)] - Custom max length
-pub fn log_result(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input_fn = parse_macro_input!(item as ItemFn);
-    let config = if attr.is_empty() {
-        LogConfig::default()
-    } else {
-        match syn::parse::<MacroArgs>(attr) {
-            Ok(args) => args.config,
-            Err(_) => LogConfig::default(),
-        }
-    };
+pub fn expand(attr: TokenStream, item: TokenStream) -> TokenStream {
+    let cfg = if attr.is_empty() { LogConfig::default() } else { parse_macro_input!(attr as LogConfig) };
 
-    generate_logging_wrapper_with_config(&input_fn, config, true)
-}
+    let input = parse_macro_input!(item as ItemFn);
 
-/// Only logs errors, not success
-/// Parameters: Same as log_result but only applies to error cases
-pub fn log_errors_only(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input_fn = parse_macro_input!(item as ItemFn);
-    let config = if attr.is_empty() {
-        LogConfig::default()
-    } else {
-        match syn::parse::<MacroArgs>(attr) {
-            Ok(args) => args.config,
-            Err(_) => LogConfig::default(),
-        }
-    };
-
-    generate_logging_wrapper_with_config(&input_fn, config, false)
-}
-
-/// Logs with custom context message
-pub fn log_result_custom(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input_fn = parse_macro_input!(item as ItemFn);
-    let context = attr.to_string().trim_matches('"').to_string();
-
-    generate_custom_logging_wrapper(&input_fn, context)
-}
-
-/// Logs with instance_id for installation-specific logging
-pub fn log_result_with_instance(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input_fn = parse_macro_input!(item as ItemFn);
-    let instance_id = attr.to_string().trim_matches('"').to_string();
-
-    generate_instance_logging_wrapper(&input_fn, instance_id, true)
-}
-
-/// Logs errors only with instance_id for installation-specific logging
-pub fn log_errors_only_with_instance(attr: TokenStream, item: TokenStream) -> TokenStream {
-    let input_fn = parse_macro_input!(item as ItemFn);
-    let instance_id = attr.to_string().trim_matches('"').to_string();
-
-    generate_instance_logging_wrapper(&input_fn, instance_id, false)
-}
-
-fn generate_logging_wrapper_with_config(input_fn: &ItemFn, config: LogConfig, log_success: bool) -> TokenStream {
-    // Check if the function returns a Result type
-    let returns_result = match &input_fn.sig.output {
-        ReturnType::Type(_, ty) => is_result_type(ty),
-        _ => false,
-    };
-
-    if !returns_result {
-        // If it's not a Result type, return the function unchanged
-        return quote! { #input_fn }.into();
+    if !returns_result(&input) {
+        return quote!(#input).into();
     }
 
-    let fn_name = &input_fn.sig.ident;
-    let fn_name_str = fn_name.to_string();
-    let vis = &input_fn.vis;
-    let sig = &input_fn.sig;
-    let attrs = &input_fn.attrs;
-    let block = &input_fn.block;
-    let is_async = input_fn.sig.asyncness.is_some();
-    let max_length = config.max_length;
+    build_wrapper(input, cfg)
+}
 
-    let logging_code = if log_success {
-        if config.log_values {
-            if config.debug_only {
-                quote! {
-                    #[cfg(debug_assertions)]
-                    {
-                        match &result {
-                            Err(e) => {
-                                crate::logging::Logger::error_global(
-                                    &format!("macro_debug: Function '{}' failed: {}", #fn_name_str, e),
-                                    None
-                                );
-                            },
-                            Ok(val) => {
-                                let val_str = format!("{:?}", val);
-                                let truncated = if val_str.len() > #max_length {
-                                    format!("{}...", &val_str[..#max_length])
-                                } else {
-                                    val_str
-                                };
-                                crate::logging::Logger::debug_global(
-                                    &format!("macro_debug: Function '{}' completed successfully, returned: {}", #fn_name_str, truncated),
-                                    None
-                                );
-                            }
-                        }
-                    }
-                    #[cfg(not(debug_assertions))]
-                    {
-                        match &result {
-                            Err(e) => {
-                                crate::logging::Logger::error_global(
-                                    &format!("macro_debug: Function '{}' failed: {}", #fn_name_str, e),
-                                    None
-                                );
-                            },
-                            Ok(_) => {
-                                crate::logging::Logger::debug_global(
-                                    &format!("macro_debug: Function '{}' completed successfully", #fn_name_str),
-                                    None
-                                );
-                            }
-                        }
-                    }
-                }
-            } else {
-                quote! {
-                    match &result {
-                        Err(e) => {
-                            crate::logging::Logger::error_global(
-                                &format!("macro_debug: Function '{}' failed: {}", #fn_name_str, e),
-                                None
-                            );
-                        },
-                        Ok(val) => {
-                            let val_str = format!("{:?}", val);
-                            let truncated = if val_str.len() > #max_length {
-                                format!("{}...", &val_str[..#max_length])
-                            } else {
-                                val_str
-                            };
-                            crate::logging::Logger::debug_global(
-                                &format!("macro_debug: Function '{}' completed successfully, returned: {}", #fn_name_str, truncated),
-                                None
-                            );
-                        }
-                    }
-                }
+fn build_wrapper(func: ItemFn, cfg: LogConfig) -> TokenStream {
+    let vis = &func.vis;
+    let sig = &func.sig;
+    let attrs = &func.attrs;
+    let block = &func.block;
+
+    let fn_name = sig.ident.to_string();
+
+    let instance_expr = if cfg.instance { first_arg_expr(&func) } else { quote!(None) };
+
+    let context = cfg.context.unwrap_or_default();
+
+    let success_branch = if cfg.success {
+        if cfg.values {
+            quote! {
+                crate::logging::log_success(
+                    #fn_name,
+                    Some(format!("{:?}", value)),
+                    #instance_expr,
+                    #context,
+                );
             }
         } else {
             quote! {
-                match &result {
-                    Err(e) => {
-                        crate::logging::Logger::error_global(
-                            &format!("macro_debug: Function '{}' failed: {}", #fn_name_str, e),
-                            None
-                        );
-                    },
-                    Ok(_) => {
-                        crate::logging::Logger::debug_global(
-                            &format!("macro_debug: Function '{}' completed successfully", #fn_name_str),
-                            None
-                        );
-                    }
-                }
-            }
-        }
-    } else {
-        quote! {
-            if let Err(e) = &result {
-                crate::logging::Logger::error_global(
-                    &format!("macro_debug: Function '{}' failed: {}", #fn_name_str, e),
-                    None
+                crate::logging::log_success(
+                    #fn_name,
+                    None,
+                    #instance_expr,
+                    #context,
                 );
             }
         }
-    };
-
-    let execution_block = if is_async {
-        quote! {
-            let result = async move #block.await;
-        }
     } else {
-        quote! {
-            let result = (|| #block)();
-        }
+        quote! {}
     };
 
     let expanded = quote! {
         #(#attrs)*
         #vis #sig {
-            #execution_block
-            #logging_code
-            result
-        }
-    };
+            let result = (async move #block).await;
 
-    TokenStream::from(expanded)
-}
-
-fn generate_custom_logging_wrapper(input_fn: &ItemFn, context: String) -> TokenStream {
-    // Check if the function returns a Result type
-    let returns_result = match &input_fn.sig.output {
-        ReturnType::Type(_, ty) => is_result_type(ty),
-        _ => false,
-    };
-
-    if !returns_result {
-        return quote! { #input_fn }.into();
-    }
-
-    let fn_name = &input_fn.sig.ident;
-    let fn_name_str = fn_name.to_string();
-    let vis = &input_fn.vis;
-    let sig = &input_fn.sig;
-    let attrs = &input_fn.attrs;
-    let block = &input_fn.block;
-    let is_async = input_fn.sig.asyncness.is_some();
-
-    let execution_block = if is_async {
-        quote! {
-            let result = async move #block.await;
-        }
-    } else {
-        quote! {
-            let result = (|| #block)();
-        }
-    };
-
-    let expanded = quote! {
-        #(#attrs)*
-        #vis #sig {
-            #execution_block
             match &result {
-                Err(e) => {
-                    crate::logging::Logger::error_global(
-                        &format!("macro_debug: {} in function '{}': {}", #context, #fn_name_str, e),
-                        None
-                    );
-                },
-                Ok(_) => {
-                    crate::logging::Logger::debug_global(
-                        &format!("macro_debug: {} completed successfully in function '{}'", #context, #fn_name_str),
-                        None
+                Ok(value) => {
+                    #success_branch
+                }
+                Err(error) => {
+                    crate::logging::log_error(
+                        #fn_name,
+                        error,
+                        #instance_expr,
+                        #context,
                     );
                 }
             }
+
             result
         }
     };
 
-    TokenStream::from(expanded)
+    expanded.into()
 }
 
-/// Helper function to check if a type is a Result type
-fn is_result_type(ty: &Type) -> bool {
+fn first_arg_expr(func: &ItemFn) -> proc_macro2::TokenStream {
+    let Some(first) = func.sig.inputs.first() else {
+        return quote!(None);
+    };
+
+    match first {
+        FnArg::Typed(arg) => {
+            if let Pat::Ident(ident) = arg.pat.as_ref() {
+                let name = &ident.ident;
+
+                quote! {
+                    Some(#name.to_string())
+                }
+            } else {
+                quote!(None)
+            }
+        }
+
+        _ => quote!(None),
+    }
+}
+
+fn returns_result(func: &ItemFn) -> bool {
+    match &func.sig.output {
+        ReturnType::Type(_, ty) => is_result(ty),
+        ReturnType::Default => false,
+    }
+}
+
+fn is_result(ty: &Type) -> bool {
     match ty {
-        Type::Path(TypePath { path, .. }) => path.segments.iter().any(|segment| segment.ident == "Result"),
+        Type::Path(TypePath { path, .. }) => path.segments.last().map(|s| s.ident == "Result").unwrap_or(false),
         _ => false,
     }
-}
-
-fn generate_instance_logging_wrapper(input_fn: &ItemFn, instance_id: String, log_success: bool) -> TokenStream {
-    // Check if the function returns a Result type
-    let returns_result = match &input_fn.sig.output {
-        ReturnType::Type(_, ty) => is_result_type(ty),
-        _ => false,
-    };
-
-    if !returns_result {
-        return quote! { #input_fn }.into();
-    }
-
-    let fn_name = &input_fn.sig.ident;
-    let fn_name_str = fn_name.to_string();
-    let vis = &input_fn.vis;
-    let sig = &input_fn.sig;
-    let attrs = &input_fn.attrs;
-    let block = &input_fn.block;
-    let is_async = input_fn.sig.asyncness.is_some();
-
-    let logging_code = if log_success {
-        quote! {
-            match &result {
-                Err(e) => {
-                    crate::logging::Logger::error_global(
-                        &format!("macro_debug: Function '{}' failed: {}", #fn_name_str, e),
-                        Some(#instance_id)
-                    );
-                },
-                Ok(_) => {
-                    crate::logging::Logger::debug_global(
-                        &format!("macro_debug: Function '{}' completed successfully", #fn_name_str),
-                        Some(#instance_id)
-                    );
-                }
-            }
-        }
-    } else {
-        quote! {
-            if let Err(e) = &result {
-                crate::logging::Logger::error_global(
-                    &format!("macro_debug: Function '{}' failed: {}", #fn_name_str, e),
-                    Some(#instance_id)
-                );
-            }
-        }
-    };
-
-    let execution_block = if is_async {
-        quote! {
-            let result = async move #block.await;
-        }
-    } else {
-        quote! {
-            let result = (|| #block)();
-        }
-    };
-
-    let expanded = quote! {
-        #(#attrs)*
-        #vis #sig {
-            #execution_block
-            #logging_code
-            result
-        }
-    };
-
-    TokenStream::from(expanded)
 }

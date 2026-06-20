@@ -32,20 +32,22 @@ impl FrontendBatch {
 
         std::thread::spawn(move || {
             // Load settings to get configuration
-            let settings = tauri::async_runtime::block_on(crate::settings::load_settings()).unwrap_or_default();
+            let settings = tauri::async_runtime::block_on(crate::features::customization::settings::load_settings()).unwrap_or_default();
 
-            // Read truly advanced configuration from advanced.extra (not exposed in UI)
-            let max_batch_size = settings.advanced.extra.get("log_batch_size").and_then(|v| v.as_u64()).unwrap_or(400) as usize;
+            // Read truly advanced configuration from advanced.extra (not exposed in UI) <-- outdated, logging config should contain all options now.
+            let max_batch_size = settings.advanced.extra.get("log_batch_size").and_then(|v| v.parse::<usize>().ok()).unwrap_or(400);
 
-            let batch_interval_ms = settings.advanced.extra.get("log_batch_interval_ms").and_then(|v| v.as_u64()).unwrap_or(1000);
+            let batch_interval_ms =
+                settings.advanced.extra.get("log_batch_interval_ms").and_then(|v| v.parse::<u64>().ok()).unwrap_or(1000);
 
-            let max_logs_per_second = settings.advanced.extra.get("log_max_per_second").and_then(|v| v.as_u64()).unwrap_or(800) as usize;
+            let max_logs_per_second =
+                settings.advanced.extra.get("log_max_per_second").and_then(|v| v.parse::<usize>().ok()).unwrap_or(800);
 
             // Read from logging settings (exposed in UI)
-            let dedupe_window_size = settings.logging.dedupe_window_size.unwrap_or(50) as usize;
+            let dedupe_window_size = settings.logging.dedupe_window_size;
 
             // Read max memory logs for circular buffer management
-            let max_memory_logs = settings.logging.max_memory_logs.unwrap_or(5000) as usize;
+            let max_memory_logs = settings.logging.max_memory_logs;
 
             let mut batch = Vec::with_capacity(max_batch_size);
             let mut last_emit = std::time::Instant::now();
@@ -133,13 +135,13 @@ impl FrontendBatch {
 }
 
 /// Initialize the global logger with the app handle
-pub fn init_global_logger(app: &AppHandle) {
+pub async fn init_global_logger(app: &AppHandle) {
     let mut handle = GLOBAL_APP_HANDLE.lock().unwrap();
     *handle = Some(Arc::new(app.clone()));
 
     // Initialize log storage
     let mut storage = LOG_STORAGE.lock().unwrap();
-    if let Ok(log_storage) = LogStorage::new(app) {
+    if let Ok(log_storage) = LogStorage::new(app).await {
         *storage = Some(log_storage);
     }
 
@@ -192,38 +194,34 @@ struct LogMessage {
 
 impl LogStorage {
     /// Create new log storage instance
-    pub fn new(_app: &AppHandle) -> Result<Self, Box<dyn std::error::Error>> {
-        let kable_dir = crate::get_minecraft_kable_dir().map_err(|e| format!("Failed to get Kable dir: {}", e))?;
+    pub async fn new(_app: &AppHandle) -> Result<Self, Box<dyn std::error::Error>> {
+        let kable_dir = crate::kable_dir().map_err(|e| format!("Failed to get Kable dir: {}", e))?;
         let logs_dir = kable_dir.join("logs");
 
         // Create logs directory structure using centralized sync helper
-        crate::ensure_folder_sync(&logs_dir)?;
-        crate::ensure_folder_sync(&logs_dir.join("launcher"))?;
-        crate::ensure_folder_sync(&logs_dir.join("installations"))?;
+        crate::system::fs::create_dir(&logs_dir).await?;
+        crate::system::fs::create_dir(&logs_dir.join("launcher")).await?;
+        crate::system::fs::create_dir(&logs_dir.join("installations")).await?;
 
         // Load settings to configure logging
-        let settings = tauri::async_runtime::block_on(crate::settings::load_settings()).unwrap_or_default();
-
-        fn value_to_u64(val: &serde_json::Value, default: u64) -> u64 {
-            val.as_u64().or_else(|| val.as_i64().map(|v| v.max(0) as u64)).unwrap_or(default)
-        }
+        let settings = tauri::async_runtime::block_on(crate::features::customization::settings::load_settings()).unwrap_or_default();
 
         // Usage:
         let config = LogConfig {
             enable_persistent_logging: settings.logging.enable_persistent_logging,
             enable_compression: settings.logging.enable_log_compression,
-            size_limit_mb: value_to_u64(&settings.logging.log_file_size_limit_mb, 10),
-            retention_days: value_to_u64(&settings.logging.log_retention_days, 30),
+            size_limit_mb: settings.logging.log_file_size_limit_mb,
+            retention_days: settings.logging.log_retention_days,
             logs_dir,
-            max_memory_logs: settings.logging.max_memory_logs.unwrap_or(5000) as usize,
-            dedupe_window_size: settings.logging.dedupe_window_size.unwrap_or(50) as usize,
-            enable_dedupe: settings.logging.enable_dedupe.unwrap_or(true),
+            max_memory_logs: settings.logging.max_memory_logs,
+            dedupe_window_size: settings.logging.dedupe_window_size,
+            enable_dedupe: settings.logging.enable_dedupe,
         };
 
         // Create a bounded sync channel for log messages and spawn a background thread
         let (tx, rx) = sync_channel::<LogMessage>(1024);
         let config_clone = config.clone();
-        std::thread::spawn(move || {
+        std::thread::spawn(async move || {
             // Background thread: consume messages and perform synchronous IO (compression allowed)
             for msg in rx.iter() {
                 // determine log path
@@ -240,7 +238,7 @@ impl LogStorage {
 
                 // Ensure dir using sync helper
                 if let Some(parent) = log_path.parent() {
-                    let _ = crate::ensure_folder_sync(parent);
+                    let _ = crate::system::fs::create_dir(parent);
                 }
 
                 // Check for compression
@@ -290,11 +288,11 @@ impl LogStorage {
 
         self.config.enable_persistent_logging = settings.logging.enable_persistent_logging;
         self.config.enable_compression = settings.logging.enable_log_compression;
-        self.config.size_limit_mb = value_to_u64(&settings.logging.log_file_size_limit_mb, 10);
-        self.config.retention_days = value_to_u64(&settings.logging.log_retention_days, 30);
-        self.config.max_memory_logs = settings.logging.max_memory_logs.unwrap_or(5000) as usize;
-        self.config.dedupe_window_size = settings.logging.dedupe_window_size.unwrap_or(50) as usize;
-        self.config.enable_dedupe = settings.logging.enable_dedupe.unwrap_or(true);
+        self.config.size_limit_mb = settings.logging.log_file_size_limit_mb;
+        self.config.retention_days = settings.logging.log_retention_days;
+        self.config.max_memory_logs = settings.logging.max_memory_logs;
+        self.config.dedupe_window_size = settings.logging.dedupe_window_size;
+        self.config.enable_dedupe = settings.logging.enable_dedupe;
     }
 
     /// Write log message to persistent storage
@@ -315,7 +313,7 @@ impl LogStorage {
             Ok(_) => Ok(()),
             Err(TrySendError::Full(m)) => {
                 let cfg = self.config.clone();
-                std::thread::spawn(move || {
+                std::thread::spawn(async move || {
                     // Best-effort write in background when queue was full
                     let _ = {
                         let filename = format!(
@@ -329,7 +327,7 @@ impl LogStorage {
                             cfg.logs_dir.join("launcher").join(&filename)
                         };
                         if let Some(parent) = log_path.parent() {
-                            let _ = crate::ensure_folder_sync(parent);
+                            let _ = crate::system::fs::create_dir(parent).await;
                         }
                         let timestamp = m.timestamp.format("%Y-%m-%d %H:%M:%S%.3f UTC");
                         let log_line = format!("[{}] {} {}\n", timestamp, m.level.to_string().to_uppercase(), m.message);
@@ -617,20 +615,22 @@ pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
             storage.config.logs_dir.clone()
         } else {
             // Fallback to get kable directory
-            crate::get_minecraft_kable_dir().map_err(|e| format!("Failed to get Kable dir: {}", e))?.join("logs")
+            crate::system::fs::kable_dir().map_err(|e| format!("Failed to get Kable dir: {}", e))?.join("logs")
         }
     } else {
         // Fallback to get kable directory
-        crate::get_minecraft_kable_dir().map_err(|e| format!("Failed to get Kable dir: {}", e))?.join("logs")
+        crate::system::fs::kable_dir().map_err(|e| format!("Failed to get Kable dir: {}", e))?.join("logs")
     };
 
     // Create exports directory (use async helper)
     let exports_dir = logs_dir.join("exports");
-    crate::ensure_parent_dir_exists_async(&exports_dir)
+    crate::system::fs::create_dir(&exports_dir)
         .await
         .map_err(|e| format!("Failed to create exports directory parent: {}", e))?;
     // Also ensure the directory itself exists
-    crate::ensure_folder(&exports_dir).await.map_err(|e| format!("Failed to ensure exports directory exists: {}", e))?;
+    crate::system::fs::create_dir(&exports_dir)
+        .await
+        .map_err(|e| format!("Failed to ensure exports directory exists: {}", e))?;
 
     let log_content = if let Some(ref id) = instance_id {
         format!("Logs for instance: {}\n\n[Sample log entries for instance {}]", id, id)
@@ -641,11 +641,11 @@ pub async fn export_logs(instance_id: Option<String>) -> Result<(), String> {
     let filename = if let Some(ref id) = instance_id { format!("kable_logs_{}.txt", id) } else { "kable_logs_global.txt".to_string() };
 
     let export_path = exports_dir.join(&filename);
-    crate::ensure_parent_dir_exists_async(&export_path)
+    crate::system::fs::create_dir(&export_path)
         .await
         .map_err(|e| format!("Failed to create parent for export file: {}", e))?;
 
-    crate::write_file_atomic_async(&export_path, log_content.as_bytes())
+    crate::system::fs::write_str(&export_path, log_content.as_str(), false)
         .await
         .map_err(|e| format!("Failed to write log file: {}", e))?;
 

@@ -1,129 +1,173 @@
-use crate::system::fs::{ensure_parent_dir_exists_async, write_file_atomic_async};
+use crate::system::fs;
 use std::path::Path;
 use tokio::fs as async_fs;
 
-/// Ensure Minecraft allows symbolic links by writing to allowed_symlinks.txt
-pub async fn ensure_symlinks_enabled(minecraft_path: &Path) -> Result<(), String> {
-    let allowed_symlinks_file = minecraft_path.join("allowed_symlinks.txt");
-    let required_line = "[regex].*";
+type FsResult<T> = Result<T, String>;
 
-    // Check if file exists and contains the required line
-    if allowed_symlinks_file.exists() {
-        let content = async_fs::read_to_string(&allowed_symlinks_file)
-            .await
-            .map_err(|e| format!("Failed to read allowed_symlinks.txt: {}", e))?;
+// ============================================================
+// INTERNAL HELPERS
+// ============================================================
 
-        if content.lines().any(|line| line.trim() == required_line) {
-            return Ok(());
-        }
-
-        // File exists but doesn't have the line, append it
-        let mut new_content = content;
-        if !new_content.ends_with('\n') {
-            new_content.push('\n');
-        }
-        new_content.push_str(required_line);
-        new_content.push('\n');
-
-        write_file_atomic_async(&allowed_symlinks_file, new_content.as_bytes()).await?;
-    } else {
-        // File doesn't exist, create it with the required line
-        ensure_parent_dir_exists_async(&allowed_symlinks_file).await?;
-        let content = format!("{}\n", required_line);
-        write_file_atomic_async(&allowed_symlinks_file, content.as_bytes()).await?;
+async fn is_symlink(path: &Path) -> FsResult<bool> {
+    match async_fs::symlink_metadata(path).await {
+        Ok(md) => Ok(md.file_type().is_symlink()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(e) => Err(format!("symlink_metadata failed {}: {}", path.display(), e)),
     }
-
-    Ok(())
 }
 
-/// Create a symbolic link from source to target directory
-pub async fn create_directory_symlink(source: &Path, target: &Path) -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::symlink_dir;
-        if target.exists() {
-            if target.is_symlink() {
-                async_fs::remove_dir(target).await.map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
-            } else {
-                return Err(format!("Target path exists and is not a symlink: {}", target.display()));
-            }
-        }
-        ensure_parent_dir_exists_async(target).await?;
-        let s = source.to_path_buf();
-        let t = target.to_path_buf();
-        tokio::task::spawn_blocking(move || symlink_dir(s, t).map_err(|e| format!("Failed to create symlink: {}", e)))
-            .await
-            .map_err(|e| format!("Symlink task failed: {}", e))??;
-    }
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::symlink;
-        if target.exists() {
-            if target.is_symlink() {
-                async_fs::remove_file(target).await.map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
-            } else {
-                return Err(format!("Target path exists and is not a symlink: {}", target.display()));
-            }
-        }
-        ensure_parent_dir_exists_async(target).await?;
-        let s = source.to_path_buf();
-        let t = target.to_path_buf();
-        tokio::task::spawn_blocking(move || symlink(s, t).map_err(|e| format!("Failed to create symlink: {}", e)))
-            .await
-            .map_err(|e| format!("Symlink task failed: {}", e))??;
-    }
-
-    Ok(())
-}
-
-pub async fn create_file_symlink(source: &Path, target: &Path) -> Result<(), String> {
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::symlink_file;
-        if target.exists() {
-            if target.is_symlink() {
-                async_fs::remove_file(target).await.map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
-            } else {
-                return Err(format!("Target path exists and is not a symlink: {}", target.display()));
-            }
-        }
-        ensure_parent_dir_exists_async(target).await?;
-        let s = source.to_path_buf();
-        let t = target.to_path_buf();
-        tokio::task::spawn_blocking(move || symlink_file(s, t).map_err(|e| format!("Failed to create symlink: {}", e)))
-            .await
-            .map_err(|e| format!("Symlink task failed: {}", e))??;
-    }
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::symlink;
-        if target.exists() {
-            if target.is_symlink() {
-                async_fs::remove_file(target).await.map_err(|e| format!("Failed to remove existing symlink: {}", e))?;
-            } else {
-                return Err(format!("Target path exists and is not a symlink: {}", target.display()));
-            }
-        }
-        ensure_parent_dir_exists_async(target).await?;
-        let s = source.to_path_buf();
-        let t = target.to_path_buf();
-        tokio::task::spawn_blocking(move || symlink(s, t).map_err(|e| format!("Failed to create symlink: {}", e)))
-            .await
-            .map_err(|e| format!("Symlink task failed: {}", e))??;
-    }
-
-    Ok(())
-}
-
-pub async fn remove_symlink_if_exists(path: &Path) -> Result<(), String> {
-    if path.exists() && path.is_symlink() {
+async fn remove_path(path: &Path) -> FsResult<()> {
+    if is_symlink(path).await? {
         if path.is_dir() {
-            async_fs::remove_dir(path).await.map_err(|e| format!("Failed to remove dir symlink: {}", e))?;
+            async_fs::remove_dir(path).await.map_err(|e| format!("remove_dir failed {}: {}", path.display(), e))?;
         } else {
-            async_fs::remove_file(path).await.map_err(|e| format!("Failed to remove file symlink: {}", e))?;
+            async_fs::remove_file(path).await.map_err(|e| format!("remove_file failed {}: {}", path.display(), e))?;
         }
     }
+    Ok(())
+}
+
+// ============================================================
+// ALLOWED SYMLINKS FILE
+// ============================================================
+
+pub async fn ensure_symlinks_enabled(minecraft_path: &Path) -> FsResult<()> {
+    let file = minecraft_path.join("allowed_symlinks.txt");
+    let required = "[regex].*";
+
+    let content = match async_fs::read_to_string(&file).await {
+        Ok(c) => c,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(e) => return Err(format!("read failed {}: {}", file.display(), e)),
+    };
+
+    let mut lines: Vec<&str> = content.lines().collect();
+
+    if lines.iter().any(|l| l.trim() == required) {
+        return Ok(());
+    }
+
+    lines.push(required);
+
+    let new_content = lines.join("\n") + "\n";
+
+    fs::write(&file, new_content.as_bytes(), false).await?;
+
+    Ok(())
+}
+
+// ============================================================
+// DIRECTORY SYMLINK
+// ============================================================
+
+#[cfg(windows)]
+async fn create_dir_link(source: &Path, target: &Path) -> FsResult<()> {
+    use std::os::windows::fs::symlink_dir;
+
+    remove_path(target).await?;
+
+    let s = source.to_path_buf();
+    let t = target.to_path_buf();
+
+    tokio::task::spawn_blocking(move || symlink_dir(s, t).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("join error: {}", e))??;
+
+    Ok(())
+}
+
+#[cfg(unix)]
+async fn create_dir_link(source: &Path, target: &Path) -> FsResult<()> {
+    use std::os::unix::fs::symlink;
+
+    remove_path(target).await?;
+
+    let s = source.to_path_buf();
+    let t = target.to_path_buf();
+
+    tokio::task::spawn_blocking(move || symlink(s, t).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("join error: {}", e))??;
+
+    Ok(())
+}
+
+// ============================================================
+// FILE SYMLINK
+// ============================================================
+
+#[cfg(windows)]
+async fn create_file_link(source: &Path, target: &Path) -> FsResult<()> {
+    use std::os::windows::fs::symlink_file;
+
+    remove_path(target).await?;
+
+    let s = source.to_path_buf();
+    let t = target.to_path_buf();
+
+    tokio::task::spawn_blocking(move || symlink_file(s, t).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("join error: {}", e))??;
+
+    Ok(())
+}
+
+#[cfg(unix)]
+async fn create_file_link(source: &Path, target: &Path) -> FsResult<()> {
+    use std::os::unix::fs::symlink;
+
+    remove_path(target).await?;
+
+    let s = source.to_path_buf();
+    let t = target.to_path_buf();
+
+    tokio::task::spawn_blocking(move || symlink(s, t).map_err(|e| e.to_string()))
+        .await
+        .map_err(|e| format!("join error: {}", e))??;
+
+    Ok(())
+}
+
+// ============================================================
+// PUBLIC API
+// ============================================================
+
+pub async fn link_dir(source: impl AsRef<Path>, target: impl AsRef<Path>) -> FsResult<()> {
+    let s = source.as_ref();
+    let t = target.as_ref();
+
+    if is_symlink(t).await? {
+        remove_path(t).await?;
+    }
+
+    if t.exists() && !is_symlink(t).await? {
+        return Err(format!("target exists and is not a symlink: {}", t.display()));
+    }
+
+    create_dir_link(s, t).await
+}
+
+pub async fn link_file(source: impl AsRef<Path>, target: impl AsRef<Path>) -> FsResult<()> {
+    let s = source.as_ref();
+    let t = target.as_ref();
+
+    if t.exists() && !is_symlink(t).await? {
+        return Err(format!("target exists and is not a symlink: {}", t.display()));
+    }
+
+    create_file_link(s, t).await
+}
+
+// ============================================================
+// REMOVE SYMLINK
+// ============================================================
+
+pub async fn unlink(path: impl AsRef<Path>) -> FsResult<()> {
+    let p = path.as_ref();
+
+    if is_symlink(p).await? {
+        remove_path(p).await?;
+    }
+
     Ok(())
 }

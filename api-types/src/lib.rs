@@ -2,6 +2,7 @@ pub mod auth;
 pub mod discord;
 pub mod icons;
 pub mod launcher;
+pub mod logging;
 pub mod maps;
 pub mod mods;
 pub mod mojang;

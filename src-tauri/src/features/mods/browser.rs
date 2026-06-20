@@ -9,7 +9,8 @@ pub async fn browse(profile: KableProfile, search: ProjectSearch, smart_filter: 
     if smart_filter {
         // If smart_filter is enabled, we add facets to the search to filter by the profile's loader and Minecraft version
         // docs https://docs.modrinth.com/api/operations/searchprojects/ are unclear on how to filter loader-versions so we just do loader & mc version for now
-        let facets: vec![Facet { field: FacetField::Categories, operator: FacetOperator::Eq, value: profile.version.loader.to_string() }];
+        let mut facets = Vec::new();
+        facets.push(Facet { field: FacetField::Categories, operator: FacetOperator::Eq, value: profile.version.loader.to_string() });
         if let Some(minecraft_version) = profile.version.minecraft_version {
             facets.push(Facet { field: FacetField::Version, operator: FacetOperator::GreaterEq, value: minecraft_version });
         }

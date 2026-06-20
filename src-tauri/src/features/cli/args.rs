@@ -5,7 +5,8 @@ use clap::Parser;
 use crate::features::accounts::management::{get_active_account, list_accounts};
 use crate::features::customization::settings::load_settings;
 use crate::features::launcher::launch_installation;
-use crate::features::profiles::{get_installation, read_kable_profiles};
+use crate::features::profiles::{kable_profile::load_profiles, management::get_profile};
+use crate::integrations::minecraft::versions::get_versions;
 
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -25,15 +26,16 @@ pub async fn handle_args(args: Args) -> Result<(), String> {
     // 1. First, we load app settings
     let settings = load_settings().await?;
     // 2. Second, we load all profiles
-    let _profiles = read_kable_profiles().await?;
+    let _profiles = load_profiles().await?;
     // 3. Then we refresh auth for default account if possible
     let _accounts = list_accounts().await?;
-    // 4. Then in async we can also fetch/load version info from loader manifests
+    // 4. Then in async we can also fetch/load version info from loader manifests, once caching has been implemented this should improve initial loading time of the launcher
+    let _versions = get_versions().await?;
 
     // 5. Now we check for args, if any present that prevent UI this here should end process as well
     if let Some(profile_id) = args.launch_profile {
         // Find profile by id, launch with loaded settings and active account.
-        let profile = get_installation(&profile_id.into_boxed_str()).await?.expect("Specified profile `{}` could not be found!");
+        let profile = get_profile(&profile_id).await?;
         let account = get_active_account().await?.expect("No active account found!");
         launch_installation(profile, settings, account).await?;
     }

@@ -85,6 +85,20 @@ pub async fn get_versions_of(loader: LoaderKind) -> Result<Versions, String> {
     }
 }
 
+pub async fn get_version(id: String) -> Result<ProfileVersion, String> {
+    let versions = get_versions().await?;
+
+    versions.0.into_iter().find(|v| v.id == id).ok_or_else(|| format!("Version not found: {}", id))
+}
+
+pub async fn get_version_data(loader: LoaderKind, version_id: String, include_unstable: bool) -> Result<ProfileVersion, String> {
+    let versions = get_versions_of(loader).await?;
+
+    let version_data = versions.0.into_iter().find(|v| v.id == version_id && (include_unstable || v.stable.unwrap_or(false)));
+
+    version_data.ok_or_else(|| format!("Version data not found for {:?} {}", loader, version_id))
+}
+
 /// Obviously we also want to know the vanilla versions, example:
 /// `{"latest": {"release": "26.1.2", "snapshot": "26.2-rc-2"}, "versions": [{"id": "26.2-rc-2", "type": "snapshot", "url": "https://piston-meta.mojang.com/v1/packages/9c01b04a6ffd22f6ef4c1dfa8fab9850648fb9dd/26.2-rc-2.json", "time": "2026-06-12T11:41:39+00:00", "releaseTime": "2026-06-12T11:32:28+00:00"}`
 async fn get_vanilla_versions() -> Result<Versions, String> {

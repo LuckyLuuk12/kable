@@ -10,7 +10,7 @@ use super::entry::CacheEntry;
 use super::error::CacheError;
 use super::hashing::hash_args;
 
-use crate::system::fs::{read_file, write_file_atomic_async};
+use crate::system::fs::{read, write};
 
 /**
  * This is the only public API of the cache module. It provides a simple interface for getting or computing cached values.
@@ -34,10 +34,10 @@ where
     let lock = super::locks::get_lock(&key);
     let _guard = lock.lock().await;
 
-    if let Some(raw) = read_file(&path).await.ok() {
+    if let Some(raw) = read(&path).await.ok() {
         let (entry, _): (CacheEntry<T>, usize) = match bincode::serde::decode_from_slice(&raw, bincode::config::standard()) {
             Ok(v) => v,
-            Err(e) => {
+            Err(_e) => {
                 return Err(CacheError::CorruptedEntry { path });
             } // Err(_) => return Ok(TODO_FALLBACK_OR_SKIP), // see note below
         };
@@ -55,7 +55,7 @@ where
 
     let bytes = bincode::serde::encode_to_vec(&entry, bincode::config::standard())?;
 
-    write_file_atomic_async(&path, &bytes).await.map_err(|e| CacheError::SystemError(e))?;
+    write(&path, &bytes, false).await.map_err(|e| CacheError::SystemError(e))?;
 
     Ok(result)
 }

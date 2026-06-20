@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
@@ -107,10 +109,60 @@ pub struct AppearanceSettings {
     pub selected_css_theme: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
+// #[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+// pub struct LoggingSettings {
+//     #[serde(default)]
+//     pub enabled: bool,
+//     #[serde(default)]
+//     pub enable_persistent_logging: bool,
+//     #[serde(default)]
+//     pub enable_log_compression: bool,
+//     #[serde(default)]
+//     pub log_file_size_limit_mb: u64,
+//     #[serde(default)]
+//     pub log_retention_days: u64,
+//     #[serde(default)]
+//     pub max_memory_logs: usize,
+//     #[serde(default)]
+//     pub dedupe_window_size: usize,
+//     #[serde(default)]
+//     pub enable_dedupe: bool,
+// }
+
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
 pub struct LoggingSettings {
-    #[serde(default)]
     pub enabled: bool,
+    pub persistent: bool,
+    pub compression: bool,
+    pub retention_days: u64,
+    pub max_file_size_mb: u64,
+
+    pub frontend_batch_size: usize,
+    pub frontend_batch_interval_ms: u64,
+    pub frontend_max_per_second: usize,
+
+    pub max_memory_logs: usize,
+
+    pub dedupe_enabled: bool,
+    pub dedupe_window_size: usize,
+}
+
+impl Default for LoggingSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            persistent: true,
+            compression: true,
+            retention_days: 30,
+            max_file_size_mb: 10,
+            frontend_batch_size: 400,
+            frontend_batch_interval_ms: 1000,
+            frontend_max_per_second: 10,
+            max_memory_logs: 5000,
+            dedupe_enabled: true,
+            dedupe_window_size: 50,
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
@@ -129,6 +181,7 @@ pub struct ContentSettings {
 pub struct AdvancedSettings {
     #[serde(default)]
     pub developer_mode: bool,
+    pub extra: HashMap<String, String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]

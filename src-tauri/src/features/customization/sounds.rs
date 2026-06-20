@@ -1,53 +1,49 @@
 use crate::constants::{CONFIG_DIR, SOUNDPACK_FILE, SOUNDS_DIR};
-use crate::system::fs::{ensure_folder, get_kable_launcher_dir};
+use crate::system::fs;
 use api_types::sounds::SoundpackMetadata;
 use std::collections::HashMap;
-use std::fs;
 use std::path::PathBuf;
 use zip::ZipArchive;
 
-/// Get the sounds configuration directory
-async fn get_sounds_dir() -> Result<PathBuf, String> {
-    let launcher_dir = get_kable_launcher_dir()?;
-    Ok(launcher_dir.join(CONFIG_DIR).join(SOUNDS_DIR))
+type FsResult<T> = Result<T, String>;
+
+async fn sounds_dir() -> FsResult<PathBuf> {
+    Ok(fs::launcher_dir()?.join(CONFIG_DIR).join(SOUNDS_DIR))
 }
 
-/// Ensure the sounds directory exists
-async fn ensure_sounds_dir() -> Result<PathBuf, String> {
-    let sounds_dir = get_sounds_dir().await?;
-    match ensure_folder(&sounds_dir).await {
-        Ok(p) => Ok(p),
-        Err(err) => Err(format!("Failed to ensure sounds directory exists: {}", err)),
-    }
+async fn ensure_sounds_dir() -> FsResult<PathBuf> {
+    let dir = sounds_dir().await?;
+    fs::create_dir(&dir).await?;
+    Ok(dir)
 }
 
-/// List all available soundpacks
-pub async fn list_soundpacks() -> Result<Vec<String>, String> {
-    let soundpacks_dir = ensure_sounds_dir().await?;
+pub async fn list_soundpacks() -> FsResult<Vec<String>> {
+    let dir = ensure_sounds_dir().await?;
 
     let mut packs = vec!["default".to_string()];
 
-    if soundpacks_dir.exists() {
-        let entries = fs::read_dir(&soundpacks_dir).map_err(|e| format!("Failed to read soundpacks directory: {}", e))?;
+    let entries = fs::read_dir(&dir).await?;
 
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_dir() {
-                // Check if it has a soundpack.json
-                if path.join(SOUNDPACK_FILE).exists() {
-                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                        packs.push(name.to_string());
-                    }
+    for path in entries {
+        // folder-based pack
+        if fs::is_dir(&path).await? {
+            let meta = path.join(SOUNDPACK_FILE);
+
+            if fs::exists(&meta).await? {
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    packs.push(name.to_string());
                 }
-            } else if path.extension().and_then(|s| s.to_str()) == Some("zip") {
-                // Check if zip contains soundpack.json
-                if let Ok(file) = fs::File::open(&path) {
-                    if let Ok(mut archive) = ZipArchive::new(file) {
-                        if archive.by_name(SOUNDPACK_FILE).is_ok() {
-                            if let Some(name) = path.file_stem().and_then(|n| n.to_str()) {
-                                packs.push(name.to_string());
-                            }
-                        }
+            }
+        }
+
+        // zip-based pack
+        if path.extension().and_then(|e| e.to_str()) == Some("zip") {
+            let file = std::fs::File::open(&path).map_err(|e| format!("zip open failed {}: {}", path.display(), e))?;
+
+            if let Ok(mut zip) = ZipArchive::new(file) {
+                if zip.by_name(SOUNDPACK_FILE).is_ok() {
+                    if let Some(name) = path.file_stem().and_then(|n| n.to_str()) {
+                        packs.push(name.to_string());
                     }
                 }
             }
@@ -57,154 +53,122 @@ pub async fn list_soundpacks() -> Result<Vec<String>, String> {
     Ok(packs)
 }
 
-/// Get metadata for a specific soundpack
-pub async fn get_soundpack_metadata(pack: String) -> Result<SoundpackMetadata, String> {
-    // Check for default soundpack
+pub async fn get_soundpack_metadata(pack: String) -> FsResult<SoundpackMetadata> {
     if pack == "default" {
-        return Ok(get_default_soundpack_metadata());
+        return Ok(default_metadata());
     }
 
-    let soundpacks_dir = ensure_sounds_dir().await?;
-    let pack_path = soundpacks_dir.join(&pack);
+    let base = ensure_sounds_dir().await?;
 
-    // Try as directory first
-    if pack_path.is_dir() {
-        let metadata_path = pack_path.join(SOUNDPACK_FILE);
-        let content = fs::read_to_string(&metadata_path).map_err(|e| format!("Failed to read {}: {}", SOUNDPACK_FILE, e))?;
+    let folder = base.join(&pack);
 
-        let metadata: SoundpackMetadata =
-            serde_json::from_str(&content).map_err(|e| format!("Failed to parse {}: {}", SOUNDPACK_FILE, e))?;
+    if fs::exists(&folder).await? {
+        let meta = folder.join(SOUNDPACK_FILE);
+        let content = fs::read_str(&meta).await?;
 
-        return Ok(metadata);
+        return serde_json::from_str(&content).map_err(|e| format!("json parse failed {}: {}", meta.display(), e));
     }
 
-    // Try as ZIP file
-    let zip_path = soundpacks_dir.join(format!("{}.zip", pack));
-    if zip_path.exists() {
-        let file = fs::File::open(&zip_path).map_err(|e| format!("Failed to open ZIP file: {}", e))?;
+    let zip_path = base.join(format!("{}.zip", pack));
 
-        let mut archive = ZipArchive::new(file).map_err(|e| format!("Failed to read ZIP archive: {}", e))?;
+    if fs::exists(&zip_path).await? {
+        let file = std::fs::File::open(&zip_path).map_err(|e| format!("zip open failed {}: {}", zip_path.display(), e))?;
 
-        let mut metadata_file = archive.by_name(SOUNDPACK_FILE).map_err(|e| format!("{} not found in ZIP: {}", SOUNDPACK_FILE, e))?;
+        let mut zip = ZipArchive::new(file).map_err(|e| format!("zip read failed: {}", e))?;
+
+        let mut entry = zip.by_name(SOUNDPACK_FILE).map_err(|e| format!("missing {}: {}", SOUNDPACK_FILE, e))?;
 
         let mut content = String::new();
-        std::io::Read::read_to_string(&mut metadata_file, &mut content)
-            .map_err(|e| format!("Failed to read {} from ZIP: {}", SOUNDPACK_FILE, e))?;
+        std::io::Read::read_to_string(&mut entry, &mut content).map_err(|e| format!("zip read error: {}", e))?;
 
-        let metadata: SoundpackMetadata =
-            serde_json::from_str(&content).map_err(|e| format!("Failed to parse {}: {}", SOUNDPACK_FILE, e))?;
-
-        return Ok(metadata);
+        return serde_json::from_str(&content).map_err(|e| format!("json parse failed: {}", e));
     }
 
-    Err(format!("Soundpack not found: {}", pack))
+    Err(format!("soundpack not found: {}", pack))
 }
 
-/// Load a sound file from a soundpack
-pub async fn load_soundpack_file(pack: String, file: String) -> Result<Vec<u8>, String> {
-    // Check for default soundpack - return empty (will use built-in browser sounds)
+pub async fn load_soundpack_file(pack: String, file: String) -> FsResult<Vec<u8>> {
     if pack == "default" {
-        return Err("Default soundpack files should be bundled in frontend".to_string());
+        return Err("default sounds are frontend-bundled".to_string());
     }
 
-    let soundpacks_dir = ensure_sounds_dir().await?;
-    let pack_path = soundpacks_dir.join(&pack);
+    let base = ensure_sounds_dir().await?;
+    let folder = base.join(&pack);
 
-    // Try as directory first
-    if pack_path.is_dir() {
-        let file_path = pack_path.join(&file);
-        let data = fs::read(&file_path).map_err(|e| format!("Failed to read sound file {}: {}", file, e))?;
-        return Ok(data);
+    if fs::exists(&folder).await? {
+        let path = folder.join(&file);
+        return fs::read(&path).await;
     }
 
-    // Try as ZIP file
-    let zip_path = soundpacks_dir.join(format!("{}.zip", pack));
-    if zip_path.exists() {
-        let file_handle = fs::File::open(&zip_path).map_err(|e| format!("Failed to open ZIP file: {}", e))?;
+    let zip_path = base.join(format!("{}.zip", pack));
 
-        let mut archive = ZipArchive::new(file_handle).map_err(|e| format!("Failed to read ZIP archive: {}", e))?;
+    if fs::exists(&zip_path).await? {
+        let file_handle = std::fs::File::open(&zip_path).map_err(|e| format!("zip open failed: {}", e))?;
 
-        let mut sound_file = archive.by_name(&file).map_err(|e| format!("Sound file {} not found in ZIP: {}", file, e))?;
+        let mut zip = ZipArchive::new(file_handle).map_err(|e| format!("zip read failed: {}", e))?;
+
+        let mut entry = zip.by_name(&file).map_err(|e| format!("file not in zip: {}", e))?;
 
         let mut data = Vec::new();
-        std::io::Read::read_to_end(&mut sound_file, &mut data).map_err(|e| format!("Failed to read sound file from ZIP: {}", e))?;
+        std::io::Read::read_to_end(&mut entry, &mut data).map_err(|e| format!("zip read error: {}", e))?;
 
         return Ok(data);
     }
 
-    Err(format!("Sound file not found: {}", file))
+    Err(format!("sound file not found: {}", file))
 }
 
-/// Import a soundpack from a ZIP file
-pub async fn import_soundpack_zip(path: String) -> Result<String, String> {
-    let soundpacks_dir = ensure_sounds_dir().await?;
-    let source_path = PathBuf::from(&path);
+pub async fn import_soundpack_zip(path: String) -> FsResult<String> {
+    let base = ensure_sounds_dir().await?;
+    let src = PathBuf::from(&path);
 
-    if !source_path.exists() {
-        return Err("Source ZIP file does not exist".to_string());
+    if !fs::exists(&src).await? {
+        return Err("zip does not exist".to_string());
     }
 
-    // Open and validate the ZIP
-    let file = fs::File::open(&source_path).map_err(|e| format!("Failed to open ZIP file: {}", e))?;
+    let file = std::fs::File::open(&src).map_err(|e| format!("zip open failed: {}", e))?;
 
-    let mut archive = ZipArchive::new(file).map_err(|e| format!("Failed to read ZIP archive: {}", e))?;
+    let mut zip = ZipArchive::new(file).map_err(|e| format!("zip read failed: {}", e))?;
 
-    // Check for soundpack.json
-    let mut metadata_file = archive.by_name(SOUNDPACK_FILE).map_err(|_| format!("ZIP file does not contain {}", SOUNDPACK_FILE))?;
+    let mut meta = zip.by_name(SOUNDPACK_FILE).map_err(|_| format!("missing {}", SOUNDPACK_FILE))?;
 
     let mut content = String::new();
-    std::io::Read::read_to_string(&mut metadata_file, &mut content).map_err(|e| format!("Failed to read {}: {}", SOUNDPACK_FILE, e))?;
+    std::io::Read::read_to_string(&mut meta, &mut content).map_err(|e| format!("meta read failed: {}", e))?;
 
-    let metadata: SoundpackMetadata = serde_json::from_str(&content).map_err(|e| format!("Invalid soundpack.json: {}", e))?;
+    let parsed: SoundpackMetadata = serde_json::from_str(&content).map_err(|e| format!("invalid metadata: {}", e))?;
 
-    let pack_name = metadata.name.clone();
+    let name = parsed.name.clone();
 
-    // Copy ZIP to soundpacks directory
-    let dest_path = soundpacks_dir.join(format!("{}.zip", pack_name));
-    fs::copy(&source_path, &dest_path).map_err(|e| format!("Failed to copy soundpack: {}", e))?;
+    let dest = base.join(format!("{}.zip", name));
 
-    Ok(pack_name)
+    let zip_bytes = std::fs::read(&src).map_err(|e| e.to_string())?;
+
+    fs::write(&dest, &zip_bytes, false).await?;
+
+    Ok(name)
 }
 
-/// Get the sounds directory path for frontend file operations
-pub async fn get_sounds_directory_path() -> Result<String, String> {
-    let sounds_dir = ensure_sounds_dir().await?;
-    Ok(sounds_dir.to_string_lossy().to_string())
+pub async fn get_sounds_directory_path() -> FsResult<String> {
+    let dir = ensure_sounds_dir().await?;
+    Ok(dir.to_string_lossy().to_string())
 }
 
-/// Open the sounds directory in the system file explorer
-pub async fn open_sounds_directory() -> Result<(), String> {
-    let sounds_dir = ensure_sounds_dir().await?;
+pub async fn open_sounds_directory() -> FsResult<()> {
+    let dir = ensure_sounds_dir().await?;
 
     #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer")
-            .arg(&sounds_dir)
-            .spawn()
-            .map_err(|e| format!("Failed to open sounds directory: {}", e))?;
-    }
+    std::process::Command::new("explorer").arg(&dir).spawn().map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&sounds_dir)
-            .spawn()
-            .map_err(|e| format!("Failed to open sounds directory: {}", e))?;
-    }
+    std::process::Command::new("open").arg(&dir).spawn().map_err(|e| e.to_string())?;
 
     #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&sounds_dir)
-            .spawn()
-            .map_err(|e| format!("Failed to open sounds directory: {}", e))?;
-    }
+    std::process::Command::new("xdg-open").arg(&dir).spawn().map_err(|e| e.to_string())?;
 
     Ok(())
 }
 
-/// Get the default soundpack metadata (built-in sounds)
-fn get_default_soundpack_metadata() -> SoundpackMetadata {
+fn default_metadata() -> SoundpackMetadata {
     let mut sounds = HashMap::new();
     sounds.insert("click".to_string(), "click.mp3".to_string());
     sounds.insert("hover".to_string(), "hover.mp3".to_string());
@@ -221,9 +185,7 @@ fn get_default_soundpack_metadata() -> SoundpackMetadata {
         name: "default".to_string(),
         version: Some("1.0.0".to_string()),
         author: Some("Kable".to_string()),
-        description: Some("The default soundpack with built-in sounds".to_string()),
+        description: Some("default soundpack".to_string()),
         file_path: None,
-        // sounds,
-        // music: Some(music),
     }
 }

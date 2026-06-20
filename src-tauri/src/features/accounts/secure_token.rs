@@ -2,6 +2,7 @@
 // Cross-platform AES encryption for sensitive tokens
 // Key is generated per user and stored in the Kable app directory with restricted permissions
 
+use crate::system::fs::create_dir;
 use aes_gcm::aead::Aead;
 use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce};
 use base64::Engine;
@@ -23,7 +24,7 @@ const KEY_SIZE: usize = 32;
 /// if that helper fails for any reason.
 fn get_key_path() -> PathBuf {
     // Try to reuse the helper in `lib.rs` which returns the kable launcher dir.
-    if let Ok(dir) = crate::get_kable_launcher_dir() {
+    if let Ok(dir) = crate::system::fs::launcher_dir() {
         return dir.join(KEY_FILENAME);
     }
 
@@ -39,7 +40,7 @@ fn get_key_path() -> PathBuf {
 }
 
 /// Generate and store a new random key if not present
-fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
+async fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
     // First try OS keyring for improved security
     if let Ok(entry) = Entry::new("kable", KEY_FILENAME) {
         if let Ok(stored) = entry.get_password() {
@@ -75,7 +76,7 @@ fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
             // Also try to persist a file-backed copy so the token.key file exists
             // (helps debugging and environments where keyring is not accessible).
             if let Some(parent) = key_path.parent() {
-                if let Err(e) = crate::ensure_folder_sync(parent) {
+                if let Err(e) = create_dir(parent).await {
                     eprintln!("Failed to create key parent dir for fallback write: {}", e);
                 } else if let Ok(mut file) = OpenOptions::new().write(true).create(true).truncate(false).open(&key_path) {
                     if let Err(e) = file.write_all(&key) {
@@ -89,7 +90,7 @@ fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
 
     // Persist to file as fallback
     if let Some(parent) = key_path.parent() {
-        crate::ensure_folder_sync(parent).map_err(std::io::Error::other)?;
+        crate::create_dir(parent).await.map_err(std::io::Error::other)?;
     }
     let mut file = OpenOptions::new().write(true).create(true).truncate(true).open(&key_path)?;
     #[cfg(unix)]
@@ -104,8 +105,8 @@ fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
 }
 
 /// Encrypt a token string
-pub fn encrypt_token(token: &str) -> Result<String, String> {
-    let key_bytes = get_or_create_key().map_err(|e| format!("Key error: {}", e))?;
+pub async fn encrypt_token(token: &str) -> Result<String, String> {
+    let key_bytes = get_or_create_key().await.map_err(|e| format!("Key error: {}", e))?;
     let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
     let cipher = Aes256Gcm::new(key);
     let mut nonce_bytes = [0u8; NONCE_SIZE];
@@ -120,8 +121,8 @@ pub fn encrypt_token(token: &str) -> Result<String, String> {
 }
 
 /// Decrypt a token string
-pub fn decrypt_token(data: &str) -> Result<String, String> {
-    let key_bytes = get_or_create_key().map_err(|e| format!("Key error: {}", e))?;
+pub async fn decrypt_token(data: &str) -> Result<String, String> {
+    let key_bytes = get_or_create_key().await.map_err(|e| format!("Key error: {}", e))?;
     let key = Key::<Aes256Gcm>::from_slice(&key_bytes);
     let cipher = Aes256Gcm::new(key);
     let combined = base64::engine::general_purpose::STANDARD.decode(data).map_err(|e| format!("Base64 decode error: {}", e))?;

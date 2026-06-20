@@ -1,3 +1,6 @@
+use crate::integrations::minecraft::versions::get_version_data;
+use crate::integrations::modrinth::client::download_project;
+
 /*
  *  create profile functions:
  * - new profile from loader, version and some (optional) metadata (name, icon, description)
@@ -8,18 +11,16 @@
 
 pub async fn from_loader_version(
     loader: api_types::profiles::LoaderKind,
-    version: &str,
+    version: String,
     name: Option<String>,
     icon: Option<String>,
     description: Option<String>,
 ) -> Result<api_types::profiles::KableProfile, String> {
-    let version_data = crate::integrations::minecraft::versions::get_version_data(loader, version, false)
-        .await?
-        .ok_or_else(|| format!("Version data not found for {} {}", loader, version))?;
+    let version_data = get_version_data(loader, version.clone(), false).await?;
 
-    let profile_name = name.unwrap_or_else(|| format!("{}-{}", loader, version));
-    let profile_icon = icon.or_else(|| version_data.icon.clone());
-    let profile_description = description.or_else(|| version_data.description.clone());
+    let profile_name = name.unwrap_or_else(|| format!("{:?}-{}", loader, version));
+    let profile_icon = icon; // TODO: Make a default icon for kable profiles based on the loader?
+    let profile_description = description;
 
     Ok(api_types::profiles::KableProfile {
         id: uuid::Uuid::new_v4().to_string(),
@@ -28,7 +29,7 @@ pub async fn from_loader_version(
         version: version_data,
         created: chrono::Utc::now().to_string(),
         last_used: chrono::Utc::now().to_string(),
-        java_args: Vec::new(),
+        java_args: Vec::new(), // TODO : add default java args just like the official launcher does
         dedicated_mods_folder: Some(format!("{}/{}", crate::constants::MODS_DIR, uuid::Uuid::new_v4())),
         dedicated_config_folder: Some(format!("{}/{}", crate::constants::CONFIG_DIR, uuid::Uuid::new_v4())),
         dedicated_resource_pack_folder: Some(format!("{}/{}", crate::constants::RESOURCEPACKS_DIR, uuid::Uuid::new_v4())),

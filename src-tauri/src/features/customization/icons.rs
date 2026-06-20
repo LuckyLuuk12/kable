@@ -1,6 +1,5 @@
 use crate::constants::{CONFIG_DIR, ICONS_DIR};
-use crate::read_to_string;
-use crate::system::fs::{ensure_folder, get_kable_launcher_dir};
+use crate::system::fs::{create_dir, launcher_dir, read_str};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -17,14 +16,14 @@ pub struct CustomIconTemplate {
 
 /// Get the icons configuration directory
 pub fn get_icons_dir() -> Result<PathBuf, String> {
-    let launcher_dir = get_kable_launcher_dir()?;
+    let launcher_dir = launcher_dir()?;
     Ok(launcher_dir.join(CONFIG_DIR).join(ICONS_DIR))
 }
 
 /// Ensure the icons directory exists
 pub async fn ensure_icons_dir() -> Result<PathBuf, String> {
     let icons_dir = get_icons_dir()?;
-    match ensure_folder(&icons_dir).await {
+    match create_dir(&icons_dir).await {
         Ok(p) => Ok(p),
         Err(err) => Err(format!("Failed to ensure icons directory exists: {}", err)),
     }
@@ -41,7 +40,7 @@ pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, Stri
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Ok(content) = read_to_string(&path).await {
+                if let Ok(content) = read_str(&path).await {
                     if let Ok(template) = serde_json::from_str::<CustomIconTemplate>(&content) {
                         templates.push(template);
                     }

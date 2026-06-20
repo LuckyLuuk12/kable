@@ -168,8 +168,8 @@ pub async fn ensure_assets_for_manifest(
 
     let indexes_dir = PathBuf::from(minecraft_dir).join(ASSETS_DIR).join("indexes");
     let objects_dir = PathBuf::from(minecraft_dir).join(ASSETS_DIR).join("objects");
-    crate::system::fs::ensure_folder(&indexes_dir).await.map_err(|e| format!("Failed to create indexes dir: {}", e))?;
-    crate::system::fs::ensure_folder(&objects_dir).await.map_err(|e| format!("Failed to create objects dir: {}", e))?;
+    crate::system::fs::create_dir(&indexes_dir).await.map_err(|e| format!("Failed to create indexes dir: {}", e))?;
+    crate::system::fs::create_dir(&objects_dir).await.map_err(|e| format!("Failed to create objects dir: {}", e))?;
 
     let index_path = indexes_dir.join(format!("{}.json", assets_index_name));
     let client = Client::new();
@@ -180,8 +180,8 @@ pub async fn ensure_assets_for_manifest(
             if let Some(url) = asset_index_obj.get("url").and_then(|v| v.as_str()) {
                 let resp = client.get(url).send().await.map_err(|e| format!("Failed to fetch assets index: {e}"))?;
                 let txt = resp.text().await.map_err(|e| format!("Failed to read assets index text: {e}"))?;
-                crate::system::fs::ensure_parent_dir_exists_async(&index_path).await?;
-                crate::system::fs::write_file_atomic_async(&index_path, txt.as_bytes())
+                crate::system::fs::create_dir(&index_path).await?;
+                crate::system::fs::write_str(&index_path, txt.as_str(), false)
                     .await
                     .map_err(|e| format!("Failed to write assets index: {e}"))?;
             } else {
@@ -242,8 +242,8 @@ pub async fn ensure_assets_for_manifest(
             let resp = client.get(url).send().await;
             if let Ok(r) = resp {
                 if let Ok(bytes) = r.bytes().await {
-                    crate::system::fs::ensure_parent_dir_exists_async(&obj_path).await?;
-                    let _ = crate::system::fs::write_file_atomic_async(&obj_path, &bytes).await;
+                    crate::system::fs::create_dir(&obj_path).await?;
+                    let _ = crate::system::fs::write(&obj_path, &bytes, false).await;
                 }
             }
         }

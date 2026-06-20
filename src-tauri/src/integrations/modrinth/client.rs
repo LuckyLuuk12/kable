@@ -147,7 +147,7 @@ pub async fn download_project(project: &Project, version_id: Option<&str>, paren
         let path = parent_folder.join(filename);
         let response = client.get(url).send().await.map_err(|e| format!("Failed to download file {}: {}", filename, e))?;
         let bytes = response.bytes().await.map_err(|e| format!("Failed to read response for file {}: {}", filename, e))?;
-        crate::system::fs::write_file_atomic_async(path.as_path(), &bytes).await?;
+        crate::system::fs::write(path.as_path(), &bytes, true).await?;
     }
     Ok(())
 }

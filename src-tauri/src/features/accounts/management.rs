@@ -6,7 +6,7 @@ use chrono::Utc;
 
 use crate::constants::KABLE_ACCOUNTS_FILE;
 use crate::features::accounts::secure_token;
-use crate::system::fs::{get_kable_launcher_dir, read_to_string, write_file, write_file_atomic_async};
+use crate::system::fs::{create_dir, launcher_dir, read_str, write_str};
 
 pub async fn add_account(account: LauncherAccount) -> Result<(), String> {
     let mut accounts_json = ensure_accounts_file().await?;
@@ -46,9 +46,10 @@ pub async fn set_active_account(account: LauncherAccount) -> Result<(), String> 
         active_account_local_id: account.local_id,
         mojang_client_token: accounts_json.mojang_client_token,
     };
-    write_file(
+    write_str(
         &get_kable_accounts_path().await?,
         &serde_json::to_string_pretty(&updated_json).map_err(|e| format!("Failed to serialize updated accounts: {}", e))?,
+        false,
     )
     .await?;
     Ok(())
@@ -59,8 +60,9 @@ pub async fn get_active_account() -> Result<Option<LauncherAccount>, String> {
     Ok(accounts_json.accounts.get(&accounts_json.active_account_local_id).cloned())
 }
 
+/// List all accounts, this will also attempt to refresh all accounts before returning, if refreshing fails it will just return the accounts without refreshing. This way we ensure the file is always in a valid state and we attempt to keep tokens fresh without risking failure to list accounts at all.
 pub async fn list_accounts() -> Result<Vec<LauncherAccount>, String> {
-    let accounts_json = ensure_accounts_file().await?;
+    let accounts_json = ensure_accounts_file().await?; // this attempts refreshing already
     Ok(accounts_json.accounts.values().cloned().collect())
 }
 
@@ -71,13 +73,13 @@ pub async fn list_accounts() -> Result<Vec<LauncherAccount>, String> {
 
 async fn get_kable_accounts_path() -> Result<PathBuf, String> {
     // Use the launcher directory for kable_accounts.json
-    let launcher_dir = get_kable_launcher_dir()?;
+    let launcher_dir = launcher_dir()?;
     let accounts_path = launcher_dir.join(KABLE_ACCOUNTS_FILE);
     // If file does not exist, create it with an empty structure
     if !accounts_path.exists() {
         // Ensure parent directory exists and atomically create the file (sync helper)
         if let Some(parent_dir) = accounts_path.parent() {
-            crate::ensure_folder_sync(parent_dir).map_err(|e| format!("Failed to create Kable launcher directory: {}", e))?;
+            create_dir(parent_dir).await.map_err(|e| format!("Failed to create Kable launcher directory: {}", e))?;
         }
         // Write empty structure
         let empty = serde_json::json!({
@@ -86,19 +88,20 @@ async fn get_kable_accounts_path() -> Result<PathBuf, String> {
             "mojang_client_token": ""
         });
         let content = serde_json::to_string_pretty(&empty).map_err(|e| format!("Failed to serialize empty accounts: {}", e))?;
-        write_file_atomic_async(&accounts_path, content.as_bytes()).await?;
+        write_str(&accounts_path, &content, false).await?;
     }
     Ok(accounts_path)
 }
 /// Load the file, try to parse as LauncherAccountsJson, on failure make file and/or fill with empty default and return that.
+/// SIDE EFFECT: This will also attempt to refresh all accounts by calling refresh_accounts, if that fails it will just return the accounts without refreshing. This way we ensure the file is always in a valid state and we attempt to keep tokens fresh without risking failure to load accounts at all.
 async fn ensure_accounts_file() -> Result<LauncherAccountsJson, String> {
     let accounts_path = get_kable_accounts_path().await?;
     if !accounts_path.exists() {
         // This should be handled by get_kable_accounts_path, but just in case, create an empty file
-        write_file_atomic_async(&accounts_path, b"{}").await?;
+        write_str(&accounts_path, &"{}".to_string(), false).await?;
     }
     // Try to read and parse the file, if it fails (corrupted) overwrite with empty structure
-    let content = read_to_string(&accounts_path).await?;
+    let content = read_str(&accounts_path).await?;
     // Ternary-style set the accounts_json to either the parsed content or a new empty structure if parsing fails
     let accounts_json = serde_json::from_str(&content).unwrap_or(LauncherAccountsJson {
         accounts: HashMap::new(),
@@ -111,7 +114,7 @@ async fn ensure_accounts_file() -> Result<LauncherAccountsJson, String> {
 async fn write_accounts(accounts_json: &LauncherAccountsJson) -> Result<(), String> {
     let accounts_path = get_kable_accounts_path().await?;
     let content = serde_json::to_string_pretty(accounts_json).map_err(|e| format!("Failed to serialize accounts: {}", e))?;
-    write_file(&accounts_path, &content).await?;
+    write_str(&accounts_path, &content, false).await?;
     Ok(())
 }
 
@@ -121,14 +124,14 @@ async fn refresh_account(account: &mut LauncherAccount) -> Result<(), String> {
         None => return Ok(()),
     };
 
-    let refresh_token = secure_token::decrypt_token(encrypted_refresh_token)?;
+    let refresh_token = secure_token::decrypt_token(encrypted_refresh_token).await?;
 
     let token = MicrosoftToken { access_token: String::new(), expires_at: Utc::now(), refresh_token: Some(refresh_token) };
 
     let new_token = crate::integrations::mojang_api::auth::refresh_microsoft_token(token).await?;
 
     if let Some(refresh_token) = new_token.refresh_token {
-        account.encrypted_refresh_token = Some(secure_token::encrypt_token(&refresh_token)?);
+        account.encrypted_refresh_token = Some(secure_token::encrypt_token(&refresh_token).await?);
     }
 
     account.access_token = new_token.access_token;

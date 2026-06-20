@@ -1,5 +1,5 @@
 use crate::constants::{CONFIG_DIR, IMAGES_DIR};
-use crate::system::fs::{ensure_folder, get_kable_launcher_dir};
+use crate::system::fs::{create_dir, launcher_dir};
 use base64::Engine;
 use std::path::PathBuf;
 use tokio::fs as async_fs;
@@ -10,11 +10,11 @@ pub async fn resolve_image_path(key: String) -> Result<String, String> {
     let exts = ["png", "jpg", "jpeg", "webp", "svg", "gif", "ico"];
 
     // Try launcher config images directory: <kable_launcher_dir>/config/images/
-    let launcher_dir = get_kable_launcher_dir()?;
+    let launcher_dir = launcher_dir()?;
     let images_dir = launcher_dir.join(CONFIG_DIR).join(IMAGES_DIR);
 
     // Ensure the images directory exists
-    ensure_folder(&images_dir).await.map_err(|e| format!("Failed to create images directory: {}", e))?;
+    create_dir(&images_dir).await.map_err(|e| format!("Failed to create images directory: {}", e))?;
 
     if images_dir.exists() {
         // Scan the images directory for any file whose stem matches the key
