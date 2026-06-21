@@ -7,3 +7,4 @@ pub mod launcher;
 pub mod logging;
 pub mod mods;
 pub mod profiles;
+pub mod updater;

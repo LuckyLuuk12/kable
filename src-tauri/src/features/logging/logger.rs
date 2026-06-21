@@ -16,7 +16,8 @@ impl Logger {
         LogManager::init(app);
     }
 
-    pub fn log(app: &AppHandle, level: LogLevel, message: &str, instance_id: Option<&str>) {
+    pub fn log(level: LogLevel, message: &str, instance_id: Option<&str>) {
+        let app = crate::app_handle();
         let event =
             LogEvent::new(level, message, None, instance_id.map(|s| s.to_string()), None, None, chrono::Utc::now().timestamp_millis());
 
@@ -24,8 +25,8 @@ impl Logger {
         let _ = app;
     }
 
-    pub fn log_fmt(app: &AppHandle, level: LogLevel, args: fmt::Arguments<'_>, instance_id: Option<&str>) {
-        Self::log(app, level, &format!("{}", args), instance_id);
+    pub fn log_fmt(level: LogLevel, args: fmt::Arguments<'_>, instance_id: Option<&str>) {
+        Self::log(level, &format!("{}", args), instance_id);
     }
 
     pub fn console_log(level: LogLevel, message: &str, instance_id: Option<&str>) {
@@ -41,20 +42,20 @@ impl Logger {
         }
     }
 
-    pub fn info(app: &AppHandle, message: &str, instance_id: Option<&str>) {
-        Self::log(app, LogLevel::Info, message, instance_id);
+    pub fn info(message: &str, instance_id: Option<&str>) {
+        Self::log(LogLevel::Info, message, instance_id);
     }
 
-    pub fn warn(app: &AppHandle, message: &str, instance_id: Option<&str>) {
-        Self::log(app, LogLevel::Warn, message, instance_id);
+    pub fn warn(message: &str, instance_id: Option<&str>) {
+        Self::log(LogLevel::Warn, message, instance_id);
     }
 
-    pub fn error(app: &AppHandle, message: &str, instance_id: Option<&str>) {
-        Self::log(app, LogLevel::Error, message, instance_id);
+    pub fn error(message: &str, instance_id: Option<&str>) {
+        Self::log(LogLevel::Error, message, instance_id);
     }
 
-    pub fn debug(app: &AppHandle, message: &str, instance_id: Option<&str>) {
-        Self::log(app, LogLevel::Debug, message, instance_id);
+    pub fn debug(message: &str, instance_id: Option<&str>) {
+        Self::log(LogLevel::Debug, message, instance_id);
     }
 
     pub fn info_global(message: &str, instance_id: Option<&str>) {
@@ -89,7 +90,7 @@ impl Logger {
         LogManager::console_emit(LogLevel::Error, &message, instance_id.as_deref());
     }
 
-    pub fn update_log_config(settings: &crate::settings::CategorizedLauncherSettings) {
+    pub fn update_log_config(settings: &api_types::settings::CategorizedLauncherSettings) {
         LogManager::update_settings(settings);
     }
 

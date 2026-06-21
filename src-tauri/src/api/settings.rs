@@ -1,9 +1,9 @@
-use api_types::settings::CategorizedLauncherSettings;
 use crate::features::customization::settings;
+use api_types::settings::CategorizedLauncherSettings;
 
 #[tauri::command]
-pub fn get_settings() -> Result<CategorizedLauncherSettings, String> {
-    settings::load_settings()
+pub async fn get_settings() -> Result<CategorizedLauncherSettings, String> {
+    settings::load_settings().await
 }
 
 #[tauri::command]

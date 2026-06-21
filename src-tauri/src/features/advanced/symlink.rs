@@ -80,7 +80,7 @@ impl SymlinkManager {
 
     pub async fn cleanup(&self, installation_id: Option<&str>) -> Result<(), String> {
         for entry in &self.entries {
-            if let Err(e) = crate::system::symlinks::remove_link(&entry.destination).await {
+            if let Err(e) = crate::system::symlinks::unlink(&entry.destination).await {
                 Logger::warn_global(&format!("Failed to cleanup symlink {}: {}", entry.id, e), None);
             }
         }

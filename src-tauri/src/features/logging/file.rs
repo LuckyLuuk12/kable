@@ -1,5 +1,5 @@
 use crate::features::logging::process::LogEvent;
-use crate::settings::CategorizedLauncherSettings;
+use api_types::settings::CategorizedLauncherSettings;
 use chrono::{DateTime, Utc};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;

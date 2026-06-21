@@ -1,5 +1,7 @@
 // This file re-exports all the integration modules, so they can be accessed as `integrations::minecraft`, etc.
+// pub mod curseforge;
 pub mod discord;
+pub mod loaders;
 
 pub mod minecraft;
 pub mod modrinth;

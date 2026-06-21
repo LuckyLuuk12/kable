@@ -6,7 +6,7 @@ use crate::features::accounts::management::{get_active_account, list_accounts};
 use crate::features::customization::settings::load_settings;
 use crate::features::launcher::launch_installation;
 use crate::features::profiles::{kable_profile::load_profiles, management::get_profile};
-use crate::integrations::minecraft::versions::get_versions;
+use crate::integrations::loaders::get_versions;
 
 #[derive(Parser, Debug)]
 pub struct Args {

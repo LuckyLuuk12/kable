@@ -6,8 +6,6 @@ use crate::features::launcher::utils::{
     AssetMode, Library,
 };
 use crate::features::launcher::{LaunchContext, LaunchResult, Launchable};
-use crate::features::profiles::get_version;
-use crate::logging::Logger;
 use crate::system::java::find_java_executable;
 use async_trait::async_trait;
 use reqwest::Client;
@@ -94,7 +92,8 @@ impl From<FabricManifest> for Value {
                 .libraries
                 .into_iter()
                 .map(|l| {
-                    let mut l_map = l.extra;
+                    let mut l_map: serde_json::Map<String, Value> = l.extra.into_iter().collect();
+
                     if let Some(name) = l.name {
                         l_map.insert("name".to_string(), json!(name));
                     }
@@ -121,19 +120,18 @@ pub struct FabricLaunchable;
 #[async_trait]
 impl Launchable for FabricLaunchable {
     async fn prepare(&self, context: &LaunchContext) -> Result<(), String> {
-        let version_id = &context.installation.version_id;
+        let version = &context.installation.version;
         let versions_dir = PathBuf::from(&context.minecraft_dir).join(VERSIONS_DIR);
-        let fabric_json = versions_dir.join(version_id).join(format!("{}.json", version_id));
-        let fabric_jar = versions_dir.join(version_id).join(format!("{}.jar", version_id));
+        let fabric_json = versions_dir.join(version.id).join(format!("{}.json", version.id));
+        let fabric_jar = versions_dir.join(version.id).join(format!("{}.jar", version.id));
 
         if !fabric_json.exists() || !fabric_jar.exists() {
-            let version_data =
-                get_version(version_id.clone()).await.ok_or_else(|| format!("Could not find version data for {}", version_id))?;
-            let extra = &version_data.extra;
-            let mc_version = extra.get("minecraft_version").and_then(|v| v.as_str()).ok_or("No 'minecraft_version' in version.extra")?;
-            let fabric_version = extra.get("version").and_then(|v| v.as_str()).ok_or("No 'version' in version.extra")?;
+            let mc_version = version.minecraft_version.as_ref().ok_or("Missing minecraft_version in version")?;
+            let fabric_version = version.loader_version.as_ref().ok_or("Missing loader_version in version")?;
 
-            crate::system::fs::ensure_folder(&versions_dir.join(version_id)).map_err(|e| format!("Failed to create version dir: {e}"))?;
+            crate::system::fs::create_dir(&versions_dir.join(version.id))
+                .await
+                .map_err(|e| format!("Failed to create version dir: {e}"))?;
 
             let profile_url = fabric_profile_url(mc_version, fabric_version);
 
@@ -161,7 +159,7 @@ impl Launchable for FabricLaunchable {
             std::fs::write(&fabric_jar, jar_bytes).map_err(|e| format!("Failed to save Fabric JAR: {e}"))?;
         }
 
-        let manifest_struct = load_and_merge_fabric_manifest_struct(&context.minecraft_dir, version_id)?;
+        let manifest_struct = load_and_merge_fabric_manifest_struct(&context.minecraft_dir, version.id.as_ref())?;
         let manifest: Value = manifest_struct.into();
         let libraries_path = PathBuf::from(&context.minecraft_dir).join(LIBRARIES_DIR);
         ensure_libraries(&manifest, &libraries_path).await?;
@@ -179,7 +177,7 @@ impl Launchable for FabricLaunchable {
     }
 
     async fn launch(&self, context: &LaunchContext) -> Result<LaunchResult, String> {
-        let version_id = &context.installation.version_id;
+        let version_id = &context.installation.version.id;
         let manifest_struct = load_and_merge_fabric_manifest_struct(&context.minecraft_dir, version_id)?;
         let inherited_id = manifest_struct.inherits_from.as_ref().ok_or("Missing inheritsFrom")?;
 
@@ -205,7 +203,7 @@ impl Launchable for FabricLaunchable {
         let natives_dir = PathBuf::from(&context.minecraft_dir).join("natives");
         if let Some(libs_array) = merged_manifest.get("libraries").and_then(|v| v.as_array()) {
             let libraries: Vec<Library> = libs_array.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect();
-            extract_natives(&libraries, &libraries_path, &natives_dir, Some(&context.installation.id))?;
+            extract_natives(&libraries, &libraries_path, &natives_dir, Some(&context.installation.id)).await?;
         }
 
         let variables = build_variable_map(context, Some(&merged_manifest), &classpath, Some(&context.installation.parameters_map));

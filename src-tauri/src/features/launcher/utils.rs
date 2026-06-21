@@ -1,10 +1,11 @@
 use crate::constants::{LATEST_RELEASE, LATEST_SNAPSHOT, MINECRAFT_VERSION_MANIFEST_URL, VERSIONS_DIR};
-use crate::features::launcher::{LaunchContext, LaunchResult};
+use crate::features::launcher::LaunchResult;
 pub use crate::integrations::minecraft::manifest::{
     compare_versions, ensure_assets_for_manifest, load_and_merge_manifest_sync as load_and_merge_manifest_with_instance, merge_manifests,
     merge_manifests_with_instance, Artifact, AssetMode, Extract, Library, LibraryDownloads, OsRule, Rule,
 };
-use crate::logging::Logger;
+use crate::Logger;
+use api_types::profiles::KableProfile;
 use api_types::settings::CategorizedLauncherSettings;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -252,7 +253,7 @@ pub async fn ensure_version_manifest_and_jar(version_id: &str, minecraft_dir: &s
     }
 
     let version_subdir = PathBuf::from(minecraft_dir).join(VERSIONS_DIR).join(&resolved_version);
-    crate::system::fs::ensure_folder(&version_subdir).map_err(|e| format!("Failed to create versions dir: {}", e))?;
+    crate::system::fs::create_dir(&version_subdir).await.map_err(|e| format!("Failed to create versions dir: {}", e))?;
     let manifest_path = version_subdir.join(format!("{}.json", resolved_version));
     let jar_path = version_subdir.join(format!("{}.jar", resolved_version));
 
@@ -330,7 +331,7 @@ pub async fn ensure_version_manifest_and_jar(version_id: &str, minecraft_dir: &s
     Ok(resolved_version)
 }
 
-pub fn extract_natives(
+pub async fn extract_natives(
     libraries: &[Library],
     libraries_path: &Path,
     natives_path: &PathBuf,
@@ -341,7 +342,7 @@ pub fn extract_natives(
             Logger::debug_global(&format!("Failed to clear natives directory (will continue): {}", e), None);
         }
     }
-    crate::system::fs::ensure_folder_sync(natives_path).map_err(|e| format!("Failed to create natives directory: {}", e))?;
+    crate::system::fs::create_dir(natives_path).await.map_err(|e| format!("Failed to create natives directory: {}", e))?;
     let current_os = if cfg!(windows) {
         "windows"
     } else if cfg!(target_os = "macos") {
@@ -511,15 +512,15 @@ pub fn build_variable_map(
 ) -> HashMap<String, String> {
     let mut variables = HashMap::new();
 
-    variables.insert("auth_player_name".to_string(), context.account.name.clone());
-    variables.insert("version_name".to_string(), context.installation.version_id.clone());
+    variables.insert("auth_player_name".to_string(), context.account.minecraft_profile.name.clone());
+    variables.insert("version_name".to_string(), context.installation.version.id.clone());
     variables.insert("game_directory".to_string(), context.minecraft_dir.clone());
     variables.insert("assets_root".to_string(), PathBuf::from(&context.minecraft_dir).join("assets").to_string_lossy().to_string());
 
     let assets_index_name = manifest.and_then(|m| m.get("assets").and_then(|v| v.as_str())).unwrap_or("legacy");
     variables.insert("assets_index_name".to_string(), assets_index_name.to_string());
 
-    variables.insert("auth_uuid".to_string(), context.account.uuid.clone());
+    variables.insert("auth_uuid".to_string(), context.account.minecraft_profile.id.clone());
     variables.insert("auth_access_token".to_string(), context.account.access_token.clone());
     variables.insert("user_type".to_string(), "mojang".to_string());
     variables.insert("version_type".to_string(), "release".to_string());
@@ -543,20 +544,12 @@ pub async fn spawn_and_log_process(
     cmd: Command,
     working_dir: &str,
     instance_id: &str,
-    installation: &api_types::installations::KableInstallation,
+    installation: &KableProfile,
     _settings: &api_types::settings::CategorizedLauncherSettings,
 ) -> Result<LaunchResult, String> {
     use std::process::Stdio;
     use tokio::io::AsyncBufReadExt;
     use tokio::process::Command as TokioCommand;
-
-    fn get_app_handle() -> Option<tauri::AppHandle> {
-        if let Ok(handle_guard) = crate::logging::GLOBAL_APP_HANDLE.lock() {
-            handle_guard.as_ref().map(|global| (**global).clone())
-        } else {
-            None
-        }
-    }
 
     let mut tokio_cmd = TokioCommand::new(cmd.get_program());
     tokio_cmd.args(cmd.get_args());
@@ -574,93 +567,76 @@ pub async fn spawn_and_log_process(
 
     crate::system::processes::track_process(pid);
 
-    let app_handle = get_app_handle();
+    let app = crate::app_handle();
 
-    if let Some(ref app) = app_handle {
-        let _ = app.emit(
-            "game-launched",
-            serde_json::json!({
-                "instanceId": instance_id,
-                "profile": { "name": installation.name },
-                "installation": installation
-            }),
-        );
-    }
+    let _ = app.emit(
+        "game-launched",
+        serde_json::json!({
+            "instanceId": instance_id,
+            "profile": { "name": installation.name },
+            "installation": installation
+        }),
+    );
 
-    if let Some(ref app) = app_handle {
-        let _ = app.emit(
-            "game-process-event",
-            serde_json::json!({
-                "instanceId": instance_id,
-                "type": "started",
-                "data": { "pid": pid }
-            }),
-        );
-        Logger::log(app, crate::logging::LogLevel::Info, "=== MINECRAFT PROCESS SPAWNED ===", Some(instance_id));
-    }
+    let _ = app.emit(
+        "game-process-event",
+        serde_json::json!({
+            "instanceId": instance_id,
+            "type": "started",
+            "data": { "pid": pid }
+        }),
+    );
+    Logger::info("=== MINECRAFT PROCESS SPAWNED ===", Some(instance_id));
 
     let stdout = child.stdout.take().unwrap();
     let stderr = child.stderr.take().unwrap();
     let instance_id_clone = instance_id.to_string();
-    let app_handle_clone = app_handle.clone();
 
     tokio::spawn(async move {
         let mut reader = BufReader::new(stdout).lines();
         while let Ok(Some(line)) = reader.next_line().await {
-            if let Some(ref app) = app_handle_clone {
-                let _ = app.emit(
-                    "game-process-event",
-                    serde_json::json!({
-                        "instanceId": instance_id_clone,
-                        "type": "output",
-                        "data": line
-                    }),
-                );
-                Logger::log(app, crate::logging::LogLevel::Info, &line, Some(&instance_id_clone));
-            }
+            let _ = crate::app_handle().emit(
+                "game-process-event",
+                serde_json::json!({
+                    "instanceId": instance_id_clone,
+                    "type": "output",
+                    "data": line
+                }),
+            );
+            Logger::info(&line, Some(&instance_id_clone));
         }
     });
 
     let instance_id_clone2 = instance_id.to_string();
-    let app_handle_clone2 = app_handle.clone();
     tokio::spawn(async move {
         let mut reader = BufReader::new(stderr).lines();
         while let Ok(Some(line)) = reader.next_line().await {
-            if let Some(ref app) = app_handle_clone2 {
-                let _ = app.emit(
-                    "game-process-event",
-                    serde_json::json!({
-                        "instanceId": instance_id_clone2,
-                        "type": "error",
-                        "data": line
-                    }),
-                );
-                Logger::log(app, crate::logging::LogLevel::Error, &line, Some(&instance_id_clone2));
-            }
+            let _ = crate::app_handle().emit(
+                "game-process-event",
+                serde_json::json!({
+                    "instanceId": instance_id_clone2,
+                    "type": "error",
+                    "data": line
+                }),
+            );
+            Logger::error(&line, Some(&instance_id_clone2));
         }
     });
 
     let instance_id_clone3 = instance_id.to_string();
-    let app_handle_clone3 = app_handle.clone();
     tokio::spawn(async move {
         let status = child.wait().await;
-        if let Some(ref app) = app_handle_clone3 {
-            let exit_code = status.map(|s| s.code().unwrap_or(-1)).unwrap_or(-1);
-            let _ = app.emit(
-                "game-process-event",
-                serde_json::json!({
-                    "instanceId": instance_id_clone3,
-                    "type": "exit",
-                    "data": { "exitCode": exit_code }
-                }),
-            );
-            Logger::log(
-                app,
-                crate::logging::LogLevel::Info,
-                &format!("=== MINECRAFT PROCESS EXITED WITH CODE {} ===", exit_code),
-                Some(&instance_id_clone3),
-            );
-        }
+
+        let exit_code = status.map(|s| s.code().unwrap_or(-1)).unwrap_or(-1);
+        let _ = crate::app_handle().emit(
+            "game-process-event",
+            serde_json::json!({
+                "instanceId": instance_id_clone3,
+                "type": "exit",
+                "data": { "exitCode": exit_code }
+            }),
+        );
+        Logger::info(&format!("=== MINECRAFT PROCESS EXITED WITH CODE {} ===", exit_code), Some(&instance_id_clone3));
     });
 
     Ok(LaunchResult { pid, command: format!("{:?}", cmd) })

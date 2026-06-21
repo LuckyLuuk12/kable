@@ -90,7 +90,7 @@ async fn get_or_create_key() -> std::io::Result<[u8; KEY_SIZE]> {
 
     // Persist to file as fallback
     if let Some(parent) = key_path.parent() {
-        crate::create_dir(parent).await.map_err(std::io::Error::other)?;
+        crate::system::fs::create_dir(parent).await.map_err(std::io::Error::other)?;
     }
     let mut file = OpenOptions::new().write(true).create(true).truncate(true).open(&key_path)?;
     #[cfg(unix)]

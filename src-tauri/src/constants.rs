@@ -2,6 +2,7 @@
 pub const DISCORD_APP_ID: &str = "1432139549592649738";
 pub const DEFAULT_AZURE_CLIENT_ID: &str = "4c27a19f-a3d0-4cd2-8e05-9fd961f905df";
 // Trusted URLs for fetching required information
+pub const KABLE_GITHUB_RELEASES: &str = "https://api.github.com/repos/LuckyLuuk12/kable/releases";
 pub const MINECRAFT_VERSION_MANIFEST_URL: &str = "https://launchermeta.mojang.com/mc/game/version_manifest.json";
 pub const FABRIC_META_URL: &str = "https://meta.fabricmc.net";
 pub const QUILT_META_URL: &str = "https://meta.quiltmc.org";
@@ -44,6 +45,7 @@ pub const SETTINGS_FILE: &str = "settings.json";
 pub const SOUNDPACK_FILE: &str = "soundpack.json";
 pub const CUSTOM_SYMLINKS_FILE: &str = "custom_symlinks.json";
 pub const LAUNCHER_PROFILES_FILE: &str = "launcher_profiles.json";
+pub const PENDING_UPDATE_FILE: &str = "pending_update.json";
 pub const KABLE_ACCOUNTS_FILE: &str = "kable_accounts.json";
 pub const KABLE_PROFILES_FILE: &str = "kable_profiles.json";
 pub const MODRINTH_CACHE_FILE: &str = "modrinth_cache.json";

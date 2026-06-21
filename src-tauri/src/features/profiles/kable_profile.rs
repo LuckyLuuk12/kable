@@ -1,6 +1,6 @@
 use crate::constants::{CONFIG_DIR, KABLE_PROFILES_FILE, MODS_DIR, RESOURCEPACKS_DIR, SHADERPACKS_DIR};
+use crate::integrations::loaders::get_versions;
 use crate::integrations::minecraft::profiles::parse_launcher_profiles;
-use crate::integrations::minecraft::versions::get_versions;
 use crate::system::fs::{launcher_dir, read_str, write_str};
 use api_types::profiles::LauncherProfiles;
 use api_types::profiles::{KableProfile, Profile};

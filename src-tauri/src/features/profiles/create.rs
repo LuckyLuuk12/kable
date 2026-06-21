@@ -1,5 +1,4 @@
-use crate::integrations::minecraft::versions::get_version_data;
-use crate::integrations::modrinth::client::download_project;
+use crate::integrations::loaders::get_version_data;
 
 /*
  *  create profile functions:

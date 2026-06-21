@@ -33,6 +33,7 @@ pub struct LauncherAccount {
     pub in_forced_migration: bool,
     pub legacy: bool,
     pub license_product_ids: Vec<String>,
+    /// This is usually the same as the user's UUID but for correctness use the Minecraft Profile's ID!
     pub local_id: String,
     pub minecraft_profile: MinecraftProfile,
     pub persistent: bool,

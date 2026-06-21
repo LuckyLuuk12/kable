@@ -134,8 +134,12 @@ impl DiscordRpcManager {
 
 /// Initialize Discord Rich Presence
 pub fn initialize() -> Result<(), String> {
-    let mut manager = DISCORD_MANAGER.lock().map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
-    manager.initialize()
+    tauri::async_runtime::spawn(async {
+        let mut manager = DISCORD_MANAGER.lock().map_err(|e| format!("Failed to lock Discord manager: {}", e))?;
+        manager.initialize()
+    });
+
+    Ok(())
 }
 
 /// Enable or disable Discord Rich Presence

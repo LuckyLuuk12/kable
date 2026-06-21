@@ -1,5 +1,5 @@
 use crate::features::profiles::management;
-use crate::integrations::minecraft::versions;
+use crate::integrations::loaders;
 use api_types::profiles::{KableProfile, Versions};
 
 #[tauri::command]
@@ -35,5 +35,5 @@ pub async fn modify_profile(old_profile: KableProfile, new_profile: KableProfile
 
 #[tauri::command]
 pub async fn get_versions() -> Result<Versions, String> {
-    versions::get_versions().await
+    loaders::get_versions().await
 }

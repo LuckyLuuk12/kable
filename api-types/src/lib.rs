@@ -13,3 +13,4 @@ pub mod shaders;
 pub mod skins;
 pub mod sounds;
 pub mod symlinks;
+pub mod updater;

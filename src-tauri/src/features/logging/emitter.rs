@@ -22,6 +22,7 @@ struct BatchState {
 impl LogEmitter {
     pub fn new(app: AppHandle) -> Self {
         let (tx, rx) = sync_channel::<LogEvent>(2048);
+        // TODO: I made a global app handle in lib.rs and get_app_handle() so we should refactor the logging code to not require passing the app handle around...
         let app_clone = app.clone();
 
         std::thread::spawn(move || {
@@ -109,7 +110,7 @@ impl LogEmitter {
     }
 
     /// placeholder for future dynamic config support
-    pub fn update_settings(&self, _settings: &crate::settings::CategorizedLauncherSettings) {
+    pub fn update_settings(&self, _settings: &api_types::settings::CategorizedLauncherSettings) {
         // intentionally empty for now (kept for manager compatibility)
     }
 }

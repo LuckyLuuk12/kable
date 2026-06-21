@@ -31,7 +31,7 @@ impl Launchable for ForgeLaunchable {
     }
 
     async fn launch(&self, context: &LaunchContext) -> Result<LaunchResult, String> {
-        let version_id = &context.installation.version_id;
+        let version_id = &context.installation.version.id;
         let forge_manifest = load_forge_manifest(&context.minecraft_dir, version_id)?;
 
         let inherited_id = forge_manifest
@@ -65,7 +65,7 @@ impl Launchable for ForgeLaunchable {
         let natives_dir = PathBuf::from(&context.minecraft_dir).join("natives");
         if let Some(libs_array) = merged_manifest.get("libraries").and_then(|v| v.as_array()) {
             let libraries: Vec<Library> = libs_array.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect();
-            extract_natives(&libraries, &libraries_path, &natives_dir, Some(&context.installation.id))?;
+            extract_natives(&libraries, &libraries_path, &natives_dir, Some(&context.installation.id)).await?;
         }
 
         let variables = build_variable_map(context, Some(&merged_manifest), &classpath, Some(&context.installation.parameters_map));

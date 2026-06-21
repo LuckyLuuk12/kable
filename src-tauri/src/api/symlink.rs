@@ -17,11 +17,16 @@ pub async fn delete_symlink(id: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn set_symlink_enabled(id: String, enabled: bool) -> Result<(), String> {
-    SymlinkManager::load().await?.set_enabled(&id, enabled).await
+pub async fn enable_symlink(id: String) -> Result<(), String> {
+    SymlinkManager::load().await?.enable(&id).await
 }
 
 #[tauri::command]
-pub async fn repair_symlink(id: String) -> Result<(), String> {
-    SymlinkManager::load().await?.repair(&id).await
+pub async fn disable_symlink(id: String) -> Result<(), String> {
+    SymlinkManager::load().await?.disable(&id).await
 }
+
+// #[tauri::command]
+// pub async fn repair_symlink(id: String) -> Result<(), String> {
+//     SymlinkManager::load().await?.repair(&id).await
+// }

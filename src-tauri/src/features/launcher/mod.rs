@@ -36,12 +36,15 @@ pub trait Launchable: Send + Sync {
 }
 
 pub fn get_launchable_for_installation(installation: &KableProfile) -> Result<Box<dyn Launchable>, String> {
-    if installation.version_id.contains("fabric") {
-        Ok(Box::new(fabric::FabricLaunchable::default()))
-    } else if installation.version_id.contains("forge") {
-        Ok(Box::new(forge::ForgeLaunchable::default()))
-    } else {
-        Ok(Box::new(vanilla::VanillaLaunchable::default()))
+    match installation.version.loader {
+        api_types::profiles::LoaderKind::Vanilla => Ok(Box::new(vanilla::VanillaLaunchable::default())),
+        api_types::profiles::LoaderKind::Fabric | api_types::profiles::LoaderKind::IrisFabric => {
+            Ok(Box::new(fabric::FabricLaunchable::default()))
+        }
+        api_types::profiles::LoaderKind::Forge | api_types::profiles::LoaderKind::NeoForge => {
+            Ok(Box::new(forge::ForgeLaunchable::default()))
+        }
+        api_types::profiles::LoaderKind::Quilt => Ok(Box::new(fabric::FabricLaunchable::default())), // TODO: I have never used quilt but it looked similar to fabric but we might have to edit this later.
     }
 }
 
@@ -50,7 +53,7 @@ pub async fn launch_installation(
     settings: CategorizedLauncherSettings,
     account: LauncherAccount,
 ) -> Result<LaunchResult, String> {
-    let minecraft_dir = crate::system::fs::get_default_minecraft_dir()?.to_string_lossy().to_string();
+    let minecraft_dir = crate::system::fs::mc_dir()?.to_string_lossy().to_string();
 
     let context = LaunchContext { installation: profile, settings, account, minecraft_dir };
 
