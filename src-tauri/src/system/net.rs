@@ -52,3 +52,37 @@ pub async fn async_http_client(request: HttpRequest) -> Result<HttpResponse, OAu
 
     Ok(http_resp)
 }
+
+pub type NetResult<T> = Result<T, String>;
+
+pub async fn download_to_file(url: &str, path: &std::path::Path) -> NetResult<()> {
+    let resp = reqwest::get(url).await.map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+
+    let bytes = resp.bytes().await.map_err(|e| e.to_string())?;
+
+    crate::system::fs::write(path, &bytes, true).await?;
+
+    // if let Some(parent) = path.parent() {
+    //     tokio::fs::create_dir_all(parent).await.map_err(|e| e.to_string())?;
+    // }
+
+    // let mut file = tokio::fs::File::create(path).await.map_err(|e| e.to_string())?;
+
+    // file.write_all(&bytes).await.map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
+pub async fn download_bytes(url: &str) -> NetResult<Vec<u8>> {
+    let resp = reqwest::get(url).await.map_err(|e| e.to_string())?;
+
+    if !resp.status().is_success() {
+        return Err(format!("HTTP error: {}", resp.status()));
+    }
+
+    resp.bytes().await.map(|b| b.to_vec()).map_err(|e| e.to_string())
+}
