@@ -1,9 +1,10 @@
 use crate::integrations::minecraft::versions::vanilla::AssetIndex;
 use crate::system::{fs, net};
 
+// Only Vanilla has assets but all loaders inherit and should contain a parent pointing to a vanilla version so we can just use the vanilla asset index for all loaders.
 pub async fn ensure_assets(index: &AssetIndex) -> Result<(), String> {
     let mc_dir = fs::mc_dir()?;
-    let assets_dir = mc_dir.join("assets");
+    let assets_dir = mc_dir.join(crate::constants::ASSETS_DIR);
 
     let index_path = assets_dir.join("indexes").join(format!("{}.json", index.id));
 

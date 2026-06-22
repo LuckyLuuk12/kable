@@ -153,8 +153,19 @@ pub struct OfficialLauncherSettings {
 }
 
 //?----------------------------------------------------------------------
-//? impl blocks for conversion from .minecraft stuff to Kable types
+//? impl blocks
 //?----------------------------------------------------------------------
+
+impl std::fmt::Display for VersionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VersionType::Release => write!(f, "release"),
+            VersionType::Snapshot => write!(f, "snapshot"),
+            VersionType::OldBeta => write!(f, "old_beta"),
+            VersionType::OldAlpha => write!(f, "old_alpha"),
+        }
+    }
+}
 
 // #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
 // pub struct VersionData {

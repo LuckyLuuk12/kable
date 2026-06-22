@@ -36,6 +36,7 @@ pub const THEMES_DIR: &str = "themes";
 pub const VERSIONS_DIR: &str = "versions";
 pub const LIBRARIES_DIR: &str = "libraries";
 pub const ASSETS_DIR: &str = "assets";
+pub const NATIVES_DIR: &str = "natives";
 // Other kind of util folders - usually still relate
 pub const TEMP_DIR: &str = "tmp";
 pub const CACHE_DIR: &str = "cache";

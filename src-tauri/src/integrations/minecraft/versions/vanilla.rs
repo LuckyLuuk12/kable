@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use strum::Display;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -53,11 +54,14 @@ pub struct PurpleOs {
     pub version_range: Option<VersionRange>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Display)]
 #[serde(rename_all = "snake_case")]
 pub enum Name {
+    #[strum(to_string = "linux")]
     Linux,
+    #[strum(to_string = "osx")]
     Osx,
+    #[strum(to_string = "windows")]
     Windows,
 }
 

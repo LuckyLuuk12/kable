@@ -539,7 +539,14 @@ pub fn build_variable_map(
     }
     variables
 }
-
+//
+//
+//
+//
+//
+//
+//
+// TODO: This looks to me like the only function we want to keep in this module.
 pub async fn spawn_and_log_process(
     cmd: Command,
     working_dir: &str,
