@@ -80,6 +80,8 @@ clap = "4.6.1"
 bincode = { version = "2", features = ["serde"] }
 dashmap = "6.2.1"
 futures = "0.3.32"
+tower-http = { version = "0.7.0", features = ["fs"] }
+axum = "0.8.9"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 glib = ">=0.20.0"   # Fix: Unsoundness in `Iterator` and `DoubleEndedIterator` impls for `glib::VariantStrIter`

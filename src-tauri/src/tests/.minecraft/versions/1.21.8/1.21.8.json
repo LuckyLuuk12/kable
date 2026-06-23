@@ -1,0 +1,25 @@
+{
+  "id": "1.21.8",
+  "type": "release",
+  "mainClass": "net.minecraft.client.main.Main",
+  "arguments": {
+    "game": [
+      "--demo",
+      "false"
+    ],
+    "jvm": [
+      "-Djava.awt.headless=true"
+    ]
+  },
+  "libraries": [
+    {
+      "name": "org.ow2.asm:asm:9.8",
+      "downloads": {
+        "artifact": {
+          "url": "https://example.invalid/libs/asm.jar",
+          "path": "org/ow2/asm/asm/9.8/asm-9.8.jar"
+        }
+      }
+    }
+  ]
+}

@@ -1,163 +1,215 @@
-use crate::integrations::minecraft::versions::{fabric, forge, neoforge, quilt, vanilla};
-use crate::system::{fs, net};
-use serde::{Deserialize, Serialize};
-use sha1::{Digest, Sha1};
-use std::path::PathBuf;
+use std::{collections::HashSet, path::PathBuf};
 
-fn maven_to_path(name: &str) -> PathBuf {
-    let parts: Vec<&str> = name.split(':').collect();
-    if parts.len() != 3 {
-        return PathBuf::from(name); // fallback (unsafe but practical)
+use crate::{
+    constants::LIBRARIES_DIR,
+    integrations::minecraft::versions::types::LibraryRule,
+    system::{fs, net},
+};
+
+use crate::integrations::minecraft::versions::types::{DownloadArtifact, Library};
+
+// ============================================================
+// RESOLVER
+// ============================================================
+
+pub struct LibraryResolver {
+    mc_root: PathBuf,
+    libraries_dir: PathBuf,
+}
+
+impl LibraryResolver {
+    pub fn new() -> Result<Self, String> {
+        let mc_root = crate::system::fs::mc_dir()?;
+        let libraries_dir = mc_root.join(LIBRARIES_DIR);
+
+        Ok(Self { mc_root, libraries_dir })
     }
 
-    let group = parts[0].replace('.', "/");
-    let artifact = parts[1];
-    let version = parts[2];
+    // --------------------------------------------------------
+    // CLASSPATH
+    // --------------------------------------------------------
 
-    let file = format!("{artifact}-{version}.jar");
+    pub fn resolve_classpath(&self, libs: &[Library]) -> Result<String, String> {
+        let mut seen = HashSet::<PathBuf>::new();
+        let mut entries: Vec<String> = Vec::new();
 
-    PathBuf::from(group).join(artifact).join(version).join(file)
-}
+        for lib in libs {
+            if !self.is_allowed(lib) {
+                continue;
+            }
 
-async fn verify_sha1(path: &std::path::Path, expected: &str) -> Result<bool, String> {
-    let data = fs::read(path).await?;
+            let Some(path) = self.resolve_library_path(lib)? else {
+                continue;
+            };
 
-    let mut hasher = Sha1::new();
-    hasher.update(data);
+            let full_path = self.libraries_dir.join(&path);
 
-    let result = format!("{:x}", hasher.finalize());
-
-    Ok(result == expected)
-}
-
-fn current_os() -> &'static str {
-    match std::env::consts::OS {
-        "windows" => "windows",
-        "linux" => "linux",
-        "macos" => "osx", // macOS is referred to as "osx" in Minecraft's library rules
-        _ => "linux",     // I guess it's safest to fallback to linux...
-    }
-}
-
-pub async fn ensure_libraries<L>(libs: &[L]) -> Result<(), String>
-where
-    L: Into<ResolvedLibrary> + Clone,
-{
-    for lib in libs {
-        let lib = lib.clone().into();
-        // Check if the library is allowed for the current OS if an OS rule is specified
-        if let Some(os_rule) = &lib.os {
-            let current_os = current_os();
-            if os_rule != &current_os {
-                continue; // Skip this library as it is not allowed for the current OS
+            if seen.insert(full_path.clone()) {
+                entries.push(full_path.to_string_lossy().to_string());
             }
         }
 
-        let needs_download = match &lib.sha1 {
-            None => {
-                // no integrity info → fallback to existence check
-                !lib.path.exists()
+        Ok(entries.join(if cfg!(windows) { ";" } else { ":" }))
+    }
+
+    // --------------------------------------------------------
+    // DOWNLOADS
+    // --------------------------------------------------------
+
+    pub async fn ensure_downloaded(&self, libs: &[Library]) -> Result<(), String> {
+        for lib in libs {
+            if self.is_native_library(lib) {
+                continue;
             }
-            Some(expected) => {
-                match verify_sha1(&lib.path, expected).await {
-                    Ok(true) => false, // valid
-                    Ok(false) => true, // corrupted
-                    Err(_) => true,    // unreadable → re-download
-                }
+
+            if !self.is_allowed(lib) {
+                continue;
             }
+
+            let Some((url, rel_path)) = self.resolve_download(lib)? else {
+                continue;
+            };
+
+            let full_path = self.libraries_dir.join(&rel_path);
+
+            if full_path.exists() {
+                continue;
+            }
+
+            if let Some(parent) = full_path.parent() {
+                fs::create_dir(parent).await?;
+            }
+
+            net::download_to_file(&url, &full_path).await?;
+        }
+
+        Ok(())
+    }
+
+    // ============================================================
+    // PATH RESOLUTION
+    // ============================================================
+
+    fn resolve_library_path(&self, lib: &Library) -> Result<Option<PathBuf>, String> {
+        // Priority 1: artifact path (correct for Forge/NeoForge/Fabric)
+        if let Some(artifact) = self.get_artifact(lib) {
+            if let Some(path) = &artifact.path {
+                return Ok(Some(PathBuf::from(path)));
+            }
+        }
+
+        // Priority 2: maven-style name
+        if let Some(name) = &lib.name {
+            return Ok(Some(PathBuf::from(self.maven_to_path(name))));
+        }
+
+        Ok(None)
+    }
+
+    fn resolve_download(&self, lib: &Library) -> Result<Option<(String, PathBuf)>, String> {
+        let artifact = self.get_artifact(lib);
+
+        // ----------------------------------------------------
+        // Case 1: full artifact download exists
+        // ----------------------------------------------------
+        if let Some(artifact) = artifact {
+            if let (Some(url), Some(path)) = (&artifact.url, &artifact.path) {
+                return Ok(Some((url.clone(), PathBuf::from(path))));
+            }
+        }
+
+        // ----------------------------------------------------
+        // Case 2: fallback to library.url + maven path
+        // ----------------------------------------------------
+        if let (Some(url), Some(name)) = (&lib.url, &lib.name) {
+            let path = self.maven_to_path(name);
+            return Ok(Some((url.clone(), PathBuf::from(path))));
+        }
+
+        Ok(None)
+    }
+
+    // ============================================================
+    // ARTIFACT ACCESS
+    // ============================================================
+
+    fn get_artifact<'a>(&self, lib: &'a Library) -> Option<&'a DownloadArtifact> {
+        lib.downloads.as_ref()?.artifact.as_ref()
+    }
+
+    // ============================================================
+    // MAVEN RESOLUTION
+    // ============================================================
+
+    fn maven_to_path(&self, name: &str) -> String {
+        let parts: Vec<&str> = name.split(':').collect();
+
+        if parts.len() < 3 {
+            return format!("{}.jar", name);
+        }
+
+        let group = parts[0].replace('.', "/");
+        let artifact = parts[1];
+        let version = parts[2];
+
+        let classifier = parts.get(3);
+
+        match classifier {
+            Some(c) => format!("{}/{}/{}/{}-{}-{}.jar", group, artifact, version, artifact, version, c),
+            None => format!("{}/{}/{}/{}-{}.jar", group, artifact, version, artifact, version),
+        }
+    }
+
+    // ============================================================
+    // RULE FILTER
+    // ============================================================
+
+    fn is_allowed(&self, lib: &Library) -> bool {
+        let Some(rules) = &lib.rules else {
+            return true;
         };
 
-        if !needs_download {
-            continue;
-        }
+        let mut allowed = None;
 
-        net::download_to_file(&lib.url, &lib.path).await?;
+        for rule in rules {
+            let matches = self.rule_matches(rule);
 
-        if let Some(expected) = &lib.sha1 {
-            let ok = verify_sha1(&lib.path, expected).await?;
-            if !ok {
-                return Err(format!("SHA1 mismatch for {}", lib.name));
+            if matches {
+                match rule.action.as_deref() {
+                    Some("allow") => allowed = Some(true),
+                    Some("disallow") => allowed = Some(false),
+                    _ => {}
+                }
             }
         }
+
+        allowed.unwrap_or(true)
     }
 
-    Ok(())
-}
+    fn rule_matches(&self, rule: &LibraryRule) -> bool {
+        let Some(os) = &rule.os else {
+            return true;
+        };
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ResolvedLibrary {
-    pub name: String,
-    pub url: String,
-    pub sha1: Option<String>,
-    pub size: Option<u64>,
-    /// This is always a relative path normally from the .minecraft directory.
-    pub path: PathBuf,
-    /// Vanilla manifest may contain an OS "rule" which is always "Allow"
-    pub os: Option<String>,
-}
+        let current = std::env::consts::OS;
 
-impl From<vanilla::Library> for ResolvedLibrary {
-    fn from(lib: vanilla::Library) -> Self {
-        ResolvedLibrary {
-            // In vanilla, the name is basically the Maven coordinate.
-            name: lib.name.clone(),
-            url: lib.downloads.artifact.url,
-            sha1: Some(lib.downloads.artifact.sha1),
-            size: Some(lib.downloads.artifact.size as u64),
-            path: match &lib.downloads.artifact.path {
-                Some(p) => PathBuf::from(p),
-                None => maven_to_path(&lib.name),
-            },
-            os: lib.rules.as_ref().and_then(|rules| {
-                rules
-                    .iter()
-                    .find_map(|rule| if rule.action == vanilla::Action::Allow { Some(rule.os.name.clone().to_string()) } else { None })
-            }),
+        if let Some(name) = &os.name {
+            match name.as_str() {
+                "windows" => current == "windows",
+                "linux" => current == "linux",
+                "osx" | "mac" | "macos" => current == "macos",
+                _ => return false,
+            }
+        } else {
+            true
         }
     }
-}
 
-impl From<fabric::Library> for ResolvedLibrary {
-    fn from(lib: fabric::Library) -> Self {
-        ResolvedLibrary {
-            name: lib.name.clone(),
-            url: lib.url,
-            sha1: lib.sha1.clone(),
-            size: lib.size.map(|s| s as u64),
-            path: maven_to_path(&lib.name),
-            os: None,
-        }
-    }
-}
+    fn is_native_library(&self, lib: &Library) -> bool {
+        let Some(name) = &lib.name else {
+            return false;
+        };
 
-impl From<forge::Library> for ResolvedLibrary {
-    fn from(lib: forge::Library) -> Self {
-        ResolvedLibrary {
-            name: lib.name.clone(),
-            url: lib.downloads.artifact.url,
-            sha1: Some(lib.downloads.artifact.sha1.clone()),
-            size: Some(lib.downloads.artifact.size as u64),
-            path: PathBuf::from(&lib.downloads.artifact.path),
-            os: None,
-        }
-    }
-}
-
-impl From<neoforge::Library> for ResolvedLibrary {
-    fn from(lib: neoforge::Library) -> Self {
-        ResolvedLibrary {
-            name: lib.name.clone(),
-            url: lib.downloads.artifact.url,
-            sha1: Some(lib.downloads.artifact.sha1.clone()),
-            size: Some(lib.downloads.artifact.size as u64),
-            path: PathBuf::from(&lib.downloads.artifact.path),
-            os: None,
-        }
-    }
-}
-
-impl From<quilt::Library> for ResolvedLibrary {
-    fn from(lib: quilt::Library) -> Self {
-        ResolvedLibrary { name: lib.name.clone(), url: lib.url, sha1: None, size: None, path: maven_to_path(&lib.name), os: None }
+        name.contains("natives-")
     }
 }

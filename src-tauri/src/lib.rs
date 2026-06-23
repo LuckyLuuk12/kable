@@ -4,7 +4,8 @@ use std::sync::OnceLock;
 // The actual macro implementations are in `../kable-macros/src/lib.rs`
 pub use kable_macros::*;
 // Shared DTOs live in api-types.
-mod api; // API should not be accessible outside this crate/file as this is the only place we should register Tauri commands.
+mod api;
+mod tests; // API should not be accessible outside this crate/file as this is the only place we should register Tauri commands.
 use api::*;
 pub use api_types::*;
 pub use features::logging::Logger;

@@ -1,0 +1,39 @@
+{
+  "id": "test-loader",
+  "type": "release",
+  "inheritsFrom": "1.21.8",
+  "mainClass": "net.minecraft.client.main.Main",
+  "arguments": {
+    "game": [
+      "--username",
+      "${auth_player_name}",
+      "--version",
+      "${version_name}",
+      "--gameDir",
+      "${game_directory}",
+      "--assetsDir",
+      "${assets_root}",
+      "--assetIndex",
+      "${assets_index_name}"
+    ],
+    "jvm": [
+      "-Xmx1G",
+      "-Djava.library.path=${natives_directory}"
+    ]
+  },
+  "assetIndex": {
+    "id": "1.21",
+    "url": "http://127.0.0.1:8080/assets/index.json"
+  },
+  "libraries": [
+    {
+      "name": "org.ow2.asm:asm:9.8",
+      "downloads": {
+        "artifact": {
+          "url": "http://127.0.0.1:8080/libs/asm.jar",
+          "path": "org/ow2/asm/asm/9.8/asm-9.8.jar"
+        }
+      }
+    }
+  ]
+}

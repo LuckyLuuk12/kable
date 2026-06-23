@@ -4,7 +4,7 @@ use clap::Parser;
 
 use crate::features::accounts::management::{get_active_account, list_accounts};
 use crate::features::customization::settings::load_settings;
-use crate::features::launcher::launch_installation;
+use crate::features::launcher::launch::launch_game;
 use crate::features::profiles::{kable_profile::load_profiles, management::get_profile};
 use crate::integrations::loaders::get_versions;
 
@@ -37,7 +37,7 @@ pub async fn handle_args(args: Args) -> Result<(), String> {
         // Find profile by id, launch with loaded settings and active account.
         let profile = get_profile(&profile_id).await?;
         let account = get_active_account().await?.expect("No active account found!");
-        launch_installation(profile, settings, account).await?;
+        launch_game(profile, &settings).await?;
     }
 
     // 5. If no args we first load customizations if needed.
