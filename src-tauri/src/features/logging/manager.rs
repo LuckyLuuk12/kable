@@ -17,12 +17,12 @@ struct Inner {
 }
 
 impl LogManager {
-    pub fn init(app: &AppHandle) {
+    pub fn init() {
         let manager = Self::global();
         let mut inner = manager.inner.lock().unwrap();
 
-        inner.emitter = Some(LogEmitter::new(app.clone()));
-        inner.file = Some(LogFileWriter::new(app));
+        inner.emitter = Some(LogEmitter::new());
+        inner.file = Some(LogFileWriter::new());
     }
 
     /// Core routing entrypoint

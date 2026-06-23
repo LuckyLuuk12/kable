@@ -6,7 +6,7 @@ use tokio::process::Command as TokioCommand;
 
 pub async fn launch_game(
     profile: KableProfile,
-    _settings: &api_types::settings::CategorizedLauncherSettings,
+    // _settings: &api_types::settings::CategorizedLauncherSettings,
 ) -> Result<LaunchResult, String> {
     // 1. Resolve and prepare the command
     let cmd = resolver::resolve(profile.clone()).await?;
@@ -22,7 +22,7 @@ pub async fn launch_game(
     tokio_cmd.stdout(Stdio::piped());
     tokio_cmd.stderr(Stdio::piped());
 
-    let mut child = tokio_cmd.spawn().map_err(|e| format!("Failed to launch: {e}"))?;
+    let child = tokio_cmd.spawn().map_err(|e| format!("Failed to launch: {e}"))?;
     let pid = child.id().unwrap_or(0);
 
     crate::system::processes::track_process(pid);

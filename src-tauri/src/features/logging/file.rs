@@ -31,7 +31,7 @@ struct FileConfig {
 }
 
 impl LogFileWriter {
-    pub fn new(_app: &tauri::AppHandle) -> Self {
+    pub fn new() -> Self {
         let (tx, rx) = sync_channel::<LogEvent>(1024);
 
         let logs_dir = crate::system::fs::kable_dir().unwrap().join("logs");

@@ -12,8 +12,8 @@ use tauri::AppHandle;
 pub struct Logger;
 
 impl Logger {
-    pub fn init(app: &AppHandle) {
-        LogManager::init(app);
+    pub fn init() {
+        LogManager::init();
     }
 
     pub fn log(level: LogLevel, message: &str, instance_id: Option<&str>) {

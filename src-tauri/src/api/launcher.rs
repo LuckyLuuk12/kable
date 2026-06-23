@@ -1,9 +1,7 @@
 use crate::features::launcher;
 use crate::system::java;
-use api_types::auth::LauncherAccount;
 use api_types::launcher::LaunchResult;
 use api_types::profiles::KableProfile;
-use api_types::settings::CategorizedLauncherSettings;
 
 // #[tauri::command]
 // pub async fn launch_installation(
@@ -33,6 +31,11 @@ use api_types::settings::CategorizedLauncherSettings;
 // pub async fn wait_for_minecraft_exit(process_id: u32) -> Result<(), String> {
 //     launcher::wait_for_minecraft_exit(process_id).await.map(|_| ())
 // }
+
+#[tauri::command]
+pub async fn launch_game(profile: KableProfile) -> Result<LaunchResult, String> {
+    launcher::launch::launch_game(profile).await
+}
 
 #[tauri::command]
 pub fn auto_detect_java() -> Result<String, String> {

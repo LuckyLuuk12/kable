@@ -1,19 +1,56 @@
 // This file is auto-generated with `cd api-typegen && cargo run`. Do not edit directly.
 
-export interface SymlinkInfo {
-  source_path: string;
-  target_path: string;
-  enabled: boolean;
+export interface UpdateData {
+  version: string;
+  date?: string;
+  body: string;
+  current_version: string;
 }
 
-export interface CustomSymlinksConfig {
-  symlinks: CustomSymlink[];
+export interface GitHubRelease {
+  tag_name: string;
+  name: string;
+  prerelease: boolean;
+  draft: boolean;
+  body: string;
 }
 
-export interface CustomSymlink {
+export interface SymlinkView {
   id: string;
-  source_path: string;
-  target_path: string;
+  source: string;
+  destination: string;
+  installation_id?: string;
+  category: SymlinkCategory;
+  kind: SymlinkKind;
+  source_type: SymlinkSource;
+  state: SymlinkState;
+  source_exists: boolean;
+  link_exists: boolean;
+}
+
+export type SymlinkState = "enabled" | "disabled" | "missing_target" | "missing_link" | "broken";
+
+export type SymlinkSource = "managed" | "custom";
+
+export type SymlinkKind = "file" | "directory";
+
+export type SymlinkCategory = "resource_pack" | "shader_pack" | "world" | "mod" | "custom";
+
+export interface SymlinkEntry {
+  id: string;
+  source: unknown;
+  destination: unknown;
+  installation_id?: string;
+  enabled: boolean;
+  category: SymlinkCategory;
+}
+
+export interface CreateSymlinkRequest {
+  source: string;
+  destination: string;
+  installation_id?: string;
+  category: SymlinkCategory;
+  source_type: SymlinkSource;
   enabled: boolean;
 }
 
@@ -171,6 +208,16 @@ export interface MinecraftDirectoryInfo {
 
 export interface LoggingSettings {
   enabled: boolean;
+  persistent: boolean;
+  compression: boolean;
+  retention_days: number;
+  max_file_size_mb: number;
+  frontend_batch_size: number;
+  frontend_batch_interval_ms: number;
+  frontend_max_per_second: number;
+  max_memory_logs: number;
+  dedupe_enabled: boolean;
+  dedupe_window_size: number;
 }
 
 export interface GeneralSettings {
@@ -201,6 +248,7 @@ export interface CategorizedLauncherSettings {
 
 export interface AdvancedSettings {
   developer_mode: boolean;
+  extra: Record<string, string>;
 }
 
 export interface AppearanceSettings {
@@ -254,7 +302,7 @@ export interface ResourcePack {
   last_used?: number;
 }
 
-export type VersionType = "release" | "snapshot" | "old_beta" | "old_alpha";
+export type Versions = ProfileVersion[];
 
 export interface ProfileVersion {
   /**
@@ -292,6 +340,8 @@ export interface ProfileVersion {
   compliance_level?: number;
   recommended?: boolean;
 }
+
+export type VersionType = "release" | "snapshot" | "old_beta" | "old_alpha";
 
 export type LoaderKind = "vanilla" | "fabric" | "iris_fabric" | "forge" | "neo_forge" | "quilt";
 
@@ -631,8 +681,23 @@ export type GameMode = "survival" | "creative" | "adventure" | "spectator";
 
 export type Difficulty = "peaceful" | "easy" | "normal" | "hard";
 
+export type LogLevel = "info" | "warn" | "error" | "debug";
+
+export interface LogEntry {
+  level: LogLevel;
+  message: string;
+  timestamp: unknown;
+  instance_id?: string;
+}
+
+export interface FrontendLogBatch {
+  logs: LogEntry[];
+  max_logs: number;
+}
+
 export interface LaunchResult {
   pid: number;
+  runtime_id: string;
   command: string;
 }
 
@@ -700,6 +765,9 @@ export interface LauncherAccount {
   in_forced_migration: boolean;
   legacy: boolean;
   license_product_ids: string[];
+  /**
+   * This is usually the same as the user's UUID but for correctness use the Minecraft Profile's ID!
+   */
   local_id: string;
   minecraft_profile: MinecraftProfile;
   persistent: boolean;

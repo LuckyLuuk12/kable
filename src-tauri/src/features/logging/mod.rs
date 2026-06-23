@@ -7,11 +7,9 @@ pub mod process;
 pub use logger::Logger;
 pub use process::{LogEvent, LogLevel};
 
-use tauri::AppHandle;
-
 /// Initialize logging system (call once during app startup)
-pub fn init(app: &AppHandle) {
-    logger::Logger::init(app);
+pub fn init() {
+    logger::Logger::init();
 }
 
 //? -------------------------

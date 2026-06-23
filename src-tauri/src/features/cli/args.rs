@@ -24,7 +24,7 @@ pub fn parse_args() -> Args {
  */
 pub async fn handle_args(args: Args) -> Result<(), String> {
     // 1. First, we load app settings
-    let settings = load_settings().await?;
+    let _settings = load_settings().await?;
     // 2. Second, we load all profiles
     let _profiles = load_profiles().await?;
     // 3. Then we refresh auth for default account if possible
@@ -36,8 +36,9 @@ pub async fn handle_args(args: Args) -> Result<(), String> {
     if let Some(profile_id) = args.launch_profile {
         // Find profile by id, launch with loaded settings and active account.
         let profile = get_profile(&profile_id).await?;
-        let account = get_active_account().await?.expect("No active account found!");
-        launch_game(profile, &settings).await?;
+        // let account = get_active_account().await?.expect("No active account found!");
+        launch_game(profile).await?;
+        std::process::exit(0); // Exit after launching the game, no UI needed
     }
 
     // 5. If no args we first load customizations if needed.

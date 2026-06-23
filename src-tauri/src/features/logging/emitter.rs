@@ -20,10 +20,9 @@ struct BatchState {
 }
 
 impl LogEmitter {
-    pub fn new(app: AppHandle) -> Self {
+    pub fn new() -> Self {
         let (tx, rx) = sync_channel::<LogEvent>(2048);
-        // TODO: I made a global app handle in lib.rs and get_app_handle() so we should refactor the logging code to not require passing the app handle around...
-        let app_clone = app.clone();
+        let app_clone = crate::app_handle();
 
         std::thread::spawn(move || {
             let mut state = BatchState {

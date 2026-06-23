@@ -32,10 +32,13 @@ pub fn app_handle() -> AppHandle {
 
 /// This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
+pub async fn run() {
     // Handle CLI arguments before building Tauri app
-    let args: Vec<String> = std::env::args().collect();
-    crate::features::cli::args::handle_args(crate::features::cli::args::parse_args());
+    // let args: Vec<String> = std::env::args().collect();
+    if let Err(e) = crate::features::cli::args::handle_args(crate::features::cli::args::parse_args()).await {
+        eprintln!("Error handling CLI arguments: {}", e);
+        std::process::exit(1);
+    }
     // Check for --launch-installation argument
     // for arg in args.iter() {
     //     if arg.starts_with("--launch-installation=") {
@@ -111,7 +114,7 @@ pub fn run() {
             // Initialize global logger with the app handle so modules that
             // use GLOBAL_APP_HANDLE (e.g. launcher utils) can emit events.
             set_app_handle(app.handle());
-            Logger::init(app.handle()); // TODO: make sure the logger will use the global app handle later as well.
+            Logger::init();
 
             // On startup: if a pending update was downloaded previously,
             // try to launch the installer and exit so the installer can run.
@@ -140,10 +143,10 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 if window.label() == "main" {
                     // Clear Discord presence immediately (blocking to ensure it completes)
-                    crate::integrations::discord::clear().map_err(|e| {
+                    let _ = crate::integrations::discord::clear().map_err(|e| {
                         Logger::warn_global(&format!("[SHUTDOWN] Failed to clear Discord RPC: {}", e), None);
                     });
-                    crate::integrations::discord::disconnect().map_err(|e| {
+                    let _ = crate::integrations::discord::disconnect().map_err(|e| {
                         Logger::warn_global(&format!("[SHUTDOWN] Failed to disconnect Discord RPC: {}", e), None);
                     });
 
@@ -164,7 +167,65 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
-            // TODO: once eveything is refactored, add all api commands here,..
+            // TODO: make sure all commands are registered here!
+            // #region Accounts
+            api::start_authentication,
+            api::poll_authentication,
+            api::list_accounts,
+            api::add_account,
+            api::remove_account,
+            api::set_active_account,
+            api::get_active_account,
+            // #endregion Accounts
+            // #region Icons
+            api::get_custom_icon_templates,
+            api::save_custom_icon_template,
+            api::delete_custom_icon_template,
+            api::open_icons_directory,
+            // #endregion Icons
+            // #region Images
+            api::resolve_image_path,
+            // #endregion Images
+            // #region Launcher
+            api::launch_game,
+            api::auto_detect_java,
+            api::get_java_path,
+            // #endregion Launcher
+            // #region Profiles
+            api::get_profiles,
+            api::get_profile,
+            // api::create_profile,
+            api::modify_profile,
+            api::delete_profile,
+            api::get_versions,
+            // #endregion Profiles
+            // #region Settings
+            api::get_settings,
+            api::set_settings,
+            // #endregion Settings
+            // #region Sounds
+            api::list_soundpacks,
+            api::get_soundpack_metadata,
+            api::load_soundpack_file,
+            api::import_soundpack_zip,
+            api::get_sounds_directory_path,
+            api::open_sounds_directory,
+            // #endregion Sounds
+            // #region Symlinks
+            api::get_symlinks,
+            api::create_symlink,
+            api::delete_symlink,
+            api::enable_symlink,
+            api::disable_symlink,
+            // api::repair_symlink,
+            // #endregion Symlinks
+            // #region Updater
+            api::check_for_updates,
+            api::install_update,
+            api::download_update,
+            api::apply_downloaded_update,
+            api::get_current_version,
+            // #endregion Updater
         ])
         .plugin(tauri_plugin_dialog::init())
         .run(tauri::generate_context!())

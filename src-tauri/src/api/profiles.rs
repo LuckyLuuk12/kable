@@ -23,8 +23,8 @@ pub async fn modify_profile(old_profile: KableProfile, new_profile: KableProfile
 }
 
 // #[tauri::command]
-// pub async fn create_installation(version_id: String) -> Result<KableInstallation, String> {
-//     crate::features::profiles::create::create_installation(&version_id).await
+// pub async fn create_profile(version_id: String) -> Result<KableProfile, String> {
+//     crate::features::profiles::create::create_profile(&version_id).await
 // }
 // We should make a create_profile() function that wraps all ways of creating a profile so:
 // - from version_data (this data should include the version id and loader)

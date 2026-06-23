@@ -13,8 +13,8 @@ use crate::integrations::minecraft::versions::types::{DownloadArtifact, Library}
 // ============================================================
 
 pub struct LibraryResolver {
-    mc_root: PathBuf,
-    libraries_dir: PathBuf,
+    pub mc_root: PathBuf,
+    pub libraries_dir: PathBuf,
 }
 
 impl LibraryResolver {
