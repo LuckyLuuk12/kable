@@ -2,24 +2,26 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+use crate::Timestamp;
+
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 pub struct DeviceCodeResponse {
     pub device_code: String,
     pub user_code: String,
     pub verification_uri: String,
-    pub expires_in: u64,
-    pub interval: u64,
+    pub expires_in: u32,
+    pub interval: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 pub struct MicrosoftToken {
     pub access_token: String,
-    pub expires_at: DateTime<Utc>,
+    pub expires_at: Timestamp,
     /// Raw refresh token from device code flow. Should be encrypted if stored persistently!!
     pub refresh_token: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 pub struct LauncherAccount {
     pub access_token: String,
     pub access_token_expires_at: String,
@@ -44,7 +46,7 @@ pub struct LauncherAccount {
     pub username: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub struct MinecraftProfile {
     pub id: String,
@@ -53,7 +55,7 @@ pub struct MinecraftProfile {
     pub requires_skin_change: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub struct LauncherAccountsJson {
     pub accounts: HashMap<String, LauncherAccount>,

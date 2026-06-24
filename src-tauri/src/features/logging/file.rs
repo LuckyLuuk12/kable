@@ -86,8 +86,8 @@ impl LogFileWriter {
         if let Ok(mut cfg) = self.config.lock() {
             cfg.enable_persistent = settings.logging.persistent;
             cfg.enable_compression = settings.logging.compression;
-            cfg.size_limit_mb = settings.logging.max_file_size_mb;
-            cfg.retention_days = settings.logging.retention_days;
+            cfg.size_limit_mb = settings.logging.max_file_size_mb as u64;
+            cfg.retention_days = settings.logging.retention_days as u64;
         }
     }
 

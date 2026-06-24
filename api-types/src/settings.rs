@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
 pub struct CategorizedLauncherSettings {
     #[serde(default)]
     pub general: GeneralSettings,
@@ -20,7 +20,7 @@ pub struct CategorizedLauncherSettings {
     pub misc: MiscSettings,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 pub struct GeneralSettings {
     #[serde(default)]
     pub java_path: Option<String>,
@@ -77,7 +77,7 @@ impl Default for GeneralSettings {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 pub struct SoundSettings {
     #[serde(default = "default_sound_enabled")]
     pub enabled: bool,
@@ -103,13 +103,13 @@ fn default_soundpack() -> String {
     "default".to_string()
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
 pub struct AppearanceSettings {
     #[serde(default)]
     pub selected_css_theme: String,
 }
 
-// #[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+// #[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 // pub struct LoggingSettings {
 //     #[serde(default)]
 //     pub enabled: bool,
@@ -129,22 +129,22 @@ pub struct AppearanceSettings {
 //     pub enable_dedupe: bool,
 // }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct LoggingSettings {
     pub enabled: bool,
     pub persistent: bool,
     pub compression: bool,
-    pub retention_days: u64,
-    pub max_file_size_mb: u64,
+    pub retention_days: u32,
+    pub max_file_size_mb: u32,
 
-    pub frontend_batch_size: usize,
-    pub frontend_batch_interval_ms: u64,
-    pub frontend_max_per_second: usize,
+    pub frontend_batch_size: u32,
+    pub frontend_batch_interval_ms: u32,
+    pub frontend_max_per_second: u32,
 
-    pub max_memory_logs: usize,
+    pub max_memory_logs: u32,
 
     pub dedupe_enabled: bool,
-    pub dedupe_window_size: usize,
+    pub dedupe_window_size: u32,
 }
 
 impl Default for LoggingSettings {
@@ -165,32 +165,32 @@ impl Default for LoggingSettings {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
 pub struct NetworkSettings {
     #[serde(default)]
     pub use_proxy: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
 pub struct ContentSettings {
     #[serde(default)]
     pub allow_adult_content: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
 pub struct AdvancedSettings {
     #[serde(default)]
     pub developer_mode: bool,
     pub extra: HashMap<String, String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
 pub struct MiscSettings {
     #[serde(default)]
     pub check_for_updates_on_start: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 pub struct MinecraftDirectoryInfo {
     pub path: String,
     pub exists: bool,

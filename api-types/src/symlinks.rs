@@ -23,7 +23,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct CreateSymlinkRequest {
     pub source: String,
     pub destination: String,
@@ -33,7 +33,7 @@ pub struct CreateSymlinkRequest {
     pub enabled: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct SymlinkView {
     pub id: String,
 
@@ -52,7 +52,7 @@ pub struct SymlinkView {
     pub link_exists: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct SymlinkEntry {
     pub id: String,
 
@@ -66,7 +66,7 @@ pub struct SymlinkEntry {
     pub category: SymlinkCategory,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
 #[facet(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
@@ -75,7 +75,7 @@ pub enum SymlinkKind {
     Directory,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
 #[facet(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
@@ -87,7 +87,7 @@ pub enum SymlinkCategory {
     Custom,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
 #[facet(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
@@ -96,7 +96,7 @@ pub enum SymlinkSource {
     Custom,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
 #[facet(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]

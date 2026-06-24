@@ -8,7 +8,7 @@ export * from "./services/";
 export * from "./stores/";
 
 // Export types
-export * from "./api-types";
+export * from "./api";
 export * from "./runtimeTypes";
 export type * from "./types";
 

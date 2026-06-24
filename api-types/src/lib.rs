@@ -14,3 +14,14 @@ pub mod skins;
 pub mod sounds;
 pub mod symlinks;
 pub mod updater;
+
+use chrono::{DateTime, Utc};
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, facet::Facet)]
+pub struct Timestamp(pub DateTime<Utc>);
+
+impl specta::Type for Timestamp {
+    fn definition(_types: &mut specta::Types) -> specta::datatype::DataType {
+        specta::datatype::DataType::Primitive(specta::datatype::Primitive::str)
+    }
+}

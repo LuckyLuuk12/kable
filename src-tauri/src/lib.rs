@@ -5,8 +5,8 @@ use std::sync::OnceLock;
 pub use kable_macros::*;
 // Shared DTOs live in api-types.
 mod api;
-mod tests; // API should not be accessible outside this crate/file as this is the only place we should register Tauri commands.
-use api::*;
+mod tests;
+pub mod typegen; // API should not be accessible outside this crate/file as this is the only place we should register Tauri commands.
 pub use api_types::*;
 pub use features::logging::Logger;
 use tauri::AppHandle;
@@ -32,13 +32,15 @@ pub fn app_handle() -> AppHandle {
 
 /// This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub async fn run() {
+pub fn run() {
     // Handle CLI arguments before building Tauri app
+    tauri::async_runtime::block_on(async {
+        if let Err(e) = crate::features::cli::args::handle_args(crate::features::cli::args::parse_args()).await {
+            eprintln!("Error handling CLI arguments: {}", e);
+            std::process::exit(1);
+        }
+    });
     // let args: Vec<String> = std::env::args().collect();
-    if let Err(e) = crate::features::cli::args::handle_args(crate::features::cli::args::parse_args()).await {
-        eprintln!("Error handling CLI arguments: {}", e);
-        std::process::exit(1);
-    }
     // Check for --launch-installation argument
     // for arg in args.iter() {
     //     if arg.starts_with("--launch-installation=") {

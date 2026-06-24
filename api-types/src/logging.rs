@@ -1,22 +1,23 @@
-use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+use crate::Timestamp;
+
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct FrontendLogBatch {
     pub logs: Vec<LogEntry>,
-    pub max_logs: usize,
+    pub max_logs: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct LogEntry {
     pub level: LogLevel,
     pub message: String,
-    pub timestamp: DateTime<Utc>,
+    pub timestamp: Timestamp,
     pub instance_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
 #[facet(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use api_types::auth::{LauncherAccount, LauncherAccountsJson, MicrosoftToken};
+use api_types::Timestamp;
 use chrono::Utc;
 
 use crate::constants::KABLE_ACCOUNTS_FILE;
@@ -126,7 +127,7 @@ async fn refresh_account(account: &mut LauncherAccount) -> Result<(), String> {
 
     let refresh_token = secure_token::decrypt_token(encrypted_refresh_token).await?;
 
-    let token = MicrosoftToken { access_token: String::new(), expires_at: Utc::now(), refresh_token: Some(refresh_token) };
+    let token = MicrosoftToken { access_token: String::new(), expires_at: Timestamp(Utc::now()), refresh_token: Some(refresh_token) };
 
     let new_token = crate::integrations::mojang_api::auth::refresh_microsoft_token(token).await?;
 
@@ -135,7 +136,7 @@ async fn refresh_account(account: &mut LauncherAccount) -> Result<(), String> {
     }
 
     account.access_token = new_token.access_token;
-    account.access_token_expires_at = new_token.expires_at.to_rfc3339();
+    account.access_token_expires_at = new_token.expires_at.0.to_rfc3339();
 
     Ok(())
 }

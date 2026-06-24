@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 pub struct SoundpackMetadata {
     pub id: String,
     pub name: String,

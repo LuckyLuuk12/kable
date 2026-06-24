@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet, specta::Type)]
 pub struct ResourcePackFilterFacets {
     pub query: Option<String>,
     pub categories: Option<Vec<(String, String)>>,
     pub game_versions: Option<Vec<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 pub struct ResourcePack {
     pub id: String,
     pub name: String,
@@ -16,17 +16,17 @@ pub struct ResourcePack {
     pub description: Option<String>,
     pub file_path: String,
     pub file_name: String,
-    pub file_size: u64,
+    pub file_size: u32,
     pub compatible_versions: Vec<String>,
     pub pack_format: u32,
     pub enabled: bool,
     pub source_url: Option<String>,
     pub thumbnail: Option<String>,
-    pub installed_date: i64,
-    pub last_used: Option<i64>,
+    pub installed_date: i32,
+    pub last_used: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 pub struct ResourcePackDownload {
     pub id: String,
     pub name: String,
@@ -40,12 +40,12 @@ pub struct ResourcePackDownload {
     pub minecraft_versions: Vec<String>,
     pub resolution: Option<String>,
     pub rating: f32,
-    pub downloads: u64,
-    pub size_mb: u64,
+    pub downloads: u32,
+    pub size_mb: u32,
     pub source: ResourcePackSource,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 #[facet(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]

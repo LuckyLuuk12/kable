@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct KableProfile {
     pub id: String,
     pub name: String,
@@ -14,7 +14,7 @@ pub struct KableProfile {
     pub dedicated_shaders_folder: Option<String>,
     pub dedicated_config_folder: Option<String>,
     pub favorite: bool,
-    pub total_time_played_ms: u64,
+    pub total_time_played_ms: u32,
     pub parameters_map: HashMap<String, String>,
     pub description: Option<String>,
     pub times_launched: u32,
@@ -26,7 +26,7 @@ pub struct KableProfile {
     pub merged_packs: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct ProfileVersion {
     /// Raw version ID from the profile, e.g. "1.19.2-forge-43.2.0"
     pub id: String,
@@ -49,10 +49,10 @@ pub struct ProfileVersion {
     pub compliance_level: Option<u32>,
     pub recommended: Option<bool>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct Versions(pub Vec<ProfileVersion>);
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy, Hash, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy, Hash, facet::Facet, specta::Type)]
 #[facet(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
@@ -78,7 +78,7 @@ impl std::fmt::Display for LoaderKind {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
 #[facet(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
@@ -89,7 +89,7 @@ pub enum VersionType {
     OldAlpha,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
 pub struct ModJarInfo {
     pub file_name: String,
     pub mod_name: Option<String>,
@@ -102,7 +102,7 @@ pub struct ModJarInfo {
 //? .minecraft launcher_profiles.json types
 //?----------------------------------------------------------------------
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct LauncherProfiles {
     // Profile name is key to profile object
     pub profiles: HashMap<String, Profile>,
@@ -110,10 +110,8 @@ pub struct LauncherProfiles {
     pub version: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct Profile {
-    pub id: String,
-    pub name: Option<String>,
     pub created: Option<String>,
     pub icon: Option<String>,
     #[serde(rename = "javaArgs")]
@@ -122,11 +120,12 @@ pub struct Profile {
     pub last_used: Option<String>,
     #[serde(rename = "lastVersionId")]
     pub last_version_id: Option<String>,
+    pub name: Option<String>,
     #[serde(rename = "type")]
     pub profile_type: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct OfficialLauncherSettings {
     #[serde(rename = "crashAssistance")]
     pub crash_assistance: bool,
@@ -155,6 +154,28 @@ pub struct OfficialLauncherSettings {
 //?----------------------------------------------------------------------
 //? impl blocks
 //?----------------------------------------------------------------------
+
+impl Default for LauncherProfiles {
+    fn default() -> Self {
+        Self {
+            profiles: HashMap::new(),
+            settings: OfficialLauncherSettings {
+                crash_assistance: true,
+                enable_advanced: false,
+                enable_analytics: true,
+                enable_historical: false,
+                enable_releases: true,
+                enable_snapshots: false,
+                keep_launcher_open: false,
+                profile_sorting: "byLastUsed".to_string(),
+                show_game_log: false,
+                show_menu: true,
+                sound_on: true,
+            },
+            version: 1,
+        }
+    }
+}
 
 impl std::fmt::Display for VersionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

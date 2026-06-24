@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, facet::Facet)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, facet::Facet, specta::Type)]
 #[facet(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
@@ -18,7 +18,7 @@ pub enum ActivityPriority {
 //     pub details: Option<String>,
 // }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct PresenceState {
     pub state: String,
     pub details: String,
@@ -27,5 +27,5 @@ pub struct PresenceState {
     pub large_text: Option<String>,
     pub small_image: Option<String>,
     pub small_text: Option<String>,
-    pub start_timestamp: Option<i64>,
+    pub start_timestamp: Option<i32>,
 }

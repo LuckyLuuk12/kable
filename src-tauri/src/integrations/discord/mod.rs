@@ -90,7 +90,7 @@ impl DiscordRpcManager {
         let mut activity = Activity::new().state(&state.state).details(&state.details).assets(assets);
 
         if let Some(timestamp) = state.start_timestamp {
-            activity = activity.timestamps(Timestamps::new().start(timestamp));
+            activity = activity.timestamps(Timestamps::new().start(timestamp.into()));
         }
 
         client.set_activity(activity).map_err(|e| format!("Failed to set Discord activity: {}", e))?;
@@ -182,7 +182,7 @@ pub fn set_playing(installation_name: &str, version_id: &str, mod_loader: Option
         large_text: Some(format!("Minecraft {}", version_id)),
         small_image,
         small_text,
-        start_timestamp: Some(timestamp),
+        start_timestamp: Some(timestamp as i32),
     };
 
     let mut manager = DISCORD_MANAGER.lock().map_err(|e| format!("Failed to lock Discord manager: {}", e))?;

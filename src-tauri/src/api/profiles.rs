@@ -3,21 +3,25 @@ use crate::integrations::loaders;
 use api_types::profiles::{KableProfile, Versions};
 
 #[tauri::command]
+#[specta::specta]
 pub async fn get_profiles() -> Result<Vec<KableProfile>, String> {
     management::list_profiles().await
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn get_profile(id: String) -> Result<KableProfile, String> {
     management::get_profile(&id).await
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn delete_profile(id: String) -> Result<(), String> {
     management::delete_profile(&id).await
 }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn modify_profile(old_profile: KableProfile, new_profile: KableProfile) -> Result<KableProfile, String> {
     management::modify_profile(old_profile, new_profile).await
 }
@@ -34,6 +38,7 @@ pub async fn modify_profile(old_profile: KableProfile, new_profile: KableProfile
 // - from any combination of the above, where the user can choose which data to take from each source (e.g. version data from version_data, mods from mrpack, etc.)
 
 #[tauri::command]
+#[specta::specta]
 pub async fn get_versions() -> Result<Versions, String> {
     loaders::get_versions().await
 }

@@ -1,18 +1,8 @@
 use crate::constants::{CONFIG_DIR, ICONS_DIR};
 use crate::system::fs::{create_dir, launcher_dir, read_str};
-use serde::{Deserialize, Serialize};
+use api_types::icons::CustomIconTemplate;
 use std::fs;
 use std::path::PathBuf;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CustomIconTemplate {
-    pub name: String,
-    pub description: Option<String>,
-    pub author: Option<String>,
-    pub svg_path: String,
-    pub view_box: Option<String>,
-    pub colors: Option<std::collections::HashMap<String, String>>,
-}
 
 /// Get the icons configuration directory
 pub fn get_icons_dir() -> Result<PathBuf, String> {

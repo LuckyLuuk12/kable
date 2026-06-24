@@ -33,16 +33,19 @@ use api_types::profiles::KableProfile;
 // }
 
 #[tauri::command]
+#[specta::specta]
 pub async fn launch_game(profile: KableProfile) -> Result<LaunchResult, String> {
     launcher::launch::launch_game(profile).await
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn auto_detect_java() -> Result<String, String> {
     java::auto_detect_java()
 }
 
 #[tauri::command]
+#[specta::specta]
 pub fn get_java_path(java_path: Option<String>) -> Result<String, String> {
     java::find_java_executable(java_path.as_ref())
 }

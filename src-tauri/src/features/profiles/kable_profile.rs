@@ -5,26 +5,30 @@ use crate::system::fs::{launcher_dir, read_str, write_str};
 use api_types::profiles::LauncherProfiles;
 use api_types::profiles::{KableProfile, Profile};
 use std::collections::HashMap;
+use std::ops::Deref;
 
 /// A way to convert a official launcher profile into a KableProfile, which is the internal representation of a profile in Kable
-async fn into(profile: Profile) -> Result<KableProfile, String> {
-    let all_versions = get_versions().await?;
-    let version_data = all_versions.0.into_iter().find(|v| v.id == profile.last_version_id.clone().unwrap_or_default());
-    if let Some(version) = &version_data {
-        Ok(KableProfile {
-            id: profile.id.clone(),
-            name: profile.name.unwrap_or(format!("{}", profile.id)),
+async fn into(launcher_profiles: LauncherProfiles) -> Result<Vec<KableProfile>, String> {
+    let mut kable_profiles = Vec::new();
+    let all_versions = get_versions().await?.0;
+    for (id, profile) in launcher_profiles.profiles {
+        let version_data = all_versions.iter().find(|v| v.id == profile.last_version_id.clone().unwrap_or_default());
+        let version_data = match version_data {
+            Some(v) => v.clone(),
+            None => continue,
+        };
+        let kable_profile = KableProfile {
+            id: id.clone(),
+            name: profile.name.unwrap_or(format!("{}", id.clone())),
             icon: profile.icon,
-            version: version_data.expect("kable_profiles.rs : async fn into - "),
-            // using "2022-03-24T13:12:01.740Z" format
+            version: version_data,
             created: profile.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
             last_used: profile.last_used.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-            // Map java arg string to vec of arguments
             java_args: profile.java_args.map(|args| args.split_whitespace().map(|s| s.to_string()).collect()).unwrap_or_else(|| Vec::new()),
-            dedicated_mods_folder: Some(format!("{}/{}", MODS_DIR, profile.id)),
-            dedicated_config_folder: Some(format!("{}/{}", CONFIG_DIR, profile.id)),
-            dedicated_resource_pack_folder: Some(format!("{}/{}", RESOURCEPACKS_DIR, profile.id)),
-            dedicated_shaders_folder: Some(format!("{}/{}", SHADERPACKS_DIR, profile.id)),
+            dedicated_mods_folder: Some(format!("{}/{}", MODS_DIR, id)),
+            dedicated_config_folder: Some(format!("{}/{}", CONFIG_DIR, id)),
+            dedicated_resource_pack_folder: Some(format!("{}/{}", RESOURCEPACKS_DIR, id)),
+            dedicated_shaders_folder: Some(format!("{}/{}", SHADERPACKS_DIR, id)),
             favorite: false,
             total_time_played_ms: 0,
             parameters_map: HashMap::new(),
@@ -33,14 +37,10 @@ async fn into(profile: Profile) -> Result<KableProfile, String> {
             enable_pack_merging: true,
             pack_order: Vec::new(),
             merged_packs: Vec::new(),
-        })
-    } else {
-        Err(format!(
-            "Version data not found for profile {} with version id {:?}",
-            profile.name.unwrap_or_default(),
-            profile.last_version_id
-        ))
+        };
+        kable_profiles.push(kable_profile);
     }
+    Ok(kable_profiles)
 }
 
 async fn parse_kable_profiles() -> Result<Vec<KableProfile>, String> {
@@ -65,12 +65,7 @@ async fn merge_profiles(launcher_profiles: LauncherProfiles, kable_profiles: Vec
         kable_profiles_map.insert(profile.id.clone(), profile);
     }
 
-    // Iterate over launcher profiles and convert them to KableProfiles
-    for (id, profile) in launcher_profiles.profiles {
-        if !kable_profiles_map.contains_key(&id) {
-            merged_profiles.push(into(profile).await?);
-        }
-    }
+    merged_profiles.extend(into(launcher_profiles).await?);
 
     // Add all kable profiles to the merged list
     merged_profiles.extend(kable_profiles_map.into_values());

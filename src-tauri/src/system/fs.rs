@@ -6,6 +6,9 @@ use tokio::fs as async_fs;
 
 type FsResult<T> = Result<T, String>;
 
+/// Windows: C:\Users\<User>\AppData\Roaming\.minecraft
+/// MacOS: /Users/<User>/Library/Application Support/minecraft
+/// Linux: /home/<User>/.minecraft
 pub fn mc_dir() -> FsResult<PathBuf> {
     let home = home_dir().ok_or_else(|| "missing home dir".to_string())?;
 
@@ -19,20 +22,24 @@ pub fn mc_dir() -> FsResult<PathBuf> {
     return Ok(home.join(".minecraft"));
 }
 
+/// Kable directory is a subdirectory of the .minecraft directory, used for storing Kable-specific data.
 pub fn kable_dir() -> FsResult<PathBuf> {
     Ok(mc_dir()?.join(KABLE_DIR_NAME))
 }
 
+/// Launcher directory is a subdirectory of the Kable directory, used for storing launcher-specific data.
 pub fn launcher_dir() -> FsResult<PathBuf> {
     Ok(kable_dir()?.join(LAUNCHER_DIR))
 }
 
+/// Resolve a path to an absolute path, relative to the kable_dir if not already absolute.
 fn resolve(path: impl AsRef<Path>) -> FsResult<PathBuf> {
     let p = path.as_ref();
-
+    // This should cover cases where mc_dir is used as mc_dir is returned as absolute path.
     if p.is_absolute() {
         Ok(p.to_path_buf())
     } else {
+        // in all other cases we usually assume the path is relative to the kable_dir, so we resolve it against that.
         Ok(kable_dir()?.join(p))
     }
 }

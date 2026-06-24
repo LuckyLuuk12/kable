@@ -8,6 +8,7 @@ use crate::constants::{
 };
 use crate::system::net::async_http_client;
 use api_types::auth::{DeviceCodeResponse, MicrosoftToken};
+use api_types::Timestamp;
 use chrono::{Duration, Utc};
 use oauth2::{
     basic::BasicClient, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, StandardDeviceAuthorizationResponse, TokenResponse, TokenUrl,
@@ -62,8 +63,8 @@ pub async fn start_authentication() -> Result<DeviceCodeResponse, String> {
         device_code: details.device_code().secret().to_string(),
         user_code: details.user_code().secret().to_string(),
         verification_uri: details.verification_uri().to_string(),
-        expires_in: details.expires_in().as_secs(),
-        interval: details.interval().as_secs(),
+        expires_in: details.expires_in().as_secs() as u32,
+        interval: details.interval().as_secs() as u32,
     };
     {
         let mut storage = DEVICE_AUTH_STORAGE.lock().unwrap();
@@ -97,7 +98,7 @@ pub async fn poll_authentication(device_code: String) -> Result<MicrosoftToken, 
         let expires_at = Utc::now() + Duration::seconds(expires_in_secs);
         return Ok(MicrosoftToken {
             access_token: token.access_token().secret().to_string(),
-            expires_at,
+            expires_at: Timestamp(expires_at),
             refresh_token: token.refresh_token().map(|rt| rt.secret().to_string()),
         });
     }
@@ -123,7 +124,7 @@ pub async fn refresh_microsoft_token(token: MicrosoftToken) -> Result<MicrosoftT
 
     Ok(MicrosoftToken {
         access_token: token_result.access_token().secret().to_string(),
-        expires_at: new_expires_at,
+        expires_at: Timestamp(new_expires_at),
         refresh_token: token_result.refresh_token().map(|rt| rt.secret().to_string()),
     })
 }
