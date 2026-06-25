@@ -33,6 +33,19 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::auto_detect_java,
             api::get_java_path,
             // #endregion Launcher
+            // #region Mods
+            api::browse,
+            api::list_mods,
+            api::remove_mod,
+            api::download_mod,
+            api::enable_mod,
+            api::disable_mod,
+            api::toggle_mod,
+            api::check_for_mod_update,
+            api::check_for_mod_updates,
+            api::update_mod,
+            api::update_all_mods,
+            // #endregion Mods
             // #region Profiles
             api::get_profiles,
             api::get_profile,

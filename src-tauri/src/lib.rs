@@ -40,77 +40,6 @@ pub fn run() {
             std::process::exit(1);
         }
     });
-    // let args: Vec<String> = std::env::args().collect();
-    // Check for --launch-installation argument
-    // for arg in args.iter() {
-    //     if arg.starts_with("--launch-installation=") {
-    //         let installation_id = arg.trim_start_matches("--launch-installation=");
-    //         hide_console_window();
-
-    //         // Launch the installation directly without showing UI
-    //         tauri::async_runtime::block_on(async {
-    //             match crate::features::profiles::get_installation(installation_id).await {
-    //                 Ok(Some(installation)) => {
-    //                     eprintln!("Launching installation: {}", installation.name);
-
-    //                     // Load settings and account
-    //                     let settings = match crate::features::customization::settings::load_settings() {
-    //                         Ok(s) => s,
-    //                         Err(e) => {
-    //                             eprintln!("Failed to load settings: {}", e);
-    //                             std::process::exit(1);
-    //                         }
-    //                     };
-
-    //                     let mut account = match crate::integrations::mojang_api::auth::auth_util::get_active_launcher_account().await {
-    //                         Ok(Some(acc)) => acc,
-    //                         Ok(None) => {
-    //                             eprintln!("No active account found. Please log in through the launcher.");
-    //                             std::process::exit(1);
-    //                         }
-    //                         Err(e) => {
-    //                             eprintln!("Failed to get active account: {}", e);
-    //                             std::process::exit(1);
-    //                         }
-    //                     };
-
-    //                     // Refresh the account token to ensure it's still valid
-    //                     eprintln!("Refreshing account token...");
-    //                     account = match crate::integrations::mojang_api::auth::auth_util::refresh_microsoft_token(account.local_id.clone())
-    //                         .await
-    //                     {
-    //                         Ok(refreshed) => {
-    //                             eprintln!("Account token refreshed successfully");
-    //                             refreshed
-    //                         }
-    //                         Err(e) => {
-    //                             eprintln!("Failed to refresh account token: {}", e);
-    //                             eprintln!("Please open the launcher to log in again.");
-    //                             std::process::exit(1);
-    //                         }
-    //                     };
-
-    //                     if let Err(e) = crate::features::launcher::launch_installation(installation, settings, account).await {
-    //                         eprintln!("Failed to launch installation: {}", e);
-    //                         std::process::exit(1);
-    //                     }
-
-    //                     eprintln!("Installation launched successfully");
-    //                     std::process::exit(0);
-    //                 }
-    //                 Ok(None) => {
-    //                     eprintln!("Installation not found: {}", installation_id);
-    //                     std::process::exit(1);
-    //                 }
-    //                 Err(e) => {
-    //                     eprintln!("Failed to get installation: {}", e);
-    //                     std::process::exit(1);
-    //                 }
-    //             }
-    //         });
-    //     }
-    // }
-
     tauri::Builder::default()
         .setup(|app| {
             // Initialize global logger with the app handle so modules that
@@ -193,6 +122,19 @@ pub fn run() {
             api::auto_detect_java,
             api::get_java_path,
             // #endregion Launcher
+            // #region Mods
+            api::browse,
+            api::list_mods,
+            api::remove_mod,
+            api::download_mod,
+            api::enable_mod,
+            api::disable_mod,
+            api::toggle_mod,
+            api::check_for_mod_update,
+            api::check_for_mod_updates,
+            api::update_mod,
+            api::update_all_mods,
+            // #endregion Mods
             // #region Profiles
             api::get_profiles,
             api::get_profile,

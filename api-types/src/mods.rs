@@ -1,4 +1,17 @@
-use serde::{ser, Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
+
+/// Represents a mod project in a profile's dedicated mods folder, including its metadata and whether it is enabled or disabled
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+pub struct KableMod {
+    /// The mod project itself, containing all of its metadata
+    pub project: Project,
+    /// Should match a ProjectVersion.id and indicate what version of the mod is installed in the profile's dedicated mods folder
+    pub version_id: String,
+    /// The filename of the mod jar file in the profile's dedicated mods folder, should match a ProjectVersion.files.filename, and is used to locate the mod jar file in the profile's dedicated mods folder
+    pub filename: String,
+    /// Whether the mod is enabled or disabled, when disabled the jar should be in the <dedicated_mods_folder>/disabled folder, otherwise it should be in the <dedicated_mods_folder> folder
+    pub enabled: bool,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet, specta::Type)]
 pub struct ProjectSearch {

@@ -2,10 +2,9 @@ use crate::constants::{CONFIG_DIR, KABLE_PROFILES_FILE, MODS_DIR, RESOURCEPACKS_
 use crate::integrations::loaders::get_versions;
 use crate::integrations::minecraft::profiles::parse_launcher_profiles;
 use crate::system::fs::{launcher_dir, read_str, write_str};
+use api_types::profiles::KableProfile;
 use api_types::profiles::LauncherProfiles;
-use api_types::profiles::{KableProfile, Profile};
 use std::collections::HashMap;
-use std::ops::Deref;
 
 /// A way to convert a official launcher profile into a KableProfile, which is the internal representation of a profile in Kable
 async fn into(launcher_profiles: LauncherProfiles) -> Result<Vec<KableProfile>, String> {
@@ -19,12 +18,12 @@ async fn into(launcher_profiles: LauncherProfiles) -> Result<Vec<KableProfile>, 
         };
         let kable_profile = KableProfile {
             id: id.clone(),
-            name: profile.name.unwrap_or(format!("{}", id.clone())),
+            name: profile.name.unwrap_or(id.clone().to_string()),
             icon: profile.icon,
             version: version_data,
             created: profile.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
             last_used: profile.last_used.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-            java_args: profile.java_args.map(|args| args.split_whitespace().map(|s| s.to_string()).collect()).unwrap_or_else(|| Vec::new()),
+            java_args: profile.java_args.map(|args| args.split_whitespace().map(|s| s.to_string()).collect()).unwrap_or_else(Vec::new),
             dedicated_mods_folder: Some(format!("{}/{}", MODS_DIR, id)),
             dedicated_config_folder: Some(format!("{}/{}", CONFIG_DIR, id)),
             dedicated_resource_pack_folder: Some(format!("{}/{}", RESOURCEPACKS_DIR, id)),
@@ -73,7 +72,7 @@ async fn merge_profiles(launcher_profiles: LauncherProfiles, kable_profiles: Vec
     Ok(merged_profiles)
 }
 
-/// async execute loading of the 2 different profile sources then join / await completion of both in async and return the merged result
+/// async execute loading of the 2 different profile sources then join / await completion of both in async, save the profiles, and return the merged result
 pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
     let launcher_profiles_future = parse_launcher_profiles();
     let kable_profiles_future = parse_kable_profiles();
@@ -83,7 +82,9 @@ pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
     let launcher_profiles = launcher_profiles_result?;
     let kable_profiles = kable_profiles_result?;
 
-    merge_profiles(launcher_profiles, kable_profiles).await
+    let profiles = merge_profiles(launcher_profiles, kable_profiles).await?;
+    save_profiles(&profiles).await?;
+    Ok(profiles)
 }
 
 pub async fn save_profiles(profiles: &[KableProfile]) -> Result<(), String> {

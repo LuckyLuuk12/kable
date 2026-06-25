@@ -1,1 +1,0 @@
-// Placeholder: mod metadata handling

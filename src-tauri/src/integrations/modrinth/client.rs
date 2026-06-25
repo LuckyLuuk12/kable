@@ -133,14 +133,17 @@ pub async fn search_modpacks(project_search: ProjectSearch, with_version_data: b
 //? DOWNLOAD PROJECT FILES
 //?----------------------------------------------------------------------
 
-pub async fn download_project(project: &Project, version_id: Option<&str>, parent_folder: PathBuf) -> Result<(), String> {
+/// Downloads the files of a mod project to the specified parent folder, falls back to project's latest version if version_id is None, returns a list of the downloaded filenames
+/// Normally this returns a single file
+pub async fn download_project(project: &Project, version_id: Option<&str>, parent_folder: PathBuf) -> Result<Vec<String>, String> {
     let client: reqwest::Client = reqwest::Client::new();
     let version: &ProjectVersion = project
         .versions
         .iter()
-        .find(|v| v.id == version_id.unwrap_or_default())
+        .find(|v| v.id == version_id.or_else(|| project.latest_version.as_deref()).unwrap_or_default())
         .ok_or_else(|| format!("Version ID {} not found in project {}", version_id.unwrap_or_default(), project.project_id))?;
 
+    let mut filenames = Vec::new();
     for file in &version.files {
         let url = &file.url;
         let filename = &file.filename;
@@ -148,8 +151,9 @@ pub async fn download_project(project: &Project, version_id: Option<&str>, paren
         let response = client.get(url).send().await.map_err(|e| format!("Failed to download file {}: {}", filename, e))?;
         let bytes = response.bytes().await.map_err(|e| format!("Failed to read response for file {}: {}", filename, e))?;
         crate::system::fs::write(path.as_path(), &bytes, true).await?;
+        filenames.push(filename.clone());
     }
-    Ok(())
+    Ok(filenames)
 }
 
 //?----------------------------------------------------------------------
