@@ -1,10 +1,15 @@
 // Placeholder: mod browser backend - searching, next page, filtering, etc.
-use crate::integrations::modrinth::client::search_mods;
-use api_types::mods::{Facet, FacetField, FacetGroup, FacetOperator, ModrinthResults, ProjectSearch};
+use crate::integrations::modrinth::client::{search_mods, search_resourcepacks, search_shaderpacks};
 use api_types::profiles::KableProfile;
+use api_types::projects::{Facet, FacetField, FacetGroup, FacetOperator, ModrinthResults, ProjectSearch, ProjectType};
 
 /// Given an installation search for mods, apply version and loader filters and return the results
-pub async fn browse(profile: KableProfile, search: ProjectSearch, smart_filter: bool) -> Result<ModrinthResults, String> {
+pub async fn browse(
+    profile: KableProfile,
+    search: ProjectSearch,
+    smart_filter: bool,
+    project_type: ProjectType,
+) -> Result<ModrinthResults, String> {
     let mut search_with_facets = search.clone();
     if smart_filter {
         // If smart_filter is enabled, we add facets to the search to filter by the profile's loader and Minecraft version
@@ -17,6 +22,11 @@ pub async fn browse(profile: KableProfile, search: ProjectSearch, smart_filter: 
         // add this group to the existing facets in the search
         search_with_facets.facets.push(FacetGroup { facets });
     }
-    // Then we perform the search with complete VersionData included
-    search_mods(search_with_facets, true).await
+    // Then we perform the search with complete VersionData included based on the project type (mods, shaderpacks, resourcepacks)
+    match project_type {
+        ProjectType::Mod => search_mods(search_with_facets, true).await,
+        ProjectType::Resourcepack => search_resourcepacks(search_with_facets, true).await,
+        ProjectType::Shader => search_shaderpacks(search_with_facets, true).await,
+        _ => Err("Unsupported project type for browsing".to_string()),
+    }
 }

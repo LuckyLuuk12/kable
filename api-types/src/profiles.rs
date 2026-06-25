@@ -1,5 +1,32 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+/// Represents a Kable Minecraft Profile, which contains more information than a standard Minecraft Profile:
+/// ```rs
+/// pub struct KableProfile {
+///     pub id: String,
+///     pub name: String,
+///     pub icon: Option<String>,
+///     pub version: ProfileVersion,
+///     pub created: String,
+///     pub last_used: String,
+///     pub java_args: Vec<String>,
+///     pub dedicated_mods_folder: Option<String>,
+///     pub dedicated_resource_pack_folder: Option<String>,
+///     pub dedicated_shaders_folder: Option<String>,
+///     pub dedicated_config_folder: Option<String>,
+///     pub favorite: bool,
+///     pub total_time_played_ms: u32,
+///     pub parameters_map: HashMap<String, String>,
+///     pub description: Option<String>,
+///     pub times_launched: u32,
+///     #[serde(default)]
+///     pub enable_pack_merging: bool,
+///     #[serde(default)]
+///     pub pack_order: Vec<String>,
+///     #[serde(default)]
+///     pub merged_packs: Vec<String>,
+/// }
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct KableProfile {
     pub id: String,

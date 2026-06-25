@@ -1,9 +1,9 @@
 use serde::{Deserialize, Serialize};
 
-/// Represents a mod project in a profile's dedicated mods folder, including its metadata and whether it is enabled or disabled
+/// Represents a project in a profile's dedicated mods folder, including its metadata and whether it is enabled or disabled
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
-pub struct KableMod {
-    /// The mod project itself, containing all of its metadata
+pub struct KableProject {
+    /// The project itself, containing all of its metadata
     pub project: Project,
     /// Should match a ProjectVersion.id and indicate what version of the mod is installed in the profile's dedicated mods folder
     pub version_id: String,

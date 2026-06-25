@@ -3,133 +3,54 @@ use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
+#[serde(default)]
 pub struct CategorizedLauncherSettings {
-    #[serde(default)]
     pub general: GeneralSettings,
-    #[serde(default)]
     pub appearance: AppearanceSettings,
-    #[serde(default)]
-    pub logging: LoggingSettings,
-    #[serde(default)]
-    pub network: NetworkSettings,
-    #[serde(default)]
     pub content: ContentSettings,
-    #[serde(default)]
+    pub logging: LoggingSettings,
+    pub network: NetworkSettings,
     pub advanced: AdvancedSettings,
-    #[serde(default)]
     pub misc: MiscSettings,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[serde(default)]
 pub struct GeneralSettings {
-    #[serde(default)]
     pub java_path: Option<String>,
-    #[serde(default)]
     pub game_directory: Option<String>,
-    #[serde(default = "default_on_game_close")]
-    pub on_game_close: String,
-    #[serde(default = "default_on_game_crash")]
-    pub on_game_crash: String,
-    #[serde(default = "default_on_game_launch")]
-    pub on_game_launch: String,
-    #[serde(default = "default_auto_update")]
-    pub auto_update_launcher: bool,
-    #[serde(default)]
-    pub show_ads: bool,
-    #[serde(default = "default_update_mode")]
-    pub update_mode: String,
-    #[serde(default = "default_update_notification_style")]
-    pub update_notification_style: String,
-}
-
-fn default_on_game_close() -> String {
-    "open_home".to_string()
-}
-fn default_on_game_crash() -> String {
-    "open_logs".to_string()
-}
-fn default_on_game_launch() -> String {
-    "open_logs".to_string()
-}
-fn default_auto_update() -> bool {
-    true
-}
-fn default_update_mode() -> String {
-    "on_confirm".to_string()
-}
-fn default_update_notification_style() -> String {
-    "notification".to_string()
-}
-
-impl Default for GeneralSettings {
-    fn default() -> Self {
-        Self {
-            java_path: None,
-            game_directory: None,
-            on_game_close: default_on_game_close(),
-            on_game_crash: default_on_game_crash(),
-            on_game_launch: default_on_game_launch(),
-            auto_update_launcher: default_auto_update(),
-            show_ads: false,
-            update_mode: default_update_mode(),
-            update_notification_style: default_update_notification_style(),
-        }
-    }
+    pub on_game_close: OnGameAction,
+    pub on_game_crash: OnGameAction,
+    pub on_game_launch: OnGameAction,
+    pub update_mode: UpdateMode,
+    pub update_detection: UpdateDetection,
+    pub update_notification_style: UpdateNotificationStyle,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[serde(default)]
 pub struct SoundSettings {
-    #[serde(default = "default_sound_enabled")]
     pub enabled: bool,
-    #[serde(default = "default_sound_enabled")]
     pub music_enabled: bool,
-    #[serde(default = "default_volume")]
     pub master_volume: u32,
-    #[serde(default = "default_volume")]
     pub sound_volume: u32,
-    #[serde(default = "default_volume")]
     pub music_volume: u32,
-    #[serde(default = "default_soundpack")]
     pub selected_soundpack: String,
 }
 
-fn default_sound_enabled() -> bool {
-    true
-}
-fn default_volume() -> u32 {
-    50
-}
-fn default_soundpack() -> String {
-    "default".to_string()
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[serde(default)]
 pub struct AppearanceSettings {
-    #[serde(default)]
-    pub selected_css_theme: String,
+    pub theme: Theme,
+    pub language: Language,
+    pub icon_template: IconTemplate,
+    pub custom_icon_templates: Vec<IconTemplate>,
+    pub selected_css_theme: Option<String>,
+    pub sound_settings: SoundSettings,
 }
-
-// #[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-// pub struct LoggingSettings {
-//     #[serde(default)]
-//     pub enabled: bool,
-//     #[serde(default)]
-//     pub enable_persistent_logging: bool,
-//     #[serde(default)]
-//     pub enable_log_compression: bool,
-//     #[serde(default)]
-//     pub log_file_size_limit_mb: u64,
-//     #[serde(default)]
-//     pub log_retention_days: u64,
-//     #[serde(default)]
-//     pub max_memory_logs: usize,
-//     #[serde(default)]
-//     pub dedupe_window_size: usize,
-//     #[serde(default)]
-//     pub enable_dedupe: bool,
-// }
 
 #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[serde(default)]
 pub struct LoggingSettings {
     pub enabled: bool,
     pub persistent: bool,
@@ -147,11 +68,193 @@ pub struct LoggingSettings {
     pub dedupe_window_size: u32,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[serde(default)]
+pub struct NetworkSettings {
+    pub max_download_threads: Option<u32>,
+    pub max_download_speed_kbps: Option<u32>,
+    pub max_requests_per_second: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[serde(default)]
+pub struct ContentSettings {
+    pub allow_adult_content: bool,
+    pub allow_ads: bool,
+    pub enable_recommendations: bool,
+    pub enable_notifications: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[serde(default)]
+pub struct AdvancedSettings {
+    pub enable_advanced_features: bool,
+    pub enable_nightly_updates: bool,
+    pub developer_mode: bool,
+    pub extra: HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[serde(default)]
+pub struct MiscSettings {
+    /// I keep this mostly undocumented because it is open-source and I don't want to spoil the fun features (:
+    pub enable_fun: bool,
+}
+
+//?---------------------------------------------------------------------
+//? custom enums to avoid using strings
+//?---------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum OnGameAction {
+    Ask,
+    Exit,
+    Minimize,
+    MinimizeToTray,
+    Nothing,
+    /// Opens a specific page by name, e.g. "home", "logs", etc.
+    Open(String),
+    Restart,
+}
+
+/// This determines HOW, once checked, to perform the update.
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum UpdateMode {
+    /// After a check the user gets prompted to confirm, skip/cancel or only download and wait for restart
+    OnConfirm,
+    /// Download + install automatically, without asking the user
+    Automatic,
+    /// No checks, no prompts, nothing. Users have to go to settings and do everything manually.
+    Manual,
+}
+/// This determines WHEN to check for updates
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum UpdateDetection {
+    OnStartup,
+    OnClose,
+    /// Checks for updates every N seconds
+    Periodically(u32),
+    Manual,
+}
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum UpdateNotificationStyle {
+    Notification,
+    Modal,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum Theme {
+    Light,
+    Dark,
+    System,
+    /// Custom theme, specified by a path/name to a CSS file
+    Custom(String),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum Language {
+    English,
+    // TODO: if we got some cool system for localization we could add more here
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[facet(rename_all = "snake_case")]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum IconTemplate {
+    Default,
+    Icons,
+    FontAwesome,
+    SVG,
+    /// Custom template, specified by a path/name to a template file
+    Custom(String),
+}
+
+//?---------------------------------------------------------------------
+//? impl blocks, default, etc.
+//?---------------------------------------------------------------------
+
+// pub struct CategorizedLauncherSettings {
+//     pub general: GeneralSettings,
+//     pub appearance: AppearanceSettings,
+//     pub content: ContentSettings,
+//     pub logging: LoggingSettings,
+//     pub network: NetworkSettings,
+//     pub advanced: AdvancedSettings,
+//     pub misc: MiscSettings,
+// }
+
+impl Default for GeneralSettings {
+    fn default() -> Self {
+        Self {
+            java_path: None,
+            game_directory: None,
+            on_game_close: OnGameAction::Nothing,
+            on_game_crash: OnGameAction::Open("open_logs".to_string()),
+            on_game_launch: OnGameAction::Open("open_logs".to_string()),
+            update_mode: UpdateMode::OnConfirm,
+            update_detection: UpdateDetection::OnStartup,
+            update_notification_style: UpdateNotificationStyle::Modal,
+        }
+    }
+}
+
+impl Default for SoundSettings {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            music_enabled: true,
+            // let's not blast people's ears off as games tend to do...
+            master_volume: 25,
+            sound_volume: 100,
+            music_volume: 100,
+            selected_soundpack: "default".to_string(),
+        }
+    }
+}
+
+impl Default for AppearanceSettings {
+    fn default() -> Self {
+        Self {
+            theme: Theme::System,
+            icon_template: IconTemplate::Default,
+            language: Language::English,
+            custom_icon_templates: vec![],
+            selected_css_theme: None,
+            sound_settings: SoundSettings::default(),
+        }
+    }
+}
+
+impl Default for ContentSettings {
+    fn default() -> Self {
+        Self { allow_adult_content: false, allow_ads: true, enable_recommendations: true, enable_notifications: true }
+    }
+}
+
 impl Default for LoggingSettings {
     fn default() -> Self {
         Self {
             enabled: true,
-            persistent: true,
+            persistent: false,
             compression: true,
             retention_days: 30,
             max_file_size_mb: 10,
@@ -160,38 +263,25 @@ impl Default for LoggingSettings {
             frontend_max_per_second: 10,
             max_memory_logs: 5000,
             dedupe_enabled: true,
-            dedupe_window_size: 50,
+            dedupe_window_size: 200,
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
-pub struct NetworkSettings {
-    #[serde(default)]
-    pub use_proxy: bool,
+impl Default for NetworkSettings {
+    fn default() -> Self {
+        Self { max_download_threads: Some(8), max_download_speed_kbps: None, max_requests_per_second: None }
+    }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
-pub struct ContentSettings {
-    #[serde(default)]
-    pub allow_adult_content: bool,
+impl Default for AdvancedSettings {
+    fn default() -> Self {
+        Self { enable_nightly_updates: false, developer_mode: false, extra: HashMap::new(), enable_advanced_features: true }
+    }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
-pub struct AdvancedSettings {
-    #[serde(default)]
-    pub developer_mode: bool,
-    pub extra: HashMap<String, String>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
-pub struct MiscSettings {
-    #[serde(default)]
-    pub check_for_updates_on_start: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-pub struct MinecraftDirectoryInfo {
-    pub path: String,
-    pub exists: bool,
+impl Default for MiscSettings {
+    fn default() -> Self {
+        Self { enable_fun: true }
+    }
 }

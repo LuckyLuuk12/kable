@@ -3,8 +3,8 @@ pub mod icons;
 pub mod images;
 pub mod launcher;
 // mod.rs
-pub mod mods;
 pub mod profiles;
+pub mod projects;
 pub mod settings;
 pub mod sounds;
 pub mod symlink;
@@ -15,8 +15,8 @@ pub use icons::*;
 pub use images::*;
 pub use launcher::*;
 // mod.rs
-pub use mods::*;
 pub use profiles::*;
+pub use projects::*;
 pub use settings::*;
 pub use sounds::*;
 pub use symlink::*;

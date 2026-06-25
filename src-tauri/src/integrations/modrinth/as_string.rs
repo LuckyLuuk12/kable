@@ -1,6 +1,4 @@
-use std::slice::SliceIndex;
-
-use api_types::mods::{Facet, FacetField, FacetGroup, FacetOperator, SearchIndex};
+use api_types::projects::{Facet, FacetField, FacetGroup, FacetOperator, SearchIndex};
 
 pub trait AsString {
     fn as_string(&self) -> String;

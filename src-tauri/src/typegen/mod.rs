@@ -35,16 +35,16 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             // #endregion Launcher
             // #region Mods
             api::browse,
-            api::list_mods,
-            api::remove_mod,
-            api::download_mod,
-            api::enable_mod,
-            api::disable_mod,
-            api::toggle_mod,
-            api::check_for_mod_update,
-            api::check_for_mod_updates,
-            api::update_mod,
-            api::update_all_mods,
+            api::list_projects,
+            api::remove_project,
+            api::download_project,
+            api::enable_project,
+            api::disable_project,
+            api::toggle_project,
+            api::check_for_project_update,
+            api::check_for_project_updates,
+            api::update_project,
+            api::update_all_projects,
             // #endregion Mods
             // #region Profiles
             api::get_profiles,

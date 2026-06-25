@@ -4,7 +4,7 @@
 use std::path::PathBuf;
 
 use super::as_string::AsString;
-use api_types::mods::{FacetField, ModrinthResults, Project, ProjectSearch, ProjectVersion};
+use api_types::projects::{FacetField, ModrinthResults, Project, ProjectSearch, ProjectVersion};
 use modrinth_api::apis::{configuration::Configuration, projects_api::search_projects};
 
 pub fn modrinth_configuration() -> Configuration {

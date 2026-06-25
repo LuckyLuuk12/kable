@@ -5,6 +5,6 @@ pub mod cli;
 pub mod customization;
 pub mod launcher;
 pub mod logging;
-pub mod mods;
 pub mod profiles;
+pub mod projects;
 pub mod updater;
