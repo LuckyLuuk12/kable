@@ -1,6 +1,5 @@
-use crate::{features::launcher::resolver, features::launcher::runtime_inject, Logger};
+use crate::{features::launcher::resolver, features::launcher::runtime_inject};
 use api_types::{launcher::LaunchResult, profiles::KableProfile};
-use std::process::Command;
 use std::process::Stdio;
 use tokio::process::Command as TokioCommand;
 

@@ -140,7 +140,7 @@ pub async fn download_project(project: &Project, version_id: Option<&str>, paren
     let version: &ProjectVersion = project
         .versions
         .iter()
-        .find(|v| v.id == version_id.or_else(|| project.latest_version.as_deref()).unwrap_or_default())
+        .find(|v| v.id == version_id.or(project.latest_version.as_deref()).unwrap_or_default())
         .ok_or_else(|| format!("Version ID {} not found in project {}", version_id.unwrap_or_default(), project.project_id))?;
 
     let mut filenames = Vec::new();

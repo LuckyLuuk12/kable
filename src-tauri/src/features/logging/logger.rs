@@ -1,8 +1,6 @@
 use crate::features::logging::manager::LogManager;
 use crate::features::logging::process::{LogEvent, LogLevel};
-use serde_json::json;
 use std::fmt;
-use tauri::AppHandle;
 
 /// Pure facade API layer
 /// - no IO

@@ -9,7 +9,7 @@ use once_cell::sync::Lazy;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-///! This is not an API type so for ease we just define it here instead of in api-types<br>
+/// ! This is not an API type so for ease we just define it here instead of in api-types<br>
 /// Global Discord RPC manager
 pub struct DiscordRpcManager {
     client: Option<DiscordIpcClient>,

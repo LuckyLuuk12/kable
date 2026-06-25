@@ -9,6 +9,7 @@ use serde::Serialize;
 /// IMPORTANT:
 /// - inputs must be serializable via serde
 /// - tuple serialization is used for multi-arg functions
+#[allow(dead_code)]
 pub fn hash_args<T: Serialize>(args: &T) -> String {
     let bytes = encode_to_vec(args, standard()).expect("failed to encode cache key args");
 

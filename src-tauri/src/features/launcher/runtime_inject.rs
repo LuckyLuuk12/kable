@@ -9,6 +9,7 @@ use tokio::process::Child;
 pub type RuntimeId = uuid::Uuid;
 
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum ProcessEvent {
     GameLaunched(KableProfile),
     Stdout(String),
@@ -45,6 +46,12 @@ impl ProcessPipeline {
         for sink in self.sinks.iter() {
             sink.handle(runtime_id, event.clone());
         }
+    }
+}
+
+impl Default for ProcessPipeline {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

@@ -198,7 +198,7 @@ impl LibraryResolver {
                 "windows" => current == "windows",
                 "linux" => current == "linux",
                 "osx" | "mac" | "macos" => current == "macos",
-                _ => return false,
+                _ => false,
             }
         } else {
             true

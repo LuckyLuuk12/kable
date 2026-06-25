@@ -2,7 +2,7 @@
 // for now we only support running a "profile" (which refreshes auth for default account and launches the game)
 use clap::Parser;
 
-use crate::features::accounts::management::{get_active_account, list_accounts};
+use crate::features::accounts::management::list_accounts;
 use crate::features::customization::settings::load_settings;
 use crate::features::launcher::launch::launch_game;
 use crate::features::profiles::{kable_profile::load_profiles, management::get_profile};

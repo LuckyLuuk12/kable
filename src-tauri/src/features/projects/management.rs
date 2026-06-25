@@ -1,7 +1,6 @@
 // List, Remove, Add, Enable/Disable projects, we make this kinda "project type agnostic" so we can use it for mods, resourcepacks, shaderpacks, etc.
-
-use crate::api::browse;
 // for now I implement all project features here download/install, remove, enable/disable, update, list, check for updates, etc. Later we can split them into separate files if needed
+use crate::api::browse;
 use crate::integrations::modrinth::client::download_project;
 use crate::system::fs;
 use api_types::profiles::KableProfile;
@@ -67,7 +66,7 @@ async fn list_disabled_projects(project_type: ProjectType, profile: &KableProfil
 pub async fn list_projects(profile: KableProfile, project_type: ProjectType) -> Result<Vec<KableProject>, String> {
     // do async-join on both list_enabled_projects and list_disabled_projects, then combine the results into a single Vec<KableProject>
     let (enabled_projects, disabled_projects) =
-        tokio::join!(list_enabled_projects(project_type.clone(), &profile), list_disabled_projects(project_type, &profile));
+        tokio::join!(list_enabled_projects(project_type, &profile), list_disabled_projects(project_type, &profile));
     let mut projects = Vec::new();
     projects.extend(enabled_projects?);
     projects.extend(disabled_projects?);
@@ -79,7 +78,7 @@ pub async fn list_projects(profile: KableProfile, project_type: ProjectType) -> 
 /// Given profile and KableProject, remove the jar and json from wherever they are (enabled or disabled), and return the removed KableProject
 /// NOTE: metadata filename is always same as jar filename, but with .json extension instead of .jar, which is KableProject.filename
 pub async fn remove_project(profile: KableProfile, kable_project: KableProject) -> Result<KableProject, String> {
-    let project_type = kable_project.project.project_type.clone();
+    let project_type = kable_project.project.project_type;
     let folder = get_folder_for(project_type, &profile, kable_project.enabled)?;
     let metadata_path = std::path::Path::new(&folder).join(&kable_project.filename).with_extension("json");
 
@@ -96,19 +95,19 @@ pub async fn remove_project(profile: KableProfile, kable_project: KableProject) 
 
 /// Given a profile,and Project, add/download the mod
 async fn add_project(profile: KableProfile, project: Project, version_id: Option<&str>) -> Result<KableProject, String> {
-    let project_type = project.project_type.clone();
+    let project_type = project.project_type;
     // 1. get profile project dir
     let folder = get_folder_for(project_type, &profile, true)?;
     // 2. download the mod files to the mods folder
-    let filenames = download_project(&project.clone(), version_id, std::path::PathBuf::from(folder)).await?;
+    let filenames = download_project(&project.clone(), version_id, folder).await?;
     // 3. assume 1 single file is downladed: the mod, and get the filename
-    let filename = filenames.get(0).ok_or("No files downloaded")?.to_string();
+    let filename = filenames.first().ok_or("No files downloaded")?.to_string();
     // 4. construct KableProject { project, version_id || project.latest_version unwrapped, filename, enabled: true }
     Ok(KableProject {
         project: project.clone(),
         version_id: version_id
-            .or_else(|| project.latest_version.as_deref())
-            .expect(&format!("No version id was associated with project {}", project.project_id).to_string())
+            .or(project.latest_version.as_deref())
+            .unwrap_or_else(|| panic!("{}", format!("No version id was associated with project {}", project.project_id).to_string()))
             .to_string(),
         filename,
         enabled: true,
@@ -116,7 +115,7 @@ async fn add_project(profile: KableProfile, project: Project, version_id: Option
 }
 
 async fn add_metadata(profile: KableProfile, kable_project: KableProject) -> Result<KableProject, String> {
-    let project_type = kable_project.project.project_type.clone();
+    let project_type = kable_project.project.project_type;
     // 1. get profile project dir
     let folder = get_folder_for(project_type, &profile, true)?;
     // 2. construct metadata path
@@ -138,7 +137,7 @@ pub async fn enable_project(profile: KableProfile, kable_project: KableProject) 
     if kable_project.enabled {
         return Err(format!("Project {} is already enabled", kable_project.filename));
     }
-    let folder = get_folder_for(kable_project.project.project_type.clone(), &profile, true)?;
+    let folder = get_folder_for(kable_project.project.project_type, &profile, true)?;
     let disabled_metadata_path = std::path::Path::new(&folder).join("disabled").join(&kable_project.filename).with_extension("json");
     let disabled_jar_path = std::path::Path::new(&folder).join("disabled").join(&kable_project.filename);
 
@@ -159,7 +158,7 @@ pub async fn disable_project(profile: KableProfile, kable_project: KableProject)
     if !kable_project.enabled {
         return Err(format!("Project {} is already disabled", kable_project.filename));
     }
-    let folder = get_folder_for(kable_project.project.project_type.clone(), &profile, true)?;
+    let folder = get_folder_for(kable_project.project.project_type, &profile, true)?;
     let enabled_metadata_path = std::path::Path::new(&folder).join(&kable_project.filename).with_extension("json");
     let enabled_jar_path = std::path::Path::new(&folder).join(&kable_project.filename);
 
@@ -189,7 +188,7 @@ pub async fn toggle_project(profile: KableProfile, kable_project: KableProject) 
 /// Search again for this profile and specific KableProject project id, check if the latest version is different from the current version, if so return Some(Project) with the latest version, else return None
 pub async fn check_for_update(kable_profile: KableProfile, kable_project: KableProject) -> Result<Option<Project>, String> {
     let project_search = ProjectSearch { query: Some(kable_project.project.project_id.clone()), ..Default::default() };
-    let results = browse(kable_profile, project_search, true, kable_project.project.project_type.clone()).await?;
+    let results = browse(kable_profile, project_search, true, kable_project.project.project_type).await?;
     if let Some(latest_project) = results.hits.into_iter().next() {
         if latest_project.latest_version != Some(kable_project.version_id.clone()) {
             Ok(Some(latest_project))
@@ -230,7 +229,9 @@ pub async fn update_all_projects(profile: KableProfile, project_type: ProjectTyp
             let profile = profile.clone();
             async move { update_project(profile, kable_project).await }
         })
-        .buffer_unordered(8) // TODO: read from NetworkSettings the max_threads.
+        .buffer_unordered(
+            crate::features::customization::settings::load_settings().await?.network.max_download_threads.unwrap_or(8) as usize
+        )
         .try_collect()
         .await
 }

@@ -138,7 +138,7 @@ impl LogFileWriter {
         let mut encoder = sevenz_rust::SevenZWriter::new(&mut archive)?;
         let name = path.file_name().unwrap().to_string_lossy().to_string();
 
-        encoder.push_archive_entry(sevenz_rust::SevenZArchiveEntry::from_path(&name.clone(), name), Some(std::io::Cursor::new(data)))?;
+        encoder.push_archive_entry(sevenz_rust::SevenZArchiveEntry::from_path(name.clone(), name), Some(std::io::Cursor::new(data)))?;
 
         encoder.finish()?;
 
@@ -171,5 +171,11 @@ impl LogFileWriter {
         }
 
         Ok(())
+    }
+}
+
+impl Default for LogFileWriter {
+    fn default() -> Self {
+        Self::new()
     }
 }
