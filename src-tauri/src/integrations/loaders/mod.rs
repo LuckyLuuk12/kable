@@ -2,6 +2,7 @@ use crate::constants::{FABRIC_META_URL, FORGE_MAVEN_METADATA_URL, MINECRAFT_VERS
 use api_types::profiles::{LoaderKind, ProfileVersion, Versions};
 use futures::stream::FuturesUnordered;
 use futures::stream::StreamExt;
+use kable_macros::persistent_cache;
 use serde_json::Value;
 
 fn loader_manifest_url(loader: LoaderKind) -> Result<String, String> {
@@ -15,10 +16,9 @@ fn loader_manifest_url(loader: LoaderKind) -> Result<String, String> {
         // Fetch: https://meta.quiltmc.org/v3/versions/loader
         LoaderKind::Quilt => Ok(format!("{}/v3/versions/loader", QUILT_META_URL)),
         // Fetch: https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml
-        LoaderKind::Forge => Ok(format!("{}", FORGE_MAVEN_METADATA_URL)),
+        LoaderKind::Forge => Ok(FORGE_MAVEN_METADATA_URL.to_string()),
         // Fetch: https://maven.neoforged.net/api/maven/versions/releases/net%2Fneoforged%2Fneoforge
-        LoaderKind::NeoForge => Ok(format!("{}", NEOFORGE_VERSION_URL)),
-        _ => Err("Unsupported loader".into()),
+        LoaderKind::NeoForge => Ok(NEOFORGE_VERSION_URL.to_string()),
     }
 }
 
@@ -76,12 +76,12 @@ pub async fn get_versions() -> Result<Versions, String> {
 /// Parse loader manifest as Versions (List of ProfileVersion), display name needs fancy / custom formatting per loader e.g., "iris-fabric-loader-0.18.4-1.21.11"
 pub async fn get_versions_of(loader: LoaderKind) -> Result<Versions, String> {
     match loader {
+        LoaderKind::Vanilla => get_vanilla_versions().await,
         LoaderKind::Fabric => get_meta_versions(LoaderKind::Fabric).await,
         LoaderKind::IrisFabric => get_meta_versions(LoaderKind::IrisFabric).await,
         LoaderKind::Quilt => get_meta_versions(LoaderKind::Quilt).await,
         LoaderKind::Forge => get_forge_versions().await,
         LoaderKind::NeoForge => get_neoforge_versions().await,
-        _ => Err("Unsupported loader".into()),
     }
 }
 
@@ -101,6 +101,7 @@ pub async fn get_version_data(loader: LoaderKind, version_id: String, include_un
 
 /// Obviously we also want to know the vanilla versions, example:
 /// `{"latest": {"release": "26.1.2", "snapshot": "26.2-rc-2"}, "versions": [{"id": "26.2-rc-2", "type": "snapshot", "url": "https://piston-meta.mojang.com/v1/packages/9c01b04a6ffd22f6ef4c1dfa8fab9850648fb9dd/26.2-rc-2.json", "time": "2026-06-12T11:41:39+00:00", "releaseTime": "2026-06-12T11:32:28+00:00"}`
+#[persistent_cache(parent = "loader-versions", ttl_secs = 604800)] // cache for 1 week
 async fn get_vanilla_versions() -> Result<Versions, String> {
     let manifest = reqwest::get(MINECRAFT_VERSION_MANIFEST_URL)
         .await
@@ -122,10 +123,10 @@ async fn get_vanilla_versions() -> Result<Versions, String> {
                 minecraft_version: Some(id),
                 loader_version: None,
                 version_type: match release_type {
-                    "release" => Some(api_types::profiles::VersionType::Release),
-                    "snapshot" => Some(api_types::profiles::VersionType::Snapshot),
-                    "old_beta" => Some(api_types::profiles::VersionType::OldBeta),
-                    "old_alpha" => Some(api_types::profiles::VersionType::OldAlpha),
+                    "release" => Some(api_types::profiles::ProfileVersionType::Release),
+                    "snapshot" => Some(api_types::profiles::ProfileVersionType::Snapshot),
+                    "old_beta" => Some(api_types::profiles::ProfileVersionType::OldBeta),
+                    "old_alpha" => Some(api_types::profiles::ProfileVersionType::OldAlpha),
                     _ => None,
                 },
                 stable: Some(release_type == "release"),
@@ -142,6 +143,7 @@ async fn get_vanilla_versions() -> Result<Versions, String> {
 }
 
 /// Fabric & Quilt use what they call their "meta api" which provides various routes to get the info we need
+#[persistent_cache(parent = "loader-versions", ttl_secs = 604800)] // cache for 1 week
 async fn get_meta_versions(loader: LoaderKind) -> Result<Versions, String> {
     let game_response = reqwest::get(game_manifest_url(loader)?).await.map_err(|e| e.to_string())?;
     // for all supported minecraft versions fetch the supported loader versions and merge them into one manifest with all info:
@@ -219,6 +221,7 @@ async fn get_meta_versions(loader: LoaderKind) -> Result<Versions, String> {
 /// here, https://files.minecraftforge.net/net/minecraftforge/forge/maven-metadata.json, forge has a
 /// json object, with key being minecraft versions and then for each key a list of forge versiosn formatted as
 /// mcversion-forgeversion, e.g. 1.19.2-43.2.0, we want to parse this into a list of ProfileVersion with loader = Forge and minecraft_version and loader_version set accordingly, display name can be like "Forge 43.2.0 for Minecraft 1.19.2"
+#[persistent_cache(parent = "loader-versions", ttl_secs = 604800)] // cache for 1 week
 async fn get_forge_versions() -> Result<Versions, String> {
     let response = reqwest::get(loader_manifest_url(LoaderKind::Forge)?).await.map_err(|e| e.to_string())?;
     let manifest: Value = response.json().await.map_err(|e| e.to_string())?;
@@ -259,6 +262,7 @@ async fn get_forge_versions() -> Result<Versions, String> {
 /// are formatted like: a.b.c[-add] with a being the minecraft version after the the first dot (so 1.21.1 -> 21), b being after the second dot
 /// (so 1.21.4 -> 4) and c being the neoforge version which increments, and sometimes there is a dash with additional info like beta, alpha.1+snapshot+1, etc...
 /// THIS STOPS after minecraft 26.x, minecraft dropped their 1.b.c semver and now neoforge uses just the <full mc version>.c[-add] format.
+#[persistent_cache(parent = "loader-versions", ttl_secs = 604800)] // cache for 1 week
 async fn get_neoforge_versions() -> Result<Versions, String> {
     let response = reqwest::get(loader_manifest_url(LoaderKind::NeoForge)?).await.map_err(|e| e.to_string())?;
     let manifest: Value = response.json().await.map_err(|e| e.to_string())?;
@@ -296,9 +300,9 @@ async fn get_neoforge_versions() -> Result<Versions, String> {
                             minecraft_version: Some(mc_version.to_string()),
                             loader_version: Some(neoforge_version.to_string()),
                             version_type: match (is_snapshot, looks_unstable) {
-                                (true, _) => Some(api_types::profiles::VersionType::Snapshot),
-                                (false, true) => Some(api_types::profiles::VersionType::OldBeta), // we don't have exact version types for beta/alpha so just mark them as old beta
-                                (false, false) => Some(api_types::profiles::VersionType::Release),
+                                (true, _) => Some(api_types::profiles::ProfileVersionType::Snapshot),
+                                (false, true) => Some(api_types::profiles::ProfileVersionType::OldBeta), // we don't have exact version types for beta/alpha so just mark them as old beta
+                                (false, false) => Some(api_types::profiles::ProfileVersionType::Release),
                             },
                             stable: Some(!is_snapshot && !looks_unstable),
                             release_time: None,

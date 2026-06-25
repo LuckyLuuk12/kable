@@ -13,3 +13,4 @@ modrinth-api = "2.7.1"
 serde_with = "3.21.0"
 uuid = "1.23.3"
 specta = { version = "2.0.0-rc.25", features = ["derive"] }
+specta-serde = "0.0.12"

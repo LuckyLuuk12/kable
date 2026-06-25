@@ -46,6 +46,7 @@ pub const SETTINGS_FILE: &str = "settings.json";
 pub const SOUNDPACK_FILE: &str = "soundpack.json";
 pub const CUSTOM_SYMLINKS_FILE: &str = "custom_symlinks.json";
 pub const LAUNCHER_PROFILES_FILE: &str = "launcher_profiles.json";
+pub const LAUNCHER_ACCOUNTS_FILE: &str = "launcher_accounts.json";
 pub const PENDING_UPDATE_FILE: &str = "pending_update.json";
 pub const KABLE_ACCOUNTS_FILE: &str = "kable_accounts.json";
 pub const KABLE_PROFILES_FILE: &str = "kable_profiles.json";

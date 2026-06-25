@@ -5,7 +5,7 @@ use std::sync::OnceLock;
 pub use kable_macros::*;
 // Shared DTOs live in api-types.
 mod api;
-mod tests;
+// mod tests; // Uncomment this if you want to run tests / get IDE support for the tests module.
 pub mod typegen; // API should not be accessible outside this crate/file as this is the only place we should register Tauri commands.
 pub use api_types::*;
 pub use features::logging::Logger;
@@ -122,7 +122,7 @@ pub fn run() {
             api::auto_detect_java,
             api::get_java_path,
             // #endregion Launcher
-            // #region Mods
+            // #region Projects
             api::browse,
             api::list_projects,
             api::remove_project,
@@ -134,7 +134,7 @@ pub fn run() {
             api::check_for_project_updates,
             api::update_project,
             api::update_all_projects,
-            // #endregion Mods
+            // #endregion Projects
             // #region Profiles
             api::get_profiles,
             api::get_profile,

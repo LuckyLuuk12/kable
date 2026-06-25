@@ -33,7 +33,7 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::auto_detect_java,
             api::get_java_path,
             // #endregion Launcher
-            // #region Mods
+            // #region Projects
             api::browse,
             api::list_projects,
             api::remove_project,
@@ -45,7 +45,7 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::check_for_project_updates,
             api::update_project,
             api::update_all_projects,
-            // #endregion Mods
+            // #endregion Projects
             // #region Profiles
             api::get_profiles,
             api::get_profile,

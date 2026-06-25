@@ -1,6 +1,7 @@
 use crate::constants::SETTINGS_FILE;
 use crate::system::fs::{launcher_dir, read_str, write_str};
 use api_types::settings::CategorizedLauncherSettings;
+use kable_macros::persistent_cache;
 use std::path::PathBuf;
 
 /// Get the settings file path
@@ -22,6 +23,7 @@ pub async fn get_settings_path() -> Result<PathBuf, String> {
     Ok(path)
 }
 
+#[persistent_cache(parent = "settings")]
 pub async fn load_settings() -> Result<CategorizedLauncherSettings, String> {
     let settings_path = get_settings_path().await?;
 
@@ -38,6 +40,6 @@ pub async fn save_settings(settings: CategorizedLauncherSettings) -> Result<(), 
     let content = serde_json::to_string_pretty(&settings).map_err(|e| format!("Failed to serialize settings: {}", e))?;
 
     write_str(&settings_path, &content, false).await?;
-
+    crate::system::cache::invalidate_no_args("settings", "load_settings").await?;
     Ok(())
 }

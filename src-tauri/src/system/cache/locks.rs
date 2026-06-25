@@ -1,16 +1,11 @@
 use std::sync::Arc;
 
 use dashmap::DashMap;
+use once_cell::sync::Lazy;
 use tokio::sync::Mutex;
 
-static LOCKS: once_cell::sync::Lazy<DashMap<String, Arc<Mutex<()>>>> = once_cell::sync::Lazy::new(DashMap::new);
+static LOCKS: Lazy<DashMap<String, Arc<Mutex<()>>>> = Lazy::new(DashMap::new);
 
 pub fn get_lock(key: &str) -> Arc<Mutex<()>> {
-    if let Some(lock) = LOCKS.get(key) {
-        return lock.clone();
-    }
-
-    let lock = Arc::new(Mutex::new(()));
-    LOCKS.insert(key.to_string(), lock.clone());
-    lock
+    LOCKS.entry(key.to_string()).or_insert_with(|| Arc::new(Mutex::new(()))).clone()
 }

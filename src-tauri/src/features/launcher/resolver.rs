@@ -125,7 +125,7 @@ arguments.jvm  ->  version_name
 */
 use crate::integrations::minecraft::versions::McVersionManifest;
 use crate::integrations::minecraft::{assets::AssetResolver, libraries::LibraryResolver, natives::NativeResolver};
-use api_types::profiles::{KableProfile, VersionType};
+use api_types::profiles::{KableProfile, ProfileVersionType};
 use std::process::Command;
 
 fn classpath_sep() -> &'static str {
@@ -175,7 +175,7 @@ async fn replace_variables(profile: &KableProfile, manifest: &McVersionManifest,
     result = result.replace("${user_type}", &active_account.account_type);
 
     result = result.replace("${version_name}", &profile.version.id);
-    result = result.replace("${version_type}", &profile.version.version_type.clone().unwrap_or(VersionType::Release).to_string());
+    result = result.replace("${version_type}", &profile.version.version_type.clone().unwrap_or(ProfileVersionType::Release).to_string());
 
     result = result.replace("${launcher_name}", env!("CARGO_PKG_NAME"));
     result = result.replace("${launcher_version}", env!("CARGO_PKG_VERSION"));
@@ -215,7 +215,9 @@ async fn build_command(manifest: &McVersionManifest, profile: &KableProfile) -> 
 
     let command_string = replace_variables(profile, manifest, &classpath).await?;
 
-    let java_path = crate::system::java::find_java_executable(None)?; // TODO: settings::GeneralSettings::get().java_path or smth like that instead of None
+    let java_path = crate::system::java::find_java_executable(
+        crate::features::customization::settings::load_settings().await?.general.java_path.as_ref(),
+    )?;
 
     let mut cmd = Command::new(java_path);
 

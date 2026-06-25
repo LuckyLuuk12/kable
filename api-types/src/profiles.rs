@@ -65,7 +65,7 @@ pub struct ProfileVersion {
     /// Optional loader version, e.g. "43.2.0" for forge or "0.14.19" for fabric
     pub loader_version: Option<String>,
     /// Release, Snapshot, OldBeta, OldAlpha
-    pub version_type: Option<VersionType>,
+    pub version_type: Option<ProfileVersionType>,
     /// Whether this version is marked as stable in the profile, note that this is not necessarily the same as version_type == Release
     pub stable: Option<bool>,
     /// Extra metadata that may be present from the version manifest
@@ -109,7 +109,7 @@ impl std::fmt::Display for LoaderKind {
 #[facet(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
-pub enum VersionType {
+pub enum ProfileVersionType {
     Release,
     Snapshot,
     OldBeta,
@@ -204,13 +204,13 @@ impl Default for LauncherProfiles {
     }
 }
 
-impl std::fmt::Display for VersionType {
+impl std::fmt::Display for ProfileVersionType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            VersionType::Release => write!(f, "release"),
-            VersionType::Snapshot => write!(f, "snapshot"),
-            VersionType::OldBeta => write!(f, "old_beta"),
-            VersionType::OldAlpha => write!(f, "old_alpha"),
+            ProfileVersionType::Release => write!(f, "release"),
+            ProfileVersionType::Snapshot => write!(f, "snapshot"),
+            ProfileVersionType::OldBeta => write!(f, "old_beta"),
+            ProfileVersionType::OldAlpha => write!(f, "old_alpha"),
         }
     }
 }

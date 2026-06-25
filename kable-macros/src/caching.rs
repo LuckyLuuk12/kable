@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse::Parse, parse::ParseStream, parse_macro_input, Expr, Ident, ItemFn, Lit, Token};
+use syn::{parse::Parse, parse::ParseStream, parse_macro_input, Ident, ItemFn, Lit, Token};
 
 /// --------------------------------
 /// Cache macro configuration
@@ -13,15 +13,12 @@ struct CacheConfig {
 
 impl Default for CacheConfig {
     fn default() -> Self {
-        Self {
-            parent: "default".to_string(),
-            ttl_secs: Some(86400), // 24h
-        }
+        Self { parent: "default".to_string(), ttl_secs: Some(86400) }
     }
 }
 
 /// --------------------------------
-/// Attribute parser (syn Parse style)
+/// Attribute parser (STRICT)
 /// --------------------------------
 impl Parse for CacheConfig {
     fn parse(input: ParseStream) -> syn::Result<Self> {
@@ -33,26 +30,26 @@ impl Parse for CacheConfig {
 
             match key.to_string().as_str() {
                 "parent" => {
-                    let lit: Lit = input.parse()?;
-                    if let Lit::Str(s) = lit {
-                        config.parent = s.value();
-                    }
+                    let Lit::Str(s) = input.parse()? else {
+                        return Err(syn::Error::new_spanned(key, "expected string literal for `parent`"));
+                    };
+                    config.parent = s.value();
                 }
 
                 "ttl_secs" => {
-                    let lit: Lit = input.parse()?;
-                    if let Lit::Int(i) = lit {
-                        config.ttl_secs = Some(i.base10_parse()?);
-                    }
+                    let Lit::Int(i) = input.parse()? else {
+                        return Err(syn::Error::new_spanned(key, "expected integer literal for `ttl_secs`"));
+                    };
+
+                    config.ttl_secs = Some(i.base10_parse()?);
                 }
 
-                _ => {
-                    // skip unknown expression safely
-                    let _: Expr = input.parse()?;
+                other => {
+                    return Err(syn::Error::new_spanned(key, format!("unknown cache attribute: `{other}`")));
                 }
             }
 
-            if !input.is_empty() {
+            if input.peek(Token![,]) {
                 let _ = input.parse::<Token![,]>();
             }
         }
@@ -61,17 +58,20 @@ impl Parse for CacheConfig {
     }
 }
 
+/// --------------------------------
 /// Persistent file-system cache for function results.
 ///
 /// This macro wraps a function and caches its result on disk using a deterministic key
-/// derived from the function signature and runtime arguments.
+/// derived from the function name + arguments.
 ///
 /// ## Behavior
 ///
-/// - On first call: executes function and stores result in `.kable/cache/<parent>/<hash>.bin`
-/// - On subsequent calls: returns cached value if:
-///   - cache entry exists
-///   - TTL has not expired (if configured)
+/// - On first call: executes function and stores result in:
+///   `.kable/cache/<parent>/<hash>.bin`
+/// - On subsequent calls:
+///   - returns cached value if present
+///   - TTL not expired
+///   - entry format valid
 /// - Otherwise recomputes and overwrites cache entry
 ///
 /// ## Cache structure
@@ -80,12 +80,12 @@ impl Parse for CacheConfig {
 /// .kable/
 ///   cache/
 ///     &lt;parent&gt;/
-///       &lt;hash(function + args)&gt;.bin
+///       &lt;hash(args)&gt;.bin
 /// </pre>
 ///
 /// ## Attributes
 ///
-/// - `parent = "name"`: logical grouping folder inside cache
+/// - `parent = "name"`: cache namespace/group
 /// - `ttl_secs = 60`: optional time-to-live in seconds
 ///
 /// ## Example
@@ -99,40 +99,55 @@ impl Parse for CacheConfig {
 ///
 /// ## Notes
 ///
-/// - Function arguments must be serializable (internally handled by runtime cache layer)
-/// - Cache is async-safe and uses per-key locking to prevent duplicate computation
-/// - This macro requires runtime support from `kable_cache::__macro_get_or_compute`
+/// - Function arguments must implement `serde::Serialize`
+/// - Cache is async-safe and uses per-key locking
+/// - Requires runtime: `kable_cache::__macro_get_or_compute`
 pub fn persistent_cache(attr: TokenStream, item: TokenStream) -> TokenStream {
     let input_fn = parse_macro_input!(item as ItemFn);
 
-    let config: CacheConfig = if attr.is_empty() {
-        CacheConfig::default()
-    } else {
-        let cfg = parse_macro_input!(attr as CacheConfig);
-        cfg
-    };
+    let config: CacheConfig = if attr.is_empty() { CacheConfig::default() } else { parse_macro_input!(attr as CacheConfig) };
 
     let vis = &input_fn.vis;
     let sig = &input_fn.sig;
     let attrs = &input_fn.attrs;
     let block = &input_fn.block;
 
+    let fn_name = sig.ident.to_string();
     let parent = config.parent;
     let ttl = config.ttl_secs;
+    let ttl_expr = match ttl {
+        Some(v) => quote! { Some(#v) },
+        None => quote! { None },
+    };
+
+    // Extract argument patterns + identifiers correctly
+    let inputs = &sig.inputs;
+
+    let arg_names: Vec<Ident> = inputs
+        .iter()
+        .filter_map(|arg| {
+            if let syn::FnArg::Typed(pat_type) = arg {
+                if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+                    return Some(pat_ident.ident.clone());
+                }
+            }
+            None
+        })
+        .collect();
 
     let expanded = quote! {
         #(#attrs)*
         #vis #sig {
-            let result = kable_cache::__macro_get_or_compute(
-                #parent,
-                // NOTE: runtime args must be provided by wrapper or serde,
-                // not syn AST. This is intentionally left as runtime hook.
-                (),
-                #ttl,
-                || async move #block
-            ).await;
+            let __cache_args = (
+                #(#arg_names.clone(),)*
+            );
 
-            result
+            crate::system::cache::__macro_get_or_compute(
+                #parent,
+                ( #fn_name, __cache_args ),
+                #ttl_expr,
+                || async move #block
+            ).await
         }
     };
 

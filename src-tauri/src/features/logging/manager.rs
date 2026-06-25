@@ -3,7 +3,6 @@ use crate::features::logging::file::LogFileWriter;
 use crate::features::logging::process::{LogEvent, LogLevel};
 use api_types::settings::CategorizedLauncherSettings;
 use std::sync::{Arc, Mutex};
-use tauri::AppHandle;
 
 /// Central orchestration layer
 /// Owns emitter + file pipeline and routes events

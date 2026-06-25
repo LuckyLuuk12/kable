@@ -41,6 +41,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "specta",
+ "specta-serde",
  "uuid",
 ]
 
@@ -1401,6 +1402,16 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "specta-serde"
+version = "0.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee8a72b755ddb8949fd8f17c5db43f0e8a806ea587d9bc602ee3f73240c00029"
+dependencies = [
+ "specta",
+ "specta-macros",
 ]
 
 [[package]]

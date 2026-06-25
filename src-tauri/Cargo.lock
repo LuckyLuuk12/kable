@@ -185,6 +185,7 @@ dependencies = [
  "serde_json",
  "serde_with",
  "specta",
+ "specta-serde",
  "uuid 1.23.3",
 ]
 

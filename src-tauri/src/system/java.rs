@@ -1,3 +1,4 @@
+/// ! I have no clue how to do this on Linux and MacOS (and Windows actually as well but it works...), so if you know how to do this, please contribute!
 use crate::features::logging::Logger;
 use std::path::PathBuf;
 use std::process::Command;
@@ -17,17 +18,20 @@ pub fn find_java_executable(java_path: Option<&String>) -> Result<String, String
     // Platform-specific detection
     #[cfg(target_os = "windows")]
     {
-        find_java_windows()
+        #[allow(clippy::needless_return)]
+        return find_java_windows();
     }
 
     #[cfg(target_os = "macos")]
     {
-        find_java_macos()
+        #[allow(clippy::needless_return)]
+        return find_java_macos();
     }
 
     #[cfg(target_os = "linux")]
     {
-        find_java_linux()
+        #[allow(clippy::needless_return)]
+        return find_java_linux();
     }
 }
 
@@ -91,7 +95,7 @@ fn find_java_windows() -> Result<String, String> {
     }
 
     if !found_javas.is_empty() {
-        found_javas.sort_by(|a, b| b.1.cmp(&a.1));
+        found_javas.sort_by_key(|b| std::cmp::Reverse(b.1));
         let chosen = &found_javas[0].0;
         return Ok(chosen.to_string_lossy().to_string());
     }
@@ -137,7 +141,7 @@ fn find_minecraft_launcher_java_windows() -> Option<PathBuf> {
     if found_javas.is_empty() {
         None
     } else {
-        found_javas.sort_by(|a, b| b.1.cmp(&a.1));
+        found_javas.sort_by_key(|b| std::cmp::Reverse(b.1));
         Some(found_javas[0].0.clone())
     }
 }

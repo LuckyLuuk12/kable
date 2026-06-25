@@ -1,4 +1,4 @@
-use crate::constants::{KABLE_DIR_NAME, LAUNCHER_DIR};
+use crate::constants::{CACHE_DIR, KABLE_DIR_NAME, LAUNCHER_DIR};
 
 use dirs::home_dir;
 use std::path::{Path, PathBuf};
@@ -30,6 +30,10 @@ pub fn kable_dir() -> FsResult<PathBuf> {
 /// Launcher directory is a subdirectory of the Kable directory, used for storing launcher-specific data.
 pub fn launcher_dir() -> FsResult<PathBuf> {
     Ok(kable_dir()?.join(LAUNCHER_DIR))
+}
+
+pub fn cache_dir() -> FsResult<PathBuf> {
+    Ok(kable_dir()?.join(CACHE_DIR))
 }
 
 /// Resolve a path to an absolute path, relative to the kable_dir if not already absolute.

@@ -23,6 +23,7 @@ pub fn parse_args() -> Args {
  * based on args maybe skip UI, or work as a CLI launcher.
  */
 pub async fn handle_args(args: Args) -> Result<(), String> {
+    crate::system::cache::initialize(crate::system::fs::cache_dir()?).await?;
     // 1. First, we load app settings
     let _settings = load_settings().await?;
     // 2. Second, we load all profiles

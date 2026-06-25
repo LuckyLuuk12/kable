@@ -128,9 +128,11 @@ pub struct Project {
     pub downloads: i32,
     /// The URL of the project's icon
     #[serde(rename = "icon_url", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub icon_url: Option<Option<String>>,
     /// The RGB color of the project, automatically generated from the project icon
     #[serde(rename = "color", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[specta(type = specta_serde::Phased<Option<Option<i32>>, Option<Option<i32>>>)]
     pub color: Option<Option<i32>>,
     /// The ID of the moderation thread associated with this project
     #[serde(rename = "thread_id", skip_serializing_if = "Option::is_none")]
@@ -169,6 +171,7 @@ pub struct Project {
     pub gallery: Option<Vec<String>>,
     /// The featured gallery image of the project
     #[serde(rename = "featured_gallery", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub featured_gallery: Option<Option<String>>,
 }
 
@@ -243,6 +246,7 @@ pub struct ProjectVersion {
     pub version_number: String,
     /// The changelog for this version
     #[serde(rename = "changelog", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub changelog: Option<Option<String>>,
     /// A list of specific versions of projects that this version depends on
     #[serde(rename = "dependencies", skip_serializing_if = "Option::is_none")]
@@ -262,6 +266,7 @@ pub struct ProjectVersion {
     #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
     pub status: Option<Status>,
     #[serde(rename = "requested_status", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[specta(type = specta_serde::Phased<Option<Option<RequestedStatus>>, Option<Option<RequestedStatus>>>)]
     pub requested_status: Option<Option<RequestedStatus>>,
     /// The ID of the version, encoded as a base62 string
     #[serde(rename = "id")]
@@ -279,6 +284,7 @@ pub struct ProjectVersion {
     pub downloads: i32,
     /// A link to the changelog for this version. Always null, only kept for legacy compatibility.
     #[serde(rename = "changelog_url", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub changelog_url: Option<Option<String>>,
     /// A list of files available for download for this version
     #[serde(rename = "files")]
@@ -289,12 +295,15 @@ pub struct ProjectVersion {
 pub struct VersionDependency {
     /// The ID of the version that this version depends on
     #[serde(rename = "version_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub version_id: Option<Option<String>>,
     /// The ID of the project that this version depends on
     #[serde(rename = "project_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub project_id: Option<Option<String>>,
     /// The file name of the dependency, mostly used for showing external dependencies on modpacks
     #[serde(rename = "file_name", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub file_name: Option<Option<String>>,
     /// The type of dependency that this version has
     #[serde(rename = "dependency_type")]
@@ -385,6 +394,7 @@ pub struct VersionFile {
     pub size: i32,
     /// The type of the additional file, used mainly for adding resource packs to datapacks
     #[serde(rename = "file_type", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    #[specta(type = specta_serde::Phased<Option<Option<FileType>>, Option<Option<FileType>>>)]
     pub file_type: Option<Option<FileType>>,
 }
 

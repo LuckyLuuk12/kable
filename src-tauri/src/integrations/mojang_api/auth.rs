@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::env::var;
 use std::sync::{Arc, Mutex};
 
-///! Global state to store device authorization responses for polling
+/// ! Global state to store device authorization responses for polling
 static DEVICE_AUTH_STORAGE: Lazy<Arc<Mutex<HashMap<String, StandardDeviceAuthorizationResponse>>>> =
     Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
 
@@ -88,7 +88,7 @@ pub async fn poll_authentication(device_code: String) -> Result<MicrosoftToken, 
             .exchange_device_access_token(&details)
             .request_async(&async_http_client, tokio::time::sleep, None)
             .await
-            .map_or(Err("Failed to exchange device code for access token".to_string()), |token| Ok(token))?;
+            .map_or(Err("Failed to exchange device code for access token".to_string()), Ok)?;
         // Clean up stored device auth response
         {
             let mut storage = DEVICE_AUTH_STORAGE.lock().unwrap();

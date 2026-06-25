@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use api_types::auth::{LauncherAccount, LauncherAccountsJson, MicrosoftToken};
+use api_types::auth::{KableAccount, KableAccountsJson, MicrosoftToken};
 use api_types::Timestamp;
 use chrono::Utc;
 
@@ -9,7 +9,7 @@ use crate::constants::KABLE_ACCOUNTS_FILE;
 use crate::features::accounts::secure_token;
 use crate::system::fs::{create_dir, launcher_dir, read_str, write_str};
 
-pub async fn add_account(account: LauncherAccount) -> Result<(), String> {
+pub async fn add_account(account: KableAccount) -> Result<(), String> {
     let mut accounts_json = ensure_accounts_file().await?;
 
     if accounts_json.accounts.contains_key(&account.local_id) {
@@ -21,7 +21,7 @@ pub async fn add_account(account: LauncherAccount) -> Result<(), String> {
     Ok(())
 }
 
-pub async fn remove_account(account: LauncherAccount) -> Result<Vec<LauncherAccount>, String> {
+pub async fn remove_account(account: KableAccount) -> Result<Vec<KableAccount>, String> {
     let mut accounts_json = ensure_accounts_file().await?;
     if !accounts_json.accounts.contains_key(&account.local_id) {
         return Err(format!("Account ID {} does not exist", account.local_id));
@@ -35,14 +35,14 @@ pub async fn remove_account(account: LauncherAccount) -> Result<Vec<LauncherAcco
     Ok(accounts_json.accounts.values().cloned().collect())
 }
 
-pub async fn set_active_account(account: LauncherAccount) -> Result<(), String> {
-    // Check if the id exists in hashmap key of LauncherAccountsJson.
+pub async fn set_active_account(account: KableAccount) -> Result<(), String> {
+    // Check if the id exists in hashmap key of KableAccountsJson.
     let accounts_json = ensure_accounts_file().await?;
     if !accounts_json.accounts.contains_key(&account.local_id) {
         return Err(format!("Account ID {} does not exist", account.local_id));
     }
     // Set the active account
-    let updated_json = LauncherAccountsJson {
+    let updated_json = KableAccountsJson {
         accounts: accounts_json.accounts,
         active_account_local_id: account.local_id,
         mojang_client_token: accounts_json.mojang_client_token,
@@ -56,13 +56,13 @@ pub async fn set_active_account(account: LauncherAccount) -> Result<(), String> 
     Ok(())
 }
 
-pub async fn get_active_account() -> Result<Option<LauncherAccount>, String> {
+pub async fn get_active_account() -> Result<Option<KableAccount>, String> {
     let accounts_json = ensure_accounts_file().await?;
     Ok(accounts_json.accounts.get(&accounts_json.active_account_local_id).cloned())
 }
 
 /// List all accounts, this will also attempt to refresh all accounts before returning, if refreshing fails it will just return the accounts without refreshing. This way we ensure the file is always in a valid state and we attempt to keep tokens fresh without risking failure to list accounts at all.
-pub async fn list_accounts() -> Result<Vec<LauncherAccount>, String> {
+pub async fn list_accounts() -> Result<Vec<KableAccount>, String> {
     let accounts_json = ensure_accounts_file().await?; // this attempts refreshing already
     Ok(accounts_json.accounts.values().cloned().collect())
 }
@@ -93,18 +93,18 @@ async fn get_kable_accounts_path() -> Result<PathBuf, String> {
     }
     Ok(accounts_path)
 }
-/// Load the file, try to parse as LauncherAccountsJson, on failure make file and/or fill with empty default and return that.
+/// Load the file, try to parse as KableAccountsJson, on failure make file and/or fill with empty default and return that.
 /// SIDE EFFECT: This will also attempt to refresh all accounts by calling refresh_accounts, if that fails it will just return the accounts without refreshing. This way we ensure the file is always in a valid state and we attempt to keep tokens fresh without risking failure to load accounts at all.
-async fn ensure_accounts_file() -> Result<LauncherAccountsJson, String> {
+async fn ensure_accounts_file() -> Result<KableAccountsJson, String> {
     let accounts_path = get_kable_accounts_path().await?;
     if !accounts_path.exists() {
         // This should be handled by get_kable_accounts_path, but just in case, create an empty file
-        write_str(&accounts_path, &"{}".to_string(), false).await?;
+        write_str(&accounts_path, "{}", false).await?;
     }
     // Try to read and parse the file, if it fails (corrupted) overwrite with empty structure
     let content = read_str(&accounts_path).await?;
     // Ternary-style set the accounts_json to either the parsed content or a new empty structure if parsing fails
-    let accounts_json = serde_json::from_str(&content).unwrap_or(LauncherAccountsJson {
+    let accounts_json = serde_json::from_str(&content).unwrap_or(KableAccountsJson {
         accounts: HashMap::new(),
         active_account_local_id: String::new(),
         mojang_client_token: String::new(),
@@ -112,14 +112,14 @@ async fn ensure_accounts_file() -> Result<LauncherAccountsJson, String> {
     refresh_accounts(accounts_json).await
 }
 
-async fn write_accounts(accounts_json: &LauncherAccountsJson) -> Result<(), String> {
+async fn write_accounts(accounts_json: &KableAccountsJson) -> Result<(), String> {
     let accounts_path = get_kable_accounts_path().await?;
     let content = serde_json::to_string_pretty(accounts_json).map_err(|e| format!("Failed to serialize accounts: {}", e))?;
     write_str(&accounts_path, &content, false).await?;
     Ok(())
 }
 
-async fn refresh_account(account: &mut LauncherAccount) -> Result<(), String> {
+async fn refresh_account(account: &mut KableAccount) -> Result<(), String> {
     let encrypted_refresh_token = match &account.encrypted_refresh_token {
         Some(token) => token,
         None => return Ok(()),
@@ -141,7 +141,7 @@ async fn refresh_account(account: &mut LauncherAccount) -> Result<(), String> {
     Ok(())
 }
 
-async fn refresh_accounts(mut accounts_json: LauncherAccountsJson) -> Result<LauncherAccountsJson, String> {
+async fn refresh_accounts(mut accounts_json: KableAccountsJson) -> Result<KableAccountsJson, String> {
     for account in accounts_json.accounts.values_mut() {
         if let Err(e) = refresh_account(account).await {
             eprintln!("Failed to refresh account {}: {}", account.local_id, e);

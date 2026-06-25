@@ -3,7 +3,7 @@ use serde_json::Value;
 use std::collections::VecDeque;
 use std::sync::mpsc::{sync_channel, RecvTimeoutError, SyncSender};
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Emitter};
+use tauri::Emitter;
 
 /// Frontend-only emission pipeline:
 /// batching, rate limiting, dedupe, IPC emit
@@ -111,5 +111,11 @@ impl LogEmitter {
     /// placeholder for future dynamic config support
     pub fn update_settings(&self, _settings: &api_types::settings::CategorizedLauncherSettings) {
         // intentionally empty for now (kept for manager compatibility)
+    }
+}
+
+impl Default for LogEmitter {
+    fn default() -> Self {
+        Self::new()
     }
 }
