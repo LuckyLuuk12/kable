@@ -1,0 +1,13 @@
+// This styling feature allows to basically apply a "shader" / filter to the entire application to provide ultimate control over visuals.
+:root {
+  --fx-grayscale: 0;
+  --fx-saturate: 1;
+  --fx-hue-rotate: 0deg;
+  --fx-blur: 0px;
+  --fx-contrast: 1;
+  --fx-brightness: 1;
+}
+
+html {
+  filter: grayscale(var(--fx-grayscale)) saturate(var(--fx-saturate)) hue-rotate(var(--fx-hue-rotate)) blur(var(--fx-blur)) contrast(var(--fx-contrast)) brightness(var(--fx-brightness));
+}

@@ -12,19 +12,19 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
 ```
 -->
 <script lang="ts">
-import { onMount } from "svelte";
+import type { LoaderKind, ProfileVersionData } from "$lib";
 import {
-  Loader,
-  InstallationService,
   Icon,
   installations,
+  InstallationService,
+  Loader,
   versions,
 } from "$lib";
-import { successSound, clickSound } from "$lib/actions";
-import type { VersionData, LoaderKind } from "$lib";
+import { clickSound, successSound } from "$lib/actions";
+import { onMount } from "svelte";
 
 let dialogRef: HTMLDialogElement;
-let availableVersions: VersionData[] = [];
+let availableVersions: ProfileVersionData[] = [];
 let loaderOptions: LoaderKind[] = [];
 let selectedLoader: LoaderKind = "Vanilla";
 let selectedVersionId: string = "";
@@ -77,7 +77,7 @@ $: versionsByLoader = availableVersions.reduce((map, version) => {
   }
   map.get(version.loader)!.push(version);
   return map;
-}, new Map<LoaderKind, VersionData[]>());
+}, new Map<LoaderKind, ProfileVersionData[]>());
 
 $: allVersionsForLoader = versionsByLoader.get(selectedLoader) ?? [];
 
@@ -226,8 +226,7 @@ function handleBackdropClick(e: MouseEvent) {
 <dialog
   bind:this={dialogRef}
   class="create-installation-modal"
-  on:click={handleBackdropClick}
->
+  on:click={handleBackdropClick}>
   <h2>Create New Installation</h2>
   {#if error}
     <div class="error-message">{error}</div>
@@ -241,15 +240,13 @@ function handleBackdropClick(e: MouseEvent) {
           style="background: {InstallationService.getLoaderColor(
             loader,
           )}20; color: {InstallationService.getLoaderColor(loader)};"
-          on:click={() => (selectedLoader = loader)}
-        >
+          on:click={() => (selectedLoader = loader)}>
           <span class="loader-icon">
             <!-- TODO: Change this to Image and add images for all loaders to the assets -->
             <Icon
               name={InstallationService.getLoaderIcon(loader)}
               size="md"
-              forceType="svg"
-            />
+              forceType="svg" />
           </span>
           <span class="loader-label"
             >{loader
@@ -257,8 +254,7 @@ function handleBackdropClick(e: MouseEvent) {
               .replace(
                 /(^|\s)([a-z])/g,
                 (_, p1, p2) => p1 + p2.toUpperCase(),
-              )}</span
-          >
+              )}</span>
         </button>
       {/each}
     </div>
@@ -270,8 +266,7 @@ function handleBackdropClick(e: MouseEvent) {
           type="text"
           bind:value={searchQuery}
           placeholder="Search for a version..."
-          class="version-search"
-        />
+          class="version-search" />
       </label>
       <label for="version-select">
         Version:
@@ -281,8 +276,7 @@ function handleBackdropClick(e: MouseEvent) {
           bind:this={versionListRef}
           on:scroll={handleScroll}
           size="10"
-          class="version-list"
-        >
+          class="version-list">
           {#each displayedVersions as version (version.version_id)}
             <option value={version.version_id}>{version.version_id}</option>
           {/each}
@@ -317,13 +311,11 @@ function handleBackdropClick(e: MouseEvent) {
           <select
             id="source-installation"
             bind:value={sourceInstallationId}
-            class="source-select"
-          >
+            class="source-select">
             <option value={null}>None - Start fresh</option>
             {#each availableInstallations as installation}
               <option value={installation.id}
-                >{installation.name} ({installation.version_id})</option
-              >
+                >{installation.name} ({installation.version_id})</option>
             {/each}
           </select>
         </label>
@@ -337,8 +329,7 @@ function handleBackdropClick(e: MouseEvent) {
                   checked={allCopyOptionsSelected}
                   indeterminate={someCopyOptionsSelected &&
                     !allCopyOptionsSelected}
-                  on:change={toggleAllCopyOptions}
-                />
+                  on:change={toggleAllCopyOptions} />
                 <span>Select All</span>
               </label>
             </div>
@@ -351,8 +342,7 @@ function handleBackdropClick(e: MouseEvent) {
                   <div class="option-text">
                     <span class="option-label">Copy Mods</span>
                     <span class="option-description"
-                      >Mods will be updated/downgraded to match the new version</span
-                    >
+                      >Mods will be updated/downgraded to match the new version</span>
                   </div>
                 </div>
               </label>
@@ -364,8 +354,7 @@ function handleBackdropClick(e: MouseEvent) {
                   <div class="option-text">
                     <span class="option-label">Copy Resource Packs</span>
                     <span class="option-description"
-                      >Resource packs will be copied as-is</span
-                    >
+                      >Resource packs will be copied as-is</span>
                   </div>
                 </div>
               </label>
@@ -377,8 +366,7 @@ function handleBackdropClick(e: MouseEvent) {
                   <div class="option-text">
                     <span class="option-label">Copy Shaders</span>
                     <span class="option-description"
-                      >Shaders will be copied as-is</span
-                    >
+                      >Shaders will be copied as-is</span>
                   </div>
                 </div>
               </label>
@@ -389,8 +377,7 @@ function handleBackdropClick(e: MouseEvent) {
             <Icon name="info" size="sm" />
             <span
               >Select a source installation to copy mods, resource packs, and
-              shaders</span
-            >
+              shaders</span>
           </div>
         {/if}
       </div>
@@ -401,8 +388,7 @@ function handleBackdropClick(e: MouseEvent) {
         use:successSound
         type="submit"
         class="btn btn-primary"
-        disabled={isLoading}
-      >
+        disabled={isLoading}>
         {#if isLoading}
           <Icon name="refresh" size="sm" className="spin" />
           Creating...
@@ -415,8 +401,7 @@ function handleBackdropClick(e: MouseEvent) {
         type="button"
         class="btn btn-secondary"
         on:click={cancelCreate}
-        disabled={isLoading}>Cancel</button
-      >
+        disabled={isLoading}>Cancel</button>
     </div>
   </form>
 </dialog>

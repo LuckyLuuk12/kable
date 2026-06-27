@@ -1,0 +1,76 @@
+// region Variables
+:root {
+  // ------------------------------------------------------
+  // Timing (base durations)
+  // ------------------------------------------------------
+  --motion-1: 80ms;
+  --motion-2: 120ms;
+  --motion-3: 180ms;
+  --motion-4: 240ms;
+  --motion-5: 320ms;
+  --motion-6: 480ms;
+
+  // ------------------------------------------------------
+  // Easing curves
+  // ------------------------------------------------------
+  --motion-ease-linear: linear;
+  --motion-ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --motion-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --motion-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --motion-ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-snappy: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  // ------------------------------------------------------
+  // Scalar (global motion intensity control)
+  // ------------------------------------------------------
+  --motion-scale: 1;
+
+  // Derived motion durations (scaled)
+  --motion-xs: calc(var(--motion-1) * var(--motion-scale));
+  --motion-sm: calc(var(--motion-2) * var(--motion-scale));
+  --motion-md: calc(var(--motion-3) * var(--motion-scale));
+  --motion-lg: calc(var(--motion-4) * var(--motion-scale));
+  --motion-xl: calc(var(--motion-5) * var(--motion-scale));
+  --motion-2xl: calc(var(--motion-6) * var(--motion-scale));
+
+  // ------------------------------------------------------
+  // Special behavior controls
+  // ------------------------------------------------------
+  --motion-reduce-factor: 0.4;
+  --motion-blur-intensity: 0px;
+}
+
+// endregion
+
+// region Timing
+$motion-1: var(--motion-1) !default;
+$motion-2: var(--motion-2) !default;
+$motion-3: var(--motion-3) !default;
+$motion-4: var(--motion-4) !default;
+$motion-5: var(--motion-5) !default;
+$motion-6: var(--motion-6) !default;
+// endregion
+
+// region Easing
+$motion-ease-linear: var(--motion-ease-linear) !default;
+$motion-ease-in: var(--motion-ease-in) !default;
+$motion-ease-out: var(--motion-ease-out) !default;
+$motion-ease-in-out: var(--motion-ease-in-out) !default;
+$motion-ease-smooth: var(--motion-ease-smooth) !default;
+$motion-ease-snappy: var(--motion-ease-snappy) !default;
+// endregion
+
+// region Scaled Motion
+$motion-xs: var(--motion-xs) !default;
+$motion-sm: var(--motion-sm) !default;
+$motion-md: var(--motion-md) !default;
+$motion-lg: var(--motion-lg) !default;
+$motion-xl: var(--motion-xl) !default;
+$motion-2xl: var(--motion-2xl) !default;
+// endregion
+
+// region Behavior Controls
+$motion-reduce-factor: var(--motion-reduce-factor) !default;
+$motion-blur-intensity: var(--motion-blur-intensity) !default;
+// endregion

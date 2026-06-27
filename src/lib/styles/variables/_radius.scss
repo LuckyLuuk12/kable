@@ -1,0 +1,57 @@
+// ======================================================
+// RADIUS SYSTEM (CSS VARIABLES BASE)
+// ======================================================
+
+:root {
+  // ------------------------------------------------------
+  // Base radius scale (fixed foundation)
+  // ------------------------------------------------------
+  --radius-0: 0px;
+  --radius-1: 2px;
+  --radius-2: 4px;
+  --radius-3: 8px;
+  --radius-4: 12px;
+  --radius-5: 16px;
+
+  // Fully rounded (special case)
+  --radius-round: 999px;
+
+  // ------------------------------------------------------
+  // Global radius scaling (UI density control)
+  // ------------------------------------------------------
+  --radius-scale: 1;
+
+  // ------------------------------------------------------
+  // Semantic radii (scaled, preferred in UI)
+  // ------------------------------------------------------
+  --radius-sm: calc(var(--radius-1) * var(--radius-scale));
+  --radius-md: calc(var(--radius-2) * var(--radius-scale));
+  --radius-lg: calc(var(--radius-3) * var(--radius-scale));
+  --radius-xl: calc(var(--radius-4) * var(--radius-scale));
+  --radius-2xl: calc(var(--radius-5) * var(--radius-scale));
+
+  // Optional UI-specific radius
+  --radius-window: calc(10px * var(--radius-scale));
+}
+
+// ===============================================================================================================
+// SCSS ALIASES - this allows to use the variables in SCSS and also have them available in CSS for runtime changes
+// ===============================================================================================================
+
+$radius-0: var(--radius-0) !default;
+$radius-1: var(--radius-1) !default;
+$radius-2: var(--radius-2) !default;
+$radius-3: var(--radius-3) !default;
+$radius-4: var(--radius-4) !default;
+$radius-5: var(--radius-5) !default;
+
+$radius-round: var(--radius-round) !default;
+
+// Semantic (preferred usage)
+$radius-sm: var(--radius-sm) !default;
+$radius-md: var(--radius-md) !default;
+$radius-lg: var(--radius-lg) !default;
+$radius-xl: var(--radius-xl) !default;
+$radius-2xl: var(--radius-2xl) !default;
+
+$radius-window: var(--radius-window) !default;

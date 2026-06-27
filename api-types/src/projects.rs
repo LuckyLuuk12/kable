@@ -13,6 +13,12 @@ pub struct KableProject {
     pub enabled: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+pub struct UpdateMap {
+    pub kable_project: KableProject,
+    pub update: Option<Project>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet, specta::Type)]
 pub struct ProjectSearch {
     pub query: Option<String>,

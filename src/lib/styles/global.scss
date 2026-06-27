@@ -1,640 +1,103 @@
-// Import clean-ui completely
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
-@use "@kablan/clean-ui/scss/index.scss" as *;
+//Variable bootstrap (design system)
+@use "./variables/colors";
+@use "./variables/font";
+@use "./variables/layout";
+@use "./variables/motion";
+@use "./variables/radius";
+@use "./variables/shadows";
+@use "./variables/space";
 
-// ========================================
-// COMMON PAGE COMPONENTS
-// ========================================
+@use "./primitives";
+@use "./reset";
+@use "./transform";
 
-@font-face {
-  font-family: "minecraft";
-  src:
-    url("/themes/Minecraft-Regular.woff2") format("woff2"),
-    url("/themes/Minecraft-Regular.woff") format("woff");
-  font-style: normal;
+//Base app surface
+html,
+body {
+  min-height: 100vh;
+  max-height: 100vh;
+
+  min-width: 100vw;
+  max-width: 100vw;
+
+  font-family: $font-sans;
+  font-size: $font-md;
+  line-height: $font-line-normal;
+
+  color: $color-text;
+  background: $color-background;
+
+  overflow: hidden;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  user-select: none;
 }
 
-* {
-  font-family: var(--font);
-}
-// Page Headers
-.page-header {
-  text-align: center;
-  margin-bottom: 2rem;
-
-  h1 {
-    margin: 0 0 0.5rem 0;
-    font-size: 2.5rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, var(--primary), var(--tertiary));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  p {
-    margin: 0;
-    color: var(--placeholder);
-    font-size: 1.1rem;
-  }
-
-  .save-status {
-    margin-top: 1rem;
-    padding: 0.5rem 1rem;
-    border-radius: var(--border-radius);
-    font-weight: 500;
-
-    &.success {
-      background: var(--status-success-bg);
-      color: var(--status-success);
-    }
-
-    &.error {
-      background: var(--status-error-bg);
-      color: var(--status-error);
-    }
-  }
+//Selection
+::selection {
+  background: $color-primary-500;
+  color: $color-white;
 }
 
-// Warning Cards
-.warning-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.5rem;
-  background: var(--status-warning-bg);
-  border: 1px solid var(--status-warning);
-  border-radius: var(--border-radius-large);
-
-  .warning-icon {
-    font-size: 2rem;
-  }
-
-  .warning-content {
-    flex: 1;
-
-    h3 {
-      margin: 0 0 0.5rem 0;
-      color: var(--status-warning);
-    }
-
-    p {
-      margin: 0 0 1rem 0;
-      color: var(--placeholder);
-    }
-  }
+//Input text selection override
+input,
+textarea,
+[contenteditable="true"] {
+  user-select: text;
 }
 
-// Info Banners
-.info-banner {
-  margin-bottom: 2rem;
-
-  .banner-content {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1.5rem;
-    background: var(--status-info-bg);
-    border: 1px solid var(--status-info);
-    border-radius: var(--border-radius-large);
-
-    .banner-icon {
-      font-size: 2rem;
-    }
-
-    .banner-text {
-      flex: 1;
-
-      h3 {
-        margin: 0 0 0.5rem 0;
-        color: var(--blue);
-      }
-
-      p {
-        margin: 0;
-        color: var(--placeholder);
-      }
-    }
-  }
+//Form normalization (no styling responsibility here)
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
 }
 
-// Empty States
-.empty-state {
-  text-align: center;
-  max-width: 400px;
-  margin: 0 auto;
-
-  .empty-icon {
-    font-size: 4rem;
-    margin-bottom: 1rem;
-  }
-
-  h3 {
-    margin: 0 0 1rem 0;
-    color: var(--text);
-  }
-
-  p {
-    margin: 0 0 2rem 0;
-    color: var(--placeholder);
-    line-height: 1.5;
-  }
-}
-
-// ========================================
-// COMMON BUTTONS
-// ========================================
-
-// Base button styles
-%btn-base {
+button {
+  cursor: $interaction-cursor-pointer;
+  background: transparent;
   border: none;
-  border-radius: var(--border-radius);
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  padding: 0;
 }
 
-// Button variants
-.btn {
-  @extend %btn-base;
+//Focus system (global behavior only)
+:focus-visible {
+  outline: $interaction-focus-width $interaction-focus-style $interaction-focus-color;
 
-  &.btn-primary {
-    background: var(--primary);
-    color: var(--text-white);
-
-    &:hover:not(:disabled) {
-      background: var(--primary-600);
-      transform: translateY(-1px);
-    }
-  }
-
-  &.btn-secondary {
-    background: var(--button);
-    color: var(--text);
-
-    &:hover:not(:disabled) {
-      background: var(--button-hover);
-    }
-  }
-
-  &.btn-success {
-    background: var(--green);
-    color: var(--text-white);
-
-    &:hover:not(:disabled) {
-      background: var(--green-600);
-    }
-  }
-
-  &.btn-warning {
-    background: var(--yellow);
-    color: var(--text-white);
-
-    &:hover:not(:disabled) {
-      background: var(--yellow-600);
-    }
-  }
-
-  &.btn-error,
-  &.btn-danger {
-    background: var(--red);
-    color: var(--text-white);
-
-    &:hover:not(:disabled) {
-      background: var(--red-600);
-    }
-  }
-
-  // Button sizes
-  &.btn-sm {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
-  }
-
-  &.btn-md {
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-  }
-
-  &.btn-lg {
-    padding: 1rem 2rem;
-    font-size: 1.125rem;
-  }
+  outline-offset: $interaction-focus-offset;
 }
 
-// Legacy button classes for backwards compatibility
-.sign-in-btn,
-.refresh-btn {
-  @extend %btn-base;
-  padding: 0.75rem 1.5rem;
-  background: var(--primary);
-  color: var(--text-white);
-  font-size: 1rem;
-
-  &:hover:not(:disabled) {
-    background: var(--primary-600);
-    transform: translateY(-1px);
-  }
+//Scroll behavior (desktop app model)
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.action-btn {
-  @extend %btn-base;
-  flex: 1;
-  padding: 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  &.install-btn {
-    background: var(--primary);
-    color: var(--text-white);
-
-    &:hover:not(:disabled) {
-      background: var(--primary-600);
-    }
-  }
-
-  &.uninstall-btn {
-    background: var(--red);
-    color: var(--text-white);
-
-    &:hover:not(:disabled) {
-      background: var(--red-600);
-    }
-  }
-
-  &.edit-btn {
-    background: var(--primary);
-    color: var(--text-white);
-
-    &:hover:not(:disabled) {
-      background: var(--primary-600);
-    }
-  }
-
-  &.duplicate-btn {
-    background: var(--input);
-    color: var(--text);
-
-    &:hover:not(:disabled) {
-      background: var(--button-hover);
-    }
-  }
-
-  &.delete-btn {
-    background: var(--red);
-    color: var(--text-white);
-
-    &:hover:not(:disabled) {
-      background: var(--red-600);
-    }
-  }
-
-  &.play-btn {
-    background: var(--green);
-    color: var(--text-white);
-
-    &:hover:not(:disabled) {
-      background: var(--green-600);
-    }
-  }
-
-  &.info-btn,
-  &.preview-btn {
-    background: var(--input);
-    color: var(--text);
-
-    &:hover:not(:disabled) {
-      background: var(--button-hover);
-    }
-  }
+//Scrollbar system (consistent UI layer)
+* {
+  scrollbar-width: thin;
+  scrollbar-color: $color-placeholder transparent;
 }
 
-// ========================================
-// COMMON FORM COMPONENTS
-// ========================================
-
-// Search bars
-.search-section {
-  margin-bottom: 2rem;
+*::-webkit-scrollbar {
+  width: $layout-scrollbar-size;
+  height: $layout-scrollbar-size;
 }
 
-.search-bar {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-
-  @media (max-width: 768px) {
-    flex-direction: column;
-  }
+*::-webkit-scrollbar-thumb {
+  background: $color-placeholder;
+  border-radius: $layout-scrollbar-radius;
 }
 
-.search-input-wrapper {
-  flex: 1;
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+//Native tooltip hook (future custom tooltip system)
+[title] {
   position: relative;
-  min-width: 250px;
-
-  .search-icon {
-    position: absolute;
-    left: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--placeholder);
-  }
-
-  .search-input {
-    width: 100%;
-    padding: 0.75rem 1rem 0.75rem 2.5rem;
-    border: 1px solid var(--dark-600);
-    border-radius: 0.75rem;
-    background: var(--container);
-    color: var(--text);
-    font-size: 1rem;
-
-    &:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-  }
-}
-
-.filter-controls {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.category-select,
-.sort-select {
-  padding: 0.75rem 1rem;
-  border: 1px solid var(--dark-600);
-  border-radius: 0.75rem;
-  background: var(--container);
-  color: var(--text);
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: var(--primary);
-  }
-}
-
-// ========================================
-// COMMON LAYOUTS
-// ========================================
-
-// Section headers
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-
-  h2 {
-    margin: 0;
-    color: var(--text);
-    font-size: 1.5rem;
-  }
-}
-
-// View options
-.view-options {
-  display: flex;
-  gap: 0.5rem;
-
-  .view-btn {
-    padding: 0.5rem 1rem;
-    border: 1px solid var(--dark-600);
-    border-radius: var(--border-radius);
-    background: var(--container);
-    color: var(--text);
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    &.active {
-      background: var(--primary);
-      color: white;
-      border-color: var(--primary);
-    }
-
-    &:hover:not(.active) {
-      background: var(--button-hover);
-    }
-  }
-}
-
-// Card layouts
-.card {
-  background: var(--card);
-  border: 1px solid var(--dark-600);
-  border-radius: var(--border-radius-large);
-  padding: 1.5rem;
-  transition: all 0.2s ease;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-    border-color: var(--primary);
-  }
-
-  &.installed {
-    border-color: var(--green);
-  }
-
-  &.premium {
-    border-color: var(--tertiary);
-  }
-}
-
-// Grid layouts
-.grid {
-  display: grid;
-  gap: 1.5rem;
-
-  &.grid-auto-fill {
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  }
-
-  &.grid-auto-fit {
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  }
-
-  &.grid-responsive {
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  }
-}
-
-// ========================================
-// CSS VARIABLES FOR THEMING
-// ========================================
-
-:root {
-  // Common text colors
-  --text-white: #ffffff;
-  --text-black: #000000;
-  --text-transparent: transparent;
-
-  // Gradient colors for installations/progress bars
-  --gradient-primary: #3a7bd5;
-  --gradient-secondary: #00b09b;
-
-  // Shader preview gradients
-  --shader-preview-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --shader-preview-primary: #667eea;
-  --shader-preview-secondary: #764ba2;
-
-  // Status colors
-  --status-success: #22c55e;
-  --status-success-hover: #16a34a;
-  --status-success-bg: #f0fdf4;
-  --status-error: #ef4444;
-  --status-error-bg: #fef2f2;
-  --status-warning: #f59e0b;
-  --status-warning-bg: #fffbeb;
-  --status-info: #3b82f6;
-  --status-info-bg: #eff6ff;
-
-  // Loading/progress indicators
-  --loader-primary: #3a7bd5;
-  --loader-secondary: #00b09b;
-  --loader-accent: #cc;
-
-  // Badge colors
-  --badge-installed: #22c55e;
-  --badge-available: var(--input);
-  --badge-premium: rgba(255, 215, 0, 0.9);
-  --badge-premium-text: #333;
-  --badge-category: rgba(0, 0, 0, 0.7);
-  --badge-category-text: #ffffff;
-
-  // Common UI variables for compatibility
-  --accent: #8b5cf6;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --warning-light: #fffbeb;
-  --error: #ef4444;
-  --info: #3b82f6;
-  --info-light: #eff6ff;
-  --border: #374151;
-  --surface: #1f2937;
-  --surface-hover: #374151;
-}
-
-// ========================================
-// UTILITY CLASSES
-// ========================================
-
-// Loading states
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 4rem;
-  color: var(--placeholder);
-
-  .spinner {
-    width: 40px;
-    height: 40px;
-    border: 4px solid var(--input);
-    border-top: 4px solid var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 1rem;
-  }
-
-  p {
-    margin: 0;
-    font-size: 1.1rem;
-  }
-}
-
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-// Status badges
-.badge {
-  padding: 0.25rem 0.75rem;
-  border-radius: 1rem;
-  font-size: 0.75rem;
-  font-weight: 500;
-  display: inline-block;
-
-  &.installed {
-    background: var(--badge-installed);
-    color: var(--text-white);
-  }
-
-  &.available {
-    background: var(--badge-available);
-    color: var(--text);
-  }
-
-  &.premium {
-    background: var(--badge-premium);
-    color: var(--badge-premium-text);
-  }
-
-  &.category {
-    background: var(--badge-category);
-    color: var(--badge-category-text);
-  }
-}
-
-// Meta information
-.meta-item {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.75rem;
-  margin-bottom: 0.25rem;
-
-  .meta-label {
-    color: var(--placeholder);
-  }
-
-  .meta-value {
-    color: var(--text);
-    font-weight: 500;
-  }
-}
-
-// Detail items
-.detail-item {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-
-  .label {
-    color: var(--placeholder);
-    font-size: 0.875rem;
-  }
-
-  .value {
-    color: var(--text);
-    font-size: 0.875rem;
-    font-weight: 500;
-  }
-}
-
-input[type="checkbox"] {
-  width: 1.6rem;
-  height: 1.6rem;
 }

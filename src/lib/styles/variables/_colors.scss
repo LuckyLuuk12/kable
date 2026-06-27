@@ -1,0 +1,106 @@
+// ======================================================
+// COLOR TOKENS (CSS VARIABLES BASE)
+// ======================================================
+
+:root {
+  // ------------------------------------------------------
+  // Base surfaces
+  // ------------------------------------------------------
+  --color-bg: #0a0a0f;
+  --color-surface-0: #0a0a0f;
+  --color-surface-1: #1e1e20;
+  --color-surface-2: #26262a;
+  --color-surface-3: #35353a;
+
+  // ------------------------------------------------------
+  // Text
+  // ------------------------------------------------------
+  --color-text: #ffffff;
+  --color-text-muted: #a0a0aa;
+  --color-placeholder: #6b6b75;
+
+  // ------------------------------------------------------
+  // Borders
+  // ------------------------------------------------------
+  --color-border: #35353a;
+  --color-border-muted: #26262a;
+
+  // ------------------------------------------------------
+  // Accent (Kable identity: purple/pink/blue blend)
+  // ------------------------------------------------------
+  --color-accent: #8b5cf6; // primary purple
+  --color-accent-hover: #a78bfa;
+  --color-accent-active: #7c3aed;
+  --color-accent-muted: #c4b5fd;
+
+  // optional secondary accent (pink-ish)
+  --color-accent-secondary: #ec4899;
+
+  // ------------------------------------------------------
+  // Status colors
+  // ------------------------------------------------------
+  --color-success: #22c55e;
+  --color-warning: #eab308;
+  --color-error: #ef4444;
+  --color-info: #3b82f6;
+
+  // ------------------------------------------------------
+  // Interaction states
+  // ------------------------------------------------------
+  --color-hover: rgba(255, 255, 255, 0.06);
+  --color-active: rgba(255, 255, 255, 0.12);
+  --color-selected: rgba(139, 92, 246, 0.18);
+  --color-disabled: rgba(255, 255, 255, 0.25);
+
+  // ------------------------------------------------------
+  // Overlays
+  // ------------------------------------------------------
+  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-backdrop: rgba(0, 0, 0, 0.75);
+
+  // ------------------------------------------------------
+  // Highlighting (search, selection, etc.)
+  // ------------------------------------------------------
+  --color-highlight: rgba(139, 92, 246, 0.25);
+  --color-focus: #8b5cf6;
+}
+
+// ===============================================================================================================
+// SCSS ALIASES - this allows to use the variables in SCSS and also have them available in CSS for runtime changes
+// ===============================================================================================================
+
+// Base
+$color-bg: var(--color-bg) !default;
+$color-text: var(--color-text) !default;
+$color-text-muted: var(--color-text-muted) !default;
+
+// Surfaces
+$color-surface-0: var(--color-surface-0) !default;
+$color-surface-1: var(--color-surface-1) !default;
+$color-surface-2: var(--color-surface-2) !default;
+$color-surface-3: var(--color-surface-3) !default;
+
+// Borders
+$color-border: var(--color-border) !default;
+$color-border-muted: var(--color-border-muted) !default;
+
+// Accent
+$color-accent: var(--color-accent) !default;
+$color-accent-hover: var(--color-accent-hover) !default;
+$color-accent-active: var(--color-accent-active) !default;
+
+// Status
+$color-success: var(--color-success) !default;
+$color-warning: var(--color-warning) !default;
+$color-error: var(--color-error) !default;
+$color-info: var(--color-info) !default;
+
+// Interaction
+$color-hover: var(--color-hover) !default;
+$color-active: var(--color-active) !default;
+$color-selected: var(--color-selected) !default;
+$color-disabled: var(--color-disabled) !default;
+
+// Overlays
+$color-overlay: var(--color-overlay) !default;
+$color-backdrop: var(--color-backdrop) !default;

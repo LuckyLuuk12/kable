@@ -142,7 +142,7 @@ async fn replace_variables(profile: &KableProfile, manifest: &McVersionManifest,
     let libs_root = mc_root.join(crate::constants::LIBRARIES_DIR);
     let natives_root = mc_root.join(crate::constants::NATIVES_DIR);
 
-    let active_account = crate::features::accounts::management::get_active_account().await?.ok_or("No active account")?;
+    let active_account = crate::features::accounts::management::get_active_account().await?;
 
     let monitor = crate::app_handle().primary_monitor().ok().flatten();
     let (width, height) = monitor

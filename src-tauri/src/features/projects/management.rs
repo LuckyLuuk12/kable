@@ -4,7 +4,7 @@ use crate::api::browse;
 use crate::integrations::modrinth::client::download_project;
 use crate::system::fs;
 use api_types::profiles::KableProfile;
-use api_types::projects::{KableProject, Project, ProjectSearch, ProjectType};
+use api_types::projects::{KableProject, Project, ProjectSearch, ProjectType, UpdateMap};
 use futures::{stream, StreamExt, TryStreamExt};
 
 fn get_folder_for(project_type: ProjectType, profile: &KableProfile, enabled: bool) -> Result<std::path::PathBuf, String> {
@@ -186,48 +186,45 @@ pub async fn toggle_project(profile: KableProfile, kable_project: KableProject) 
 // ? UPDATE + CHECK FOR UPDATES
 
 /// Search again for this profile and specific KableProject project id, check if the latest version is different from the current version, if so return Some(Project) with the latest version, else return None
-pub async fn check_for_update(kable_profile: KableProfile, kable_project: KableProject) -> Result<Option<Project>, String> {
+pub async fn check_for_update(kable_profile: KableProfile, kable_project: KableProject) -> Result<Project, String> {
     let project_search = ProjectSearch { query: Some(kable_project.project.project_id.clone()), ..Default::default() };
     let results = browse(kable_profile, project_search, true, kable_project.project.project_type).await?;
     if let Some(latest_project) = results.hits.into_iter().next() {
         if latest_project.latest_version != Some(kable_project.version_id.clone()) {
-            Ok(Some(latest_project))
+            Ok(latest_project)
         } else {
-            Ok(None)
+            Err(format!("No update available for project {}", kable_project.filename))
         }
     } else {
         Err(format!("No project found for mod {}", kable_project.filename))
     }
 }
 
-pub async fn check_for_updates(profile: KableProfile, project_type: ProjectType) -> Result<Vec<(KableProject, Project)>, String> {
+pub async fn check_for_updates(profile: KableProfile, project_type: ProjectType) -> Result<Vec<UpdateMap>, String> {
     let projects = list_projects(profile.clone(), project_type).await?;
     let mut updates = Vec::new();
     for kable_project in projects {
-        if let Some(latest_project) = check_for_update(profile.clone(), kable_project.clone()).await? {
-            updates.push((kable_project, latest_project));
-        }
+        updates.push(UpdateMap {
+            kable_project: kable_project.clone(),
+            update: Some(check_for_update(profile.clone(), kable_project).await?),
+        });
     }
     Ok(updates)
 }
 
 pub async fn update_project(profile: KableProfile, kable_project: KableProject) -> Result<KableProject, String> {
-    if let Some(latest_project) = check_for_update(profile.clone(), kable_project.clone()).await? {
-        let latest_version_id = latest_project.latest_version.as_deref();
-        let updated_project = download_kable_project(profile.clone(), latest_project.clone(), latest_version_id).await?;
-        Ok(updated_project)
-    } else {
-        Err(format!("No update available for project {}", kable_project.filename))
-    }
+    let latest_project = check_for_update(profile.clone(), kable_project.clone()).await?;
+    let latest_version_id = latest_project.latest_version.as_deref();
+    download_kable_project(profile.clone(), latest_project.clone(), latest_version_id).await
 }
 
 pub async fn update_all_projects(profile: KableProfile, project_type: ProjectType) -> Result<Vec<KableProject>, String> {
     let updates = check_for_updates(profile.clone(), project_type).await?;
 
     stream::iter(updates)
-        .map(|(kable_project, _)| {
+        .map(|update_map| {
             let profile = profile.clone();
-            async move { update_project(profile, kable_project).await }
+            async move { update_project(profile, update_map.kable_project).await }
         })
         .buffer_unordered(
             crate::features::customization::settings::load_settings().await?.network.max_download_threads.unwrap_or(8) as usize

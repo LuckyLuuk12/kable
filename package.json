@@ -47,7 +47,6 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
-    "@kablan/clean-ui": "1.0.9",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",
     "@tauri-apps/plugin-window-state": "^2.4.1",

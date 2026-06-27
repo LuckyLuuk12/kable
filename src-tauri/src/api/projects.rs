@@ -1,6 +1,6 @@
 use api_types::{
     profiles::KableProfile,
-    projects::{KableProject, ModrinthResults, Project, ProjectSearch, ProjectType},
+    projects::{KableProject, ModrinthResults, Project, ProjectSearch, ProjectType, UpdateMap},
 };
 
 use crate::features::projects::{browser, management};
@@ -54,13 +54,13 @@ pub async fn toggle_project(profile: KableProfile, kable_project: KableProject) 
 
 #[tauri::command]
 #[specta::specta]
-pub async fn check_for_project_update(kable_profile: KableProfile, kable_project: KableProject) -> Result<Option<Project>, String> {
+pub async fn check_for_project_update(kable_profile: KableProfile, kable_project: KableProject) -> Result<Project, String> {
     management::check_for_update(kable_profile, kable_project).await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn check_for_project_updates(profile: KableProfile, project_type: ProjectType) -> Result<Vec<(KableProject, Project)>, String> {
+pub async fn check_for_project_updates(profile: KableProfile, project_type: ProjectType) -> Result<Vec<UpdateMap>, String> {
     management::check_for_updates(profile, project_type).await
 }
 

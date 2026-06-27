@@ -1,0 +1,107 @@
+import {
+  type UpdateData,
+  api,
+} from "$lib";
+
+class UpdaterService {
+  updateInfo = $state<UpdateData | null>(null);
+
+  checking = $state(false);
+  downloading = $state(false);
+  installing = $state(false);
+
+  error = $state<string | null>(null);
+
+  /**
+   * Check for updates
+   */
+  async check(includePrerelease: boolean = false) {
+    this.checking = true;
+    this.error = null;
+
+    try {
+      const result = await api.checkForUpdates(includePrerelease);
+      this.updateInfo = result;
+      return result;
+    } catch (e) {
+      this.error = String(e);
+      return null;
+    } finally {
+      this.checking = false;
+    }
+  }
+
+  /**
+   * Download update without applying
+   */
+  async download(includePrerelease: boolean = false) {
+    this.downloading = true;
+    this.error = null;
+
+    try {
+      const path = await api.downloadUpdate(includePrerelease);
+      return path;
+    } catch (e) {
+      this.error = String(e);
+      return null;
+    } finally {
+      this.downloading = false;
+    }
+  }
+
+  /**
+   * Install update immediately (blocking behavior depends on backend)
+   */
+  async install(includePrerelease: boolean = false) {
+    this.installing = true;
+    this.error = null;
+
+    try {
+      await api.installUpdate(includePrerelease);
+      return true;
+    } catch (e) {
+      this.error = String(e);
+      return false;
+    } finally {
+      this.installing = false;
+    }
+  }
+
+  /**
+   * Apply already downloaded update (usually restart-triggered)
+   */
+  async applyDownloaded() {
+    this.installing = true;
+    this.error = null;
+
+    try {
+      await api.applyDownloadedUpdate();
+      return true;
+    } catch (e) {
+      this.error = String(e);
+      return false;
+    } finally {
+      this.installing = false;
+    }
+  }
+
+  /**
+   * Current version (static read)
+   */
+  async getCurrentVersion() {
+    return await api.getCurrentVersion();
+  }
+
+  /**
+   * Reset state (useful on logout/app restart)
+   */
+  reset() {
+    this.updateInfo = null;
+    this.checking = false;
+    this.downloading = false;
+    this.installing = false;
+    this.error = null;
+  }
+}
+
+export const updaterService = new UpdaterService();

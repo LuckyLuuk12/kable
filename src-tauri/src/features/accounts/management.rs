@@ -56,9 +56,13 @@ pub async fn set_active_account(account: KableAccount) -> Result<(), String> {
     Ok(())
 }
 
-pub async fn get_active_account() -> Result<Option<KableAccount>, String> {
+pub async fn get_active_account() -> Result<KableAccount, String> {
     let accounts_json = ensure_accounts_file().await?;
-    Ok(accounts_json.accounts.get(&accounts_json.active_account_local_id).cloned())
+    accounts_json
+        .accounts
+        .get(&accounts_json.active_account_local_id)
+        .cloned()
+        .ok_or_else(|| "No active account found".into())
 }
 
 /// List all accounts, this will also attempt to refresh all accounts before returning, if refreshing fails it will just return the accounts without refreshing. This way we ensure the file is always in a valid state and we attempt to keep tokens fresh without risking failure to list accounts at all.

@@ -5,12 +5,12 @@ import { soundService } from "$lib/services/SoundService";
  * Works on any HTMLElement that can receive click and mouseenter events.
  *
  * @example
- * // Basic usage
+ * <!-- Basic usage -->
  * <button use:clickSound>Click me</button>
  * <a href="/page" use:clickSound>Link</a>
  *
  * @example
- * // Custom sounds
+ * <!--Custom sounds -->
  * <button use:clickSound={{ click: 'launch', hover: 'hover' }}>Launch</button>
  * <a href="/settings" use:clickSound={{ click: 'success' }}>Settings</a>
  */

@@ -2,7 +2,7 @@ use crate::features::updater;
 
 #[tauri::command]
 #[specta::specta]
-pub async fn check_for_updates(include_prerelease: bool) -> Result<Option<api_types::updater::UpdateData>, String> {
+pub async fn check_for_updates(include_prerelease: bool) -> Result<api_types::updater::UpdateData, String> {
     updater::check_for_updates(include_prerelease).await
 }
 

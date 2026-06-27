@@ -41,6 +41,6 @@ pub async fn set_active_account(account: KableAccount) -> Result<(), String> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_active_account() -> Result<Option<KableAccount>, String> {
+pub async fn get_active_account() -> Result<KableAccount, String> {
     management::get_active_account().await
 }

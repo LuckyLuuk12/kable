@@ -1,0 +1,88 @@
+// region Variables
+:root {
+  // Fonts
+  --font-sans: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-display: system-ui, sans-serif;
+
+  // Font sizes (base scale)
+  --font-1: 12px;
+  --font-2: 14px;
+  --font-3: 16px;
+  --font-4: 18px;
+  --font-5: 20px;
+  --font-6: 24px;
+  --font-7: 32px;
+
+  // Scalar
+  --font-scale: 1;
+
+  // Semantic sizes (scaled)
+  --font-xs: calc(var(--font-1) * var(--font-scale));
+  --font-sm: calc(var(--font-2) * var(--font-scale));
+  --font-md: calc(var(--font-3) * var(--font-scale));
+  --font-lg: calc(var(--font-4) * var(--font-scale));
+  --font-xl: calc(var(--font-5) * var(--font-scale));
+  --font-2xl: calc(var(--font-6) * var(--font-scale));
+  --font-3xl: calc(var(--font-7) * var(--font-scale));
+
+  // Weights
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  // Line height
+  --font-line-tight: 1.2;
+  --font-line-normal: 1.5;
+  --font-line-relaxed: 1.75;
+
+  // Letter spacing
+  --font-tracking-tight: -0.02em;
+  --font-tracking-normal: 0em;
+  --font-tracking-wide: 0.02em;
+}
+
+// endregion
+
+// region Fonts
+/// Main UI font
+$font-sans: var(--font-sans) !default;
+
+/// Monospace font for code
+$font-mono: var(--font-mono) !default;
+
+/// Display / branding font
+$font-display: var(--font-display) !default;
+// endregion
+
+// region Font Sizes
+$font-xs: var(--font-xs) !default;
+$font-sm: var(--font-sm) !default;
+$font-md: var(--font-md) !default;
+$font-lg: var(--font-lg) !default;
+$font-xl: var(--font-xl) !default;
+$font-2xl: var(--font-2xl) !default;
+$font-3xl: var(--font-3xl) !default;
+// endregion
+
+// region Weights
+$font-weight-light: var(--font-weight-light) !default;
+$font-weight-normal: var(--font-weight-normal) !default;
+$font-weight-medium: var(--font-weight-medium) !default;
+$font-weight-semibold: var(--font-weight-semibold) !default;
+$font-weight-bold: var(--font-weight-bold) !default;
+// endregion
+
+// region Line Height
+$font-line-tight: var(--font-line-tight) !default;
+$font-line-normal: var(--font-line-normal) !default;
+$font-line-relaxed: var(--font-line-relaxed) !default;
+// endregion
+
+// region Letter Spacing
+$font-tracking-tight: var(--font-tracking-tight) !default;
+$font-tracking-normal: var(--font-tracking-normal) !default;
+$font-tracking-wide: var(--font-tracking-wide) !default;
+// endregion

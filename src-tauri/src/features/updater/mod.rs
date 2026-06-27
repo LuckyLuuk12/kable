@@ -93,10 +93,10 @@ async fn fetch_releases(include_prerelease: bool) -> Result<Vec<GitHubRelease>, 
     Ok(releases)
 }
 
-pub async fn check_for_updates(include_prerelease: bool) -> Result<Option<UpdateData>, String> {
+pub async fn check_for_updates(include_prerelease: bool) -> Result<UpdateData, String> {
     // Skip update checks in development builds
     if cfg!(debug_assertions) {
-        return Ok(None);
+        return Err("Updates are disabled in development mode".into());
     }
 
     let list = fetch_releases(include_prerelease).await?;
@@ -105,7 +105,7 @@ pub async fn check_for_updates(include_prerelease: bool) -> Result<Option<Update
     let newer: Vec<_> = list.into_iter().filter(|r| is_update(&current, &r.name)).collect();
 
     if newer.is_empty() {
-        return Ok(None);
+        return Err("No updates available".into());
     }
 
     let latest = &newer[0];
@@ -131,9 +131,9 @@ pub async fn check_for_updates(include_prerelease: bool) -> Result<Option<Update
                 body: update.body.unwrap_or_default(), // Use empty string if body is None
                 current_version: current,
             };
-            Ok(Some(info))
+            Ok(info)
         }
-        Ok(None) => Ok(None),
+        Ok(None) => Err("No updates available".into()),
         Err(e) => Err(format!("Failed to check for updates: {}", e)),
     }
 }

@@ -5,7 +5,7 @@ Displays all active notifications in a stacked layout in the top-right corner.
 Automatically manages notification lifecycle and transitions.
 -->
 <script lang="ts">
-import { notifications } from "$lib/services/NotificationService";
+import { notifications } from "$lib/old_services/NotificationService";
 import NotificationToast from "./NotificationToast.svelte";
 </script>
 

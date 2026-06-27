@@ -11,34 +11,34 @@ Initializes all required services on mount.
 ```
 -->
 <script lang="ts">
-import "$lib/styles/global.scss";
-import { get } from "svelte/store";
-import { onMount, onDestroy } from "svelte";
-import { page } from "$app/stores";
 import { goto } from "$app/navigation";
-import {
-  currentAccount,
-  AuthService,
-  SettingsService,
-  InstallationService,
-  Icon,
-  PlayerHead,
-  logsService,
-  LogsService,
-  IconService,
-  UpdaterService,
-  settings,
-  isLaunching,
-  currentLaunchingInstallation,
-  launchTimeoutHandle,
-} from "$lib";
+import { page } from "$app/stores";
 import type {
-  NavigationEventPayload,
   BehaviorChoiceEventPayload,
   GameRestartEventPayload,
+  NavigationEventPayload,
+} from "$lib";
+import {
+  AuthService,
+  Icon,
+  IconService,
+  InstallationService,
+  LogsService,
+  PlayerHead,
+  SettingsService,
+  UpdaterService,
+  currentAccount,
+  currentLaunchingInstallation,
+  isLaunching,
+  launchTimeoutHandle,
+  logsService,
+  settings,
 } from "$lib";
 import { buttonSound } from "$lib/actions/soundActions";
-import { soundService } from "$lib/services/SoundService";
+import { soundService } from "$lib/old_services/SoundService";
+import "$lib/styles/global.scss";
+import { onDestroy, onMount } from "svelte";
+import { get } from "svelte/store";
 
 // Here we initialize all the required managers and services
 onMount(async () => {
@@ -519,8 +519,7 @@ onDestroy(() => {
   class:nav-open={!isNavCollapsed}
   on:keydown={handleKeydown}
   role="application"
-  tabindex="-1"
->
+  tabindex="-1">
   <nav class="sidebar" class:collapsed={isNavCollapsed}>
     <!-- Header Section with Profile -->
     <div class="header-section">
@@ -528,8 +527,7 @@ onDestroy(() => {
         use:buttonSound
         href="/profile"
         class="user-profile"
-        class:active={currentPath === "/profile"}
-      >
+        class:active={currentPath === "/profile"}>
         <div class="user-avatar">
           <PlayerHead account={$currentAccount} size={40} />
         </div>
@@ -538,8 +536,7 @@ onDestroy(() => {
           <span class="app-subtitle"
             >{!!$currentAccount?.access_token
               ? "Logged in"
-              : "Not logged in"}</span
-          >
+              : "Not logged in"}</span>
         </div>
       </a>
     </div>
@@ -555,13 +552,11 @@ onDestroy(() => {
           : "Collapse navigation"}
         data-title={isNavCollapsed
           ? "Expand navigation (Ctrl+B)"
-          : "Collapse navigation (Ctrl+B)"}
-      >
+          : "Collapse navigation (Ctrl+B)"}>
         <Icon
           name={isNavCollapsed ? "arrow-right" : "arrow-left"}
           size="lg"
-          forceType="svg"
-        />
+          forceType="svg" />
       </button>
     </div>
 
@@ -574,12 +569,10 @@ onDestroy(() => {
           class="nav-item"
           class:active={currentPath === item.path}
           data-title={item.label}
-          aria-label={item.label}
-        >
+          aria-label={item.label}>
           <Icon name={item.icon} size="md" className="nav-icon" />
           <span class="label" class:collapsed={isNavCollapsed}
-            >{item.label}</span
-          >
+            >{item.label}</span>
         </a>
       {/each}
     </div>
@@ -592,8 +585,7 @@ onDestroy(() => {
         class="nav-item settings-item"
         class:active={currentPath === "/settings"}
         data-title="Settings"
-        aria-label="Settings"
-      >
+        aria-label="Settings">
         <Icon name="settings" size="md" className="nav-icon" />
         <span class="label" class:collapsed={isNavCollapsed}>Settings</span>
       </a>

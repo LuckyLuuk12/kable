@@ -7,8 +7,7 @@ export * from "./components/";
 export * from "./services/";
 export * from "./stores/";
 
-// Export types
+// Export types & commands
 export * from "./api";
-export * from "./runtimeTypes";
-export type * from "./types";
+export * from "./wrapped_api";
 
