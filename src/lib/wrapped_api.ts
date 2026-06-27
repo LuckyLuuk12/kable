@@ -16,28 +16,21 @@
 // 	addAccount: (account: KableAccount) => typedError<null, string>(__TAURI_INVOKE("add_account", { account })),
 // 	removeAccount: (account: KableAccount) => typedError<KableAccount[], string>(__TAURI_INVOKE("remove_account", { account })),
 // 	setActiveAccount: (account: KableAccount) => typedError<null, string>(__TAURI_INVOKE("set_active_account", { account })),
-// 	getActiveAccount: () => typedError<{
-// 	access_token: string,
-// 	access_token_expires_at: string,
-// 	/**  AES-encrypted refresh token for "persistent" accounts. */
-// 	encrypted_refresh_token: string | null,
-// 	avatar: string,
-// 	eligible_for_free_trials: boolean,
-// 	eligible_for_migration: boolean,
-// 	franchise_inventory_id: string,
-// 	has_multiple_profiles: boolean,
-// 	in_forced_migration: boolean,
-// 	legacy: boolean,
-// 	license_product_ids: string[],
-// 	/**  This is usually the same as the user's UUID but for correctness use the Minecraft Profile's ID! */
-// 	local_id: string,
-// 	minecraft_profile: KableMinecraftProfile,
-// 	persistent: boolean,
-// 	remote_id: string,
-// 	type: string,
-// 	user_properties: null[],
-// 	username: string,
-// } | null, string>(__TAURI_INVOKE("get_active_account")),
+// 	getActiveAccount: () => typedError<KableAccount, string>(__TAURI_INVOKE("get_active_account")),
+// 	/**  Initialize Discord Rich Presence */
+// 	initializeDiscordRpc: () => typedError<null, string>(__TAURI_INVOKE("initialize_discord_rpc")),
+// 	/**  Enable or disable Discord Rich Presence globally */
+// 	setDiscordEnabled: (enabled: boolean) => typedError<null, string>(__TAURI_INVOKE("set_discord_enabled", { enabled })),
+// 	/**  Set presence to "playing Minecraft" */
+// 	setDiscordPlaying: (profile: KableProfile) => typedError<null, string>(__TAURI_INVOKE("set_discord_playing", { profile })),
+// 	/**  Set presence to browsing a launcher section */
+// 	setDiscordBrowsing: (section: string) => typedError<null, string>(__TAURI_INVOKE("set_discord_browsing", { section })),
+// 	/**  Clear "playing" state (revert to idle / launcher state) */
+// 	clearDiscordPlaying: () => typedError<null, string>(__TAURI_INVOKE("clear_discord_playing")),
+// 	/**  Clear all Discord presence (hard reset) */
+// 	clearDiscordPresence: () => typedError<null, string>(__TAURI_INVOKE("clear_discord_presence")),
+// 	/**  Disconnect completely from Discord IPC */
+// 	disconnectDiscord: () => typedError<null, string>(__TAURI_INVOKE("disconnect_discord")),
 // 	getCustomIconTemplates: () => typedError<CustomIconTemplate[], string>(__TAURI_INVOKE("get_custom_icon_templates")),
 // 	saveCustomIconTemplate: (template: CustomIconTemplate) => typedError<string, string>(__TAURI_INVOKE("save_custom_icon_template", { template })),
 // 	deleteCustomIconTemplate: (templateName: string) => typedError<null, string>(__TAURI_INVOKE("delete_custom_icon_template", { templateName })),
@@ -53,54 +46,8 @@
 // 	enableProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("enable_project", { profile, kableProject })),
 // 	disableProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("disable_project", { profile, kableProject })),
 // 	toggleProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("toggle_project", { profile, kableProject })),
-// 	checkForProjectUpdate: (kableProfile: KableProfile, kableProject: KableProject_Deserialize) => typedError<{
-// 	/**  The slug of a project, used for vanity URLs. Regex: ```^[\\w!@$()`.+,\"\\-']{3,64}$``` */
-// 	slug: string,
-// 	/**  The title or name of the project */
-// 	title: string,
-// 	/**  A short description of the project */
-// 	description: string,
-// 	/**  A list of the categories that the project has */
-// 	categories?: string[] | null,
-// 	/**  The client side support of the project */
-// 	client_side: ClientSide,
-// 	/**  The server side support of the project */
-// 	server_side: ServerSide,
-// 	/**  The project type of the project */
-// 	project_type: ProjectType,
-// 	/**  The total number of downloads of the project */
-// 	downloads: number,
-// 	/**  The URL of the project's icon */
-// 	icon_url?: string | null,
-// 	/**  The RGB color of the project, automatically generated from the project icon */
-// 	color?: number | null,
-// 	/**  The ID of the moderation thread associated with this project */
-// 	thread_id?: string | null,
-// 	monetization_status?: MonetizationStatus | null,
-// 	/**  The ID of the project */
-// 	project_id: string,
-// 	/**  The username of the project's author */
-// 	author: string,
-// 	/**  A list of the categories that the project has which are not secondary */
-// 	display_categories?: string[] | null,
-// 	/**  A list of the minecraft versions supported by the project */
-// 	versions: ProjectVersion_Serialize[],
-// 	/**  The total number of users following the project */
-// 	follows: number,
-// 	/**  The date the project was added to search */
-// 	date_created: string,
-// 	/**  The date the project was last modified */
-// 	date_modified: string,
-// 	/**  The latest version of minecraft that this project supports */
-// 	latest_version?: string | null,
-// 	/**  The SPDX license ID of a project */
-// 	license: string,
-// 	/**  All gallery images attached to the project */
-// 	gallery?: string[] | null,
-// 	/**  The featured gallery image of the project */
-// 	featured_gallery?: string | null,
-// } | null, string>(__TAURI_INVOKE("check_for_project_update", { kableProfile, kableProject })),
-// 	checkForProjectUpdates: (profile: KableProfile, projectType: ProjectType) => typedError<([KableProject_Serialize, Project_Serialize])[], string>(__TAURI_INVOKE("check_for_project_updates", { profile, projectType })),
+// 	checkForProjectUpdate: (kableProfile: KableProfile, kableProject: KableProject_Deserialize) => typedError<Project_Serialize, string>(__TAURI_INVOKE("check_for_project_update", { kableProfile, kableProject })),
+// 	checkForProjectUpdates: (profile: KableProfile, projectType: ProjectType) => typedError<UpdateMap_Serialize[], string>(__TAURI_INVOKE("check_for_project_updates", { profile, projectType })),
 // 	updateProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("update_project", { profile, kableProject })),
 // 	updateAllProjects: (profile: KableProfile, projectType: ProjectType) => typedError<KableProject_Serialize[], string>(__TAURI_INVOKE("update_all_projects", { profile, projectType })),
 // 	getProfiles: () => typedError<KableProfile[], string>(__TAURI_INVOKE("get_profiles")),
@@ -121,17 +68,12 @@
 // 	deleteSymlink: (id: string) => typedError<null, string>(__TAURI_INVOKE("delete_symlink", { id })),
 // 	enableSymlink: (id: string) => typedError<null, string>(__TAURI_INVOKE("enable_symlink", { id })),
 // 	disableSymlink: (id: string) => typedError<null, string>(__TAURI_INVOKE("disable_symlink", { id })),
-// 	checkForUpdates: (includePrerelease: boolean) => typedError<{
-// 	version: string,
-// 	date: string | null,
-// 	body: string,
-// 	current_version: string,
-// } | null, string>(__TAURI_INVOKE("check_for_updates", { includePrerelease })),
+// 	checkForUpdates: (includePrerelease: boolean) => typedError<UpdateData, string>(__TAURI_INVOKE("check_for_updates", { includePrerelease })),
 // 	installUpdate: (includePrerelease: boolean) => typedError<null, string>(__TAURI_INVOKE("install_update", { includePrerelease })),
 // 	downloadUpdate: (includePrerelease: boolean) => typedError<string, string>(__TAURI_INVOKE("download_update", { includePrerelease })),
 // 	applyDownloadedUpdate: () => typedError<null, string>(__TAURI_INVOKE("apply_downloaded_update")),
 // 	getCurrentVersion: () => typedError<string, string>(__TAURI_INVOKE("get_current_version")),
-// }; 
+// };
 // ``` 
 //
 
@@ -159,6 +101,13 @@ export const api = {
   removeAccount: (account: KableAccount) => unwrapAsync(commands.removeAccount(account)),
   setActiveAccount: (account: KableAccount) => unwrapAsync(commands.setActiveAccount(account)),
   getActiveAccount: () => unwrapAsync(commands.getActiveAccount()),
+  initializeDiscordRpc: () => unwrapAsync(commands.initializeDiscordRpc()),
+  setDiscordEnabled: (enabled: boolean) => unwrapAsync(commands.setDiscordEnabled(enabled)),
+  setDiscordPlaying: (profile: KableProfile) => unwrapAsync(commands.setDiscordPlaying(profile)),
+  setDiscordBrowsing: (section: string) => unwrapAsync(commands.setDiscordBrowsing(section)),
+  clearDiscordPlaying: () => unwrapAsync(commands.clearDiscordPlaying()),
+  clearDiscordPresence: () => unwrapAsync(commands.clearDiscordPresence()),
+  disconnectDiscord: () => unwrapAsync(commands.disconnectDiscord()),
   getCustomIconTemplates: () => unwrapAsync(commands.getCustomIconTemplates()),
   saveCustomIconTemplate: (template: CustomIconTemplate) => unwrapAsync(commands.saveCustomIconTemplate(template)),
   deleteCustomIconTemplate: (templateName: string) => unwrapAsync(commands.deleteCustomIconTemplate(templateName)),

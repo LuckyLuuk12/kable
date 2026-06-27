@@ -1,127 +1,116 @@
-use crate::Logger;
-use api_types::symlinks::{SymlinkEntry, SymlinkState, SymlinkView};
-use serde::{Deserialize, Serialize};
+use once_cell::sync::Lazy;
+use std::path::PathBuf;
+use std::sync::Mutex;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SymlinkManager {
-    entries: Vec<SymlinkEntry>,
+use crate::system::symlinks as sys;
+use api_types::symlinks::{Symlink, SymlinkCreateRequest};
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SymlinkConfig {
+    pub symlinks: Vec<Symlink>,
 }
 
-impl SymlinkManager {
-    pub async fn load() -> Result<Self, String> {
-        let config_path = crate::system::fs::kable_dir().unwrap().join("symlinks.json");
-
-        if !config_path.exists() {
-            return Ok(Self { entries: Vec::new() });
-        }
-
-        let data = tokio::fs::read(&config_path).await.map_err(|e| e.to_string())?;
-        let entries: Vec<SymlinkEntry> = serde_json::from_slice(&data).map_err(|e| e.to_string())?;
-
-        Ok(Self { entries })
-    }
-
-    pub async fn save(&self) -> Result<(), String> {
-        let config_path = crate::system::fs::kable_dir().unwrap().join("symlinks.json");
-        let data = serde_json::to_vec(&self.entries).map_err(|e| e.to_string())?;
-        tokio::fs::write(&config_path, &data).await.map_err(|e| e.to_string())
-    }
-
-    pub async fn list(&self) -> Result<Vec<SymlinkView>, String> {
-        let mut views = Vec::new();
-        for entry in &self.entries {
-            let mut view: SymlinkView = entry.clone().into();
-            // Compute state, kind, source_exists & link_exists using system::symlinks functions and the entry data:
-            let state = state(entry).await?;
-            let kind =
-                if entry.source.is_dir() { api_types::symlinks::SymlinkKind::Directory } else { api_types::symlinks::SymlinkKind::File };
-            let source_exists = crate::system::fs::exists(&entry.source).await?;
-            let link_exists = crate::system::symlinks::is_symlink(&entry.destination).await?;
-            // Apply the fields that had to be calculated outside of the api_types crate:
-            view.state = state;
-            view.kind = kind;
-            view.source_exists = source_exists;
-            view.link_exists = link_exists;
-            views.push(view);
-        }
-        Ok(views)
-    }
-
-    pub async fn create(&mut self, entry: SymlinkEntry) -> Result<(), String> {
-        self.entries.push(entry);
-        Ok(())
-    }
-
-    pub async fn remove(&mut self, id: &str) -> Result<(), String> {
-        self.entries.retain(|e| e.id != id);
-        Ok(())
-    }
-
-    pub async fn enable(&mut self, id: &str) -> Result<(), String> {
-        if let Some(entry) = self.entries.iter_mut().find(|e| e.id == id) {
-            entry.enabled = true;
-        }
-        Ok(())
-    }
-
-    pub async fn disable(&mut self, id: &str) -> Result<(), String> {
-        if let Some(entry) = self.entries.iter_mut().find(|e| e.id == id) {
-            entry.enabled = false;
-        }
-        Ok(())
-    }
-
-    pub async fn apply(&self, installation_id: Option<&str>) -> Result<(), String> {
-        for entry in &self.entries {
-            apply_entry(entry).await?;
-        }
-        Ok(())
-    }
-
-    pub async fn cleanup(&self, installation_id: Option<&str>) -> Result<(), String> {
-        for entry in &self.entries {
-            if let Err(e) = crate::system::symlinks::unlink(&entry.destination).await {
-                Logger::warn_global(&format!("Failed to cleanup symlink {}: {}", entry.id, e), None);
-            }
-        }
-        Ok(())
+impl Default for SymlinkConfig {
+    fn default() -> Self {
+        Self { symlinks: vec![] }
     }
 }
 
-pub async fn state(entry: &SymlinkEntry) -> Result<SymlinkState, String> {
-    if !entry.enabled {
-        return Ok(SymlinkState::Disabled);
-    }
-
-    let source_exists = tokio::fs::try_exists(&entry.source).await.map_err(|e| e.to_string())?;
-
-    if !source_exists {
-        return Ok(SymlinkState::MissingTarget);
-    }
-
-    let link_exists = crate::system::symlinks::is_symlink(&entry.destination).await?;
-
-    if !link_exists {
-        return Ok(SymlinkState::MissingLink);
-    }
-
-    Ok(SymlinkState::Enabled)
+fn config_path() -> Result<PathBuf, String> {
+    Ok(crate::system::fs::launcher_dir()?.join(crate::constants::CUSTOM_SYMLINKS_FILE))
 }
 
-pub async fn apply_entry(entry: &SymlinkEntry) -> Result<(), String> {
-    if !entry.enabled {
-        return Ok(());
+async fn read_config() -> Result<SymlinkConfig, String> {
+    let path = config_path()?;
+
+    if !path.exists() {
+        return Ok(SymlinkConfig::default());
     }
 
-    if !tokio::fs::try_exists(&entry.source).await.map_err(|e| e.to_string())? {
-        return Ok(());
+    let raw = tokio::fs::read_to_string(path).await.map_err(|e| e.to_string())?;
+
+    serde_json::from_str(&raw).map_err(|e| e.to_string())
+}
+
+async fn write_config(cfg: &SymlinkConfig) -> Result<(), String> {
+    let path = config_path()?;
+
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent).await.map_err(|e| e.to_string())?;
     }
 
-    if entry.source.is_dir() {
-        crate::system::symlinks::link_dir(&entry.source, &entry.destination).await?;
-    } else {
-        crate::system::symlinks::link_file(&entry.source, &entry.destination).await?;
+    let raw = serde_json::to_string_pretty(cfg).map_err(|e| e.to_string())?;
+
+    tokio::fs::write(path, raw).await.map_err(|e| e.to_string())
+}
+
+// ===== STATE =====
+
+pub struct SymlinkFeature {
+    config: SymlinkConfig,
+}
+
+impl SymlinkFeature {
+    pub fn new() -> Self {
+        Self { config: SymlinkConfig::default() }
     }
 
-    Ok(())
+    /// REQUIRED ENTRY POINT
+    pub async fn initialize(&mut self) -> Result<(), String> {
+        self.config = read_config().await?;
+
+        for link in &self.config.symlinks {
+            let _ = sys::create(link).await;
+        }
+
+        Ok(())
+    }
+
+    pub async fn create(&mut self, req: SymlinkCreateRequest) -> Result<Symlink, String> {
+        let file = req.source.file_name().ok_or("Invalid source")?;
+
+        let link = Symlink { source: req.clone().source, destination: req.destination_parent.join(file) };
+
+        sys::validate(&link)?;
+        sys::create(&link).await?;
+
+        self.config.symlinks.push(link.clone());
+        write_config(&self.config).await?;
+
+        Ok(link)
+    }
+
+    pub async fn remove(&mut self, link: Symlink) -> Result<(), String> {
+        sys::remove(&link).await?;
+
+        self.config.symlinks.retain(|s| s.destination != link.destination);
+        write_config(&self.config).await
+    }
+
+    pub async fn toggle(&mut self, link: Symlink) -> Result<bool, String> {
+        if sys::exists(&link).await? {
+            sys::remove(&link).await?;
+            return Ok(false);
+        }
+
+        sys::create(&link).await?;
+        Ok(true)
+    }
+}
+
+// ===== SINGLE GLOBAL INSTANCE =====
+
+static FEATURE: Lazy<Mutex<SymlinkFeature>> = Lazy::new(|| Mutex::new(SymlinkFeature::new()));
+
+fn with_feature<T>(f: impl FnOnce(&mut SymlinkFeature) -> T) -> Result<T, String> {
+    let mut m = FEATURE.lock().map_err(|e| e.to_string())?;
+    Ok(f(&mut m))
+}
+
+async fn with_feature_async<T, Fut>(f: impl FnOnce(&mut SymlinkFeature) -> Fut) -> Result<T, String>
+where
+    Fut: std::future::Future<Output = Result<T, String>>,
+{
+    let mut m = FEATURE.lock().map_err(|e| e.to_string())?;
+    f(&mut m).await
 }

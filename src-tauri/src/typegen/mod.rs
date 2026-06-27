@@ -9,7 +9,7 @@ use tauri_specta::{collect_commands, collect_events, Builder};
 pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
     let builder = Builder::<tauri::Wry>::new()
         .commands(collect_commands![
-            // TODO: make sure all commands are registered here!
+            // TODO: make sure all commands are registered in lib.rs AND in typegen module
             // #region Accounts
             api::start_authentication,
             api::poll_authentication,
@@ -19,6 +19,15 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::set_active_account,
             api::get_active_account,
             // #endregion Accounts
+            // #region Discord
+            api::initialize_discord_rpc,
+            api::set_discord_enabled,
+            api::set_discord_playing,
+            api::set_discord_browsing,
+            api::clear_discord_playing,
+            api::clear_discord_presence,
+            api::disconnect_discord,
+            // #endregion Discord
             // #region Icons
             api::get_custom_icon_templates,
             api::save_custom_icon_template,

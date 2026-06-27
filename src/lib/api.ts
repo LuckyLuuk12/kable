@@ -11,6 +11,20 @@ export const commands = {
 	removeAccount: (account: KableAccount) => typedError<KableAccount[], string>(__TAURI_INVOKE("remove_account", { account })),
 	setActiveAccount: (account: KableAccount) => typedError<null, string>(__TAURI_INVOKE("set_active_account", { account })),
 	getActiveAccount: () => typedError<KableAccount, string>(__TAURI_INVOKE("get_active_account")),
+	/**  Initialize Discord Rich Presence */
+	initializeDiscordRpc: () => typedError<null, string>(__TAURI_INVOKE("initialize_discord_rpc")),
+	/**  Enable or disable Discord Rich Presence globally */
+	setDiscordEnabled: (enabled: boolean) => typedError<null, string>(__TAURI_INVOKE("set_discord_enabled", { enabled })),
+	/**  Set presence to "playing Minecraft" */
+	setDiscordPlaying: (profile: KableProfile) => typedError<null, string>(__TAURI_INVOKE("set_discord_playing", { profile })),
+	/**  Set presence to browsing a launcher section */
+	setDiscordBrowsing: (section: string) => typedError<null, string>(__TAURI_INVOKE("set_discord_browsing", { section })),
+	/**  Clear "playing" state (revert to idle / launcher state) */
+	clearDiscordPlaying: () => typedError<null, string>(__TAURI_INVOKE("clear_discord_playing")),
+	/**  Clear all Discord presence (hard reset) */
+	clearDiscordPresence: () => typedError<null, string>(__TAURI_INVOKE("clear_discord_presence")),
+	/**  Disconnect completely from Discord IPC */
+	disconnectDiscord: () => typedError<null, string>(__TAURI_INVOKE("disconnect_discord")),
 	getCustomIconTemplates: () => typedError<CustomIconTemplate[], string>(__TAURI_INVOKE("get_custom_icon_templates")),
 	saveCustomIconTemplate: (template: CustomIconTemplate) => typedError<string, string>(__TAURI_INVOKE("save_custom_icon_template", { template })),
 	deleteCustomIconTemplate: (templateName: string) => typedError<null, string>(__TAURI_INVOKE("delete_custom_icon_template", { templateName })),

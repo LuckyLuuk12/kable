@@ -1,4 +1,5 @@
 pub mod accounts;
+pub mod discord;
 pub mod icons;
 pub mod images;
 pub mod launcher;
@@ -11,6 +12,7 @@ pub mod symlink;
 pub mod updater;
 
 pub use accounts::*;
+pub use discord::*;
 pub use icons::*;
 pub use images::*;
 pub use launcher::*;

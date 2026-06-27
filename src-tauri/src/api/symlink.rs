@@ -1,37 +1,26 @@
-use crate::features::advanced::symlink::SymlinkManager;
-use api_types::symlinks::{CreateSymlinkRequest, SymlinkView};
+use crate::features::advanced::symlink;
+use api_types::symlinks::{Symlink, SymlinkCreateRequest};
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_symlinks() -> Result<Vec<SymlinkView>, String> {
-    SymlinkManager::load().await?.list().await
+pub async fn symlink_initialize() -> Result<(), String> {
+    symlink::initialize().await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn create_symlink(request: CreateSymlinkRequest) -> Result<(), String> {
-    SymlinkManager::load().await?.create(request.into()).await
+pub async fn symlink_create(req: SymlinkCreateRequest) -> Result<Symlink, String> {
+    symlink::create(req).await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_symlink(id: String) -> Result<(), String> {
-    SymlinkManager::load().await?.remove(&id).await
+pub async fn symlink_remove(link: Symlink) -> Result<(), String> {
+    symlink::remove(link).await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn enable_symlink(id: String) -> Result<(), String> {
-    SymlinkManager::load().await?.enable(&id).await
+pub async fn symlink_toggle(link: Symlink) -> Result<bool, String> {
+    symlink::toggle(link).await
 }
-
-#[tauri::command]
-#[specta::specta]
-pub async fn disable_symlink(id: String) -> Result<(), String> {
-    SymlinkManager::load().await?.disable(&id).await
-}
-
-// #[tauri::command]
-// pub async fn repair_symlink(id: String) -> Result<(), String> {
-//     SymlinkManager::load().await?.repair(&id).await
-// }

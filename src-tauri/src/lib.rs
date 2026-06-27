@@ -52,7 +52,7 @@ pub fn run() {
             crate::features::updater::launch_pending_update()?;
 
             // Initialize Discord Rich Presence
-            crate::integrations::discord::initialize()?;
+            crate::features::discord::initialize()?;
 
             // TODO: Refactor the symlink feature properly, the current refactor is AI crap again...
             // Clean up any leftover symlinks from previous crashes/exits
@@ -74,10 +74,10 @@ pub fn run() {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 if window.label() == "main" {
                     // Clear Discord presence immediately (blocking to ensure it completes)
-                    let _ = crate::integrations::discord::clear().map_err(|e| {
+                    let _ = crate::features::discord::clear().map_err(|e| {
                         Logger::warn_global(&format!("[SHUTDOWN] Failed to clear Discord RPC: {}", e), None);
                     });
-                    let _ = crate::integrations::discord::disconnect().map_err(|e| {
+                    let _ = crate::features::discord::disconnect().map_err(|e| {
                         Logger::warn_global(&format!("[SHUTDOWN] Failed to disconnect Discord RPC: {}", e), None);
                     });
 
@@ -98,7 +98,7 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
-            // TODO: make sure all commands are registered here!
+            // TODO: make sure all commands are registered in lib.rs AND in typegen module
             // #region Accounts
             api::start_authentication,
             api::poll_authentication,
@@ -108,6 +108,15 @@ pub fn run() {
             api::set_active_account,
             api::get_active_account,
             // #endregion Accounts
+            // #region Discord
+            api::initialize_discord_rpc,
+            api::set_discord_enabled,
+            api::set_discord_playing,
+            api::set_discord_browsing,
+            api::clear_discord_playing,
+            api::clear_discord_presence,
+            api::disconnect_discord,
+            // #endregion Discord
             // #region Icons
             api::get_custom_icon_templates,
             api::save_custom_icon_template,
