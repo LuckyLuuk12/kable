@@ -6,10 +6,10 @@ Displays a single notification with auto-dismiss, hover-to-persist, and markdown
 @prop {Notification} notification - The notification to display
 -->
 <script lang="ts">
-import { onMount } from "svelte";
 import { Icon, NotificationService } from "$lib";
-import type { Notification } from "$lib/services/NotificationService";
-import { soundService } from "$lib/services/SoundService";
+import type { Notification } from "$lib/old_services/NotificationService";
+import { soundService } from "$lib/old_services/SoundService";
+import { onMount } from "svelte";
 
 export let notification: Notification;
 
@@ -65,8 +65,7 @@ const iconMap = {
   on:keydown={handleKeyDown}
   role={notification.onClick ? "button" : "alert"}
   tabindex={notification.onClick ? 0 : -1}
-  aria-live="polite"
->
+  aria-live="polite">
   <div class="notification-icon">
     <Icon name={iconMap[notification.type]} size="sm" forceType="svg" />
   </div>
@@ -80,8 +79,7 @@ const iconMap = {
   <button
     class="notification-close"
     on:click={handleDismiss}
-    aria-label="Dismiss notification"
-  >
+    aria-label="Dismiss notification">
     <Icon name="x" size="sm" forceType="svg" />
   </button>
 </div>

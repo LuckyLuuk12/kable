@@ -1,16 +1,16 @@
 <script lang="ts">
-import "$lib/styles/global.scss";
-import { NavBar, TitleBar } from "$lib";
-import { onMount, onDestroy } from "svelte";
-import { get } from "svelte/store";
+import { page } from "$app/stores";
 import {
+  DiscordService,
   getSelectedCssTheme,
   loadCustomCss,
+  NavBar,
   settings,
-  DiscordService,
+  TitleBar,
 } from "$lib";
-import { soundService } from "$lib/services/SoundService";
-import { page } from "$app/stores";
+import "$lib/styles/global.scss";
+import { onDestroy, onMount } from "svelte";
+import { get } from "svelte/store";
 
 let customCSSLoaded = false;
 let currentThemeName = "";

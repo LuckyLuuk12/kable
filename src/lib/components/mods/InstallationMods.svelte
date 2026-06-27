@@ -669,7 +669,7 @@ async function handleUpdateAll() {
 
   // Show result notification
   if (successCount > 0) {
-    import("$lib/services/NotificationService").then(
+    import("$lib/old_services/NotificationService").then(
       ({ NotificationService }) => {
         NotificationService.success(
           `Updated ${successCount} mod${successCount !== 1 ? "s" : ""}${failCount > 0 ? `. ${failCount} failed.` : ""}`,
@@ -677,7 +677,7 @@ async function handleUpdateAll() {
       },
     );
   } else if (failCount > 0) {
-    import("$lib/services/NotificationService").then(
+    import("$lib/old_services/NotificationService").then(
       ({ NotificationService }) => {
         NotificationService.error(
           `Failed to update ${failCount} mod${failCount !== 1 ? "s" : ""}`,
@@ -797,8 +797,7 @@ onMount(() => {
         on:wheel={handleWheel}
         on:keydown={handleKeydown}
         tabindex="-1"
-        role="listbox"
-      >
+        role="listbox">
         <div class="carousel-container">
           {#each sortedInstallations as installation, index}
             {@const selectedIndex = sortedInstallations.findIndex(
@@ -832,8 +831,7 @@ onMount(() => {
                 on:keydown={(e) =>
                   e.key === "Enter" && selectInstallation(installation)}
                 tabindex="0"
-                role="button"
-              >
+                role="button">
                 <div class="installation-icon">
                   <Icon name={loaderIcons[installation.id]} size="md" />
                 </div>
@@ -842,8 +840,7 @@ onMount(() => {
                   <div class="installation-details">
                     <span class="installation-version"
                       >{InstallationService.getVersionData(installation)
-                        .version_id}</span
-                    >
+                        .version_id}</span>
                   </div>
                 </div>
               </div>
@@ -863,14 +860,12 @@ onMount(() => {
               type="text"
               placeholder="Search mods (fuzzy search enabled)..."
               bind:value={searchQuery}
-              class="search-input"
-            />
+              class="search-input" />
             {#if searchQuery}
               <button
                 class="clear-btn"
                 on:click={() => (searchQuery = "")}
-                title="Clear search">✕</button
-              >
+                title="Clear search">✕</button>
             {/if}
           </div>
         </div>
@@ -889,8 +884,7 @@ onMount(() => {
                   {:else}
                     <span class="total-count">{mods.length}</span>
                     <span class="count-label"
-                      >{mods.length === 1 ? "mod" : "mods"}</span
-                    >
+                      >{mods.length === 1 ? "mod" : "mods"}</span>
                   {/if}
                 </div>
               {/if}
@@ -906,8 +900,7 @@ onMount(() => {
                     title="Update {modsWithUpdates.size} mod{modsWithUpdates.size !==
                     1
                       ? 's'
-                      : ''}"
-                  >
+                      : ''}">
                     <Icon name="arrow-up" size="sm" forceType="svg" />
                     <span>
                       {updatingAll
@@ -925,11 +918,10 @@ onMount(() => {
                     on:click={() => (sourceViewEnabled = !sourceViewEnabled)}
                     title={sourceViewEnabled
                       ? "Showing modpacks + standalone mods"
-                      : "Showing all mods"}
-                  >
+                      : "Showing all mods"}>
                     <Icon name="layers" size="sm" />
-                    <span>{sourceViewEnabled ? "Source On" : "Source Off"}</span
-                    >
+                    <span
+                      >{sourceViewEnabled ? "Source On" : "Source Off"}</span>
                   </button>
                 </label>
 
@@ -993,14 +985,12 @@ onMount(() => {
                       <button
                         class="modpack-card"
                         on:click={() => openModpackSource(source)}
-                        title="Open modpack page"
-                      >
+                        title="Open modpack page">
                         <div class="modpack-icon">
                           {#if getModpackCardIcon(source)}
                             <img
                               src={getModpackCardIcon(source) || ""}
-                              alt={getModpackCardTitle(source)}
-                            />
+                              alt={getModpackCardTitle(source)} />
                           {:else}
                             <Icon name="package" size="md" />
                           {/if}
@@ -1042,8 +1032,7 @@ onMount(() => {
                         installation={currentInstallation}
                         extendedInfo={$extendedModInfo[mod.file_name]}
                         onmodchanged={handleModChanged}
-                        onupdatereport={handleUpdateReport}
-                      />
+                        onupdatereport={handleUpdateReport} />
                     {/each}
                   </div>
                 {:else}
@@ -1061,8 +1050,7 @@ onMount(() => {
                     installation={currentInstallation}
                     extendedInfo={$extendedModInfo[mod.file_name]}
                     onmodchanged={handleModChanged}
-                    onupdatereport={handleUpdateReport}
-                  />
+                    onupdatereport={handleUpdateReport} />
                 {/each}
               </div>
             {/if}

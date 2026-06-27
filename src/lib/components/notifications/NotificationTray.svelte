@@ -5,11 +5,11 @@ Displays notification history in a dropdown tray accessible from a bell icon.
 Shows recent notifications and allows clearing history.
 -->
 <script lang="ts">
-import { notificationHistory } from "$lib/services/NotificationService";
-import { NotificationService, Icon } from "$lib";
+import { Icon, NotificationService } from "$lib";
 import { clickSound } from "$lib/actions";
-import { onMount, onDestroy } from "svelte";
 import * as systemApi from "$lib/api/system";
+import { notificationHistory } from "$lib/old_services/NotificationService";
+import { onDestroy, onMount } from "svelte";
 
 let isOpen = false;
 let trayElement: HTMLDivElement;
@@ -82,8 +82,7 @@ function formatTime(date: Date): string {
     class="tray-toggle"
     on:click|stopPropagation={toggleTray}
     aria-label="Notification history"
-    title="Notification history"
-  >
+    title="Notification history">
     <Icon name="help" size="sm" />
     {#if $notificationHistory.length > 0}
       <span class="notification-badge">{$notificationHistory.length}</span>
@@ -99,8 +98,7 @@ function formatTime(date: Date): string {
             use:clickSound
             class="help-btn"
             on:click={openHelp}
-            title="Get help"
-          >
+            title="Get help">
             Get Help
           </button>
           {#if $notificationHistory.length > 0}

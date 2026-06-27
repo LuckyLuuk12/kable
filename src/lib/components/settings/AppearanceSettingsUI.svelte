@@ -10,10 +10,13 @@ UI scaling, and color schemes. Supports custom theme uploads.
 ```
 -->
 <script lang="ts">
-import { settings } from "$lib/stores";
-import { Icon, IconService, availableTemplates, SettingsService } from "$lib";
-import { soundService, availableSoundpacks } from "$lib/services/SoundService";
+import { availableTemplates, Icon, IconService, SettingsService } from "$lib";
 import { clickSound, errorSound, successSound } from "$lib/actions";
+import {
+  availableSoundpacks,
+  soundService,
+} from "$lib/old_services/SoundService";
+import { settings } from "$lib/stores";
 import { onMount } from "svelte";
 
 let showCustomTemplates = false;
@@ -249,12 +252,12 @@ async function openIconsDirectory() {
         <select
           bind:value={$settings.appearance.selected_css_theme}
           on:change={(e) =>
-            selectCssTheme((e.target as HTMLSelectElement).value)}
-        >
+            selectCssTheme((e.target as HTMLSelectElement).value)}>
           {#each cssThemes as theme}
             <option value={theme}
-              >{theme === "default" ? "Default (No Custom CSS)" : theme}</option
-            >
+              >{theme === "default"
+                ? "Default (No Custom CSS)"
+                : theme}</option>
           {/each}
         </select>
       </div>
@@ -272,8 +275,7 @@ async function openIconsDirectory() {
         <button
           use:clickSound
           type="button"
-          on:click={() => (showCssUpload = !showCssUpload)}
-        >
+          on:click={() => (showCssUpload = !showCssUpload)}>
           {showCssUpload ? "Cancel Upload" : "Upload Custom Theme"}
         </button>
         <button use:clickSound type="button" on:click={openCssThemesDirectory}>
@@ -305,15 +307,13 @@ async function openIconsDirectory() {
             on:keydown={(e) =>
               e.key === "Enter" &&
               document.getElementById("css-file-input")?.click()}
-            on:click={() => document.getElementById("css-file-input")?.click()}
-          >
+            on:click={() => document.getElementById("css-file-input")?.click()}>
             <input
               type="file"
               id="css-file-input"
               accept=".css"
               on:change={handleCssFileSelect}
-              style="display:none;"
-            />
+              style="display:none;" />
             <div class="upload-placeholder">
               <h4>Drag & drop or click to select a CSS file</h4>
               <p>Accepted: .css</p>
@@ -324,13 +324,11 @@ async function openIconsDirectory() {
                     <button
                       use:successSound
                       type="button"
-                      on:click={handleCssUpload}>Upload</button
-                    >
+                      on:click={handleCssUpload}>Upload</button>
                     <button
                       use:clickSound
                       type="button"
-                      on:click={() => (cssUploadFile = null)}>Remove</button
-                    >
+                      on:click={() => (cssUploadFile = null)}>Remove</button>
                   </div>
                 </div>
               {/if}
@@ -357,8 +355,7 @@ async function openIconsDirectory() {
             use:clickSound
             type="button"
             class="dropdown-toggle"
-            on:click={() => (showCustomThemes = !showCustomThemes)}
-          >
+            on:click={() => (showCustomThemes = !showCustomThemes)}>
             {showCustomThemes ? "Hide Custom Themes" : "Manage Custom Themes"}
           </button>
           {#if showCustomThemes}
@@ -371,8 +368,7 @@ async function openIconsDirectory() {
                     type="button"
                     class="icon-btn btn-danger"
                     title="Remove Custom Theme"
-                    on:click={() => removeCssTheme(theme)}
-                  >
+                    on:click={() => removeCssTheme(theme)}>
                     <Icon name="delete" />
                   </button>
                 </div>
@@ -416,8 +412,7 @@ async function openIconsDirectory() {
           type="text"
           id="language"
           bind:value={$settings.appearance.language}
-          placeholder="e.g. en, nl, fr"
-        />
+          placeholder="e.g. en, nl, fr" />
       </div>
     </div>
 
@@ -432,15 +427,13 @@ async function openIconsDirectory() {
           id="extra-spacing-slider"
           min="0"
           max="128"
-          bind:value={$settings.appearance.extra_spacing}
-        />
+          bind:value={$settings.appearance.extra_spacing} />
         <input
           type="number"
           id="extra-spacing"
           min="0"
           max="128"
-          bind:value={$settings.appearance.extra_spacing}
-        />
+          bind:value={$settings.appearance.extra_spacing} />
       </div>
     </div>
 
@@ -455,15 +448,13 @@ async function openIconsDirectory() {
           id="sidebar-width-slider"
           min="200"
           max="1000"
-          bind:value={$settings.appearance.sidebar_width}
-        />
+          bind:value={$settings.appearance.sidebar_width} />
         <input
           type="number"
           id="sidebar-width"
           min="200"
           max="1000"
-          bind:value={$settings.appearance.sidebar_width}
-        />
+          bind:value={$settings.appearance.sidebar_width} />
       </div>
     </div>
 
@@ -479,12 +470,10 @@ async function openIconsDirectory() {
           id="selected-icon-template"
           bind:value={$settings.appearance.selected_icon_template}
           on:change={(e) =>
-            selectIconTemplate((e.target as HTMLSelectElement).value)}
-        >
+            selectIconTemplate((e.target as HTMLSelectElement).value)}>
           {#each $availableTemplates as template}
             <option value={template.name}
-              >{template.displayName || template.name}</option
-            >
+              >{template.displayName || template.name}</option>
           {/each}
         </select>
       </div>
@@ -502,8 +491,7 @@ async function openIconsDirectory() {
         <button
           use:clickSound
           type="button"
-          on:click={() => (showIconUpload = !showIconUpload)}
-        >
+          on:click={() => (showIconUpload = !showIconUpload)}>
           {showIconUpload ? "Cancel Upload" : "Upload Custom Template"}
         </button>
         <button use:clickSound type="button" on:click={openIconsDirectory}>
@@ -536,15 +524,13 @@ async function openIconsDirectory() {
               e.key === "Enter" &&
               document.getElementById("template-file-input")?.click()}
             on:click={() =>
-              document.getElementById("template-file-input")?.click()}
-          >
+              document.getElementById("template-file-input")?.click()}>
             <input
               type="file"
               id="template-file-input"
               accept=".json,.yml,.yaml"
               on:change={handleFileSelect}
-              style="display:none;"
-            />
+              style="display:none;" />
             <div class="upload-placeholder">
               <h4>Drag & drop or click to select a template file</h4>
               <p>Accepted: .json, .yml, .yaml</p>
@@ -555,13 +541,11 @@ async function openIconsDirectory() {
                     <button
                       use:successSound
                       type="button"
-                      on:click={handleIconUpload}>Upload</button
-                    >
+                      on:click={handleIconUpload}>Upload</button>
                     <button
                       use:clickSound
                       type="button"
-                      on:click={() => (uploadFile = null)}>Remove</button
-                    >
+                      on:click={() => (uploadFile = null)}>Remove</button>
                   </div>
                 </div>
               {/if}
@@ -586,8 +570,7 @@ async function openIconsDirectory() {
             use:clickSound
             type="button"
             class="dropdown-toggle"
-            on:click={() => (showCustomTemplates = !showCustomTemplates)}
-          >
+            on:click={() => (showCustomTemplates = !showCustomTemplates)}>
             {showCustomTemplates
               ? "Hide Custom Templates"
               : "Manage Custom Templates"}
@@ -597,15 +580,13 @@ async function openIconsDirectory() {
               {#each $availableTemplates.filter((t) => t.type === "custom") as template}
                 <div class="custom-template-row">
                   <span class="template-name"
-                    >{template.displayName || template.name}</span
-                  >
+                    >{template.displayName || template.name}</span>
                   <button
                     use:errorSound
                     type="button"
                     class="icon-btn btn-danger"
                     title="Remove"
-                    on:click={() => removeCustomTemplate(template.name)}
-                  >
+                    on:click={() => removeCustomTemplate(template.name)}>
                     <Icon name="delete" />
                   </button>
                 </div>
@@ -632,8 +613,7 @@ async function openIconsDirectory() {
               soundService.setSoundEnabled(
                 $settings.appearance.sound?.enabled ?? true,
               );
-            }}
-          />
+            }} />
         </div>
       </div>
 
@@ -651,8 +631,7 @@ async function openIconsDirectory() {
               soundService.setMusicEnabled(
                 $settings.appearance.sound?.music_enabled ?? true,
               );
-            }}
-          />
+            }} />
         </div>
       </div>
 
@@ -676,8 +655,7 @@ async function openIconsDirectory() {
                 soundService.setMasterVolume(
                   parseInt((e.target as HTMLInputElement).value),
                 );
-              }}
-            />
+              }} />
           </div>
         </div>
 
@@ -701,8 +679,7 @@ async function openIconsDirectory() {
                   soundService.setSoundVolume(
                     parseInt((e.target as HTMLInputElement).value),
                   );
-                }}
-              />
+                }} />
             </div>
           </div>
         {/if}
@@ -728,8 +705,7 @@ async function openIconsDirectory() {
                   soundService.setMusicVolume(
                     parseInt((e.target as HTMLInputElement).value),
                   );
-                }}
-              />
+                }} />
             </div>
           </div>
         {/if}
@@ -748,8 +724,7 @@ async function openIconsDirectory() {
                 await soundService.loadSoundpack(pack);
                 saveStatus = "Soundpack changed successfully";
                 setTimeout(() => (saveStatus = ""), 2000);
-              }}
-            >
+              }}>
               {#each $availableSoundpacks as pack}
                 <option value={pack.name}>{pack.displayName}</option>
               {/each}
@@ -763,8 +738,7 @@ async function openIconsDirectory() {
     <div
       class="warning-card"
       class:success={saveStatus.includes("success")}
-      class:error={saveStatus.includes("Failed")}
-    >
+      class:error={saveStatus.includes("Failed")}>
       {saveStatus}
     </div>
   {/if}
