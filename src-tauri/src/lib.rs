@@ -30,7 +30,7 @@ pub fn app_handle() -> AppHandle {
     APP_HANDLE.get().expect("not initialized").clone()
 }
 
-/// This starts the Tauri application
+/// ? This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Handle CLI arguments before building Tauri app
@@ -54,18 +54,8 @@ pub fn run() {
             // Initialize Discord Rich Presence
             crate::features::discord::initialize()?;
 
-            // TODO: Refactor the symlink feature properly, the current refactor is AI crap again...
             // Clean up any leftover symlinks from previous crashes/exits
-            // tauri::async_runtime::spawn(async {
-            //     if let Ok(minecraft_dir) = crate::system::fs::mc_dir() {
-            //         let symlink_manager = crate::system::symlinks::SymlinkManager::new(minecraft_dir);
-            //         if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
-            //             Logger::warn_global(&format!("[STARTUP] Failed to cleanup leftover symlinks: {}", e), None);
-            //         } else {
-            //             Logger::info_global("[STARTUP] Cleaned up leftover symlinks from previous session", None);
-            //         }
-            //     }
-            // });
+            tauri::async_runtime::spawn(async { crate::features::advanced::symlink::cleanup().await });
 
             Ok(())
         })
@@ -80,17 +70,8 @@ pub fn run() {
                     let _ = crate::features::discord::disconnect().map_err(|e| {
                         Logger::warn_global(&format!("[SHUTDOWN] Failed to disconnect Discord RPC: {}", e), None);
                     });
-
-                    // tauri::async_runtime::spawn(async {
-                    //     if let Ok(minecraft_dir) = get_default_minecraft_dir() {
-                    //         let symlink_manager = crate::features::advanced::symlink::SymlinkManager::new(minecraft_dir);
-                    //         if let Err(e) = symlink_manager.cleanup_all_symlinks().await {
-                    //             Logger::warn_global(&format!("[SHUTDOWN] Failed to cleanup symlinks: {}", e), None);
-                    //         } else {
-                    //             Logger::info_global("[SHUTDOWN] Cleaned up all symlinks on app close", None);
-                    //         }
-                    //     }
-                    // });
+                    // Spawn a background task to clean up symlinks asynchronously
+                    tauri::async_runtime::spawn(async { crate::features::advanced::symlink::cleanup().await });
                 }
             }
         })
@@ -171,8 +152,11 @@ pub fn run() {
             api::remove,
             api::toggle,
             api::update,
-            // api::repair_symlink,
             // #endregion Symlinks
+            // #region System
+            api::open_url,
+            api::open_path,
+            // #endregion System
             // #region Updater
             api::check_for_updates,
             api::install_update,

@@ -86,3 +86,27 @@ pub async fn download_bytes(url: &str) -> NetResult<Vec<u8>> {
 
     resp.bytes().await.map(|b| b.to_vec()).map_err(|e| e.to_string())
 }
+
+pub async fn open_url(url: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        // Use explorer.exe instead of cmd to avoid issues with special characters
+        // This is more reliable and doesn't require shell escaping
+        std::process::Command::new("explorer.exe")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("Failed to open URL on Windows: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open").arg(&url).spawn().map_err(|e| format!("Failed to open URL on macOS: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open").arg(&url).spawn().map_err(|e| format!("Failed to open URL on Linux: {}", e))?;
+    }
+
+    Ok(())
+}

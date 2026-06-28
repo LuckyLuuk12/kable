@@ -9,6 +9,7 @@ pub mod projects;
 pub mod settings;
 pub mod sounds;
 pub mod symlink;
+pub mod system;
 pub mod updater;
 
 pub use accounts::*;
@@ -22,4 +23,5 @@ pub use projects::*;
 pub use settings::*;
 pub use sounds::*;
 pub use symlink::*;
+pub use system::*;
 pub use updater::*;

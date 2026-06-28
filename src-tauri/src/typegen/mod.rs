@@ -82,8 +82,11 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::remove,
             api::toggle,
             api::update,
-            // api::repair_symlink,
             // #endregion Symlinks
+            // #region System
+            api::open_url,
+            api::open_path,
+            // #endregion System
             // #region Updater
             api::check_for_updates,
             api::install_update,

@@ -217,3 +217,26 @@ pub async fn rename(from: impl AsRef<Path>, to: impl AsRef<Path>) -> FsResult<()
 pub fn tmp_dir(instance: &str, pack: &str) -> FsResult<PathBuf> {
     Ok(kable_dir()?.join("tmp").join(instance).join(pack))
 }
+
+pub async fn open_path(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        // Use start with empty title to allow paths with spaces
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &path])
+            .spawn()
+            .map_err(|e| format!("Failed to open path on Windows: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open").arg(&path).spawn().map_err(|e| format!("Failed to open path on macOS: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open").arg(&path).spawn().map_err(|e| format!("Failed to open path on Linux: {}", e))?;
+    }
+
+    Ok(())
+}

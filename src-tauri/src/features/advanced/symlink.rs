@@ -230,7 +230,7 @@ impl SymlinkManager {
         let minecraft_path = fs::mc_dir()?;
         let mut symlinks = Vec::new();
         for entry in walkdir::WalkDir::new(&minecraft_path).into_iter().filter_map(|e| e.ok()) {
-            if entry.metadata().map_or(false, |m| m.is_symlink()) {
+            if entry.metadata().is_ok_and(|m| m.is_symlink()) {
                 // Check if the symlink id ("source.display()-destination.display()") is already in self.symlinks, if not, add it to symlinks and self.symlinks and save to disk.
                 let source = std::fs::read_link(entry.path()).map_err(|e| format!("read_link failed: {}", e))?;
                 let id = format!("{}-{}", source.display(), entry.path().display());
@@ -280,4 +280,8 @@ pub async fn update(old: Symlink, new: Symlink) -> Result<Symlink, String> {
 
 pub async fn setup_profile(profile: &KableProfile) -> Result<(), String> {
     manager().await?.setup_profile_symlinks(profile).await
+}
+
+pub async fn cleanup() -> Result<(), String> {
+    manager().await?.cleanup().await
 }
