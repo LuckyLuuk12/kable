@@ -166,10 +166,11 @@ pub fn run() {
             // #endregion Sounds
             // #region Symlinks
             api::get_symlinks,
-            api::create_symlink,
-            api::delete_symlink,
-            api::enable_symlink,
-            api::disable_symlink,
+            api::temporary_symlinks,
+            api::create,
+            api::remove,
+            api::toggle,
+            api::update,
             // api::repair_symlink,
             // #endregion Symlinks
             // #region Updater

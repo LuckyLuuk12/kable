@@ -52,8 +52,10 @@ pub const KABLE_ACCOUNTS_FILE: &str = "kable_accounts.json";
 pub const KABLE_PROFILES_FILE: &str = "kable_profiles.json";
 pub const MODRINTH_CACHE_FILE: &str = "modrinth_cache.json";
 pub const MODRINTH_VERSIONS_CACHE_FILE: &str = "modrinth_versions_cache.json";
+pub const ALLOWED_SYMLINKS_FILE: &str = "allowed_symlinks.txt";
 
 // Launcher special values
+pub const ALLOW_SYMLINKS_REGEX: &str = "[regex].*";
 pub const LATEST_RELEASE: &str = "latest-release";
 pub const LATEST_SNAPSHOT: &str = "latest-snapshot";
 

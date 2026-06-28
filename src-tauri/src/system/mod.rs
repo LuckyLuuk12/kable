@@ -4,4 +4,3 @@ pub mod java;
 pub mod migration;
 pub mod net;
 pub mod processes;
-pub mod symlinks;
