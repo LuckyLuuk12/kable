@@ -86,8 +86,10 @@ impl SymlinkManager {
                 self.symlinks.push(symlink);
             }
         }
+        // load self.symlinks from disk (custom_symlinks.json) and merge with existing symlinks, ensuring no duplicates based on id
+        let loaded_symlinks = self.load().await?;
         // Now make sure all loaded symlinks are enabled if they are supposed to be enabled, and disabled if they are supposed to be disabled.
-        for symlink in self.symlinks.iter() {
+        for symlink in loaded_symlinks.iter() {
             if symlink.enabled {
                 Self::create(symlink.clone()).await?;
             } else {

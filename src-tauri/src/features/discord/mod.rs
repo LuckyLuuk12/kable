@@ -1,4 +1,4 @@
-use api_types::profiles::{KableProfile, LoaderKind};
+use api_types::profiles::KableProfile;
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -128,7 +128,7 @@ pub fn set_playing(profile: &KableProfile) -> Result<(), String> {
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i32;
 
     let profile_name = &profile.name;
-    let version = &profile.version.minecraft_version.clone().unwrap_or(String::new()); // e.g. 1.20.1
+    let version = &profile.version.minecraft_version.clone().unwrap_or_default(); // e.g. 1.20.1
     let loader = profile.version.loader;
 
     let small_image = Some(profile.version.loader.to_string());
@@ -136,7 +136,7 @@ pub fn set_playing(profile: &KableProfile) -> Result<(), String> {
 
     let state = PresenceState {
         state: format!("{profile_name} • {loader}"),
-        details: format!("Playing Minecraft launched with Kable"),
+        details: "Playing Minecraft launched with Kable".to_string(),
         priority: ActivityPriority::Playing,
         large_image: Some("minecraft_logo".to_string()),
         large_text: Some(format!("Minecraft Java Edition {version}")),
