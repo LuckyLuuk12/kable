@@ -1,13 +1,6 @@
 <script lang="ts">
 import { page } from "$app/stores";
-import {
-  DiscordService,
-  getSelectedCssTheme,
-  loadCustomCss,
-  NavBar,
-  settings,
-  TitleBar,
-} from "$lib";
+import { app, NavBar, settings, TitleBar } from "$lib";
 import "$lib/styles/global.scss";
 import { onDestroy, onMount } from "svelte";
 import { get } from "svelte/store";
@@ -33,9 +26,9 @@ onMount(async () => {
   // Subscribe to route changes for Discord RPC
   unsubscribePage = page.subscribe(($page) => {
     if ($page?.url?.pathname) {
-      DiscordService.updateBrowsing($page.url.pathname).catch((err) =>
-        console.error("Failed to update Discord status:", err),
-      );
+      app.discordService
+        .setBrowsing($page.url.pathname)
+        .catch((err) => console.error("Failed to update Discord status:", err));
     }
   });
 });
@@ -60,14 +53,14 @@ async function loadCustomCSS() {
 
     // If not in store, fallback to API
     if (!themeName) {
-      themeName = (await getSelectedCssTheme()) || "";
+      themeName = (await app.customizationService.getSelectedCssTheme()) || "";
     }
 
     currentThemeName = themeName;
 
     if (themeName && themeName !== "default") {
       // Load the CSS content for the theme
-      const customCSS = await loadCustomCss(themeName);
+      const customCSS = await app.customizationService.loadCustomCss(themeName);
 
       if (customCSS && typeof customCSS === "string") {
         injectCustomCSS(customCSS);
@@ -138,6 +131,7 @@ async function reloadCustomCSS() {
 
 // Make reload function available globally for settings page
 if (typeof window !== "undefined") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).reloadCustomCSS = reloadCustomCSS;
 }
 </script>

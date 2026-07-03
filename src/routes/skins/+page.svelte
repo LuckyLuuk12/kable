@@ -10,15 +10,13 @@ let currentTab: "selection" | "editor" = "selection";
     <button
       class="tab-btn"
       class:active={currentTab === "selection"}
-      on:click={() => (currentTab = "selection")}
-    >
+      on:click={() => (currentTab = "selection")}>
       🎨 Skin Selection
     </button>
     <button
       class="tab-btn"
       class:active={currentTab === "editor"}
-      on:click={() => (currentTab = "editor")}
-    >
+      on:click={() => (currentTab = "editor")}>
       ✏️ Skin Editor
     </button>
   </div>

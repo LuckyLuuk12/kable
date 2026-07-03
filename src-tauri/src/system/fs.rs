@@ -240,3 +240,22 @@ pub async fn open_path(path: String) -> Result<(), String> {
 
     Ok(())
 }
+
+pub async fn open_dir(dir: PathBuf) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer").arg(&dir).spawn().map_err(|e| format!("Failed to open directory: {}", e))?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open").arg(&dir).spawn().map_err(|e| format!("Failed to open directory: {}", e))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open").arg(&dir).spawn().map_err(|e| format!("Failed to open directory: {}", e))?;
+    }
+
+    Ok(())
+}

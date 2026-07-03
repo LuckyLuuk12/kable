@@ -3,8 +3,8 @@ use api_types::icons::CustomIconTemplate;
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, String> {
-    icons::get_custom_icon_templates().await
+pub async fn get_icon_templates() -> Result<Vec<CustomIconTemplate>, String> {
+    icons::get_icon_templates().await
 }
 
 #[tauri::command]

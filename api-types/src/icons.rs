@@ -1,11 +1,15 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 pub struct CustomIconTemplate {
     pub id: String,
     pub name: String,
     pub description: Option<String>,
-    pub svg_data: String,
+    pub author: Vec<String>,
+    pub version: Option<String>,
+    pub fallback_icon: String,
+    pub icons: HashMap<String, String>,
     pub preview_svg: Option<String>,
     pub created_at: Option<i32>,
     pub updated_at: Option<i32>,

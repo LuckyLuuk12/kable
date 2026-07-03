@@ -1,8 +1,10 @@
+use crate::app_handle;
 use crate::constants::{CONFIG_DIR, ICONS_DIR};
 use crate::system::fs::{create_dir, launcher_dir, read_str};
 use api_types::icons::CustomIconTemplate;
 use std::fs;
 use std::path::PathBuf;
+use tauri::Manager;
 
 /// Get the icons configuration directory
 pub fn get_icons_dir() -> Result<PathBuf, String> {
@@ -17,6 +19,39 @@ pub async fn ensure_icons_dir() -> Result<PathBuf, String> {
         Ok(p) => Ok(p),
         Err(err) => Err(format!("Failed to ensure icons directory exists: {}", err)),
     }
+}
+
+pub async fn get_icon_templates() -> Result<Vec<CustomIconTemplate>, String> {
+    let mut templates = get_builtin_icon_templates().await?;
+    let custom_templates = get_custom_icon_templates().await?;
+    templates.extend(custom_templates);
+    Ok(templates)
+}
+
+pub async fn get_builtin_icon_templates() -> Result<Vec<CustomIconTemplate>, String> {
+    let paths = [
+        app_handle()
+            .path()
+            .resolve("icons/fa.json", tauri::path::BaseDirectory::Resource)
+            .map_err(|e| format!("Failed to resolve built-in icons path: {}", e))?,
+        app_handle()
+            .path()
+            .resolve("icons/svg.json", tauri::path::BaseDirectory::Resource)
+            .map_err(|e| format!("Failed to resolve built-in icons path: {}", e))?,
+        app_handle()
+            .path()
+            .resolve("icons/win.json", tauri::path::BaseDirectory::Resource)
+            .map_err(|e| format!("Failed to resolve built-in icons path: {}", e))?,
+    ];
+    let mut templates = Vec::new();
+    for path in paths {
+        if let Ok(content) = read_str(&path).await {
+            if let Ok(template) = serde_json::from_str::<CustomIconTemplate>(&content) {
+                templates.push(template);
+            }
+        }
+    }
+    Ok(templates)
 }
 
 /// Get all custom icon templates
@@ -70,30 +105,5 @@ pub async fn delete_custom_icon_template(template_name: String) -> Result<(), St
 /// Open the icons directory in the system file explorer
 pub async fn open_icons_directory() -> Result<(), String> {
     let icons_dir = ensure_icons_dir().await?;
-
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer")
-            .arg(&icons_dir)
-            .spawn()
-            .map_err(|e| format!("Failed to open icons directory: {}", e))?;
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&icons_dir)
-            .spawn()
-            .map_err(|e| format!("Failed to open icons directory: {}", e))?;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&icons_dir)
-            .spawn()
-            .map_err(|e| format!("Failed to open icons directory: {}", e))?;
-    }
-
-    Ok(())
+    crate::system::fs::open_dir(icons_dir).await
 }

@@ -10,47 +10,47 @@ Displays current account status and allows switching between authentication flow
 ```
 -->
 <script lang="ts">
-import { onMount, onDestroy } from "svelte";
+import type { KableAccount } from "$lib";
 import {
+  AuthenticationFlow,
   Icon,
   PlayerHead,
-  AuthService,
+  app,
   currentAccount,
-  AuthenticationFlow,
 } from "$lib";
-import type { LauncherAccount } from "$lib";
+import { onDestroy, onMount } from "svelte";
 
 let isLoading = false;
 
 // Check if current account is offline (no access token)
 $: isOffline = !$currentAccount || !$currentAccount.access_token;
 
-async function refreshTokenDCF() {
-  if (!$currentAccount || isOffline) return;
-  isLoading = true;
-  try {
-    await AuthService.authenticateWithDeviceCode();
-  } catch (error) {
-    console.error("Device Code Flow refresh failed:", error);
-  } finally {
-    isLoading = false;
-  }
-}
+// async function refreshTokenDCF() {
+//   if (!$currentAccount || isOffline) return;
+//   isLoading = true;
+//   try {
+//     await app.authService.authenticateWithDeviceCode();
+//   } catch (error) {
+//     console.error("Device Code Flow refresh failed:", error);
+//   } finally {
+//     isLoading = false;
+//   }
+// }
 
-async function reloginCurrentAccount() {
-  if (!$currentAccount) return;
-  isLoading = true;
-  try {
-    await AuthService.authenticateWithDeviceCode();
-  } catch (error) {
-    console.error("Manual re-login failed:", error);
-  } finally {
-    isLoading = false;
-  }
-}
+// async function reloginCurrentAccount() {
+//   if (!$currentAccount) return;
+//   isLoading = true;
+//   try {
+//     await app.authService.authenticateWithDeviceCode();
+//   } catch (error) {
+//     console.error("Manual re-login failed:", error);
+//   } finally {
+//     isLoading = false;
+//   }
+// }
 // Determine account status
 function getAccountStatus(
-  account: LauncherAccount,
+  account: KableAccount,
 ): "online" | "offline" | "expired" {
   if (!account.access_token) return "offline";
   if (account.access_token_expires_at) {
@@ -61,7 +61,7 @@ function getAccountStatus(
 }
 
 // Format token expiry for display
-function formatTokenExpiry(account: LauncherAccount | null): string {
+function formatTokenExpiry(account: KableAccount | null): string {
   if (!account || !account.access_token_expires_at) return "Never expires";
   const expiryDate = new Date(account.access_token_expires_at);
   const now = new Date();
@@ -84,8 +84,6 @@ let expiryInterval: ReturnType<typeof setInterval> | null = null;
 $: tokenExpiryDisplay = formatTokenExpiry($currentAccount);
 
 onMount(async () => {
-  // Initialize authentication and load accounts
-  await AuthService.initialize();
   // Start interval to update expiry display every second
   expiryInterval = setInterval(() => {
     tokenExpiryDisplay = formatTokenExpiry($currentAccount);
@@ -111,7 +109,7 @@ async function removeCurrentAccount() {
   }
   isLoading = true;
   try {
-    await AuthService.removeAccount($currentAccount.local_id);
+    await app.authService.removeAccount($currentAccount.local_id);
   } catch (error) {
     console.error("Failed to remove account:", error);
   } finally {
@@ -124,27 +122,27 @@ async function removeCurrentAccount() {
  */
 // Refresh current account token using centralized AuthService logic
 async function refreshToken() {
-  if (!$currentAccount || isOffline) return;
-  isLoading = true;
-  try {
-    // Calls the new background refresh logic in AuthService
-    await AuthService.refreshCurrentAccount();
-  } catch (error) {
-    console.error("Token refresh failed:", error);
-  } finally {
-    isLoading = false;
-  }
+  // if (!$currentAccount || isOffline) return;
+  // isLoading = true;
+  // try {
+  //   // Calls the new background refresh logic in AuthService
+  //   await app.authService.refreshCurrentAccount();
+  // } catch (error) {
+  //   console.error("Token refresh failed:", error);
+  // } finally {
+  //   isLoading = false;
+  // }
 }
 
 /**
  * Sign out current account
  */
 async function signOut() {
-  try {
-    await AuthService.signOut();
-  } catch (error) {
-    console.error("Sign out failed:", error);
-  }
+  // try {
+  //   await app.authService.signOut();
+  // } catch (error) {
+  //   console.error("Sign out failed:", error);
+  // }
 }
 </script>
 
@@ -212,21 +210,19 @@ async function signOut() {
             >
               <Icon name="refresh" size="sm" /> Refresh
             </button>
-            <button
+            <!-- <button
               class="dropdown-action"
               on:click={reloginCurrentAccount}
-              disabled={isLoading}
-            >
+              disabled={isLoading}>
               <Icon name="login" size="sm" /> Re-login
             </button>
             <div class="dropdown-separator"></div>
             <button
               class="dropdown-action"
               on:click={refreshTokenDCF}
-              disabled={isLoading}
-            >
+              disabled={isLoading}>
               <Icon name="login" size="sm" /> Re-login (DCF)
-            </button>
+            </button> -->
             <div class="dropdown-separator"></div>
             <button class="dropdown-action" on:click={signOut}>
               <Icon name="logout" size="sm" /> Sign Out

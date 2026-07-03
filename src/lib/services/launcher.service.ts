@@ -1,11 +1,7 @@
-import {
-  type KableProfile,
-  type LaunchResult,
-  type Versions,
-  api,
-} from "$lib";
+import { type KableProfile, type LaunchResult, type Versions, api } from "$lib";
+import type { Service } from "./app.service";
 
-class LauncherService {
+export class LauncherService implements Service {
   launching = $state(false);
   lastLaunch = $state<LaunchResult | null>(null);
 
@@ -14,6 +10,11 @@ class LauncherService {
 
   loadingVersions = $state(false);
   loadingJava = $state(false);
+
+  async init() {
+    // Load versions, javapath, etc. on startup
+    await Promise.all([this.loadVersions(), this.autoDetectJava()]);
+  }
 
   /**
    * Launch a Minecraft profile
@@ -79,9 +80,9 @@ class LauncherService {
   }
 
   /**
-   * Reset runtime state (useful on profile switch or app reset)
+   * Clears runtime state (useful on profile switch or app reset)
    */
-  reset() {
+  async destroy() {
     this.launching = false;
     this.lastLaunch = null;
     this.javaPath = null;
@@ -90,5 +91,3 @@ class LauncherService {
     this.loadingJava = false;
   }
 }
-
-export const launcherService = new LauncherService();

@@ -1,6 +1,6 @@
-import { writable, get } from "svelte/store";
-import { invoke } from "@tauri-apps/api/core";
 import { type CustomIconTemplate, SettingsService } from "$lib";
+import { invoke } from "@tauri-apps/api/core";
+import { get, writable } from "svelte/store";
 
 // Icon stores for reactive updates
 export const selectedTemplate = writable<string>("emoji");
@@ -391,8 +391,8 @@ export class IconService {
 
     // SVG template with clean, minimal icons
     this.builtinTemplates.set("svg", {
-      name: "svg",
-      displayName: "SVG Icons",
+      id: "svg",
+      name: "SVG Icons",
       version: "1.0.0",
       author: "Kable Team",
       description: "Clean SVG-based icons",

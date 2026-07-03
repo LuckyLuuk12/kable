@@ -34,6 +34,6 @@ pub async fn toggle(link: Symlink) -> Result<Symlink, String> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn update(old: Symlink, new: Symlink) -> Result<Symlink, String> {
-    symlink::update(old, new).await
+pub async fn update(old: Symlink, updated: Symlink) -> Result<Symlink, String> {
+    symlink::update(old, updated).await
 }

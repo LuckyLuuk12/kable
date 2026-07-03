@@ -9,9 +9,10 @@ Provides interface for authenticating with Microsoft using Device Code Flow
 ```
 -->
 <script lang="ts">
+import { app, Icon, Image, isAuthenticating } from "$lib";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { onDestroy } from "svelte";
-import { AuthService, Icon, isAuthenticating, Image } from "$lib";
-import * as systemApi from "$lib/api/system";
+// import * as systemApi from "$lib/api/system";
 
 // Authentication state
 let error: string | null = null;
@@ -36,24 +37,24 @@ async function signInWithDeviceCode() {
     isPollingDeviceCode = true;
 
     // Step 1: Start device code flow and get device code data for display
-    deviceCodeData = await AuthService.startDeviceCodeFlow();
+    deviceCodeData = await app.authService.startAuth();
     console.log("📱 Device code started:", deviceCodeData);
 
     // Auto-copy code to clipboard
-    await systemApi.copyToClipboard(deviceCodeData.user_code);
+    await writeText(deviceCodeData.user_code);
 
     // Step 2: Start polling for completion in the background
     try {
-      const account = await AuthService.pollDeviceCodeCompletion(
+      const account = await app.authService.pollAuth(
         deviceCodeData.device_code,
       );
-      await AuthService.refreshAvailableAccounts();
+      // await app.authService.refreshAvailableAccounts();
       // Clear device code data and stop polling
       deviceCodeData = null;
       isPollingDeviceCode = false;
       console.log(
         "✅ Device code authentication successful:",
-        account.username,
+        account.expires_at,
       );
     } catch (pollError) {
       console.error("❌ Device code polling failed:", pollError);

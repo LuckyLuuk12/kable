@@ -4,8 +4,9 @@ import {
   type MicrosoftToken,
   api,
 } from "$lib";
+import type { Service } from "./app.service";
 
-class AuthService {
+export class AuthService implements Service {
   accounts = $state<KableAccount[]>([]);
   activeAccount = $state<KableAccount | null>(null);
 
@@ -17,7 +18,7 @@ class AuthService {
   /**
    * Initial load of accounts + active account
    */
-  async load() {
+  async init() {
     if (this.loaded) return;
 
     this.loading = true;
@@ -80,14 +81,6 @@ class AuthService {
   }
 
   /**
-   * Refresh accounts from backend
-   */
-  async refresh() {
-    this.loaded = false;
-    await this.load();
-  }
-
-  /**
    * Derived helpers
    */
   get hasAccounts() {
@@ -101,6 +94,13 @@ class AuthService {
   get activeMinecraftProfile() {
     return this.activeAccount?.minecraft_profile ?? null;
   }
-}
 
-export const authService = new AuthService();
+  /**
+   * Cleanup
+   */
+  async destroy() {
+    this.accounts = [];
+    this.activeAccount = null;
+    this.loaded = false;
+  }
+}

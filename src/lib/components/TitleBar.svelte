@@ -71,7 +71,8 @@ onMount(async () => {
         alt="Kable Launcher"
         class="app-icon"
         width="24"
-        height="24" />
+        height="24"
+      />
       <span class="app-title">Kable Launcher</span>
     </div>
     <div class="titlebar-right">
@@ -83,7 +84,8 @@ onMount(async () => {
         class="titlebar-btn minimize"
         title="Minimize"
         on:click={minimize}
-        aria-label="Minimize">
+        aria-label="Minimize"
+      >
         <svg width="16" height="16" viewBox="0 0 16 16">
           <rect
             x="2.5"
@@ -91,14 +93,16 @@ onMount(async () => {
             width="11"
             height="2"
             rx="1"
-            fill="currentColor" />
+            fill="currentColor"
+          />
         </svg>
       </button>
       <button
         use:clickSound
         class="titlebar-btn maximize"
         title={isMaximized ? "Restore" : "Maximize"}
-        on:click={maximize}>
+        on:click={maximize}
+      >
         {#if isMaximized}
           <svg width="16" height="16" viewBox="0 0 16 16">
             <!-- Back square, offset up and right, now closer -->
@@ -110,7 +114,8 @@ onMount(async () => {
               rx="2"
               fill="none"
               stroke="currentColor"
-              stroke-width="2" />
+              stroke-width="2"
+            />
             <!-- Front square, offset down and left -->
             <rect
               x="2"
@@ -120,7 +125,8 @@ onMount(async () => {
               rx="2"
               fill="none"
               stroke="currentColor"
-              stroke-width="2" />
+              stroke-width="2"
+            />
           </svg>
         {:else}
           <svg width="16" height="16" viewBox="0 0 16 16">
@@ -132,7 +138,8 @@ onMount(async () => {
               rx="2"
               fill="none"
               stroke="currentColor"
-              stroke-width="2" />
+              stroke-width="2"
+            />
           </svg>
         {/if}
       </button>
@@ -141,7 +148,8 @@ onMount(async () => {
         class="titlebar-btn close"
         title="Close"
         on:click={close}
-        aria-label="Close">
+        aria-label="Close"
+      >
         <svg width="16" height="16" viewBox="0 0 16 16">
           <line
             x1="3"
@@ -149,7 +157,8 @@ onMount(async () => {
             x2="13"
             y2="13"
             stroke="currentColor"
-            stroke-width="2.5" />
+            stroke-width="2.5"
+          />
 
           <line
             x1="13"
@@ -157,7 +166,8 @@ onMount(async () => {
             x2="3"
             y2="13"
             stroke="currentColor"
-            stroke-width="2.5" />
+            stroke-width="2.5"
+          />
         </svg>
       </button>
     </div>
@@ -169,7 +179,8 @@ onMount(async () => {
     updateInfo={$updateModalInfo}
     onclose={handleModalClose}
     oninstallnow={handleInstallNow}
-    ondownload={handleDownload} />
+    ondownload={handleDownload}
+  />
 
   <!-- Global Notification Container -->
   <NotificationContainer />

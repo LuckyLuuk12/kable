@@ -11,13 +11,13 @@ Allows quick switching between accounts and shows account health indicators.
 -->
 <script lang="ts">
 import {
-  AuthService,
-  currentAccount,
+  app,
   availableAccounts,
+  currentAccount,
   Icon,
   PlayerHead,
+  type KableAccount,
 } from "$lib";
-import type { LauncherAccount } from "$lib";
 
 let showDropdown = false;
 
@@ -51,7 +51,7 @@ $: {
 
 // Determine account status
 function getAccountStatus(
-  account: LauncherAccount | null,
+  account: KableAccount | null,
 ): "online" | "offline" | "expired" {
   if (!account) return "offline";
   if (!account.access_token) return "offline";
@@ -62,10 +62,10 @@ function getAccountStatus(
   return "online";
 }
 
-async function switchAccount(account: LauncherAccount) {
+async function switchAccount(account: KableAccount) {
   if (account.local_id === $currentAccount?.local_id) return;
   try {
-    await AuthService.switchAccount(account.local_id);
+    await app.authService.setActive(account);
     showDropdown = false;
   } catch (error) {
     console.error("Failed to switch account:", error);
@@ -178,11 +178,10 @@ $: {
             </button>
           </div>
         {/each}
-        <div class="account-item add-account-item">
+        <!-- <div class="account-item add-account-item">
           <button
             class="account-button add-account-btn"
-            on:click={() => AuthService.signOut()}
-          >
+            on:click={() => app.authService.signOut()}>
             <div class="account-avatar-container">
               <div class="account-avatar minecraft-head" title="Add Account">
                 <span class="avatar-letter">+</span>
@@ -191,17 +190,16 @@ $: {
             <div class="account-info">
               <span class="username">Add Account</span>
               <span class="account-type"
-                >Sign in with another Microsoft account</span
-              >
+                >Sign in with another Microsoft account</span>
             </div>
           </button>
-        </div>
+        </div> -->
       </div>
     </div>
   </div>
 {:else}
   <div class="no-account-container">
-    <button class="sign-in-btn" on:click={() => AuthService.signIn()}>
+    <button class="sign-in-btn" on:click={() => app.authService.startAuth()}>
       <div class="sign-in-avatar">
         <Icon name="user-plus" size="lg" />
       </div>

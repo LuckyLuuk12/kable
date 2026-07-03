@@ -1,13 +1,14 @@
 import { type KableAccount, type KableProfile, api } from "$lib";
+import type { Service } from "./app.service";
 
-class ProfilesService {
+export class ProfilesService implements Service {
   profiles = $state<KableProfile[]>([]);
   activeProfileId = $state<string | null>(null);
 
   loaded = $state(false);
   loading = $state(false);
 
-  async load() {
+  async init() {
     if (this.loaded) return;
 
     this.loading = true;
@@ -27,7 +28,7 @@ class ProfilesService {
   }
 
   get activeProfile(): KableProfile | null {
-    return this.profiles.find(p => p.id === this.activeProfileId) ?? null;
+    return this.profiles.find((p) => p.id === this.activeProfileId) ?? null;
   }
 
   async setActive(profile: KableProfile) {
@@ -45,25 +46,28 @@ class ProfilesService {
   async modify(oldProfile: KableProfile, newProfile: KableProfile) {
     const updated = await api.modifyProfile(oldProfile, newProfile);
 
-    this.profiles = this.profiles.map(p =>
-      p.id === updated.id ? updated : p
+    this.profiles = this.profiles.map((p) =>
+      p.id === updated.id ? updated : p,
     );
   }
 
   async remove(id: string) {
-    await api.deleteProfile(id);
+    try {
+      await api.deleteProfile(id);
+    } catch (e) {
+      console.error("Failed to delete profile", e);
+    }
 
-    this.profiles = this.profiles.filter(p => p.id !== id);
+    this.profiles = this.profiles.filter((p) => p.id !== id);
 
     if (this.activeProfileId === id) {
       this.activeProfileId = null;
     }
   }
 
-  async refresh() {
+  async destroy() {
+    this.profiles = [];
+    this.activeProfileId = null;
     this.loaded = false;
-    await this.load();
   }
 }
-
-export const profilesService = new ProfilesService();

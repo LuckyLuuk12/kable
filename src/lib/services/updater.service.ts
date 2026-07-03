@@ -1,9 +1,7 @@
-import {
-  type UpdateData,
-  api,
-} from "$lib";
+import { type UpdateData, api } from "$lib";
+import type { Service } from "./app.service";
 
-class UpdaterService {
+export class UpdaterService implements Service {
   updateInfo = $state<UpdateData | null>(null);
 
   checking = $state(false);
@@ -11,6 +9,10 @@ class UpdaterService {
   installing = $state(false);
 
   error = $state<string | null>(null);
+
+  async init() {
+    // no-op for now
+  }
 
   /**
    * Check for updates
@@ -95,7 +97,7 @@ class UpdaterService {
   /**
    * Reset state (useful on logout/app restart)
    */
-  reset() {
+  async destroy() {
     this.updateInfo = null;
     this.checking = false;
     this.downloading = false;
@@ -103,5 +105,3 @@ class UpdaterService {
     this.error = null;
   }
 }
-
-export const updaterService = new UpdaterService();

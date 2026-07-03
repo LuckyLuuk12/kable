@@ -8,6 +8,5 @@ export * from "./services/";
 export * from "./stores/";
 
 // Export types & commands
-export * from "./api";
+export type * from "./api";
 export * from "./wrapped_api";
-

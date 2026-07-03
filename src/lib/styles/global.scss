@@ -66,7 +66,8 @@ button {
 
 //Focus system (global behavior only)
 :focus-visible {
-  outline: $interaction-focus-width $interaction-focus-style $interaction-focus-color;
+  outline: $interaction-focus-width $interaction-focus-style
+    $interaction-focus-color;
 
   outline-offset: $interaction-focus-offset;
 }

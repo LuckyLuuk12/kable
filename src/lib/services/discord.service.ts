@@ -1,13 +1,13 @@
 import { type KableProfile, api } from "$lib";
+import type { Service } from "./app.service";
 
-class DiscordService {
+export class DiscordService implements Service {
   enabled = $state(false);
 
   initialized = $state(false);
   connected = $state(false);
 
-  currentState =
-    $state<"idle" | "playing" | "browsing" | "disabled">("idle");
+  currentState = $state<"idle" | "playing" | "browsing" | "disabled">("idle");
 
   lastSection = $state<string | null>(null);
   lastProfile = $state<KableProfile | null>(null);
@@ -17,7 +17,7 @@ class DiscordService {
   /**
    * Initialize Discord RPC connection (must be called once at startup)
    */
-  async initialize() {
+  async init() {
     this.error = null;
 
     try {
@@ -168,9 +168,9 @@ class DiscordService {
   }
 
   /**
-   * Reset internal state without touching backend
+   * Cleanup
    */
-  reset() {
+  async destroy() {
     this.initialized = false;
     this.connected = false;
     this.enabled = false;
@@ -181,5 +181,3 @@ class DiscordService {
     this.error = null;
   }
 }
-
-export const discordService = new DiscordService();

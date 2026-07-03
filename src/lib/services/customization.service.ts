@@ -7,8 +7,9 @@ import {
   type SoundpackMetadata,
   api,
 } from "$lib";
+import type { Service } from "./app.service";
 
-class CustomizationService {
+export class CustomizationService implements Service {
   settings = $state<CategorizedLauncherSettings | null>(null);
 
   loading = $state(false);
@@ -17,7 +18,7 @@ class CustomizationService {
   /**
    * Load full settings bundle once
    */
-  async load() {
+  async init() {
     if (this.settings) return;
 
     this.loading = true;
@@ -118,8 +119,8 @@ class CustomizationService {
   /**
    * Icon templates
    */
-  async getCustomIconTemplates() {
-    return await api.getCustomIconTemplates();
+  async getIconTemplates() {
+    return await api.getIconTemplates();
   }
 
   async saveCustomIconTemplate(template: CustomIconTemplate) {
@@ -157,13 +158,11 @@ class CustomizationService {
   }
 
   /**
-   * Reset local state
+   * Cleanup
    */
-  reset() {
+  async destroy() {
     this.settings = null;
     this.loading = false;
     this.saving = false;
   }
 }
-
-export const customizationService = new CustomizationService();

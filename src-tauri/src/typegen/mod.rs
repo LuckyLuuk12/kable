@@ -29,7 +29,7 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::disconnect_discord,
             // #endregion Discord
             // #region Icons
-            api::get_custom_icon_templates,
+            api::get_icon_templates,
             api::save_custom_icon_template,
             api::delete_custom_icon_template,
             api::open_icons_directory,
