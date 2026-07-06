@@ -10,9 +10,9 @@ game directory, and window behavior settings.
 ```
 -->
 <script>
-import { settings, AutoUpdater } from "$lib";
-import { onMount } from "svelte";
+import { AutoUpdater, settings } from "$lib";
 import { autoDetectJava } from "$lib/api/launcher";
+import { onMount } from "svelte";
 
 let isWideScreen = true;
 let detectedJavaPath = "";
@@ -53,8 +53,7 @@ onMount(() => {
           type="text"
           id="java-path"
           bind:value={$settings.general.java_path}
-          placeholder={detectedJavaPath || "Path to Java executable"}
-        />
+          placeholder={detectedJavaPath || "Path to Java executable"} />
       </div>
     </div>
 
@@ -68,8 +67,7 @@ onMount(() => {
           type="text"
           id="game-directory"
           bind:value={$settings.general.game_directory}
-          placeholder="C:/Users/user/AppData/Roaming/.minecraft"
-        />
+          placeholder="C:/Users/user/AppData/Roaming/.minecraft" />
       </div>
     </div>
 
@@ -89,47 +87,36 @@ onMount(() => {
                 type="radio"
                 name="on-game-close"
                 value="open_logs"
-                bind:group={$settings.general.on_game_close}
-              /> Open Logs</label
-            >
+                bind:group={$settings.general.on_game_close} /> Open Logs</label>
             <label
               ><input
                 type="radio"
                 name="on-game-close"
                 value="open_home"
-                bind:group={$settings.general.on_game_close}
-              /> Open Home</label
-            >
+                bind:group={$settings.general.on_game_close} /> Open Home</label>
             <label
               ><input
                 type="radio"
                 name="on-game-close"
                 value="exit"
-                bind:group={$settings.general.on_game_close}
-              /> Exit Application</label
-            >
+                bind:group={$settings.general.on_game_close} /> Exit Application</label>
             <label
               ><input
                 type="radio"
                 name="on-game-close"
                 value="minimize"
-                bind:group={$settings.general.on_game_close}
-              /> Minimize to Tray</label
-            >
+                bind:group={$settings.general.on_game_close} /> Minimize to Tray</label>
             <label
               ><input
                 type="radio"
                 name="on-game-close"
                 value="ask"
-                bind:group={$settings.general.on_game_close}
-              /> Ask</label
-            >
+                bind:group={$settings.general.on_game_close} /> Ask</label>
           </div>
         {:else}
           <select
             id="on-game-close"
-            bind:value={$settings.general.on_game_close}
-          >
+            bind:value={$settings.general.on_game_close}>
             <option value="open_logs">Open Logs</option>
             <option value="open_home">Open Home</option>
             <option value="exit">Exit Application</option>
@@ -156,55 +143,42 @@ onMount(() => {
                 type="radio"
                 name="on-game-crash"
                 value="restart"
-                bind:group={$settings.general.on_game_crash}
-              /> Restart Game</label
-            >
+                bind:group={$settings.general.on_game_crash} /> Restart Game</label>
             <label
               ><input
                 type="radio"
                 name="on-game-crash"
                 value="open_logs"
-                bind:group={$settings.general.on_game_crash}
-              /> Open Logs</label
-            >
+                bind:group={$settings.general.on_game_crash} /> Open Logs</label>
             <label
               ><input
                 type="radio"
                 name="on-game-crash"
                 value="open_home"
-                bind:group={$settings.general.on_game_crash}
-              /> Open Home</label
-            >
+                bind:group={$settings.general.on_game_crash} /> Open Home</label>
             <label
               ><input
                 type="radio"
                 name="on-game-crash"
                 value="exit"
-                bind:group={$settings.general.on_game_crash}
-              /> Exit Application</label
-            >
+                bind:group={$settings.general.on_game_crash} /> Exit Application</label>
             <label
               ><input
                 type="radio"
                 name="on-game-crash"
                 value="minimize"
-                bind:group={$settings.general.on_game_crash}
-              /> Minimize to Tray</label
-            >
+                bind:group={$settings.general.on_game_crash} /> Minimize to Tray</label>
             <label
               ><input
                 type="radio"
                 name="on-game-crash"
                 value="ask"
-                bind:group={$settings.general.on_game_crash}
-              /> Ask</label
-            >
+                bind:group={$settings.general.on_game_crash} /> Ask</label>
           </div>
         {:else}
           <select
             id="on-game-crash"
-            bind:value={$settings.general.on_game_crash}
-          >
+            bind:value={$settings.general.on_game_crash}>
             <option value="restart">Restart Game</option>
             <option value="open_logs">Open Logs</option>
             <option value="open_home">Open Home</option>
@@ -232,47 +206,37 @@ onMount(() => {
                 type="radio"
                 name="on-game-launch"
                 value="keep_open"
-                bind:group={$settings.general.on_game_launch}
-              /> Keep Application Open</label
-            >
+                bind:group={$settings.general.on_game_launch} /> Keep Application
+              Open</label>
             <label
               ><input
                 type="radio"
                 name="on-game-launch"
                 value="exit"
-                bind:group={$settings.general.on_game_launch}
-              /> Exit Application</label
-            >
+                bind:group={$settings.general.on_game_launch} /> Exit Application</label>
             <label
               ><input
                 type="radio"
                 name="on-game-launch"
                 value="open_logs"
-                bind:group={$settings.general.on_game_launch}
-              /> Open Logs</label
-            >
+                bind:group={$settings.general.on_game_launch} /> Open Logs</label>
             <label
               ><input
                 type="radio"
                 name="on-game-launch"
                 value="minimize"
-                bind:group={$settings.general.on_game_launch}
-              /> Minimize to Tray</label
-            >
+                bind:group={$settings.general.on_game_launch} /> Minimize to Tray</label>
             <label
               ><input
                 type="radio"
                 name="on-game-launch"
                 value="ask"
-                bind:group={$settings.general.on_game_launch}
-              /> Ask</label
-            >
+                bind:group={$settings.general.on_game_launch} /> Ask</label>
           </div>
         {:else}
           <select
             id="on-game-launch"
-            bind:value={$settings.general.on_game_launch}
-          >
+            bind:value={$settings.general.on_game_launch}>
             <option value="keep_open">Keep Application Open</option>
             <option value="exit">Exit Application</option>
             <option value="open_logs">Open Logs</option>
@@ -294,8 +258,7 @@ onMount(() => {
         <input
           type="checkbox"
           id="auto-update-launcher"
-          bind:checked={$settings.general.auto_update_launcher}
-        />
+          bind:checked={$settings.general.auto_update_launcher} />
       </div>
     </div>
 
@@ -312,11 +275,9 @@ onMount(() => {
         <select id="update-mode" bind:value={$settings.general.update_mode}>
           <option value="instant">Instant update (install immediately)</option>
           <option value="on_restart"
-            >Update on restart (download now, install on restart)</option
-          >
+            >Update on restart (download now, install on restart)</option>
           <option value="on_confirm"
-            >Update on confirm (ask before installing)</option
-          >
+            >Update on confirm (ask before installing)</option>
         </select>
       </div>
     </div>
@@ -332,8 +293,7 @@ onMount(() => {
       <div class="setting-control">
         <select
           id="update-notification-style"
-          bind:value={$settings.general.update_notification_style}
-        >
+          bind:value={$settings.general.update_notification_style}>
           <option value="notification">Notification Toast</option>
           <option value="modal">Modal Dialog</option>
         </select>
@@ -351,8 +311,7 @@ onMount(() => {
         <input
           type="checkbox"
           id="show-ads"
-          bind:checked={$settings.general.show_ads}
-        />
+          bind:checked={$settings.general.show_ads} />
       </div>
     </div>
   </form>
@@ -361,7 +320,7 @@ onMount(() => {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 .settings-tab {
   background: var(--container);

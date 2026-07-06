@@ -1,11 +1,11 @@
 <script lang="ts">
 import {
-  InstallationsList,
   CreateInstallationModal,
   EditInstallationModal,
   Icon,
-  type KableInstallation,
   InstallationService,
+  InstallationsList,
+  type KableInstallation,
 } from "$lib";
 import * as installationsApi from "$lib/api/installations";
 
@@ -89,8 +89,7 @@ async function importFromMinecraftFolder() {
     <div class="left-controls">
       <button
         class="btn btn-primary new-installation-btn"
-        on:click={openCreateModal}
-      >
+        on:click={openCreateModal}>
         <Icon name="plus" size="md" forceType="svg" />
         New Installation
       </button>
@@ -98,8 +97,7 @@ async function importFromMinecraftFolder() {
         class="btn btn-secondary import-btn"
         on:click={importKableInstallation}
         disabled={isImporting}
-        title="Import Kable Installation from ZIP file"
-      >
+        title="Import Kable Installation from ZIP file">
         <Icon name="download" size="md" forceType="svg" />
         Import Kable Installation
       </button>
@@ -107,8 +105,7 @@ async function importFromMinecraftFolder() {
         class="btn btn-secondary import-btn"
         on:click={importFromMinecraftFolder}
         disabled={isImporting}
-        title="Import from existing .minecraft folder"
-      >
+        title="Import from existing .minecraft folder">
         <Icon name="folder" size="md" forceType="svg" />
         Import from .minecraft
       </button>
@@ -118,16 +115,14 @@ async function importFromMinecraftFolder() {
         class="btn btn-secondary {isRefreshing ? 'spinning' : ''}"
         on:click={refreshInstallations}
         disabled={isRefreshing}
-        title="Refresh installations list"
-      >
+        title="Refresh installations list">
         <Icon name="refresh" size="md" forceType="svg" />
       </button>
       <button
         class="btn btn-secondary {isRefreshingVersions ? 'spinning' : ''}"
         on:click={refreshVersionManifests}
         disabled={isRefreshingVersions}
-        title="Force refresh version manifests from network (useful for new snapshots)"
-      >
+        title="Force refresh version manifests from network (useful for new snapshots)">
         <Icon name="sync" size="md" forceType="svg" />
         Refresh Versions
       </button>
@@ -135,16 +130,14 @@ async function importFromMinecraftFolder() {
         class="btn btn-secondary"
         on:click={() => (isGrid = !isGrid)}
         class:is-active={isGrid}
-        title={isGrid ? "Switch to list view" : "Switch to grid view"}
-      >
+        title={isGrid ? "Switch to list view" : "Switch to grid view"}>
         <Icon name={isGrid ? "list" : "grid"} size="md" />
       </button>
       <button
         class="btn btn-secondary"
         on:click={() => (isSmall = !isSmall)}
         class:is-active={isSmall}
-        title={"Turn compact mode " + (isSmall ? "off" : "on")}
-      >
+        title={"Turn compact mode " + (isSmall ? "off" : "on")}>
         <Icon name="minimize" size="md" />
       </button>
     </div>
@@ -153,15 +146,14 @@ async function importFromMinecraftFolder() {
   <InstallationsList
     {isGrid}
     {isSmall}
-    on:edit={(e) => editInstallation(e.detail)}
-  />
+    on:edit={(e) => editInstallation(e.detail)} />
 
   <CreateInstallationModal bind:this={createModalRef} />
   <EditInstallationModal bind:this={editModalRef} />
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/variables" as *;
+//@use "@kablan/clean-ui/scss/variables" as *;
 
 .installations-page {
   width: 100%;

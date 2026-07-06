@@ -10,24 +10,19 @@ Includes installation carousel for quick switching and semantic search filtering
 ```
 -->
 <script lang="ts">
-import type { KableInstallation, ModInfoKind, ModJarInfo } from "$lib";
+import type { KableProfile } from "$lib";
 import {
+  app,
   extendedModInfo,
   Icon,
   installations,
-  InstallationService,
-  ModsService,
-  ProviderKind,
   selectedInstallation,
 } from "$lib";
-import * as installationsApi from "$lib/api/installations";
-import * as modsApi from "$lib/api/mods";
-import { openUrl } from "$lib/api/system";
 import { onMount } from "svelte";
 import { get } from "svelte/store";
 import InstalledModCard from "./InstalledModCard.svelte";
 
-let currentInstallation: KableInstallation | null = null;
+let currentInstallation: KableProfile | null = null;
 let selectedId: string = "";
 let mods: ModJarInfo[] = [];
 let loading = false;
@@ -69,7 +64,7 @@ let updatingAll = false;
 let loadingModpackSources = false;
 
 // Installation carousel logic
-function selectInstallation(installation: KableInstallation) {
+function selectInstallation(installation: KableProfile) {
   selectedId = installation.id;
   currentInstallation = installation;
   selectedInstallation.set(installation);
@@ -573,7 +568,7 @@ function handleModChanged() {
   }
 }
 
-async function loadModpackSources(installation: KableInstallation) {
+async function loadModpackSources(installation: KableProfile) {
   loadingModpackSources = true;
   try {
     modpackSources = await modsApi.getModpackSourceRecords(installation);
@@ -724,7 +719,7 @@ async function toggleModDisabledAction(mod: ModJarInfo) {
 }
 
 async function loadMods(
-  installation: KableInstallation,
+  installation: KableProfile,
   options?: { silent?: boolean },
 ) {
   const silent = options?.silent === true;
@@ -733,7 +728,7 @@ async function loadMods(
   }
   error = null;
   try {
-    const newMods = await InstallationService.getModInfo(installation);
+    const newMods = await app.profilesService.getModInfo(installation);
 
     // Update in place to preserve component identity and prevent flashing
     // Create a map of new mods by file_name for quick lookup
@@ -797,8 +792,7 @@ onMount(() => {
         on:wheel={handleWheel}
         on:keydown={handleKeydown}
         tabindex="-1"
-        role="listbox"
-      >
+        role="listbox">
         <div class="carousel-container">
           {#each sortedInstallations as installation, index}
             {@const selectedIndex = sortedInstallations.findIndex(
@@ -832,8 +826,7 @@ onMount(() => {
                 on:keydown={(e) =>
                   e.key === "Enter" && selectInstallation(installation)}
                 tabindex="0"
-                role="button"
-              >
+                role="button">
                 <div class="installation-icon">
                   <Icon name={loaderIcons[installation.id]} size="md" />
                 </div>
@@ -842,8 +835,7 @@ onMount(() => {
                   <div class="installation-details">
                     <span class="installation-version"
                       >{InstallationService.getVersionData(installation)
-                        .version_id}</span
-                    >
+                        .version_id}</span>
                   </div>
                 </div>
               </div>
@@ -863,14 +855,12 @@ onMount(() => {
               type="text"
               placeholder="Search mods (fuzzy search enabled)..."
               bind:value={searchQuery}
-              class="search-input"
-            />
+              class="search-input" />
             {#if searchQuery}
               <button
                 class="clear-btn"
                 on:click={() => (searchQuery = "")}
-                title="Clear search">✕</button
-              >
+                title="Clear search">✕</button>
             {/if}
           </div>
         </div>
@@ -889,8 +879,7 @@ onMount(() => {
                   {:else}
                     <span class="total-count">{mods.length}</span>
                     <span class="count-label"
-                      >{mods.length === 1 ? "mod" : "mods"}</span
-                    >
+                      >{mods.length === 1 ? "mod" : "mods"}</span>
                   {/if}
                 </div>
               {/if}
@@ -906,8 +895,7 @@ onMount(() => {
                     title="Update {modsWithUpdates.size} mod{modsWithUpdates.size !==
                     1
                       ? 's'
-                      : ''}"
-                  >
+                      : ''}">
                     <Icon name="arrow-up" size="sm" forceType="svg" />
                     <span>
                       {updatingAll
@@ -925,11 +913,10 @@ onMount(() => {
                     on:click={() => (sourceViewEnabled = !sourceViewEnabled)}
                     title={sourceViewEnabled
                       ? "Showing modpacks + standalone mods"
-                      : "Showing all mods"}
-                  >
+                      : "Showing all mods"}>
                     <Icon name="layers" size="sm" />
-                    <span>{sourceViewEnabled ? "Source On" : "Source Off"}</span
-                    >
+                    <span
+                      >{sourceViewEnabled ? "Source On" : "Source Off"}</span>
                   </button>
                 </label>
 
@@ -993,14 +980,12 @@ onMount(() => {
                       <button
                         class="modpack-card"
                         on:click={() => openModpackSource(source)}
-                        title="Open modpack page"
-                      >
+                        title="Open modpack page">
                         <div class="modpack-icon">
                           {#if getModpackCardIcon(source)}
                             <img
                               src={getModpackCardIcon(source) || ""}
-                              alt={getModpackCardTitle(source)}
-                            />
+                              alt={getModpackCardTitle(source)} />
                           {:else}
                             <Icon name="package" size="md" />
                           {/if}
@@ -1042,8 +1027,7 @@ onMount(() => {
                         installation={currentInstallation}
                         extendedInfo={$extendedModInfo[mod.file_name]}
                         onmodchanged={handleModChanged}
-                        onupdatereport={handleUpdateReport}
-                      />
+                        onupdatereport={handleUpdateReport} />
                     {/each}
                   </div>
                 {:else}
@@ -1061,8 +1045,7 @@ onMount(() => {
                     installation={currentInstallation}
                     extendedInfo={$extendedModInfo[mod.file_name]}
                     onmodchanged={handleModChanged}
-                    onupdatereport={handleUpdateReport}
-                  />
+                    onupdatereport={handleUpdateReport} />
                 {/each}
               </div>
             {/if}
@@ -1084,7 +1067,7 @@ onMount(() => {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 .installation-mods {
   margin: 0;
   height: 100%;

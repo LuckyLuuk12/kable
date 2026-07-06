@@ -36,15 +36,13 @@ function setUnlimitedDownloadSpeed() {
             id="parallel-downloads-slider"
             min="1"
             max="64"
-            bind:value={$settings.network.parallel_downloads}
-          />
+            bind:value={$settings.network.parallel_downloads} />
           <input
             type="number"
             id="parallel-downloads"
             min="1"
             max="64"
-            bind:value={$settings.network.parallel_downloads}
-          />
+            bind:value={$settings.network.parallel_downloads} />
         </div>
       </div>
     </div>
@@ -63,15 +61,13 @@ function setUnlimitedDownloadSpeed() {
             id="connection-timeout-slider"
             min="1"
             max="360"
-            bind:value={$settings.network.connection_timeout}
-          />
+            bind:value={$settings.network.connection_timeout} />
           <input
             type="number"
             id="connection-timeout"
             min="1"
             max="360"
-            bind:value={$settings.network.connection_timeout}
-          />
+            bind:value={$settings.network.connection_timeout} />
         </div>
       </div>
     </div>
@@ -103,8 +99,7 @@ function setUnlimitedDownloadSpeed() {
                   ),
                 });
               }
-            }}
-          />
+            }} />
           <input
             type="number"
             id="download-speed-limit"
@@ -123,8 +118,7 @@ function setUnlimitedDownloadSpeed() {
                   ),
                 });
               }
-            }}
-          />
+            }} />
         </div>
         <div class="download-speed-btn">
           {#if $settings.network.download_speed_limit !== "unlimited"}
@@ -132,8 +126,7 @@ function setUnlimitedDownloadSpeed() {
               use:clickSound
               type="button"
               class="primary"
-              on:click={setUnlimitedDownloadSpeed}>Unlimited</button
-            >
+              on:click={setUnlimitedDownloadSpeed}>Unlimited</button>
           {:else}
             <button
               use:clickSound
@@ -143,8 +136,7 @@ function setUnlimitedDownloadSpeed() {
                 SettingsService.update("network", {
                   ...$settings.network,
                   download_speed_limit: 100,
-                })}>Use limit</button
-            >
+                })}>Use limit</button>
           {/if}
         </div>
       </div>
@@ -153,7 +145,7 @@ function setUnlimitedDownloadSpeed() {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 // px to rem conversion: 1rem = 16px
 .settings-tab {

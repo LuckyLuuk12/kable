@@ -1,3 +1,4 @@
+import { api } from "$lib";
 import { AuthService } from "./auth.service";
 import { CustomizationService } from "./customization.service";
 import { DiscordService } from "./discord.service";
@@ -52,6 +53,23 @@ export class AppService {
       }
       await s.destroy();
       await s.init();
+    }
+  }
+
+  // ? We also put some "app generic" api methods here like opening urls, etc. that are not specific to any service
+  async openUrl(url: string) {
+    try {
+      await api.openUrl(url);
+    } catch (e) {
+      console.error("API call failed: `await api.openUrl(url);`", e);
+    }
+  }
+
+  async openFile(filePath: string) {
+    try {
+      await api.openPath(filePath);
+    } catch (e) {
+      console.error("API call failed: `await api.openPath(filePath);`", e);
     }
   }
 }

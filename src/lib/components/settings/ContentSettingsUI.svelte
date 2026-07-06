@@ -10,8 +10,8 @@ and other content-related settings.
 ```
 -->
 <script lang="ts">
-import { settings } from "$lib/stores";
 import { clickSound } from "$lib/actions";
+import { settings } from "$lib/stores";
 function disableMaxWorldBackups() {
   $settings.content.max_world_backups = "disabled";
 }
@@ -32,8 +32,7 @@ function disableMaxWorldBackups() {
           <input
             type="checkbox"
             id="auto-backup-worlds"
-            bind:checked={$settings.content.auto_backup_worlds}
-          />
+            bind:checked={$settings.content.auto_backup_worlds} />
         </label>
       </div>
     </div>
@@ -51,11 +50,9 @@ function disableMaxWorldBackups() {
           type="number"
           id="max-world-backups"
           min="0"
-          bind:value={$settings.content.max_world_backups}
-        />
+          bind:value={$settings.content.max_world_backups} />
         <button use:clickSound type="button" on:click={disableMaxWorldBackups}
-          >Disable</button
-        >
+          >Disable</button>
       </div>
     </div>
 
@@ -71,8 +68,7 @@ function disableMaxWorldBackups() {
           <input
             type="checkbox"
             id="per-installation-mods"
-            bind:checked={$settings.content.use_per_installation_mods_folder}
-          />
+            bind:checked={$settings.content.use_per_installation_mods_folder} />
         </label>
       </div>
     </div>
@@ -80,8 +76,7 @@ function disableMaxWorldBackups() {
     <div class="setting-item">
       <div class="setting-info">
         <label for="per-installation-resource-packs"
-          >Per-Installation Resource Packs</label
-        >
+          >Per-Installation Resource Packs</label>
         <p class="setting-description">
           Use a separate resource packs folder for each installation
         </p>
@@ -91,8 +86,9 @@ function disableMaxWorldBackups() {
           <input
             type="checkbox"
             id="per-installation-resource-packs"
-            bind:checked={$settings.content.use_per_installation_resource_packs}
-          />
+            bind:checked={
+              $settings.content.use_per_installation_resource_packs
+            } />
         </label>
       </div>
     </div>
@@ -101,7 +97,7 @@ function disableMaxWorldBackups() {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 .settings-tab {
   background: var(--container);

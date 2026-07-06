@@ -99,8 +99,7 @@ function handleKeydown(e: KeyboardEvent) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="update-modal-title"
-      tabindex="-1"
-    >
+      tabindex="-1">
       <!-- Header -->
       <div class="modal-header">
         <div class="header-content">
@@ -113,8 +112,7 @@ function handleKeydown(e: KeyboardEvent) {
               Version <strong>v{updateInfo.version}</strong> is now available
               {#if updateInfo.current_version}
                 <span class="current-version"
-                  >(Current: v{updateInfo.current_version})</span
-                >
+                  >(Current: v{updateInfo.current_version})</span>
               {/if}
             </p>
           </div>
@@ -124,8 +122,7 @@ function handleKeydown(e: KeyboardEvent) {
           on:click={handleClose}
           use:clickSound
           disabled={isProcessing}
-          aria-label="Close modal"
-        >
+          aria-label="Close modal">
           <Icon name="x" size="md" forceType="svg" />
         </button>
       </div>
@@ -152,8 +149,7 @@ function handleKeydown(e: KeyboardEvent) {
           class="btn-secondary"
           on:click={handleClose}
           use:clickSound
-          disabled={isProcessing}
-        >
+          disabled={isProcessing}>
           Skip
         </button>
 
@@ -164,8 +160,7 @@ function handleKeydown(e: KeyboardEvent) {
               on:click={handleDownload}
               use:clickSound
               disabled={isProcessing}
-              title="Download update for later installation"
-            >
+              title="Download update for later installation">
               <Icon name="download" size="sm" forceType="svg" />
               Download & Install on Restart
             </button>
@@ -177,8 +172,7 @@ function handleKeydown(e: KeyboardEvent) {
               on:click={handleInstallNow}
               use:successSound
               disabled={isProcessing}
-              title="Install update and restart the application now"
-            >
+              title="Install update and restart the application now">
               <Icon name="check" size="sm" forceType="svg" />
               {isProcessing ? "Installing..." : "Install Now"}
             </button>
@@ -190,7 +184,7 @@ function handleKeydown(e: KeyboardEvent) {
 {/if}
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/variables" as *;
+//@use "@kablan/clean-ui/scss/variables" as *;
 
 .modal-backdrop {
   position: fixed;

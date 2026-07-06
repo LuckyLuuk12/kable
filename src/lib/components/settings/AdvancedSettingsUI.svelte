@@ -10,10 +10,9 @@ custom paths, experimental features, and key-value extra settings.
 ```
 -->
 <script lang="ts">
+import Icon from "$lib/components/Icon.svelte";
 import { settings } from "$lib/stores";
 import { get } from "svelte/store";
-import Icon from "$lib/components/Icon.svelte";
-let collapsed = false;
 // Local state for editing extra settings
 import { onMount } from "svelte";
 let localExtra: Array<{ key: string; value: string }> = [];
@@ -87,8 +86,7 @@ function parseValue(val: string): any {
           <input
             type="checkbox"
             id="enable-experimental-features"
-            bind:checked={$settings.advanced.enable_experimental_features}
-          />
+            bind:checked={$settings.advanced.enable_experimental_features} />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -108,16 +106,14 @@ function parseValue(val: string): any {
           min="512"
           max="131072"
           step="256"
-          bind:value={$settings.advanced.default_memory}
-        />
+          bind:value={$settings.advanced.default_memory} />
         <input
           type="number"
           id="default-memory"
           min="512"
           max="131072"
           step="256"
-          bind:value={$settings.advanced.default_memory}
-        />
+          bind:value={$settings.advanced.default_memory} />
       </div>
     </div>
 
@@ -133,8 +129,7 @@ function parseValue(val: string): any {
           <input
             type="checkbox"
             id="separate-logs-window"
-            bind:checked={$settings.advanced.separate_logs_window}
-          />
+            bind:checked={$settings.advanced.separate_logs_window} />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -152,8 +147,7 @@ function parseValue(val: string): any {
           <input
             type="checkbox"
             id="show-advanced-page"
-            bind:checked={$settings.advanced.show_advanced_page}
-          />
+            bind:checked={$settings.advanced.show_advanced_page} />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -172,8 +166,7 @@ function parseValue(val: string): any {
           <input
             type="checkbox"
             id="check-nightly-updates"
-            bind:checked={$settings.advanced.check_nightly_updates}
-          />
+            bind:checked={$settings.advanced.check_nightly_updates} />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -199,12 +192,10 @@ function parseValue(val: string): any {
                 type="button"
                 class="collapse-btn"
                 on:click={() => (collapsed = !collapsed)}
-                title={collapsed ? "Expand all" : "Collapse all"}
-              >
+                title={collapsed ? "Expand all" : "Collapse all"}>
                 <Icon
                   name={collapsed ? "chevron-down" : "chevron-up"}
-                  forceType="svg"
-                />
+                  forceType="svg" />
               </button>
             </span>
           </div>
@@ -219,8 +210,7 @@ function parseValue(val: string): any {
                   on:input={(e) =>
                     handleKeyChange(i, (e.target as HTMLInputElement).value)}
                   placeholder="Key"
-                  autocomplete="off"
-                />
+                  autocomplete="off" />
                 <textarea
                   class="extra-value"
                   aria-label="Value for extra setting"
@@ -239,8 +229,7 @@ function parseValue(val: string): any {
                   type="button"
                   class="remove-btn"
                   on:click={() => removeExtra(i)}
-                  title="Remove"
-                >
+                  title="Remove">
                   <Icon name="delete" forceType="svg" />
                 </button>
               </div>
@@ -248,15 +237,14 @@ function parseValue(val: string): any {
           {/if}
         </div>
         <button type="button" class="add-btn" on:click={addExtra}
-          >Add Extra Setting</button
-        >
+          >Add Extra Setting</button>
       </div>
     </div>
   </form>
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 .settings-tab {
   background: var(--container);

@@ -155,8 +155,7 @@ async function signOut() {
             <div
               class="account-avatar minecraft-head large"
               title="{$currentAccount.minecraft_profile?.name ||
-                $currentAccount.username}'s avatar"
-            >
+                $currentAccount.username}'s avatar">
               <PlayerHead account={$currentAccount} size={64} />
             </div>
             {#if getAccountStatus($currentAccount) === "online"}
@@ -177,14 +176,12 @@ async function signOut() {
             </div>
             <div class="account-details-side">
               <span class="account-id"
-                >UUID: {$currentAccount.minecraft_profile?.id}</span
-              >
+                >UUID: {$currentAccount.minecraft_profile?.id}</span>
               {#if getAccountStatus($currentAccount) !== "offline"}
                 <span
                   class="token-status"
                   class:expired={getAccountStatus($currentAccount) ===
-                    "expired"}
-                >
+                    "expired"}>
                   {tokenExpiryDisplay}
                 </span>
               {/if}
@@ -194,20 +191,17 @@ async function signOut() {
         <div class="dropdown account-actions-dropdown" role="menu" tabindex="0">
           <button
             class="btn btn-secondary dropdown-toggle actions-dropdown-btn"
-            aria-label="Account Actions"
-          >
+            aria-label="Account Actions">
             <Icon name="more-horizontal" size="sm" />
           </button>
           <div
             class="dropdown-menu actions-dropdown-menu"
             style="right: 0.25rem; top: 2.35rem; min-width: 180px;"
-            tabindex="-1"
-          >
+            tabindex="-1">
             <button
               class="dropdown-action"
               on:click={refreshToken}
-              disabled={isLoading}
-            >
+              disabled={isLoading}>
               <Icon name="refresh" size="sm" /> Refresh
             </button>
             <!-- <button
@@ -229,8 +223,7 @@ async function signOut() {
             </button>
             <button
               class="dropdown-action danger"
-              on:click={removeCurrentAccount}
-            >
+              on:click={removeCurrentAccount}>
               <Icon name="trash" size="sm" /> Remove
             </button>
           </div>
@@ -252,13 +245,11 @@ async function signOut() {
               cy="16"
               r="8"
               stroke="currentColor"
-              stroke-width="2"
-            />
+              stroke-width="2" />
             <path
               d="M8 40c0-8.837 7.163-16 16-16s16 7.163 16 16"
               stroke="currentColor"
-              stroke-width="2"
-            />
+              stroke-width="2" />
           </svg>
         </div>
         <h3>Welcome to Kable</h3>
@@ -274,7 +265,7 @@ async function signOut() {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/variables" as *;
+//@use "@kablan/clean-ui/scss/variables" as *;
 
 .account-manager {
   display: flex;

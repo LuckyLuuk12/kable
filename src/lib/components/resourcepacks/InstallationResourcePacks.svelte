@@ -586,8 +586,7 @@ onMount(() => {
         on:wheel={handleWheel}
         on:keydown={handleKeydown}
         tabindex="-1"
-        role="listbox"
-      >
+        role="listbox">
         <div class="carousel-container">
           {#each sortedInstallations as installation, index}
             {@const selectedIndex = sortedInstallations.findIndex(
@@ -621,8 +620,7 @@ onMount(() => {
                 on:keydown={(e) =>
                   e.key === "Enter" && selectInstallation(installation)}
                 tabindex="0"
-                role="button"
-              >
+                role="button">
                 <div class="installation-icon">
                   <Icon name={loaderIcons[installation.id]} size="md" />
                 </div>
@@ -631,8 +629,7 @@ onMount(() => {
                   <div class="installation-details">
                     <span class="installation-version"
                       >{InstallationService.getVersionData(installation)
-                        .version_id}</span
-                    >
+                        .version_id}</span>
                   </div>
                 </div>
               </div>
@@ -652,14 +649,12 @@ onMount(() => {
               type="text"
               placeholder="Search resource packs (fuzzy search enabled)..."
               bind:value={searchQuery}
-              class="search-input"
-            />
+              class="search-input" />
             {#if searchQuery}
               <button
                 class="clear-btn"
                 on:click={() => (searchQuery = "")}
-                title="Clear search">✕</button
-              >
+                title="Clear search">✕</button>
             {/if}
           </div>
         </div>
@@ -696,8 +691,7 @@ onMount(() => {
                 {:else}
                   <span class="total-count">{packs.length}</span>
                   <span class="count-label"
-                    >{packs.length === 1 ? "pack" : "packs"}</span
-                  >
+                    >{packs.length === 1 ? "pack" : "packs"}</span>
                 {/if}
               </div>
             {/if}
@@ -720,8 +714,7 @@ onMount(() => {
               <button
                 class="confirm-order-btn"
                 on:click={confirmOrder}
-                disabled={savingOrder}
-              >
+                disabled={savingOrder}>
                 {#if savingOrder}
                   <Icon name="refresh" size="sm" className="spin" />
                   <span>Saving...</span>
@@ -776,18 +769,15 @@ onMount(() => {
                             {pack}
                             installation={currentInstallation}
                             extendedInfo={extendedPackInfo[pack.file_name]}
-                            onpackchanged={handlePackChanged}
-                          />
+                            onpackchanged={handlePackChanged} />
                           <button
                             class="move-btn"
                             on:click={() => moveToMerge(pack.file_name)}
-                            title="Move to merge list"
-                          >
+                            title="Move to merge list">
                             <Icon
                               name="arrow-right"
                               size="sm"
-                              forceType="svg"
-                            />
+                              forceType="svg" />
                           </button>
                         </div>
                       {/each}
@@ -824,8 +814,7 @@ onMount(() => {
                           dropTargetStyle: {},
                         }}
                         on:consider={handleDndConsider}
-                        on:finalize={handleDndFinalize}
-                      >
+                        on:finalize={handleDndFinalize}>
                         {#each mergePacksItems as pack (pack.id)}
                           <div class="pack-item draggable">
                             <div class="drag-handle">
@@ -835,18 +824,15 @@ onMount(() => {
                               {pack}
                               installation={currentInstallation}
                               extendedInfo={extendedPackInfo[pack.file_name]}
-                              onpackchanged={handlePackChanged}
-                            />
+                              onpackchanged={handlePackChanged} />
                             <button
                               class="move-btn"
                               on:click={() => moveToIndividual(pack.file_name)}
-                              title="Move to individual list"
-                            >
+                              title="Move to individual list">
                               <Icon
                                 name="arrow-left"
                                 size="sm"
-                                forceType="svg"
-                              />
+                                forceType="svg" />
                             </button>
                           </div>
                         {/each}
@@ -863,8 +849,7 @@ onMount(() => {
                     {pack}
                     installation={currentInstallation}
                     extendedInfo={extendedPackInfo[pack.file_name]}
-                    onpackchanged={handlePackChanged}
-                  />
+                    onpackchanged={handlePackChanged} />
                 {/each}
               </div>
             {/if}
@@ -886,7 +871,7 @@ onMount(() => {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 .installation-resourcepacks {
   margin: 0;
   height: 100%;

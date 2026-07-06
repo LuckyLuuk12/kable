@@ -12,21 +12,15 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
 ```
 -->
 <script lang="ts">
-import type { LoaderKind, ProfileVersionData } from "$lib";
-import {
-  Icon,
-  installations,
-  InstallationService,
-  Loader,
-  versions,
-} from "$lib";
+import type { LoaderKind, ProfileVersion } from "$lib";
+import { Icon, Image, app, installations, versions } from "$lib";
 import { clickSound, successSound } from "$lib/actions";
 import { onMount } from "svelte";
 
 let dialogRef: HTMLDialogElement;
-let availableVersions: ProfileVersionData[] = [];
+let availableVersions: ProfileVersion[] = [];
 let loaderOptions: LoaderKind[] = [];
-let selectedLoader: LoaderKind = "Vanilla";
+let selectedLoader: LoaderKind = "vanilla";
 let selectedVersionId: string = "";
 let searchQuery: string = "";
 let isLoading = false;
@@ -77,14 +71,14 @@ $: versionsByLoader = availableVersions.reduce((map, version) => {
   }
   map.get(version.loader)!.push(version);
   return map;
-}, new Map<LoaderKind, ProfileVersionData[]>());
+}, new Map<LoaderKind, ProfileVersion[]>());
 
 $: allVersionsForLoader = versionsByLoader.get(selectedLoader) ?? [];
 
 // Filter by search query
 $: filteredVersions = searchQuery.trim()
   ? allVersionsForLoader.filter((v) =>
-      v.version_id.toLowerCase().includes(searchQuery.toLowerCase()),
+      v.id.toLowerCase().includes(searchQuery.toLowerCase()),
     )
   : allVersionsForLoader;
 
@@ -101,9 +95,9 @@ $: {
 
 $: if (
   filteredVersions.length > 0 &&
-  !filteredVersions.find((v) => v.version_id === selectedVersionId)
+  !filteredVersions.find((v) => v.id === selectedVersionId)
 ) {
-  selectedVersionId = filteredVersions[0]?.version_id ?? "";
+  selectedVersionId = filteredVersions[0]?.id ?? "";
 }
 
 function loadMoreVersions() {
@@ -145,13 +139,13 @@ onMount(async () => {
       availableVersions = $versions;
     } else {
       // Load versions if not already loaded (this will update the store too)
-      availableVersions = await InstallationService.loadVersions();
+      availableVersions = await app.profilesService.loadVersions();
     }
 
     loaderOptions = Array.from(new Set(availableVersions.map((v) => v.loader)));
-    selectedLoader = loaderOptions[0] ?? Loader.Vanilla;
+    selectedLoader = loaderOptions[0] ?? "vanilla";
     if (filteredVersions.length > 0) {
-      selectedVersionId = filteredVersions[0].version_id;
+      selectedVersionId = filteredVersions[0].id;
     }
   } catch (e) {
     error = "Failed to load versions.";
@@ -176,7 +170,7 @@ async function confirmCreate() {
       );
 
       if (sourceInstallation) {
-        await InstallationService.createInstallationFromExisting(
+        await app.profilesService.createInstallationFromExisting(
           selectedVersionId,
           sourceInstallation,
           {
@@ -190,7 +184,7 @@ async function confirmCreate() {
       }
     } else {
       // Regular installation creation
-      await InstallationService.createInstallation(selectedVersionId);
+      await app.profilesService.createInstallation(selectedVersionId);
     }
 
     close();
@@ -226,8 +220,7 @@ function handleBackdropClick(e: MouseEvent) {
 <dialog
   bind:this={dialogRef}
   class="create-installation-modal"
-  on:click={handleBackdropClick}
->
+  on:click={handleBackdropClick}>
   <h2>Create New Installation</h2>
   {#if error}
     <div class="error-message">{error}</div>
@@ -238,18 +231,17 @@ function handleBackdropClick(e: MouseEvent) {
         <button
           type="button"
           class="loader-btn {selectedLoader === loader ? 'selected' : ''}"
-          style="background: {InstallationService.getLoaderColor(
+          style="background: {app.profilesService.getLoaderColor(
             loader,
-          )}20; color: {InstallationService.getLoaderColor(loader)};"
-          on:click={() => (selectedLoader = loader)}
-        >
+          )}20; color: {app.profilesService.getLoaderColor(loader)};"
+          on:click={() => (selectedLoader = loader)}>
           <span class="loader-icon">
             <!-- TODO: Change this to Image and add images for all loaders to the assets -->
-            <Icon
-              name={InstallationService.getLoaderIcon(loader)}
+            <!-- <Icon
+              name={app.profilesService.getLoaderIcon(loader)}
               size="md"
-              forceType="svg"
-            />
+              forceType="svg" /> -->
+            <Image key={loader} />
           </span>
           <span class="loader-label"
             >{loader
@@ -257,8 +249,7 @@ function handleBackdropClick(e: MouseEvent) {
               .replace(
                 /(^|\s)([a-z])/g,
                 (_, p1, p2) => p1 + p2.toUpperCase(),
-              )}</span
-          >
+              )}</span>
         </button>
       {/each}
     </div>
@@ -270,8 +261,7 @@ function handleBackdropClick(e: MouseEvent) {
           type="text"
           bind:value={searchQuery}
           placeholder="Search for a version..."
-          class="version-search"
-        />
+          class="version-search" />
       </label>
       <label for="version-select">
         Version:
@@ -281,10 +271,9 @@ function handleBackdropClick(e: MouseEvent) {
           bind:this={versionListRef}
           on:scroll={handleScroll}
           size="10"
-          class="version-list"
-        >
-          {#each displayedVersions as version (version.version_id)}
-            <option value={version.version_id}>{version.version_id}</option>
+          class="version-list">
+          {#each displayedVersions as version (version.id)}
+            <option value={version.id}>{version.id}</option>
           {/each}
         </select>
       </label>
@@ -317,13 +306,11 @@ function handleBackdropClick(e: MouseEvent) {
           <select
             id="source-installation"
             bind:value={sourceInstallationId}
-            class="source-select"
-          >
+            class="source-select">
             <option value={null}>None - Start fresh</option>
             {#each availableInstallations as installation}
               <option value={installation.id}
-                >{installation.name} ({installation.version_id})</option
-              >
+                >{installation.name} ({installation.version_id})</option>
             {/each}
           </select>
         </label>
@@ -337,8 +324,7 @@ function handleBackdropClick(e: MouseEvent) {
                   checked={allCopyOptionsSelected}
                   indeterminate={someCopyOptionsSelected &&
                     !allCopyOptionsSelected}
-                  on:change={toggleAllCopyOptions}
-                />
+                  on:change={toggleAllCopyOptions} />
                 <span>Select All</span>
               </label>
             </div>
@@ -351,8 +337,7 @@ function handleBackdropClick(e: MouseEvent) {
                   <div class="option-text">
                     <span class="option-label">Copy Mods</span>
                     <span class="option-description"
-                      >Mods will be updated/downgraded to match the new version</span
-                    >
+                      >Mods will be updated/downgraded to match the new version</span>
                   </div>
                 </div>
               </label>
@@ -364,8 +349,7 @@ function handleBackdropClick(e: MouseEvent) {
                   <div class="option-text">
                     <span class="option-label">Copy Resource Packs</span>
                     <span class="option-description"
-                      >Resource packs will be copied as-is</span
-                    >
+                      >Resource packs will be copied as-is</span>
                   </div>
                 </div>
               </label>
@@ -377,8 +361,7 @@ function handleBackdropClick(e: MouseEvent) {
                   <div class="option-text">
                     <span class="option-label">Copy Shaders</span>
                     <span class="option-description"
-                      >Shaders will be copied as-is</span
-                    >
+                      >Shaders will be copied as-is</span>
                   </div>
                 </div>
               </label>
@@ -389,8 +372,7 @@ function handleBackdropClick(e: MouseEvent) {
             <Icon name="info" size="sm" />
             <span
               >Select a source installation to copy mods, resource packs, and
-              shaders</span
-            >
+              shaders</span>
           </div>
         {/if}
       </div>
@@ -401,8 +383,7 @@ function handleBackdropClick(e: MouseEvent) {
         use:successSound
         type="submit"
         class="btn btn-primary"
-        disabled={isLoading}
-      >
+        disabled={isLoading}>
         {#if isLoading}
           <Icon name="refresh" size="sm" className="spin" />
           Creating...
@@ -415,14 +396,13 @@ function handleBackdropClick(e: MouseEvent) {
         type="button"
         class="btn btn-secondary"
         on:click={cancelCreate}
-        disabled={isLoading}>Cancel</button
-      >
+        disabled={isLoading}>Cancel</button>
     </div>
   </form>
 </dialog>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 .create-installation-modal {
   padding: 2rem;
   background: var(--container);

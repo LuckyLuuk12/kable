@@ -1,4 +1,4 @@
-import { type KableAccount, type KableProfile, api } from "$lib";
+import { type KableAccount, type KableProfile, type LoaderKind, api } from "$lib";
 import type { Service } from "./app.service";
 
 export class ProfilesService implements Service {
@@ -49,6 +49,25 @@ export class ProfilesService implements Service {
     this.profiles = this.profiles.map((p) =>
       p.id === updated.id ? updated : p,
     );
+  }
+
+  getLoaderColor(loader: LoaderKind): string {
+    switch (loader) {
+      case "vanilla":
+        return "#11833c"; // Vanilla's green/grass color
+      case "fabric":
+        return "#dbb866"; // Fabric's golden color
+      case "forge":
+        return "#466381"; // Forge's dark color
+      case "quilt":
+        return "#9c5aa0"; // Quilt's purple color
+      case "neo_forge":
+        return "#f16436"; // NeoForge's orange color
+      case "iris_fabric":
+        return "#4c8cff"; // Iris Fabric's blue color
+      default:
+        return "#cccccc"; // Default gray for unknown loaders
+    }
   }
 
   async remove(id: string) {

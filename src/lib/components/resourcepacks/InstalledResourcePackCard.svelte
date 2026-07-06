@@ -17,10 +17,10 @@ Shows pack icon, name, and provides actions:
 ```
 -->
 <script lang="ts">
-import { Icon, NotificationService } from "$lib";
 import type { KableInstallation } from "$lib";
-import * as installationsApi from "$lib/api/installations";
+import { Icon, NotificationService } from "$lib";
 import { clickSound, errorSound } from "$lib/actions";
+import * as installationsApi from "$lib/api/installations";
 
 export let pack: any; // ResourcePackInfo type (to be defined)
 export let installation: KableInstallation;
@@ -148,8 +148,7 @@ async function handleVisitPage(event: MouseEvent) {
       on:click={toggleDisabled}
       use:clickSound
       title={isDisabled ? "Enable pack" : "Disable pack"}
-      disabled={loading}
-    >
+      disabled={loading}>
       <Icon name={isDisabled ? "eye-off" : "eye"} size="sm" />
       <span>{isDisabled ? "Enable" : "Disable"}</span>
     </button>
@@ -160,8 +159,7 @@ async function handleVisitPage(event: MouseEvent) {
         on:click={handleVisitPage}
         use:clickSound
         title="Visit page"
-        disabled={loading}
-      >
+        disabled={loading}>
         <Icon name="external-link" size="sm" />
         <span>Visit</span>
       </button>
@@ -172,8 +170,7 @@ async function handleVisitPage(event: MouseEvent) {
       on:click={handleRemove}
       use:errorSound
       title="Remove pack"
-      disabled={loading}
-    >
+      disabled={loading}>
       <Icon name="trash" size="sm" />
       <span>Remove</span>
     </button>
@@ -181,7 +178,7 @@ async function handleVisitPage(event: MouseEvent) {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 @use "sass:color";
 @use "sass:map";
 

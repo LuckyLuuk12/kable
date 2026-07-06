@@ -39,8 +39,7 @@ onMount(() => {
           <input
             type="checkbox"
             id="use-titlebar"
-            bind:checked={$settings.misc.use_titlebar}
-          />
+            bind:checked={$settings.misc.use_titlebar} />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -62,23 +61,18 @@ onMount(() => {
                 type="radio"
                 name="auth-preference"
                 value="code"
-                bind:group={$settings.misc.auth_preference}
-              /> Code Flow (Recommended)</label
-            >
+                bind:group={$settings.misc.auth_preference} /> Code Flow (Recommended)</label>
             <label
               ><input
                 type="radio"
                 name="auth-preference"
                 value="device_code"
-                bind:group={$settings.misc.auth_preference}
-              /> Device Code Flow</label
-            >
+                bind:group={$settings.misc.auth_preference} /> Device Code Flow</label>
           </div>
         {:else}
           <select
             id="auth-preference"
-            bind:value={$settings.misc.auth_preference}
-          >
+            bind:value={$settings.misc.auth_preference}>
             <option value="code">Code Flow (Recommended)</option>
             <option value="device_code">Device Code Flow</option>
           </select>
@@ -89,7 +83,7 @@ onMount(() => {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 .settings-tab {
   background: var(--container);

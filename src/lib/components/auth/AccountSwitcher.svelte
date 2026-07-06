@@ -87,13 +87,11 @@ $: {
         on:mouseenter={() => (showDropdown = true)}
         on:mouseleave={() => (showDropdown = false)}
         role="button"
-        tabindex="0"
-      >
+        tabindex="0">
         <div
           class="account-avatar minecraft-head"
           title="{$currentAccount?.minecraft_profile?.name ||
-            $currentAccount?.username}'s avatar"
-        >
+            $currentAccount?.username}'s avatar">
           <PlayerHead account={$currentAccount} size={36} />
         </div>
         {#if getAccountStatus($currentAccount) === "online"}
@@ -109,8 +107,7 @@ $: {
         <span class="username"
           >{$currentAccount?.minecraft_profile?.name ||
             $currentAccount?.username ||
-            "Unknown User"}</span
-        >
+            "Unknown User"}</span>
         <span class="account-type">
           {#if getAccountStatus($currentAccount) === "offline"}
             Offline Account
@@ -125,26 +122,22 @@ $: {
       <div class="dropdown-chevron" class:rotated={showDropdown}>
         <Icon
           name={showDropdown ? "chevron-up" : "chevron-down"}
-          forceType="svg"
-        />
+          forceType="svg" />
       </div>
 
       <div class="dropdown-menu">
         {#each validAccounts as account (account.local_id)}
           <div
             class="account-item"
-            class:active={account.local_id === $currentAccount?.local_id}
-          >
+            class:active={account.local_id === $currentAccount?.local_id}>
             <button
               class="account-button"
-              on:click={() => switchAccount(account)}
-            >
+              on:click={() => switchAccount(account)}>
               <div class="account-avatar-container">
                 <div
                   class="account-avatar minecraft-head"
                   title="{account.minecraft_profile?.name ||
-                    account.username}'s avatar"
-                >
+                    account.username}'s avatar">
                   <PlayerHead {account} size={36} />
                 </div>
                 {#if getAccountStatus(account) === "online"}
@@ -152,10 +145,8 @@ $: {
                 {:else if getAccountStatus(account) === "offline"}
                   <div class="status-indicator offline" title="Offline"></div>
                 {:else}
-                  <div
-                    class="status-indicator expired"
-                    title="Token Expired"
-                  ></div>
+                  <div class="status-indicator expired" title="Token Expired">
+                  </div>
                 {/if}
               </div>
 
@@ -163,8 +154,7 @@ $: {
                 <span class="username"
                   >{account.minecraft_profile?.name ||
                     account.username ||
-                    "Unknown User"}</span
-                >
+                    "Unknown User"}</span>
                 <span class="account-type">
                   {#if getAccountStatus(account) === "offline"}
                     Offline Account
@@ -206,8 +196,7 @@ $: {
       <div class="sign-in-info">
         <span class="sign-in-text">Sign in to Microsoft</span>
         <span class="sign-in-help"
-          >Access online features and view your Minecraft profile.</span
-        >
+          >Access online features and view your Minecraft profile.</span>
       </div>
       <Icon name="arrow-right" />
     </button>
@@ -215,7 +204,7 @@ $: {
 {/if}
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/variables" as *;
+//@use "@kablan/clean-ui/scss/variables" as *;
 
 .account-switcher {
   position: relative;

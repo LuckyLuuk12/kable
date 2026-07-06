@@ -18,10 +18,10 @@ author, downloads, and gallery preview. Supports grid, list, and compact views.
 ```
 -->
 <script lang="ts">
+import type { KableInstallation, ShaderDownload } from "$lib";
 import { Icon } from "$lib";
-import type { ShaderDownload, KableInstallation } from "$lib";
-import { openUrl } from "$lib/api/system";
 import { clickSound, successSound } from "$lib/actions";
+import { openUrl } from "$lib/api/system";
 
 export let shader: ShaderDownload;
 export let viewMode: "grid" | "list" | "compact" = "grid";
@@ -106,8 +106,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
   on:click={handleVisit}
   role="button"
   tabindex="0"
-  on:keydown={(e) => e.key === "Enter" && handleVisit(e)}
->
+  on:keydown={(e) => e.key === "Enter" && handleVisit(e)}>
   <!-- Thumbnail -->
   {#if viewMode !== "compact"}
     <div class="shader-thumbnail">
@@ -124,8 +123,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
           class="gallery-overlay"
           on:click={handleViewGallery}
           use:clickSound
-          title="View gallery"
-        >
+          title="View gallery">
           <Icon name="images" size="lg" forceType="svg" />
           <span>View Gallery</span>
         </button>
@@ -163,8 +161,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
         <div class="shader-loaders">
           <span
             class="loader-badge"
-            style="background-color: {getLoaderColor(shader.shader_loader)}"
-          >
+            style="background-color: {getLoaderColor(shader.shader_loader)}">
             {shader.shader_loader}
           </span>
         </div>
@@ -187,8 +184,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
           ? "Already installed"
           : installation
             ? `Install to ${installation.name}`
-            : "Install globally"}
-      >
+            : "Install globally"}>
         {#if loading}
           <Icon name="loader" size="sm" forceType="svg" />
         {:else if isInstalled}
@@ -206,7 +202,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 @use "sass:color";
 
 .shader-card {

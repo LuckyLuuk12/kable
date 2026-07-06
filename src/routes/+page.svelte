@@ -1,23 +1,20 @@
 <script lang="ts">
-import { onMount } from "svelte";
 import {
   Icon,
   Image,
   installations,
-  isLoadingInstallations,
   installationsError,
+  InstallationService,
+  isLoadingInstallations,
   type KableInstallation,
   Launcher,
-  InstallationService,
   settings,
 } from "$lib";
-import {
-  isLaunching,
-  currentLaunchingInstallation,
-} from "$lib/stores/launcher";
-import InstallationsList from "$lib/components/installations/InstallationsList.svelte";
-import { openUrl } from "$lib/api/system";
 import { launchSound } from "$lib/actions";
+import { openUrl } from "$lib/api/system";
+import InstallationsList from "$lib/components/installations/InstallationsList.svelte";
+import { isLaunching } from "$lib/stores/launcher";
+import { onMount } from "svelte";
 
 // State variables
 let lastPlayedInstallations: KableInstallation[] = [];
@@ -301,52 +298,45 @@ async function handleAdClick(url: string) {
           alt="Banner"
           className="banner-image"
           width="100%"
-          height="100%"
-        />
+          height="100%" />
       </div>
       <div class="banner-overlay"></div>
       <div class="banner-content">
         <div class="banner-actions">
           <button
             class="banner-button primary"
-            on:click={() => handleAdClick("https://kablan.nl")}
-          >
+            on:click={() => handleAdClick("https://kablan.nl")}>
             <Image
               key="kablan-logo"
               alt="Kablan"
               className="button-image"
               width="auto"
-              height="2.5rem"
-            />
+              height="2.5rem" />
             <span>Kablan.nl</span>
           </button>
 
           <button
             class="banner-button secondary"
             on:click={() =>
-              handleAdClick("https://modrinth.com/mod/luckybindings")}
-          >
+              handleAdClick("https://modrinth.com/mod/luckybindings")}>
             <Image
               key="luckybindings-logo"
               alt="LuckyBindings"
               className="button-image"
               width="auto"
-              height="2.5rem"
-            />
+              height="2.5rem" />
             <span>LuckyBindings Mod</span>
           </button>
 
           <button
             class="banner-button kofi"
-            on:click={() => handleAdClick("https://ko-fi.com/luckyluuk")}
-          >
+            on:click={() => handleAdClick("https://ko-fi.com/luckyluuk")}>
             <Image
               key="kofi-logo"
               alt="Ko-fi"
               className="button-image"
               width="auto"
-              height="2.5rem"
-            />
+              height="2.5rem" />
             <span>Support me on Ko-fi</span>
           </button>
         </div>
@@ -357,8 +347,7 @@ async function handleAdClick(url: string) {
           </span>
           <button
             class="recruitment-link"
-            on:click={() => handleAdClick("https://discord.gg/qRTevFvHbx")}
-          >
+            on:click={() => handleAdClick("https://discord.gg/qRTevFvHbx")}>
             Get in contact with me
           </button>
         </div>
@@ -373,8 +362,7 @@ async function handleAdClick(url: string) {
       alt="Minecraft Hero Banner"
       className="home-hero"
       width="100%"
-      height="100%"
-    />
+      height="100%" />
   </div>
 
   <!-- Installations List Section -->
@@ -390,8 +378,7 @@ async function handleAdClick(url: string) {
         class="play-button"
         on:click={handlePlay}
         use:launchSound
-        disabled={$isLaunching || lastPlayedInstallations.length === 0}
-      >
+        disabled={$isLaunching || lastPlayedInstallations.length === 0}>
         {#if $isLaunching}
           <Icon name="refresh" size="md" forceType="svg" className="spin" />
           <span>{"Launching..."}</span>
@@ -410,8 +397,7 @@ async function handleAdClick(url: string) {
         <p
           class="launch-status"
           class:error={launchStatus.includes("fail") ||
-            launchStatus.includes("error")}
-        >
+            launchStatus.includes("error")}>
           {launchStatus}
         </p>
       {/if}
@@ -446,8 +432,7 @@ async function handleAdClick(url: string) {
             }}
             min="512"
             max="32768"
-            step="256"
-          />
+            step="256" />
           <div class="slider-labels">
             <span>512MB</span>
             <span>8GB</span>
@@ -477,8 +462,7 @@ async function handleAdClick(url: string) {
                 commitRamChange(true);
               }
             }}
-            placeholder="2048"
-          />
+            placeholder="2048" />
           <span class="ram-unit">MB</span>
         </div>
       </div>
@@ -487,7 +471,7 @@ async function handleAdClick(url: string) {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/variables" as *;
+//@use "@kablan/clean-ui/scss/variables" as *;
 .page-wrapper {
   display: flex;
   flex-direction: column;

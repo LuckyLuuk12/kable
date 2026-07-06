@@ -99,8 +99,7 @@ function handleBackdropClick(e: MouseEvent) {
     role="dialog"
     aria-modal="true"
     aria-labelledby="gallery-title"
-    tabindex="-1"
-  >
+    tabindex="-1">
     <div class="gallery-container">
       <!-- Header -->
       <div class="gallery-header">
@@ -116,8 +115,7 @@ function handleBackdropClick(e: MouseEvent) {
           <button
             class="nav-btn prev"
             on:click={prevImage}
-            aria-label="Previous image"
-          >
+            aria-label="Previous image">
             <Icon name="chevron-left" size="xl" forceType="svg" />
           </button>
         {/if}
@@ -126,8 +124,7 @@ function handleBackdropClick(e: MouseEvent) {
           <img
             src={images[currentIndex]}
             alt="{shader.name} screenshot {currentIndex + 1}"
-            class="main-image"
-          />
+            class="main-image" />
           <div class="image-counter">
             {currentIndex + 1} / {images.length}
           </div>
@@ -137,8 +134,7 @@ function handleBackdropClick(e: MouseEvent) {
           <button
             class="nav-btn next"
             on:click={nextImage}
-            aria-label="Next image"
-          >
+            aria-label="Next image">
             <Icon name="chevron-right" size="xl" forceType="svg" />
           </button>
         {/if}
@@ -152,8 +148,7 @@ function handleBackdropClick(e: MouseEvent) {
               class="thumbnail"
               class:active={index === currentIndex}
               on:click={() => goToImage(index)}
-              aria-label="View image {index + 1}"
-            >
+              aria-label="View image {index + 1}">
               <img src={image} alt="{shader.name} thumbnail {index + 1}" />
             </button>
           {/each}
@@ -164,7 +159,7 @@ function handleBackdropClick(e: MouseEvent) {
 {/if}
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 .gallery-modal {
   width: 100%;

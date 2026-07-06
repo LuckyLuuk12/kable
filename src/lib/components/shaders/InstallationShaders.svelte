@@ -8,13 +8,13 @@ Features:
 - Visit shader pages
 -->
 <script lang="ts">
+import type { KableInstallation } from "$lib";
+import { Icon, InstallationService } from "$lib";
+import * as installationsApi from "$lib/api/installations";
+import { installations, selectedInstallation } from "$lib/stores";
 import { onMount } from "svelte";
 import { get } from "svelte/store";
-import { Icon, NotificationService, InstallationService } from "$lib";
-import type { KableInstallation } from "$lib";
-import { installations, selectedInstallation } from "$lib/stores";
 import InstalledShaderPackCard from "./InstalledShaderPackCard.svelte";
-import * as installationsApi from "$lib/api/installations";
 
 export let selectedId: string = "";
 let currentInstallation: KableInstallation | null = null;
@@ -337,8 +337,7 @@ onMount(() => {
         on:wheel={handleWheel}
         on:keydown={handleKeydown}
         tabindex="-1"
-        role="listbox"
-      >
+        role="listbox">
         <div class="carousel-container">
           {#each sortedInstallations as installation, index}
             {@const selectedIndex = sortedInstallations.findIndex(
@@ -372,8 +371,7 @@ onMount(() => {
                 on:keydown={(e) =>
                   e.key === "Enter" && selectInstallation(installation)}
                 tabindex="0"
-                role="button"
-              >
+                role="button">
                 <div class="installation-icon">
                   <Icon name={loaderIcons[installation.id]} size="md" />
                 </div>
@@ -382,8 +380,7 @@ onMount(() => {
                   <div class="installation-details">
                     <span class="installation-version"
                       >{InstallationService.getVersionData(installation)
-                        .version_id}</span
-                    >
+                        .version_id}</span>
                   </div>
                 </div>
               </div>
@@ -403,14 +400,12 @@ onMount(() => {
               type="text"
               placeholder="Search shader packs (fuzzy search enabled)..."
               bind:value={searchQuery}
-              class="search-input"
-            />
+              class="search-input" />
             {#if searchQuery}
               <button
                 class="clear-btn"
                 on:click={() => (searchQuery = "")}
-                title="Clear search">✕</button
-              >
+                title="Clear search">✕</button>
             {/if}
           </div>
         </div>
@@ -431,8 +426,7 @@ onMount(() => {
                 {:else}
                   <span class="total-count">{shaders.length}</span>
                   <span class="count-label"
-                    >{shaders.length === 1 ? "shader" : "shaders"}</span
-                  >
+                    >{shaders.length === 1 ? "shader" : "shaders"}</span>
                 {/if}
               </div>
             {/if}
@@ -459,8 +453,7 @@ onMount(() => {
                   {shader}
                   installation={currentInstallation}
                   extendedInfo={extendedShaderInfo[shader.file_name]}
-                  onshaderchanged={handleShaderChanged}
-                />
+                  onshaderchanged={handleShaderChanged} />
               {/each}
             </div>
           {:else}
@@ -481,7 +474,7 @@ onMount(() => {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 .installation-shaders {
   margin: 0;
   height: 100%;

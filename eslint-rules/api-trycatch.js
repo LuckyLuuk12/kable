@@ -80,7 +80,7 @@ export const apiTryCatchRule = ESLintUtils.RuleCreator(
 
             return fixer.replaceText(
               target,
-              `try {\n  ${text}\n} catch (e) {\n  console.error("API call failed: "+${text}, e);\n}`
+              `try {\n  ${text}\n} catch (e) {\n  console.error("API call failed: \`${text}\`", e);\n}`
             );
           }
         });

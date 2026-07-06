@@ -75,7 +75,7 @@ async function signInWithDeviceCode() {
  */
 async function openVerificationUrl() {
   if (deviceCodeData) {
-    await systemApi.openUrl(deviceCodeData.verification_uri);
+    await app.openUrl(deviceCodeData.verification_uri);
   }
 }
 
@@ -105,8 +105,7 @@ function cancelDeviceCode() {
             key="microsoft-logo"
             alt="Microsoft"
             width="20px"
-            height="20px"
-          />
+            height="20px" />
         </div>
         <h3>Sign in to Microsoft</h3>
       </div>
@@ -130,10 +129,9 @@ function cancelDeviceCode() {
         <div class="code-display">
           <code class="user-code">{deviceCodeData.user_code}</code>
           <button
-            on:click={() => systemApi.copyToClipboard(deviceCodeData.user_code)}
+            on:click={() => writeText(deviceCodeData.user_code)}
             class="copy-btn"
-            title="Copy code"
-          >
+            title="Copy code">
             <Icon name="duplicate" size="sm" />
           </button>
         </div>
@@ -157,21 +155,18 @@ function cancelDeviceCode() {
       <button
         on:click={signInWithDeviceCode}
         class="btn-microsoft"
-        disabled={$isAuthenticating}
-      >
+        disabled={$isAuthenticating}>
         <div class="microsoft-logo-large">
           <Image
             key="microsoft-logo"
             alt="Microsoft"
             width="21px"
-            height="21px"
-          />
+            height="21px" />
         </div>
         <span
           >{$isAuthenticating
             ? "Signing in..."
-            : "Sign in with Microsoft"}</span
-        >
+            : "Sign in with Microsoft"}</span>
       </button>
 
       <p class="auth-disclaimer">
@@ -183,7 +178,7 @@ function cancelDeviceCode() {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/variables" as *;
+//@use "@kablan/clean-ui/scss/variables" as *;
 
 .auth-flow {
   width: 100%;

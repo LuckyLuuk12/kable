@@ -15,19 +15,18 @@ Supports both grid and list view modes with sorting and filtering.
 ```
 -->
 <script lang="ts">
-import { onMount, onDestroy } from "svelte";
 import {
+  app,
+  currentLaunchingInstallation,
   Icon,
-  InstallationService,
   installations,
-  versions,
+  isLaunching,
   isLoadingInstallations,
   isLoadingVersions,
-  Launcher,
-  isLaunching,
-  currentLaunchingInstallation,
+  versions,
 } from "$lib";
-import { launchSound, clickSound, errorSound } from "$lib/actions";
+import { clickSound, errorSound, launchSound } from "$lib/actions";
+import { onDestroy, onMount } from "svelte";
 import EditInstallationModal from "./EditInstallationModal.svelte";
 
 export let isGrid: boolean = false;
@@ -257,65 +256,57 @@ $: {
             ]}08 40%); --loader-color: {loaderColors[
               installation.id
             ]}55; z-index: {(limitedInstallations.length - i) *
-              2}; position: relative;"
-          >
+              2}; position: relative;">
             <div class="card-top-actions">
               <button
                 class="star-btn"
                 title={installation.favorite ? "Unfavorite" : "Favorite"}
                 on:click={async (e) => {
                   e.stopPropagation();
-                  await InstallationService.toggleFavorite(installation);
-                }}
-              >
+                  await app.profilesService.toggleFavorite(installation);
+                }}>
                 {#key installation.favorite}
                   <Icon
                     name="star"
                     forceType={installation.favorite ? "emoji" : "svg"}
-                    size="md"
-                  />
+                    size="md" />
                 {/key}
               </button>
               {#if isSmall}
                 <div
-                  class="dropdown installation-dropdown actions-dropdown small-actions-dropdown"
-                >
+                  class="dropdown installation-dropdown actions-dropdown small-actions-dropdown">
                   <button class="btn btn-secondary dropdown-toggle">
                     <Icon name="more-horizontal" size="sm" />
                   </button>
                   <div
                     class="dropdown-menu"
                     style="z-index: {(limitedInstallations.length - i) * 2 -
-                      1};"
-                  >
+                      1};">
                     <button
                       use:clickSound
                       on:click={() => editModal?.open(installation)}
-                      title="Edit Installation"
-                    >
+                      title="Edit Installation">
                       <Icon name="edit" size="sm" />
                       Edit
                     </button>
                     <button
                       use:clickSound
                       on:click={async () =>
-                        await InstallationService.createInstallation(
+                        await app.profilesService.createInstallation(
                           installation.version_id,
                         )}
-                      title="Duplicate Installation"
-                    >
+                      title="Duplicate Installation">
                       <Icon name="duplicate" size="sm" />
                       Duplicate
                     </button>
                     <button
                       use:clickSound
                       on:click={async () => {
-                        await InstallationService.exportInstallation(
+                        await app.profilesService.exportInstallation(
                           installation,
                         );
                       }}
-                      title="Export Installation"
-                    >
+                      title="Export Installation">
                       <Icon name="download" size="sm" />
                       Export
                     </button>
@@ -324,7 +315,7 @@ $: {
                       on:click={async () => {
                         try {
                           const path =
-                            await InstallationService.createShortcut(
+                            await app.profilesService.createShortcut(
                               installation,
                             );
                           console.log("Shortcut created at:", path);
@@ -332,8 +323,7 @@ $: {
                           console.error("Failed to create shortcut:", err);
                         }
                       }}
-                      title="Create Shortcut"
-                    >
+                      title="Create Shortcut">
                       <Icon name="link" size="sm" />
                       Create Shortcut
                     </button>
@@ -342,11 +332,8 @@ $: {
                       use:errorSound
                       class="danger"
                       on:click={async () =>
-                        await InstallationService.deleteInstallation(
-                          installation.id,
-                        )}
-                      title="Delete Installation"
-                    >
+                        await app.profilesService.remove(installation.id)}
+                      title="Delete Installation">
                       <Icon name="trash" size="sm" />
                       Delete
                     </button>
@@ -360,15 +347,13 @@ $: {
                   class="installation-icon icon-tooltip-wrapper"
                   style="color: {loaderColors[
                     installation.id
-                  ]}; background: rgba(0,0,0,0.0);"
-                >
+                  ]}; background: rgba(0,0,0,0.0);">
                   {#if installation.icon}
                     {#if typeof installation.icon === "string" && (installation.icon.startsWith("data:") || installation.icon.startsWith("http") || installation.icon.startsWith("file:") || installation.icon.startsWith("/"))}
                       <img
                         src={installation.icon}
                         alt="installation icon"
-                        class="installation-img"
-                      />
+                        class="installation-img" />
                     {:else}
                       <!-- For short installation.icon names, prefer the loader-specific icon instead -->
                       <Icon name={loaderIcons[installation.id]} size="lg" />
@@ -377,9 +362,7 @@ $: {
                     <Icon name={loaderIcons[installation.id]} size="lg" />
                   {/if}
                   <span class="icon-tooltip"
-                    >{InstallationService.getVersionData(installation)
-                      .loader}</span
-                  >
+                    >{installation.version.loader}</span>
                 </div>
                 <button
                   use:launchSound
@@ -392,17 +375,15 @@ $: {
                     ? `${loaderColors[installation.id]}cc`
                     : 'var(--loader-secondary)'} 100%); color: var(--text-white) !important;"
                   on:click={async () => {
-                    await Launcher.launchInstallation(installation);
+                    await app.launcherService.launch(installation);
                   }}
-                  disabled={$isLaunching}
-                >
+                  disabled={$isLaunching}>
                   {#if $currentLaunchingInstallation && $currentLaunchingInstallation.id === installation.id}
                     <Icon
                       name="refresh"
                       size="sm"
                       className="spin"
-                      forceType="svg"
-                    />
+                      forceType="svg" />
                     <span style="margin-left:0.5rem">Launching...</span>
                   {:else}
                     Play
@@ -418,8 +399,7 @@ $: {
                     <span
                       class="loader-version"
                       style="color: {loaderColors[installation.id]};"
-                      >{installation.version_id}</span
-                    >
+                      >{installation.version_id}</span>
                   </div>
                 {/if}
                 {#if isSmall}
@@ -442,8 +422,7 @@ $: {
                         ><Icon name="calendar" size="sm" />
                         {installation.created
                           ? new Date(installation.created).toLocaleDateString()
-                          : "Unknown"}</span
-                      >
+                          : "Unknown"}</span>
                     </div>
                     <div class="meta-cell">
                       <span class="meta-key">Last played:</span>
@@ -453,8 +432,7 @@ $: {
                           ? new Date(
                               installation.last_used,
                             ).toLocaleDateString()
-                          : "Never"}</span
-                      >
+                          : "Never"}</span>
                     </div>
                     <div class="meta-cell">
                       <span class="meta-key">Total time:</span>
@@ -476,8 +454,7 @@ $: {
                   use:clickSound
                   class="btn btn-secondary"
                   on:click={() => editModal?.open(installation)}
-                  title="Edit Installation"
-                >
+                  title="Edit Installation">
                   <Icon name="edit" size="sm" />
                   Edit
                 </button>
@@ -485,11 +462,10 @@ $: {
                   use:clickSound
                   class="btn btn-secondary"
                   on:click={async () =>
-                    await InstallationService.createInstallation(
+                    await app.profilesService.createInstallation(
                       installation.version_id,
                     )}
-                  title="Duplicate Installation"
-                >
+                  title="Duplicate Installation">
                   <Icon name="duplicate" size="sm" />
                   Duplicate
                 </button>
@@ -497,10 +473,9 @@ $: {
                   use:clickSound
                   class="btn btn-secondary"
                   on:click={async () => {
-                    await InstallationService.exportInstallation(installation);
+                    await app.profilesService.exportInstallation(installation);
                   }}
-                  title="Export Installation"
-                >
+                  title="Export Installation">
                   <Icon name="download" size="sm" />
                   Export
                 </button>
@@ -510,14 +485,13 @@ $: {
                   on:click={async () => {
                     try {
                       const path =
-                        await InstallationService.createShortcut(installation);
+                        await app.profilesService.createShortcut(installation);
                       console.log("Shortcut created at:", path);
                     } catch (err) {
                       console.error("Failed to create shortcut:", err);
                     }
                   }}
-                  title="Create Shortcut"
-                >
+                  title="Create Shortcut">
                   <Icon name="link" size="sm" />
                   Create Shortcut
                 </button>
@@ -525,11 +499,8 @@ $: {
                   use:errorSound
                   class="btn btn-danger"
                   on:click={async () =>
-                    await InstallationService.deleteInstallation(
-                      installation.id,
-                    )}
-                  title="Delete Installation"
-                >
+                    await app.profilesService.remove(installation.id)}
+                  title="Delete Installation">
                   <Icon name="trash" size="sm" />
                   Delete
                 </button>
@@ -545,22 +516,19 @@ $: {
               installation.id
             ]}15 0%, {loaderColors[
               installation.id
-            ]}05 40%); --loader-color: {loaderColors[installation.id]}55;"
-          >
+            ]}05 40%); --loader-color: {loaderColors[installation.id]}55;">
             <div class="list-item-main">
               <!-- Icon and Play Button -->
               <div class="list-item-icon-section">
                 <div
                   class="installation-icon icon-tooltip-wrapper"
-                  style="color: {loaderColors[installation.id]};"
-                >
+                  style="color: {loaderColors[installation.id]};">
                   {#if installation.icon}
                     {#if typeof installation.icon === "string" && (installation.icon.startsWith("data:") || installation.icon.startsWith("http") || installation.icon.startsWith("file:") || installation.icon.startsWith("/"))}
                       <img
                         src={installation.icon}
                         alt="installation icon"
-                        class="installation-img list-img"
-                      />
+                        class="installation-img list-img" />
                     {:else}
                       <Icon name={installation.icon} size="md" />
                     {/if}
@@ -568,9 +536,7 @@ $: {
                     <Icon name={loaderIcons[installation.id]} size="md" />
                   {/if}
                   <span class="icon-tooltip"
-                    >{InstallationService.getVersionData(installation)
-                      .loader}</span
-                  >
+                    >{installation.version.loader}</span>
                 </div>
                 <button
                   use:launchSound
@@ -583,17 +549,15 @@ $: {
                     ? `${loaderColors[installation.id]}cc`
                     : 'var(--loader-secondary)'} 100%); color: var(--text-white) !important;"
                   on:click={async () => {
-                    await Launcher.launchInstallation(installation);
+                    await app.launcherService.launch(installation);
                   }}
-                  disabled={$isLaunching}
-                >
+                  disabled={$isLaunching}>
                   {#if $currentLaunchingInstallation && $currentLaunchingInstallation.id === installation.id}
                     <Icon
                       name="refresh"
                       size="sm"
                       className="spin"
-                      forceType="svg"
-                    />
+                      forceType="svg" />
                     <span style="margin-left:0.5rem">Launching...</span>
                   {:else}
                     Play
@@ -612,29 +576,25 @@ $: {
                       title={installation.favorite ? "Unfavorite" : "Favorite"}
                       on:click={async (e) => {
                         e.stopPropagation();
-                        await InstallationService.toggleFavorite(installation);
-                      }}
-                    >
+                        await app.profilesService.toggleFavorite(installation);
+                      }}>
                       {#key installation.favorite}
                         <Icon
                           name="star"
                           forceType={installation.favorite ? "emoji" : "svg"}
-                          size="sm"
-                        />
+                          size="sm" />
                       {/key}
                     </button>
 
                     <!-- Inline Actions (shown when they fit) -->
                     <div
                       class="list-inline-actions"
-                      class:hidden={useDropdownForActions[installation.id]}
-                    >
+                      class:hidden={useDropdownForActions[installation.id]}>
                       <button
                         use:clickSound
                         class="list-action-btn"
                         on:click={() => editModal?.open(installation)}
-                        title="Edit Installation"
-                      >
+                        title="Edit Installation">
                         <Icon name="edit" size="sm" />
                         Edit
                       </button>
@@ -642,11 +602,10 @@ $: {
                         use:clickSound
                         class="list-action-btn"
                         on:click={async () =>
-                          await InstallationService.createInstallation(
+                          await app.profilesService.createInstallation(
                             installation.version_id,
                           )}
-                        title="Duplicate Installation"
-                      >
+                        title="Duplicate Installation">
                         <Icon name="duplicate" size="sm" />
                         Duplicate
                       </button>
@@ -654,11 +613,10 @@ $: {
                         use:clickSound
                         class="list-action-btn"
                         on:click={async () =>
-                          await InstallationService.exportInstallation(
+                          await app.profilesService.exportInstallation(
                             installation,
                           )}
-                        title="Export Installation"
-                      >
+                        title="Export Installation">
                         <Icon name="download" size="sm" />
                         Export
                       </button>
@@ -668,7 +626,7 @@ $: {
                         on:click={async () => {
                           try {
                             const path =
-                              await InstallationService.createShortcut(
+                              await app.profilesService.createShortcut(
                                 installation,
                               );
                             console.log("Shortcut created at:", path);
@@ -676,8 +634,7 @@ $: {
                             console.error("Failed to create shortcut:", err);
                           }
                         }}
-                        title="Create Shortcut"
-                      >
+                        title="Create Shortcut">
                         <Icon name="link" size="sm" />
                         Create Shortcut
                       </button>
@@ -685,11 +642,8 @@ $: {
                         use:errorSound
                         class="list-action-btn danger"
                         on:click={async () =>
-                          await InstallationService.deleteInstallation(
-                            installation.id,
-                          )}
-                        title="Delete Installation"
-                      >
+                          await app.profilesService.remove(installation.id)}
+                        title="Delete Installation">
                         <Icon name="trash" size="sm" />
                         Delete
                       </button>
@@ -698,8 +652,7 @@ $: {
                     <!-- Dropdown (shown when actions don't fit) -->
                     <div
                       class="dropdown list-dropdown"
-                      class:visible={useDropdownForActions[installation.id]}
-                    >
+                      class:visible={useDropdownForActions[installation.id]}>
                       <button class="btn btn-secondary dropdown-toggle">
                         <Icon name="more-horizontal" size="sm" />
                       </button>
@@ -707,30 +660,27 @@ $: {
                         <button
                           use:clickSound
                           on:click={() => editModal?.open(installation)}
-                          title="Edit Installation"
-                        >
+                          title="Edit Installation">
                           <Icon name="edit" size="sm" />
                           Edit
                         </button>
                         <button
                           use:clickSound
                           on:click={async () =>
-                            await InstallationService.createInstallation(
+                            await app.profilesService.createInstallation(
                               installation.version_id,
                             )}
-                          title="Duplicate Installation"
-                        >
+                          title="Duplicate Installation">
                           <Icon name="duplicate" size="sm" />
                           Duplicate
                         </button>
                         <button
                           use:clickSound
                           on:click={async () =>
-                            await InstallationService.exportInstallation(
+                            await app.profilesService.exportInstallation(
                               installation,
                             )}
-                          title="Export Installation"
-                        >
+                          title="Export Installation">
                           <Icon name="download" size="sm" />
                           Export
                         </button>
@@ -739,7 +689,7 @@ $: {
                           on:click={async () => {
                             try {
                               const path =
-                                await InstallationService.createShortcut(
+                                await app.profilesService.createShortcut(
                                   installation,
                                 );
                               console.log("Shortcut created at:", path);
@@ -747,8 +697,7 @@ $: {
                               console.error("Failed to create shortcut:", err);
                             }
                           }}
-                          title="Create Shortcut"
-                        >
+                          title="Create Shortcut">
                           <Icon name="link" size="sm" />
                           Create Shortcut
                         </button>
@@ -757,11 +706,8 @@ $: {
                           use:errorSound
                           class="danger"
                           on:click={async () =>
-                            await InstallationService.deleteInstallation(
-                              installation.id,
-                            )}
-                          title="Delete Installation"
-                        >
+                            await app.profilesService.remove(installation.id)}
+                          title="Delete Installation">
                           <Icon name="trash" size="sm" />
                           Delete
                         </button>
@@ -776,8 +722,7 @@ $: {
                     <span
                       class="list-version"
                       style="color: {loaderColors[installation.id]};"
-                      >{installation.version_id}</span
-                    >
+                      >{installation.version_id}</span>
                   {/if}
                   <div class="list-stats-section">
                     <div class="list-meta-item">
@@ -785,8 +730,7 @@ $: {
                       <span
                         >{installation.created
                           ? new Date(installation.created).toLocaleDateString()
-                          : "Unknown"}</span
-                      >
+                          : "Unknown"}</span>
                     </div>
                     <div class="list-meta-item">
                       <Icon name="clock" size="sm" />
@@ -795,8 +739,7 @@ $: {
                           ? new Date(
                               installation.last_used,
                             ).toLocaleDateString()
-                          : "Never"}</span
-                      >
+                          : "Never"}</span>
                     </div>
                   </div>
                 </div>
@@ -810,7 +753,7 @@ $: {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 /* Constrain installation-provided icons to the same visual area as the built-in icons */
 .installation-img {

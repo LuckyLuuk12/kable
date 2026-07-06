@@ -10,75 +10,18 @@ navigation and responsive mini-nav sidebar.
 ```
 -->
 <script lang="ts">
+import { settings, SettingsService } from "$lib";
 import { onDestroy, onMount } from "svelte";
+import { writable } from "svelte/store";
 import {
-  GeneralSettingsUI,
+  AdvancedSettingsUI,
   AppearanceSettingsUI,
   ContentSettingsUI,
+  GeneralSettingsUI,
   LoggingSettingsUI,
-  AdvancedSettingsUI,
   MiscSettingsUI,
   NetworkSettingsUI,
 } from ".";
-import { settings, SettingsService } from "$lib";
-import { writable } from "svelte/store";
-
-const sections = [
-  "general",
-  "appearance",
-  "logging",
-  "content",
-  "network",
-  "advanced",
-  "misc",
-];
-let currentSection = writable("general");
-currentSection.subscribe((val) => ($currentSection = val));
-
-// Dynamic layout variables
-let miniNavElement: HTMLElement;
-let miniNavWidth = 0;
-
-// Reactive statement to update width when mini-nav changes
-$: if (miniNavElement) {
-  miniNavWidth = miniNavElement.offsetWidth;
-}
-
-function updateCurrentSection() {
-  let found = false;
-  for (const id of sections) {
-    const el = document.getElementById(id);
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      if (rect.top <= 200 && rect.bottom > 200) {
-        currentSection.set(id);
-        found = true;
-        break;
-      }
-    }
-  }
-  if (!found) currentSection.set(sections[0]);
-}
-
-// Local validation functions
-export function validateMemory(value: string): number | null {
-  const num = parseInt(value);
-  if (isNaN(num) || num < 512 || num > 262144) return null;
-  return Math.floor(num / 512) * 512; // Round to nearest 512MB
-}
-export function validateNumber(
-  value: string,
-  min: number,
-  max: number,
-): number | null {
-  const num = parseInt(value);
-  if (isNaN(num) || num < min || num > max) return null;
-  return num;
-}
-export function validatePath(value: string): string {
-  return value.trim();
-}
-
 // Periodic save logic
 import { get } from "svelte/store";
 let lastSettings: any = null;
@@ -182,8 +125,7 @@ onDestroy(() => {
         href={`#${section}`}
         class:active={$currentSection === section}
         on:click={() => currentSection.set(section)}
-        >{section.charAt(0).toUpperCase() + section.slice(1)}</a
-      >
+        >{section.charAt(0).toUpperCase() + section.slice(1)}</a>
     {/each}
   </div>
   <div class="settings">
@@ -198,7 +140,7 @@ onDestroy(() => {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
+//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 
 .settings-content {
   display: flex;

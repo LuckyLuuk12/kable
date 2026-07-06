@@ -11,14 +11,14 @@ Java arguments, resolution, memory allocation, and advanced parameters.
 ```
 -->
 <script lang="ts">
+import type { KableProfile } from "$lib";
+import { app } from "$lib";
+import { clickSound, successSound } from "$lib/actions";
 import { tick } from "svelte";
-import { InstallationService } from "$lib";
-import { successSound, clickSound } from "$lib/actions";
-import type { KableInstallation } from "$lib";
 
 // Working copy of the installation being edited
-let installation: KableInstallation | null = null;
-let originalInstallation: KableInstallation | null = null;
+let installation: KableProfile | null = null;
+let originalInstallation: KableProfile | null = null;
 
 let javaArgsString: string = "";
 let parametersJson: string = "{}";
@@ -26,7 +26,7 @@ let dialogRef: HTMLDialogElement;
 let showOptional = false;
 
 // Exported function to open the modal with an installation
-export async function open(installationToEdit: KableInstallation) {
+export async function open(installationToEdit: KableProfile) {
   // Clone the installation to work with
   installation = structuredClone(installationToEdit);
   originalInstallation = structuredClone(installationToEdit);
@@ -54,7 +54,7 @@ function close() {
   }, 300); // Wait for close animation
 }
 
-function handleInput(e: Event, field: keyof KableInstallation) {
+function handleInput(e: Event, field: keyof KableProfile) {
   if (!installation) return;
   const target = e.target as HTMLInputElement;
   installation = { ...installation, [field]: target.value };
@@ -65,7 +65,7 @@ function handleJavaArgsInput(e: Event) {
   javaArgsString = target.value;
 }
 
-async function pickFolder(field: keyof KableInstallation) {
+async function pickFolder(field: keyof KableProfile) {
   // Trigger the hidden folder input for the requested field
   const inputId = `folder-input-${String(field)}`;
   const input = document.getElementById(inputId) as HTMLInputElement | null;
@@ -81,7 +81,7 @@ async function pickIconFile() {
 }
 
 // Handler for when a folder is selected via the hidden input
-function handleFolderSelect(e: Event, field: keyof KableInstallation) {
+function handleFolderSelect(e: Event, field: keyof KableProfile) {
   if (!installation) return;
   const target = e.target as HTMLInputElement;
   const files = target.files;
@@ -108,7 +108,7 @@ function handleFolderSelect(e: Event, field: keyof KableInstallation) {
     installation = {
       ...installation,
       [field]: folderPath,
-    } as KableInstallation;
+    } as KableProfile;
   // clear the input value so re-selecting the same folder triggers change
   target.value = "";
 }
@@ -124,7 +124,7 @@ function handleIconFileSelect(e: Event) {
   reader.onload = () => {
     const result = reader.result as string | null;
     if (result) {
-      installation = { ...installation, icon: result } as KableInstallation;
+      installation = { ...installation, icon: result } as KableProfile;
     }
   };
   reader.onerror = (err) => {
@@ -158,7 +158,7 @@ async function confirmEdit() {
     id: installation.id,
     installation,
   });
-  await InstallationService.updateInstallation(installation.id, installation);
+  await app.profilesService.modify(installation, installation);
 
   // Close the modal after successful save
   close();
@@ -180,8 +180,7 @@ function handleBackdropClick(e: MouseEvent) {
 <dialog
   bind:this={dialogRef}
   class="edit-installation-modal"
-  on:click={handleBackdropClick}
->
+  on:click={handleBackdropClick}>
   <h2>
     Edit Installation{#if installation?.name}
       — {installation.name}{/if}
@@ -194,8 +193,7 @@ function handleBackdropClick(e: MouseEvent) {
           <input
             type="text"
             bind:value={installation.name}
-            on:input={(e) => handleInput(e, "name")}
-          />
+            on:input={(e) => handleInput(e, "name")} />
         </label>
 
         <label>
@@ -204,11 +202,9 @@ function handleBackdropClick(e: MouseEvent) {
             <input
               type="text"
               bind:value={installation.icon}
-              on:input={(e) => handleInput(e, "icon")}
-            />
+              on:input={(e) => handleInput(e, "icon")} />
             <button type="button" class="btn" on:click={pickIconFile}
-              >Choose...</button
-            >
+              >Choose...</button>
           </div>
         </label>
 
@@ -232,8 +228,7 @@ function handleBackdropClick(e: MouseEvent) {
               <input
                 type="text"
                 bind:value={javaArgsString}
-                on:input={handleJavaArgsInput}
-              />
+                on:input={handleJavaArgsInput} />
             </label>
 
             <label>
@@ -242,14 +237,12 @@ function handleBackdropClick(e: MouseEvent) {
                 <input
                   type="text"
                   bind:value={installation.dedicated_mods_folder}
-                  on:input={(e) => handleInput(e, "dedicated_mods_folder")}
-                />
+                  on:input={(e) => handleInput(e, "dedicated_mods_folder")} />
                 <button
                   type="button"
                   class="btn"
                   on:click={() => pickFolder("dedicated_mods_folder")}
-                  >Browse...</button
-                >
+                  >Browse...</button>
               </div>
             </label>
 
@@ -260,14 +253,12 @@ function handleBackdropClick(e: MouseEvent) {
                   type="text"
                   bind:value={installation.dedicated_resource_pack_folder}
                   on:input={(e) =>
-                    handleInput(e, "dedicated_resource_pack_folder")}
-                />
+                    handleInput(e, "dedicated_resource_pack_folder")} />
                 <button
                   type="button"
                   class="btn"
                   on:click={() => pickFolder("dedicated_resource_pack_folder")}
-                  >Browse...</button
-                >
+                  >Browse...</button>
               </div>
             </label>
 
@@ -277,14 +268,13 @@ function handleBackdropClick(e: MouseEvent) {
                 <input
                   type="text"
                   bind:value={installation.dedicated_shaders_folder}
-                  on:input={(e) => handleInput(e, "dedicated_shaders_folder")}
-                />
+                  on:input={(e) =>
+                    handleInput(e, "dedicated_shaders_folder")} />
                 <button
                   type="button"
                   class="btn"
                   on:click={() => pickFolder("dedicated_shaders_folder")}
-                  >Browse...</button
-                >
+                  >Browse...</button>
               </div>
             </label>
 
@@ -294,14 +284,12 @@ function handleBackdropClick(e: MouseEvent) {
                 <input
                   type="text"
                   bind:value={installation.dedicated_config_folder}
-                  on:input={(e) => handleInput(e, "dedicated_config_folder")}
-                />
+                  on:input={(e) => handleInput(e, "dedicated_config_folder")} />
                 <button
                   type="button"
                   class="btn"
                   on:click={() => pickFolder("dedicated_config_folder")}
-                  >Browse...</button
-                >
+                  >Browse...</button>
               </div>
             </label>
 
@@ -315,14 +303,12 @@ function handleBackdropClick(e: MouseEvent) {
 
       <div class="actions" style="grid-column: 1 / -1;">
         <button use:successSound type="submit" class="btn btn-primary"
-          >Confirm</button
-        >
+          >Confirm</button>
         <button
           use:clickSound
           type="button"
           class="btn btn-secondary"
-          on:click={cancelEdit}>Cancel</button
-        >
+          on:click={cancelEdit}>Cancel</button>
       </div>
     </form>
   {/if}
@@ -332,37 +318,33 @@ function handleBackdropClick(e: MouseEvent) {
     type="file"
     accept="image/png,image/jpeg,image/svg+xml,image/x-icon,image/webp"
     style="display:none;"
-    on:change={handleIconFileSelect}
-  />
+    on:change={handleIconFileSelect} />
   <!-- Folder inputs: use webkitdirectory to allow picking a folder and read its relative paths -->
   <input
     id="folder-input-dedicated_mods_folder"
     type="file"
     webkitdirectory
     style="display:none;"
-    on:change={(e) => handleFolderSelect(e, "dedicated_mods_folder")}
-  />
+    on:change={(e) => handleFolderSelect(e, "dedicated_mods_folder")} />
   <input
     id="folder-input-dedicated_resource_pack_folder"
     type="file"
     webkitdirectory
     style="display:none;"
-    on:change={(e) => handleFolderSelect(e, "dedicated_resource_pack_folder")}
-  />
+    on:change={(e) =>
+      handleFolderSelect(e, "dedicated_resource_pack_folder")} />
   <input
     id="folder-input-dedicated_shaders_folder"
     type="file"
     webkitdirectory
     style="display:none;"
-    on:change={(e) => handleFolderSelect(e, "dedicated_shaders_folder")}
-  />
+    on:change={(e) => handleFolderSelect(e, "dedicated_shaders_folder")} />
   <input
     id="folder-input-dedicated_config_folder"
     type="file"
     webkitdirectory
     style="display:none;"
-    on:change={(e) => handleFolderSelect(e, "dedicated_config_folder")}
-  />
+    on:change={(e) => handleFolderSelect(e, "dedicated_config_folder")} />
 </dialog>
 
 <style lang="scss">
