@@ -1,9 +1,10 @@
 import tsParser from "@typescript-eslint/parser";
 import { TSESLint } from "@typescript-eslint/utils";
 import svelte from "eslint-plugin-svelte";
+import svelteParser from "svelte-eslint-parser";
 import tseslint from "typescript-eslint";
-import { apiTryCatchRule } from "./eslint-rules/api-trycatch.js";
 
+import { apiTryCatchRule } from "./eslint-rules/api-trycatch.js";
 
 function downgradeToWarnings(configs: TSESLint.FlatConfig.Config[]) {
   return configs.map((config): TSESLint.FlatConfig.Config => ({
@@ -17,14 +18,23 @@ function downgradeToWarnings(configs: TSESLint.FlatConfig.Config[]) {
   }));
 }
 
-const recommended = downgradeToWarnings(tseslint.configs.recommended);
+const typescriptRecommended = downgradeToWarnings(
+  tseslint.configs.recommended
+);
+
 const svelteRecommended = downgradeToWarnings(
   svelte.configs["flat/recommended"]
 );
 
 export default [
-  ...recommended,
+  // Svelte rules
   ...svelteRecommended,
+
+  // TypeScript rules only for TypeScript files
+  ...typescriptRecommended.map(config => ({
+    ...config,
+    files: ["**/*.ts"]
+  })),
 
   // TypeScript files
   {
@@ -38,13 +48,24 @@ export default [
   {
     files: ["**/*.svelte"],
     languageOptions: {
+      parser: svelteParser,
       parserOptions: {
         parser: tsParser,
       },
     },
+    plugins: {
+      "@typescript-eslint": tseslint.plugin,
+    },
+  },
+  // Disable TS-specific rules on Svelte files
+  {
+    files: ["**/*.svelte"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": "off",
+    },
   },
 
-  // Your custom rule
+  // Custom rules
   {
     files: ["**/*.{ts,svelte}"],
     plugins: {

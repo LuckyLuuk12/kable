@@ -29,7 +29,10 @@
     "version": "npm run build && node scripts/bump-version.mjs",
     "version:patch": "node scripts/bump-version.mjs patch",
     "version:minor": "node scripts/bump-version.mjs minor",
-    "version:major": "node scripts/bump-version.mjs major"
+    "version:major": "node scripts/bump-version.mjs major",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:watch": "chokidar \"src/**/*.{ts,svelte,js}\" -c \"npm run lint\""
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.10",
@@ -48,6 +51,7 @@
     "semver": "^7.7.3",
     "svelte": "^5.53.5",
     "svelte-check": "^4.4.3",
+    "svelte-eslint-parser": "^1.8.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.62.1",
     "vite": "^7.3.1"

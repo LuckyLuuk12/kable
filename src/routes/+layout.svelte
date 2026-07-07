@@ -131,7 +131,6 @@ async function reloadCustomCSS() {
 
 // Make reload function available globally for settings page
 if (typeof window !== "undefined") {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (window as any).reloadCustomCSS = reloadCustomCSS;
 }
 </script>
