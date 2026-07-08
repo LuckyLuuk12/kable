@@ -25,8 +25,11 @@ pub async fn launch_game(
     let pid = child.id().unwrap_or(0);
 
     crate::system::processes::track_process(pid);
-    let (runtime_id, runtime, pipeline) = runtime_inject::handle_injections(profile, child);
+    let (runtime_id, runtime, pipeline) = runtime_inject::handle_injections(profile.clone(), child);
     runtime.run(pipeline).await?;
+
+    // Update last used timestamp for the profile
+    let _ = crate::features::profiles::management::update_last_used(profile).await?;
 
     Ok(LaunchResult { pid, runtime_id: runtime_id.to_string(), command: format!("{:?}", cmd) })
 }

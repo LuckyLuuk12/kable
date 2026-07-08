@@ -27,6 +27,7 @@ import {
   PlayerHead,
   SettingsService,
   UpdaterService,
+  app,
   currentAccount,
   currentLaunchingInstallation,
   isLaunching,
@@ -35,7 +36,6 @@ import {
   settings,
 } from "$lib";
 import { buttonSound } from "$lib/actions/soundActions";
-import { soundService } from "$lib/old_services/SoundService";
 import "$lib/styles/global.scss";
 import { onDestroy, onMount } from "svelte";
 import { get } from "svelte/store";
@@ -107,10 +107,10 @@ onMount(async () => {
     try {
       LogsService.emitLauncherEvent("Initializing sound system...", "info");
       // Destroy existing instance if already initialized (for HMR)
-      if (soundService.isInitialized()) {
-        await soundService.destroy();
+      if (app.customizationService.isInitialized()) {
+        await app.customizationService.destroy();
       }
-      await soundService.initialize();
+      await app.customizationService.init();
       LogsService.emitLauncherEvent(
         "Sound system initialized successfully",
         "info",
@@ -507,7 +507,7 @@ onDestroy(() => {
   tooltipEl = null;
 
   // Cleanup sound service
-  soundService.destroy().catch((err) => {
+  app.customizationService.destroy().catch((err) => {
     console.error("Failed to destroy sound service:", err);
   });
 });

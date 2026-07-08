@@ -10,12 +10,14 @@ UI scaling, and color schemes. Supports custom theme uploads.
 ```
 -->
 <script lang="ts">
-import { availableTemplates, Icon, IconService, SettingsService } from "$lib";
+import { Icon } from "$lib";
 import { clickSound, errorSound, successSound } from "$lib/actions";
 import {
-  availableSoundpacks,
-  soundService,
-} from "$lib/old_services/SoundService";
+  availableTemplates,
+  IconService,
+  SettingsService,
+} from "$lib/old_services";
+import { app } from "$lib/services";
 import { settings } from "$lib/stores";
 import { onMount } from "svelte";
 
@@ -610,7 +612,7 @@ async function openIconsDirectory() {
             type="checkbox"
             bind:checked={$settings.appearance.sound.enabled}
             on:change={() => {
-              soundService.setSoundEnabled(
+              app.customizationService.setSoundEnabled(
                 $settings.appearance.sound?.enabled ?? true,
               );
             }} />
@@ -628,7 +630,7 @@ async function openIconsDirectory() {
             type="checkbox"
             bind:checked={$settings.appearance.sound.music_enabled}
             on:change={() => {
-              soundService.setMusicEnabled(
+              app.customizationService.setMusicEnabled(
                 $settings.appearance.sound?.music_enabled ?? true,
               );
             }} />
@@ -652,7 +654,7 @@ async function openIconsDirectory() {
               step="5"
               bind:value={$settings.appearance.sound.master_volume}
               on:input={(e) => {
-                soundService.setMasterVolume(
+                app.customizationService.setMasterVolume(
                   parseInt((e.target as HTMLInputElement).value),
                 );
               }} />
@@ -676,7 +678,7 @@ async function openIconsDirectory() {
                 step="5"
                 bind:value={$settings.appearance.sound.sound_volume}
                 on:input={(e) => {
-                  soundService.setSoundVolume(
+                  app.customizationService.setSoundVolume(
                     parseInt((e.target as HTMLInputElement).value),
                   );
                 }} />
@@ -702,7 +704,7 @@ async function openIconsDirectory() {
                 step="5"
                 bind:value={$settings.appearance.sound.music_volume}
                 on:input={(e) => {
-                  soundService.setMusicVolume(
+                  app.customizationService.setMusicVolume(
                     parseInt((e.target as HTMLInputElement).value),
                   );
                 }} />
@@ -721,11 +723,11 @@ async function openIconsDirectory() {
               bind:value={$settings.appearance.sound.selected_soundpack}
               on:change={async (e) => {
                 const pack = (e.target as HTMLSelectElement).value;
-                await soundService.loadSoundpack(pack);
+                await app.customizationService.loadSoundpack(pack);
                 saveStatus = "Soundpack changed successfully";
                 setTimeout(() => (saveStatus = ""), 2000);
               }}>
-              {#each $availableSoundpacks as pack}
+              {#each app.customizationService.availableSoundpacks as pack}
                 <option value={pack.name}>{pack.displayName}</option>
               {/each}
             </select>

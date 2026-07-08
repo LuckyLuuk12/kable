@@ -37,6 +37,33 @@ pub async fn delete_profile(profile_id: &str) -> Result<(), String> {
     }
 }
 
+pub async fn toggle_favorite(profile: KableProfile) -> Result<KableProfile, String> {
+    let mut profiles = load_profiles().await?;
+    if let Some(pos) = profiles.iter().position(|p| p.id == profile.id) {
+        let mut updated_profile = profile.clone();
+        updated_profile.favorite = !profile.favorite;
+        profiles[pos] = updated_profile.clone();
+        save_profiles(&profiles).await?;
+        Ok(updated_profile)
+    } else {
+        Err(format!("Profile with id {} not found", profile.id))
+    }
+}
+
+/// Ensures lastUsed in the profile is updated in ISO 8601 format (e.g. "2024-12-23T18:23:42.000Z") to the current time, and saves the updated profile list
+pub async fn update_last_used(profile: KableProfile) -> Result<KableProfile, String> {
+    let mut profiles = load_profiles().await?;
+    if let Some(pos) = profiles.iter().position(|p| p.id == profile.id) {
+        let mut updated_profile = profile.clone();
+        updated_profile.last_used = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        profiles[pos] = updated_profile.clone();
+        save_profiles(&profiles).await?;
+        Ok(updated_profile)
+    } else {
+        Err(format!("Profile with id {} not found", profile.id))
+    }
+}
+
 pub async fn list_profiles() -> Result<Vec<KableProfile>, String> {
     load_profiles().await
 }

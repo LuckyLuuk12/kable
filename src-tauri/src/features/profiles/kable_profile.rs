@@ -73,6 +73,7 @@ async fn merge_profiles(launcher_profiles: LauncherProfiles, kable_profiles: Vec
 }
 
 /// async execute loading of the 2 different profile sources then join / await completion of both in async, save the profiles, and return the merged result
+/// After sorting by lastUsed such that the most recently used profile is first in the list
 pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
     let launcher_profiles_future = parse_launcher_profiles();
     let kable_profiles_future = parse_kable_profiles();
@@ -82,7 +83,9 @@ pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
     let launcher_profiles = launcher_profiles_result?;
     let kable_profiles = kable_profiles_result?;
 
-    let profiles = merge_profiles(launcher_profiles, kable_profiles).await?;
+    let mut profiles = merge_profiles(launcher_profiles, kable_profiles).await?;
+    profiles.sort_by(|a, b| b.last_used.cmp(&a.last_used));
+
     save_profiles(&profiles).await?;
     Ok(profiles)
 }
@@ -90,7 +93,11 @@ pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
 pub async fn save_profiles(profiles: &[KableProfile]) -> Result<(), String> {
     let launcher_dir = launcher_dir()?;
     let profiles_file = launcher_dir.join(KABLE_PROFILES_FILE);
-    let content = serde_json::to_string_pretty(profiles).map_err(|e| format!("Failed to serialize profiles: {e}"))?;
+    // Ensure profiles are sorted by last_used before saving
+    let mut profiles = profiles.to_vec();
+    profiles.sort_by(|a, b| b.last_used.cmp(&a.last_used));
+
+    let content = serde_json::to_string_pretty(&profiles).map_err(|e| format!("Failed to serialize profiles: {e}"))?;
 
     write_str(&profiles_file, &content, false).await?;
 

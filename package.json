@@ -21,8 +21,6 @@
     "format:api-types": "cd api-types && cargo fmt && taplo fmt Cargo.toml && cd ..",
     "format:api-typegen": "cd api-typegen && cargo fmt && taplo fmt Cargo.toml && cd ..",
     "format:kable-macros": "cd kable-macros && cargo fmt && taplo fmt Cargo.toml && cd ..",
-    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "generate:image-keys": "node scripts/generate-image-keys.mjs",
     "generate:wix-images": ".venv\\Scripts\\python.exe scripts/generate-wix-images.py",
     "typegen": "cd api-typegen && cargo run",
@@ -30,9 +28,11 @@
     "version:patch": "node scripts/bump-version.mjs patch",
     "version:minor": "node scripts/bump-version.mjs minor",
     "version:major": "node scripts/bump-version.mjs major",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "lint:watch": "chokidar \"src/**/*.{ts,svelte,js}\" -c \"npm run lint\""
+    "lint:watch": "npm run lint && chokidar \"src/**/*.{ts,svelte,js}\" -c \"npm run lint\""
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.10",
@@ -41,6 +41,7 @@
     "@tauri-apps/cli": "^2.10.0",
     "@typescript-eslint/parser": "^8.62.1",
     "@typescript-eslint/utils": "^8.62.1",
+    "chokidar-cli": "^3.0.0",
     "cookie": ">=0.7.0",
     "eslint": "^10.6.0",
     "eslint-plugin-svelte": "^3.20.0",

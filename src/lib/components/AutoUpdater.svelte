@@ -10,17 +10,11 @@ Displays update information including version numbers and allows users to instal
 ```
 -->
 <script lang="ts">
-import { onMount } from "svelte";
-import {
-  checkForUpdates,
-  installUpdate,
-  getCurrentVersion,
-  downloadUpdate,
-  applyDownloadedUpdate,
-} from "$lib";
-import { marked } from "marked";
-import { settings } from "$lib/stores";
+import { app } from "$lib";
 import { clickSound, successSound } from "$lib/actions";
+import { settings } from "$lib/stores";
+import { marked } from "marked";
+import { onMount } from "svelte";
 
 let currentVersion = "";
 let updateInfo: any = null;
@@ -34,7 +28,7 @@ let downloadedPath: string | null = null;
 
 onMount(async () => {
   try {
-    currentVersion = await getCurrentVersion();
+    currentVersion = await app.updaterService.getCurrentVersion();
   } catch (e) {
     console.error("Failed to get current version:", e);
   }
@@ -52,7 +46,7 @@ async function handleCheckForUpdates() {
       checkNightly,
     );
     console.log("[AutoUpdater] Full settings.advanced:", $settings?.advanced);
-    updateInfo = await checkForUpdates(checkNightly);
+    updateInfo = await app.updaterService.check(checkNightly);
 
     if (updateInfo?.body) {
       releaseNotesHtml = await marked.parse(updateInfo.body, {
@@ -75,7 +69,7 @@ async function handleInstallUpdate() {
 
   try {
     const checkNightly = $settings?.advanced?.check_nightly_updates ?? false;
-    await installUpdate(checkNightly);
+    await app.updaterService.install(checkNightly);
     // App will restart automatically after update
   } catch (e) {
     error = `Failed to install update: ${e}`;
@@ -89,7 +83,7 @@ async function handleDownloadUpdate() {
   error = "";
   try {
     const checkNightly = $settings?.advanced?.check_nightly_updates ?? false;
-    downloadedPath = await downloadUpdate(checkNightly);
+    downloadedPath = await app.updaterService.download(checkNightly);
   } catch (e) {
     error = `Failed to download update: ${e}`;
   } finally {
@@ -101,7 +95,7 @@ async function handleInstallDownloaded() {
   isApplying = true;
   error = "";
   try {
-    await applyDownloadedUpdate();
+    await app.updaterService.applyDownloaded();
   } catch (e) {
     error = `Failed to apply downloaded update: ${e}`;
     isApplying = false;
@@ -120,8 +114,7 @@ async function handleInstallDownloaded() {
       class="check-button"
       on:click={handleCheckForUpdates}
       use:clickSound
-      disabled={isChecking || isInstalling}
-    >
+      disabled={isChecking || isInstalling}>
       {#if isChecking}
         Checking...
       {:else}
@@ -146,8 +139,7 @@ async function handleInstallDownloaded() {
             on:click={handleDownloadUpdate}
             use:clickSound
             disabled={isDownloading || isInstalling}
-            title="Download installer now; will be applied on restart or when you click 'Install downloaded'"
-          >
+            title="Download installer now; will be applied on restart or when you click 'Install downloaded'">
             {#if isDownloading}
               Downloading...
             {:else}
@@ -161,8 +153,7 @@ async function handleInstallDownloaded() {
             on:click={handleInstallUpdate}
             use:successSound
             disabled={isInstalling}
-            title="App will restart to complete installation"
-          >
+            title="App will restart to complete installation">
             {#if isInstalling}
               Installing...
             {:else}
@@ -176,8 +167,7 @@ async function handleInstallDownloaded() {
             on:click={handleInstallDownloaded}
             use:successSound
             disabled={!downloadedPath || isApplying}
-            title="Install the previously downloaded update and restart the app"
-          >
+            title="Install the previously downloaded update and restart the app">
             {#if isApplying}
               Installing...
             {:else}
