@@ -27,6 +27,15 @@ const svelteRecommended = downgradeToWarnings(
 );
 
 export default [
+  {
+    ignores: [
+      ".svelte-kit/**",
+      "node_modules/**",
+      "build/**",
+      "src-tauri/**",
+      "scripts/**",
+    ]
+  },
   // Svelte rules
   ...svelteRecommended,
 

@@ -1,15 +1,11 @@
 //Variable bootstrap (design system)
-@use "./variables/colors";
-@use "./variables/font";
-@use "./variables/layout";
-@use "./variables/motion";
-@use "./variables/radius";
-@use "./variables/shadows";
-@use "./variables/space";
+@use "variables" as *;
 
-@use "./primitives";
-@use "./reset";
-@use "./transform";
+@use "./primitives" as *;
+@use "./reset" as *;
+@use "./transform" as *;
+
+@forward "variables";
 
 //Base app surface
 html,
@@ -37,8 +33,8 @@ body {
 
 //Selection
 ::selection {
-  background: $color-primary-500;
-  color: $color-white;
+  background: $color-accent;
+  color: $color-text;
 }
 
 //Input text selection override
@@ -58,7 +54,7 @@ textarea {
 }
 
 button {
-  cursor: $interaction-cursor-pointer;
+  cursor: pointer;
   background: transparent;
   border: none;
   padding: 0;
@@ -66,10 +62,9 @@ button {
 
 //Focus system (global behavior only)
 :focus-visible {
-  outline: $interaction-focus-width $interaction-focus-style
-    $interaction-focus-color;
+  outline: none;
 
-  outline-offset: $interaction-focus-offset;
+  outline-offset: 0;
 }
 
 //Scroll behavior (desktop app model)

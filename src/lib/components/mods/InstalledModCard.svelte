@@ -612,7 +612,7 @@ function handleKeydown(event: KeyboardEvent) {
 
 .installed-mod-card {
   background: var(--card);
-  border: 1px solid rgba($primary, 0.08);
+  border: 1px solid rgba($colors-accent, 0.08);
   border-radius: 0.5rem;
   padding: 0.25rem;
   display: flex;
@@ -623,9 +623,9 @@ function handleKeydown(event: KeyboardEvent) {
   position: relative;
 
   &:hover {
-    border-color: rgba($primary, 0.2);
+    border-color: rgba($colors-accent, 0.2);
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba($primary, 0.1);
+    box-shadow: 0 2px 8px rgba($colors-accent, 0.1);
   }
 
   &:active {
@@ -647,7 +647,7 @@ function handleKeydown(event: KeyboardEvent) {
   }
 
   &:focus {
-    outline: 2px solid rgba($primary, 0.4);
+    outline: 2px solid rgba($colors-accent, 0.4);
     outline-offset: 2px;
   }
 }
@@ -752,7 +752,7 @@ function handleKeydown(event: KeyboardEvent) {
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
-  border: 1px solid rgba($primary, 0.2);
+  border: 1px solid rgba($colors-accent, 0.2);
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: 0.75rem;
@@ -762,7 +762,7 @@ function handleKeydown(event: KeyboardEvent) {
 
   &:hover:not(:disabled) {
     background: var(--bg-tertiary);
-    border-color: rgba($primary, 0.3);
+    border-color: rgba($colors-accent, 0.3);
     transform: translateY(-1px);
   }
 

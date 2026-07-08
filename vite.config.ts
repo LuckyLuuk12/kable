@@ -7,6 +7,9 @@ export default defineConfig({
     preprocessorOptions: {
       scss: {
         api: 'modern',
+        additionalData: `
+          @use "$lib/styles/global.scss" as *;
+        `,
         includePaths: [
           'src/lib/styles',
           'node_modules',

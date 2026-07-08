@@ -114,7 +114,11 @@ function disableMaxWorldBackups() {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  background: linear-gradient(to right, $primary, $secondary);
+  background: linear-gradient(
+    to right,
+    $colors-accent,
+    $colors-accent-secondary
+  );
   color: var(--text-transparent);
   background-clip: text;
   -webkit-background-clip: text;

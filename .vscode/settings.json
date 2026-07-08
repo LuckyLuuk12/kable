@@ -1,4 +1,6 @@
 {
+  "svelte.plugin.typescript.enable": true,
+  "js/ts.tsserver.experimental.enableProjectDiagnostics": true,
   "eslint.lintTask.enable": true,
   "eslint.validate": [
     "javascript",

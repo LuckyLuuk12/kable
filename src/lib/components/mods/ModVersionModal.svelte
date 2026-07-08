@@ -457,7 +457,7 @@ function formatDate(dateString: string): string {
 .modal-content {
   background: var(--card);
   border-radius: 0.75rem;
-  border: 1px solid rgba($primary, 0.15);
+  border: 1px solid rgba($colors-accent, 0.15);
   box-shadow: 0 20px 60px rgba($dark-900, 0.5);
   max-width: 800px;
   width: 100%;
@@ -472,7 +472,7 @@ function formatDate(dateString: string): string {
   align-items: center;
   justify-content: space-between;
   padding: 1.5rem;
-  border-bottom: 1px solid rgba($primary, 0.1);
+  border-bottom: 1px solid rgba($colors-accent, 0.1);
 
   .modal-title {
     display: flex;
@@ -492,7 +492,7 @@ function formatDate(dateString: string): string {
       align-items: center;
       gap: 0.25rem;
       padding: 0.25rem 0.5rem;
-      background: rgba($secondary, 0.1);
+      background: rgba($colors-accent-secondary, 0.1);
       color: var(--secondary);
       border-radius: 4px;
       font-size: 0.75rem;
@@ -511,7 +511,7 @@ function formatDate(dateString: string): string {
     transition: all 0.2s ease;
 
     &:hover {
-      background: rgba($primary, 0.1);
+      background: rgba($colors-accent, 0.1);
       color: var(--text);
     }
   }
@@ -521,8 +521,8 @@ function formatDate(dateString: string): string {
   display: flex;
   gap: 1rem;
   padding: 1rem 1.5rem;
-  background: rgba($primary, 0.03);
-  border-bottom: 1px solid rgba($primary, 0.1);
+  background: rgba($colors-accent, 0.03);
+  border-bottom: 1px solid rgba($colors-accent, 0.1);
   flex-wrap: wrap;
 
   .filter-group {
@@ -544,7 +544,7 @@ function formatDate(dateString: string): string {
     input {
       padding: 0.5rem;
       background: var(--card);
-      border: 1px solid rgba($primary, 0.2);
+      border: 1px solid rgba($colors-accent, 0.2);
       border-radius: 0.375rem;
       color: var(--text);
       font-size: 0.875rem;
@@ -553,7 +553,7 @@ function formatDate(dateString: string): string {
       &:focus {
         outline: none;
         border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba($primary, 0.1);
+        box-shadow: 0 0 0 3px rgba($colors-accent, 0.1);
       }
     }
   }
@@ -597,13 +597,13 @@ function formatDate(dateString: string): string {
   gap: 1rem;
   padding: 1rem;
   background: var(--container);
-  border: 1px solid rgba($primary, 0.1);
+  border: 1px solid rgba($colors-accent, 0.1);
   border-radius: 0.5rem;
   transition: all 0.2s ease;
 
   &:hover {
-    background: rgba($primary, 0.05);
-    border-color: rgba($primary, 0.2);
+    background: rgba($colors-accent, 0.05);
+    border-color: rgba($colors-accent, 0.2);
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba($dark-900, 0.1);
   }
@@ -676,8 +676,8 @@ function formatDate(dateString: string): string {
 
     .loader-badge {
       padding: 0.125rem 0.5rem;
-      background: rgba($secondary, 0.1);
-      border: 1px solid rgba($secondary, 0.3);
+      background: rgba($colors-accent-secondary, 0.1);
+      border: 1px solid rgba($colors-accent-secondary, 0.3);
       border-radius: 0.25rem;
       color: var(--secondary);
       font-weight: 600;
@@ -715,8 +715,8 @@ function formatDate(dateString: string): string {
 
     .more-versions-btn {
       padding: 0.125rem 0.5rem;
-      background: rgba($primary, 0.1);
-      border: 1px solid rgba($primary, 0.3);
+      background: rgba($colors-accent, 0.1);
+      border: 1px solid rgba($colors-accent, 0.3);
       border-radius: 0.25rem;
       color: var(--primary);
       font-weight: 600;
@@ -725,8 +725,8 @@ function formatDate(dateString: string): string {
       transition: all 0.2s ease;
 
       &:hover {
-        background: rgba($primary, 0.15);
-        border-color: rgba($primary, 0.4);
+        background: rgba($colors-accent, 0.15);
+        border-color: rgba($colors-accent, 0.4);
       }
     }
   }
@@ -734,7 +734,7 @@ function formatDate(dateString: string): string {
   .version-changelog {
     margin-top: 0.25rem;
     padding-top: 0.5rem;
-    border-top: 1px solid rgba($primary, 0.05);
+    border-top: 1px solid rgba($colors-accent, 0.05);
 
     .changelog-text {
       margin: 0 0 0.5rem 0;
@@ -776,7 +776,7 @@ function formatDate(dateString: string): string {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.5rem;
-  border-top: 1px solid rgba($primary, 0.1);
+  border-top: 1px solid rgba($colors-accent, 0.1);
 
   .version-count {
     margin: 0;

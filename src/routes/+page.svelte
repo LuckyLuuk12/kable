@@ -1,23 +1,21 @@
 <script lang="ts">
 import {
+  app,
   Icon,
   Image,
   installations,
   installationsError,
-  InstallationService,
   isLoadingInstallations,
-  type KableInstallation,
-  Launcher,
+  type KableProfile,
   settings,
 } from "$lib";
 import { launchSound } from "$lib/actions";
-import { openUrl } from "$lib/api/system";
 import InstallationsList from "$lib/components/installations/InstallationsList.svelte";
 import { isLaunching } from "$lib/stores/launcher";
 import { onMount } from "svelte";
 
 // State variables
-let lastPlayedInstallations: KableInstallation[] = [];
+let lastPlayedInstallations: KableProfile[] = [];
 let error: string | null = null;
 let viewMode: "grid" | "list" = "grid";
 let launchStatus = "";
@@ -37,7 +35,7 @@ $: {
     console.log("Total installations:", $installations.length);
 
     lastPlayedInstallations = $installations
-      .sort((a: KableInstallation, b: KableInstallation) => {
+      .sort((a: KableProfile, b: KableProfile) => {
         const aTime = new Date(a.last_used || 0).getTime();
         const bTime = new Date(b.last_used || 0).getTime();
         return bTime - aTime;
@@ -135,11 +133,11 @@ async function handlePlay() {
       console.log("Launching installation:", lastPlayedInstallations[0]);
       launchStatus = `Launching ${lastPlayedInstallations[0].name}...`;
       // Launch the installation directly using Launcher
-      result = await Launcher.launchInstallation(lastPlayedInstallations[0]);
+      result = await app.launcherService.launch(lastPlayedInstallations[0]);
     } else {
       launchStatus = "Launching default Minecraft...";
       // Use Launcher for quick launch fallback
-      result = await Launcher.launchLatest();
+      result = await app.launcherService.launchLatest();
     }
 
     if (result.success) {
@@ -162,7 +160,7 @@ async function handlePlay() {
   }
 }
 
-async function handleInstallationLaunch(installation: KableInstallation) {
+async function handleInstallationLaunch(installation: KableProfile) {
   const launchButton = event?.target as HTMLButtonElement;
   const originalText = launchButton?.textContent || "";
 
@@ -258,7 +256,7 @@ async function commitRamChange(immediate = false) {
       ramAllocation,
       "MB",
     );
-    await InstallationService.updateInstallation(inst.id, updated);
+    await app.profilesService.modify(inst, updated);
     console.log("RAM allocation committed");
   } catch (err) {
     console.error("Failed to commit RAM allocation:", err);
@@ -281,7 +279,7 @@ function formatRamDisplay(mb: number): string {
 // Handle advertisement link clicks
 async function handleAdClick(url: string) {
   try {
-    await openUrl(url);
+    await app.openUrl(url);
   } catch (err) {
     console.error("Failed to open URL:", err);
   }
@@ -381,7 +379,7 @@ async function handleAdClick(url: string) {
         disabled={$isLaunching || lastPlayedInstallations.length === 0}>
         {#if $isLaunching}
           <Icon name="refresh" size="md" forceType="svg" className="spin" />
-          <span>{"Launching..."}</span>
+          <span>Launching...</span>
         {:else}
           <Icon name="play" size="md" forceType="svg" />
           <span>Play Minecraft</span>
@@ -410,7 +408,7 @@ async function handleAdClick(url: string) {
           {lastPlayedInstallations.length > 0
             ? lastPlayedInstallations[0].name !== ""
               ? lastPlayedInstallations[0].name
-              : lastPlayedInstallations[0].version_id
+              : lastPlayedInstallations[0].version.id
             : "No Installation"}
         </span>
         <span class="ram-display">{formatRamDisplay(ramAllocation)}</span>
