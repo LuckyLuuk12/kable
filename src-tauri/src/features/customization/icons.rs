@@ -1,7 +1,7 @@
 use crate::app_handle;
 use crate::constants::{CONFIG_DIR, ICONS_DIR};
 use crate::system::fs::{create_dir, launcher_dir, read_str};
-use api_types::icons::CustomIconTemplate;
+use api_types::icons::IconTemplate;
 use std::fs;
 use std::path::PathBuf;
 use tauri::Manager;
@@ -21,14 +21,14 @@ pub async fn ensure_icons_dir() -> Result<PathBuf, String> {
     }
 }
 
-pub async fn get_icon_templates() -> Result<Vec<CustomIconTemplate>, String> {
+pub async fn get_icon_templates() -> Result<Vec<IconTemplate>, String> {
     let mut templates = get_builtin_icon_templates().await?;
     let custom_templates = get_custom_icon_templates().await?;
     templates.extend(custom_templates);
     Ok(templates)
 }
 
-pub async fn get_builtin_icon_templates() -> Result<Vec<CustomIconTemplate>, String> {
+pub async fn get_builtin_icon_templates() -> Result<Vec<IconTemplate>, String> {
     let paths = [
         app_handle()
             .path()
@@ -46,7 +46,7 @@ pub async fn get_builtin_icon_templates() -> Result<Vec<CustomIconTemplate>, Str
     let mut templates = Vec::new();
     for path in paths {
         if let Ok(content) = read_str(&path).await {
-            if let Ok(template) = serde_json::from_str::<CustomIconTemplate>(&content) {
+            if let Ok(template) = serde_json::from_str::<IconTemplate>(&content) {
                 templates.push(template);
             }
         }
@@ -55,7 +55,7 @@ pub async fn get_builtin_icon_templates() -> Result<Vec<CustomIconTemplate>, Str
 }
 
 /// Get all custom icon templates
-pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, String> {
+pub async fn get_custom_icon_templates() -> Result<Vec<IconTemplate>, String> {
     let icons_dir = ensure_icons_dir().await?;
     let mut templates = Vec::new();
 
@@ -66,7 +66,7 @@ pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, Stri
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("json") {
                 if let Ok(content) = read_str(&path).await {
-                    if let Ok(template) = serde_json::from_str::<CustomIconTemplate>(&content) {
+                    if let Ok(template) = serde_json::from_str::<IconTemplate>(&content) {
                         templates.push(template);
                     }
                 }
@@ -78,7 +78,7 @@ pub async fn get_custom_icon_templates() -> Result<Vec<CustomIconTemplate>, Stri
 }
 
 /// Save a custom icon template
-pub async fn save_custom_icon_template(template: CustomIconTemplate) -> Result<String, String> {
+pub async fn save_custom_icon_template(template: IconTemplate) -> Result<String, String> {
     let icons_dir = ensure_icons_dir().await?;
     let template_name = template.name.clone();
     let template_path = icons_dir.join(format!("{}.json", template_name));

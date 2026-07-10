@@ -2,9 +2,9 @@ import {
   type AppearanceSettings,
   type CategorizedLauncherSettings,
   type ContentSettings,
-  type CustomIconTemplate,
+  type IconTemplate,
   type SoundSettings,
-  api,
+  api
 } from "$lib";
 import type { Service } from "./app.service";
 
@@ -42,6 +42,8 @@ export class CustomizationService implements Service {
   loading = $state(false);
   saving = $state(false);
 
+  selectedIconTemplate = $state<string | null>(null);
+
   selectedSoundpack = $state("default");
   availableSoundpacks = $state<SoundpackListEntry[]>([]);
   isSoundsLoading = $state(false);
@@ -66,6 +68,7 @@ export class CustomizationService implements Service {
   private musicLoop = true;
   private musicShuffle = false;
 
+  // TODO: Similar as with icons: move this into static/sounds/default.json and let backend handle loading it and such
   private readonly defaultSoundpack: SoundpackManifest = {
     name: "default",
     version: "1.0.0",
@@ -89,6 +92,7 @@ export class CustomizationService implements Service {
       this.loading = true;
       try {
         this.settings = await api.getSettings();
+        this.initializeSoundSystem();
       } catch (error) {
         console.error("Failed to load customization settings:", error);
       } finally {
@@ -115,6 +119,158 @@ export class CustomizationService implements Service {
     }
   }
 
+  /// A sync method that makes a async callback to save settings, used in setters to persist changes without blocking the UI
+  private saveSettingsAsync() {
+    (async () => await this.save())().catch((error) => {
+      console.error("Failed to save customization settings:", error);
+    });
+  }
+
+
+  // #region GENERAL
+
+  // #endregion GENERAL
+
+
+
+  // #region APPEARANCE
+  get appearance(): AppearanceSettings | undefined {
+    return this.settings?.appearance;
+  }
+
+  set appearance(value: AppearanceSettings | undefined) {
+    if (!this.settings) return;
+
+    // If selected sound or icon template is changed we need to update the selectedSoundpack and selectedIconTemplate states accordingly to make sure reactive UI updates trigger:
+    this.selectedIconTemplate = value?.icon_template ?? null;
+    this.selectedSoundpack = value?.sound_settings?.selected_soundpack ?? "default";
+
+    this.settings = { ...this.settings, appearance: value };
+
+    this.saveSettingsAsync();
+  }
+
+  // #region language
+  setLanguage(language: AppearanceSettings["language"]) {
+    if (!this.settings?.appearance) return;
+
+    this.settings = {
+      ...this.settings,
+      appearance: {
+        ...this.settings.appearance,
+        language,
+      },
+    };
+  }
+
+  // #endregion language
+
+  // #region themes
+  setTheme(theme: AppearanceSettings["theme"]) {
+    if (!this.settings?.appearance) return;
+
+    this.settings = {
+      ...this.settings,
+      appearance: {
+        ...this.settings.appearance,
+        theme,
+      },
+    };
+
+    // Get the css content from backend and inject it or remove injected css if theme is null or empty
+    if (theme) {
+      api.get
+    }
+
+  private injectCustomCSS() {
+    // First, remove any existing custom CSS
+    this.removeCustomCSS();
+
+    // Create a new style element
+    const styleElement = document.createElement("style");
+    styleElement.type = "text/css";
+    styleElement.id = "user-custom-css";
+    styleElement.innerHTML = cssContent;
+
+    // Append to head (this ensures it comes after our compiled SCSS)
+    document.head.appendChild(styleElement);
+
+    // Force font loading and DOM reflow
+    setTimeout(() => {
+      // Trigger a reflow to ensure fonts are applied
+      document.body.style.fontFamily =
+        document.body.style.fontFamily ??
+        '"Open Sans", Tahoma, Geneva, sans-serif';
+      console.log("Font loading triggered: ", document.body.style.fontFamily);
+    }, 100);
+  }
+
+  private removeCustomCSS() {
+    // Remove existing custom CSS
+    const existingStyle = document.getElementById("user-custom-css");
+    if (existingStyle) {
+      existingStyle.remove();
+      // Trigger a reflow to ensure fonts are applied
+      document.body.style.fontFamily =
+        document.body.style.fontFamily ??
+        '"Open Sans", Tahoma, Geneva, sans-serif';
+      console.log(
+        "Previous custom CSS removed: ",
+        document.body.style.fontFamily,
+      );
+    }
+  }
+
+  // #endregion themes
+
+  // #region icons
+  async getIconTemplates(): Promise<IconTemplate[]> {
+    try {
+      return await api.getIconTemplates();
+    } catch (error) {
+      console.error("[CustomizationService] Failed to load icon templates:", error);
+      throw error;
+    }
+  }
+
+  async saveCustomIconTemplate(template: IconTemplate) {
+    try {
+      return await api.saveCustomIconTemplate(template);
+    } catch (error) {
+      console.error("[CustomizationService] Failed to save icon template:", error);
+      throw error;
+    }
+  }
+
+  async deleteCustomIconTemplate(templateName: string) {
+    try {
+      return await api.deleteCustomIconTemplate(templateName);
+    } catch (error) {
+      console.error("[CustomizationService] Failed to delete icon template:", error);
+      throw error;
+    }
+  }
+  async openIconsDirectory() {
+    try {
+      return await api.openIconsDirectory();
+    } catch (error) {
+      console.error("[CustomizationService] Failed to open icons directory:", error);
+      throw error;
+    }
+  }
+
+  // Handle getting icons by key/name in current template, if there is no selected template, we use "windows" by default with support of overriding icons with optional parameter:
+  async getIcon(key: string, overrideTemplate?: string) {
+    // If the type of the selected template is not "builtin" we NEVER use the override template, override template is only used if a builtin is used as builtins match my personal design opinions
+    const selectedTemplateId = this.settings?.appearance?.icon_template ?? overrideTemplate ?? "windows";
+    const selectedTemplate = (await this.getIconTemplates()).find((t) => t.id === selectedTemplateId);
+    return selectedTemplate?.icons[key] ?? selectedTemplate?.icons[selectedTemplate?.fallback_icon];
+  }
+
+  // #endregion icons
+
+  // #region sounds
+  // We handle sound settings and soundpack management here, including loading, playing, and managing soundpacks and music tracks.
   private async initializeSoundSystem(): Promise<void> {
     if (this.initialized) return;
 
@@ -354,86 +510,6 @@ export class CustomizationService implements Service {
     }
   }
 
-  // #region GENERAL
-
-  // #endregion GENERAL
-
-
-
-  // #region APPEARANCE
-  get appearance(): AppearanceSettings | undefined {
-    return this.settings?.appearance;
-  }
-
-  set appearance(value: AppearanceSettings | undefined) {
-    if (!this.settings) return;
-    this.settings = { ...this.settings, appearance: value };
-  }
-
-  // #region language
-  setLanguage(language: AppearanceSettings["language"]) {
-    if (!this.settings?.appearance) return;
-
-    this.settings = {
-      ...this.settings,
-      appearance: {
-        ...this.settings.appearance,
-        language,
-      },
-    };
-  }
-
-  // #endregion language
-  // #region themes
-  setTheme(theme: AppearanceSettings["theme"]) {
-    if (!this.settings?.appearance) return;
-
-    this.settings = {
-      ...this.settings,
-      appearance: {
-        ...this.settings.appearance,
-        theme,
-      },
-    };
-  }
-  // #region icons
-  async getIconTemplates() {
-    try {
-      return await api.getIconTemplates();
-    } catch (error) {
-      console.error("[CustomizationService] Failed to load icon templates:", error);
-      throw error;
-    }
-  }
-
-  async saveCustomIconTemplate(template: CustomIconTemplate) {
-    try {
-      return await api.saveCustomIconTemplate(template);
-    } catch (error) {
-      console.error("[CustomizationService] Failed to save icon template:", error);
-      throw error;
-    }
-  }
-
-  async deleteCustomIconTemplate(templateName: string) {
-    try {
-      return await api.deleteCustomIconTemplate(templateName);
-    } catch (error) {
-      console.error("[CustomizationService] Failed to delete icon template:", error);
-      throw error;
-    }
-  }
-  async openIconsDirectory() {
-    try {
-      return await api.openIconsDirectory();
-    } catch (error) {
-      console.error("[CustomizationService] Failed to open icons directory:", error);
-      throw error;
-    }
-  }
-  // #endregion icons
-  // #region sounds
-
   get sound(): SoundSettings | undefined {
     return this.settings?.appearance?.sound_settings;
   }
@@ -448,10 +524,8 @@ export class CustomizationService implements Service {
         sound_settings: value,
       },
     };
-  }
 
-  isInitialized(): boolean {
-    return this.initialized;
+    this.saveSettingsAsync();
   }
 
   async listSoundpacks() {
@@ -667,6 +741,7 @@ export class CustomizationService implements Service {
     }
   }
   // #endregion sounds
+
   // #endregion APPEARANCE
 
 
@@ -679,6 +754,8 @@ export class CustomizationService implements Service {
   set content(value: ContentSettings | undefined) {
     if (!this.settings) return;
     this.settings = { ...this.settings, content: value };
+
+    this.saveSettingsAsync();
   }
 
   // #endregion CONTENT

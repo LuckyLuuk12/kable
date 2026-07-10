@@ -2,6 +2,8 @@
   "id": "svg",
   "name": "SVG Icons",
   "version": "1.0.0",
+  "type": "builtin",
+  "default_icon_type": "svg",
   "author": "Kable Team",
   "description": "Clean SVG-based icons",
   "iconType": "svg",

@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::icons::IconTemplate;
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
 #[serde(default)]
 pub struct CategorizedLauncherSettings {
@@ -43,7 +45,7 @@ pub struct SoundSettings {
 pub struct AppearanceSettings {
     pub theme: Theme,
     pub language: Language,
-    pub icon_template: IconTemplate,
+    pub icon_template: Option<String>,
     pub custom_icon_templates: Vec<IconTemplate>,
     pub selected_css_theme: Option<String>,
     pub sound_settings: SoundSettings,
@@ -175,19 +177,6 @@ pub enum Language {
     // TODO: if we got some cool system for localization we could add more here
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
-#[repr(u8)]
-pub enum IconTemplate {
-    Default,
-    Icons,
-    FontAwesome,
-    SVG,
-    /// Custom template, specified by a path/name to a template file
-    Custom(String),
-}
-
 //?---------------------------------------------------------------------
 //? impl blocks, default, etc.
 //?---------------------------------------------------------------------
@@ -235,7 +224,7 @@ impl Default for AppearanceSettings {
     fn default() -> Self {
         Self {
             theme: Theme::System,
-            icon_template: IconTemplate::Default,
+            icon_template: None,
             language: Language::English,
             custom_icon_templates: vec![],
             selected_css_theme: None,

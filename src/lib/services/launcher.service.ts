@@ -32,6 +32,15 @@ export class LauncherService implements Service {
     }
   }
 
+  async launchLatest() {
+    const profiles = await api.getProfiles();
+    if (!profiles || profiles.length === 0) {
+      throw new Error("No profiles found to launch");
+    }
+    const latestProfile = profiles[0];
+    return await this.launch(latestProfile);
+  }
+
   /**
    * Auto-detect Java installation path
    */

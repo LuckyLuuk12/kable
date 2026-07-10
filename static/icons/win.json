@@ -2,6 +2,8 @@
   "id": "emoji",
   "name": "Emoji Icons",
   "version": "1.0.0",
+  "type": "builtin",
+  "default_icon_type": "emoji",
   "author": "Kable",
   "description": "Default emoji-based icons",
   "iconType": "emoji",

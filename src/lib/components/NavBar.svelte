@@ -75,10 +75,10 @@ onMount(async () => {
       );
 
       // Refresh tokens for all accounts in background to ensure they're ready to use
-      AuthService.refreshAllAccountTokens().catch((error) => {
+      AuthService.refreshAllAccountTokens().catch((error: any) => {
         console.error("Failed to refresh all account tokens:", error);
       });
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to initialize auth service:", e);
       LogsService.emitLauncherEvent(
         `Authentication initialization failed: ${e}`,
@@ -92,7 +92,7 @@ onMount(async () => {
     const iconPromise = IconService.initialize();
 
     // Load versions in the background AFTER installations start loading
-    InstallationService.loadVersions().catch((e) => {
+    InstallationService.loadVersions().catch((e: any) => {
       console.error("Failed to load versions:", e);
     });
 
@@ -107,15 +107,15 @@ onMount(async () => {
     try {
       LogsService.emitLauncherEvent("Initializing sound system...", "info");
       // Destroy existing instance if already initialized (for HMR)
-      if (app.customizationService.isInitialized()) {
-        await app.customizationService.destroy();
-      }
+      // if (app.customizationService.isInitialized()) {
+      //   await app.customizationService.destroy();
+      // }
       await app.customizationService.init();
       LogsService.emitLauncherEvent(
         "Sound system initialized successfully",
         "info",
       );
-    } catch (e) {
+    } catch (e: any) {
       console.error("Failed to initialize sound service:", e);
       LogsService.emitLauncherEvent(
         `Sound system initialization failed: ${e}`,
@@ -143,7 +143,7 @@ onMount(async () => {
 
     // Set up settings behavior event listeners
     await setupSettingsEventListeners();
-  } catch (error) {
+  } catch (error: any) {
     console.error("Tauri initialization error:", error);
     LogsService.emitLauncherEvent(`Initialization error: ${error}`, "error");
   }

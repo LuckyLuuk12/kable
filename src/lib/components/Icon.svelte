@@ -16,25 +16,15 @@ Automatically selects the appropriate icon type based on the IconService configu
 ```
 -->
 <script lang="ts">
+import { app, type IconData } from "$lib";
 import { onMount } from "svelte";
-import { IconService, selectedTemplate } from "$lib";
 
 export let name: string;
 export let size: "sm" | "md" | "lg" | "xl" = "md";
 export let className: string = "";
-export let forceType:
-  | "emoji"
-  | "fontawesome"
-  | "svg"
-  | "system"
-  | "css"
-  | null = null;
+export let forceType: "windows" | "fa" | "svg" | undefined;
 
-let iconData: { icon: string; type: string; fallback: string } = {
-  icon: "❓",
-  type: "emoji",
-  fallback: "❓",
-};
+let iconData: IconData | undefined;
 
 // Size mappings
 const sizeClasses = {
@@ -46,17 +36,17 @@ const sizeClasses = {
 
 // Initialize icon system on mount
 onMount(async () => {
-  await IconService.initialize();
+  // await app.customizationService.initialize();
   updateIcon();
 });
 
 // Update icon when name changes or when selected template changes
-$: if (name || $selectedTemplate) {
+$: if (name || app.customizationService.selectedIconTemplate) {
   updateIcon();
 }
 
-function updateIcon() {
-  iconData = IconService.getIconWithFallback(name, forceType);
+async function updateIcon() {
+  iconData = await app.customizationService.getIcon(name, forceType);
 }
 
 // Validate SVG content for security
@@ -90,8 +80,8 @@ function isValidSvg(content: string): boolean {
 }
 
 // Reactive statements for rendering
-$: type = iconData.type;
-$: icon = iconData.icon;
+$: type = iconData?.full?.type || null;
+$: icon = iconData?.full?.icon ?? iconData?.legacy ?? "❓";
 
 // Log warning if SVG type but invalid content
 $: if (type === "svg" && !isValidSvg(icon)) {
@@ -106,35 +96,23 @@ $: if (type === "svg" && !isValidSvg(icon)) {
   <span
     class="icon icon-emoji {sizeClasses[size]} {className}"
     role="img"
-    aria-label={name}
-  >
+    aria-label={name}>
     {icon}
   </span>
-{:else if type === "fontawesome"}
+{:else if type === "css_class"}
   <i
     class="icon icon-fontawesome {icon} {sizeClasses[size]} {className}"
-    aria-label={name}
-  ></i>
+    aria-label={name}></i>
 {:else if type === "svg"}
   <span class="icon icon-svg {sizeClasses[size]} {className}" aria-label={name}>
     {@html icon}
-  </span>
-{:else if type === "system" || type === "css"}
-  <span
-    class="icon icon-system {sizeClasses[size]} {className}"
-    data-icon={icon}
-    aria-label={name}
-  >
-    <!-- System/CSS icon placeholder - fallback to emoji -->
-    {iconData.fallback}
   </span>
 {:else}
   <!-- Custom template type (svg, image, etc.) - render as span -->
   <span
     class="icon icon-custom {sizeClasses[size]} {className}"
     role="img"
-    aria-label={name}
-  >
+    aria-label={name}>
     {icon}
   </span>
 {/if}

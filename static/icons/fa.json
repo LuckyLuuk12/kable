@@ -2,6 +2,8 @@
   "id": "fa",
   "name": "Font Awesome Icons",
   "version": "6.0.0",
+  "type": "builtin",
+  "default_icon_type": "css_class",
   "author": [
     "Font Awesome Team",
     "Kable"

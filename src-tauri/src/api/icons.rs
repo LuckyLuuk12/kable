@@ -1,15 +1,15 @@
 use crate::features::customization::icons;
-use api_types::icons::CustomIconTemplate;
+use api_types::icons::IconTemplate;
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_icon_templates() -> Result<Vec<CustomIconTemplate>, String> {
+pub async fn get_icon_templates() -> Result<Vec<IconTemplate>, String> {
     icons::get_icon_templates().await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn save_custom_icon_template(template: CustomIconTemplate) -> Result<String, String> {
+pub async fn save_custom_icon_template(template: IconTemplate) -> Result<String, String> {
     icons::save_custom_icon_template(template).await
 }
 
