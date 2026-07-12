@@ -1,34 +1,31 @@
 use crate::constants::{CONFIG_DIR, THEMES_DIR};
 use crate::system::fs;
 use std::path::PathBuf;
-use tauri::AppHandle;
 
-type FsResult<T> = Result<T, String>;
-
-pub fn css_themes_dir() -> FsResult<PathBuf> {
+fn css_themes_dir() -> Result<PathBuf, String> {
     Ok(fs::launcher_dir()?.join(CONFIG_DIR).join(THEMES_DIR))
 }
 
-async fn ensure_css_themes_dir() -> FsResult<PathBuf> {
+async fn ensure_css_themes_dir() -> Result<PathBuf, String> {
     let dir = css_themes_dir()?;
     fs::create_dir(&dir).await?;
     Ok(dir)
 }
 
-pub fn builtin_themes(_app: &AppHandle) -> FsResult<Vec<String>> {
+fn builtin_themes() -> Result<Vec<String>, String> {
     Ok(vec![
-        "builtin:default".into(),
-        "builtin:dark".into(),
-        "builtin:light".into(),
-        "builtin:ocean".into(),
-        "builtin:forest".into(),
-        "builtin:crimson".into(),
-        "builtin:amber".into(),
+        // "builtin:default".into(),
+        // "builtin:dark".into(),
+        // "builtin:light".into(),
+        // "builtin:ocean".into(),
+        // "builtin:forest".into(),
+        // "builtin:crimson".into(),
+        // "builtin:amber".into(),
     ])
 }
 
-pub async fn list_css_themes(app: AppHandle) -> FsResult<Vec<String>> {
-    let mut themes = builtin_themes(&app)?;
+pub async fn list_css_themes() -> Result<Vec<String>, String> {
+    let mut themes = builtin_themes()?;
 
     let dir = ensure_css_themes_dir().await?;
 
@@ -53,7 +50,7 @@ pub async fn list_css_themes(app: AppHandle) -> FsResult<Vec<String>> {
     Ok(themes)
 }
 
-pub async fn load_css_theme(name: String, _app: AppHandle) -> FsResult<String> {
+pub async fn load_css_theme(name: String) -> Result<String, String> {
     if let Some(id) = name.strip_prefix("builtin:") {
         return Ok(format!("/* builtin theme: {} */", id));
     }
@@ -68,7 +65,7 @@ pub async fn load_css_theme(name: String, _app: AppHandle) -> FsResult<String> {
     Err(format!("invalid theme name: {}", name))
 }
 
-pub async fn save_css_theme(name: String, css: String) -> FsResult<String> {
+pub async fn save_css_theme(name: String, css: String) -> Result<String, String> {
     let dir = ensure_css_themes_dir().await?;
     let path = dir.join(format!("{}.css", name));
 
@@ -77,7 +74,7 @@ pub async fn save_css_theme(name: String, css: String) -> FsResult<String> {
     Ok(format!("custom:{}", name))
 }
 
-pub async fn delete_css_theme(name: String) -> FsResult<()> {
+pub async fn delete_css_theme(name: String) -> Result<(), String> {
     let Some(id) = name.strip_prefix("custom:") else {
         return Err("only custom themes can be deleted".to_string());
     };
@@ -92,7 +89,7 @@ pub async fn delete_css_theme(name: String) -> FsResult<()> {
     Ok(())
 }
 
-pub async fn open_css_themes_directory() -> FsResult<()> {
+pub async fn open_css_themes_directory() -> Result<(), String> {
     let dir = ensure_css_themes_dir().await?;
 
     #[cfg(target_os = "windows")]

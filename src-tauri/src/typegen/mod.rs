@@ -19,6 +19,26 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::set_active_account,
             api::get_active_account,
             // #endregion Accounts
+            // #region Customization
+            api::get_icon_templates,
+            api::save_custom_icon_template,
+            api::delete_custom_icon_template,
+            api::open_icons_directory,
+            api::resolve_image_path,
+            api::get_settings,
+            api::set_settings,
+            api::list_soundpacks,
+            api::get_soundpack_metadata,
+            api::load_soundpack_file,
+            api::import_soundpack_zip,
+            api::get_sounds_directory_path,
+            api::open_sounds_directory,
+            api::list_css_themes,
+            api::load_css_theme,
+            api::save_css_theme,
+            api::delete_css_theme,
+            api::open_css_themes_directory,
+            // #endregion Customization
             // #region Discord
             api::initialize_discord_rpc,
             api::set_discord_enabled,
@@ -28,15 +48,6 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::clear_discord_presence,
             api::disconnect_discord,
             // #endregion Discord
-            // #region Icons
-            api::get_icon_templates,
-            api::save_custom_icon_template,
-            api::delete_custom_icon_template,
-            api::open_icons_directory,
-            // #endregion Icons
-            // #region Images
-            api::resolve_image_path,
-            // #endregion Images
             // #region Launcher
             api::launch_game,
             api::auto_detect_java,
@@ -63,18 +74,6 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::delete_profile,
             api::get_versions,
             // #endregion Profiles
-            // #region Settings
-            api::get_settings,
-            api::set_settings,
-            // #endregion Settings
-            // #region Sounds
-            api::list_soundpacks,
-            api::get_soundpack_metadata,
-            api::load_soundpack_file,
-            api::import_soundpack_zip,
-            api::get_sounds_directory_path,
-            api::open_sounds_directory,
-            // #endregion Sounds
             // #region Symlinks
             api::get_symlinks,
             api::temporary_symlinks,
