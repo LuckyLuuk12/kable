@@ -87,6 +87,57 @@ src/
 10. whenever a function from old code uses nested functions or perform checks/util itself try to refactor into smaller functions and put them in the correct place (system, integration, or feature util) so we can reuse them and keep the code clean.
 11. "installations" are called "profiles" now, older "player/mojang profiles" are "accounts" now, we should reflect this in naming of functions, variables, etc. to avoid confusion.
 
+# Frontend refactor:
+Intention was to do this after the full backend refactor but it is hard to tell what is correct/missing/wrong without the frontend working so we do this in parallel.
+
+## Basic structure:
+```
+src/
+├── lib/
+│   ├── actions/             % app-specific interaction wrapper utils like playing sound,.. might move this to services
+│   ├── components/          % svelte components, grouped by feature
+│   │   ├── auth/            % authentication UI
+│   │   ├── mods/            % mod management UI
+│   │   ├── notifications/   % notification UI
+│   │   ├── resourcepacks/   % resourcepack management UI
+│   │   ├── settings/        % settings UI
+│   │   ├── shaders/         % shader management UI
+│   │   ├── skins/           % skin management UI
+│   │   └── profiles/        % profile management UI
+│   ├── services/            % the "backend" of the frontend, all the logic that interacts with the backend and provides data to the UI 
+│   │                        % this is the last layer before UI, components and routes should call this and not handle logic themselves!! 
+│   ├── styles/              % full custom scss style organized with _<name>.scss files
+│   │   └── variables/       % contains various subfiles for variables like colors, fonts, etc. (uses css variables in scss variables 
+│   │                        % so we can use scss variables in code while keeping runtime modifiable css variables)
+│   ├── utils/               % small util functions, AVOID using this for things that could have been in a service...
+│   ├── api.ts               % generated api file from backend containing types AND a commands const object with api-functions
+│   └── wrapped_api.ts       % wraps api.ts functions with the utils/result.ts code to more easily handle the generated commands 
+└── routes/                  % svelte routes, grouped by feature
+```
+
+## Refactor
+Similarly to the backend refactor we intended to perform first, we have to refactor the frontend accordingly. The main goal is to have a clear separation of concerns and to make the code more maintainable and testable by:
+1. clearly separating the UI components from the logic that interacts with the backend (services)
+2. grouping components and services by feature
+3. avoiding "utils" that contain logic that should be in a service
+4. having svelte 5 idiomatic code (e.g. no stores but `$state` inside services, no `on:click` but `onclick` for handlers/attributes, using `$derived` or instead of `$:` or `$someStore`, etc)
+5. Keep styling centralized in `styles` folder, forbidden to use inline-styling unless absolutely necessary (e.g. dynamic styles that cannot be done in scss), and avoid using css frameworks! Also keep the styling organized
+6. Keep svelte files ordered by: 
+   - (optional) `<!-- @component -->` comment at the top of the file
+   - `<script>`   (with `lang="ts"`)
+   - `<template>` (html)
+   - `<style>`    (with `lang="scss"`)
+7. Never manually modify `api.ts` or `wrapped_api.ts`, they are generated from the backend code and will be overwritten on build.
+8. During the refactor, if some backend function has not (yet) been refactored just "stub" the frontend service call (e.g. make an empty (async) function in the relevant service and use that in the component/route) so we can still work on the frontend while the backend is being refactored. Once the backend function is refactored, we can implement the service call properly.
+9. We changed "installations" to "profiles" in backend and we should reflect this in the frontend, for ease it is also better to keep variable naming consistenent (e.g. don't use `activeAccount`, `activeProfile`, `currentAccount` interchangeably, as well as `currentInstallation` or `currentProfile` etc. but rather use `activeProfile` and `activeAccount` consistently throughout the codebase).
+10. We changed "player/mojang profiles" to "accounts" in backend and we should reflect this in the frontend, for ease it is also better to keep variable naming consistenent (e.g. don't use `activeAccount`, `activeProfile`, `currentAccount` interchangeably, as well as `currentInstallation` or `currentProfile` etc. but rather use `activeProfile` and `activeAccount` consistently throughout the codebase).
+11. we use barrel (re) exporting so in each (sub) folder we have an `index.ts` file that exports all the files in that folder
+12. since we use barrel exporting, whenever some frontend file imports something it should always do `import { something, type sometype } from "$lib"` and group it all under that single import. Only (to avoid cycling imports) if the file is in the same folder as the imported file, we can do `import { something, type sometype } from "./<file>"` instead of `$lib`.
+13. some components might have to change significantly since we (more smartly) made new types for things like Modrinth projects which contain all "metadata" 
+
+
+
+# More future ideas:
 ## Add more features (NOT before the refactor!!)
 - rename profile id's to something more user friendly, like "My Modpack" instead of "profile_1234"
 - allow modpack creation from profiles, very similar to "export profile" but it should make a valid `mrpack`

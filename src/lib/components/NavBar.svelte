@@ -11,365 +11,28 @@ Initializes all required services on mount.
 ```
 -->
 <script lang="ts">
-import { goto } from "$app/navigation";
+import { resolve } from "$app/paths";
 import { page } from "$app/stores";
-import type {
-  BehaviorChoiceEventPayload,
-  GameRestartEventPayload,
-  NavigationEventPayload,
-} from "$lib";
-import {
-  AuthService,
-  Icon,
-  IconService,
-  InstallationService,
-  LogsService,
-  PlayerHead,
-  SettingsService,
-  UpdaterService,
-  app,
-  currentAccount,
-  currentLaunchingInstallation,
-  isLaunching,
-  launchTimeoutHandle,
-  logsService,
-  settings,
-} from "$lib";
+import { Icon, PlayerHead, app } from "$lib";
 import { buttonSound } from "$lib/actions/soundActions";
+import { currentAccount, settings } from "$lib/stores";
 import "$lib/styles/global.scss";
 import { onDestroy, onMount } from "svelte";
-import { get } from "svelte/store";
 
 // Here we initialize all the required managers and services
 onMount(async () => {
   console.log("Starting layout initialization...");
-  // Wait a bit for Tauri to fully initialize
-  await new Promise((resolve) => setTimeout(resolve, 50));
   try {
-    // Initialize progressive loading listeners FIRST
-    await InstallationService.initializeProgressiveLoading();
-
-    // Initialize logs service early so we can emit events
-    const logsPromise = logsService.initialize();
-
-    try {
-      await logsPromise;
-      LogsService.emitLauncherEvent("Kable launcher starting up...", "info");
-      LogsService.emitLauncherEvent(
-        "Initializing launcher components...",
-        "info",
-      );
-    } catch (e) {
-      console.error("Failed to initialize logs service:", e);
-    }
-
-    // CRITICAL: Initialize auth service FIRST and WAIT for it
-    // This ensures accounts are loaded before user can launch games
-    try {
-      LogsService.emitLauncherEvent("Initializing authentication...", "info");
-      await AuthService.initialize();
-      await AuthService.refreshCurrentAccount();
-      LogsService.emitLauncherEvent(
-        "Authentication initialized successfully",
-        "info",
-      );
-
-      // Refresh tokens for all accounts in background to ensure they're ready to use
-      AuthService.refreshAllAccountTokens().catch((error: any) => {
-        console.error("Failed to refresh all account tokens:", error);
-      });
-    } catch (e: any) {
-      console.error("Failed to initialize auth service:", e);
-      LogsService.emitLauncherEvent(
-        `Authentication initialization failed: ${e}`,
-        "error",
-      );
-    }
-
-    // Now start other initialization tasks concurrently (non-blocking)
-    const installPromise = InstallationService.loadInstallations();
-    const settingsPromise = SettingsService.initialize();
-    const iconPromise = IconService.initialize();
-
-    // Load versions in the background AFTER installations start loading
-    InstallationService.loadVersions().catch((e: any) => {
-      console.error("Failed to load versions:", e);
-    });
-
-    // Await remaining initializations but do not fail fast — collect results
-    const results = await Promise.allSettled([
-      installPromise,
-      settingsPromise,
-      iconPromise,
-    ]);
-
-    // Initialize sound service AFTER settings are loaded
-    try {
-      LogsService.emitLauncherEvent("Initializing sound system...", "info");
-      // Destroy existing instance if already initialized (for HMR)
-      // if (app.customizationService.isInitialized()) {
-      //   await app.customizationService.destroy();
-      // }
-      await app.customizationService.init();
-      LogsService.emitLauncherEvent(
-        "Sound system initialized successfully",
-        "info",
-      );
-    } catch (e: any) {
-      console.error("Failed to initialize sound service:", e);
-      LogsService.emitLauncherEvent(
-        `Sound system initialization failed: ${e}`,
-        "error",
-      );
-    }
-
-    // Check for updates on launch (after settings are loaded)
-    if ($settings?.general?.auto_update_launcher !== false) {
-      UpdaterService.checkForUpdatesOnLaunch().catch((error: unknown) => {
-        console.error("Failed to check for updates on launch:", error);
-      });
-    }
-
-    // Emit final status and setup listeners (even if some inits failed) — errors are logged above
-    try {
-      LogsService.emitLauncherEvent(
-        "All components initialized successfully",
-        "info",
-      );
-    } catch (e) {
-      console.error("Failed to emit final init log:", e);
-    }
+    await app.initAll();
     console.log("Layout initialization complete");
-
-    // Set up settings behavior event listeners
-    await setupSettingsEventListeners();
   } catch (error: any) {
     console.error("Tauri initialization error:", error);
-    LogsService.emitLauncherEvent(`Initialization error: ${error}`, "error");
+    app.logsService.emitLauncherEvent(
+      `Initialization error: ${error}`,
+      "error",
+    );
   }
 });
-
-// Set up event listeners for settings behavior
-async function setupSettingsEventListeners() {
-  try {
-    const { listen } = await import("@tauri-apps/api/event");
-
-    // Navigation events
-    await listen<NavigationEventPayload>("navigate-to-logs", (event) => {
-      console.log("Navigating to logs due to settings:", event.payload);
-      LogsService.emitLauncherEvent(
-        "Navigating to logs page due to game settings",
-        "info",
-      );
-      goto("/logs");
-    });
-
-    await listen<NavigationEventPayload>("navigate-to-home", (event) => {
-      console.log("Navigating to home due to settings:", event.payload);
-      LogsService.emitLauncherEvent(
-        "Navigating to home page due to game settings",
-        "info",
-      );
-      goto("/");
-    });
-
-    // User choice dialogs
-    await listen<BehaviorChoiceEventPayload>(
-      "ask-launch-behavior",
-      async (event) => {
-        console.log(
-          "User choice requested for launch behavior:",
-          event.payload,
-        );
-        const choice = await showBehaviorDialog(
-          "Launch Behavior",
-          "What should happen when the game launches?",
-          event.payload.options,
-        );
-        if (choice) {
-          await handleUserChoice("on_game_launch", choice);
-        }
-      },
-    );
-
-    await listen<BehaviorChoiceEventPayload>(
-      "ask-close-behavior",
-      async (event) => {
-        console.log("User choice requested for close behavior:", event.payload);
-        const choice = await showBehaviorDialog(
-          "Close Behavior",
-          `What should happen now? (Game exited with code ${event.payload.exit_code})`,
-          event.payload.options,
-        );
-        if (choice) {
-          await handleUserChoice("on_game_close", choice);
-        }
-      },
-    );
-
-    await listen<BehaviorChoiceEventPayload>(
-      "ask-crash-behavior",
-      async (event) => {
-        console.log("User choice requested for crash behavior:", event.payload);
-        const choice = await showBehaviorDialog(
-          "Game Crashed",
-          `The game crashed (exit code ${event.payload.exit_code}). What should we do?`,
-          event.payload.options,
-        );
-        if (choice) {
-          await handleUserChoice("on_game_crash", choice);
-        }
-      },
-    );
-
-    await listen<GameRestartEventPayload>("game-restart-requested", (event) => {
-      console.log("Game restart requested:", event.payload);
-      LogsService.emitLauncherEvent(
-        `Game restart requested due to crash (exit code: ${event.payload.exit_code})`,
-        "warn",
-      );
-      // TODO: Implement game restart functionality
-      alert(
-        "Game restart feature is not implemented yet. Please launch manually.",
-      );
-    });
-
-    // Game started event - clear launching UI indicators
-    await listen<{ pid: number; installation_id: string }>(
-      "game-started",
-      (event) => {
-        console.log("Game started event received:", event.payload);
-        LogsService.emitLauncherEvent(
-          `Game started (PID: ${event.payload.pid})`,
-          "info",
-        );
-        try {
-          isLaunching.set(false);
-          currentLaunchingInstallation.set(null);
-          // Clear fallback timeout if set
-          try {
-            const prev = get(launchTimeoutHandle);
-            if (prev) clearTimeout(prev);
-            launchTimeoutHandle.set(null);
-          } catch (e) {
-            console.warn("Failed to clear launch timeout handle", e);
-          }
-        } catch (e) {
-          console.warn(
-            "Failed to clear launching indicators on game-started event:",
-            e,
-          );
-        }
-      },
-    );
-
-    LogsService.emitLauncherEvent(
-      "Settings behavior event listeners initialized",
-      "info",
-    );
-  } catch (error) {
-    console.error("Failed to set up settings event listeners:", error);
-    LogsService.emitLauncherEvent(
-      `Failed to set up settings event listeners: ${error}`,
-      "error",
-    );
-  }
-}
-
-// Show a dialog for user behavior choice
-async function showBehaviorDialog(
-  title: string,
-  message: string,
-  options: string[],
-): Promise<string | null> {
-  console.log("Showing behavior dialog:", { title, message, options });
-  const optionLabels: Record<string, string> = {
-    keep_open: "Keep Launcher Open",
-    exit: "Close Launcher",
-    minimize: "Minimize Launcher",
-    open_logs: "Open Logs Page",
-    open_home: "Go to Home Page",
-    restart: "Restart Game",
-    close: "Close Launcher",
-    ask: "Ask Me Each Time",
-  };
-
-  const buttons = options.map((opt) => optionLabels[opt] || opt);
-
-  // Use browser's confirm for now - could be replaced with a custom modal
-  if (options.length === 2) {
-    const result = confirm(
-      `${title}\n\n${message}\n\nClick OK for "${buttons[0]}" or Cancel for "${buttons[1]}"`,
-    );
-    return result ? options[0] : options[1];
-  } else {
-    // For multiple options, show a simple prompt
-    let promptMessage = `${title}\n\n${message}\n\nOptions:\n`;
-    buttons.forEach((label, index) => {
-      promptMessage += `${index + 1}. ${label}\n`;
-    });
-    promptMessage += "\nEnter the number of your choice:";
-
-    const choice = prompt(promptMessage);
-    const choiceIndex = parseInt(choice || "0") - 1;
-
-    if (choiceIndex >= 0 && choiceIndex < options.length) {
-      return options[choiceIndex];
-    }
-  }
-
-  return null;
-}
-
-// Handle user's choice by executing the action
-async function handleUserChoice(settingType: string, choice: string) {
-  LogsService.emitLauncherEvent(
-    `User chose "${choice}" for ${settingType}`,
-    "info",
-  );
-
-  try {
-    const { getCurrentWindow } = await import("@tauri-apps/api/window");
-    const window = getCurrentWindow();
-
-    switch (choice) {
-      case "exit":
-      case "close":
-        await window.close();
-        break;
-      case "minimize":
-        await window.minimize();
-        break;
-      case "open_logs":
-        goto("/logs");
-        break;
-      case "open_home":
-        goto("/");
-        break;
-      case "restart":
-        LogsService.emitLauncherEvent("Game restart requested by user", "info");
-        alert(
-          "Game restart feature is not implemented yet. Please launch manually.",
-        );
-        break;
-      case "keep_open":
-        // Do nothing - keep launcher open
-        LogsService.emitLauncherEvent(
-          "Keeping launcher open as requested",
-          "info",
-        );
-        break;
-      default:
-        console.warn(`Unknown choice: ${choice}`);
-    }
-  } catch (error) {
-    console.error("Error handling user choice:", error);
-    LogsService.emitLauncherEvent(
-      `Error handling user choice: ${error}`,
-      "error",
-    );
-  }
-}
 
 // Navigation items - conditionally include logs based on settings
 $: navItems = [
@@ -382,11 +45,11 @@ $: navItems = [
   { path: "/maps", label: "Worlds", icon: "world" },
   { path: "/skins", label: "Skins", icon: "palette" },
   // Only show logs if enabled in settings (default: true for developers)
-  ...($settings?.logging.show_logs_page_in_nav !== false
+  ...(($settings as any)?.logging?.show_logs_page_in_nav !== false
     ? [{ path: "/logs", label: "Logs", icon: "terminal" }]
     : []),
   // Only show advanced page if enabled in settings (default: false)
-  ...($settings?.advanced.show_advanced_page === true
+  ...(($settings as any)?.advanced?.show_advanced_page === true
     ? [{ path: "/advanced", label: "Advanced", icon: "wrench" }]
     : []),
 ];
@@ -506,9 +169,9 @@ onDestroy(() => {
     tooltipEl.parentNode.removeChild(tooltipEl);
   tooltipEl = null;
 
-  // Cleanup sound service
-  app.customizationService.destroy().catch((err) => {
-    console.error("Failed to destroy sound service:", err);
+  // Cleanup all services on destroy (e.g., when app is closed)
+  app.destroyAll().catch((err) => {
+    console.error("Failed to destroy all services:", err);
   });
 });
 </script>
@@ -517,7 +180,7 @@ onDestroy(() => {
 <div
   class="app-layout"
   class:nav-open={!isNavCollapsed}
-  on:keydown={handleKeydown}
+  onkeydown={handleKeydown}
   role="application"
   tabindex="-1">
   <nav class="sidebar" class:collapsed={isNavCollapsed}>
@@ -525,7 +188,7 @@ onDestroy(() => {
     <div class="header-section">
       <a
         use:buttonSound
-        href="/profile"
+        href={resolve("/profile", {})}
         class="user-profile"
         class:active={currentPath === "/profile"}>
         <div class="user-avatar">
@@ -546,7 +209,7 @@ onDestroy(() => {
       <button
         use:buttonSound
         class="hamburger-btn"
-        on:click={toggleNavigation}
+        onclick={toggleNavigation}
         aria-label={isNavCollapsed
           ? "Expand navigation"
           : "Collapse navigation"}
@@ -562,10 +225,10 @@ onDestroy(() => {
 
     <!-- Main Navigation -->
     <div class="nav-items">
-      {#each navItems as item}
+      {#each navItems as item (item.path)}
         <a
           use:buttonSound
-          href={item.path}
+          href={resolve(item.path, {})}
           class="nav-item"
           class:active={currentPath === item.path}
           data-title={item.label}
@@ -581,7 +244,7 @@ onDestroy(() => {
     <div class="bottom-section">
       <a
         use:buttonSound
-        href="/settings"
+        href={resolve("/settings", {})}
         class="nav-item settings-item"
         class:active={currentPath === "/settings"}
         data-title="Settings"

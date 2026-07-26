@@ -2,7 +2,9 @@ import { api } from "$lib";
 import { AuthService } from "./auth.service";
 import { CustomizationService } from "./customization.service";
 import { DiscordService } from "./discord.service";
+import { EventsService } from "./events.service";
 import { LauncherService } from "./launcher.service";
+import { LogsService } from "./logs.service";
 import { ProfilesService } from "./profiles.service";
 import { ProjectsService } from "./projects.service";
 import { UpdaterService } from "./updater.service";
@@ -17,7 +19,9 @@ export class AppService {
   authService = new AuthService();
   customizationService = new CustomizationService();
   discordService = new DiscordService();
+  logsService = new LogsService();
   launcherService = new LauncherService();
+  launcherEventsService = new EventsService(this);
   profilesService = new ProfilesService();
   projectsService = new ProjectsService();
   updaterService = new UpdaterService();
@@ -28,6 +32,8 @@ export class AppService {
       this.customizationService,
       this.updaterService,
       this.authService,
+      this.logsService,
+      this.launcherEventsService,
       this.discordService,
       this.launcherService,
       this.profilesService,
@@ -42,6 +48,12 @@ export class AppService {
   async initAll() {
     for (const s of this.services) {
       await s.init();
+    }
+  }
+
+  async destroyAll() {
+    for (const s of this.services) {
+      await s.destroy();
     }
   }
 

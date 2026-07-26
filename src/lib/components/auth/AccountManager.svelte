@@ -1,29 +1,24 @@
-<!-- @component
-AccountManager - Manages Microsoft account authentication and account operations
-
-Provides UI for account login, logout, refresh, and management.
-Displays current account status and allows switching between authentication flows.
-
-@example
-```svelte
-◄AccountManager /►
-```
--->
 <script lang="ts">
-import type { KableAccount } from "$lib";
-import {
-  AuthenticationFlow,
-  Icon,
-  PlayerHead,
-  app,
-  currentAccount,
-} from "$lib";
-import { onDestroy, onMount } from "svelte";
+import { AuthenticationFlow, Icon, PlayerHead, app } from "$lib";
 
-let isLoading = false;
+let isLoading = $state(false);
+let now = $state(Date.now());
 
-// Check if current account is offline (no access token)
-$: isOffline = !$currentAccount || !$currentAccount.access_token;
+const authService = app.authService;
+
+let currentAccount = $derived(authService.activeAccount);
+let accountStatus = $derived(authService.getAccountStatus(currentAccount));
+let accountDisplayName = $derived(
+  authService.getAccountDisplayName(currentAccount),
+);
+let accountAvatarTitle = $derived(
+  authService.getAccountAvatarTitle(currentAccount),
+);
+let accountUuid = $derived(authService.getAccountUuid(currentAccount));
+let showAuthFlow = $derived(!currentAccount || accountStatus !== "online");
+let tokenExpiryDisplay = $derived(
+  authService.formatTokenExpiry(currentAccount, now),
+);
 
 // async function refreshTokenDCF() {
 //   if (!$currentAccount || isOffline) return;
@@ -48,68 +43,25 @@ $: isOffline = !$currentAccount || !$currentAccount.access_token;
 //     isLoading = false;
 //   }
 // }
-// Determine account status
-function getAccountStatus(
-  account: KableAccount,
-): "online" | "offline" | "expired" {
-  if (!account.access_token) return "offline";
-  if (account.access_token_expires_at) {
-    const expiryDate = new Date(account.access_token_expires_at);
-    if (expiryDate <= new Date()) return "expired";
-  }
-  return "online";
-}
-
-// Format token expiry for display
-function formatTokenExpiry(account: KableAccount | null): string {
-  if (!account || !account.access_token_expires_at) return "Never expires";
-  const expiryDate = new Date(account.access_token_expires_at);
-  const now = new Date();
-  const diff = expiryDate.getTime() - now.getTime();
-  if (diff <= 0) return "Expired";
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-  if (days > 0) return `Expires in ${days} day${days > 1 ? "s" : ""}`;
-  if (hours > 0) return `Expires in ${hours} hour${hours > 1 ? "s" : ""}`;
-  if (minutes > 0)
-    return `Expires in ${minutes} minute${minutes > 1 ? "s" : ""}`;
-  return "Expires soon";
-}
-
-// Reactive token expiry display
-let tokenExpiryDisplay: string = "";
-let expiryInterval: ReturnType<typeof setInterval> | null = null;
-
-$: tokenExpiryDisplay = formatTokenExpiry($currentAccount);
-
-onMount(async () => {
-  // Start interval to update expiry display every second
-  expiryInterval = setInterval(() => {
-    tokenExpiryDisplay = formatTokenExpiry($currentAccount);
+$effect(() => {
+  const interval = setInterval(() => {
+    now = Date.now();
   }, 1000);
-});
 
-// Clean up interval on destroy
-onDestroy(() => {
-  if (expiryInterval) clearInterval(expiryInterval);
+  return () => clearInterval(interval);
 });
 
 /**
  * Remove current account
  */
 async function removeCurrentAccount() {
-  if (!$currentAccount) return;
-  if (
-    !confirm(
-      `Remove "${$currentAccount.minecraft_profile?.name || $currentAccount.username}" from your accounts?`,
-    )
-  ) {
+  if (!currentAccount) return;
+  if (!confirm(`Remove "${accountDisplayName}" from your accounts?`)) {
     return;
   }
   isLoading = true;
   try {
-    await app.authService.removeAccount($currentAccount.local_id);
+    await authService.removeActiveAccount();
   } catch (error) {
     console.error("Failed to remove account:", error);
   } finally {
@@ -146,21 +98,33 @@ async function signOut() {
 }
 </script>
 
+<!-- @component
+AccountManager - Manages Microsoft account authentication and account operations
+
+Provides UI for account login, logout, refresh, and management.
+Displays current account status and allows switching between authentication flows.
+
+@example
+```svelte
+◄AccountManager /►
+```
+-->
+<svelte:options runes={true} />
+
 <div class="account-manager">
-  {#if $currentAccount}
+  {#if currentAccount}
     <div class="current-account-section">
       <div class="current-account-card">
         <div class="account-avatar-details-row">
           <div class="account-avatar-container">
             <div
               class="account-avatar minecraft-head large"
-              title="{$currentAccount.minecraft_profile?.name ||
-                $currentAccount.username}'s avatar">
-              <PlayerHead account={$currentAccount} size={64} />
+              title={accountAvatarTitle}>
+              <PlayerHead account={currentAccount} size={64} />
             </div>
-            {#if getAccountStatus($currentAccount) === "online"}
+            {#if accountStatus === "online"}
               <div class="status-indicator online" title="Online"></div>
-            {:else if getAccountStatus($currentAccount) === "offline"}
+            {:else if accountStatus === "offline"}
               <div class="status-indicator offline" title="Offline"></div>
             {:else}
               <div class="status-indicator expired" title="Token Expired"></div>
@@ -168,20 +132,14 @@ async function signOut() {
           </div>
           <div class="account-details-horizontal">
             <div class="account-details-main">
-              <h4>
-                {$currentAccount.minecraft_profile?.name ||
-                  $currentAccount.username ||
-                  "Unknown User"}
-              </h4>
+              <h4>{accountDisplayName}</h4>
             </div>
             <div class="account-details-side">
-              <span class="account-id"
-                >UUID: {$currentAccount.minecraft_profile?.id}</span>
-              {#if getAccountStatus($currentAccount) !== "offline"}
+              <span class="account-id">UUID: {accountUuid}</span>
+              {#if accountStatus !== "offline"}
                 <span
                   class="token-status"
-                  class:expired={getAccountStatus($currentAccount) ===
-                    "expired"}>
+                  class:expired={accountStatus === "expired"}>
                   {tokenExpiryDisplay}
                 </span>
               {/if}
@@ -200,7 +158,7 @@ async function signOut() {
             tabindex="-1">
             <button
               class="dropdown-action"
-              on:click={refreshToken}
+              onclick={refreshToken}
               disabled={isLoading}>
               <Icon name="refresh" size="sm" /> Refresh
             </button>
@@ -218,18 +176,18 @@ async function signOut() {
               <Icon name="login" size="sm" /> Re-login (DCF)
             </button> -->
             <div class="dropdown-separator"></div>
-            <button class="dropdown-action" on:click={signOut}>
+            <button class="dropdown-action" onclick={signOut}>
               <Icon name="logout" size="sm" /> Sign Out
             </button>
             <button
               class="dropdown-action danger"
-              on:click={removeCurrentAccount}>
+              onclick={removeCurrentAccount}>
               <Icon name="trash" size="sm" /> Remove
             </button>
           </div>
         </div>
       </div>
-      {#if isOffline}
+      {#if showAuthFlow}
         <div class="auth-flow-container">
           <AuthenticationFlow />
         </div>

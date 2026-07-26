@@ -52,15 +52,25 @@ export class AuthService implements Service {
    * Poll authentication until token is available
    */
   async pollAuth(deviceCode: string): Promise<MicrosoftToken> {
-    return await api.pollAuthentication(deviceCode);
+    try {
+      return await api.pollAuthentication(deviceCode);
+    } catch (error) {
+      console.error("Failed to poll authentication:", error);
+      throw error;
+    }
   }
 
   /**
    * Add account to local store
    */
   async addAccount(account: KableAccount) {
-    await api.addAccount(account);
-    this.accounts = [...this.accounts, account];
+    try {
+      await api.addAccount(account);
+      this.accounts = [...this.accounts, account];
+    } catch (error) {
+      console.error("Failed to add account:", error);
+      throw error;
+    }
   }
 
   /**
@@ -69,15 +79,97 @@ export class AuthService implements Service {
   async removeAccount(account: KableAccount) {
     const updated = await api.removeAccount(account);
     this.accounts = updated;
+
+    if (this.activeAccount?.local_id === account.local_id) {
+      this.activeAccount = null;
+    }
+  }
+
+  /**
+   * Remove active account
+   */
+  async removeActiveAccount() {
+    if (!this.activeAccount) return;
+
+    await this.removeAccount(this.activeAccount);
   }
 
   /**
    * Set active account (also affects backend state)
    */
   async setActive(account: KableAccount) {
-    await api.setActiveAccount(account);
+    try {
+      await api.setActiveAccount(account);
 
-    this.activeAccount = account;
+      this.activeAccount = account;
+    } catch (error) {
+      console.error("Failed to set active account:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Account display name
+   */
+  getAccountDisplayName(account: KableAccount | null): string {
+    return account?.minecraft_profile?.name ?? account?.username ?? "Unknown User";
+  }
+
+  /**
+   * Account UUID display
+   */
+  getAccountUuid(account: KableAccount | null): string {
+    return account?.minecraft_profile?.id ?? "Unknown UUID";
+  }
+
+  /**
+   * Avatar title
+   */
+  getAccountAvatarTitle(account: KableAccount | null): string {
+    return `${this.getAccountDisplayName(account)}'s avatar`;
+  }
+
+  /**
+   * Determine account status
+   */
+  getAccountStatus(
+    account: KableAccount | null,
+  ): "online" | "offline" | "expired" {
+    if (!account?.access_token) return "offline";
+
+    if (account.access_token_expires_at) {
+      const expiryDate = new Date(account.access_token_expires_at);
+      if (expiryDate <= new Date()) return "expired";
+    }
+
+    return "online";
+  }
+
+  /**
+   * Format token expiry for display
+   */
+  formatTokenExpiry(
+    account: KableAccount | null,
+    now: number = Date.now(),
+  ): string {
+    if (!account || !account.access_token_expires_at) return "Never expires";
+
+    const expiryDate = new Date(account.access_token_expires_at);
+    const diff = expiryDate.getTime() - now;
+
+    if (diff <= 0) return "Expired";
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (days > 0) return `Expires in ${days} day${days > 1 ? "s" : ""}`;
+    if (hours > 0) return `Expires in ${hours} hour${hours > 1 ? "s" : ""}`;
+    if (minutes > 0) {
+      return `Expires in ${minutes} minute${minutes > 1 ? "s" : ""}`;
+    }
+
+    return "Expires soon";
   }
 
   /**

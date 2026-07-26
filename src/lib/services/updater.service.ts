@@ -11,7 +11,15 @@ export class UpdaterService implements Service {
   error = $state<string | null>(null);
 
   async init() {
-    // no-op for now
+    try {
+      const settings = await api.getSettings();
+      const generalSettings = settings?.general as { auto_update_launcher?: boolean } | undefined;
+      if (generalSettings?.auto_update_launcher === false) return;
+
+      await this.check(false);
+    } catch (error) {
+      this.error = String(error);
+    }
   }
 
   /**

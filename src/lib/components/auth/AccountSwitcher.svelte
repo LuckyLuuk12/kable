@@ -10,44 +10,13 @@ Allows quick switching between accounts and shows account health indicators.
 ```
 -->
 <script lang="ts">
-import {
-  app,
-  availableAccounts,
-  currentAccount,
-  Icon,
-  PlayerHead,
-  type KableAccount,
-} from "$lib";
+import { app, Icon, PlayerHead, type KableAccount } from "$lib";
 
-let showDropdown = false;
+let showDropdown = $state(false);
 
 // Show all available accounts, including offline
-$: validAccounts = $availableAccounts.filter(
-  (acc) => acc?.username !== $currentAccount?.username,
-);
-
-// Also log for debugging
-$: {
-  console.log(
-    "🔍 AccountSwitcher - Available accounts:",
-    $availableAccounts.length,
-    $availableAccounts.map((acc) => ({ ...acc })),
-  );
-  console.log(
-    "🔍 AccountSwitcher - Valid accounts after filtering:",
-    validAccounts.length,
-    validAccounts,
-  );
-  if (validAccounts.length > 0) {
-    validAccounts.forEach((acc) =>
-      console.log(
-        "  ✅",
-        acc.local_id,
-        acc.minecraft_profile?.name || acc.username,
-      ),
-    );
-  }
-}
+let activeAccount = $derived(app.authService.activeAccount);
+let validAccounts = $derived(app.authService.accounts);
 
 // Determine account status
 function getAccountStatus(
@@ -63,7 +32,7 @@ function getAccountStatus(
 }
 
 async function switchAccount(account: KableAccount) {
-  if (account.local_id === $currentAccount?.local_id) return;
+  if (account.local_id === activeAccount?.local_id) return;
   try {
     await app.authService.setActive(account);
     showDropdown = false;
@@ -73,30 +42,26 @@ async function switchAccount(account: KableAccount) {
     showDropdown = false;
   }
 }
-
-$: {
-  console.log("🔍 AccountSwitcher - Current account:", $currentAccount);
-}
 </script>
 
-{#if $currentAccount || $availableAccounts.length > 0}
+{#if activeAccount || validAccounts.length > 0}
   <div class="account-switcher">
     <div class="current-account">
       <div
         class="account-avatar-container"
-        on:mouseenter={() => (showDropdown = true)}
-        on:mouseleave={() => (showDropdown = false)}
+        onmouseenter={() => (showDropdown = true)}
+        onmouseleave={() => (showDropdown = false)}
         role="button"
         tabindex="0">
         <div
           class="account-avatar minecraft-head"
-          title="{$currentAccount?.minecraft_profile?.name ||
-            $currentAccount?.username}'s avatar">
-          <PlayerHead account={$currentAccount} size={36} />
+          title="{activeAccount?.minecraft_profile?.name ||
+            activeAccount?.username}'s avatar">
+          <PlayerHead account={activeAccount} size={36} />
         </div>
-        {#if getAccountStatus($currentAccount) === "online"}
+        {#if getAccountStatus(activeAccount) === "online"}
           <div class="status-indicator online" title="Online"></div>
-        {:else if getAccountStatus($currentAccount) === "offline"}
+        {:else if getAccountStatus(activeAccount) === "offline"}
           <div class="status-indicator offline" title="Offline"></div>
         {:else}
           <div class="status-indicator expired" title="Token Expired"></div>
@@ -105,13 +70,13 @@ $: {
 
       <div class="account-info">
         <span class="username"
-          >{$currentAccount?.minecraft_profile?.name ||
-            $currentAccount?.username ||
+          >{activeAccount?.minecraft_profile?.name ||
+            activeAccount?.username ||
             "Unknown User"}</span>
         <span class="account-type">
-          {#if getAccountStatus($currentAccount) === "offline"}
+          {#if getAccountStatus(activeAccount) === "offline"}
             Offline Account
-          {:else if getAccountStatus($currentAccount) === "expired"}
+          {:else if getAccountStatus(activeAccount) === "expired"}
             Microsoft Account (Token Expired)
           {:else}
             Microsoft Account
@@ -129,10 +94,10 @@ $: {
         {#each validAccounts as account (account.local_id)}
           <div
             class="account-item"
-            class:active={account.local_id === $currentAccount?.local_id}>
+            class:active={account.local_id === activeAccount?.local_id}>
             <button
               class="account-button"
-              on:click={() => switchAccount(account)}>
+              onclick={() => switchAccount(account)}>
               <div class="account-avatar-container">
                 <div
                   class="account-avatar minecraft-head"
@@ -189,7 +154,7 @@ $: {
   </div>
 {:else}
   <div class="no-account-container">
-    <button class="sign-in-btn" on:click={() => app.authService.startAuth()}>
+    <button class="sign-in-btn" onclick={() => app.authService.startAuth()}>
       <div class="sign-in-avatar">
         <Icon name="user-plus" size="lg" />
       </div>

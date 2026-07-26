@@ -166,7 +166,7 @@ export class CustomizationService implements Service {
   // #endregion language
 
   // #region themes
-  setTheme(theme: AppearanceSettings["theme"]) {
+  async setTheme(theme: AppearanceSettings["theme"]) {
     if (!this.settings?.appearance) return;
 
     this.settings = {
@@ -179,10 +179,12 @@ export class CustomizationService implements Service {
 
     // Get the css content from backend and inject it or remove injected css if theme is null or empty
     if (theme) {
-      api.get
+      await api.css.then((cssContent) => {
+        this.injectCustomCSS(cssContent);
+      });
     }
-
-  private injectCustomCSS() {
+  }
+  private injectCustomCSS(cssContent: string = "") {
     // First, remove any existing custom CSS
     this.removeCustomCSS();
 

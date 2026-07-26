@@ -22,7 +22,7 @@ import { onMount } from "svelte";
 export let name: string;
 export let size: "sm" | "md" | "lg" | "xl" = "md";
 export let className: string = "";
-export let forceType: "windows" | "fa" | "svg" | undefined;
+export let forceType: "windows" | "fa" | "svg" | undefined = undefined;
 
 let iconData: IconData | undefined;
 

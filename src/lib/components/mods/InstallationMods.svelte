@@ -10,19 +10,12 @@ Includes installation carousel for quick switching and semantic search filtering
 ```
 -->
 <script lang="ts">
-import type { KableProfile } from "$lib";
-import {
-  app,
-  extendedModInfo,
-  Icon,
-  installations,
-  selectedInstallation,
-} from "$lib";
+import { type KableProfile, app, Icon } from "$lib";
 import { onMount } from "svelte";
 import { get } from "svelte/store";
 import InstalledModCard from "./InstalledModCard.svelte";
 
-let currentInstallation: KableProfile | null = null;
+let currentProfile: KableProfile | null = null;
 let selectedId: string = "";
 let mods: ModJarInfo[] = [];
 let loading = false;
@@ -43,8 +36,8 @@ let disabledGroupMode: DisabledGroupMode = "end";
 let sourceViewEnabled = false;
 
 // Cached mod metadata by jar filename (used for date sorting + stable project lookup).
-let modMetadataMap = new Map<string, modsApi.ModMetadata | null>();
-let modpackSources: modsApi.ModpackSourceRecord[] = [];
+let modMetadataMap = new Map<string, ModMetadata | null>();
+let modpackSources: ModpackSourceRecord[] = [];
 let modpackProjectMap = new Map<string, ModInfoKind>();
 const nameCollator = new Intl.Collator(undefined, {
   sensitivity: "base",
@@ -66,7 +59,7 @@ let loadingModpackSources = false;
 // Installation carousel logic
 function selectInstallation(installation: KableProfile) {
   selectedId = installation.id;
-  currentInstallation = installation;
+  currentProfile = installation;
   selectedInstallation.set(installation);
   // Let the reactive statement handle loading mods to prevent duplicate calls
 }
@@ -106,7 +99,7 @@ function handleWheel(event: WheelEvent) {
     if (newIndex !== selectedIndex) {
       const installation = sortedInstallations[newIndex];
       selectedId = installation.id;
-      currentInstallation = installation;
+      currentProfile = installation;
       selectedInstallation.set(installation);
 
       // The reactive statement will handle loading mods when selectedId changes
@@ -278,23 +271,23 @@ let loadedInstallationId: string | null = null;
 // Reactively update currentInstallation and mods when selectedId changes
 $: {
   const inst = get(installations).find((i) => i.id === selectedId) || null;
-  currentInstallation = inst;
+  currentProfile = inst;
   selectedInstallation.set(inst);
 
   // Only load mods if we haven't already loaded for this installation and we're not currently loading
   if (
-    currentInstallation &&
-    currentInstallation.id !== loadedInstallationId &&
+    currentProfile &&
+    currentProfile.id !== loadedInstallationId &&
     !loading
   ) {
-    loadedInstallationId = currentInstallation.id;
+    loadedInstallationId = currentProfile.id;
     // Clear attempted info when switching installations to allow refetch
     attemptedExtendedInfo.clear();
     // Clear update tracking when switching installations
     modsWithUpdates.clear();
     modsWithUpdates = modsWithUpdates; // Trigger reactivity
-    loadMods(currentInstallation);
-  } else if (!currentInstallation) {
+    loadMods(currentProfile);
+  } else if (!currentProfile) {
     mods = [];
     loadedInstallationId = null;
     // Clear attempted info when no installation
@@ -313,7 +306,7 @@ $: {
   if (!selectedId && sortedInstallations.length > 0) {
     const firstInstallation = sortedInstallations[0];
     selectedId = firstInstallation.id;
-    currentInstallation = firstInstallation;
+    currentProfile = firstInstallation;
     selectedInstallation.set(firstInstallation);
     // The reactive statement above will handle loading mods
   }
@@ -490,7 +483,7 @@ $: standaloneFilteredMods = sortedFilteredMods.filter((mod) => {
   return !managedProjectIds.has(projectId);
 });
 
-$: if (currentInstallation && modpackSources.length > 0 && sourceViewEnabled) {
+$: if (currentProfile && modpackSources.length > 0 && sourceViewEnabled) {
   const missingProjectIds = modpackSources
     .filter((source) => source.provider === ProviderKind.Modrinth)
     .map((source) => source.mod_id)
@@ -563,8 +556,8 @@ async function openModpackSource(source: modsApi.ModpackSourceRecord) {
 // Handle mod changed event (toggle, delete, etc.)
 function handleModChanged() {
   // Reload mods to reflect changes
-  if (currentInstallation) {
-    loadMods(currentInstallation, { silent: true });
+  if (currentProfile) {
+    loadMods(currentProfile, { silent: true });
   }
 }
 
@@ -609,7 +602,7 @@ function handleUpdateReport(event: {
 
 // Update all mods that have updates available
 async function handleUpdateAll() {
-  if (updatingAll || modsWithUpdates.size === 0 || !currentInstallation) return;
+  if (updatingAll || modsWithUpdates.size === 0 || !currentProfile) return;
 
   updatingAll = true;
   const updates = Array.from(modsWithUpdates.values());
@@ -626,7 +619,7 @@ async function handleUpdateAll() {
       // Prefer metadata because it is the most reliable identifier source.
       try {
         const metadata = await modsApi.getModMetadata(
-          currentInstallation,
+          currentProfile,
           mod.file_name,
         );
         projectId = metadata.project_id;
@@ -647,7 +640,7 @@ async function handleUpdateAll() {
         ProviderKind.Modrinth,
         projectId,
         versionId,
-        currentInstallation,
+        currentProfile,
       );
       successCount++;
     } catch (error) {
@@ -699,10 +692,10 @@ async function handleModClick(mod: ModJarInfo) {
 // Toggle disabled state via the backend API. If Ctrl/Cmd is held when activating,
 // we open the mod page instead (preserves previous behavior).
 async function toggleModDisabledAction(mod: ModJarInfo) {
-  if (!currentInstallation) return;
+  if (!currentProfile) return;
   try {
     const newDisabled = await installationsApi.toggleModDisabled(
-      currentInstallation,
+      currentProfile,
       mod.file_name,
     );
     // Update local list optimistically so UI reacts immediately
@@ -713,7 +706,7 @@ async function toggleModDisabledAction(mod: ModJarInfo) {
     console.error("Failed to toggle disabled state for", mod.file_name, err);
     // Try reloading mods to resync state
     try {
-      await loadMods(currentInstallation);
+      await loadMods(currentProfile);
     } catch (_) {}
   }
 }
@@ -865,10 +858,10 @@ onMount(() => {
           </div>
         </div>
 
-        {#if currentInstallation}
+        {#if currentProfile}
           <div class="mods-title-section">
             <div class="mods-title-left">
-              <h3>Mods for {currentInstallation.name}</h3>
+              <h3>Mods for {currentProfile.name}</h3>
               {#if mods.length > 0}
                 <div class="mods-count-badge">
                   {#if searchQuery}
@@ -952,7 +945,7 @@ onMount(() => {
       </div>
 
       <div class="mods-content">
-        {#if currentInstallation}
+        {#if currentProfile}
           {#if loading}
             <div class="loading-state">
               <Icon name="refresh" size="md" className="spin" />
@@ -1024,7 +1017,7 @@ onMount(() => {
                     {#each standaloneFilteredMods as mod (mod.file_name)}
                       <InstalledModCard
                         {mod}
-                        installation={currentInstallation}
+                        installation={currentProfile}
                         extendedInfo={$extendedModInfo[mod.file_name]}
                         onmodchanged={handleModChanged}
                         onupdatereport={handleUpdateReport} />
@@ -1042,7 +1035,7 @@ onMount(() => {
                 {#each sortedFilteredMods as mod (mod.file_name)}
                   <InstalledModCard
                     {mod}
-                    installation={currentInstallation}
+                    installation={currentProfile}
                     extendedInfo={$extendedModInfo[mod.file_name]}
                     onmodchanged={handleModChanged}
                     onupdatereport={handleUpdateReport} />

@@ -9,7 +9,7 @@ Provides interface for authenticating with Microsoft using Device Code Flow
 ```
 -->
 <script lang="ts">
-import { app, Icon, Image, isAuthenticating } from "$lib";
+import { app, Icon, Image } from "$lib";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { onDestroy } from "svelte";
 // import * as systemApi from "$lib/api/system";
@@ -21,6 +21,8 @@ let error: string | null = null;
 let deviceCodeData: any = null;
 let isPollingDeviceCode = false;
 let pollInterval: ReturnType<typeof setInterval> | null = null;
+
+let isAuthenticating = $derived(app.authService.authenticating);
 
 onDestroy(() => {
   if (pollInterval) {
@@ -116,7 +118,7 @@ function cancelDeviceCode() {
           <p>Click to open Microsoft activation page</p>
         </div>
 
-        <button on:click={openVerificationUrl} class="verification-link-btn">
+        <button onclick={openVerificationUrl} class="verification-link-btn">
           <Icon name="link" size="sm" />
           {deviceCodeData.verification_uri}
         </button>
@@ -129,7 +131,7 @@ function cancelDeviceCode() {
         <div class="code-display">
           <code class="user-code">{deviceCodeData.user_code}</code>
           <button
-            on:click={() => writeText(deviceCodeData.user_code)}
+            onclick={() => writeText(deviceCodeData.user_code)}
             class="copy-btn"
             title="Copy code">
             <Icon name="duplicate" size="sm" />
@@ -144,7 +146,7 @@ function cancelDeviceCode() {
         {/if}
 
         <div class="device-code-actions">
-          <button on:click={cancelDeviceCode} class="btn btn-secondary btn-sm">
+          <button onclick={cancelDeviceCode} class="btn btn-secondary btn-sm">
             Cancel
           </button>
         </div>
@@ -153,9 +155,9 @@ function cancelDeviceCode() {
   {:else}
     <div class="sign-in-container">
       <button
-        on:click={signInWithDeviceCode}
+        onclick={signInWithDeviceCode}
         class="btn-microsoft"
-        disabled={$isAuthenticating}>
+        disabled={isAuthenticating}>
         <div class="microsoft-logo-large">
           <Image
             key="microsoft-logo"
@@ -164,7 +166,7 @@ function cancelDeviceCode() {
             height="21px" />
         </div>
         <span
-          >{$isAuthenticating
+          >{isAuthenticating
             ? "Signing in..."
             : "Sign in with Microsoft"}</span>
       </button>
