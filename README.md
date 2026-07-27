@@ -3,13 +3,14 @@
 
 Kable is a modern, developer-friendly Minecraft launcher built with Tauri and Svelte. Designed for power users and modders, it provides extensive customization options, transparent operation, and advanced debugging tools. Unlike traditional launchers, Kable emphasizes **modifiability** and **transparency** - offering comprehensive logging, detailed configuration options, and open-source architecture that lets you understand and modify every aspect of your Minecraft experience.
 
+[![wakatime](https://wakatime.com/badge/user/8521d65d-1c6b-41ba-b570-372359980d5f/project/b62f37c7-03f9-4bc5-849e-307f65bd8b3d.svg?style=flat-square&color=5a20f2)](https://wakatime.com/badge/user/8521d65d-1c6b-41ba-b570-372359980d5f/project/b62f37c7-03f9-4bc5-849e-307f65bd8b3d)
 ![Latest Release](https://img.shields.io/github/v/release/LuckyLuuk12/kable?style=flat-square&color=blue)
 ![Downloads](https://img.shields.io/github/downloads/LuckyLuuk12/kable/total?style=flat-square&color=green)
 ![License](https://img.shields.io/badge/license-Proprietary-red.svg?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)
 ![GitHub Stars](https://img.shields.io/github/stars/LuckyLuuk12/kable?style=flat-square&color=yellow)
 ![Issues](https://img.shields.io/github/issues/LuckyLuuk12/kable?style=flat-square&color=orange)
-![Last Commit](https://img.shields.io/github/last-commit/LuckyLuuk12/kable?style=flat-square&color=purple)
+![Latest Nightly Build](https://img.shields.io/github/last-commit/LuckyLuuk12/kable?style=flat-square&color=purple)
 
 ## 🚀 Features
 
@@ -49,8 +50,9 @@ Kable automatically detects and supports:
 - Windows 10+, macOS 10.15+, or a modern Linux distribution
 
 ### Installation
-1. Download the latest release from the [Releases](../../releases) page
-2. Install the application for your platform:
+1. Install ([Java](https://download.oracle.com/java/26/latest/jdk-26_windows-x64_bin.msi) &) [Minecraft](https://aka.ms/minecraftClientGameCoreWindows) if you haven't already
+2. Download the latest release from the [Releases](../../releases) page _(Usually nightly builds are the ones I use personally with hotfixes and latest features, use at own risk!)_
+3. Install the application for your platform:
    - **Windows**: Run the `.msi` installer
    - **macOS**: Open the `.dmg` file and drag Kable to Applications
    - **Linux**: Install the `.deb` package or extract the `.tar.gz` archive

@@ -220,6 +220,7 @@ async fn build_command(manifest: &McVersionManifest, profile: &KableProfile) -> 
     )?;
 
     let mut cmd = Command::new(java_path);
+    // TODO: make function to figure out what (game) jar to use based on version manifest, from mc26 onwards mod loader jars are 0KB and we should run the parent jar instead...
 
     for arg in command_string.split_whitespace() {
         cmd.arg(arg);
