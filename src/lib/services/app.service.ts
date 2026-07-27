@@ -1,4 +1,5 @@
 import { api } from "$lib";
+import type { Component } from "svelte";
 import { AuthService } from "./auth.service";
 import { CustomizationService } from "./customization.service";
 import { DiscordService } from "./discord.service";
@@ -8,6 +9,13 @@ import { LogsService } from "./logs.service";
 import { ProfilesService } from "./profiles.service";
 import { ProjectsService } from "./projects.service";
 import { UpdaterService } from "./updater.service";
+
+type ModalInstance = {
+  id: string;
+  component: Component;
+  props: Record<string, unknown>;
+  resolve: (value: unknown) => void;
+};
 
 export interface Service {
   init(): Promise<void> | void;
@@ -84,6 +92,54 @@ export class AppService {
       console.error("API call failed: `await api.openPath(filePath);`", e);
     }
   }
+
+  // #region Modal
+  public readonly stack = $state<ModalInstance[]>([]);
+
+  public show<TResult = void>(
+    component: Component,
+    props: Record<string, unknown> = {}
+  ): Promise<TResult> {
+    return new Promise<TResult>((resolve) => {
+      this.stack.push({
+        id: crypto.randomUUID(),
+        component,
+        props,
+        resolve: resolve as (value: unknown) => void
+      });
+    });
+  }
+
+  public resolve<TResult>(id: string, value: TResult): void {
+    const index = this.stack.findIndex((m) => m.id === id);
+
+    if (index === -1) {
+      return;
+    }
+
+    this.stack[index].resolve(value);
+    this.stack.splice(index, 1);
+  }
+
+  public dismiss(id: string): void {
+    this.resolve(id, undefined);
+  }
+
+  public dismissTop(): void {
+    const top = this.stack.at(-1);
+
+    if (top) {
+      this.dismiss(top.id);
+    }
+  }
+
+  public clear(): void {
+    while (this.stack.length > 0) {
+      this.dismissTop();
+    }
+  }
+  // #endregion Modal
+
 }
 
 export const app = new AppService();

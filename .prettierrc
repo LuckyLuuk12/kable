@@ -1,8 +1,19 @@
 {
-    "plugins": ["prettier-plugin-svelte"],
+    "printWidth": 170,
+    "tabWidth": 2,
+    "plugins": [
+        "prettier-plugin-svelte"
+    ],
     "svelteAllowShorthand": true,
     "svelteBracketNewLine": false,
     "svelteIndentScriptAndStyle": false,
     "svelteSortOrder": "scripts-options-markup-styles",
-    "overrides": [{ "files": "*.svelte", "options": { "parser": "svelte" } }]
+    "overrides": [
+        {
+            "files": "*.svelte",
+            "options": {
+                "parser": "svelte"
+            }
+        }
+    ]
 }
