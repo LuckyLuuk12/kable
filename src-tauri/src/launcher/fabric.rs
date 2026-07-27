@@ -595,10 +595,10 @@ impl Launchable for FabricLaunchable {
 
         // 2. Build classpath (all libraries + version JAR)
         let libraries_path = PathBuf::from(&context.minecraft_dir).join("libraries");
-        let version_jar_path = PathBuf::from(&context.minecraft_dir)
-            .join("versions")
-            .join(version_id)
-            .join(format!("{}.jar", version_id));
+        let version_jar_path = crate::launcher::utils::resolve_version_jar(
+            std::path::Path::new(&context.minecraft_dir),
+            &manifest,
+        )?;
         if !version_jar_path.exists() {
             crate::logging::Logger::debug_global(
                 &format!(

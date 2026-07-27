@@ -2077,3 +2077,25 @@ pub async fn spawn_and_log_process(
         command: format!("{:?}", cmd),
     })
 }
+
+pub fn resolve_version_jar(minecraft_dir: &Path, manifest: &Value) -> Result<PathBuf, String> {
+    let version_id = manifest["id"].as_str().ok_or("Manifest has no id")?;
+
+    let jar = minecraft_dir
+        .join("versions")
+        .join(version_id)
+        .join(format!("{version_id}.jar"));
+
+    if jar.metadata().map(|m| m.len() > 0).unwrap_or(false) {
+        return Ok(jar);
+    }
+
+    if let Some(parent) = manifest["inheritsFrom"].as_str() {
+        let parent_manifest =
+            load_and_merge_manifest_sync(minecraft_dir.to_str().unwrap(), parent, None)?;
+
+        return resolve_version_jar(minecraft_dir, &parent_manifest);
+    }
+
+    Ok(jar)
+}
