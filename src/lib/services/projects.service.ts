@@ -80,42 +80,47 @@ export class ProjectsService implements Service {
     smartFilter: boolean,
     projectType: ProjectType,
   ) {
-    return await api.browse(profile, search, smartFilter, projectType);
+    try {
+      return await api.browse(profile, search, smartFilter, projectType);
+    } catch (e) {
+      console.error("API call failed: `return await api.browse(profile, search, smartFilter, projectType);`", e);
+      throw e;
+    }
   }
 
   /**
    * Convenience browse wrappers
    */
-  browseMods(
+  async browseMods(
     profile: KableProfile,
     search: ProjectSearch,
     smartFilter: boolean,
   ) {
-    return this.browse(profile, search, smartFilter, "mod");
+    return await this.browse(profile, search, smartFilter, "mod");
   }
 
-  browseResourcepacks(
+  async browseResourcepacks(
     profile: KableProfile,
     search: ProjectSearch,
     smartFilter: boolean,
   ) {
-    return this.browse(profile, search, smartFilter, "resourcepack");
+    return await this.browse(profile, search, smartFilter, "resourcepack");
   }
 
-  browseShaders(
+  async browseShaders(
     profile: KableProfile,
     search: ProjectSearch,
     smartFilter: boolean,
   ) {
-    return this.browse(profile, search, smartFilter, "shader");
+    return await this.browse(profile, search, smartFilter, "shader");
   }
 
-  browseModpacks(
+  async browseModpacks(
     profile: KableProfile,
     search: ProjectSearch,
     smartFilter: boolean,
   ) {
-    return this.browse(profile, search, smartFilter, "modpack");
+    return await this.browse(profile, search, smartFilter, "modpack");
   }
 
   /**
@@ -126,92 +131,128 @@ export class ProjectsService implements Service {
     project: Project_Deserialize,
     versionId: string | null,
   ) {
-    const result = await api.downloadProject(profile, project, versionId);
+    try {
+      const result = await api.downloadProject(profile, project, versionId);
 
-    this.projects = [...this.projects, result];
-    return result;
+      this.projects = [...this.projects, result];
+      return result;
+    } catch (e) {
+      console.error("Failed to download project", e);
+      throw e;
+    }
   }
 
   /**
    * Remove project
    */
   async remove(profile: KableProfile, project: KableProject_Deserialize) {
-    const result = await api.removeProject(profile, project);
+    try {
+      const result = await api.removeProject(profile, project);
 
-    this.projects = this.projects.filter(
-      (p) => p.project.project_id !== result.project.project_id,
-    );
-
-    return result;
+      this.projects = this.projects.filter(
+        (p) => p.project.project_id !== result.project.project_id,
+      );
+      return result;
+    } catch (e) {
+      console.error("Failed to remove project", e);
+      throw e;
+    }
   }
 
   /**
    * Enable project
    */
   async enable(profile: KableProfile, project: KableProject_Deserialize) {
-    const updated = await api.enableProject(profile, project);
+    try {
+      const updated = await api.enableProject(profile, project);
 
-    this.projects = this.projects.map((p) =>
-      p.project.project_id === updated.project.project_id ? updated : p,
-    );
+      this.projects = this.projects.map((p) =>
+        p.project.project_id === updated.project.project_id ? updated : p,
+      );
 
-    return updated;
+      return updated;
+    } catch (e) {
+      console.error("Failed to enable project", e);
+      throw e;
+    }
   }
-
   /**
    * Disable project
    */
   async disable(profile: KableProfile, project: KableProject_Deserialize) {
-    const updated = await api.disableProject(profile, project);
+    try {
+      const updated = await api.disableProject(profile, project);
 
-    this.projects = this.projects.map((p) =>
-      p.project.project_id === updated.project.project_id ? updated : p,
-    );
+      this.projects = this.projects.map((p) =>
+        p.project.project_id === updated.project.project_id ? updated : p,
+      );
 
-    return updated;
+      return updated;
+    } catch (e) {
+      console.error("Failed to disable project", e);
+      throw e;
+    }
   }
 
   /**
    * Toggle project
    */
   async toggle(profile: KableProfile, project: KableProject_Deserialize) {
-    const updated = await api.toggleProject(profile, project);
+    try {
+      const updated = await api.toggleProject(profile, project);
 
-    this.projects = this.projects.map((p) =>
-      p.project.project_id === updated.project.project_id ? updated : p,
-    );
-
-    return updated;
+      this.projects = this.projects.map((p) =>
+        p.project.project_id === updated.project.project_id ? updated : p,
+      );
+      return updated;
+    } catch (e) {
+      console.error("Failed to toggle project", e);
+      throw e;
+    }
   }
 
   /**
    * Check updates for installed projects
    */
   async checkUpdates(profile: KableProfile, projectType: ProjectType) {
-    return await api.checkForProjectUpdates(profile, projectType);
+    try {
+      return await api.checkForProjectUpdates(profile, projectType);
+    } catch (e) {
+      console.error("API call failed: `return await api.checkForProjectUpdates(profile, projectType);`", e);
+      throw e;
+    }
   }
 
   /**
    * Update single project
    */
   async update(profile: KableProfile, project: KableProject_Deserialize) {
-    const updated = await api.updateProject(profile, project);
+    try {
+      const updated = await api.updateProject(profile, project);
 
-    this.projects = this.projects.map((p) =>
-      p.project.project_id === updated.project.project_id ? updated : p,
-    );
-
-    return updated;
+      this.projects = this.projects.map((p) =>
+        p.project.project_id === updated.project.project_id ? updated : p,
+      );
+      return updated;
+    } catch (e) {
+      console.error("Failed to update project", e);
+      throw e;
+    }
   }
 
   /**
    * Update all projects
    */
   async updateAll(profile: KableProfile, projectType: ProjectType) {
-    const updated = await api.updateAllProjects(profile, projectType);
+    try {
+      const updated = await api.updateAllProjects(profile, projectType);
 
-    this.projects = updated;
-    return updated;
+      this.projects = updated;
+      return updated;
+    } catch (e) {
+      console.error("Failed to update all projects", e);
+      throw e;
+    }
   }
 
   async destroy() {

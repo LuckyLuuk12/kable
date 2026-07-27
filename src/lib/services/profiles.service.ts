@@ -32,23 +32,35 @@ export class ProfilesService implements Service {
   }
 
   async setActive(profile: KableProfile) {
-    await api.setActiveAccount(profile as unknown as KableAccount);
+    try {
+      await api.setActiveAccount(profile as unknown as KableAccount);
 
-    this.activeProfileId = profile.id;
+      this.activeProfileId = profile.id;
+    } catch (e) {
+      console.error("Failed to set active profile", e);
+    }
   }
 
   async add(profile: KableProfile) {
-    await api.addAccount(profile as unknown as KableAccount);
+    try {
+      await api.addAccount(profile as unknown as KableAccount);
 
-    this.profiles = [...this.profiles, profile];
+      this.profiles = [...this.profiles, profile];
+    } catch (e) {
+      console.error("Failed to add profile", e);
+    }
   }
 
   async modify(oldProfile: KableProfile, newProfile: KableProfile) {
-    const updated = await api.modifyProfile(oldProfile, newProfile);
+    try {
+      const updated = await api.modifyProfile(oldProfile, newProfile);
 
-    this.profiles = this.profiles.map((p) =>
-      p.id === updated.id ? updated : p,
-    );
+      this.profiles = this.profiles.map((p) =>
+        p.id === updated.id ? updated : p,
+      );
+    } catch (e) {
+      console.error("Failed to modify profile", e);
+    }
   }
 
   getLoaderColor(loader: LoaderKind): string {

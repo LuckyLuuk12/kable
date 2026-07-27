@@ -10,7 +10,12 @@ Includes installation carousel for quick switching and semantic search filtering
 ```
 -->
 <script lang="ts">
-import { type KableProfile, app, Icon } from "$lib";
+import { type KableProfile, type ModJarInfo, app, Icon } from "$lib";
+import {
+  InstallationService,
+  ModsService as LegacyModsService,
+} from "$lib/old_services";
+import { extendedModInfo, selectedInstallation } from "$lib/stores";
 import { onMount } from "svelte";
 import { get } from "svelte/store";
 import InstalledModCard from "./InstalledModCard.svelte";
@@ -36,9 +41,9 @@ let disabledGroupMode: DisabledGroupMode = "end";
 let sourceViewEnabled = false;
 
 // Cached mod metadata by jar filename (used for date sorting + stable project lookup).
-let modMetadataMap = new Map<string, ModMetadata | null>();
-let modpackSources: ModpackSourceRecord[] = [];
-let modpackProjectMap = new Map<string, ModInfoKind>();
+let modMetadataMap = new Map<string, unknown>();
+let modpackSources: any[] = [];
+let modpackProjectMap = new Map<string, any>();
 const nameCollator = new Intl.Collator(undefined, {
   sensitivity: "base",
   numeric: true,
@@ -270,7 +275,7 @@ let loadedInstallationId: string | null = null;
 
 // Reactively update currentInstallation and mods when selectedId changes
 $: {
-  const inst = get(installations).find((i) => i.id === selectedId) || null;
+  const inst = sortedInstallations.find((i) => i.id === selectedId) || null;
   currentProfile = inst;
   selectedInstallation.set(inst);
 
@@ -333,7 +338,9 @@ $: {
       if (missing.length > 0) {
         // Mark these mods as attempted to prevent infinite loops
         missing.forEach((mod) => attemptedExtendedInfo.add(mod.file_name));
-        Promise.all(missing.map((mod) => ModsService.getExtendedModInfo(mod)));
+        Promise.all(
+          missing.map((mod) => LegacyModsService.getExtendedModInfo(mod)),
+        );
       }
     }
   } else {
@@ -341,10 +348,8 @@ $: {
   }
 }
 
-// Fetch metadata lazily for mods that are missing it.
 $: if (selectedId && mods && mods.length > 0) {
-  const installationForMetadata =
-    get(installations).find((i) => i.id === selectedId) || null;
+  const installationForMetadata = get(selectedInstallation) || null;
   if (installationForMetadata) {
     const missingMeta = mods.filter(
       (mod) => !modMetadataMap.has(metadataKey(mod.file_name)),
@@ -352,15 +357,14 @@ $: if (selectedId && mods && mods.length > 0) {
     if (missingMeta.length > 0) {
       Promise.all(
         missingMeta.map(async (mod) => {
-          try {
-            const meta = await modsApi.getModMetadata(
-              installationForMetadata,
-              mod.file_name,
-            );
-            return [metadataKey(mod.file_name), meta] as const;
-          } catch {
-            return [metadataKey(mod.file_name), null] as const;
-          }
+          const loaded = await app.modsService.loadModMetadataMap(
+            installationForMetadata,
+            [mod],
+          );
+          return [
+            metadataKey(mod.file_name),
+            loaded.get(metadataKey(mod.file_name)) ?? null,
+          ] as const;
         }),
       ).then((pairs) => {
         if (pairs.length === 0) return;
@@ -483,32 +487,7 @@ $: standaloneFilteredMods = sortedFilteredMods.filter((mod) => {
   return !managedProjectIds.has(projectId);
 });
 
-$: if (currentProfile && modpackSources.length > 0 && sourceViewEnabled) {
-  const missingProjectIds = modpackSources
-    .filter((source) => source.provider === ProviderKind.Modrinth)
-    .map((source) => source.mod_id)
-    .filter((projectId) => !modpackProjectMap.has(projectId));
-
-  if (missingProjectIds.length > 0) {
-    const uniqueProjectIds = Array.from(new Set(missingProjectIds));
-    modsApi
-      .getProjects(ProviderKind.Modrinth, uniqueProjectIds)
-      .then((projects) => {
-        const next = new Map(modpackProjectMap);
-        for (const project of projects) {
-          if ("Modrinth" in project) {
-            next.set(project.Modrinth.project_id, project);
-          }
-        }
-        modpackProjectMap = next;
-      })
-      .catch((err) => {
-        console.warn("Failed to load modpack project cards:", err);
-      });
-  }
-}
-
-function getModpackCardTitle(source: modsApi.ModpackSourceRecord): string {
+function getModpackCardTitle(source: any): string {
   const project = modpackProjectMap.get(source.mod_id);
   if (project && "Modrinth" in project) {
     return project.Modrinth.title || source.modpack_name || source.mod_id;
@@ -516,9 +495,7 @@ function getModpackCardTitle(source: modsApi.ModpackSourceRecord): string {
   return source.modpack_name || source.mod_id;
 }
 
-function getModpackCardDescription(
-  source: modsApi.ModpackSourceRecord,
-): string {
+function getModpackCardDescription(source: any): string {
   const project = modpackProjectMap.get(source.mod_id);
   if (project && "Modrinth" in project) {
     return project.Modrinth.description || "";
@@ -526,9 +503,7 @@ function getModpackCardDescription(
   return "";
 }
 
-function getModpackCardIcon(
-  source: modsApi.ModpackSourceRecord,
-): string | null {
+function getModpackCardIcon(source: any): string | null {
   const project = modpackProjectMap.get(source.mod_id);
   if (project && "Modrinth" in project) {
     return project.Modrinth.icon_url || null;
@@ -536,18 +511,18 @@ function getModpackCardIcon(
   return null;
 }
 
-function getModpackCardUrl(source: modsApi.ModpackSourceRecord): string | null {
-  if (source.provider === ProviderKind.Modrinth) {
+function getModpackCardUrl(source: any): string | null {
+  if (source.provider === "Modrinth") {
     return `https://modrinth.com/modpack/${source.mod_id}`;
   }
   return null;
 }
 
-async function openModpackSource(source: modsApi.ModpackSourceRecord) {
+async function openModpackSource(source: any) {
   const url = getModpackCardUrl(source);
   if (!url) return;
   try {
-    await openUrl(url);
+    await app.openUrl(url);
   } catch (err) {
     console.error("Failed to open modpack page:", err);
   }
@@ -558,25 +533,6 @@ function handleModChanged() {
   // Reload mods to reflect changes
   if (currentProfile) {
     loadMods(currentProfile, { silent: true });
-  }
-}
-
-async function loadModpackSources(installation: KableProfile) {
-  loadingModpackSources = true;
-  try {
-    modpackSources = await modsApi.getModpackSourceRecords(installation);
-    const sourceIds = new Set(modpackSources.map((source) => source.mod_id));
-    modpackProjectMap = new Map(
-      Array.from(modpackProjectMap.entries()).filter(([id]) =>
-        sourceIds.has(id),
-      ),
-    );
-  } catch (err) {
-    console.warn("Failed to load modpack source records:", err);
-    modpackSources = [];
-    modpackProjectMap = new Map();
-  } finally {
-    loadingModpackSources = false;
   }
 }
 
@@ -611,19 +567,21 @@ async function handleUpdateAll() {
 
   for (const { mod, versionId } of updates) {
     try {
-      const extendedInfo = $extendedModInfo[mod.file_name];
-      if (!extendedInfo) continue;
-
       let projectId: string | null = null;
 
-      // Prefer metadata because it is the most reliable identifier source.
-      try {
-        const metadata = await modsApi.getModMetadata(
-          currentProfile,
-          mod.file_name,
+      const metadata = modMetadataMap.get(metadataKey(mod.file_name));
+      if (
+        metadata &&
+        typeof metadata === "object" &&
+        "project_id" in metadata
+      ) {
+        projectId = String(
+          (metadata as { project_id?: string }).project_id ?? "",
         );
-        projectId = metadata.project_id;
-      } catch (e) {
+      }
+
+      const extendedInfo = $extendedModInfo[mod.file_name];
+      if (!projectId && extendedInfo) {
         if (extendedInfo.page_uri) {
           const match = extendedInfo.page_uri.match(/\/mod\/([\w-]+)/);
           if (match) projectId = match[1];
@@ -636,12 +594,7 @@ async function handleUpdateAll() {
         continue;
       }
 
-      await modsApi.downloadMod(
-        ProviderKind.Modrinth,
-        projectId,
-        versionId,
-        currentProfile,
-      );
+      await app.modsService.downloadMod(projectId, versionId, currentProfile);
       successCount++;
     } catch (error) {
       console.error(`Failed to update ${mod.file_name}:`, error);
@@ -682,7 +635,7 @@ async function handleModClick(mod: ModJarInfo) {
   const extendedInfo = $extendedModInfo[mod.file_name];
   if (extendedInfo?.page_uri) {
     try {
-      await openUrl(extendedInfo.page_uri);
+      await app.openUrl(extendedInfo.page_uri);
     } catch (error) {
       console.error("Failed to open mod page:", error);
     }
@@ -694,7 +647,7 @@ async function handleModClick(mod: ModJarInfo) {
 async function toggleModDisabledAction(mod: ModJarInfo) {
   if (!currentProfile) return;
   try {
-    const newDisabled = await installationsApi.toggleModDisabled(
+    const newDisabled = await app.modsService.toggleModDisabled(
       currentProfile,
       mod.file_name,
     );
@@ -721,36 +674,17 @@ async function loadMods(
   }
   error = null;
   try {
-    const newMods = await app.profilesService.getModInfo(installation);
-
-    // Update in place to preserve component identity and prevent flashing
-    // Create a map of new mods by file_name for quick lookup
-    const newModsMap = new Map(newMods.map((m) => [m.file_name, m]));
-
-    // Update existing mods if they still exist, remove those that don't
-    mods = mods.filter((existingMod) => {
-      const newMod = newModsMap.get(existingMod.file_name);
-      if (newMod) {
-        // Update the existing mod object properties
-        Object.assign(existingMod, newMod);
-        newModsMap.delete(existingMod.file_name);
-        return true;
-      }
-      return false;
-    });
-
-    // Add any new mods that weren't in the previous list
-    mods = [...mods, ...Array.from(newModsMap.values())];
-
-    await loadModpackSources(installation);
-
-    // Don't clear attemptedExtendedInfo - let it persist so we don't refetch
-    // Only clear it when switching installations (handled in reactive statement)
+    const loaded = await app.modsService.loadMods(installation);
+    mods = loaded.mods;
+    modMetadataMap = loaded.modMetadataMap;
+    modpackSources = loaded.modpackSources;
+    modpackProjectMap = loaded.modpackProjectMap;
   } catch (e: any) {
     error = e?.message || e || "Failed to load mods info";
     mods = [];
     modpackSources = [];
     modpackProjectMap = new Map();
+    modMetadataMap = new Map();
     attemptedExtendedInfo.clear();
     // Reset the loaded installation ID so we can retry if user switches away and back
     loadedInstallationId = null;
