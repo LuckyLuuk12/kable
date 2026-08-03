@@ -58,6 +58,16 @@ export class ProfilesService implements Service {
     }
   }
 
+  /// Modifies a profile's favorite status, and then updates with the this.modify method to ensure the change is persisted and reflected in the profiles list.
+  async toggleFavorite(profile: KableProfile) {
+    try {
+      const updatedProfile = { ...profile, favorite: !profile.favorite };
+      await this.modify(profile, updatedProfile);
+    } catch (e) {
+      console.error("Failed to toggle favorite status for profile", e);
+    }
+  }
+
   getLoaderColor(loader: LoaderKind): string {
     switch (loader) {
       case "vanilla":
@@ -88,6 +98,15 @@ export class ProfilesService implements Service {
 
     if (this.activeProfileId === id) {
       this.activeProfileId = null;
+    }
+  }
+
+  async createProfile(versionId: string) {
+    try {
+      const newProfile = await api.createProfile(versionId);
+      this.profiles = [...this.profiles, newProfile];
+    } catch (e) {
+      console.error("Failed to create profile", e);
     }
   }
 

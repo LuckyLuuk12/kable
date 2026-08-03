@@ -1,4 +1,3 @@
-import { LogsManager } from "../stores/logs";
 import type { Service } from "./app.service";
 
 export class LogsService implements Service {
@@ -7,7 +6,7 @@ export class LogsService implements Service {
   }
 
   emitLauncherEvent(message: string, level: "info" | "warn" | "error" | "debug" = "info", instanceId?: string) {
-    LogsManager.addLauncherLog(message, level, instanceId);
+    // LogsManager.addLauncherLog(message, level, instanceId);
   }
 
   async destroy() {

@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use crate::features::profiles::management;
 use crate::integrations::loaders;
 use api_types::profiles::{KableProfile, Versions};
@@ -26,10 +28,16 @@ pub async fn modify_profile(old_profile: KableProfile, new_profile: KableProfile
     management::modify_profile(old_profile, new_profile).await
 }
 
-// #[tauri::command]
-// pub async fn create_profile(version_id: String) -> Result<KableProfile, String> {
-//     crate::features::profiles::create::create_profile(&version_id).await
-// }
+#[tauri::command]
+#[specta::specta]
+pub async fn create_profile(
+    version_id: Option<String>,
+    base_profile: Option<KableProfile>,
+    exported_profile: Option<std::path::PathBuf>,
+    mrpack: Option<String>,
+) -> Result<KableProfile, String> {
+    crate::features::profiles::kable_profile::create_profile(version_id, base_profile, exported_profile, mrpack).await
+}
 // We should make a create_profile() function that wraps all ways of creating a profile so:
 // - from version_data (this data should include the version id and loader)
 // - from exported profile data (should be a zip with all info required to recreate the profile exactly, including mods, resource packs, etc. This is for profile sharing)

@@ -15,10 +15,9 @@ Supports both grid and list view modes with sorting and filtering.
 ```
 -->
 <script lang="ts">
-import { app, Icon } from "$lib";
-import { clickSound, errorSound, launchSound } from "$lib/actions";
+import { app, clickSound, errorSound, Icon, launchSound } from "$lib";
 import { onDestroy, onMount } from "svelte";
-import EditInstallationModal from "./EditProfileModal.svelte";
+import EditProfileModal from "./EditProfileModal.svelte";
 
 export let isGrid: boolean = false;
 export let isSmall: boolean = false;
@@ -64,7 +63,7 @@ $: loaderIcons = (() => {
   // Force reactive dependency on versions store
   const currentVersions = app.launcherService.versions;
   return Object.fromEntries(
-    app.profilesService.profiles.map((installation) => [installation.id, InstallationService.getLoaderIcon(InstallationService.getVersionData(installation).loader)]),
+    app.profilesService.profiles.map((installation) => [installation.id, app.profilesService.getLoaderIcon(InstallationService.getVersionData(installation).loader)]),
   );
 })();
 
@@ -161,14 +160,14 @@ onDestroy(() => {
 });
 
 // Re-check when installations change or isSmall prop changes
-$: {
+$effect(() => {
   if (limitedInstallations.length >= 0) {
     setTimeout(checkActionsFit, 100);
   }
-}
+});
 
 // Also re-check when isSmall changes specifically
-$: {
+$effect(() => {
   if (typeof isSmall === "boolean") {
     // Immediate check for isSmall changes
     if (isSmall) {
@@ -183,11 +182,11 @@ $: {
       setTimeout(checkActionsFit, 10);
     }
   }
-}
+});
 </script>
 
 <!-- Global edit modal -->
-<EditInstallationModal bind:this={editModal} />
+<EditProfileModal bind:this={editModal} />
 
 <div class="installations-list" class:compact={isSmall && !isGrid}>
   {#if error}
@@ -223,7 +222,7 @@ $: {
               <button
                 class="star-btn"
                 title={installation.favorite ? "Unfavorite" : "Favorite"}
-                on:click={async (e) => {
+                onclick={async (e) => {
                   e.stopPropagation();
                   await app.profilesService.toggleFavorite(installation);
                 }}>
@@ -237,17 +236,17 @@ $: {
                     <Icon name="more-horizontal" size="sm" />
                   </button>
                   <div class="dropdown-menu" style="z-index: {(limitedInstallations.length - i) * 2 - 1};">
-                    <button use:clickSound on:click={() => editModal?.open(installation)} title="Edit Installation">
+                    <button use:clickSound onclick={() => editModal?.open(installation)} title="Edit Installation">
                       <Icon name="edit" size="sm" />
                       Edit
                     </button>
-                    <button use:clickSound on:click={async () => await app.profilesService.createInstallation(installation.version_id)} title="Duplicate Installation">
+                    <button use:clickSound onclick={async () => await app.profilesService.createInstallation(installation.version.id)} title="Duplicate Installation">
                       <Icon name="duplicate" size="sm" />
                       Duplicate
                     </button>
                     <button
                       use:clickSound
-                      on:click={async () => {
+                      onclick={async () => {
                         await app.profilesService.exportInstallation(installation);
                       }}
                       title="Export Installation">
@@ -256,7 +255,7 @@ $: {
                     </button>
                     <button
                       use:clickSound
-                      on:click={async () => {
+                      onclick={async () => {
                         try {
                           const path = await app.profilesService.createShortcut(installation);
                           console.log("Shortcut created at:", path);
@@ -269,7 +268,7 @@ $: {
                       Create Shortcut
                     </button>
                     <div class="dropdown-separator"></div>
-                    <button use:errorSound class="danger" on:click={async () => await app.profilesService.remove(installation.id)} title="Delete Installation">
+                    <button use:errorSound class="danger" onclick={async () => await app.profilesService.remove(installation.id)} title="Delete Installation">
                       <Icon name="trash" size="sm" />
                       Delete
                     </button>
@@ -298,10 +297,10 @@ $: {
                   style="background: linear-gradient(90deg, {loaderColors[installation.id] || 'var(--loader-primary)'} 60%, {loaderColors[installation.id]
                     ? `${loaderColors[installation.id]}cc`
                     : 'var(--loader-secondary)'} 100%); color: var(--text-white) !important;"
-                  on:click={async () => {
+                  onclick={async () => {
                     await app.launcherService.launch(installation);
                   }}
-                  disabled={$isLaunching}>
+                  disabled={isLaunching}>
                   {#if $currentLaunchingInstallation && $currentLaunchingInstallation.id === installation.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
                     <span style="margin-left:0.5rem">Launching...</span>
@@ -312,11 +311,11 @@ $: {
               </div>
               <div class="installation-meta">
                 <div class="installation-title-row">
-                  <h3>{installation.name || installation.version_id}</h3>
+                  <h3>{installation.name || installation.version.id}</h3>
                 </div>
-                {#if installation.version_id}
+                {#if installation.version.id}
                   <div class="loader-version-row">
-                    <span class="loader-version" style="color: {loaderColors[installation.id]};">{installation.version_id}</span>
+                    <span class="loader-version" style="color: {loaderColors[installation.id]};">{installation.version.id}</span>
                   </div>
                 {/if}
                 {#if isSmall}
@@ -361,14 +360,14 @@ $: {
 
             {#if !isSmall}
               <div class="installation-actions">
-                <button use:clickSound class="btn btn-secondary" on:click={() => editModal?.open(installation)} title="Edit Installation">
+                <button use:clickSound class="btn btn-secondary" onclick={() => editModal?.open(installation)} title="Edit Installation">
                   <Icon name="edit" size="sm" />
                   Edit
                 </button>
                 <button
                   use:clickSound
                   class="btn btn-secondary"
-                  on:click={async () => await app.profilesService.createInstallation(installation.version_id)}
+                  onclick={async () => await app.profilesService.createInstallation(installation.version.id)}
                   title="Duplicate Installation">
                   <Icon name="duplicate" size="sm" />
                   Duplicate
@@ -376,7 +375,7 @@ $: {
                 <button
                   use:clickSound
                   class="btn btn-secondary"
-                  on:click={async () => {
+                  onclick={async () => {
                     await app.profilesService.exportInstallation(installation);
                   }}
                   title="Export Installation">
@@ -386,7 +385,7 @@ $: {
                 <button
                   use:clickSound
                   class="btn btn-secondary"
-                  on:click={async () => {
+                  onclick={async () => {
                     try {
                       const path = await app.profilesService.createShortcut(installation);
                       console.log("Shortcut created at:", path);
@@ -437,8 +436,8 @@ $: {
                   on:click={async () => {
                     await app.launcherService.launch(installation);
                   }}
-                  disabled={$isLaunching}>
-                  {#if $currentLaunchingInstallation && $currentLaunchingInstallation.id === installation.id}
+                  disabled={isLaunching}>
+                  {#if currentLaunchingInstallation && currentLaunchingInstallation.id === installation.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
                     <span style="margin-left:0.5rem">Launching...</span>
                   {:else}
@@ -451,12 +450,12 @@ $: {
               <div class="list-item-content">
                 <!-- Title Row with Actions -->
                 <div class="list-title-actions-row">
-                  <h3>{installation.name || installation.version_id}</h3>
+                  <h3>{installation.name || installation.version.id}</h3>
                   <div class="list-actions-section">
                     <button
                       class="star-btn"
                       title={installation.favorite ? "Unfavorite" : "Favorite"}
-                      on:click={async (e) => {
+                      onclick={async (e) => {
                         e.stopPropagation();
                         await app.profilesService.toggleFavorite(installation);
                       }}>
@@ -474,7 +473,7 @@ $: {
                       <button
                         use:clickSound
                         class="list-action-btn"
-                        on:click={async () => await app.profilesService.createInstallation(installation.version_id)}
+                        onclick={async () => await app.profilesService.createInstallation(installation.version.id)}
                         title="Duplicate Installation">
                         <Icon name="duplicate" size="sm" />
                         Duplicate
@@ -482,7 +481,7 @@ $: {
                       <button
                         use:clickSound
                         class="list-action-btn"
-                        on:click={async () => await app.profilesService.exportInstallation(installation)}
+                        onclick={async () => await app.profilesService.exportInstallation(installation)}
                         title="Export Installation">
                         <Icon name="download" size="sm" />
                         Export
@@ -490,7 +489,7 @@ $: {
                       <button
                         use:clickSound
                         class="list-action-btn"
-                        on:click={async () => {
+                        onclick={async () => {
                           try {
                             const path = await app.profilesService.createShortcut(installation);
                             console.log("Shortcut created at:", path);
@@ -522,20 +521,17 @@ $: {
                           <Icon name="edit" size="sm" />
                           Edit
                         </button>
-                        <button
-                          use:clickSound
-                          on:click={async () => await app.profilesService.createInstallation(installation.version_id)}
-                          title="Duplicate Installation">
+                        <button use:clickSound onclick={async () => await app.profilesService.createInstallation(installation.version.id)} title="Duplicate Installation">
                           <Icon name="duplicate" size="sm" />
                           Duplicate
                         </button>
-                        <button use:clickSound on:click={async () => await app.profilesService.exportInstallation(installation)} title="Export Installation">
+                        <button use:clickSound onclick={async () => await app.profilesService.exportInstallation(installation)} title="Export Installation">
                           <Icon name="download" size="sm" />
                           Export
                         </button>
                         <button
                           use:clickSound
-                          on:click={async () => {
+                          onclick={async () => {
                             try {
                               const path = await app.profilesService.createShortcut(installation);
                               console.log("Shortcut created at:", path);
@@ -548,7 +544,7 @@ $: {
                           Create Shortcut
                         </button>
                         <div class="dropdown-separator"></div>
-                        <button use:errorSound class="danger" on:click={async () => await app.profilesService.remove(installation.id)} title="Delete Installation">
+                        <button use:errorSound class="danger" onclick={async () => await app.profilesService.remove(installation.id)} title="Delete Installation">
                           <Icon name="trash" size="sm" />
                           Delete
                         </button>
@@ -559,8 +555,8 @@ $: {
 
                 <!-- Version and Stats Row -->
                 <div class="list-version-stats-row">
-                  {#if installation.version_id && installation.name}
-                    <span class="list-version" style="color: {loaderColors[installation.id]};">{installation.version_id}</span>
+                  {#if installation.version.id && installation.name}
+                    <span class="list-version" style="color: {loaderColors[installation.id]};">{installation.version.id}</span>
                   {/if}
                   <div class="list-stats-section">
                     <div class="list-meta-item">
