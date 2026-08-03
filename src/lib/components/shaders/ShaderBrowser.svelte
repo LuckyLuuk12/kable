@@ -15,11 +15,7 @@ Provides interface for discovering shader packs with support for:
 ```
 -->
 <script lang="ts">
-import type {
-  KableInstallation,
-  ShaderDownload,
-  ShaderFilterFacets,
-} from "$lib";
+import type { KableInstallation, ShaderDownload, ShaderFilterFacets } from "$lib";
 import {
   Icon,
   ShaderCard,
@@ -39,12 +35,7 @@ import { onMount } from "svelte";
 type ViewMode = "grid" | "list" | "compact";
 type InstallMode = "dedicated" | "global";
 
-export let ondownload:
-  | ((event: {
-      shader: ShaderDownload;
-      installation: KableInstallation | null;
-    }) => void)
-  | undefined = undefined;
+export let ondownload: ((event: { shader: ShaderDownload; installation: KableInstallation | null }) => void) | undefined = undefined;
 export let selectedInstallationId: string = "global";
 
 // Browser state
@@ -142,27 +133,14 @@ $: {
     currentInstallation = null;
   } else {
     installMode = "dedicated";
-    currentInstallation =
-      $installations.find((inst) => inst.id === selectedInstallationId) || null;
+    currentInstallation = $installations.find((inst) => inst.id === selectedInstallationId) || null;
     if (currentInstallation) {
       selectedInstallation.set(currentInstallation);
     }
   }
   // Trigger filter update when installation changes (only after mount and only if it actually changed)
-  if (
-    isFullyMounted &&
-    shadersService &&
-    previousInstallationId !== null &&
-    previousInstallationId !== selectedInstallationId
-  ) {
-    console.log(
-      "[ShaderBrowser] Installation changed from",
-      previousInstallationId,
-      "to:",
-      selectedInstallationId,
-      "version:",
-      currentInstallation?.version_id,
-    );
+  if (isFullyMounted && shadersService && previousInstallationId !== null && previousInstallationId !== selectedInstallationId) {
+    console.log("[ShaderBrowser] Installation changed from", previousInstallationId, "to:", selectedInstallationId, "version:", currentInstallation?.version_id);
     handleFiltersChange();
   }
   previousInstallationId = selectedInstallationId;
@@ -191,18 +169,10 @@ async function applyFiltersToBackend() {
   if (!shadersService) return;
 
   // Build filter object for backend
-  const includeLoaders = filters.loader
-    .filter((f) => f.mode === "include")
-    .map((f) => f.value);
-  const excludeLoaders = filters.loader
-    .filter((f) => f.mode === "exclude")
-    .map((f) => f.value);
-  const includeCategories = filters.categories
-    .filter((f) => f.mode === "include")
-    .map((f) => f.value);
-  const excludeCategories = filters.categories
-    .filter((f) => f.mode === "exclude")
-    .map((f) => f.value);
+  const includeLoaders = filters.loader.filter((f) => f.mode === "include").map((f) => f.value);
+  const excludeLoaders = filters.loader.filter((f) => f.mode === "exclude").map((f) => f.value);
+  const includeCategories = filters.categories.filter((f) => f.mode === "include").map((f) => f.value);
+  const excludeCategories = filters.categories.filter((f) => f.mode === "exclude").map((f) => f.value);
 
   // If no filters and no search and no installation version, clear filters
   if (
@@ -223,43 +193,24 @@ async function applyFiltersToBackend() {
   // Each filter is AND'd together - put each in separate array
   // Operations: ':' for include, '!=' for exclude
 
-  const includeLoaderFilters: [string, string][] = includeLoaders.map(
-    (l) => [":", l.toLowerCase()] as [string, string],
-  );
-  const excludeLoaderFilters: [string, string][] = excludeLoaders.map(
-    (l) => ["!=", l.toLowerCase()] as [string, string],
-  );
+  const includeLoaderFilters: [string, string][] = includeLoaders.map((l) => [":", l.toLowerCase()] as [string, string]);
+  const excludeLoaderFilters: [string, string][] = excludeLoaders.map((l) => ["!=", l.toLowerCase()] as [string, string]);
 
   const loaderFilters = [...includeLoaderFilters, ...excludeLoaderFilters];
 
-  const includeCategoryFilters: [string, string][] = includeCategories.map(
-    (c) => [":", c.toLowerCase()] as [string, string],
-  );
-  const excludeCategoryFilters: [string, string][] = excludeCategories.map(
-    (c) => ["!=", c.toLowerCase()] as [string, string],
-  );
+  const includeCategoryFilters: [string, string][] = includeCategories.map((c) => [":", c.toLowerCase()] as [string, string]);
+  const excludeCategoryFilters: [string, string][] = excludeCategories.map((c) => ["!=", c.toLowerCase()] as [string, string]);
 
-  const categoryFilters = [
-    ...includeCategoryFilters,
-    ...excludeCategoryFilters,
-  ];
+  const categoryFilters = [...includeCategoryFilters, ...excludeCategoryFilters];
 
   const filterFacets: ShaderFilterFacets = {
     query: searchQuery || undefined,
     loaders: loaderFilters.length > 0 ? loaderFilters : undefined,
     categories: categoryFilters.length > 0 ? categoryFilters : undefined,
-    game_versions:
-      smartFilteringEnabled &&
-      currentInstallation &&
-      currentInstallation.version_id
-        ? [currentInstallation.version_id]
-        : undefined,
+    game_versions: smartFilteringEnabled && currentInstallation && currentInstallation.version_id ? [currentInstallation.version_id] : undefined,
   };
 
-  console.log(
-    "[ShaderBrowser] Applying filters to backend:",
-    JSON.stringify(filterFacets, null, 2),
-  );
+  console.log("[ShaderBrowser] Applying filters to backend:", JSON.stringify(filterFacets, null, 2));
 
   // Reset to first page when filters change
   currentPage = 1;
@@ -280,9 +231,7 @@ async function handleSearch() {
 
 // Handle smart filtering toggle
 async function onSmartFilteringChange() {
-  console.log(
-    `[ShaderBrowser] Smart filtering ${smartFilteringEnabled ? "enabled" : "disabled"}`,
-  );
+  console.log(`[ShaderBrowser] Smart filtering ${smartFilteringEnabled ? "enabled" : "disabled"}`);
 
   // Re-apply filters with new setting
   if (shadersService) {
@@ -299,16 +248,11 @@ function toggleFilter(category: "loader" | "categories", value: string) {
       filters[category] = filters[category].filter((f) => f.value !== value);
     } else {
       // Exclude -> Include (switch mode by creating new array)
-      filters[category] = filters[category].map((f) =>
-        f.value === value ? { ...f, mode: "include" as const } : f,
-      );
+      filters[category] = filters[category].map((f) => (f.value === value ? { ...f, mode: "include" as const } : f));
     }
   } else {
     // None -> Include (add as include filter)
-    filters[category] = [
-      ...filters[category],
-      { value, mode: "include" as const },
-    ];
+    filters[category] = [...filters[category], { value, mode: "include" as const }];
   }
   // Trigger reactivity and backend update
   filters = { ...filters };
@@ -323,26 +267,18 @@ function toggleFilterExclude(category: "loader" | "categories", value: string) {
       filters[category] = filters[category].filter((f) => f.value !== value);
     } else {
       // Include -> Exclude (switch mode by creating new array)
-      filters[category] = filters[category].map((f) =>
-        f.value === value ? { ...f, mode: "exclude" as const } : f,
-      );
+      filters[category] = filters[category].map((f) => (f.value === value ? { ...f, mode: "exclude" as const } : f));
     }
   } else {
     // None -> Exclude (add as exclude filter)
-    filters[category] = [
-      ...filters[category],
-      { value, mode: "exclude" as const },
-    ];
+    filters[category] = [...filters[category], { value, mode: "exclude" as const }];
   }
   // Trigger reactivity and backend update
   filters = { ...filters };
   handleFiltersChange();
 }
 
-function getFilterState(
-  category: "loader" | "categories",
-  value: string,
-): FilterMode | null {
+function getFilterState(category: "loader" | "categories", value: string): FilterMode | null {
   const filter = filters[category].find((f) => f.value === value);
   return filter ? filter.mode : null;
 }
@@ -430,10 +366,7 @@ async function loadShaders() {
   }
 }
 
-function handleDownload(event: {
-  shader: ShaderDownload;
-  installation: KableInstallation | null;
-}) {
+function handleDownload(event: { shader: ShaderDownload; installation: KableInstallation | null }) {
   ondownload?.(event);
 }
 
@@ -469,10 +402,7 @@ onMount(async () => {
   // Mark as fully mounted after initialization
   isFullyMounted = true;
 
-  console.log(
-    "[ShaderBrowser] Fully mounted and initialized with installation:",
-    selectedInstallationId,
-  );
+  console.log("[ShaderBrowser] Fully mounted and initialized with installation:", selectedInstallationId);
 });
 </script>
 
@@ -485,21 +415,15 @@ onMount(async () => {
       <!-- Installation Selector -->
       <div class="installation-selector-inline">
         <label for="installation-select-inline">
-          <Icon
-            name={selectedInstallationId === "global" ? "globe" : "package"}
-            size="sm" />
+          <Icon name={selectedInstallationId === "global" ? "globe" : "package"} size="sm" />
           <span>Install to:</span>
         </label>
-        <select
-          id="installation-select-inline"
-          class="installation-select"
-          bind:value={selectedInstallationId}>
+        <select id="installation-select-inline" class="installation-select" bind:value={selectedInstallationId}>
           <option value="global">🌍 Global (All Installations)</option>
           {#if $installations.length > 0}
             <optgroup label="Installations">
               {#each $installations as installation}
-                <option value={installation.id}
-                  >📦 {installation.name ?? installation.version_id}</option>
+                <option value={installation.id}>📦 {installation.name ?? installation.version_id}</option>
               {/each}
             </optgroup>
           {/if}
@@ -515,22 +439,11 @@ onMount(async () => {
       <div class="filters-header">
         <h3>Filters</h3>
         <div class="filters-actions">
-          <button
-            class="reset-filters"
-            on:click={resetFilters}
-            use:clickSound
-            title="Reset all filters">
+          <button class="reset-filters" on:click={resetFilters} use:clickSound title="Reset all filters">
             <Icon name="refresh" size="sm" forceType="svg" />
           </button>
-          <button
-            class="toggle-filters"
-            on:click={() => (showFilters = !showFilters)}
-            use:clickSound
-            title="Toggle filters">
-            <Icon
-              name={showFilters ? "arrow-left" : "arrow-right"}
-              size="sm"
-              forceType="svg" />
+          <button class="toggle-filters" on:click={() => (showFilters = !showFilters)} use:clickSound title="Toggle filters">
+            <Icon name={showFilters ? "arrow-left" : "arrow-right"} size="sm" forceType="svg" />
           </button>
         </div>
       </div>
@@ -540,20 +453,16 @@ onMount(async () => {
           <!-- Smart Filtering Toggle -->
           <div class="filter-section smart-filter-section">
             <label class="smart-filter-toggle">
-              <input
-                type="checkbox"
-                bind:checked={smartFilteringEnabled}
-                on:change={onSmartFilteringChange} />
+              <input type="checkbox" bind:checked={smartFilteringEnabled} on:change={onSmartFilteringChange} />
               <span
                 class="toggle-label"
-                title="When enabled, only shows shader packs compatible with your installation's Minecraft version. Disable to browse all shader packs.">
+                title="When enabled, only shows shader packs compatible with your installation's Minecraft version. Disable to browse all shader packs."
+              >
                 Smart Filtering
               </span>
             </label>
             <p class="smart-filter-hint">
-              {smartFilteringEnabled
-                ? "Showing shaders compatible with your installation"
-                : "Showing all shaders (compatibility not filtered)"}
+              {smartFilteringEnabled ? "Showing shaders compatible with your installation" : "Showing all shaders (compatibility not filtered)"}
             </p>
           </div>
 
@@ -562,12 +471,7 @@ onMount(async () => {
             <label class="filter-label" for="search">Search</label>
             <div class="search-input-wrapper">
               <Icon name="search" size="sm" />
-              <input
-                type="text"
-                placeholder="Search shaders..."
-                bind:value={searchQuery}
-                on:input={handleSearch}
-                class="search-input" />
+              <input type="text" placeholder="Search shaders..." bind:value={searchQuery} on:input={handleSearch} class="search-input" />
               {#if searchQuery}
                 <button
                   class="clear-btn"
@@ -575,7 +479,8 @@ onMount(async () => {
                     searchQuery = "";
                     handleSearch();
                   }}
-                  use:clickSound>
+                  use:clickSound
+                >
                   <Icon name="x" size="sm" />
                 </button>
               {/if}
@@ -585,36 +490,25 @@ onMount(async () => {
           <!-- Dynamic Filter Sections -->
           {#each filterSections as section}
             <div class="filter-section">
-              <button
-                class="filter-header"
-                on:click={() => toggleSection(section.collapsedKey)}
-                use:clickSound>
+              <button class="filter-header" on:click={() => toggleSection(section.collapsedKey)} use:clickSound>
                 <span class="filter-label">{section.label}</span>
-                <Icon
-                  name={collapsedSections[section.collapsedKey]
-                    ? "chevron-down"
-                    : "chevron-up"}
-                  size="lg"
-                  forceType="svg" />
+                <Icon name={collapsedSections[section.collapsedKey] ? "chevron-down" : "chevron-up"} size="lg" forceType="svg" />
               </button>
               {#if !collapsedSections[section.collapsedKey]}
                 <div class="filter-options">
                   {#each section.options as option}
                     <div
                       class="filter-option"
-                      class:included={getFilterState(section.id, option) ===
-                        "include"}
-                      class:excluded={getFilterState(section.id, option) ===
-                        "exclude"}>
+                      class:included={getFilterState(section.id, option) === "include"}
+                      class:excluded={getFilterState(section.id, option) === "exclude"}
+                    >
                       <button
                         class="filter-option-btn include-btn"
-                        class:active={getFilterState(section.id, option) ===
-                          "include"}
+                        class:active={getFilterState(section.id, option) === "include"}
                         on:click={() => toggleFilter(section.id, option)}
                         use:clickSound
-                        title={getFilterState(section.id, option) === "include"
-                          ? "Remove filter"
-                          : "Include filter"}>
+                        title={getFilterState(section.id, option) === "include" ? "Remove filter" : "Include filter"}
+                      >
                         <span class="option-label">{option}</span>
                         {#if getFilterState(section.id, option) === "include"}
                           <Icon name="x" size="sm" forceType="svg" />
@@ -624,13 +518,11 @@ onMount(async () => {
                       </button>
                       <button
                         class="filter-option-btn exclude-btn"
-                        class:active={getFilterState(section.id, option) ===
-                          "exclude"}
+                        class:active={getFilterState(section.id, option) === "exclude"}
                         on:click={() => toggleFilterExclude(section.id, option)}
                         use:clickSound
-                        title={getFilterState(section.id, option) === "exclude"
-                          ? "Remove exclusion"
-                          : "Exclude filter"}>
+                        title={getFilterState(section.id, option) === "exclude" ? "Remove exclusion" : "Exclude filter"}
+                      >
                         <Icon name="trash" size="sm" forceType="svg" />
                       </button>
                     </div>
@@ -656,21 +548,13 @@ onMount(async () => {
             {:else if paginatedShaders.length === 0}
               No shaders found
             {:else}
-              Showing {paginatedShaders.length} shader{paginatedShaders.length !==
-              1
-                ? "s"
-                : ""}
+              Showing {paginatedShaders.length} shader{paginatedShaders.length !== 1 ? "s" : ""}
             {/if}
           </p>
 
           <!-- Compact Pagination Controls -->
           <div class="compact-pagination">
-            <button
-              class="page-btn compact"
-              on:click={previousPage}
-              use:clickSound
-              disabled={currentPage === 1}
-              title="Previous page">
+            <button class="page-btn compact" on:click={previousPage} use:clickSound disabled={currentPage === 1} title="Previous page">
               <Icon name="arrow-left" size="sm" forceType="svg" />
             </button>
 
@@ -678,21 +562,13 @@ onMount(async () => {
               {#if pageItem === "ellipsis"}
                 <span class="pagination-ellipsis">...</span>
               {:else}
-                <button
-                  class="page-btn compact"
-                  class:active={currentPage === pageItem}
-                  on:click={() => goToPage(pageItem)}
-                  use:clickSound>
+                <button class="page-btn compact" class:active={currentPage === pageItem} on:click={() => goToPage(pageItem)} use:clickSound>
                   {pageItem}
                 </button>
               {/if}
             {/each}
 
-            <button
-              class="page-btn compact"
-              on:click={nextPage}
-              use:clickSound
-              title="Next page">
+            <button class="page-btn compact" on:click={nextPage} use:clickSound title="Next page">
               <Icon name="arrow-right" size="sm" forceType="svg" />
             </button>
           </div>
@@ -701,21 +577,13 @@ onMount(async () => {
         <div class="toolbar-right">
           <div class="view-controls">
             {#each viewModes as mode}
-              <button
-                class="view-mode-btn"
-                class:active={viewMode === mode.id}
-                on:click={() => (viewMode = mode.id as ViewMode)}
-                use:clickSound
-                title={mode.name}>
+              <button class="view-mode-btn" class:active={viewMode === mode.id} on:click={() => (viewMode = mode.id as ViewMode)} use:clickSound title={mode.name}>
                 <Icon name={mode.icon} size="sm" />
               </button>
             {/each}
           </div>
 
-          <select
-            class="page-size-select"
-            bind:value={itemsPerPage}
-            on:change={() => changePageSize(itemsPerPage)}>
+          <select class="page-size-select" bind:value={itemsPerPage} on:change={() => changePageSize(itemsPerPage)}>
             {#each pageSizeOptions as size}
               <option value={size}>{size} per page</option>
             {/each}
@@ -754,22 +622,17 @@ onMount(async () => {
           </div>
         {:else}
           <!-- Shaders Grid/List -->
-          <div
-            class="shaders-container"
-            class:grid={viewMode === "grid"}
-            class:list={viewMode === "list"}
-            class:compact={viewMode === "compact"}>
+          <div class="shaders-container" class:grid={viewMode === "grid"} class:list={viewMode === "list"} class:compact={viewMode === "compact"}>
             {#each paginatedShaders as shader}
               <ShaderCard
                 {shader}
                 {viewMode}
-                installation={installMode === "dedicated"
-                  ? currentInstallation
-                  : null}
+                installation={installMode === "dedicated" ? currentInstallation : null}
                 loading={false}
                 isInstalled={false}
                 ondownload={handleDownload}
-                onviewgallery={handleViewGallery} />
+                onviewgallery={handleViewGallery}
+              />
             {/each}
           </div>
         {/if}
@@ -779,10 +642,7 @@ onMount(async () => {
 </div>
 
 <!-- Gallery Modal -->
-<ShaderGalleryModal
-  shader={selectedShaderForGallery}
-  bind:visible={showGalleryModal}
-  on:close={closeGallery} />
+<ShaderGalleryModal shader={selectedShaderForGallery} bind:visible={showGalleryModal} on:close={closeGallery} />
 
 <style lang="scss">
 //@use "@kablan/clean-ui/scss/_variables.scss" as *;
@@ -795,8 +655,7 @@ onMount(async () => {
   background: var(--container);
   border-radius: 0.5rem;
   border: 1px solid #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
-  box-shadow: 0 2px 8px
-    #{"color-mix(in srgb, var(--dark-900), 4%, transparent)"};
+  box-shadow: 0 2px 8px #{"color-mix(in srgb, var(--dark-900), 4%, transparent)"};
   overflow: hidden;
 }
 
@@ -810,8 +669,7 @@ onMount(async () => {
     #{"color-mix(in srgb, var(--card), 80%, transparent)"} 100%
   );
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid
-    #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+  border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
   padding: 0.75rem 1rem;
   position: relative;
 
@@ -839,11 +697,7 @@ onMount(async () => {
 
     h2 {
       margin: 0;
-      background: linear-gradient(
-        135deg,
-        var(--primary) 0%,
-        var(--secondary) 100%
-      );
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       background-clip: text;
       -webkit-background-clip: text;
       color: transparent;
@@ -873,8 +727,7 @@ onMount(async () => {
     .installation-select {
       flex: 1;
       padding: 0.5rem 0.75rem;
-      border: 1px solid
-        #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+      border: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
       border-radius: 0.375rem;
       background: var(--card);
       color: var(--text);
@@ -886,8 +739,7 @@ onMount(async () => {
       &:focus {
         outline: none;
         border-color: var(--primary);
-        box-shadow: 0 0 0 2px
-          #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
+        box-shadow: 0 0 0 2px #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
       }
 
       &:hover {
@@ -918,14 +770,9 @@ onMount(async () => {
 // Filters Sidebar
 .filters-sidebar {
   width: 240px;
-  background: linear-gradient(
-    135deg,
-    #{"color-mix(in srgb, var(--container), 95%, transparent)"} 0%,
-    #{"color-mix(in srgb, var(--card), 80%, transparent)"} 100%
-  );
+  background: linear-gradient(135deg, #{"color-mix(in srgb, var(--container), 95%, transparent)"} 0%, #{"color-mix(in srgb, var(--card), 80%, transparent)"} 100%);
   backdrop-filter: blur(8px);
-  border-right: 1px solid
-    #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+  border-right: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
@@ -956,13 +803,8 @@ onMount(async () => {
     justify-content: space-between;
     padding: 0.5rem 0.75rem;
     height: 2.6875rem;
-    border-bottom: 1px solid
-      #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
-    background: linear-gradient(
-      135deg,
-      #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 0%,
-      #{"color-mix(in srgb, var(--secondary), 3%, transparent)"} 100%
-    );
+    border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+    background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 3%, transparent)"} 100%);
     backdrop-filter: blur(4px);
 
     h3 {
@@ -1020,8 +862,7 @@ onMount(async () => {
         justify-content: space-between;
         padding: 0.375rem 0.5rem;
         background: #{"color-mix(in srgb, var(--primary), 5%, transparent)"};
-        border: 1px solid
-          #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+        border: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
         border-radius: 0.25rem;
         cursor: pointer;
         transition: all 0.15s;
@@ -1063,8 +904,7 @@ onMount(async () => {
           &:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 2px
-              #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
+            box-shadow: 0 0 0 2px #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
           }
 
           &::placeholder {
@@ -1188,8 +1028,7 @@ onMount(async () => {
     .smart-filter-section {
       padding: 0.75rem;
       background: #{"color-mix(in srgb, var(--primary), 5%, transparent)"};
-      border: 1px solid
-        #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+      border: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
       border-radius: 0.375rem;
       margin-bottom: 0.75rem;
 
@@ -1239,14 +1078,9 @@ onMount(async () => {
   justify-content: space-between;
   padding: 0.5rem 0.75rem;
   height: 2.6875rem;
-  background: linear-gradient(
-    135deg,
-    var(--container) 0%,
-    #{"color-mix(in srgb, var(--card), 60%, transparent)"} 100%
-  );
+  background: linear-gradient(135deg, var(--container) 0%, #{"color-mix(in srgb, var(--card), 60%, transparent)"} 100%);
   backdrop-filter: blur(6px);
-  border-bottom: 1px solid
-    #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+  border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
 
   .toolbar-left {
     display: flex;
@@ -1267,8 +1101,7 @@ onMount(async () => {
 
       .page-btn.compact {
         padding: 0.25rem 0.375rem;
-        border: 1px solid
-          #{"color-mix(in srgb, var(--primary), 20%, transparent)"};
+        border: 1px solid #{"color-mix(in srgb, var(--primary), 20%, transparent)"};
         border-radius: 0.25rem;
         background: #{"color-mix(in srgb, var(--card), 80%, transparent)"};
         color: var(--text);
@@ -1381,19 +1214,11 @@ onMount(async () => {
   }
 
   &::-webkit-scrollbar-thumb {
-    background: linear-gradient(
-      135deg,
-      #{"color-mix(in srgb, var(--primary), 60%, transparent)"} 0%,
-      #{"color-mix(in srgb, var(--secondary), 40%, transparent)"} 100%
-    );
+    background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 60%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 40%, transparent)"} 100%);
     border-radius: 4px;
 
     &:hover {
-      background: linear-gradient(
-        135deg,
-        #{"color-mix(in srgb, var(--primary), 80%, transparent)"} 0%,
-        #{"color-mix(in srgb, var(--secondary), 60%, transparent)"} 100%
-      );
+      background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 80%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 60%, transparent)"} 100%);
     }
   }
 }
@@ -1510,13 +1335,8 @@ onMount(async () => {
     width: 100%;
     max-height: 200px;
     border-right: none;
-    border-bottom: 1px solid
-      #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
-    background: linear-gradient(
-      135deg,
-      #{"color-mix(in srgb, var(--container), 90%, transparent)"} 0%,
-      #{"color-mix(in srgb, var(--card), 70%, transparent)"} 100%
-    );
+    border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+    background: linear-gradient(135deg, #{"color-mix(in srgb, var(--container), 90%, transparent)"} 0%, #{"color-mix(in srgb, var(--card), 70%, transparent)"} 100%);
 
     &.collapsed {
       max-height: 48px;

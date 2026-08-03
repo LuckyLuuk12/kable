@@ -1,18 +1,11 @@
 <script lang="ts">
 import { onMount } from "svelte";
-import {
-  Icon,
-  AccountSwitcher,
-  AccountManager,
-  InstallationService,
-  MapsService,
-} from "$lib";
+import { Icon, AccountSwitcher, AccountManager, InstallationService, MapsService } from "$lib";
 
 // State variables
 let error: string | null = null;
 let stats = InstallationService.getStatistics();
-let worldStats: Awaited<ReturnType<typeof MapsService.getStatistics>> | null =
-  null;
+let worldStats: Awaited<ReturnType<typeof MapsService.getStatistics>> | null = null;
 
 // Reactively update stats when installations change
 $: {
@@ -50,9 +43,7 @@ function formatPlaytimeLong(ms: number): string {
 
   if (hours < 24) {
     const minutes = Math.floor((ms % 3600000) / 60000);
-    return minutes > 0
-      ? `${hours} hours, ${minutes} minutes`
-      : `${hours} hours`;
+    return minutes > 0 ? `${hours} hours, ${minutes} minutes` : `${hours} hours`;
   }
 
   const days = Math.floor(hours / 24);
@@ -161,9 +152,7 @@ function formatSize(sizeMB: number): string {
           <div class="stat-content">
             <h4>Last Played</h4>
             <p class="stat-value">
-              {stats.lastPlayedDate
-                ? new Date(stats.lastPlayedDate).toLocaleDateString()
-                : "Never"}
+              {stats.lastPlayedDate ? new Date(stats.lastPlayedDate).toLocaleDateString() : "Never"}
             </p>
           </div>
         </div>
@@ -177,14 +166,10 @@ function formatSize(sizeMB: number): string {
             <div class="stat-content">
               <h4>Last Played World</h4>
               <p class="stat-value" title={worldStats.lastPlayedWorld.name}>
-                {worldStats.lastPlayedWorld.name.length > 20
-                  ? worldStats.lastPlayedWorld.name.substring(0, 20) + "..."
-                  : worldStats.lastPlayedWorld.name}
+                {worldStats.lastPlayedWorld.name.length > 20 ? worldStats.lastPlayedWorld.name.substring(0, 20) + "..." : worldStats.lastPlayedWorld.name}
               </p>
               <p class="stat-subtext">
-                {new Date(
-                  worldStats.lastPlayedWorld.last_played || 0,
-                ).toLocaleDateString()}
+                {new Date(worldStats.lastPlayedWorld.last_played || 0).toLocaleDateString()}
               </p>
             </div>
           </div>
@@ -204,36 +189,16 @@ function formatSize(sizeMB: number): string {
         <!-- Most Played Installation -->
         {#if stats.mostPlayedInstallation}
           <div class="stat-card">
-            <div
-              class="stat-icon"
-              style="color: {InstallationService.getLoaderColor(
-                InstallationService.getVersionData(stats.mostPlayedInstallation)
-                  .loader,
-              )}"
-            >
-              <Icon
-                name={InstallationService.getLoaderIcon(
-                  InstallationService.getVersionData(
-                    stats.mostPlayedInstallation,
-                  ).loader,
-                )}
-                size="md"
-              />
+            <div class="stat-icon" style="color: {InstallationService.getLoaderColor(InstallationService.getVersionData(stats.mostPlayedInstallation).loader)}">
+              <Icon name={InstallationService.getLoaderIcon(InstallationService.getVersionData(stats.mostPlayedInstallation).loader)} size="md" />
             </div>
             <div class="stat-content">
               <h4>Most Played</h4>
-              <p
-                class="stat-value"
-                title={formatPlaytimeLong(
-                  stats.mostPlayedInstallation.total_time_played_ms,
-                )}
-              >
+              <p class="stat-value" title={formatPlaytimeLong(stats.mostPlayedInstallation.total_time_played_ms)}>
                 {stats.mostPlayedInstallation.name}
               </p>
               <p class="stat-subtext">
-                {formatPlaytime(
-                  stats.mostPlayedInstallation.total_time_played_ms,
-                )}
+                {formatPlaytime(stats.mostPlayedInstallation.total_time_played_ms)}
               </p>
             </div>
           </div>
@@ -248,9 +213,7 @@ function formatSize(sizeMB: number): string {
             <div class="stat-content">
               <h4>Largest World</h4>
               <p class="stat-value" title={worldStats.largestWorld.name}>
-                {worldStats.largestWorld.name.length > 20
-                  ? worldStats.largestWorld.name.substring(0, 20) + "..."
-                  : worldStats.largestWorld.name}
+                {worldStats.largestWorld.name.length > 20 ? worldStats.largestWorld.name.substring(0, 20) + "..." : worldStats.largestWorld.name}
               </p>
               <p class="stat-subtext">
                 {formatSize(worldStats.largestWorld.size_mb)}
@@ -325,16 +288,8 @@ function formatSize(sizeMB: number): string {
         <!-- Favorite Mod Loader -->
         {#if stats.mostUsedLoader}
           <div class="stat-card">
-            <div
-              class="stat-icon"
-              style="color: {InstallationService.getLoaderColor(
-                stats.mostUsedLoader,
-              )}"
-            >
-              <Icon
-                name={InstallationService.getLoaderIcon(stats.mostUsedLoader)}
-                size="md"
-              />
+            <div class="stat-icon" style="color: {InstallationService.getLoaderColor(stats.mostUsedLoader)}">
+              <Icon name={InstallationService.getLoaderIcon(stats.mostUsedLoader)} size="md" />
             </div>
             <div class="stat-content">
               <h4>Favorite Mod Loader</h4>
@@ -444,12 +399,7 @@ function formatSize(sizeMB: number): string {
     left: 0;
     right: 0;
     height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      #{"color-mix(in srgb, var(--primary), 30%, transparent)"},
-      transparent
-    );
+    background: linear-gradient(90deg, transparent, #{"color-mix(in srgb, var(--primary), 30%, transparent)"}, transparent);
   }
 
   &:hover {
@@ -463,8 +413,7 @@ function formatSize(sizeMB: number): string {
     align-items: center;
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid
-      color-mix(in srgb, var(--dark-600), 50%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--dark-600), 50%, transparent);
 
     h2 {
       margin: 0;
@@ -489,13 +438,8 @@ function formatSize(sizeMB: number): string {
     gap: 1.5rem;
 
     .stat-card {
-      background: linear-gradient(
-        135deg,
-        #{"color-mix(in srgb, var(--primary), 3%, transparent)"} 0%,
-        #{"color-mix(in srgb, var(--tertiary), 2%, transparent)"} 100%
-      );
-      border: 1px solid
-        #{"color-mix(in srgb, var(--dark-600), 60%, transparent)"};
+      background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 3%, transparent)"} 0%, #{"color-mix(in srgb, var(--tertiary), 2%, transparent)"} 100%);
+      border: 1px solid #{"color-mix(in srgb, var(--dark-600), 60%, transparent)"};
       border-radius: var(--border-radius);
       padding: 1.5rem;
       display: flex;
@@ -533,11 +477,7 @@ function formatSize(sizeMB: number): string {
         width: 48px;
         height: 48px;
         border-radius: var(--border-radius);
-        background: linear-gradient(
-          135deg,
-          #{"color-mix(in srgb, var(--primary), 15%, transparent)"},
-          #{"color-mix(in srgb, var(--tertiary), 10%, transparent)"}
-        );
+        background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 15%, transparent)"}, #{"color-mix(in srgb, var(--tertiary), 10%, transparent)"});
         display: flex;
         align-items: center;
         justify-content: center;

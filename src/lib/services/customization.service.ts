@@ -1,11 +1,4 @@
-import {
-  type AppearanceSettings,
-  type CategorizedLauncherSettings,
-  type ContentSettings,
-  type IconTemplate,
-  type SoundSettings,
-  api
-} from "$lib";
+import { type AppearanceSettings, type CategorizedLauncherSettings, type ContentSettings, type IconTemplate, type SoundSettings, api } from "$lib";
 import type { Service } from "./app.service";
 
 type SoundpackListEntry = {
@@ -126,12 +119,9 @@ export class CustomizationService implements Service {
     });
   }
 
-
   // #region GENERAL
 
   // #endregion GENERAL
-
-
 
   // #region APPEARANCE
   get appearance(): AppearanceSettings | undefined {
@@ -166,6 +156,7 @@ export class CustomizationService implements Service {
   // #endregion language
 
   // #region themes
+
   async setTheme(theme: AppearanceSettings["theme"]) {
     if (!this.settings?.appearance) return;
 
@@ -174,16 +165,19 @@ export class CustomizationService implements Service {
       appearance: {
         ...this.settings.appearance,
         theme,
+        selected_css_theme: theme ? theme : undefined,
       },
     };
 
     // Get the css content from backend and inject it or remove injected css if theme is null or empty
     if (theme) {
-      await api.css.then((cssContent) => {
+      await this.removeCustomCSS();
+      await api.loadCss(theme).then((cssContent) => {
         this.injectCustomCSS(cssContent);
       });
     }
   }
+
   private injectCustomCSS(cssContent: string = "") {
     // First, remove any existing custom CSS
     this.removeCustomCSS();
@@ -200,9 +194,7 @@ export class CustomizationService implements Service {
     // Force font loading and DOM reflow
     setTimeout(() => {
       // Trigger a reflow to ensure fonts are applied
-      document.body.style.fontFamily =
-        document.body.style.fontFamily ??
-        '"Open Sans", Tahoma, Geneva, sans-serif';
+      document.body.style.fontFamily = document.body.style.fontFamily ?? '"Open Sans", Tahoma, Geneva, sans-serif';
       console.log("Font loading triggered: ", document.body.style.fontFamily);
     }, 100);
   }
@@ -213,13 +205,8 @@ export class CustomizationService implements Service {
     if (existingStyle) {
       existingStyle.remove();
       // Trigger a reflow to ensure fonts are applied
-      document.body.style.fontFamily =
-        document.body.style.fontFamily ??
-        '"Open Sans", Tahoma, Geneva, sans-serif';
-      console.log(
-        "Previous custom CSS removed: ",
-        document.body.style.fontFamily,
-      );
+      document.body.style.fontFamily = document.body.style.fontFamily ?? '"Open Sans", Tahoma, Geneva, sans-serif';
+      console.log("Previous custom CSS removed: ", document.body.style.fontFamily);
     }
   }
 
@@ -289,10 +276,7 @@ export class CustomizationService implements Service {
       try {
         await this.loadSoundpack(this.currentSoundpack);
       } catch (error) {
-        console.warn(
-          `[CustomizationService] Failed to load soundpack "${this.currentSoundpack}", falling back to default:`,
-          error,
-        );
+        console.warn(`[CustomizationService] Failed to load soundpack "${this.currentSoundpack}", falling back to default:`, error);
 
         if (this.currentSoundpack !== "default") {
           await this.loadSoundpack("default");
@@ -300,10 +284,7 @@ export class CustomizationService implements Service {
       }
 
       this.initialized = true;
-      console.log(
-        "[CustomizationService] Sound system initialized with soundpack:",
-        this.currentSoundpack,
-      );
+      console.log("[CustomizationService] Sound system initialized with soundpack:", this.currentSoundpack);
     } catch (error) {
       console.error("[CustomizationService] Failed to initialize sounds:", error);
       this.soundError = `Failed to initialize sounds: ${error}`;
@@ -368,28 +349,19 @@ export class CustomizationService implements Service {
         music: parsed.music ?? {},
       };
     } catch (error) {
-      console.error(
-        `[CustomizationService] Failed to read soundpack manifest for ${packName}:`,
-        error,
-      );
+      console.error(`[CustomizationService] Failed to read soundpack manifest for ${packName}:`, error);
       throw error;
     }
   }
 
-  private async loadSound(
-    packName: string,
-    filename: string,
-    key: string,
-  ): Promise<void> {
+  private async loadSound(packName: string, filename: string, key: string): Promise<void> {
     try {
       let audioData: Uint8Array;
 
       if (packName === "default") {
         const response = await fetch(`/sounds/${filename}`);
         if (!response.ok) {
-          console.warn(
-            `[CustomizationService] Default sound not found: ${filename}, skipping`,
-          );
+          console.warn(`[CustomizationService] Default sound not found: ${filename}, skipping`);
           return;
         }
 
@@ -408,20 +380,13 @@ export class CustomizationService implements Service {
       const audioBuffer = await this.audioContext.decodeAudioData(buffer);
       this.soundBuffers.set(key, audioBuffer);
     } catch (error) {
-      console.error(
-        `[CustomizationService] Failed to load sound file ${filename}:`,
-        error,
-      );
+      console.error(`[CustomizationService] Failed to load sound file ${filename}:`, error);
       throw error;
     }
   }
 
   private async playNextMusicTrack(volume?: number): Promise<void> {
-    if (
-      !this.isMusicEnabled ||
-      !this.audioContext ||
-      this.musicPlaylist.length === 0
-    ) {
+    if (!this.isMusicEnabled || !this.audioContext || this.musicPlaylist.length === 0) {
       return;
     }
 
@@ -454,10 +419,7 @@ export class CustomizationService implements Service {
 
       console.log(`[CustomizationService] Playing music track: ${trackPath}`);
     } catch (error) {
-      console.error(
-        `[CustomizationService] Failed to play music track ${trackPath}:`,
-        error,
-      );
+      console.error(`[CustomizationService] Failed to play music track ${trackPath}:`, error);
       this.handleMusicTrackEnd();
     }
   }
@@ -505,10 +467,7 @@ export class CustomizationService implements Service {
   private shufflePlaylist(): void {
     for (let index = this.musicPlaylist.length - 1; index > 0; index--) {
       const randomIndex = Math.floor(Math.random() * (index + 1));
-      [this.musicPlaylist[index], this.musicPlaylist[randomIndex]] = [
-        this.musicPlaylist[randomIndex],
-        this.musicPlaylist[index],
-      ];
+      [this.musicPlaylist[index], this.musicPlaylist[randomIndex]] = [this.musicPlaylist[randomIndex], this.musicPlaylist[index]];
     }
   }
 
@@ -552,23 +511,16 @@ export class CustomizationService implements Service {
         try {
           await this.loadSound(packName, filename, key);
         } catch (error) {
-          console.warn(
-            `[CustomizationService] Failed to load sound ${key}: ${error}`,
-          );
+          console.warn(`[CustomizationService] Failed to load sound ${key}: ${error}`);
         }
       }
 
       this.currentSoundpack = packName;
       this.selectedSoundpack = packName;
 
-      console.log(
-        `[CustomizationService] Loaded ${this.soundBuffers.size} sounds from ${packName}`,
-      );
+      console.log(`[CustomizationService] Loaded ${this.soundBuffers.size} sounds from ${packName}`);
     } catch (error) {
-      console.error(
-        `[CustomizationService] Failed to load soundpack ${packName}:`,
-        error,
-      );
+      console.error(`[CustomizationService] Failed to load soundpack ${packName}:`, error);
       throw error;
     }
   }
@@ -611,10 +563,7 @@ export class CustomizationService implements Service {
     }
   }
 
-  async playBackgroundMusic(
-    playlistKey: string,
-    options: { shuffle?: boolean; loop?: boolean; volume?: number } = {},
-  ): Promise<void> {
+  async playBackgroundMusic(playlistKey: string, options: { shuffle?: boolean; loop?: boolean; volume?: number } = {}): Promise<void> {
     if (!this.isMusicEnabled || !this.audioContext || !this.soundpackMetadata) {
       return;
     }
@@ -667,8 +616,7 @@ export class CustomizationService implements Service {
     this.masterVolume = Math.max(0, Math.min(100, volume)) / 100;
 
     if (this.currentMusicGainNode) {
-      this.currentMusicGainNode.gain.value =
-        this.musicVolume * this.masterVolume;
+      this.currentMusicGainNode.gain.value = this.musicVolume * this.masterVolume;
     }
   }
 
@@ -680,8 +628,7 @@ export class CustomizationService implements Service {
     this.musicVolume = Math.max(0, Math.min(100, volume)) / 100;
 
     if (this.currentMusicGainNode) {
-      this.currentMusicGainNode.gain.value =
-        this.musicVolume * this.masterVolume;
+      this.currentMusicGainNode.gain.value = this.musicVolume * this.masterVolume;
     }
   }
 
@@ -746,8 +693,6 @@ export class CustomizationService implements Service {
 
   // #endregion APPEARANCE
 
-
-
   // #region CONTENT
   get content(): ContentSettings | undefined {
     return this.settings?.content;
@@ -762,32 +707,21 @@ export class CustomizationService implements Service {
 
   // #endregion CONTENT
 
-
-
   // #region LOGGING
 
   // #endregion LOGGING
-
-
 
   // #region NETWORK
 
   // #endregion NETWORK
 
-
-
   // #region ADVANCED
 
-
-
   // #endregion ADVANCED
-
-
 
   // #region MISC
 
   // #endregion MISC
-
 
   /**
    * ! Cleanup

@@ -1,12 +1,5 @@
 <script lang="ts">
-import {
-  CreateInstallationModal,
-  EditInstallationModal,
-  Icon,
-  InstallationService,
-  InstallationsList,
-  type KableInstallation,
-} from "$lib";
+import { CreateInstallationModal, EditInstallationModal, Icon, InstallationService, InstallationsList, type KableInstallation } from "$lib";
 import * as installationsApi from "$lib/api/installations";
 
 let createModalRef: CreateInstallationModal;
@@ -87,66 +80,42 @@ async function importFromMinecraftFolder() {
 
   <div class="controls-container">
     <div class="left-controls">
-      <button
-        class="btn btn-primary new-installation-btn"
-        on:click={openCreateModal}>
+      <button class="btn btn-primary new-installation-btn" on:click={openCreateModal}>
         <Icon name="plus" size="md" forceType="svg" />
         New Installation
       </button>
-      <button
-        class="btn btn-secondary import-btn"
-        on:click={importKableInstallation}
-        disabled={isImporting}
-        title="Import Kable Installation from ZIP file">
+      <button class="btn btn-secondary import-btn" on:click={importKableInstallation} disabled={isImporting} title="Import Kable Installation from ZIP file">
         <Icon name="download" size="md" forceType="svg" />
         Import Kable Installation
       </button>
-      <button
-        class="btn btn-secondary import-btn"
-        on:click={importFromMinecraftFolder}
-        disabled={isImporting}
-        title="Import from existing .minecraft folder">
+      <button class="btn btn-secondary import-btn" on:click={importFromMinecraftFolder} disabled={isImporting} title="Import from existing .minecraft folder">
         <Icon name="folder" size="md" forceType="svg" />
         Import from .minecraft
       </button>
     </div>
     <div class="view-controls">
-      <button
-        class="btn btn-secondary {isRefreshing ? 'spinning' : ''}"
-        on:click={refreshInstallations}
-        disabled={isRefreshing}
-        title="Refresh installations list">
+      <button class="btn btn-secondary {isRefreshing ? 'spinning' : ''}" on:click={refreshInstallations} disabled={isRefreshing} title="Refresh installations list">
         <Icon name="refresh" size="md" forceType="svg" />
       </button>
       <button
         class="btn btn-secondary {isRefreshingVersions ? 'spinning' : ''}"
         on:click={refreshVersionManifests}
         disabled={isRefreshingVersions}
-        title="Force refresh version manifests from network (useful for new snapshots)">
+        title="Force refresh version manifests from network (useful for new snapshots)"
+      >
         <Icon name="sync" size="md" forceType="svg" />
         Refresh Versions
       </button>
-      <button
-        class="btn btn-secondary"
-        on:click={() => (isGrid = !isGrid)}
-        class:is-active={isGrid}
-        title={isGrid ? "Switch to list view" : "Switch to grid view"}>
+      <button class="btn btn-secondary" on:click={() => (isGrid = !isGrid)} class:is-active={isGrid} title={isGrid ? "Switch to list view" : "Switch to grid view"}>
         <Icon name={isGrid ? "list" : "grid"} size="md" />
       </button>
-      <button
-        class="btn btn-secondary"
-        on:click={() => (isSmall = !isSmall)}
-        class:is-active={isSmall}
-        title={"Turn compact mode " + (isSmall ? "off" : "on")}>
+      <button class="btn btn-secondary" on:click={() => (isSmall = !isSmall)} class:is-active={isSmall} title={"Turn compact mode " + (isSmall ? "off" : "on")}>
         <Icon name="minimize" size="md" />
       </button>
     </div>
   </div>
 
-  <InstallationsList
-    {isGrid}
-    {isSmall}
-    on:edit={(e) => editInstallation(e.detail)} />
+  <InstallationsList {isGrid} {isSmall} on:edit={(e) => editInstallation(e.detail)} />
 
   <CreateInstallationModal bind:this={createModalRef} />
   <EditInstallationModal bind:this={editModalRef} />

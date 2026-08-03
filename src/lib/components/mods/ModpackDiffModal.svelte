@@ -1,11 +1,5 @@
 <script lang="ts">
-import type {
-  KableInstallation,
-  ModpackContext,
-  ModpackSelection,
-  MrPackDetailed,
-  PackFileInfo,
-} from "$lib";
+import type { KableInstallation, ModpackContext, ModpackSelection, MrPackDetailed, PackFileInfo } from "$lib";
 import * as modsApi from "$lib/api/mods";
 
 export let open: boolean;
@@ -82,17 +76,11 @@ function getSelectedCount(kind: PackKind): number {
 }
 
 function getTotalSelectedCount(): number {
-  return (
-    getSelectedCount("mods") +
-    getSelectedCount("resourcepacks") +
-    getSelectedCount("shaderpacks")
-  );
+  return getSelectedCount("mods") + getSelectedCount("resourcepacks") + getSelectedCount("shaderpacks");
 }
 
 function overwritePathsFor(group: GroupState): string[] {
-  return [...group.toBeInstalled, ...group.optional]
-    .filter((file) => file.overwrite)
-    .map((file) => file.path);
+  return [...group.toBeInstalled, ...group.optional].filter((file) => file.overwrite).map((file) => file.path);
 }
 
 function buildSelectionGroup(group: GroupState) {
@@ -104,57 +92,32 @@ function buildSelectionGroup(group: GroupState) {
   };
 }
 
-function moveFile(
-  file: PackFileInfo,
-  from: "toBeInstalled" | "optional" | "disabled",
-  to: "toBeInstalled" | "optional" | "disabled",
-  kind: PackKind,
-) {
+function moveFile(file: PackFileInfo, from: "toBeInstalled" | "optional" | "disabled", to: "toBeInstalled" | "optional" | "disabled", kind: PackKind) {
   const source = groups[kind];
   // Remove from current list
-  const withoutToBeInstalled =
-    from === "toBeInstalled"
-      ? source.toBeInstalled.filter((f) => f.path !== file.path)
-      : source.toBeInstalled;
-  const withoutOptional =
-    from === "optional"
-      ? source.optional.filter((f) => f.path !== file.path)
-      : source.optional;
-  const withoutDisabled =
-    from === "disabled"
-      ? source.disabled.filter((f) => f.path !== file.path)
-      : source.disabled;
+  const withoutToBeInstalled = from === "toBeInstalled" ? source.toBeInstalled.filter((f) => f.path !== file.path) : source.toBeInstalled;
+  const withoutOptional = from === "optional" ? source.optional.filter((f) => f.path !== file.path) : source.optional;
+  const withoutDisabled = from === "disabled" ? source.disabled.filter((f) => f.path !== file.path) : source.disabled;
 
   // Add to new list
   groups = {
     ...groups,
     [kind]: {
-      toBeInstalled:
-        to === "toBeInstalled"
-          ? [...withoutToBeInstalled, file]
-          : withoutToBeInstalled,
-      optional:
-        to === "optional" ? [...withoutOptional, file] : withoutOptional,
-      disabled:
-        to === "disabled" ? [...withoutDisabled, file] : withoutDisabled,
+      toBeInstalled: to === "toBeInstalled" ? [...withoutToBeInstalled, file] : withoutToBeInstalled,
+      optional: to === "optional" ? [...withoutOptional, file] : withoutOptional,
+      disabled: to === "disabled" ? [...withoutDisabled, file] : withoutDisabled,
     },
   };
 }
 
-function toggleOverwrite(
-  file: PackFileInfo,
-  list: "toBeInstalled" | "optional",
-  kind: PackKind,
-) {
+function toggleOverwrite(file: PackFileInfo, list: "toBeInstalled" | "optional", kind: PackKind) {
   const source = groups[kind];
   if (list === "toBeInstalled") {
     groups = {
       ...groups,
       [kind]: {
         ...source,
-        toBeInstalled: source.toBeInstalled.map((f) =>
-          f.path === file.path ? { ...f, overwrite: !f.overwrite } : f,
-        ),
+        toBeInstalled: source.toBeInstalled.map((f) => (f.path === file.path ? { ...f, overwrite: !f.overwrite } : f)),
       },
     };
   } else {
@@ -162,9 +125,7 @@ function toggleOverwrite(
       ...groups,
       [kind]: {
         ...source,
-        optional: source.optional.map((f) =>
-          f.path === file.path ? { ...f, overwrite: !f.overwrite } : f,
-        ),
+        optional: source.optional.map((f) => (f.path === file.path ? { ...f, overwrite: !f.overwrite } : f)),
       },
     };
   }
@@ -194,10 +155,7 @@ async function handleConfirm() {
     await modsApi.applyModpackSelection(installation, selection, context);
     installSucceeded = true;
   } catch (e) {
-    errorMsg =
-      typeof e === "object" && e && "message" in e
-        ? (e as any).message
-        : String(e);
+    errorMsg = typeof e === "object" && e && "message" in e ? (e as any).message : String(e);
   } finally {
     installing = false;
     installStatusText = "";
@@ -230,31 +188,17 @@ function handleClose() {
   <div class="packdiff-modal-backdrop" tabindex="-1">
     <div class="packdiff-modal-content">
       <div class="packdiff-modal-header">
-        <button class="packdiff-close-btn" on:click={handleClose} title="Close"
-          >×</button
-        >
+        <button class="packdiff-close-btn" on:click={handleClose} title="Close">×</button>
       </div>
       <div class="packdiff-modal-controls">
         <div class="kind-tabs">
-          <button
-            class="kind-tab"
-            class:active={activeKind === "mods"}
-            on:click={() => (activeKind = "mods")}
-          >
+          <button class="kind-tab" class:active={activeKind === "mods"} on:click={() => (activeKind = "mods")}>
             Mods ({getSelectedCount("mods")})
           </button>
-          <button
-            class="kind-tab"
-            class:active={activeKind === "resourcepacks"}
-            on:click={() => (activeKind = "resourcepacks")}
-          >
+          <button class="kind-tab" class:active={activeKind === "resourcepacks"} on:click={() => (activeKind = "resourcepacks")}>
             Resourcepacks ({getSelectedCount("resourcepacks")})
           </button>
-          <button
-            class="kind-tab"
-            class:active={activeKind === "shaderpacks"}
-            on:click={() => (activeKind = "shaderpacks")}
-          >
+          <button class="kind-tab" class:active={activeKind === "shaderpacks"} on:click={() => (activeKind = "shaderpacks")}>
             Shaderpacks ({getSelectedCount("shaderpacks")})
           </button>
         </div>
@@ -274,29 +218,12 @@ function handleClose() {
                     <span class="size">({formatFileSize(file.file_size)})</span>
                     {#if file.already_installed}
                       <label class="overwrite-label">
-                        <input
-                          type="checkbox"
-                          checked={file.overwrite}
-                          on:change={() =>
-                            toggleOverwrite(file, "toBeInstalled", activeKind)}
-                        />
+                        <input type="checkbox" checked={file.overwrite} on:change={() => toggleOverwrite(file, "toBeInstalled", activeKind)} />
                         <span class="conflict">overwrite</span>
                       </label>
                     {/if}
-                    <button
-                      class="arrow-btn"
-                      title="Disable"
-                      on:click={() =>
-                        moveFile(file, "toBeInstalled", "disabled", activeKind)}
-                      >→</button
-                    >
-                    <button
-                      class="arrow-btn"
-                      title="Make Optional"
-                      on:click={() =>
-                        moveFile(file, "toBeInstalled", "optional", activeKind)}
-                      >↓</button
-                    >
+                    <button class="arrow-btn" title="Disable" on:click={() => moveFile(file, "toBeInstalled", "disabled", activeKind)}>→</button>
+                    <button class="arrow-btn" title="Make Optional" on:click={() => moveFile(file, "toBeInstalled", "optional", activeKind)}>↓</button>
                   </div>
                 {/each}
               {/if}
@@ -314,29 +241,12 @@ function handleClose() {
                     <span class="size">({formatFileSize(file.file_size)})</span>
                     {#if file.already_installed}
                       <label class="overwrite-label">
-                        <input
-                          type="checkbox"
-                          checked={file.overwrite}
-                          on:change={() =>
-                            toggleOverwrite(file, "optional", activeKind)}
-                        />
+                        <input type="checkbox" checked={file.overwrite} on:change={() => toggleOverwrite(file, "optional", activeKind)} />
                         <span class="conflict">overwrite</span>
                       </label>
                     {/if}
-                    <button
-                      class="arrow-btn"
-                      title="Disable"
-                      on:click={() =>
-                        moveFile(file, "optional", "disabled", activeKind)}
-                      >→</button
-                    >
-                    <button
-                      class="arrow-btn"
-                      title="Make Required"
-                      on:click={() =>
-                        moveFile(file, "optional", "toBeInstalled", activeKind)}
-                      >↑</button
-                    >
+                    <button class="arrow-btn" title="Disable" on:click={() => moveFile(file, "optional", "disabled", activeKind)}>→</button>
+                    <button class="arrow-btn" title="Make Required" on:click={() => moveFile(file, "optional", "toBeInstalled", activeKind)}>↑</button>
                   </div>
                 {/each}
               {/if}
@@ -353,20 +263,8 @@ function handleClose() {
                     <span class="file-path">{file.path}</span>
                     <span class="size">({formatFileSize(file.file_size)})</span>
                     <span class="conflict">(disabled)</span>
-                    <button
-                      class="arrow-btn"
-                      title="Enable"
-                      on:click={() =>
-                        moveFile(file, "disabled", "toBeInstalled", activeKind)}
-                      >←</button
-                    >
-                    <button
-                      class="arrow-btn"
-                      title="Make Optional"
-                      on:click={() =>
-                        moveFile(file, "disabled", "optional", activeKind)}
-                      >↑</button
-                    >
+                    <button class="arrow-btn" title="Enable" on:click={() => moveFile(file, "disabled", "toBeInstalled", activeKind)}>←</button>
+                    <button class="arrow-btn" title="Make Optional" on:click={() => moveFile(file, "disabled", "optional", activeKind)}>↑</button>
                   </div>
                 {/each}
               {/if}
@@ -381,14 +279,8 @@ function handleClose() {
             <span>{installStatusText}</span>
           </div>
         {/if}
-        <button class="cancel-btn" on:click={handleClose} disabled={installing}
-          >Cancel</button
-        >
-        <button
-          class="confirm-btn"
-          on:click={handleConfirm}
-          disabled={getTotalSelectedCount() === 0 || installing}
-        >
+        <button class="cancel-btn" on:click={handleClose} disabled={installing}>Cancel</button>
+        <button class="confirm-btn" on:click={handleConfirm} disabled={getTotalSelectedCount() === 0 || installing}>
           {installing ? "Installing..." : "Install Selected"}
         </button>
         {#if errorMsg}

@@ -12,38 +12,38 @@ Optionally copy mods/resourcepacks/shaders from an existing installation.
 ```
 -->
 <script lang="ts">
-import type { LoaderKind, ProfileVersion } from "$lib";
-import { Icon, Image, app, installations, versions } from "$lib";
-import { clickSound, successSound } from "$lib/actions";
+import { Icon, Image, app, clickSound, successSound, type LoaderKind, type ProfileVersion, type Versions } from "$lib";
 import { onMount } from "svelte";
+import { SvelteMap } from "svelte/reactivity";
 
-let dialogRef: HTMLDialogElement;
-let availableVersions: ProfileVersion[] = [];
-let loaderOptions: LoaderKind[] = [];
-let selectedLoader: LoaderKind = "vanilla";
-let selectedVersionId: string = "";
-let searchQuery: string = "";
-let isLoading = false;
-let error: string | null = null;
 let versionListRef: HTMLSelectElement;
 
+let dialogRef: HTMLDialogElement;
+let availableVersions: Versions = [];
+let loaderOptions: LoaderKind[] = $state([]);
+let selectedLoader: LoaderKind = $state("vanilla");
+let selectedVersionId: string = $state("");
+let searchQuery: string = $state("");
+let isLoading = $state(false);
+let error: string | null = $state(null);
+
 // Copy from existing installation
-let sourceInstallationId: string | null = null;
-let copyMods = false;
-let copyResourcePacks = false;
-let copyShaders = false;
-let showCopySection = false;
+let sourceInstallationId: string | null = $state(null);
+let copyMods = $state(false);
+let copyResourcePacks = $state(false);
+let copyShaders = $state(false);
+let showCopySection = $state(false);
 
 const INITIAL_DISPLAY_COUNT = 50;
 const LOAD_MORE_COUNT = 50;
 let displayCount = INITIAL_DISPLAY_COUNT;
 
 // Get available installations for copying
-$: availableInstallations = $installations;
+let availableProfiles = app.profilesService.profiles;
 
 // Toggle all copy options
-$: allCopyOptionsSelected = copyMods && copyResourcePacks && copyShaders;
-$: someCopyOptionsSelected = copyMods || copyResourcePacks || copyShaders;
+let allCopyOptionsSelected = $derived(copyMods && copyResourcePacks && copyShaders);
+let someCopyOptionsSelected = $derived(copyMods || copyResourcePacks || copyShaders);
 
 function toggleAllCopyOptions() {
   if (allCopyOptionsSelected) {
@@ -58,47 +58,48 @@ function toggleAllCopyOptions() {
 }
 
 // Reset copy options when source installation changes
-$: if (sourceInstallationId === null) {
-  copyMods = false;
-  copyResourcePacks = false;
-  copyShaders = false;
-}
+$effect(() => {
+  if (sourceInstallationId === null) {
+    copyMods = false;
+    copyResourcePacks = false;
+    copyShaders = false;
+  }
+});
 
 // Create a map of loader -> versions for O(1) lookup instead of filtering every time
-$: versionsByLoader = availableVersions.reduce((map, version) => {
-  if (!map.has(version.loader)) {
-    map.set(version.loader, []);
+let versionsByLoader = $derived.by(() => {
+  const map = new SvelteMap<LoaderKind, ProfileVersion[]>();
+  for (const version of availableVersions) {
+    if (!map.has(version.loader)) {
+      map.set(version.loader, []);
+    }
+    map.get(version.loader)!.push(version);
   }
-  map.get(version.loader)!.push(version);
   return map;
-}, new Map<LoaderKind, ProfileVersion[]>());
+});
 
-$: allVersionsForLoader = versionsByLoader.get(selectedLoader) ?? [];
+let allVersionsForLoader = $derived(versionsByLoader.get(selectedLoader) ?? []);
 
 // Filter by search query
-$: filteredVersions = searchQuery.trim()
-  ? allVersionsForLoader.filter((v) =>
-      v.id.toLowerCase().includes(searchQuery.toLowerCase()),
-    )
-  : allVersionsForLoader;
+let filteredVersions = $derived(searchQuery.trim() ? allVersionsForLoader.filter((v) => v.id.toLowerCase().includes(searchQuery.toLowerCase())) : allVersionsForLoader);
 
 // Only display a subset for performance
-$: displayedVersions = filteredVersions.slice(0, displayCount);
-$: hasMoreVersions = displayedVersions.length < filteredVersions.length;
+let displayedVersions = $derived(filteredVersions.slice(0, displayCount));
+let hasMoreVersions = $derived(displayedVersions.length < filteredVersions.length);
 
 // Reset display count when loader or search changes
-$: {
+$effect(() => {
   if (selectedLoader || searchQuery) {
     displayCount = INITIAL_DISPLAY_COUNT;
   }
-}
+});
 
-$: if (
-  filteredVersions.length > 0 &&
-  !filteredVersions.find((v) => v.id === selectedVersionId)
-) {
-  selectedVersionId = filteredVersions[0]?.id ?? "";
-}
+// Ensure selected version is valid when filtered versions change
+$effect(() => {
+  if (filteredVersions.length > 0 && !filteredVersions.find((v) => v.id === selectedVersionId)) {
+    selectedVersionId = filteredVersions[0]?.id ?? "";
+  }
+});
 
 function loadMoreVersions() {
   displayCount += LOAD_MORE_COUNT;
@@ -107,9 +108,7 @@ function loadMoreVersions() {
 function handleScroll(event: Event) {
   const target = event.target as HTMLSelectElement;
   const scrollThreshold = 100; // pixels from bottom
-  const isNearBottom =
-    target.scrollHeight - target.scrollTop - target.clientHeight <
-    scrollThreshold;
+  const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < scrollThreshold;
 
   if (isNearBottom && hasMoreVersions) {
     loadMoreVersions();
@@ -134,12 +133,12 @@ export function close() {
 onMount(async () => {
   isLoading = true;
   try {
-    // Use versions from store if available, otherwise load them
-    if ($versions.length > 0) {
-      availableVersions = $versions;
+    // Use versions from launcherService state if available, otherwise load them
+    if (app.launcherService.versions) {
+      availableVersions = app.launcherService.versions;
     } else {
       // Load versions if not already loaded (this will update the store too)
-      availableVersions = await app.profilesService.loadVersions();
+      availableVersions = await app.launcherService.loadVersions();
     }
 
     loaderOptions = Array.from(new Set(availableVersions.map((v) => v.loader)));
@@ -154,37 +153,30 @@ onMount(async () => {
   }
 });
 
-async function confirmCreate() {
+async function confirmCreate(e: Event) {
+  e.preventDefault();
   if (!selectedVersionId) return;
   isLoading = true;
   error = null;
 
   try {
     // Check if we're copying from an existing installation
-    if (
-      sourceInstallationId &&
-      (copyMods || copyResourcePacks || copyShaders)
-    ) {
-      const sourceInstallation = availableInstallations.find(
-        (i) => i.id === sourceInstallationId,
-      );
+    if (sourceInstallationId && (copyMods || copyResourcePacks || copyShaders)) {
+      const sourceInstallation = availableProfiles.find((i) => i.id === sourceInstallationId);
 
+      // TODO: Implement the actual backend for this and uncomment the following code when ready
       if (sourceInstallation) {
-        await app.profilesService.createInstallationFromExisting(
-          selectedVersionId,
-          sourceInstallation,
-          {
-            copyMods,
-            copyResourcePacks,
-            copyShaders,
-          },
-        );
+        // await app.profilesService.createProfileFromExisting(selectedVersionId, sourceInstallation, {
+        //   copyMods,
+        //   copyResourcePacks,
+        //   copyShaders,
+        // });
       } else {
         throw new Error("Source installation not found");
       }
     } else {
       // Regular installation creation
-      await app.profilesService.createInstallation(selectedVersionId);
+      // await app.profilesService.createProfile(selectedVersionId);
     }
 
     close();
@@ -217,24 +209,19 @@ function handleBackdropClick(e: MouseEvent) {
 }
 </script>
 
-<dialog
-  bind:this={dialogRef}
-  class="create-installation-modal"
-  on:click={handleBackdropClick}>
+<dialog bind:this={dialogRef} class="create-installation-modal" onclick={handleBackdropClick}>
   <h2>Create New Installation</h2>
   {#if error}
     <div class="error-message">{error}</div>
   {/if}
-  <form on:submit|preventDefault={confirmCreate}>
+  <form onsubmit={confirmCreate}>
     <div class="loader-select-row">
-      {#each loaderOptions as loader}
+      {#each loaderOptions as loader (loader)}
         <button
           type="button"
           class="loader-btn {selectedLoader === loader ? 'selected' : ''}"
-          style="background: {app.profilesService.getLoaderColor(
-            loader,
-          )}20; color: {app.profilesService.getLoaderColor(loader)};"
-          on:click={() => (selectedLoader = loader)}>
+          style="background: {app.profilesService.getLoaderColor(loader)}20; color: {app.profilesService.getLoaderColor(loader)};"
+          onclick={() => (selectedLoader = loader)}>
           <span class="loader-icon">
             <!-- TODO: Change this to Image and add images for all loaders to the assets -->
             <!-- <Icon
@@ -243,50 +230,30 @@ function handleBackdropClick(e: MouseEvent) {
               forceType="svg" /> -->
             <Image key={loader} />
           </span>
-          <span class="loader-label"
-            >{loader
-              .replace(/_/g, " ")
-              .replace(
-                /(^|\s)([a-z])/g,
-                (_, p1, p2) => p1 + p2.toUpperCase(),
-              )}</span>
+          <span class="loader-label">{loader.replace(/_/g, " ").replace(/(^|\s)([a-z])/g, (_, p1, p2) => p1 + p2.toUpperCase())}</span>
         </button>
       {/each}
     </div>
     <div class="version-select-section">
       <label for="version-search">
         Search Version:
-        <input
-          id="version-search"
-          type="text"
-          bind:value={searchQuery}
-          placeholder="Search for a version..."
-          class="version-search" />
+        <input id="version-search" type="text" bind:value={searchQuery} placeholder="Search for a version..." class="version-search" />
       </label>
       <label for="version-select">
         Version:
-        <select
-          id="version-select"
-          bind:value={selectedVersionId}
-          bind:this={versionListRef}
-          on:scroll={handleScroll}
-          size="10"
-          class="version-list">
+        <select id="version-select" bind:value={selectedVersionId} bind:this={versionListRef} onscroll={handleScroll} size="10" class="version-list">
           {#each displayedVersions as version (version.id)}
             <option value={version.id}>{version.id}</option>
           {/each}
         </select>
       </label>
       {#if hasMoreVersions}
-        <button type="button" class="load-more-btn" on:click={loadMoreVersions}>
+        <button type="button" class="load-more-btn" onclick={loadMoreVersions}>
           Load more... ({displayedVersions.length} of {filteredVersions.length})
         </button>
       {:else if filteredVersions.length > 0}
         <div class="version-count">
-          Showing all {filteredVersions.length} version{filteredVersions.length !==
-          1
-            ? "s"
-            : ""}
+          Showing all {filteredVersions.length} version{filteredVersions.length !== 1 ? "s" : ""}
         </div>
       {/if}
       {#if searchQuery && filteredVersions.length === 0}
@@ -303,14 +270,10 @@ function handleBackdropClick(e: MouseEvent) {
       <div class="copy-content">
         <label for="source-installation">
           Source Installation:
-          <select
-            id="source-installation"
-            bind:value={sourceInstallationId}
-            class="source-select">
+          <select id="source-installation" bind:value={sourceInstallationId} class="source-select">
             <option value={null}>None - Start fresh</option>
-            {#each availableInstallations as installation}
-              <option value={installation.id}
-                >{installation.name} ({installation.version_id})</option>
+            {#each availableProfiles as installation (installation.id)}
+              <option value={installation.id}>{installation.name} ({installation.version.id})</option>
             {/each}
           </select>
         </label>
@@ -322,9 +285,8 @@ function handleBackdropClick(e: MouseEvent) {
                 <input
                   type="checkbox"
                   checked={allCopyOptionsSelected}
-                  indeterminate={someCopyOptionsSelected &&
-                    !allCopyOptionsSelected}
-                  on:change={toggleAllCopyOptions} />
+                  indeterminate={someCopyOptionsSelected && !allCopyOptionsSelected}
+                  onchange={toggleAllCopyOptions} />
                 <span>Select All</span>
               </label>
             </div>
@@ -336,8 +298,7 @@ function handleBackdropClick(e: MouseEvent) {
                   <Icon name="package" size="sm" />
                   <div class="option-text">
                     <span class="option-label">Copy Mods</span>
-                    <span class="option-description"
-                      >Mods will be updated/downgraded to match the new version</span>
+                    <span class="option-description">Mods will be updated/downgraded to match the new version</span>
                   </div>
                 </div>
               </label>
@@ -348,8 +309,7 @@ function handleBackdropClick(e: MouseEvent) {
                   <Icon name="image" size="sm" />
                   <div class="option-text">
                     <span class="option-label">Copy Resource Packs</span>
-                    <span class="option-description"
-                      >Resource packs will be copied as-is</span>
+                    <span class="option-description">Resource packs will be copied as-is</span>
                   </div>
                 </div>
               </label>
@@ -360,8 +320,7 @@ function handleBackdropClick(e: MouseEvent) {
                   <Icon name="sun" size="sm" />
                   <div class="option-text">
                     <span class="option-label">Copy Shaders</span>
-                    <span class="option-description"
-                      >Shaders will be copied as-is</span>
+                    <span class="option-description">Shaders will be copied as-is</span>
                   </div>
                 </div>
               </label>
@@ -370,20 +329,14 @@ function handleBackdropClick(e: MouseEvent) {
         {:else}
           <div class="copy-hint">
             <Icon name="info" size="sm" />
-            <span
-              >Select a source installation to copy mods, resource packs, and
-              shaders</span>
+            <span>Select a source installation to copy mods, resource packs, and shaders</span>
           </div>
         {/if}
       </div>
     </details>
 
     <div class="actions">
-      <button
-        use:successSound
-        type="submit"
-        class="btn btn-primary"
-        disabled={isLoading}>
+      <button use:successSound type="submit" class="btn btn-primary" disabled={isLoading}>
         {#if isLoading}
           <Icon name="refresh" size="sm" className="spin" />
           Creating...
@@ -391,12 +344,7 @@ function handleBackdropClick(e: MouseEvent) {
           Create
         {/if}
       </button>
-      <button
-        use:clickSound
-        type="button"
-        class="btn btn-secondary"
-        on:click={cancelCreate}
-        disabled={isLoading}>Cancel</button>
+      <button use:clickSound type="button" class="btn btn-secondary" onclick={cancelCreate} disabled={isLoading}>Cancel</button>
     </div>
   </form>
 </dialog>

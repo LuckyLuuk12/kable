@@ -1,15 +1,7 @@
 <script lang="ts">
 import { onMount, onDestroy, tick } from "svelte";
 import { page } from "$app/stores";
-import {
-  Icon,
-  logsService,
-  gameInstances,
-  currentLogs,
-  selectedInstanceId,
-  type GameInstance,
-  settings,
-} from "$lib";
+import { Icon, logsService, gameInstances, currentLogs, selectedInstanceId, type GameInstance, settings } from "$lib";
 
 // String pool for common values to reduce memory
 const STRING_POOL = {
@@ -103,10 +95,7 @@ onMount(() => {
   // Initialize container dimensions
   if (logContainer) {
     containerHeight = logContainer.clientHeight;
-    visibleEndIndex = Math.min(
-      50,
-      Math.ceil(containerHeight / MIN_ITEM_HEIGHT) + BUFFER_SIZE,
-    );
+    visibleEndIndex = Math.min(50, Math.ceil(containerHeight / MIN_ITEM_HEIGHT) + BUFFER_SIZE);
     // Initialize visible range
     updateVisibleRange();
   }
@@ -168,14 +157,10 @@ function selectInstance(instanceId: string | "global") {
 function getInstanceDisplayName(instance: GameInstance): string {
   if (!instance || !instance.launchedAt) return "Unknown";
 
-  const launchedAt =
-    instance.launchedAt instanceof Date
-      ? instance.launchedAt
-      : new Date(instance.launchedAt);
+  const launchedAt = instance.launchedAt instanceof Date ? instance.launchedAt : new Date(instance.launchedAt);
 
   const duration = Math.floor((Date.now() - launchedAt.getTime()) / 1000);
-  const durationStr =
-    duration < 60 ? `${duration}s` : `${Math.floor(duration / 60)}m`;
+  const durationStr = duration < 60 ? `${duration}s` : `${Math.floor(duration / 60)}m`;
   return `${instance.profileName || "Unknown"} (${durationStr})`;
 }
 
@@ -224,17 +209,12 @@ function formatLogLevel(level: string): string {
 
 function getLogLevelIcon(level: string): string {
   const lowerLevel = level.toLowerCase();
-  return (
-    STRING_POOL.icons[lowerLevel as keyof typeof STRING_POOL.icons] || "message"
-  );
+  return STRING_POOL.icons[lowerLevel as keyof typeof STRING_POOL.icons] || "message";
 }
 
 function getLogLevelClass(level: string): string {
   const lowerLevel = level.toLowerCase();
-  return (
-    STRING_POOL.classes[lowerLevel as keyof typeof STRING_POOL.classes] ||
-    "secondary"
-  );
+  return STRING_POOL.classes[lowerLevel as keyof typeof STRING_POOL.classes] || "secondary";
 }
 
 async function clearCurrentLogs() {
@@ -244,24 +224,16 @@ async function clearCurrentLogs() {
 
 async function exportCurrentLogs() {
   const instanceId = $selectedInstanceId;
-  await logsService.exportLogs(
-    instanceId === "global" ? undefined : instanceId,
-  );
+  await logsService.exportLogs(instanceId === "global" ? undefined : instanceId);
 }
 
 async function copyLogEntry(logEntry: any) {
   if (!logEntry) return;
 
-  const timestamp =
-    logEntry.timestamp instanceof Date
-      ? logEntry.timestamp
-      : new Date(logEntry.timestamp);
+  const timestamp = logEntry.timestamp instanceof Date ? logEntry.timestamp : new Date(logEntry.timestamp);
 
   // Clean the message for copy (remove duplicate timestamps)
-  const cleanMessage = removeDuplicateTimestamp(
-    logEntry.message || "",
-    timestamp,
-  );
+  const cleanMessage = removeDuplicateTimestamp(logEntry.message || "", timestamp);
   const logText = `[${formatTime(timestamp)}] ${formatLogLevel(logEntry.level || "info")} ${cleanMessage}`;
   try {
     await navigator.clipboard.writeText(logText);
@@ -272,10 +244,7 @@ async function copyLogEntry(logEntry: any) {
 }
 
 // Function to detect and remove duplicate timestamps from log messages
-function removeDuplicateTimestamp(
-  message: string,
-  logTimestamp: Date | string,
-): string {
+function removeDuplicateTimestamp(message: string, logTimestamp: Date | string): string {
   if (!message) return message;
 
   // Remove timestamp from the beginning of the message since we display it separately
@@ -297,10 +266,7 @@ function removeDuplicateTimestamp(
 function getDisplayMessage(logEntry: any): string {
   if (!logEntry || !logEntry.message) return "";
 
-  const timestamp =
-    logEntry.timestamp instanceof Date
-      ? logEntry.timestamp
-      : new Date(logEntry.timestamp);
+  const timestamp = logEntry.timestamp instanceof Date ? logEntry.timestamp : new Date(logEntry.timestamp);
 
   return removeDuplicateTimestamp(logEntry.message, timestamp);
 }
@@ -316,11 +282,7 @@ function fuzzyMatch(needle: string, haystack: string): boolean {
   let needleIndex = 0;
   let score = 0;
 
-  for (
-    let i = 0;
-    i < haystackLower.length && needleIndex < needleLower.length;
-    i++
-  ) {
+  for (let i = 0; i < haystackLower.length && needleIndex < needleLower.length; i++) {
     if (haystackLower[i] === needleLower[needleIndex]) {
       needleIndex++;
       score++;
@@ -340,11 +302,7 @@ function fuzzyMatch(needle: string, haystack: string): boolean {
 }
 
 // Advanced search function
-function matchesSearch(
-  message: string,
-  searchTerm: string,
-  mode: string,
-): boolean {
+function matchesSearch(message: string, searchTerm: string, mode: string): boolean {
   if (!searchTerm) return true;
   if (!message) return false;
 
@@ -369,10 +327,7 @@ function matchesSearch(
 
 function getLogKey(logEntry: any, index: number): string {
   if (!logEntry) return `unknown-${index}`;
-  const timestamp =
-    logEntry.timestamp instanceof Date
-      ? logEntry.timestamp.getTime()
-      : new Date(logEntry.timestamp).getTime();
+  const timestamp = logEntry.timestamp instanceof Date ? logEntry.timestamp.getTime() : new Date(logEntry.timestamp).getTime();
   return `${timestamp}-${index}`;
 }
 
@@ -497,10 +452,7 @@ function updateVisibleRange() {
     const key = getLogKey(log, i);
     const height = getLogHeight(key);
 
-    if (
-      accumulatedHeight + height >
-      scrollTop - BUFFER_SIZE * MIN_ITEM_HEIGHT
-    ) {
+    if (accumulatedHeight + height > scrollTop - BUFFER_SIZE * MIN_ITEM_HEIGHT) {
       startIndex = Math.max(0, i);
       break;
     }
@@ -516,10 +468,7 @@ function updateVisibleRange() {
     const height = getLogHeight(key);
     accumulatedHeight += height;
 
-    if (
-      accumulatedHeight >
-      scrollTop + containerHeight + BUFFER_SIZE * MIN_ITEM_HEIGHT
-    ) {
+    if (accumulatedHeight > scrollTop + containerHeight + BUFFER_SIZE * MIN_ITEM_HEIGHT) {
       endIndex = Math.min(filteredIndices.length, i + 1);
       break;
     }
@@ -560,8 +509,7 @@ function getLogLevelDisplayName(level: string): string {
 }
 
 // Reactive variable for enabled log levels count
-$: enabledLogLevelsCount =
-  Object.values(logLevelFilters).filter(Boolean).length;
+$: enabledLogLevelsCount = Object.values(logLevelFilters).filter(Boolean).length;
 
 // Close dropdown when clicking outside
 function handleClickOutside(event: MouseEvent) {
@@ -620,16 +568,10 @@ async function selectAllCurrentLogs() {
         const logEntry = logsSnapshot[origIndex];
         if (!logEntry) return "";
 
-        const timestamp =
-          logEntry.timestamp instanceof Date
-            ? logEntry.timestamp
-            : new Date(logEntry.timestamp);
+        const timestamp = logEntry.timestamp instanceof Date ? logEntry.timestamp : new Date(logEntry.timestamp);
 
         // Clean the message for copy (remove duplicate timestamps)
-        const cleanMessage = removeDuplicateTimestamp(
-          logEntry.message || "",
-          timestamp,
-        );
+        const cleanMessage = removeDuplicateTimestamp(logEntry.message || "", timestamp);
         return `[${formatTime(timestamp)}] ${formatLogLevel(logEntry.level || STRING_POOL.levels.info)} ${cleanMessage}`;
       })
       .filter(Boolean)
@@ -654,26 +596,15 @@ async function selectAllCurrentLogs() {
 }
 
 $: sortedInstances = $gameInstances
-  ? Array.from($gameInstances.values()).sort(
-      (a: GameInstance, b: GameInstance) => {
-        const aTime =
-          a.launchedAt instanceof Date
-            ? a.launchedAt.getTime()
-            : new Date(a.launchedAt).getTime();
-        const bTime =
-          b.launchedAt instanceof Date
-            ? b.launchedAt.getTime()
-            : new Date(b.launchedAt).getTime();
-        return bTime - aTime;
-      },
-    )
+  ? Array.from($gameInstances.values()).sort((a: GameInstance, b: GameInstance) => {
+      const aTime = a.launchedAt instanceof Date ? a.launchedAt.getTime() : new Date(a.launchedAt).getTime();
+      const bTime = b.launchedAt instanceof Date ? b.launchedAt.getTime() : new Date(b.launchedAt).getTime();
+      return bTime - aTime;
+    })
   : [];
 
 $: currentLogsData = $currentLogs || { launcherLogs: [], gameLogs: [] };
-$: activeLogEntries =
-  selectedLogType === "launcher"
-    ? currentLogsData.launcherLogs || []
-    : currentLogsData.gameLogs || [];
+$: activeLogEntries = selectedLogType === "launcher" ? currentLogsData.launcherLogs || [] : currentLogsData.gameLogs || [];
 
 // Reset virtual scrolling state when switching tabs
 $: if (selectedLogType !== lastLogType) {
@@ -726,8 +657,7 @@ $: filteredIndices = (() => {
 
     // Check if the log level is enabled in filters
     const logLevel = (log.level || STRING_POOL.levels.info).toLowerCase();
-    const matchesLevelFilter =
-      logLevel in filters ? filters[logLevel as keyof typeof filters] : true; // Show unknown log levels by default
+    const matchesLevelFilter = logLevel in filters ? filters[logLevel as keyof typeof filters] : true; // Show unknown log levels by default
 
     if (matchesSearchTerm && matchesLevelFilter) {
       indices.push(i);
@@ -740,9 +670,7 @@ $: filteredIndices = (() => {
 $: filteredCount = filteredIndices.length;
 
 // Virtual scrolling: only render visible logs (on-demand access)
-$: visibleLogs = filteredIndices
-  .slice(visibleStartIndex, visibleEndIndex)
-  .map((i) => activeLogEntries[i]);
+$: visibleLogs = filteredIndices.slice(visibleStartIndex, visibleEndIndex).map((i) => activeLogEntries[i]);
 
 // Calculate total height and offset using measured heights
 // Use heightsVersion as dependency to only recalculate when heights change
@@ -758,25 +686,18 @@ $: if (heightsVersion >= 0 && filteredIndices) {
 }
 
 $: if (heightsVersion >= 0 && filteredIndices && visibleStartIndex >= 0) {
-  offsetY = filteredIndices
-    .slice(0, visibleStartIndex)
-    .reduce((sum, origIndex, filteredIndex) => {
-      const log = activeLogEntries[origIndex];
-      const key = getLogKey(log, filteredIndex);
-      return sum + getLogHeight(key);
-    }, 0);
+  offsetY = filteredIndices.slice(0, visibleStartIndex).reduce((sum, origIndex, filteredIndex) => {
+    const log = activeLogEntries[origIndex];
+    const key = getLogKey(log, filteredIndex);
+    return sum + getLogHeight(key);
+  }, 0);
 }
 
 // Update visible range when filteredIndices changes (tab switch, filters, etc.)
 // Only trigger when filteredIndices length changes or container becomes ready
 let lastFilteredLogsLength = 0;
 let recalculationTimer: number | undefined;
-$: if (
-  filteredIndices &&
-  logContainer &&
-  filteredCount !== lastFilteredLogsLength &&
-  !recalculationPending
-) {
+$: if (filteredIndices && logContainer && filteredCount !== lastFilteredLogsLength && !recalculationPending) {
   lastFilteredLogsLength = filteredCount;
   recalculationPending = true;
   heightsNeedRecalculation = true;
@@ -837,28 +758,16 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       {#if (sortedInstances || []).length > 0}
         <div class="stat-badge">
           <Icon name="activity" size="sm" />
-          {(sortedInstances || []).length} active instance{(
-            sortedInstances || []
-          ).length !== 1
-            ? "s"
-            : ""}
+          {(sortedInstances || []).length} active instance{(sortedInstances || []).length !== 1 ? "s" : ""}
         </div>
       {/if}
     </div>
     <div class="header-actions">
-      <button
-        class="btn btn-danger btn-sm"
-        on:click={clearCurrentLogs}
-        title="Clear current logs"
-      >
+      <button class="btn btn-danger btn-sm" on:click={clearCurrentLogs} title="Clear current logs">
         <Icon name="trash" size="sm" />
         Clear
       </button>
-      <button
-        class="btn btn-secondary btn-sm"
-        on:click={exportCurrentLogs}
-        title="Export logs to file"
-      >
+      <button class="btn btn-secondary btn-sm" on:click={exportCurrentLogs} title="Export logs to file">
         <Icon name="download" size="sm" />
         Export
       </button>
@@ -871,50 +780,27 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       <Icon name="search" size="sm" />
       <input
         type="text"
-        placeholder={searchMode === "regex"
-          ? "Search with regex..."
-          : searchMode === "fuzzy"
-            ? 'Fuzzy search (try "frge" for "forge")...'
-            : "Search logs..."}
+        placeholder={searchMode === "regex" ? "Search with regex..." : searchMode === "fuzzy" ? 'Fuzzy search (try "frge" for "forge")...' : "Search logs..."}
         bind:value={searchTerm}
         class="search-input"
       />
       <div class="search-mode-selector">
-        <button
-          class="search-mode-button {searchMode === 'normal' ? 'active' : ''}"
-          on:click={() => (searchMode = "normal")}
-          title="Normal text search"
-        >
+        <button class="search-mode-button {searchMode === 'normal' ? 'active' : ''}" on:click={() => (searchMode = "normal")} title="Normal text search">
           <Icon name="text" size="sm" />
         </button>
-        <button
-          class="search-mode-button {searchMode === 'fuzzy' ? 'active' : ''}"
-          on:click={() => (searchMode = "fuzzy")}
-          title="Fuzzy search (handles typos)"
-        >
+        <button class="search-mode-button {searchMode === 'fuzzy' ? 'active' : ''}" on:click={() => (searchMode = "fuzzy")} title="Fuzzy search (handles typos)">
           <Icon name="zap" size="sm" />
         </button>
-        <button
-          class="search-mode-button {searchMode === 'regex' ? 'active' : ''}"
-          on:click={() => (searchMode = "regex")}
-          title="Regular expression search"
-        >
+        <button class="search-mode-button {searchMode === 'regex' ? 'active' : ''}" on:click={() => (searchMode = "regex")} title="Regular expression search">
           <Icon name="code" size="sm" />
         </button>
       </div>
     </div>
     <div class="filter-controls">
       <div class="log-level-dropdown">
-        <button
-          class="dropdown-trigger"
-          on:click={toggleLogLevelDropdown}
-          type="button"
-        >
+        <button class="dropdown-trigger" on:click={toggleLogLevelDropdown} type="button">
           <span>Log Levels ({enabledLogLevelsCount}/4)</span>
-          <Icon
-            name={showLogLevelDropdown ? "chevron-up" : "chevron-down"}
-            size="sm"
-          />
+          <Icon name={showLogLevelDropdown ? "chevron-up" : "chevron-down"} size="sm" />
         </button>
 
         {#if showLogLevelDropdown}
@@ -938,11 +824,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
                 />
                 <Icon name={getLogLevelIcon(level)} size="sm" />
                 <span>{getLogLevelDisplayName(level)}</span>
-                <span class="log-level-count"
-                  >({(activeLogEntries || []).filter(
-                    (log) => (log.level || "info").toLowerCase() === level,
-                  ).length})</span
-                >
+                <span class="log-level-count">({(activeLogEntries || []).filter((log) => (log.level || "info").toLowerCase() === level).length})</span>
               </label>
             {/each}
           </div>
@@ -970,22 +852,14 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
   <div class="tabs-container">
     <div class="tab-list">
       <!-- Global Tab -->
-      <button
-        class="tab-button {$selectedInstanceId === 'global' ? 'active' : ''}"
-        on:click={() => selectInstance("global")}
-      >
+      <button class="tab-button {$selectedInstanceId === 'global' ? 'active' : ''}" on:click={() => selectInstance("global")}>
         <Icon name="globe" size="sm" />
         <span>Launcher</span>
       </button>
 
       <!-- Instance Tabs -->
       {#each sortedInstances as instance (instance.id)}
-        <button
-          class="tab-button {$selectedInstanceId === instance.id
-            ? 'active'
-            : ''}"
-          on:click={() => selectInstance(instance.id)}
-        >
+        <button class="tab-button {$selectedInstanceId === instance.id ? 'active' : ''}" on:click={() => selectInstance(instance.id)}>
           <Icon name={getStatusIcon(instance.status)} size="sm" />
           <span>{getInstanceDisplayName(instance)}</span>
           <span class="status-badge {getStatusColor(instance.status)}">
@@ -1000,27 +874,15 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
   {#if $selectedInstanceId !== "global"}
     <div class="sub-tabs-container">
       <div class="sub-tab-list">
-        <button
-          class="sub-tab-button {selectedLogType === 'launcher'
-            ? 'active'
-            : ''}"
-          on:click={() => (selectedLogType = "launcher")}
-        >
+        <button class="sub-tab-button {selectedLogType === 'launcher' ? 'active' : ''}" on:click={() => (selectedLogType = "launcher")}>
           <Icon name="rocket" size="sm" />
           <span>Launcher</span>
-          <span class="count-badge"
-            >{(currentLogsData.launcherLogs || []).length}</span
-          >
+          <span class="count-badge">{(currentLogsData.launcherLogs || []).length}</span>
         </button>
-        <button
-          class="sub-tab-button {selectedLogType === 'game' ? 'active' : ''}"
-          on:click={() => (selectedLogType = "game")}
-        >
+        <button class="sub-tab-button {selectedLogType === 'game' ? 'active' : ''}" on:click={() => (selectedLogType = "game")}>
           <Icon name="gamepad" size="sm" />
           <span>Game</span>
-          <span class="count-badge"
-            >{(currentLogsData.gameLogs || []).length}</span
-          >
+          <span class="count-badge">{(currentLogsData.gameLogs || []).length}</span>
         </button>
       </div>
     </div>
@@ -1028,13 +890,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
 
   <!-- Log Content -->
   <div class="log-content">
-    <div
-      bind:this={logContainer}
-      on:scroll={handleScroll}
-      class="log-container {showCopyNotification
-        ? 'copy-notification-active'
-        : ''}"
-    >
+    <div bind:this={logContainer} on:scroll={handleScroll} class="log-container {showCopyNotification ? 'copy-notification-active' : ''}">
       {#if filteredCount === 0}
         <div class="empty-state">
           <div class="empty-icon">
@@ -1072,29 +928,19 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
                     title="Copy log entry"
                     role="button"
                     tabindex="0"
-                    on:keydown={(e) =>
-                      e.key === "Enter" && copyLogEntry(logEntry)}
+                    on:keydown={(e) => e.key === "Enter" && copyLogEntry(logEntry)}
                   >
                     <Icon name="clipboard" size="sm" />
                   </div>
                   <div class="log-timestamp">
                     {formatTime(logEntry.timestamp)}
                   </div>
-                  <div
-                    class="log-level badge {getLogLevelClass(
-                      logEntry.level || 'info',
-                    )}"
-                  >
-                    <Icon
-                      name={getLogLevelIcon(logEntry.level || "info")}
-                      size="sm"
-                    />
+                  <div class="log-level badge {getLogLevelClass(logEntry.level || 'info')}">
+                    <Icon name={getLogLevelIcon(logEntry.level || "info")} size="sm" />
                     {formatLogLevel(logEntry.level || "info")}
                   </div>
                   <div class="log-message">
-                    <pre class="log-message-content"><code
-                        >{getDisplayMessage(logEntry)}</code
-                      ></pre>
+                    <pre class="log-message-content"><code>{getDisplayMessage(logEntry)}</code></pre>
                   </div>
                 </div>
               {/if}
@@ -1108,11 +954,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       <div class="overlay-copy-notification" role="status" aria-live="polite">
         <div class="overlay-copy-content">
           <Icon name="clipboard" size="md" />
-          <span
-            >Copied {filteredCount} log entr{filteredCount === 1
-              ? "y"
-              : "ies"}</span
-          >
+          <span>Copied {filteredCount} log entr{filteredCount === 1 ? "y" : "ies"}</span>
         </div>
       </div>
     {/if}
@@ -1126,13 +968,10 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
           {#if filteredCount === (currentLogsData.launcherLogs || []).length}
             Global logs: {(currentLogsData.launcherLogs || []).length} entries
           {:else}
-            Global logs: {filteredCount} / {(currentLogsData.launcherLogs || [])
-              .length} entries
+            Global logs: {filteredCount} / {(currentLogsData.launcherLogs || []).length} entries
           {/if}
         {:else if filteredCount === (activeLogEntries || []).length}
-          {selectedLogType === "launcher" ? "Launcher" : "Game"} logs: {(
-            activeLogEntries || []
-          ).length} entries
+          {selectedLogType === "launcher" ? "Launcher" : "Game"} logs: {(activeLogEntries || []).length} entries
         {:else}
           {selectedLogType === "launcher" ? "Launcher" : "Game"} logs: {filteredCount}
           / {(activeLogEntries || []).length} entries
@@ -1149,9 +988,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       {/if}
     </div>
     <div class="status-right">
-      <span class="status-text"
-        >{(sortedInstances || []).length} active instances</span
-      >
+      <span class="status-text">{(sortedInstances || []).length} active instances</span>
       {#if autoScroll}
         <span class="auto-scroll-indicator">
           <Icon name="refresh" size="sm" />
@@ -1285,8 +1122,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
 
         &:focus {
           outline: none;
-          box-shadow: inset 0 0 0 2px
-            color-mix(in srgb, var(--primary), 30%, transparent);
+          box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary), 30%, transparent);
         }
       }
     }
@@ -1691,8 +1527,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
           .log-message-content {
             margin: 0;
             padding: 0;
-            font-family:
-              "JetBrains Mono", "Fira Code", "Consolas", "Monaco", monospace;
+            font-family: "JetBrains Mono", "Fira Code", "Consolas", "Monaco", monospace;
             font-size: inherit;
             line-height: inherit;
             color: inherit;
@@ -1729,11 +1564,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
   align-items: center;
   gap: 0.75rem;
   padding: 1rem 1.25rem;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.06),
-    rgba(255, 255, 255, 0.03)
-  );
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
   color: var(--text-white);
   border-radius: calc(var(--border-radius) * 0.7);
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);

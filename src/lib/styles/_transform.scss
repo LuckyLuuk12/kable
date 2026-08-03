@@ -9,7 +9,6 @@
 }
 
 html {
-  filter: grayscale(var(--fx-grayscale)) saturate(var(--fx-saturate))
-    hue-rotate(var(--fx-hue-rotate)) blur(var(--fx-blur))
-    contrast(var(--fx-contrast)) brightness(var(--fx-brightness));
+  filter: grayscale(var(--fx-grayscale)) saturate(var(--fx-saturate)) hue-rotate(var(--fx-hue-rotate)) blur(var(--fx-blur)) contrast(var(--fx-contrast))
+    brightness(var(--fx-brightness));
 }

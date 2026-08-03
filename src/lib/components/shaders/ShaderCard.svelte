@@ -28,18 +28,10 @@ export let viewMode: "grid" | "list" | "compact" = "grid";
 export let installation: KableInstallation | null = null;
 export let loading = false;
 export let isInstalled = false;
-export let ondownload:
-  | ((event: {
-      shader: ShaderDownload;
-      installation: KableInstallation | null;
-    }) => void)
-  | undefined = undefined;
-export let onviewgallery:
-  | ((event: { shader: ShaderDownload }) => void)
-  | undefined = undefined;
+export let ondownload: ((event: { shader: ShaderDownload; installation: KableInstallation | null }) => void) | undefined = undefined;
+export let onviewgallery: ((event: { shader: ShaderDownload }) => void) | undefined = undefined;
 
-$: hasGallery =
-  (shader.gallery && shader.gallery.length > 0) || !!shader.featured_gallery;
+$: hasGallery = (shader.gallery && shader.gallery.length > 0) || !!shader.featured_gallery;
 
 // Debug logging
 $: if (shader) {
@@ -106,7 +98,8 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
   on:click={handleVisit}
   role="button"
   tabindex="0"
-  on:keydown={(e) => e.key === "Enter" && handleVisit(e)}>
+  on:keydown={(e) => e.key === "Enter" && handleVisit(e)}
+>
   <!-- Thumbnail -->
   {#if viewMode !== "compact"}
     <div class="shader-thumbnail">
@@ -119,11 +112,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
       {/if}
 
       {#if hasGallery}
-        <button
-          class="gallery-overlay"
-          on:click={handleViewGallery}
-          use:clickSound
-          title="View gallery">
+        <button class="gallery-overlay" on:click={handleViewGallery} use:clickSound title="View gallery">
           <Icon name="images" size="lg" forceType="svg" />
           <span>View Gallery</span>
         </button>
@@ -159,9 +148,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
       <div class="shader-meta">
         <!-- Loader -->
         <div class="shader-loaders">
-          <span
-            class="loader-badge"
-            style="background-color: {getLoaderColor(shader.shader_loader)}">
+          <span class="loader-badge" style="background-color: {getLoaderColor(shader.shader_loader)}">
             {shader.shader_loader}
           </span>
         </div>
@@ -180,11 +167,8 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
         disabled={loading || isInstalled}
         on:click={handleDownload}
         use:successSound
-        title={isInstalled
-          ? "Already installed"
-          : installation
-            ? `Install to ${installation.name}`
-            : "Install globally"}>
+        title={isInstalled ? "Already installed" : installation ? `Install to ${installation.name}` : "Install globally"}
+      >
         {#if loading}
           <Icon name="loader" size="sm" forceType="svg" />
         {:else if isInstalled}
@@ -207,11 +191,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
 
 .shader-card {
   display: flex;
-  background: linear-gradient(
-    135deg,
-    var(--card) 0%,
-    #{"color-mix(in srgb, var(--container), 80%, transparent)"} 100%
-  );
+  background: linear-gradient(135deg, var(--card) 0%, #{"color-mix(in srgb, var(--container), 80%, transparent)"} 100%);
   backdrop-filter: blur(8px);
   border: 1px solid transparent;
   border-radius: 0.5rem;
@@ -227,20 +207,14 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(
-      90deg,
-      transparent 0%,
-      #{"color-mix(in srgb, var(--primary), 40%, transparent)"} 50%,
-      transparent 100%
-    );
+    background: linear-gradient(90deg, transparent 0%, #{"color-mix(in srgb, var(--primary), 40%, transparent)"} 50%, transparent 100%);
     opacity: 0;
     transition: opacity 0.2s ease;
   }
 
   &:hover {
     border: 1px solid var(--secondary);
-    box-shadow: 0 4px 12px
-      #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+    box-shadow: 0 4px 12px #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
     transform: translateY(-2px);
 
     &::before {
@@ -250,11 +224,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
 
   &.installed {
     border-color: var(--green);
-    background: linear-gradient(
-      135deg,
-      #{"color-mix(in srgb, var(--green), 5%, transparent)"} 0%,
-      var(--card) 100%
-    );
+    background: linear-gradient(135deg, #{"color-mix(in srgb, var(--green), 5%, transparent)"} 0%, var(--card) 100%);
   }
 
   // Grid Layout
@@ -373,11 +343,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(
-      135deg,
-      var(--dark-700) 0%,
-      var(--dark-600) 100%
-    );
+    background: linear-gradient(135deg, var(--dark-700) 0%, var(--dark-600) 100%);
     color: var(--dark-400);
   }
 
@@ -528,8 +494,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px
-      #{"color-mix(in srgb, var(--primary), 25%, transparent)"};
+    box-shadow: 0 4px 8px #{"color-mix(in srgb, var(--primary), 25%, transparent)"};
   }
 
   &:active:not(:disabled) {

@@ -13,15 +13,7 @@ navigation and responsive mini-nav sidebar.
 import { settings, SettingsService } from "$lib";
 import { onDestroy, onMount } from "svelte";
 import { writable } from "svelte/store";
-import {
-  AdvancedSettingsUI,
-  AppearanceSettingsUI,
-  ContentSettingsUI,
-  GeneralSettingsUI,
-  LoggingSettingsUI,
-  MiscSettingsUI,
-  NetworkSettingsUI,
-} from ".";
+import { AdvancedSettingsUI, AppearanceSettingsUI, ContentSettingsUI, GeneralSettingsUI, LoggingSettingsUI, MiscSettingsUI, NetworkSettingsUI } from ".";
 // Periodic save logic
 import { get } from "svelte/store";
 let lastSettings: any = null;
@@ -29,8 +21,7 @@ let lastSettings: any = null;
 // Validate memory settings before saving
 function getValidatedSettings() {
   const snapshot = get(settings);
-  snapshot.advanced.default_memory =
-    validateMemory(snapshot.advanced.default_memory.toString()) || 1024;
+  snapshot.advanced.default_memory = validateMemory(snapshot.advanced.default_memory.toString()) || 1024;
   return snapshot;
 }
 
@@ -69,10 +60,8 @@ onMount(() => {
     let prevIntervalSetting: number | null = null;
     unsubscribeSettings = settings.subscribe(($settings) => {
       let intervalSetting = $settings.advanced.auto_save_interval;
-      const isEnabled =
-        typeof intervalSetting === "number" && intervalSetting > 0;
-      intervalSetting =
-        validateNumber(intervalSetting.toString(), 5000, 3600000) || 30000; // Default to 30 seconds if invalid
+      const isEnabled = typeof intervalSetting === "number" && intervalSetting > 0;
+      intervalSetting = validateNumber(intervalSetting.toString(), 5000, 3600000) || 30000; // Default to 30 seconds if invalid
       if (isEnabled) {
         if (saveInterval) {
           clearInterval(saveInterval);
@@ -121,11 +110,9 @@ onDestroy(() => {
 <div class="settings-content" style="--mini-nav-width: {miniNavWidth}px;">
   <div class="mini-nav" bind:this={miniNavElement}>
     {#each sections as section}
-      <a
-        href={`#${section}`}
-        class:active={$currentSection === section}
-        on:click={() => currentSection.set(section)}
-        >{section.charAt(0).toUpperCase() + section.slice(1)}</a>
+      <a href={`#${section}`} class:active={$currentSection === section} on:click={() => currentSection.set(section)}
+        >{section.charAt(0).toUpperCase() + section.slice(1)}</a
+      >
     {/each}
   </div>
   <div class="settings">

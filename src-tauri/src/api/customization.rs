@@ -5,6 +5,7 @@ use crate::features::customization::sounds;
 use crate::features::customization::themes;
 use api_types::icons::IconTemplate;
 use api_types::settings::CategorizedLauncherSettings;
+use api_types::settings::Theme;
 use api_types::sounds::SoundpackMetadata;
 
 #[tauri::command]
@@ -87,14 +88,14 @@ pub async fn open_sounds_directory() -> Result<(), String> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn list_css_themes() -> Result<Vec<String>, String> {
+pub async fn list_css_themes() -> Result<Vec<Theme>, String> {
     themes::list_css_themes().await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn load_css_theme(name: String) -> Result<String, String> {
-    themes::load_css_theme(name).await
+pub async fn load_css(theme: Theme) -> Result<String, String> {
+    themes::load_css(theme).await
 }
 
 #[tauri::command]

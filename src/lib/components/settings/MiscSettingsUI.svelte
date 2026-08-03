@@ -30,16 +30,11 @@ onMount(() => {
     <div class="setting-item">
       <div class="setting-info">
         <label for="use-titlebar">Use Titlebar</label>
-        <p class="setting-description">
-          Enable a custom titlebar for the application
-        </p>
+        <p class="setting-description">Enable a custom titlebar for the application</p>
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
-          <input
-            type="checkbox"
-            id="use-titlebar"
-            bind:checked={$settings.misc.use_titlebar} />
+          <input type="checkbox" id="use-titlebar" bind:checked={$settings.misc.use_titlebar} />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -49,30 +44,16 @@ onMount(() => {
       <div class="setting-info">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>Authentication Preference</label>
-        <p class="setting-description">
-          Choose your preferred authentication flow
-        </p>
+        <p class="setting-description">Choose your preferred authentication flow</p>
       </div>
       <div class="setting-control">
         {#if isWideScreen}
           <div class="radio-group">
-            <label
-              ><input
-                type="radio"
-                name="auth-preference"
-                value="code"
-                bind:group={$settings.misc.auth_preference} /> Code Flow (Recommended)</label>
-            <label
-              ><input
-                type="radio"
-                name="auth-preference"
-                value="device_code"
-                bind:group={$settings.misc.auth_preference} /> Device Code Flow</label>
+            <label><input type="radio" name="auth-preference" value="code" bind:group={$settings.misc.auth_preference} /> Code Flow (Recommended)</label>
+            <label><input type="radio" name="auth-preference" value="device_code" bind:group={$settings.misc.auth_preference} /> Device Code Flow</label>
           </div>
         {:else}
-          <select
-            id="auth-preference"
-            bind:value={$settings.misc.auth_preference}>
+          <select id="auth-preference" bind:value={$settings.misc.auth_preference}>
             <option value="code">Code Flow (Recommended)</option>
             <option value="device_code">Device Code Flow</option>
           </select>

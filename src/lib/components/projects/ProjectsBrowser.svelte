@@ -12,8 +12,7 @@ It is used in various routes/pages as we make different pages per project type (
 import { type KableProfile, type Project } from "$lib";
 import ProjectCard from "./ProjectCard.svelte";
 
-let { selectedProfile = null }: { selectedProfile: KableProfile | null } =
-  $props();
+let { selectedProfile = null }: { selectedProfile: KableProfile | null } = $props();
 
 //
 let projects: Project[] = [];

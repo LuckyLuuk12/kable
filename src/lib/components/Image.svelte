@@ -36,16 +36,10 @@ onMount(async () => {
   if (!key) return;
 
   // If key is already a full URL (http/https/data), use it directly
-  if (
-    key.startsWith("http://") ||
-    key.startsWith("https://") ||
-    key.startsWith("data:")
-  ) {
+  if (key.startsWith("http://") || key.startsWith("https://") || key.startsWith("data:")) {
     resolvedSrc = key;
     // Log abbreviated version for data URLs to avoid console spam
-    const logKey = key.startsWith("data:")
-      ? `data:${key.substring(5, 30)}...`
-      : key;
+    const logKey = key.startsWith("data:") ? `data:${key.substring(5, 30)}...` : key;
     console.log(`Image component using direct URL: ${logKey}`);
     setTimeout(() => {
       if (imgElement && imgElement.complete && imgElement.naturalHeight !== 0) {
@@ -63,10 +57,7 @@ onMount(async () => {
     // If the backend returned a data URL (base64) or a static /img path, use it directly
     if (result && result.startsWith("data:")) {
       resolvedSrc = result;
-    } else if (
-      result &&
-      (result.startsWith("/img/") || result.startsWith("/"))
-    ) {
+    } else if (result && (result.startsWith("/img/") || result.startsWith("/"))) {
       // static asset path (either /img/ or root static folder)
       resolvedSrc = result;
     } else if (result && result.match(/^[a-zA-Z]:\\/)) {
@@ -95,9 +86,7 @@ function handleImgError() {
   isVisible = false;
   // Prevent infinite loops - stop after MAX_RETRIES attempts
   if (retryCount >= MAX_RETRIES) {
-    console.warn(
-      `Image load failed after ${MAX_RETRIES} retries for key: ${key}`,
-    );
+    console.warn(`Image load failed after ${MAX_RETRIES} retries for key: ${key}`);
     loadError = true;
     resolvedSrc = "/favicon.png";
     return;

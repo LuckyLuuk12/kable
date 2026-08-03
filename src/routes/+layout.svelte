@@ -1,142 +1,46 @@
 <script lang="ts">
-import { page } from "$app/stores";
-import { app, NavBar, settings, TitleBar } from "$lib";
+import { page } from "$app/state";
+import { app, NavBar, TitleBar } from "$lib";
 import "$lib/styles/global.scss";
-import { onDestroy, onMount } from "svelte";
-import { get } from "svelte/store";
+import { onMount } from "svelte";
 
-let customCSSLoaded = false;
-let currentThemeName = "";
-let unsubscribeSettings: (() => void) | null = null;
-let unsubscribePage: (() => void) | null = null;
+let { children } = $props();
+
+let currentThemeName = app.customizationService.appearance?.selected_css_theme || "system";
 
 onMount(async () => {
-  await loadCustomCSS();
-
-  // Subscribe to settings changes instead of polling
-  unsubscribeSettings = settings.subscribe(async ($settings) => {
-    // Check if theme has changed in the settings
-    const newTheme = $settings?.appearance?.selected_css_theme || "";
-    if (newTheme !== currentThemeName) {
-      console.log("Theme changed from", currentThemeName, "to", newTheme);
-      await reloadCustomCSS();
-    }
-  });
-
-  // Subscribe to route changes for Discord RPC
-  unsubscribePage = page.subscribe(($page) => {
-    if ($page?.url?.pathname) {
-      app.discordService
-        .setBrowsing($page.url.pathname)
-        .catch((err) => console.error("Failed to update Discord status:", err));
-    }
-  });
-});
-
-// Clean up subscription on component destroy
-onDestroy(() => {
-  if (unsubscribeSettings) {
-    unsubscribeSettings();
-    unsubscribeSettings = null;
-  }
-  if (unsubscribePage) {
-    unsubscribePage();
-    unsubscribePage = null;
-  }
-});
-
-async function loadCustomCSS() {
+  // First initialize the app and load any necessary data
+  console.log("Starting layout initialization...");
   try {
-    // Get the selected CSS theme from settings store first, fallback to API
-    const currentSettings = get(settings);
-    let themeName = currentSettings?.appearance?.selected_css_theme || "";
-
-    // If not in store, fallback to API
-    if (!themeName) {
-      themeName = (await app.customizationService.getSelectedCssTheme()) || "";
-    }
-
-    currentThemeName = themeName;
-
-    if (themeName && themeName !== "default") {
-      // Load the CSS content for the theme
-      const customCSS = await app.customizationService.loadCustomCss(themeName);
-
-      if (customCSS && typeof customCSS === "string") {
-        injectCustomCSS(customCSS);
-        customCSSLoaded = true;
-        console.log("Custom CSS theme loaded successfully:", themeName);
-      }
-    } else {
-      // Default theme selected - remove any existing custom CSS
-      removeCustomCSS();
-      customCSSLoaded = false;
-      console.log("Default theme selected, custom CSS removed");
-    }
-  } catch (error) {
-    // No custom CSS theme or error loading - that's fine
-    console.log("No custom CSS theme found or error loading:", error);
-    removeCustomCSS();
-    customCSSLoaded = false;
+    await app.initAll();
+    console.log("Layout initialization complete");
+  } catch (error: any) {
+    console.error("Tauri initialization error:", error);
+    app.logsService.emitLauncherEvent(`Initialization error: ${error}`, "error");
   }
-}
+  // Load the custom CSS theme if one is selected
+  const theme = app.customizationService.appearance?.selected_css_theme || "system";
+  await app.customizationService.setTheme(theme);
+});
 
-function injectCustomCSS(cssContent: string) {
-  // First, remove any existing custom CSS
-  removeCustomCSS();
+// Use effect to listen for page changes and update Discord RPC accordingly
+$effect(() => {
+  if (!page?.url?.pathname) return;
+  app.discordService.setBrowsing(page.url.pathname).catch((err) => console.error("Failed to update Discord status:", err));
+});
 
-  // Create a new style element
-  const styleElement = document.createElement("style");
-  styleElement.type = "text/css";
-  styleElement.id = "user-custom-css";
-  styleElement.innerHTML = cssContent;
-
-  // Append to head (this ensures it comes after our compiled SCSS)
-  document.head.appendChild(styleElement);
-
-  // Force font loading and DOM reflow
-  setTimeout(() => {
-    // Trigger a reflow to ensure fonts are applied
-    document.body.style.fontFamily =
-      document.body.style.fontFamily ??
-      '"Open Sans", Tahoma, Geneva, sans-serif';
-    console.log("Font loading triggered: ", document.body.style.fontFamily);
-  }, 100);
-}
-
-function removeCustomCSS() {
-  // Remove existing custom CSS
-  const existingStyle = document.getElementById("user-custom-css");
-  if (existingStyle) {
-    existingStyle.remove();
-    // Trigger a reflow to ensure fonts are applied
-    document.body.style.fontFamily =
-      document.body.style.fontFamily ??
-      '"Open Sans", Tahoma, Geneva, sans-serif';
-    console.log(
-      "Previous custom CSS removed: ",
-      document.body.style.fontFamily,
-    );
+// Reload theme CSS by listening with effect() to settings from app.customizationService
+$effect(() => {
+  const newTheme = app.customizationService.appearance?.selected_css_theme || "system";
+  if (newTheme !== currentThemeName) {
+    console.log("Theme changed from", currentThemeName, "to", newTheme);
+    app.customizationService.setTheme(newTheme);
   }
-}
-
-// Function to reload custom CSS (useful for settings)
-async function reloadCustomCSS() {
-  // Remove existing custom CSS first
-  removeCustomCSS();
-
-  // Reload with new theme
-  await loadCustomCSS();
-}
-
-// Make reload function available globally for settings page
-if (typeof window !== "undefined") {
-  (window as any).reloadCustomCSS = reloadCustomCSS;
-}
+});
 </script>
 
 <TitleBar>
   <NavBar>
-    <slot />
+    {@render children()}
   </NavBar>
 </TitleBar>

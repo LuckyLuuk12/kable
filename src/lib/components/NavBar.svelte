@@ -12,10 +12,8 @@ Initializes all required services on mount.
 -->
 <script lang="ts">
 import { resolve } from "$app/paths";
-import { page } from "$app/stores";
-import { Icon, PlayerHead, app } from "$lib";
-import { buttonSound } from "$lib/actions/soundActions";
-import { currentAccount, settings } from "$lib/stores";
+import { page } from "$app/state";
+import { Icon, PlayerHead, app, buttonSound } from "$lib";
 import "$lib/styles/global.scss";
 import { onDestroy, onMount } from "svelte";
 
@@ -27,17 +25,14 @@ onMount(async () => {
     console.log("Layout initialization complete");
   } catch (error: any) {
     console.error("Tauri initialization error:", error);
-    app.logsService.emitLauncherEvent(
-      `Initialization error: ${error}`,
-      "error",
-    );
+    app.logsService.emitLauncherEvent(`Initialization error: ${error}`, "error");
   }
 });
 
 // Navigation items - conditionally include logs based on settings
-$: navItems = [
+let navItems = $derived([
   { path: "/", label: "Home", icon: "home" },
-  { path: "/installations", label: "Installations", icon: "minecraft" },
+  { path: "/profiles", label: "Profiles", icon: "minecraft" },
   { path: "/mods", label: "Mods", icon: "mods" },
   { path: "/resourcepacks", label: "Resource Packs", icon: "image" },
   { path: "/shaders", label: "Shaders", icon: "shaders" },
@@ -45,17 +40,16 @@ $: navItems = [
   { path: "/maps", label: "Worlds", icon: "world" },
   { path: "/skins", label: "Skins", icon: "palette" },
   // Only show logs if enabled in settings (default: true for developers)
-  ...(($settings as any)?.logging?.show_logs_page_in_nav !== false
-    ? [{ path: "/logs", label: "Logs", icon: "terminal" }]
-    : []),
+  ...(app.customizationService.settings?.advanced?.enable_advanced_features !== false ? [{ path: "/logs", label: "Logs", icon: "terminal" }] : []),
   // Only show advanced page if enabled in settings (default: false)
-  ...(($settings as any)?.advanced?.show_advanced_page === true
-    ? [{ path: "/advanced", label: "Advanced", icon: "wrench" }]
-    : []),
-];
+  ...(app.customizationService.settings?.advanced?.enable_advanced_features === true ? [{ path: "/advanced", label: "Advanced", icon: "wrench" }] : []),
+]);
 
 // State for navigation collapse
-let isNavCollapsed = true;
+let activeAccount = $derived(app.authService.activeAccount);
+let isNavCollapsed = $state(true);
+let currentPath = $derived(page.url.pathname);
+$effect(() => console.log(currentPath));
 
 function toggleNavigation() {
   isNavCollapsed = !isNavCollapsed;
@@ -70,19 +64,13 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
-$: currentPath = $page.url.pathname;
-$: () => console.log(currentPath);
-
 // Tooltip element and logic for showing a single tooltip (prevents native title tooltip duplicates)
 let tooltipEl: HTMLDivElement | null = null;
 let tooltipTimer: number | null = null;
 
 function showTooltipForTarget(target: Element | null) {
   if (!tooltipEl || !target) return;
-  const title =
-    (target as HTMLElement).dataset?.title ||
-    (target as HTMLElement).getAttribute("aria-label") ||
-    "";
+  const title = (target as HTMLElement).dataset?.title || (target as HTMLElement).getAttribute("aria-label") || "";
   if (!title) return;
 
   tooltipEl.textContent = title;
@@ -165,8 +153,7 @@ onDestroy(() => {
     item.removeEventListener("focus", itemFocus as EventListener, true);
     item.removeEventListener("blur", itemBlur as EventListener, true);
   });
-  if (tooltipEl && tooltipEl.parentNode)
-    tooltipEl.parentNode.removeChild(tooltipEl);
+  if (tooltipEl && tooltipEl.parentNode) tooltipEl.parentNode.removeChild(tooltipEl);
   tooltipEl = null;
 
   // Cleanup all services on destroy (e.g., when app is closed)
@@ -177,29 +164,17 @@ onDestroy(() => {
 </script>
 
 <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-<div
-  class="app-layout"
-  class:nav-open={!isNavCollapsed}
-  onkeydown={handleKeydown}
-  role="application"
-  tabindex="-1">
+<div class="app-layout" class:nav-open={!isNavCollapsed} onkeydown={handleKeydown} role="application" tabindex="-1">
   <nav class="sidebar" class:collapsed={isNavCollapsed}>
     <!-- Header Section with Profile -->
     <div class="header-section">
-      <a
-        use:buttonSound
-        href={resolve("/profile", {})}
-        class="user-profile"
-        class:active={currentPath === "/profile"}>
+      <a use:buttonSound href={resolve("/account", {})} class="user-profile" class:active={currentPath === "/account"}>
         <div class="user-avatar">
-          <PlayerHead account={$currentAccount} size={40} />
+          <PlayerHead account={activeAccount} size={40} />
         </div>
         <div class="header-content" class:collapsed={isNavCollapsed}>
-          <h1 class="app-title">{$currentAccount?.username}</h1>
-          <span class="app-subtitle"
-            >{!!$currentAccount?.access_token
-              ? "Logged in"
-              : "Not logged in"}</span>
+          <h1 class="app-title">{activeAccount?.username}</h1>
+          <span class="app-subtitle">{!!activeAccount?.access_token ? "Logged in" : "Not logged in"}</span>
         </div>
       </a>
     </div>
@@ -210,32 +185,18 @@ onDestroy(() => {
         use:buttonSound
         class="hamburger-btn"
         onclick={toggleNavigation}
-        aria-label={isNavCollapsed
-          ? "Expand navigation"
-          : "Collapse navigation"}
-        data-title={isNavCollapsed
-          ? "Expand navigation (Ctrl+B)"
-          : "Collapse navigation (Ctrl+B)"}>
-        <Icon
-          name={isNavCollapsed ? "arrow-right" : "arrow-left"}
-          size="lg"
-          forceType="svg" />
+        aria-label={isNavCollapsed ? "Expand navigation" : "Collapse navigation"}
+        data-title={isNavCollapsed ? "Expand navigation (Ctrl+B)" : "Collapse navigation (Ctrl+B)"}>
+        <Icon name={isNavCollapsed ? "arrow-right" : "arrow-left"} size="lg" forceType="svg" />
       </button>
     </div>
 
     <!-- Main Navigation -->
     <div class="nav-items">
       {#each navItems as item (item.path)}
-        <a
-          use:buttonSound
-          href={resolve(item.path, {})}
-          class="nav-item"
-          class:active={currentPath === item.path}
-          data-title={item.label}
-          aria-label={item.label}>
+        <a use:buttonSound href={resolve(item.path, {})} class="nav-item" class:active={currentPath === item.path} data-title={item.label} aria-label={item.label}>
           <Icon name={item.icon} size="md" className="nav-icon" />
-          <span class="label" class:collapsed={isNavCollapsed}
-            >{item.label}</span>
+          <span class="label" class:collapsed={isNavCollapsed}>{item.label}</span>
         </a>
       {/each}
     </div>
@@ -405,11 +366,7 @@ onDestroy(() => {
   }
 
   &.active {
-    background: linear-gradient(
-      155deg,
-      #{"color-mix(in srgb, var(--primary) 15%, transparent)"},
-      #{"color-mix(in srgb, var(--primary) 1%, transparent)"}
-    );
+    background: linear-gradient(155deg, #{"color-mix(in srgb, var(--primary) 15%, transparent)"}, #{"color-mix(in srgb, var(--primary) 1%, transparent)"});
     backdrop-filter: blur(15px);
     color: var(--text-white);
   }

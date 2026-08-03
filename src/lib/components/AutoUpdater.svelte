@@ -41,10 +41,7 @@ async function handleCheckForUpdates() {
   try {
     // Respect the user's nightly update preference
     const checkNightly = $settings?.advanced?.check_nightly_updates ?? false;
-    console.log(
-      "[AutoUpdater] Checking for updates with checkNightly:",
-      checkNightly,
-    );
+    console.log("[AutoUpdater] Checking for updates with checkNightly:", checkNightly);
     console.log("[AutoUpdater] Full settings.advanced:", $settings?.advanced);
     updateInfo = await app.updaterService.check(checkNightly);
 
@@ -110,11 +107,7 @@ async function handleInstallDownloaded() {
   </div>
 
   <div class="update-controls">
-    <button
-      class="check-button"
-      on:click={handleCheckForUpdates}
-      use:clickSound
-      disabled={isChecking || isInstalling}>
+    <button class="check-button" on:click={handleCheckForUpdates} use:clickSound disabled={isChecking || isInstalling}>
       {#if isChecking}
         Checking...
       {:else}
@@ -139,7 +132,8 @@ async function handleInstallDownloaded() {
             on:click={handleDownloadUpdate}
             use:clickSound
             disabled={isDownloading || isInstalling}
-            title="Download installer now; will be applied on restart or when you click 'Install downloaded'">
+            title="Download installer now; will be applied on restart or when you click 'Install downloaded'"
+          >
             {#if isDownloading}
               Downloading...
             {:else}
@@ -148,12 +142,7 @@ async function handleInstallDownloaded() {
             <span class="small-version">v{updateInfo.version}</span>
           </button>
 
-          <button
-            class="install-button"
-            on:click={handleInstallUpdate}
-            use:successSound
-            disabled={isInstalling}
-            title="App will restart to complete installation">
+          <button class="install-button" on:click={handleInstallUpdate} use:successSound disabled={isInstalling} title="App will restart to complete installation">
             {#if isInstalling}
               Installing...
             {:else}
@@ -167,7 +156,8 @@ async function handleInstallDownloaded() {
             on:click={handleInstallDownloaded}
             use:successSound
             disabled={!downloadedPath || isApplying}
-            title="Install the previously downloaded update and restart the app">
+            title="Install the previously downloaded update and restart the app"
+          >
             {#if isApplying}
               Installing...
             {:else}
@@ -240,10 +230,7 @@ async function handleInstallDownloaded() {
   align-self: flex-start;
 
   &:hover:not(:disabled) {
-    background: var(
-      --primary-hover,
-      #{"color-mix(in srgb, var(--primary) 90%, black)"}
-    );
+    background: var(--primary-hover, #{"color-mix(in srgb, var(--primary) 90%, black)"});
   }
 
   &:disabled {

@@ -17,12 +17,7 @@ Allows users to browse, filter, and select specific versions to install.
 ```
 -->
 <script lang="ts">
-import type {
-  KableInstallation,
-  ModInfoKind,
-  ModrinthVersion,
-  ProviderKind,
-} from "$lib";
+import type { KableInstallation, ModInfoKind, ModrinthVersion, ProviderKind } from "$lib";
 import { Icon, ProviderKind as ProviderKindEnum, VersionUtils } from "$lib";
 import * as modsApi from "$lib/api/mods";
 
@@ -31,9 +26,7 @@ export let currentInstallation: KableInstallation | null = null;
 export let open = false;
 export let installedVersion: string | null = null;
 export let onclose: (() => void) | undefined = undefined;
-export let onselectversion:
-  | ((event: { versionId: string; versionNumber: string }) => void)
-  | undefined = undefined;
+export let onselectversion: ((event: { versionId: string; versionNumber: string }) => void) | undefined = undefined;
 
 let versions: ModrinthVersion[] = [];
 let filteredVersions: ModrinthVersion[] = [];
@@ -77,10 +70,7 @@ function truncateChangelog(changelog: string, maxLength: number = 150): string {
   return changelog.substring(0, maxLength).trim() + "...";
 }
 
-function highlightVersionNumber(
-  name: string,
-  versionNumber: string,
-): { before: string; version: string; after: string } {
+function highlightVersionNumber(name: string, versionNumber: string): { before: string; version: string; after: string } {
   const index = name.indexOf(versionNumber);
   if (index === -1) {
     return { before: name, version: "", after: "" };
@@ -107,40 +97,24 @@ $: filteredVersions = (() => {
 
   // Filter by loader
   if (selectedLoader) {
-    result = result.filter((v) =>
-      v.loaders.some((l) => l.toLowerCase() === selectedLoader!.toLowerCase()),
-    );
+    result = result.filter((v) => v.loaders.some((l) => l.toLowerCase() === selectedLoader!.toLowerCase()));
   }
 
   // Filter by game version
   if (selectedGameVersion) {
-    result = result.filter((v) =>
-      v.game_versions.includes(selectedGameVersion!),
-    );
+    result = result.filter((v) => v.game_versions.includes(selectedGameVersion!));
   }
 
   // Filter by search query
   if (searchQuery.trim()) {
     const query = searchQuery.toLowerCase();
-    result = result.filter(
-      (v) =>
-        v.version_number.toLowerCase().includes(query) ||
-        v.name.toLowerCase().includes(query),
-    );
+    result = result.filter((v) => v.version_number.toLowerCase().includes(query) || v.name.toLowerCase().includes(query));
   }
 
   // Sort by version number (descending - newest first)
   // Use installation MC version context if available
-  const mcVersion = currentInstallation
-    ? extractGameVersion(currentInstallation.version_id)
-    : null;
-  result.sort((a, b) =>
-    VersionUtils.compareVersions(
-      b.version_number,
-      a.version_number,
-      mcVersion || undefined,
-    ),
-  );
+  const mcVersion = currentInstallation ? extractGameVersion(currentInstallation.version_id) : null;
+  result.sort((a, b) => VersionUtils.compareVersions(b.version_number, a.version_number, mcVersion || undefined));
 
   return result;
 })();
@@ -262,18 +236,8 @@ function formatDate(dateString: string): string {
 </script>
 
 {#if open}
-  <div
-    class="modal-backdrop"
-    on:click={handleClose}
-    on:keydown={(e) => e.key === "Escape" && handleClose()}
-    role="button"
-    tabindex="-1">
-    <div
-      class="modal-content"
-      on:click|stopPropagation
-      on:keydown|stopPropagation
-      role="dialog"
-      tabindex="-1">
+  <div class="modal-backdrop" on:click={handleClose} on:keydown={(e) => e.key === "Escape" && handleClose()} role="button" tabindex="-1">
+    <div class="modal-content" on:click|stopPropagation on:keydown|stopPropagation role="dialog" tabindex="-1">
       <div class="modal-header">
         <div class="modal-title">
           <h2>Select Version - {getModTitle(mod)}</h2>
@@ -284,10 +248,7 @@ function formatDate(dateString: string): string {
             </span>
           {/if}
         </div>
-        <button
-          class="close-btn"
-          on:click={handleClose}
-          aria-label="Close modal">
+        <button class="close-btn" on:click={handleClose} aria-label="Close modal">
           <Icon name="x" size="lg" forceType="svg" />
         </button>
       </div>
@@ -315,11 +276,7 @@ function formatDate(dateString: string): string {
 
         <div class="filter-group search-group">
           <label for="version-search">Search:</label>
-          <input
-            id="version-search"
-            type="text"
-            bind:value={searchQuery}
-            placeholder="Filter versions..." />
+          <input id="version-search" type="text" bind:value={searchQuery} placeholder="Filter versions..." />
         </div>
       </div>
 
@@ -342,27 +299,18 @@ function formatDate(dateString: string): string {
         {:else}
           <div class="versions-list">
             {#each filteredVersions as version}
-              {@const highlighted = highlightVersionNumber(
-                version.name,
-                version.version_number,
-              )}
+              {@const highlighted = highlightVersionNumber(version.name, version.version_number)}
               {@const showAllMcVersions = expandedMcVersions.has(version.id)}
-              {@const displayMcVersions = showAllMcVersions
-                ? version.game_versions
-                : version.game_versions.slice(0, 5)}
+              {@const displayMcVersions = showAllMcVersions ? version.game_versions : version.game_versions.slice(0, 5)}
               <div class="version-item">
                 <div class="version-info">
                   <div class="version-header">
                     <div class="version-title-group">
                       <span class="version-name">
-                        {highlighted.before}<span class="version-highlight"
-                          >{highlighted.version}</span
-                        >{highlighted.after}
+                        {highlighted.before}<span class="version-highlight">{highlighted.version}</span>{highlighted.after}
                       </span>
                     </div>
-                    <button
-                      class="select-btn"
-                      on:click={() => handleSelectVersion(version)}>
+                    <button class="select-btn" on:click={() => handleSelectVersion(version)}>
                       <Icon name="download" size="md" forceType="svg" />
                       Install
                     </button>
@@ -377,8 +325,7 @@ function formatDate(dateString: string): string {
                       <span class="file-info">
                         <Icon name="file" size="sm" />
                         {version.files[0].filename}
-                        <span class="file-size"
-                          >({formatFileSize(version.files[0].size)})</span>
+                        <span class="file-size">({formatFileSize(version.files[0].size)})</span>
                       </span>
                     {/if}
                     <span class="version-game-versions">
@@ -386,33 +333,19 @@ function formatDate(dateString: string): string {
                         <span class="mc-version-badge">{gameVersion}</span>
                       {/each}
                       {#if version.game_versions.length > 5}
-                        <button
-                          class="more-versions-btn"
-                          on:click|stopPropagation={() =>
-                            toggleMcVersions(version.id)}>
-                          {showAllMcVersions
-                            ? "show less"
-                            : `+${version.game_versions.length - 5} more`}
+                        <button class="more-versions-btn" on:click|stopPropagation={() => toggleMcVersions(version.id)}>
+                          {showAllMcVersions ? "show less" : `+${version.game_versions.length - 5} more`}
                         </button>
                       {/if}
                     </span>
                   </div>
                   {#if version.changelog}
                     <div class="version-changelog">
-                      <p
-                        class="changelog-text"
-                        class:expanded={expandedPatchnotes.has(version.id)}>
-                        {expandedPatchnotes.has(version.id)
-                          ? version.changelog
-                          : truncateChangelog(version.changelog)}
+                      <p class="changelog-text" class:expanded={expandedPatchnotes.has(version.id)}>
+                        {expandedPatchnotes.has(version.id) ? version.changelog : truncateChangelog(version.changelog)}
                       </p>
-                      <button
-                        class="toggle-changelog-btn"
-                        on:click|stopPropagation={() =>
-                          togglePatchnotes(version.id)}>
-                        {expandedPatchnotes.has(version.id)
-                          ? "hide"
-                          : "read more"}
+                      <button class="toggle-changelog-btn" on:click|stopPropagation={() => togglePatchnotes(version.id)}>
+                        {expandedPatchnotes.has(version.id) ? "hide" : "read more"}
                       </button>
                     </div>
                   {/if}
@@ -425,10 +358,7 @@ function formatDate(dateString: string): string {
 
       <div class="modal-footer">
         <p class="version-count">
-          {filteredVersions.length} of {versions.length} version{versions.length !==
-          1
-            ? "s"
-            : ""}
+          {filteredVersions.length} of {versions.length} version{versions.length !== 1 ? "s" : ""}
         </p>
         <button class="cancel-btn" on:click={handleClose}>Close</button>
       </div>

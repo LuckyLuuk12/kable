@@ -11,8 +11,8 @@ and log visibility in the navigation.
 -->
 <script lang="ts">
 import { clickSound } from "$lib/actions";
-import { SettingsService } from "$lib/old_services/SettingsService";
 import { settings } from "$lib/stores";
+import { SettingsService } from "../../../../src-tauri/src-backup/old_services/SettingsService";
 const logLevels = ["debug", "info", "warn", "error"];
 function disableFileSizeLimit() {
   SettingsService.update("logging", {
@@ -34,16 +34,11 @@ function disableRetentionDays() {
     <div class="setting-item">
       <div class="setting-info">
         <label for="show-logs-page-nav">Show Logs Page in Navigation</label>
-        <p class="setting-description">
-          Display the logs page in the sidebar navigation
-        </p>
+        <p class="setting-description">Display the logs page in the sidebar navigation</p>
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
-          <input
-            type="checkbox"
-            id="show-logs-page-nav"
-            bind:checked={$settings.logging.show_logs_page_in_nav} />
+          <input type="checkbox" id="show-logs-page-nav" bind:checked={$settings.logging.show_logs_page_in_nav} />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -52,16 +47,11 @@ function disableRetentionDays() {
     <div class="setting-item">
       <div class="setting-info">
         <label for="enable-persistent-logging">Persistent Log Storage</label>
-        <p class="setting-description">
-          Save logs to disk for permanent storage and analysis
-        </p>
+        <p class="setting-description">Save logs to disk for permanent storage and analysis</p>
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
-          <input
-            type="checkbox"
-            id="enable-persistent-logging"
-            bind:checked={$settings.logging.enable_persistent_logging} />
+          <input type="checkbox" id="enable-persistent-logging" bind:checked={$settings.logging.enable_persistent_logging} />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -70,16 +60,11 @@ function disableRetentionDays() {
     <div class="setting-item">
       <div class="setting-info">
         <label for="enable-log-compression">Log Compression</label>
-        <p class="setting-description">
-          Automatically compress large log files to save disk space
-        </p>
+        <p class="setting-description">Automatically compress large log files to save disk space</p>
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
-          <input
-            type="checkbox"
-            id="enable-log-compression"
-            bind:checked={$settings.logging.enable_log_compression} />
+          <input type="checkbox" id="enable-log-compression" bind:checked={$settings.logging.enable_log_compression} />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -88,9 +73,7 @@ function disableRetentionDays() {
     <div class="setting-item">
       <div class="setting-info">
         <label for="log-file-size-limit">Log File Size Limit (MB)</label>
-        <p class="setting-description">
-          Maximum size for individual log files before compression
-        </p>
+        <p class="setting-description">Maximum size for individual log files before compression</p>
       </div>
       <div class="setting-control slider-control log-file-size-layout">
         <div class="log-file-size-inputs">
@@ -99,17 +82,13 @@ function disableRetentionDays() {
             id="log-file-size-limit-slider"
             min="1"
             max="1024"
-            value={$settings.logging.log_file_size_limit_mb === "disabled"
-              ? 1
-              : $settings.logging.log_file_size_limit_mb}
+            value={$settings.logging.log_file_size_limit_mb === "disabled" ? 1 : $settings.logging.log_file_size_limit_mb}
             disabled={$settings.logging.log_file_size_limit_mb === "disabled"}
             on:input={(e) => {
               if ($settings.logging.log_file_size_limit_mb !== "disabled") {
                 SettingsService.update("logging", {
                   ...$settings.logging,
-                  log_file_size_limit_mb: Number(
-                    (e.target as HTMLInputElement).value,
-                  ),
+                  log_file_size_limit_mb: Number((e.target as HTMLInputElement).value),
                 });
               }
             }} />
@@ -118,24 +97,19 @@ function disableRetentionDays() {
             id="log-file-size-limit"
             min="1"
             max="1024"
-            value={$settings.logging.log_file_size_limit_mb === "disabled"
-              ? ""
-              : $settings.logging.log_file_size_limit_mb}
+            value={$settings.logging.log_file_size_limit_mb === "disabled" ? "" : $settings.logging.log_file_size_limit_mb}
             disabled={$settings.logging.log_file_size_limit_mb === "disabled"}
             on:input={(e) => {
               if ($settings.logging.log_file_size_limit_mb !== "disabled") {
                 SettingsService.update("logging", {
                   ...$settings.logging,
-                  log_file_size_limit_mb: Number(
-                    (e.target as HTMLInputElement).value,
-                  ),
+                  log_file_size_limit_mb: Number((e.target as HTMLInputElement).value),
                 });
               }
             }} />
         </div>
         <div class="log-file-size-btn">
-          <button use:clickSound type="button" on:click={disableFileSizeLimit}
-            >Disable</button>
+          <button use:clickSound type="button" on:click={disableFileSizeLimit}>Disable</button>
         </div>
       </div>
     </div>
@@ -143,9 +117,7 @@ function disableRetentionDays() {
     <div class="setting-item">
       <div class="setting-info">
         <label for="log-retention-days">Log Retention Period (days)</label>
-        <p class="setting-description">
-          How many days to keep log files before automatic cleanup
-        </p>
+        <p class="setting-description">How many days to keep log files before automatic cleanup</p>
       </div>
       <div class="setting-control slider-control log-retention-layout">
         <div class="log-retention-inputs">
@@ -154,17 +126,13 @@ function disableRetentionDays() {
             id="log-retention-days-slider"
             min="1"
             max="365"
-            value={$settings.logging.log_retention_days === "disabled"
-              ? 1
-              : $settings.logging.log_retention_days}
+            value={$settings.logging.log_retention_days === "disabled" ? 1 : $settings.logging.log_retention_days}
             disabled={$settings.logging.log_retention_days === "disabled"}
             on:input={(e) => {
               if ($settings.logging.log_retention_days !== "disabled") {
                 SettingsService.update("logging", {
                   ...$settings.logging,
-                  log_retention_days: Number(
-                    (e.target as HTMLInputElement).value,
-                  ),
+                  log_retention_days: Number((e.target as HTMLInputElement).value),
                 });
               }
             }} />
@@ -173,24 +141,19 @@ function disableRetentionDays() {
             id="log-retention-days"
             min="1"
             max="365"
-            value={$settings.logging.log_retention_days === "disabled"
-              ? ""
-              : $settings.logging.log_retention_days}
+            value={$settings.logging.log_retention_days === "disabled" ? "" : $settings.logging.log_retention_days}
             disabled={$settings.logging.log_retention_days === "disabled"}
             on:input={(e) => {
               if ($settings.logging.log_retention_days !== "disabled") {
                 SettingsService.update("logging", {
                   ...$settings.logging,
-                  log_retention_days: Number(
-                    (e.target as HTMLInputElement).value,
-                  ),
+                  log_retention_days: Number((e.target as HTMLInputElement).value),
                 });
               }
             }} />
         </div>
         <div class="log-retention-btn">
-          <button use:clickSound type="button" on:click={disableRetentionDays}
-            >Disable</button>
+          <button use:clickSound type="button" on:click={disableRetentionDays}>Disable</button>
         </div>
       </div>
     </div>
@@ -198,16 +161,11 @@ function disableRetentionDays() {
     <div class="setting-item">
       <div class="setting-info">
         <label for="merge-log-tabs">Merge Log Tabs</label>
-        <p class="setting-description">
-          Try to merge log tabs into one if they are from the same game instance
-        </p>
+        <p class="setting-description">Try to merge log tabs into one if they are from the same game instance</p>
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
-          <input
-            type="checkbox"
-            id="merge-log-tabs"
-            bind:checked={$settings.logging.merge_log_tabs} />
+          <input type="checkbox" id="merge-log-tabs" bind:checked={$settings.logging.merge_log_tabs} />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -216,10 +174,7 @@ function disableRetentionDays() {
     <div class="setting-item">
       <div class="setting-info">
         <label for="max-memory-logs">Maximum Logs in Memory</label>
-        <p class="setting-description">
-          Maximum number of log entries to keep in memory per instance (prevents
-          memory overflow)
-        </p>
+        <p class="setting-description">Maximum number of log entries to keep in memory per instance (prevents memory overflow)</p>
       </div>
       <div class="setting-control slider-control">
         <input
@@ -253,9 +208,7 @@ function disableRetentionDays() {
     <div class="setting-item">
       <div class="setting-info">
         <label for="enable-dedupe">Enable Log Deduplication</label>
-        <p class="setting-description">
-          Automatically filter out duplicate log messages to reduce memory usage
-        </p>
+        <p class="setting-description">Automatically filter out duplicate log messages to reduce memory usage</p>
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
@@ -277,10 +230,7 @@ function disableRetentionDays() {
     <div class="setting-item">
       <div class="setting-info">
         <label for="dedupe-window-size">Deduplication Window Size</label>
-        <p class="setting-description">
-          Number of recent messages to check for duplicates (higher = more
-          accurate, slower)
-        </p>
+        <p class="setting-description">Number of recent messages to check for duplicates (higher = more accurate, slower)</p>
       </div>
       <div class="setting-control slider-control">
         <input
@@ -322,34 +272,23 @@ function disableRetentionDays() {
       <div class="setting-control log-levels-control">
         {#each logLevels as level}
           <label
-            class="log-level-label {$settings.logging.default_log_levels.includes(
-              level as 'debug' | 'info' | 'warn' | 'error',
-            )
-              ? 'selected'
-              : 'unselected'}"
+            class="log-level-label {$settings.logging.default_log_levels.includes(level as 'debug' | 'info' | 'warn' | 'error') ? 'selected' : 'unselected'}"
             role="none"
             tabindex="-1"
             on:click={(e) => {
               const typedLevel = level as "debug" | "info" | "warn" | "error";
-              const idx =
-                $settings.logging.default_log_levels.indexOf(typedLevel);
+              const idx = $settings.logging.default_log_levels.indexOf(typedLevel);
               if (idx === -1) {
                 console.log(`Adding log level: ${typedLevel}`);
                 SettingsService.update("logging", {
                   ...$settings.logging,
-                  default_log_levels: [
-                    ...$settings.logging.default_log_levels,
-                    typedLevel,
-                  ],
+                  default_log_levels: [...$settings.logging.default_log_levels, typedLevel],
                 });
               } else {
                 console.log(`Removing log level: ${typedLevel}`);
                 SettingsService.update("logging", {
                   ...$settings.logging,
-                  default_log_levels:
-                    $settings.logging.default_log_levels.filter(
-                      (l) => l !== typedLevel,
-                    ),
+                  default_log_levels: $settings.logging.default_log_levels.filter((l) => l !== typedLevel),
                 });
               }
               e.preventDefault();
@@ -357,33 +296,22 @@ function disableRetentionDays() {
             on:keydown={(e) => {
               if (e.key === " " || e.key === "Enter") {
                 const typedLevel = level as "debug" | "info" | "warn" | "error";
-                const idx =
-                  $settings.logging.default_log_levels.indexOf(typedLevel);
+                const idx = $settings.logging.default_log_levels.indexOf(typedLevel);
                 if (idx === -1) {
                   SettingsService.update("logging", {
                     ...$settings.logging,
-                    default_log_levels: [
-                      ...$settings.logging.default_log_levels,
-                      typedLevel,
-                    ],
+                    default_log_levels: [...$settings.logging.default_log_levels, typedLevel],
                   });
                 } else {
                   SettingsService.update("logging", {
                     ...$settings.logging,
-                    default_log_levels:
-                      $settings.logging.default_log_levels.filter(
-                        (l) => l !== typedLevel,
-                      ),
+                    default_log_levels: $settings.logging.default_log_levels.filter((l) => l !== typedLevel),
                   });
                 }
                 e.preventDefault();
               }
             }}>
-            <input
-              type="checkbox"
-              bind:group={$settings.logging.default_log_levels}
-              value={level}
-              class="visually-hidden" />
+            <input type="checkbox" bind:group={$settings.logging.default_log_levels} value={level} class="visually-hidden" />
             {level}
           </label>
         {/each}
@@ -410,11 +338,7 @@ function disableRetentionDays() {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  background: linear-gradient(
-    to right,
-    $colors-accent,
-    $colors-accent-secondary
-  );
+  background: linear-gradient(to right, $colors-accent, $colors-accent-secondary);
   color: var(--text-transparent);
   background-clip: text;
   -webkit-background-clip: text;

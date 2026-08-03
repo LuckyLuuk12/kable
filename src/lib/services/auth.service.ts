@@ -1,9 +1,4 @@
-import {
-  type DeviceCodeResponse,
-  type KableAccount,
-  type MicrosoftToken,
-  api,
-} from "$lib";
+import { type DeviceCodeResponse, type KableAccount, type MicrosoftToken, api } from "$lib";
 import type { Service } from "./app.service";
 
 export class AuthService implements Service {
@@ -23,10 +18,7 @@ export class AuthService implements Service {
 
     this.loading = true;
     try {
-      const [accounts, active] = await Promise.all([
-        api.listAccounts(),
-        api.getActiveAccount(),
-      ]);
+      const [accounts, active] = await Promise.all([api.listAccounts(), api.getActiveAccount()]);
 
       this.accounts = accounts;
       this.activeAccount = active;
@@ -132,9 +124,7 @@ export class AuthService implements Service {
   /**
    * Determine account status
    */
-  getAccountStatus(
-    account: KableAccount | null,
-  ): "online" | "offline" | "expired" {
+  getAccountStatus(account: KableAccount | null): "online" | "offline" | "expired" {
     if (!account?.access_token) return "offline";
 
     if (account.access_token_expires_at) {
@@ -148,10 +138,7 @@ export class AuthService implements Service {
   /**
    * Format token expiry for display
    */
-  formatTokenExpiry(
-    account: KableAccount | null,
-    now: number = Date.now(),
-  ): string {
+  formatTokenExpiry(account: KableAccount | null, now: number = Date.now()): string {
     if (!account || !account.access_token_expires_at) return "Never expires";
 
     const expiryDate = new Date(account.access_token_expires_at);

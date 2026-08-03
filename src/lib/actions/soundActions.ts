@@ -14,10 +14,7 @@ import { app } from "$lib/services";
  * <button use:clickSound={{ click: 'launch', hover: 'hover' }}>Launch</button>
  * <a href="/settings" use:clickSound={{ click: 'success' }}>Settings</a>
  */
-export function clickSound(
-  node: HTMLElement,
-  options: { click?: string; hover?: string } = {},
-) {
+export function clickSound(node: HTMLElement, options: { click?: string; hover?: string } = {}) {
   const clickSound = options.click || "click";
   const hoverSound = options.hover || "hover";
 

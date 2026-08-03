@@ -104,7 +104,7 @@ pub fn run() {
             api::get_sounds_directory_path,
             api::open_sounds_directory,
             api::list_css_themes,
-            api::load_css_theme,
+            api::load_css,
             api::save_css_theme,
             api::delete_css_theme,
             api::open_css_themes_directory,

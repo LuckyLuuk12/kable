@@ -15,15 +15,7 @@ Provides interface for discovering, searching, and filtering mods with support f
 ```
 -->
 <script lang="ts">
-import type {
-  FilterFacets,
-  KableInstallation,
-  ModInfoKind,
-  ModJarInfo,
-  ModpackContext,
-  MrPackDetailed,
-  NormalizedModInfo,
-} from "$lib";
+import type { FilterFacets, KableInstallation, ModInfoKind, ModJarInfo, ModpackContext, MrPackDetailed, NormalizedModInfo } from "$lib";
 import {
   Icon,
   InstallationService,
@@ -47,13 +39,7 @@ import ModCard from "./ModCard.svelte";
 
 type ViewMode = "grid" | "list" | "compact";
 
-export let ondownloadmod:
-  | ((event: {
-      modId: string;
-      versionId?: string;
-      installation: KableInstallation;
-    }) => void)
-  | undefined = undefined;
+export let ondownloadmod: ((event: { modId: string; versionId?: string; installation: KableInstallation }) => void) | undefined = undefined;
 
 // Browser state
 let currentProvider: ProviderKind = ProviderKind.Modrinth;
@@ -92,10 +78,7 @@ let installedModsLoaded = false;
 let installedModsLoadToken = 0;
 
 // Cache of installed status for displayed mods: project_id -> {isInstalled, version}
-let installedStatusCache = new Map<
-  string,
-  { isInstalled: boolean; version: string | null }
->();
+let installedStatusCache = new Map<string, { isInstalled: boolean; version: string | null }>();
 // Counter to force reactivity updates
 let cacheUpdateCounter = 0;
 
@@ -204,21 +187,11 @@ async function applyFiltersToBackend() {
   if (!modsService) return;
 
   // Build filter object for backend
-  const includeCategories = filters.categories
-    .filter((f) => f.mode === "include")
-    .map((f) => f.value);
-  const excludeCategories = filters.categories
-    .filter((f) => f.mode === "exclude")
-    .map((f) => f.value);
-  const includeEnvironments = filters.environment
-    .filter((f) => f.mode === "include")
-    .map((f) => f.value);
-  const excludeEnvironments = filters.environment
-    .filter((f) => f.mode === "exclude")
-    .map((f) => f.value);
-  const openSource = filters.license.some(
-    (f) => f.mode === "include" && f.value === "Open Source",
-  );
+  const includeCategories = filters.categories.filter((f) => f.mode === "include").map((f) => f.value);
+  const excludeCategories = filters.categories.filter((f) => f.mode === "exclude").map((f) => f.value);
+  const includeEnvironments = filters.environment.filter((f) => f.mode === "include").map((f) => f.value);
+  const excludeEnvironments = filters.environment.filter((f) => f.mode === "exclude").map((f) => f.value);
+  const openSource = filters.license.some((f) => f.mode === "include" && f.value === "Open Source");
 
   // If no filters and no search, clear filters
   if (
@@ -232,10 +205,7 @@ async function applyFiltersToBackend() {
     currentPage = 1;
     modsOffset.set(0);
     // Only pass installation if smart filtering is enabled
-    await modsService.setFilter(
-      null,
-      smartFilteringEnabled ? currentInstallation : null,
-    );
+    await modsService.setFilter(null, smartFilteringEnabled ? currentInstallation : null);
     return;
   }
 
@@ -249,34 +219,19 @@ async function applyFiltersToBackend() {
   // Example: [["categories:adventure"], ["categories!=equipment"]] = adventure AND (not equipment)
   // Example: [["categories:adventure", "categories:magic"]] = adventure OR magic
 
-  const includeCategoryFilters: [string, string][] = includeCategories.map(
-    (c) => [":", c.toLowerCase()] as [string, string],
-  );
-  const excludeCategoryFilters: [string, string][] = excludeCategories.map(
-    (c) => ["!=", c.toLowerCase()] as [string, string],
-  );
+  const includeCategoryFilters: [string, string][] = includeCategories.map((c) => [":", c.toLowerCase()] as [string, string]);
+  const excludeCategoryFilters: [string, string][] = excludeCategories.map((c) => ["!=", c.toLowerCase()] as [string, string]);
 
   // Each filter is its own entry (AND'd together)
-  const categoryFilters = [
-    ...includeCategoryFilters,
-    ...excludeCategoryFilters,
-  ];
+  const categoryFilters = [...includeCategoryFilters, ...excludeCategoryFilters];
 
   const filterFacets: FilterFacets = {
     query: searchQuery || undefined,
     categories: categoryFilters.length > 0 ? categoryFilters : undefined,
     // For environment, handle both include and exclude
     // If both Client include and exclude, prioritize exclude (!=)
-    client_side: excludeEnvironments.includes("Client")
-      ? ["!=", "required"]
-      : includeEnvironments.includes("Client")
-        ? [":", "required"]
-        : undefined,
-    server_side: excludeEnvironments.includes("Server")
-      ? ["!=", "required"]
-      : includeEnvironments.includes("Server")
-        ? [":", "required"]
-        : undefined,
+    client_side: excludeEnvironments.includes("Client") ? ["!=", "required"] : includeEnvironments.includes("Client") ? [":", "required"] : undefined,
+    server_side: excludeEnvironments.includes("Server") ? ["!=", "required"] : includeEnvironments.includes("Server") ? [":", "required"] : undefined,
     index: undefined,
     open_source: openSource || undefined,
     license: undefined,
@@ -285,15 +240,9 @@ async function applyFiltersToBackend() {
 
   // Wrap in ModFilter discriminated union based on current provider
   // Rust enum format uses externally tagged representation: { "Modrinth": {...} }
-  const modFilter =
-    currentProvider === ProviderKind.Modrinth
-      ? { Modrinth: filterFacets }
-      : { CurseForge: filterFacets }; // TODO: Implement proper CurseForge filter format
+  const modFilter = currentProvider === ProviderKind.Modrinth ? { Modrinth: filterFacets } : { CurseForge: filterFacets }; // TODO: Implement proper CurseForge filter format
 
-  console.log(
-    "[ModBrowser] Applying filters to backend:",
-    JSON.stringify(modFilter, null, 2),
-  );
+  console.log("[ModBrowser] Applying filters to backend:", JSON.stringify(modFilter, null, 2));
 
   // Reset to first page when filters change
   currentPage = 1;
@@ -301,10 +250,7 @@ async function applyFiltersToBackend() {
 
   try {
     // Only pass installation if smart filtering is enabled
-    await modsService.setFilter(
-      modFilter,
-      smartFilteringEnabled ? currentInstallation : null,
-    );
+    await modsService.setFilter(modFilter, smartFilteringEnabled ? currentInstallation : null);
   } catch (e) {
     console.error("[ModBrowser] Failed to apply filters:", e);
   }
@@ -317,10 +263,7 @@ async function handleSearch() {
 }
 
 // Filter helper functions
-function toggleFilter(
-  category: "categories" | "environment" | "license",
-  value: string,
-) {
+function toggleFilter(category: "categories" | "environment" | "license", value: string) {
   const existing = filters[category].find((f) => f.value === value);
   if (existing) {
     if (existing.mode === "include") {
@@ -328,26 +271,18 @@ function toggleFilter(
       filters[category] = filters[category].filter((f) => f.value !== value);
     } else {
       // Exclude -> Include (switch mode by creating new array)
-      filters[category] = filters[category].map((f) =>
-        f.value === value ? { ...f, mode: "include" as const } : f,
-      );
+      filters[category] = filters[category].map((f) => (f.value === value ? { ...f, mode: "include" as const } : f));
     }
   } else {
     // None -> Include (add as include filter)
-    filters[category] = [
-      ...filters[category],
-      { value, mode: "include" as const },
-    ];
+    filters[category] = [...filters[category], { value, mode: "include" as const }];
   }
   // Trigger reactivity and backend update
   filters = { ...filters };
   handleSearch();
 }
 
-function toggleFilterExclude(
-  category: "categories" | "environment" | "license",
-  value: string,
-) {
+function toggleFilterExclude(category: "categories" | "environment" | "license", value: string) {
   const existing = filters[category].find((f) => f.value === value);
   if (existing) {
     if (existing.mode === "exclude") {
@@ -355,26 +290,18 @@ function toggleFilterExclude(
       filters[category] = filters[category].filter((f) => f.value !== value);
     } else {
       // Include -> Exclude (switch mode by creating new array)
-      filters[category] = filters[category].map((f) =>
-        f.value === value ? { ...f, mode: "exclude" as const } : f,
-      );
+      filters[category] = filters[category].map((f) => (f.value === value ? { ...f, mode: "exclude" as const } : f));
     }
   } else {
     // None -> Exclude (add as exclude filter)
-    filters[category] = [
-      ...filters[category],
-      { value, mode: "exclude" as const },
-    ];
+    filters[category] = [...filters[category], { value, mode: "exclude" as const }];
   }
   // Trigger reactivity and backend update
   filters = { ...filters };
   handleSearch();
 }
 
-function getFilterState(
-  category: "categories" | "environment" | "license",
-  value: string,
-): FilterMode | null {
+function getFilterState(category: "categories" | "environment" | "license", value: string): FilterMode | null {
   const filter = filters[category].find((f) => f.value === value);
   return filter ? filter.mode : null;
 }
@@ -408,10 +335,7 @@ async function loadInstalledMods(installation: KableInstallation) {
     // Load metadata for all installed mods to get project IDs
     const metadataPromises = installedMods.map(async (mod) => {
       try {
-        const metadata = await modsApi.getModMetadata(
-          installation,
-          mod.file_name,
-        );
+        const metadata = await modsApi.getModMetadata(installation, mod.file_name);
         return {
           fileName: mod.file_name,
           projectId: metadata.project_id,
@@ -429,10 +353,7 @@ async function loadInstalledMods(installation: KableInstallation) {
       return;
     }
 
-    const nextInstalledStatusCache = new Map<
-      string,
-      { isInstalled: boolean; version: string | null }
-    >();
+    const nextInstalledStatusCache = new Map<string, { isInstalled: boolean; version: string | null }>();
 
     // Build cache from metadata (use project_id as key)
     for (const result of metadataResults) {
@@ -448,9 +369,7 @@ async function loadInstalledMods(installation: KableInstallation) {
     installedModsLoaded = true;
     // Force reactivity update by incrementing counter
     cacheUpdateCounter++;
-    console.log(
-      `[ModBrowser] Loaded ${installedMods.length} installed mods, ${installedStatusCache.size} with metadata project IDs`,
-    );
+    console.log(`[ModBrowser] Loaded ${installedMods.length} installed mods, ${installedStatusCache.size} with metadata project IDs`);
   } catch (e) {
     if (loadToken !== installedModsLoadToken) {
       return;
@@ -465,18 +384,13 @@ async function loadInstalledMods(installation: KableInstallation) {
 
 // Get cached installed info (synchronous, for template use)
 // Include cacheUpdateCounter to make this reactive to cache updates
-function getCachedInstalledInfo(
-  mod: ModInfoKind,
-  _counter = cacheUpdateCounter,
-): { isInstalled: boolean; version: string | null } {
+function getCachedInstalledInfo(mod: ModInfoKind, _counter = cacheUpdateCounter): { isInstalled: boolean; version: string | null } {
   const projectId = ModsService.getProjectId(mod);
   if (!projectId) {
     return { isInstalled: false, version: null };
   }
 
-  return (
-    installedStatusCache.get(projectId) || { isInstalled: false, version: null }
-  );
+  return installedStatusCache.get(projectId) || { isInstalled: false, version: null };
 }
 
 // Get unique key for each mod (for keyed each blocks)
@@ -488,11 +402,7 @@ function getModKey(mod: ModInfoKind): string {
 let isInitializing = false;
 
 // Initialize service when provider changes
-$: if (
-  currentProvider &&
-  currentProvider !== $modsProvider &&
-  !isInitializing
-) {
+$: if (currentProvider && currentProvider !== $modsProvider && !isInitializing) {
   initializeProvider();
 }
 
@@ -525,10 +435,7 @@ async function applyInstallationFilters() {
   // Apply filters based on installation (loader, MC version, etc.)
   // Only pass installation if smart filtering is enabled
   try {
-    await modsService.setFilter(
-      null,
-      smartFilteringEnabled ? currentInstallation : null,
-    );
+    await modsService.setFilter(null, smartFilteringEnabled ? currentInstallation : null);
   } catch (e) {
     console.error("Failed to apply installation filters:", e);
   }
@@ -536,9 +443,7 @@ async function applyInstallationFilters() {
 
 // Handle smart filtering toggle
 async function onSmartFilteringChange() {
-  console.log(
-    `[ModBrowser] Smart filtering ${smartFilteringEnabled ? "enabled" : "disabled"}`,
-  );
+  console.log(`[ModBrowser] Smart filtering ${smartFilteringEnabled ? "enabled" : "disabled"}`);
 
   // Re-apply filters with new setting
   if (modsService) {
@@ -578,9 +483,7 @@ async function goToPage(page: number) {
 
   if (modsService) {
     const offset = (page - 1) * itemsPerPage;
-    console.log(
-      `[ModBrowser] Going to page ${page}, setting offset to ${offset}`,
-    );
+    console.log(`[ModBrowser] Going to page ${page}, setting offset to ${offset}`);
     modsOffset.set(offset);
     await modsService.loadMods();
   }
@@ -643,11 +546,7 @@ function handleModDownload(mod: ModInfoKind) {
   });
 }
 
-function handleDownloadVersion(event: {
-  mod: ModInfoKind;
-  versionId: string;
-  versionNumber: string;
-}) {
+function handleDownloadVersion(event: { mod: ModInfoKind; versionId: string; versionNumber: string }) {
   const { mod, versionId } = event;
 
   if (!currentInstallation) {
@@ -695,10 +594,7 @@ async function handleDownloadMod(event: { mod: ModInfoKind }) {
 
   try {
     downloadError = null;
-    const result = await modsService.downloadOrPrepareFromMod(
-      event.mod,
-      currentInstallation,
-    );
+    const result = await modsService.downloadOrPrepareFromMod(event.mod, currentInstallation);
 
     if (result.kind === "modpack") {
       modpackDiff = result.modpack;
@@ -706,8 +602,7 @@ async function handleDownloadMod(event: { mod: ModInfoKind }) {
       showModpackModal = true;
     }
   } catch (e: any) {
-    downloadError =
-      "Failed to download or process mod: " + (e && e.message ? e.message : e);
+    downloadError = "Failed to download or process mod: " + (e && e.message ? e.message : e);
   }
 }
 
@@ -756,15 +651,10 @@ onMount(async () => {
     if (availableInstallations.length > 0) {
       // Select the first available installation if none is selected
       selectedInstallation.set(availableInstallations[0]);
-      console.log(
-        "[ModBrowser] Auto-selected installation:",
-        availableInstallations[0].name,
-      );
+      console.log("[ModBrowser] Auto-selected installation:", availableInstallations[0].name);
     } else {
       // No installations available in store; rely on centralized bootstrap (NavBar) to load them.
-      console.log(
-        "[ModBrowser] No installations available yet; waiting for centralized initialization",
-      );
+      console.log("[ModBrowser] No installations available yet; waiting for centralized initialization");
     }
   }
 
@@ -776,12 +666,7 @@ onMount(async () => {
   <div class="error-banner">{downloadError}</div>
 {/if}
 {#if showModpackModal && modpackDiff && modpackContext}
-  <ModpackDiffModal
-    open={showModpackModal}
-    modpack={modpackDiff}
-    context={modpackContext}
-    installation={currentInstallation}
-    onCancel={closeModpackModal} />
+  <ModpackDiffModal open={showModpackModal} modpack={modpackDiff} context={modpackContext} installation={currentInstallation} onCancel={closeModpackModal} />
 {/if}
 
 <div class="mod-browser">
@@ -843,22 +728,11 @@ onMount(async () => {
       <div class="filters-header">
         <h3>Filters</h3>
         <div class="filters-actions">
-          <button
-            class="reset-filters"
-            on:click={resetFilters}
-            use:clickSound
-            title="Reset all filters">
+          <button class="reset-filters" on:click={resetFilters} use:clickSound title="Reset all filters">
             <Icon name="refresh" size="sm" forceType="svg" />
           </button>
-          <button
-            class="toggle-filters"
-            on:click={() => (showFilters = !showFilters)}
-            use:clickSound
-            title="Toggle filters">
-            <Icon
-              name={showFilters ? "arrow-left" : "arrow-right"}
-              size="sm"
-              forceType="svg" />
+          <button class="toggle-filters" on:click={() => (showFilters = !showFilters)} use:clickSound title="Toggle filters">
+            <Icon name={showFilters ? "arrow-left" : "arrow-right"} size="sm" forceType="svg" />
           </button>
         </div>
       </div>
@@ -878,7 +752,8 @@ onMount(async () => {
                 on:keydown={(e) => {
                   if (e.key === "Enter") handleSearch();
                 }}
-                class="search-input" />
+                class="search-input"
+              />
               {#if searchQuery}
                 <button
                   class="clear-btn"
@@ -886,7 +761,8 @@ onMount(async () => {
                     searchQuery = "";
                     handleSearch();
                   }}
-                  use:clickSound>
+                  use:clickSound
+                >
                   <Icon name="x" size="sm" />
                 </button>
               {/if}
@@ -896,37 +772,25 @@ onMount(async () => {
           <!-- Smart Filtering Toggle -->
           <div class="filter-section smart-filter-section">
             <label class="smart-filter-toggle">
-              <input
-                type="checkbox"
-                bind:checked={smartFilteringEnabled}
-                on:change={onSmartFilteringChange} />
+              <input type="checkbox" bind:checked={smartFilteringEnabled} on:change={onSmartFilteringChange} />
               <span
                 class="toggle-label"
-                title="When enabled, only shows mods compatible with your installation's loader and Minecraft version. Disable to browse all mods.">
+                title="When enabled, only shows mods compatible with your installation's loader and Minecraft version. Disable to browse all mods."
+              >
                 Smart Filtering
               </span>
             </label>
             <p class="smart-filter-hint">
-              {smartFilteringEnabled
-                ? "Showing mods compatible with your installation"
-                : "Showing all mods (compatibility not filtered)"}
+              {smartFilteringEnabled ? "Showing mods compatible with your installation" : "Showing all mods (compatibility not filtered)"}
             </p>
           </div>
 
           <!-- Dynamic Filter Sections -->
           {#each filterSections as section}
             <div class="filter-section">
-              <button
-                class="filter-header"
-                on:click={() => toggleSection(section.collapsedKey)}
-                use:clickSound>
+              <button class="filter-header" on:click={() => toggleSection(section.collapsedKey)} use:clickSound>
                 <span class="filter-label">{section.label}</span>
-                <Icon
-                  name={collapsedSections[section.collapsedKey]
-                    ? "chevron-down"
-                    : "chevron-up"}
-                  size="md"
-                  forceType="svg" />
+                <Icon name={collapsedSections[section.collapsedKey] ? "chevron-down" : "chevron-up"} size="md" forceType="svg" />
               </button>
 
               {#if !collapsedSections[section.collapsedKey]}
@@ -934,16 +798,15 @@ onMount(async () => {
                   {#each section.options as option}
                     <div
                       class="filter-option"
-                      class:included={getFilterState(section.id, option) ===
-                        "include"}
-                      class:excluded={getFilterState(section.id, option) ===
-                        "exclude"}>
+                      class:included={getFilterState(section.id, option) === "include"}
+                      class:excluded={getFilterState(section.id, option) === "exclude"}
+                    >
                       <button
                         class="filter-option-btn include-btn"
-                        class:active={getFilterState(section.id, option) ===
-                          "include"}
+                        class:active={getFilterState(section.id, option) === "include"}
                         on:click={() => toggleFilter(section.id, option)}
-                        use:clickSound>
+                        use:clickSound
+                      >
                         <span class="option-label">{option}</span>
                         {#if getFilterState(section.id, option) === "include"}
                           <Icon name="x" size="sm" forceType="svg" />
@@ -953,10 +816,10 @@ onMount(async () => {
                       </button>
                       <button
                         class="filter-option-btn exclude-btn"
-                        class:active={getFilterState(section.id, option) ===
-                          "exclude"}
+                        class:active={getFilterState(section.id, option) === "exclude"}
                         on:click={() => toggleFilterExclude(section.id, option)}
-                        use:clickSound>
+                        use:clickSound
+                      >
                         <Icon name="trash" size="sm" forceType="svg" />
                       </button>
                     </div>
@@ -974,10 +837,7 @@ onMount(async () => {
       <!-- Toolbar -->
       <div class="content-toolbar">
         <div class="toolbar-left">
-          <button
-            class="mobile-filters-toggle"
-            on:click={() => (showFilters = !showFilters)}
-            use:clickSound>
+          <button class="mobile-filters-toggle" on:click={() => (showFilters = !showFilters)} use:clickSound>
             <Icon name="filter" size="sm" />
             Filters
           </button>
@@ -985,12 +845,7 @@ onMount(async () => {
 
           <!-- Compact Pagination Controls -->
           <div class="compact-pagination">
-            <button
-              class="page-btn compact"
-              on:click={prevPage}
-              use:clickSound
-              disabled={currentPage === 1}
-              title="Previous page">
+            <button class="page-btn compact" on:click={prevPage} use:clickSound disabled={currentPage === 1} title="Previous page">
               <Icon name="arrow-left" size="sm" forceType="svg" />
             </button>
 
@@ -998,21 +853,13 @@ onMount(async () => {
               {#if pageItem === "ellipsis"}
                 <span class="pagination-ellipsis">...</span>
               {:else}
-                <button
-                  class="page-btn compact"
-                  class:active={currentPage === pageItem}
-                  on:click={() => goToPage(pageItem)}
-                  use:clickSound>
+                <button class="page-btn compact" class:active={currentPage === pageItem} on:click={() => goToPage(pageItem)} use:clickSound>
                   {pageItem}
                 </button>
               {/if}
             {/each}
 
-            <button
-              class="page-btn compact"
-              on:click={nextPage}
-              use:clickSound
-              title="Next page">
+            <button class="page-btn compact" on:click={nextPage} use:clickSound title="Next page">
               <Icon name="arrow-right" size="sm" forceType="svg" />
             </button>
           </div>
@@ -1022,22 +869,14 @@ onMount(async () => {
           <!-- View Mode -->
           <div class="view-controls">
             {#each viewModes as mode}
-              <button
-                class="view-mode-btn"
-                class:active={viewMode === mode.id}
-                on:click={() => (viewMode = mode.id as ViewMode)}
-                use:clickSound
-                title={mode.name}>
+              <button class="view-mode-btn" class:active={viewMode === mode.id} on:click={() => (viewMode = mode.id as ViewMode)} use:clickSound title={mode.name}>
                 <Icon name={mode.icon} size="sm" />
               </button>
             {/each}
           </div>
 
           <!-- Page Size -->
-          <select
-            bind:value={itemsPerPage}
-            on:change={() => changePageSize(itemsPerPage)}
-            class="page-size-select">
+          <select bind:value={itemsPerPage} on:change={() => changePageSize(itemsPerPage)} class="page-size-select">
             {#each pageSizeOptions as size}
               <option value={size}>{size}/page</option>
             {/each}
@@ -1083,16 +922,10 @@ onMount(async () => {
           </div>
         {:else}
           <!-- Mods Grid/List -->
-          <div
-            class="mods-container"
-            class:grid={viewMode === "grid"}
-            class:list={viewMode === "list"}
-            class:compact={viewMode === "compact"}>
+          <div class="mods-container" class:grid={viewMode === "grid"} class:list={viewMode === "list"} class:compact={viewMode === "compact"}>
             {#each paginatedMods as mod (getModKey(mod))}
               {@const installedInfo =
-                currentInstallation && installedModsLoaded
-                  ? getCachedInstalledInfo(mod, cacheUpdateCounter)
-                  : { isInstalled: false, version: null }}
+                currentInstallation && installedModsLoaded ? getCachedInstalledInfo(mod, cacheUpdateCounter) : { isInstalled: false, version: null }}
               <ModCard
                 {mod}
                 {viewMode}
@@ -1102,7 +935,8 @@ onMount(async () => {
                 installedVersion={installedInfo.version}
                 ondownloadmod={handleDownloadMod}
                 ondownloadversion={handleDownloadVersion}
-                oninfomod={handleInfoMod} />
+                oninfomod={handleInfoMod}
+              />
             {/each}
           </div>
         {/if}
@@ -1122,8 +956,7 @@ onMount(async () => {
   background: var(--container);
   border-radius: 0.5rem;
   border: 1px solid #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
-  box-shadow: 0 2px 8px
-    #{"color-mix(in srgb, var(--dark-900), 4%, transparent)"};
+  box-shadow: 0 2px 8px #{"color-mix(in srgb, var(--dark-900), 4%, transparent)"};
   overflow: hidden;
 }
 
@@ -1137,8 +970,7 @@ onMount(async () => {
     #{"color-mix(in srgb, var(--card), 80%, transparent)"} 100%
   );
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid
-    #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+  border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
   padding: 0.75rem 1rem;
   position: relative;
 
@@ -1166,11 +998,7 @@ onMount(async () => {
 
     h2 {
       margin: 0;
-      background: linear-gradient(
-        135deg,
-        var(--primary) 0%,
-        var(--secondary) 100%
-      );
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       background-clip: text;
       -webkit-background-clip: text;
       color: transparent;
@@ -1183,8 +1011,7 @@ onMount(async () => {
       align-items: center;
       gap: 0.375rem;
       background: #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
-      border: 1px solid
-        #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+      border: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
       border-radius: 0.75rem;
       padding: 0.25rem 0.5rem;
       font-size: 0.75em;
@@ -1253,14 +1080,9 @@ onMount(async () => {
 // Filters Sidebar
 .filters-sidebar {
   width: 240px;
-  background: linear-gradient(
-    135deg,
-    #{"color-mix(in srgb, var(--container), 95%, transparent)"} 0%,
-    #{"color-mix(in srgb, var(--card), 80%, transparent)"} 100%
-  );
+  background: linear-gradient(135deg, #{"color-mix(in srgb, var(--container), 95%, transparent)"} 0%, #{"color-mix(in srgb, var(--card), 80%, transparent)"} 100%);
   backdrop-filter: blur(8px);
-  border-right: 1px solid
-    #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+  border-right: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
@@ -1291,13 +1113,8 @@ onMount(async () => {
     justify-content: space-between;
     padding: 0.5rem 0.75rem;
     height: 2.6875rem;
-    border-bottom: 1px solid
-      #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
-    background: linear-gradient(
-      135deg,
-      #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 0%,
-      #{"color-mix(in srgb, var(--secondary), 3%, transparent)"} 100%
-    );
+    border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+    background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 3%, transparent)"} 100%);
     backdrop-filter: blur(4px);
 
     h3 {
@@ -1354,8 +1171,7 @@ onMount(async () => {
         justify-content: space-between;
         padding: 0.375rem 0.5rem;
         background: #{"color-mix(in srgb, var(--primary), 5%, transparent)"};
-        border: 1px solid
-          #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+        border: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
         border-radius: 0.25rem;
         cursor: pointer;
         transition: all 0.15s;
@@ -1387,8 +1203,7 @@ onMount(async () => {
         .search-input {
           width: 90%;
           padding: 0.5rem 0.5rem 0.5rem 2rem;
-          border: 1px solid
-            #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+          border: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
           border-radius: 0.375rem;
           background: var(--input);
           color: var(--text);
@@ -1398,8 +1213,7 @@ onMount(async () => {
           &:focus {
             outline: none;
             border-color: var(--primary);
-            box-shadow: 0 0 0 2px
-              #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
+            box-shadow: 0 0 0 2px #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
           }
 
           &::placeholder {
@@ -1529,8 +1343,7 @@ onMount(async () => {
     .smart-filter-section {
       padding: 0.75rem;
       background: #{"color-mix(in srgb, var(--primary), 3%, transparent)"};
-      border: 1px solid
-        #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+      border: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
       border-radius: 0.375rem;
       margin-bottom: 1rem;
 
@@ -1584,14 +1397,9 @@ onMount(async () => {
   justify-content: space-between;
   padding: 0.5rem 0.75rem;
   height: 2.6875rem;
-  background: linear-gradient(
-    135deg,
-    var(--container) 0%,
-    #{"color-mix(in srgb, var(--card), 60%, transparent)"} 100%
-  );
+  background: linear-gradient(135deg, var(--container) 0%, #{"color-mix(in srgb, var(--card), 60%, transparent)"} 100%);
   backdrop-filter: blur(6px);
-  border-bottom: 1px solid
-    #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+  border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
 
   .toolbar-left {
     display: flex;
@@ -1628,8 +1436,7 @@ onMount(async () => {
 
       .page-btn.compact {
         padding: 0.25rem 0.375rem;
-        border: 1px solid
-          #{"color-mix(in srgb, var(--primary), 20%, transparent)"};
+        border: 1px solid #{"color-mix(in srgb, var(--primary), 20%, transparent)"};
         border-radius: 0.25rem;
         background: #{"color-mix(in srgb, var(--card), 80%, transparent)"};
         color: var(--text);
@@ -1743,19 +1550,11 @@ onMount(async () => {
   }
 
   &::-webkit-scrollbar-thumb {
-    background: linear-gradient(
-      135deg,
-      #{"color-mix(in srgb, var(--primary), 60%, transparent)"} 0%,
-      #{"color-mix(in srgb, var(--secondary), 40%, transparent)"} 100%
-    );
+    background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 60%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 40%, transparent)"} 100%);
     border-radius: 4px;
 
     &:hover {
-      background: linear-gradient(
-        135deg,
-        #{"color-mix(in srgb, var(--primary), 80%, transparent)"} 0%,
-        #{"color-mix(in srgb, var(--secondary), 60%, transparent)"} 100%
-      );
+      background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 80%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 60%, transparent)"} 100%);
     }
   }
 }
@@ -1848,13 +1647,8 @@ onMount(async () => {
     width: 100%;
     max-height: 200px;
     border-right: none;
-    border-bottom: 1px solid
-      #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
-    background: linear-gradient(
-      135deg,
-      #{"color-mix(in srgb, var(--container), 90%, transparent)"} 0%,
-      #{"color-mix(in srgb, var(--card), 70%, transparent)"} 100%
-    );
+    border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+    background: linear-gradient(135deg, #{"color-mix(in srgb, var(--container), 90%, transparent)"} 0%, #{"color-mix(in srgb, var(--card), 70%, transparent)"} 100%);
 
     &.collapsed {
       max-height: 48px;

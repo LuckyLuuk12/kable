@@ -13,20 +13,8 @@ let currentTab: "installed" | "browse" = "installed";
 <div class="page resourcepacks-page">
   <!-- Tab Navigation -->
   <div class="tab-navigation">
-    <button
-      class="tab-btn"
-      class:active={currentTab === "installed"}
-      on:click={() => (currentTab = "installed")}
-    >
-      📦 Installed Packs
-    </button>
-    <button
-      class="tab-btn"
-      class:active={currentTab === "browse"}
-      on:click={() => (currentTab = "browse")}
-    >
-      🔍 Browse Packs
-    </button>
+    <button class="tab-btn" class:active={currentTab === "installed"} on:click={() => (currentTab = "installed")}> 📦 Installed Packs </button>
+    <button class="tab-btn" class:active={currentTab === "browse"} on:click={() => (currentTab = "browse")}> 🔍 Browse Packs </button>
 
     {#if $selectedInstallation}
       <div class="current-installation">
@@ -79,11 +67,7 @@ let currentTab: "installed" | "browse" = "installed";
     }
 
     &.active {
-      background: linear-gradient(
-        135deg,
-        var(--primary) 0%,
-        var(--secondary) 100%
-      );
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       color: var(--text-white);
       border-color: var(--text-transparent);
       box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 25%, transparent);

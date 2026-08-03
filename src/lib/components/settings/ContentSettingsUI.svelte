@@ -23,16 +23,11 @@ function disableMaxWorldBackups() {
     <div class="setting-item">
       <div class="setting-info">
         <label for="auto-backup-worlds">Auto-backup Worlds</label>
-        <p class="setting-description">
-          Automatically create backups before modifying worlds
-        </p>
+        <p class="setting-description">Automatically create backups before modifying worlds</p>
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
-          <input
-            type="checkbox"
-            id="auto-backup-worlds"
-            bind:checked={$settings.content.auto_backup_worlds} />
+          <input type="checkbox" id="auto-backup-worlds" bind:checked={$settings.content.auto_backup_worlds} />
         </label>
       </div>
     </div>
@@ -40,55 +35,34 @@ function disableMaxWorldBackups() {
     <div class="setting-item">
       <div class="setting-info">
         <label for="max-world-backups">Maximum World Backups</label>
-        <p class="setting-description">
-          How many backups to keep per world (set to 0 or 'disabled' to turn
-          off)
-        </p>
+        <p class="setting-description">How many backups to keep per world (set to 0 or 'disabled' to turn off)</p>
       </div>
       <div class="setting-control">
-        <input
-          type="number"
-          id="max-world-backups"
-          min="0"
-          bind:value={$settings.content.max_world_backups} />
-        <button use:clickSound type="button" on:click={disableMaxWorldBackups}
-          >Disable</button>
+        <input type="number" id="max-world-backups" min="0" bind:value={$settings.content.max_world_backups} />
+        <button use:clickSound type="button" on:click={disableMaxWorldBackups}>Disable</button>
       </div>
     </div>
 
     <div class="setting-item">
       <div class="setting-info">
         <label for="per-installation-mods">Per-Installation Mods Folder</label>
-        <p class="setting-description">
-          Use a separate mods folder for each installation
-        </p>
+        <p class="setting-description">Use a separate mods folder for each installation</p>
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
-          <input
-            type="checkbox"
-            id="per-installation-mods"
-            bind:checked={$settings.content.use_per_installation_mods_folder} />
+          <input type="checkbox" id="per-installation-mods" bind:checked={$settings.content.use_per_installation_mods_folder} />
         </label>
       </div>
     </div>
 
     <div class="setting-item">
       <div class="setting-info">
-        <label for="per-installation-resource-packs"
-          >Per-Installation Resource Packs</label>
-        <p class="setting-description">
-          Use a separate resource packs folder for each installation
-        </p>
+        <label for="per-installation-resource-packs">Per-Installation Resource Packs</label>
+        <p class="setting-description">Use a separate resource packs folder for each installation</p>
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
-          <input
-            type="checkbox"
-            id="per-installation-resource-packs"
-            bind:checked={
-              $settings.content.use_per_installation_resource_packs
-            } />
+          <input type="checkbox" id="per-installation-resource-packs" bind:checked={$settings.content.use_per_installation_resource_packs} />
         </label>
       </div>
     </div>
@@ -114,11 +88,7 @@ function disableMaxWorldBackups() {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  background: linear-gradient(
-    to right,
-    $colors-accent,
-    $colors-accent-secondary
-  );
+  background: linear-gradient(to right, $colors-accent, $colors-accent-secondary);
   color: var(--text-transparent);
   background-clip: text;
   -webkit-background-clip: text;

@@ -7,18 +7,8 @@ let currentTab: "selection" | "editor" = "selection";
 <div class="skins-page">
   <!-- Tab Navigation merged with page content -->
   <div class="tab-header">
-    <button
-      class="tab-btn"
-      class:active={currentTab === "selection"}
-      on:click={() => (currentTab = "selection")}>
-      🎨 Skin Selection
-    </button>
-    <button
-      class="tab-btn"
-      class:active={currentTab === "editor"}
-      on:click={() => (currentTab = "editor")}>
-      ✏️ Skin Editor
-    </button>
+    <button class="tab-btn" class:active={currentTab === "selection"} on:click={() => (currentTab = "selection")}> 🎨 Skin Selection </button>
+    <button class="tab-btn" class:active={currentTab === "editor"} on:click={() => (currentTab = "editor")}> ✏️ Skin Editor </button>
   </div>
 
   <!-- Tab Content -->
@@ -29,9 +19,7 @@ let currentTab: "selection" | "editor" = "selection";
       <div class="editor-placeholder">
         <h2>Skin Editor</h2>
         <p>Advanced skin editing features will be implemented here.</p>
-        <p>
-          This will include tools for creating and modifying Minecraft skins.
-        </p>
+        <p>This will include tools for creating and modifying Minecraft skins.</p>
       </div>
     {/if}
   </div>
@@ -72,11 +60,7 @@ let currentTab: "selection" | "editor" = "selection";
     }
 
     &.active {
-      background: linear-gradient(
-        135deg,
-        var(--primary) 0%,
-        var(--secondary) 100%
-      );
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       color: var(--text-white);
       border-color: var(--text-transparent);
       box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 25%, transparent);

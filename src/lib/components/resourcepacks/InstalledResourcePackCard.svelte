@@ -30,9 +30,7 @@ export let onpackchanged: (() => void) | undefined = undefined;
 let loading = false;
 
 $: isDisabled = pack.disabled || false;
-$: displayName = decodeURIComponent(
-  pack.name || pack.file_name.replace(/\.zip$/, ""),
-);
+$: displayName = decodeURIComponent(pack.name || pack.file_name.replace(/\.zip$/, ""));
 $: iconUrl = extendedInfo?.icon_uri || null;
 
 async function toggleDisabled(event: MouseEvent) {
@@ -42,19 +40,12 @@ async function toggleDisabled(event: MouseEvent) {
 
   loading = true;
   try {
-    const newDisabledState = await installationsApi.toggleResourcePackDisabled(
-      installation,
-      pack.file_name,
-    );
+    const newDisabledState = await installationsApi.toggleResourcePackDisabled(installation, pack.file_name);
 
     // Update local state
     pack.disabled = newDisabledState;
 
-    NotificationService.success(
-      newDisabledState
-        ? `Disabled "${displayName}"`
-        : `Enabled "${displayName}"`,
-    );
+    NotificationService.success(newDisabledState ? `Disabled "${displayName}"` : `Enabled "${displayName}"`);
 
     onpackchanged?.();
   } catch (error) {
@@ -70,9 +61,7 @@ async function handleRemove(event: MouseEvent) {
 
   if (loading) return;
 
-  const confirmed = confirm(
-    `Remove "${displayName}"?\n\nThis will permanently delete the resource pack file.`,
-  );
+  const confirmed = confirm(`Remove "${displayName}"?\n\nThis will permanently delete the resource pack file.`);
   if (!confirmed) return;
 
   loading = true;
@@ -131,10 +120,7 @@ async function handleVisitPage(event: MouseEvent) {
       </div>
       {#if extendedInfo?.description}
         <div class="pack-description">
-          {extendedInfo.description.substring(0, 50)}{extendedInfo.description
-            .length > 50
-            ? "..."
-            : ""}
+          {extendedInfo.description.substring(0, 50)}{extendedInfo.description.length > 50 ? "..." : ""}
         </div>
       {/if}
     </div>
@@ -148,29 +134,20 @@ async function handleVisitPage(event: MouseEvent) {
       on:click={toggleDisabled}
       use:clickSound
       title={isDisabled ? "Enable pack" : "Disable pack"}
-      disabled={loading}>
+      disabled={loading}
+    >
       <Icon name={isDisabled ? "eye-off" : "eye"} size="sm" />
       <span>{isDisabled ? "Enable" : "Disable"}</span>
     </button>
 
     {#if extendedInfo?.page_uri}
-      <button
-        class="action-btn visit-btn"
-        on:click={handleVisitPage}
-        use:clickSound
-        title="Visit page"
-        disabled={loading}>
+      <button class="action-btn visit-btn" on:click={handleVisitPage} use:clickSound title="Visit page" disabled={loading}>
         <Icon name="external-link" size="sm" />
         <span>Visit</span>
       </button>
     {/if}
 
-    <button
-      class="action-btn remove-btn"
-      on:click={handleRemove}
-      use:errorSound
-      title="Remove pack"
-      disabled={loading}>
+    <button class="action-btn remove-btn" on:click={handleRemove} use:errorSound title="Remove pack" disabled={loading}>
       <Icon name="trash" size="sm" />
       <span>Remove</span>
     </button>
@@ -319,49 +296,19 @@ async function handleVisitPage(event: MouseEvent) {
 }
 
 .toggle-btn {
-  border-color: color-mix(
-    in srgb,
-    map.get($variables, "orange-500"),
-    30%,
-    transparent
-  );
+  border-color: color-mix(in srgb, map.get($variables, "orange-500"), 30%, transparent);
 
   &:hover:not(:disabled) {
-    border-color: color-mix(
-      in srgb,
-      map.get($variables, "orange-500"),
-      50%,
-      transparent
-    );
-    background: color-mix(
-      in srgb,
-      map.get($variables, "orange-500"),
-      10%,
-      transparent
-    );
+    border-color: color-mix(in srgb, map.get($variables, "orange-500"), 50%, transparent);
+    background: color-mix(in srgb, map.get($variables, "orange-500"), 10%, transparent);
   }
 
   &.enabled {
-    border-color: color-mix(
-      in srgb,
-      map.get($variables, "green-500"),
-      30%,
-      transparent
-    );
+    border-color: color-mix(in srgb, map.get($variables, "green-500"), 30%, transparent);
 
     &:hover:not(:disabled) {
-      border-color: color-mix(
-        in srgb,
-        map.get($variables, "green-500"),
-        50%,
-        transparent
-      );
-      background: color-mix(
-        in srgb,
-        map.get($variables, "green-500"),
-        10%,
-        transparent
-      );
+      border-color: color-mix(in srgb, map.get($variables, "green-500"), 50%, transparent);
+      background: color-mix(in srgb, map.get($variables, "green-500"), 10%, transparent);
       color: map.get($variables, "green-600");
     }
   }

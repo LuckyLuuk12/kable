@@ -8,17 +8,11 @@ const authService = app.authService;
 
 let currentAccount = $derived(authService.activeAccount);
 let accountStatus = $derived(authService.getAccountStatus(currentAccount));
-let accountDisplayName = $derived(
-  authService.getAccountDisplayName(currentAccount),
-);
-let accountAvatarTitle = $derived(
-  authService.getAccountAvatarTitle(currentAccount),
-);
+let accountDisplayName = $derived(authService.getAccountDisplayName(currentAccount));
+let accountAvatarTitle = $derived(authService.getAccountAvatarTitle(currentAccount));
 let accountUuid = $derived(authService.getAccountUuid(currentAccount));
 let showAuthFlow = $derived(!currentAccount || accountStatus !== "online");
-let tokenExpiryDisplay = $derived(
-  authService.formatTokenExpiry(currentAccount, now),
-);
+let tokenExpiryDisplay = $derived(authService.formatTokenExpiry(currentAccount, now));
 
 // async function refreshTokenDCF() {
 //   if (!$currentAccount || isOffline) return;
@@ -117,9 +111,7 @@ Displays current account status and allows switching between authentication flow
       <div class="current-account-card">
         <div class="account-avatar-details-row">
           <div class="account-avatar-container">
-            <div
-              class="account-avatar minecraft-head large"
-              title={accountAvatarTitle}>
+            <div class="account-avatar minecraft-head large" title={accountAvatarTitle}>
               <PlayerHead account={currentAccount} size={64} />
             </div>
             {#if accountStatus === "online"}
@@ -137,9 +129,7 @@ Displays current account status and allows switching between authentication flow
             <div class="account-details-side">
               <span class="account-id">UUID: {accountUuid}</span>
               {#if accountStatus !== "offline"}
-                <span
-                  class="token-status"
-                  class:expired={accountStatus === "expired"}>
+                <span class="token-status" class:expired={accountStatus === "expired"}>
                   {tokenExpiryDisplay}
                 </span>
               {/if}
@@ -147,19 +137,11 @@ Displays current account status and allows switching between authentication flow
           </div>
         </div>
         <div class="dropdown account-actions-dropdown" role="menu" tabindex="0">
-          <button
-            class="btn btn-secondary dropdown-toggle actions-dropdown-btn"
-            aria-label="Account Actions">
+          <button class="btn btn-secondary dropdown-toggle actions-dropdown-btn" aria-label="Account Actions">
             <Icon name="more-horizontal" size="sm" />
           </button>
-          <div
-            class="dropdown-menu actions-dropdown-menu"
-            style="right: 0.25rem; top: 2.35rem; min-width: 180px;"
-            tabindex="-1">
-            <button
-              class="dropdown-action"
-              onclick={refreshToken}
-              disabled={isLoading}>
+          <div class="dropdown-menu actions-dropdown-menu" style="right: 0.25rem; top: 2.35rem; min-width: 180px;" tabindex="-1">
+            <button class="dropdown-action" onclick={refreshToken} disabled={isLoading}>
               <Icon name="refresh" size="sm" /> Refresh
             </button>
             <!-- <button
@@ -179,9 +161,7 @@ Displays current account status and allows switching between authentication flow
             <button class="dropdown-action" onclick={signOut}>
               <Icon name="logout" size="sm" /> Sign Out
             </button>
-            <button
-              class="dropdown-action danger"
-              onclick={removeCurrentAccount}>
+            <button class="dropdown-action danger" onclick={removeCurrentAccount}>
               <Icon name="trash" size="sm" /> Remove
             </button>
           </div>
@@ -198,22 +178,12 @@ Displays current account status and allows switching between authentication flow
       <div class="welcome-message">
         <div class="welcome-icon">
           <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-            <circle
-              cx="24"
-              cy="16"
-              r="8"
-              stroke="currentColor"
-              stroke-width="2" />
-            <path
-              d="M8 40c0-8.837 7.163-16 16-16s16 7.163 16 16"
-              stroke="currentColor"
-              stroke-width="2" />
+            <circle cx="24" cy="16" r="8" stroke="currentColor" stroke-width="2" />
+            <path d="M8 40c0-8.837 7.163-16 16-16s16 7.163 16 16" stroke="currentColor" stroke-width="2" />
           </svg>
         </div>
         <h3>Welcome to Kable</h3>
-        <p>
-          Sign in with your Microsoft account to get started with Minecraft.
-        </p>
+        <p>Sign in with your Microsoft account to get started with Minecraft.</p>
       </div>
       <div class="auth-flow-container">
         <AuthenticationFlow />

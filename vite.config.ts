@@ -8,7 +8,7 @@ export default defineConfig({
       scss: {
         api: 'modern',
         additionalData: `
-          @use "$lib/styles/global.scss" as *;
+          @use "$lib/styles/_inject.scss" as *;
         `,
         includePaths: [
           'src/lib/styles',

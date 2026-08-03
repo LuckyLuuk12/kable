@@ -7,10 +7,10 @@ Displays a single notification with auto-dismiss, hover-to-persist, and markdown
 -->
 <script lang="ts">
 import { Icon } from "$lib";
-import { NotificationService } from "$lib/old_services";
-import type { Notification } from "$lib/old_services/NotificationService";
 import { app } from "$lib/services";
 import { onMount } from "svelte";
+import { NotificationService } from "../../../../src-tauri/src-backup/old_services";
+import type { Notification } from "../../../../src-tauri/src-backup/old_services/NotificationService";
 
 export let notification: Notification;
 
@@ -77,10 +77,7 @@ const iconMap = {
       <span>{notification.message}</span>
     {/if}
   </div>
-  <button
-    class="notification-close"
-    on:click={handleDismiss}
-    aria-label="Dismiss notification">
+  <button class="notification-close" on:click={handleDismiss} aria-label="Dismiss notification">
     <Icon name="x" size="sm" forceType="svg" />
   </button>
 </div>

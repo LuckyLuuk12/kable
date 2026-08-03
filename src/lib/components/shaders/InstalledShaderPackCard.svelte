@@ -25,9 +25,7 @@ export let onshaderchanged: (() => void) | undefined = undefined;
 let loading = false;
 
 $: isDisabled = shader.disabled || false;
-$: displayName = decodeURIComponent(
-  shader.name || shader.file_name.replace(/\.(zip|jar)$/, ""),
-);
+$: displayName = decodeURIComponent(shader.name || shader.file_name.replace(/\.(zip|jar)$/, ""));
 $: iconUrl = extendedInfo?.icon_uri || null;
 
 async function toggleDisabled(event: MouseEvent) {
@@ -37,18 +35,11 @@ async function toggleDisabled(event: MouseEvent) {
 
   loading = true;
   try {
-    const newDisabledState = await installationsApi.toggleShaderDisabled(
-      installation,
-      shader.file_name,
-    );
+    const newDisabledState = await installationsApi.toggleShaderDisabled(installation, shader.file_name);
 
     shader.disabled = newDisabledState;
 
-    NotificationService.success(
-      newDisabledState
-        ? `Disabled "${displayName}"`
-        : `Enabled "${displayName}"`,
-    );
+    NotificationService.success(newDisabledState ? `Disabled "${displayName}"` : `Enabled "${displayName}"`);
 
     onshaderchanged?.();
   } catch (error) {
@@ -64,17 +55,12 @@ async function handleRemove(event: MouseEvent) {
 
   if (loading) return;
 
-  const confirmed = confirm(
-    `Remove "${displayName}"?\n\nThis will permanently delete the shader pack file.`,
-  );
+  const confirmed = confirm(`Remove "${displayName}"?\n\nThis will permanently delete the shader pack file.`);
   if (!confirmed) return;
 
   loading = true;
   try {
-    await installationsApi.deleteShaderFromInstallation(
-      installation,
-      shader.file_name,
-    );
+    await installationsApi.deleteShaderFromInstallation(installation, shader.file_name);
     NotificationService.success(`Removed "${displayName}"`);
     onshaderchanged?.();
   } catch (error) {
@@ -128,10 +114,7 @@ async function handleVisitPage(event: MouseEvent) {
       </div>
       {#if extendedInfo?.description}
         <div class="shader-description">
-          {extendedInfo.description.substring(0, 50)}{extendedInfo.description
-            .length > 50
-            ? "..."
-            : ""}
+          {extendedInfo.description.substring(0, 50)}{extendedInfo.description.length > 50 ? "..." : ""}
         </div>
       {/if}
     </div>
@@ -152,25 +135,13 @@ async function handleVisitPage(event: MouseEvent) {
     </button>
 
     {#if extendedInfo?.page_uri}
-      <button
-        class="action-btn visit-btn"
-        on:click={handleVisitPage}
-        use:clickSound
-        title="Visit page"
-        disabled={loading}
-      >
+      <button class="action-btn visit-btn" on:click={handleVisitPage} use:clickSound title="Visit page" disabled={loading}>
         <Icon name="external-link" size="sm" />
         <span>Visit</span>
       </button>
     {/if}
 
-    <button
-      class="action-btn remove-btn"
-      on:click={handleRemove}
-      use:errorSound
-      title="Remove shader"
-      disabled={loading}
-    >
+    <button class="action-btn remove-btn" on:click={handleRemove} use:errorSound title="Remove shader" disabled={loading}>
       <Icon name="trash" size="sm" />
       <span>Remove</span>
     </button>

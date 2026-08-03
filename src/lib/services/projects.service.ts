@@ -1,12 +1,4 @@
-import {
-  type KableProfile,
-  type KableProject_Deserialize,
-  type KableProject_Serialize,
-  type Project_Deserialize,
-  type ProjectSearch,
-  type ProjectType,
-  api,
-} from "$lib";
+import { type KableProfile, type KableProject_Deserialize, type KableProject_Serialize, type Project_Deserialize, type ProjectSearch, type ProjectType, api } from "$lib";
 import type { Service } from "./app.service";
 
 export class ProjectsService implements Service {
@@ -51,9 +43,7 @@ export class ProjectsService implements Service {
   }
 
   get resourcepacks() {
-    return this.projects.filter(
-      (p) => p.project.project_type === "resourcepack",
-    );
+    return this.projects.filter((p) => p.project.project_type === "resourcepack");
   }
 
   get shaders() {
@@ -74,12 +64,7 @@ export class ProjectsService implements Service {
   /**
    * Browse remote projects
    */
-  async browse(
-    profile: KableProfile,
-    search: ProjectSearch,
-    smartFilter: boolean,
-    projectType: ProjectType,
-  ) {
+  async browse(profile: KableProfile, search: ProjectSearch, smartFilter: boolean, projectType: ProjectType) {
     try {
       return await api.browse(profile, search, smartFilter, projectType);
     } catch (e) {
@@ -91,46 +76,26 @@ export class ProjectsService implements Service {
   /**
    * Convenience browse wrappers
    */
-  async browseMods(
-    profile: KableProfile,
-    search: ProjectSearch,
-    smartFilter: boolean,
-  ) {
+  async browseMods(profile: KableProfile, search: ProjectSearch, smartFilter: boolean) {
     return await this.browse(profile, search, smartFilter, "mod");
   }
 
-  async browseResourcepacks(
-    profile: KableProfile,
-    search: ProjectSearch,
-    smartFilter: boolean,
-  ) {
+  async browseResourcepacks(profile: KableProfile, search: ProjectSearch, smartFilter: boolean) {
     return await this.browse(profile, search, smartFilter, "resourcepack");
   }
 
-  async browseShaders(
-    profile: KableProfile,
-    search: ProjectSearch,
-    smartFilter: boolean,
-  ) {
+  async browseShaders(profile: KableProfile, search: ProjectSearch, smartFilter: boolean) {
     return await this.browse(profile, search, smartFilter, "shader");
   }
 
-  async browseModpacks(
-    profile: KableProfile,
-    search: ProjectSearch,
-    smartFilter: boolean,
-  ) {
+  async browseModpacks(profile: KableProfile, search: ProjectSearch, smartFilter: boolean) {
     return await this.browse(profile, search, smartFilter, "modpack");
   }
 
   /**
    * Install/download project
    */
-  async download(
-    profile: KableProfile,
-    project: Project_Deserialize,
-    versionId: string | null,
-  ) {
+  async download(profile: KableProfile, project: Project_Deserialize, versionId: string | null) {
     try {
       const result = await api.downloadProject(profile, project, versionId);
 
@@ -149,9 +114,7 @@ export class ProjectsService implements Service {
     try {
       const result = await api.removeProject(profile, project);
 
-      this.projects = this.projects.filter(
-        (p) => p.project.project_id !== result.project.project_id,
-      );
+      this.projects = this.projects.filter((p) => p.project.project_id !== result.project.project_id);
       return result;
     } catch (e) {
       console.error("Failed to remove project", e);
@@ -166,9 +129,7 @@ export class ProjectsService implements Service {
     try {
       const updated = await api.enableProject(profile, project);
 
-      this.projects = this.projects.map((p) =>
-        p.project.project_id === updated.project.project_id ? updated : p,
-      );
+      this.projects = this.projects.map((p) => (p.project.project_id === updated.project.project_id ? updated : p));
 
       return updated;
     } catch (e) {
@@ -183,9 +144,7 @@ export class ProjectsService implements Service {
     try {
       const updated = await api.disableProject(profile, project);
 
-      this.projects = this.projects.map((p) =>
-        p.project.project_id === updated.project.project_id ? updated : p,
-      );
+      this.projects = this.projects.map((p) => (p.project.project_id === updated.project.project_id ? updated : p));
 
       return updated;
     } catch (e) {
@@ -201,9 +160,7 @@ export class ProjectsService implements Service {
     try {
       const updated = await api.toggleProject(profile, project);
 
-      this.projects = this.projects.map((p) =>
-        p.project.project_id === updated.project.project_id ? updated : p,
-      );
+      this.projects = this.projects.map((p) => (p.project.project_id === updated.project.project_id ? updated : p));
       return updated;
     } catch (e) {
       console.error("Failed to toggle project", e);
@@ -230,9 +187,7 @@ export class ProjectsService implements Service {
     try {
       const updated = await api.updateProject(profile, project);
 
-      this.projects = this.projects.map((p) =>
-        p.project.project_id === updated.project.project_id ? updated : p,
-      );
+      this.projects = this.projects.map((p) => (p.project.project_id === updated.project.project_id ? updated : p));
       return updated;
     } catch (e) {
       console.error("Failed to update project", e);

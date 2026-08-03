@@ -12,13 +12,9 @@ Handles window state changes and provides standard window management functionali
 <script lang="ts">
 import { NotificationContainer, NotificationTray, UpdateModal } from "$lib";
 import { clickSound } from "$lib/actions";
-import {
-  UpdaterService,
-  updateModalInfo,
-  updateModalOpen,
-} from "$lib/old_services/UpdaterService";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { onMount } from "svelte";
+import { UpdaterService, updateModalInfo, updateModalOpen } from "../../../src-tauri/src-backup/old_services/UpdaterService";
 
 let isMaximized = false;
 
@@ -56,9 +52,7 @@ function handleModalClose() {
 onMount(async () => {
   isMaximized = await (await appWindow()).isMaximized();
   (await appWindow()).onResized(async () => {
-    (await appWindow())
-      .isMaximized()
-      .then((val: boolean) => (isMaximized = val));
+    (await appWindow()).isMaximized().then((val: boolean) => (isMaximized = val));
   });
 });
 </script>
@@ -66,110 +60,44 @@ onMount(async () => {
 <div class="window">
   <div class="titlebar">
     <div class="titlebar-left">
-      <img
-        src="/favicon.png"
-        alt="Kable Launcher"
-        class="app-icon"
-        width="24"
-        height="24" />
+      <img src="/favicon.png" alt="Kable Launcher" class="app-icon" width="24" height="24" />
       <span class="app-title">Kable Launcher</span>
     </div>
     <div class="titlebar-right">
       <!-- Notification Tray -->
       <NotificationTray />
 
-      <button
-        use:clickSound
-        class="titlebar-btn minimize"
-        title="Minimize"
-        on:click={minimize}
-        aria-label="Minimize">
+      <button use:clickSound class="titlebar-btn minimize" title="Minimize" on:click={minimize} aria-label="Minimize">
         <svg width="16" height="16" viewBox="0 0 16 16">
-          <rect
-            x="2.5"
-            y="10.5"
-            width="11"
-            height="2"
-            rx="1"
-            fill="currentColor" />
+          <rect x="2.5" y="10.5" width="11" height="2" rx="1" fill="currentColor" />
         </svg>
       </button>
-      <button
-        use:clickSound
-        class="titlebar-btn maximize"
-        title={isMaximized ? "Restore" : "Maximize"}
-        on:click={maximize}>
+      <button use:clickSound class="titlebar-btn maximize" title={isMaximized ? "Restore" : "Maximize"} on:click={maximize}>
         {#if isMaximized}
           <svg width="16" height="16" viewBox="0 0 16 16">
             <!-- Back square, offset up and right, now closer -->
-            <rect
-              x="4"
-              y="3"
-              width="7"
-              height="7"
-              rx="2"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2" />
+            <rect x="4" y="3" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
             <!-- Front square, offset down and left -->
-            <rect
-              x="2"
-              y="7"
-              width="7"
-              height="7"
-              rx="2"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2" />
+            <rect x="2" y="7" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
           </svg>
         {:else}
           <svg width="16" height="16" viewBox="0 0 16 16">
-            <rect
-              x="3"
-              y="3"
-              width="10"
-              height="10"
-              rx="2"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2" />
+            <rect x="3" y="3" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
           </svg>
         {/if}
       </button>
-      <button
-        use:clickSound
-        class="titlebar-btn close"
-        title="Close"
-        on:click={close}
-        aria-label="Close">
+      <button use:clickSound class="titlebar-btn close" title="Close" on:click={close} aria-label="Close">
         <svg width="16" height="16" viewBox="0 0 16 16">
-          <line
-            x1="3"
-            y1="3"
-            x2="13"
-            y2="13"
-            stroke="currentColor"
-            stroke-width="2.5" />
+          <line x1="3" y1="3" x2="13" y2="13" stroke="currentColor" stroke-width="2.5" />
 
-          <line
-            x1="13"
-            y1="3"
-            x2="3"
-            y2="13"
-            stroke="currentColor"
-            stroke-width="2.5" />
+          <line x1="13" y1="3" x2="3" y2="13" stroke="currentColor" stroke-width="2.5" />
         </svg>
       </button>
     </div>
   </div>
 
   <!-- Global Update Modal -->
-  <UpdateModal
-    bind:open={$updateModalOpen}
-    updateInfo={$updateModalInfo}
-    onclose={handleModalClose}
-    oninstallnow={handleInstallNow}
-    ondownload={handleDownload} />
+  <UpdateModal bind:open={$updateModalOpen} updateInfo={$updateModalInfo} onclose={handleModalClose} oninstallnow={handleInstallNow} ondownload={handleDownload} />
 
   <!-- Global Notification Container -->
   <NotificationContainer />
@@ -196,8 +124,7 @@ onMount(async () => {
   -webkit-app-region: drag;
   user-select: none;
   padding: 0 0 0 1rem;
-  border-bottom: 1px solid
-    #{"color-mix(in srgb, var(--dark-700), 50%, transparent)"};
+  border-bottom: 1px solid #{"color-mix(in srgb, var(--dark-700), 50%, transparent)"};
 }
 .titlebar-left {
   display: flex;
@@ -207,8 +134,7 @@ onMount(async () => {
     width: 24px;
     height: 24px;
     border-radius: 6px;
-    box-shadow: 0 2px 8px
-      #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
+    box-shadow: 0 2px 8px #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
   }
   .app-title {
     font-size: 1.1rem;

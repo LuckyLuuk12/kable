@@ -27,7 +27,8 @@ async function toggle(event: Event | undefined = undefined) {
   onclick={async (e) => await toggle(e)}
   onkeydown={async (e) => await toggle(e)}
   role="button"
-  tabindex="0">
+  tabindex="0"
+>
   <h3>{project.project.title}</h3>
   <p>Version: {project.version_id}</p>
   <p>Release Date: {project.project.versions.find((v) => v.id === project.version_id)?.date_published}</p>

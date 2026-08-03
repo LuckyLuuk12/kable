@@ -47,17 +47,12 @@ async function signInWithDeviceCode() {
 
     // Step 2: Start polling for completion in the background
     try {
-      const account = await app.authService.pollAuth(
-        deviceCodeData.device_code,
-      );
+      const account = await app.authService.pollAuth(deviceCodeData.device_code);
       // await app.authService.refreshAvailableAccounts();
       // Clear device code data and stop polling
       deviceCodeData = null;
       isPollingDeviceCode = false;
-      console.log(
-        "✅ Device code authentication successful:",
-        account.expires_at,
-      );
+      console.log("✅ Device code authentication successful:", account.expires_at);
     } catch (pollError) {
       console.error("❌ Device code polling failed:", pollError);
       error = `Device code authentication failed: ${pollError}`;
@@ -103,11 +98,7 @@ function cancelDeviceCode() {
     <div class="device-code-container">
       <div class="device-code-header">
         <div class="microsoft-logo">
-          <Image
-            key="microsoft-logo"
-            alt="Microsoft"
-            width="20px"
-            height="20px" />
+          <Image key="microsoft-logo" alt="Microsoft" width="20px" height="20px" />
         </div>
         <h3>Sign in to Microsoft</h3>
       </div>
@@ -130,10 +121,7 @@ function cancelDeviceCode() {
 
         <div class="code-display">
           <code class="user-code">{deviceCodeData.user_code}</code>
-          <button
-            onclick={() => writeText(deviceCodeData.user_code)}
-            class="copy-btn"
-            title="Copy code">
+          <button onclick={() => writeText(deviceCodeData.user_code)} class="copy-btn" title="Copy code">
             <Icon name="duplicate" size="sm" />
           </button>
         </div>
@@ -146,29 +134,17 @@ function cancelDeviceCode() {
         {/if}
 
         <div class="device-code-actions">
-          <button onclick={cancelDeviceCode} class="btn btn-secondary btn-sm">
-            Cancel
-          </button>
+          <button onclick={cancelDeviceCode} class="btn btn-secondary btn-sm"> Cancel </button>
         </div>
       </div>
     </div>
   {:else}
     <div class="sign-in-container">
-      <button
-        onclick={signInWithDeviceCode}
-        class="btn-microsoft"
-        disabled={isAuthenticating}>
+      <button onclick={signInWithDeviceCode} class="btn-microsoft" disabled={isAuthenticating}>
         <div class="microsoft-logo-large">
-          <Image
-            key="microsoft-logo"
-            alt="Microsoft"
-            width="21px"
-            height="21px" />
+          <Image key="microsoft-logo" alt="Microsoft" width="21px" height="21px" />
         </div>
-        <span
-          >{isAuthenticating
-            ? "Signing in..."
-            : "Sign in with Microsoft"}</span>
+        <span>{isAuthenticating ? "Signing in..." : "Sign in with Microsoft"}</span>
       </button>
 
       <p class="auth-disclaimer">

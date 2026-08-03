@@ -93,13 +93,7 @@ function handleBackdropClick(e: MouseEvent) {
 {#if visible && shader && images.length > 0}
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div
-    class="gallery-modal"
-    on:click={handleBackdropClick}
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="gallery-title"
-    tabindex="-1">
+  <div class="gallery-modal" on:click={handleBackdropClick} role="dialog" aria-modal="true" aria-labelledby="gallery-title" tabindex="-1">
     <div class="gallery-container">
       <!-- Header -->
       <div class="gallery-header">
@@ -112,29 +106,20 @@ function handleBackdropClick(e: MouseEvent) {
       <!-- Main Image -->
       <div class="gallery-main">
         {#if images.length > 1}
-          <button
-            class="nav-btn prev"
-            on:click={prevImage}
-            aria-label="Previous image">
+          <button class="nav-btn prev" on:click={prevImage} aria-label="Previous image">
             <Icon name="chevron-left" size="xl" forceType="svg" />
           </button>
         {/if}
 
         <div class="image-container">
-          <img
-            src={images[currentIndex]}
-            alt="{shader.name} screenshot {currentIndex + 1}"
-            class="main-image" />
+          <img src={images[currentIndex]} alt="{shader.name} screenshot {currentIndex + 1}" class="main-image" />
           <div class="image-counter">
             {currentIndex + 1} / {images.length}
           </div>
         </div>
 
         {#if images.length > 1}
-          <button
-            class="nav-btn next"
-            on:click={nextImage}
-            aria-label="Next image">
+          <button class="nav-btn next" on:click={nextImage} aria-label="Next image">
             <Icon name="chevron-right" size="xl" forceType="svg" />
           </button>
         {/if}
@@ -144,11 +129,7 @@ function handleBackdropClick(e: MouseEvent) {
       {#if images.length > 1}
         <div class="gallery-thumbnails">
           {#each images as image, index}
-            <button
-              class="thumbnail"
-              class:active={index === currentIndex}
-              on:click={() => goToImage(index)}
-              aria-label="View image {index + 1}">
+            <button class="thumbnail" class:active={index === currentIndex} on:click={() => goToImage(index)} aria-label="View image {index + 1}">
               <img src={image} alt="{shader.name} thumbnail {index + 1}" />
             </button>
           {/each}

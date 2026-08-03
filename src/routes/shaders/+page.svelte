@@ -24,10 +24,7 @@ $: {
 }
 
 // Handle shader download from browser
-async function handleShaderDownload(event: {
-  shader: ShaderDownload;
-  installation: KableInstallation | null;
-}) {
+async function handleShaderDownload(event: { shader: ShaderDownload; installation: KableInstallation | null }) {
   const { shader, installation } = event;
 
   try {
@@ -36,9 +33,7 @@ async function handleShaderDownload(event: {
     if (installation) {
       // Download to specific installation (dedicated mode)
       await ShadersService.downloadShaderToDedicated(shader, installation);
-      console.log(
-        `Successfully downloaded shader ${shader.name} to ${installation.name}`,
-      );
+      console.log(`Successfully downloaded shader ${shader.name} to ${installation.name}`);
     } else {
       // Download globally
       await ShadersService.downloadShaderGlobal(shader);
@@ -58,20 +53,8 @@ async function handleShaderDownload(event: {
 <div class="page shaders-page">
   <!-- Tab Navigation -->
   <div class="tab-navigation">
-    <button
-      class="tab-btn"
-      class:active={currentTab === "installed"}
-      on:click={() => (currentTab = "installed")}
-    >
-      📦 Installed Shaders
-    </button>
-    <button
-      class="tab-btn"
-      class:active={currentTab === "browse"}
-      on:click={() => (currentTab = "browse")}
-    >
-      🔍 Browse Shaders
-    </button>
+    <button class="tab-btn" class:active={currentTab === "installed"} on:click={() => (currentTab = "installed")}> 📦 Installed Shaders </button>
+    <button class="tab-btn" class:active={currentTab === "browse"} on:click={() => (currentTab = "browse")}> 🔍 Browse Shaders </button>
 
     {#if $selectedInstallation}
       <div class="current-installation">
@@ -85,10 +68,7 @@ async function handleShaderDownload(event: {
     {#if currentTab === "installed"}
       <InstallationShaders bind:selectedId={sharedInstallationId} />
     {:else if currentTab === "browse"}
-      <ShaderBrowser
-        bind:selectedInstallationId={sharedInstallationId}
-        ondownload={handleShaderDownload}
-      />
+      <ShaderBrowser bind:selectedInstallationId={sharedInstallationId} ondownload={handleShaderDownload} />
     {/if}
   </div>
 </div>
@@ -127,11 +107,7 @@ async function handleShaderDownload(event: {
     }
 
     &.active {
-      background: linear-gradient(
-        135deg,
-        var(--primary) 0%,
-        var(--secondary) 100%
-      );
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       color: var(--text-white);
       border-color: var(--text-transparent);
       box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 25%, transparent);

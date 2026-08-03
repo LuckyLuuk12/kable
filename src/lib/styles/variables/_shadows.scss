@@ -21,28 +21,19 @@
   // ------------------------------------------------------
   // Inset shadows (pressed / embedded surfaces)
   // ------------------------------------------------------
-  --shadows-inset-1: inset 0 1px 2px
-    rgba(0, 0, 0, calc(0.12 * var(--shadows-intensity)));
-  --shadows-inset-2: inset 0 2px 6px
-    rgba(0, 0, 0, calc(0.18 * var(--shadows-intensity)));
+  --shadows-inset-1: inset 0 1px 2px rgba(0, 0, 0, calc(0.12 * var(--shadows-intensity)));
+  --shadows-inset-2: inset 0 2px 6px rgba(0, 0, 0, calc(0.18 * var(--shadows-intensity)));
 
   // ------------------------------------------------------
   // Text shadows (depth + readability layers)
   // ------------------------------------------------------
-  --shadows-text-1: 0 1px 1px
-    rgba(0, 0, 0, calc(0.25 * var(--shadows-intensity)));
-  --shadows-text-2: 0 2px 4px
-    rgba(0, 0, 0, calc(0.35 * var(--shadows-intensity)));
+  --shadows-text-1: 0 1px 1px rgba(0, 0, 0, calc(0.25 * var(--shadows-intensity)));
+  --shadows-text-2: 0 2px 4px rgba(0, 0, 0, calc(0.35 * var(--shadows-intensity)));
 
   // ------------------------------------------------------
   // Soft ambient surface shading (optional depth cue)
   // ------------------------------------------------------
-  --shadows-ambient-light: rgba(
-    255,
-    255,
-    255,
-    calc(0.04 * var(--shadows-intensity))
-  );
+  --shadows-ambient-light: rgba(255, 255, 255, calc(0.04 * var(--shadows-intensity)));
   --shadows-ambient-dark: rgba(0, 0, 0, calc(0.05 * var(--shadows-intensity)));
 }
 

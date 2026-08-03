@@ -8,11 +8,7 @@ let currentTab: "installed" | "browse" = "installed";
 let isLaunching = false;
 
 // Handle mod download from browser
-async function handleModDownload(event: {
-  modId: string;
-  versionId?: string;
-  installation: KableInstallation;
-}) {
+async function handleModDownload(event: { modId: string; versionId?: string; installation: KableInstallation }) {
   const { modId, versionId, installation } = event;
 
   try {
@@ -53,32 +49,15 @@ async function handleLaunch() {
 <div class="mods-page">
   <!-- Tab Navigation -->
   <div class="tab-navigation">
-    <button
-      class="tab-btn"
-      class:active={currentTab === "installed"}
-      on:click={() => (currentTab = "installed")}
-    >
-      📦 Installed Mods
-    </button>
-    <button
-      class="tab-btn"
-      class:active={currentTab === "browse"}
-      on:click={() => (currentTab = "browse")}
-    >
-      🔍 Browse Mods
-    </button>
+    <button class="tab-btn" class:active={currentTab === "installed"} on:click={() => (currentTab = "installed")}> 📦 Installed Mods </button>
+    <button class="tab-btn" class:active={currentTab === "browse"} on:click={() => (currentTab = "browse")}> 🔍 Browse Mods </button>
 
     {#if $selectedInstallation}
       <div class="current-installation">
         Selected: <strong>{$selectedInstallation.name}</strong>
       </div>
 
-      <button
-        class="launch-btn"
-        on:click={handleLaunch}
-        use:launchSound
-        disabled={isLaunching}
-      >
+      <button class="launch-btn" on:click={handleLaunch} use:launchSound disabled={isLaunching}>
         {#if isLaunching}
           <Icon name="refresh" size="sm" forceType="svg" className="spin" />
           <span>Launching...</span>
@@ -134,11 +113,7 @@ async function handleLaunch() {
     }
 
     &.active {
-      background: linear-gradient(
-        135deg,
-        var(--primary) 0%,
-        var(--secondary) 100%
-      );
+      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
       color: var(--text-white);
       border-color: var(--text-transparent);
       box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 25%, transparent);
@@ -166,11 +141,7 @@ async function handleLaunch() {
     padding: 0.6rem 1.2rem;
     border: 1px solid var(--dark-600);
     border-radius: 0.5rem;
-    background: linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--green), 90%, transparent) 0%,
-      color-mix(in srgb, var(--green), 75%, transparent) 100%
-    );
+    background: linear-gradient(135deg, color-mix(in srgb, var(--green), 90%, transparent) 0%, color-mix(in srgb, var(--green), 75%, transparent) 100%);
     color: var(--text-white);
     font-weight: 600;
     font-size: 0.9em;
@@ -180,11 +151,7 @@ async function handleLaunch() {
     box-shadow: 0 2px 6px color-mix(in srgb, var(--green), 20%, transparent);
 
     &:hover:not(:disabled) {
-      background: linear-gradient(
-        135deg,
-        var(--green) 0%,
-        color-mix(in srgb, var(--green), 90%, transparent) 100%
-      );
+      background: linear-gradient(135deg, var(--green) 0%, color-mix(in srgb, var(--green), 90%, transparent) 100%);
       transform: translateY(-1px);
       box-shadow: 0 3px 10px color-mix(in srgb, var(--green), 30%, transparent);
     }

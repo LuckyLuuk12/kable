@@ -13,10 +13,7 @@ export class ProfilesService implements Service {
 
     this.loading = true;
     try {
-      const [profiles, activeAccount] = await Promise.all([
-        api.getProfiles(),
-        api.getActiveAccount(),
-      ]);
+      const [profiles, activeAccount] = await Promise.all([api.getProfiles(), api.getActiveAccount()]);
 
       this.profiles = profiles;
       this.activeProfileId = activeAccount?.minecraft_profile.id ?? null;
@@ -55,9 +52,7 @@ export class ProfilesService implements Service {
     try {
       const updated = await api.modifyProfile(oldProfile, newProfile);
 
-      this.profiles = this.profiles.map((p) =>
-        p.id === updated.id ? updated : p,
-      );
+      this.profiles = this.profiles.map((p) => (p.id === updated.id ? updated : p));
     } catch (e) {
       console.error("Failed to modify profile", e);
     }

@@ -93,13 +93,7 @@ function handleKeydown(e: KeyboardEvent) {
   <!-- svelte-ignore a11y-click-events-have-key-events -->
   <!-- svelte-ignore a11y-no-static-element-interactions -->
   <div class="modal-backdrop" on:click={handleBackdropClick}>
-    <div
-      class="modal-content"
-      on:click|stopPropagation
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="update-modal-title"
-      tabindex="-1">
+    <div class="modal-content" on:click|stopPropagation role="dialog" aria-modal="true" aria-labelledby="update-modal-title" tabindex="-1">
       <!-- Header -->
       <div class="modal-header">
         <div class="header-content">
@@ -111,18 +105,12 @@ function handleKeydown(e: KeyboardEvent) {
             <p class="version-info">
               Version <strong>v{updateInfo.version}</strong> is now available
               {#if updateInfo.current_version}
-                <span class="current-version"
-                  >(Current: v{updateInfo.current_version})</span>
+                <span class="current-version">(Current: v{updateInfo.current_version})</span>
               {/if}
             </p>
           </div>
         </div>
-        <button
-          class="close-btn"
-          on:click={handleClose}
-          use:clickSound
-          disabled={isProcessing}
-          aria-label="Close modal">
+        <button class="close-btn" on:click={handleClose} use:clickSound disabled={isProcessing} aria-label="Close modal">
           <Icon name="x" size="md" forceType="svg" />
         </button>
       </div>
@@ -137,42 +125,24 @@ function handleKeydown(e: KeyboardEvent) {
             </div>
           </div>
         {:else}
-          <p class="no-notes">
-            A new version is available. Click below to update.
-          </p>
+          <p class="no-notes">A new version is available. Click below to update.</p>
         {/if}
       </div>
 
       <!-- Footer -->
       <div class="modal-footer">
-        <button
-          class="btn-secondary"
-          on:click={handleClose}
-          use:clickSound
-          disabled={isProcessing}>
-          Skip
-        </button>
+        <button class="btn-secondary" on:click={handleClose} use:clickSound disabled={isProcessing}> Skip </button>
 
         <div class="action-buttons">
           {#if ondownload}
-            <button
-              class="btn-download"
-              on:click={handleDownload}
-              use:clickSound
-              disabled={isProcessing}
-              title="Download update for later installation">
+            <button class="btn-download" on:click={handleDownload} use:clickSound disabled={isProcessing} title="Download update for later installation">
               <Icon name="download" size="sm" forceType="svg" />
               Download & Install on Restart
             </button>
           {/if}
 
           {#if oninstallnow}
-            <button
-              class="btn-primary"
-              on:click={handleInstallNow}
-              use:successSound
-              disabled={isProcessing}
-              title="Install update and restart the application now">
+            <button class="btn-primary" on:click={handleInstallNow} use:successSound disabled={isProcessing} title="Install update and restart the application now">
               <Icon name="check" size="sm" forceType="svg" />
               {isProcessing ? "Installing..." : "Install Now"}
             </button>
@@ -245,11 +215,7 @@ function handleKeydown(e: KeyboardEvent) {
   justify-content: space-between;
   padding: 1.5rem;
   border-bottom: 1px solid color-mix(in srgb, var(--primary), 15%, transparent);
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--primary), 8%, transparent) 0%,
-    color-mix(in srgb, var(--secondary), 5%, transparent) 100%
-  );
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 8%, transparent) 0%, color-mix(in srgb, var(--secondary), 5%, transparent) 100%);
 
   .header-content {
     display: flex;
@@ -267,8 +233,7 @@ function handleKeydown(e: KeyboardEvent) {
       align-items: center;
       justify-content: center;
       color: white;
-      box-shadow: 0 4px 12px
-        color-mix(in srgb, var(--primary), 30%, transparent);
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--primary), 30%, transparent);
     }
 
     .header-text {
@@ -542,8 +507,7 @@ function handleKeydown(e: KeyboardEvent) {
     &:hover:not(:disabled) {
       background: color-mix(in srgb, var(--primary), 90%, black);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px
-        color-mix(in srgb, var(--primary), 30%, transparent);
+      box-shadow: 0 4px 12px color-mix(in srgb, var(--primary), 30%, transparent);
     }
 
     &:active:not(:disabled) {

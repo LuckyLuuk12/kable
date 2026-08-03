@@ -19,9 +19,7 @@ let activeAccount = $derived(app.authService.activeAccount);
 let validAccounts = $derived(app.authService.accounts);
 
 // Determine account status
-function getAccountStatus(
-  account: KableAccount | null,
-): "online" | "offline" | "expired" {
+function getAccountStatus(account: KableAccount | null): "online" | "offline" | "expired" {
   if (!account) return "offline";
   if (!account.access_token) return "offline";
   if (account.access_token_expires_at) {
@@ -47,16 +45,8 @@ async function switchAccount(account: KableAccount) {
 {#if activeAccount || validAccounts.length > 0}
   <div class="account-switcher">
     <div class="current-account">
-      <div
-        class="account-avatar-container"
-        onmouseenter={() => (showDropdown = true)}
-        onmouseleave={() => (showDropdown = false)}
-        role="button"
-        tabindex="0">
-        <div
-          class="account-avatar minecraft-head"
-          title="{activeAccount?.minecraft_profile?.name ||
-            activeAccount?.username}'s avatar">
+      <div class="account-avatar-container" onmouseenter={() => (showDropdown = true)} onmouseleave={() => (showDropdown = false)} role="button" tabindex="0">
+        <div class="account-avatar minecraft-head" title="{activeAccount?.minecraft_profile?.name || activeAccount?.username}'s avatar">
           <PlayerHead account={activeAccount} size={36} />
         </div>
         {#if getAccountStatus(activeAccount) === "online"}
@@ -69,10 +59,7 @@ async function switchAccount(account: KableAccount) {
       </div>
 
       <div class="account-info">
-        <span class="username"
-          >{activeAccount?.minecraft_profile?.name ||
-            activeAccount?.username ||
-            "Unknown User"}</span>
+        <span class="username">{activeAccount?.minecraft_profile?.name || activeAccount?.username || "Unknown User"}</span>
         <span class="account-type">
           {#if getAccountStatus(activeAccount) === "offline"}
             Offline Account
@@ -85,24 +72,15 @@ async function switchAccount(account: KableAccount) {
       </div>
 
       <div class="dropdown-chevron" class:rotated={showDropdown}>
-        <Icon
-          name={showDropdown ? "chevron-up" : "chevron-down"}
-          forceType="svg" />
+        <Icon name={showDropdown ? "chevron-up" : "chevron-down"} forceType="svg" />
       </div>
 
       <div class="dropdown-menu">
         {#each validAccounts as account (account.local_id)}
-          <div
-            class="account-item"
-            class:active={account.local_id === activeAccount?.local_id}>
-            <button
-              class="account-button"
-              onclick={() => switchAccount(account)}>
+          <div class="account-item" class:active={account.local_id === activeAccount?.local_id}>
+            <button class="account-button" onclick={() => switchAccount(account)}>
               <div class="account-avatar-container">
-                <div
-                  class="account-avatar minecraft-head"
-                  title="{account.minecraft_profile?.name ||
-                    account.username}'s avatar">
+                <div class="account-avatar minecraft-head" title="{account.minecraft_profile?.name || account.username}'s avatar">
                   <PlayerHead {account} size={36} />
                 </div>
                 {#if getAccountStatus(account) === "online"}
@@ -110,16 +88,12 @@ async function switchAccount(account: KableAccount) {
                 {:else if getAccountStatus(account) === "offline"}
                   <div class="status-indicator offline" title="Offline"></div>
                 {:else}
-                  <div class="status-indicator expired" title="Token Expired">
-                  </div>
+                  <div class="status-indicator expired" title="Token Expired"></div>
                 {/if}
               </div>
 
               <div class="account-info">
-                <span class="username"
-                  >{account.minecraft_profile?.name ||
-                    account.username ||
-                    "Unknown User"}</span>
+                <span class="username">{account.minecraft_profile?.name || account.username || "Unknown User"}</span>
                 <span class="account-type">
                   {#if getAccountStatus(account) === "offline"}
                     Offline Account
@@ -160,8 +134,7 @@ async function switchAccount(account: KableAccount) {
       </div>
       <div class="sign-in-info">
         <span class="sign-in-text">Sign in to Microsoft</span>
-        <span class="sign-in-help"
-          >Access online features and view your Minecraft profile.</span>
+        <span class="sign-in-help">Access online features and view your Minecraft profile.</span>
       </div>
       <Icon name="arrow-right" />
     </button>
@@ -195,8 +168,7 @@ async function switchAccount(account: KableAccount) {
   &:hover:not(:disabled) {
     background: var(--button-hover);
     border-color: var(--primary);
-    box-shadow: 0 0.125rem 0.5rem
-      color-mix(in srgb, var(--primary), 15%, transparent);
+    box-shadow: 0 0.125rem 0.5rem color-mix(in srgb, var(--primary), 15%, transparent);
   }
 
   &:disabled {

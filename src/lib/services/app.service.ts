@@ -96,16 +96,13 @@ export class AppService {
   // #region Modal
   public readonly stack = $state<ModalInstance[]>([]);
 
-  public show<TResult = void>(
-    component: Component,
-    props: Record<string, unknown> = {}
-  ): Promise<TResult> {
+  public show<TResult = void>(component: Component, props: Record<string, unknown> = {}): Promise<TResult> {
     return new Promise<TResult>((resolve) => {
       this.stack.push({
         id: crypto.randomUUID(),
         component,
         props,
-        resolve: resolve as (value: unknown) => void
+        resolve: resolve as (value: unknown) => void,
       });
     });
   }
@@ -139,7 +136,6 @@ export class AppService {
     }
   }
   // #endregion Modal
-
 }
 
 export const app = new AppService();

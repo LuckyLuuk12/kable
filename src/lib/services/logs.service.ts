@@ -6,11 +6,7 @@ export class LogsService implements Service {
     // No-op for now. Keep service boundary for log-related wiring.
   }
 
-  emitLauncherEvent(
-    message: string,
-    level: "info" | "warn" | "error" | "debug" = "info",
-    instanceId?: string,
-  ) {
+  emitLauncherEvent(message: string, level: "info" | "warn" | "error" | "debug" = "info", instanceId?: string) {
     LogsManager.addLauncherLog(message, level, instanceId);
   }
 

@@ -86,9 +86,7 @@ function handleWheel(event: WheelEvent) {
   if (sortedInstallations.length === 0) return;
 
   const delta = event.deltaY;
-  const selectedIndex = sortedInstallations.findIndex(
-    (inst) => inst.id === selectedId,
-  );
+  const selectedIndex = sortedInstallations.findIndex((inst) => inst.id === selectedId);
 
   if (delta > 0) {
     // Scroll down - select next installation
@@ -96,9 +94,7 @@ function handleWheel(event: WheelEvent) {
     selectInstallation(sortedInstallations[nextIndex]);
   } else if (delta < 0) {
     // Scroll up - select previous installation
-    const prevIndex =
-      (selectedIndex - 1 + sortedInstallations.length) %
-      sortedInstallations.length;
+    const prevIndex = (selectedIndex - 1 + sortedInstallations.length) % sortedInstallations.length;
     selectInstallation(sortedInstallations[prevIndex]);
   }
 
@@ -110,17 +106,13 @@ function handleKeydown(event: KeyboardEvent) {
   if (event.key === "ArrowUp" || event.key === "ArrowDown") {
     event.preventDefault();
 
-    const selectedIndex = sortedInstallations.findIndex(
-      (inst) => inst.id === selectedId,
-    );
+    const selectedIndex = sortedInstallations.findIndex((inst) => inst.id === selectedId);
     let newIndex = selectedIndex;
 
     if (event.key === "ArrowDown") {
       newIndex = (selectedIndex + 1) % sortedInstallations.length;
     } else if (event.key === "ArrowUp") {
-      newIndex =
-        (selectedIndex - 1 + sortedInstallations.length) %
-        sortedInstallations.length;
+      newIndex = (selectedIndex - 1 + sortedInstallations.length) % sortedInstallations.length;
     }
 
     if (newIndex !== selectedIndex) {
@@ -149,10 +141,7 @@ function getCarouselScale(
 
   let relativePosition = currentIndex - selectedIndex;
   if (Math.abs(relativePosition) > totalItems / 2) {
-    relativePosition =
-      relativePosition > 0
-        ? relativePosition - totalItems
-        : relativePosition + totalItems;
+    relativePosition = relativePosition > 0 ? relativePosition - totalItems : relativePosition + totalItems;
   }
 
   const maxVisibleDistance = Math.min(4, Math.ceil(totalItems / 2));
@@ -169,26 +158,17 @@ function getCarouselScale(
     };
   }
 
-  const containerHeight = installationListContainer
-    ? installationListContainer.clientHeight
-    : totalItems * 120;
+  const containerHeight = installationListContainer ? installationListContainer.clientHeight : totalItems * 120;
   const baseItemHeight = 120;
-  const fitRatio = Math.min(
-    1,
-    containerHeight / Math.max(1, totalItems * baseItemHeight),
-  );
+  const fitRatio = Math.min(1, containerHeight / Math.max(1, totalItems * baseItemHeight));
 
   const spacing = 20 * (1 - fitRatio) + 8;
 
   const baseScaleFactors = [1.0, 0.85, 0.7, 0.55, 0.4];
   const scaleReduction = 1 - fitRatio * 0.3;
-  const scaleFactors = baseScaleFactors.map(
-    (s) => 1 - (1 - s) * scaleReduction,
-  );
+  const scaleFactors = baseScaleFactors.map((s) => 1 - (1 - s) * scaleReduction);
 
-  const opacityFactors = [1.0, 0.85, 0.7, 0.55, 0.4].map(
-    (o) => o * (0.9 + 0.1 * fitRatio),
-  );
+  const opacityFactors = [1.0, 0.85, 0.7, 0.55, 0.4].map((o) => o * (0.9 + 0.1 * fitRatio));
   const fontFactors = [1.0, 0.95, 0.9, 0.85, 0.8];
 
   const scale = scaleFactors[Math.min(distance, scaleFactors.length - 1)];
@@ -199,8 +179,7 @@ function getCarouselScale(
   const distanceNorm = Math.min(distance, 4) / 4;
   const compressionFloor = 0.5;
   const compression = compressionFloor + (1 - compressionFloor) * distanceNorm;
-  const translateY =
-    relativePosition * (itemHeight * scale + spacing * compression);
+  const translateY = relativePosition * (itemHeight * scale + spacing * compression);
 
   const zIndex = 100 - distance;
 
@@ -209,20 +188,10 @@ function getCarouselScale(
 
 // Loader styling helpers
 $: loaderIcons = Object.fromEntries(
-  $installations.map((installation) => [
-    installation.id,
-    InstallationService.getLoaderIcon(
-      InstallationService.getVersionData(installation).loader,
-    ),
-  ]),
+  $installations.map((installation) => [installation.id, InstallationService.getLoaderIcon(InstallationService.getVersionData(installation).loader)]),
 );
 $: loaderColors = Object.fromEntries(
-  $installations.map((installation) => [
-    installation.id,
-    InstallationService.getLoaderColor(
-      InstallationService.getVersionData(installation).loader,
-    ),
-  ]),
+  $installations.map((installation) => [installation.id, InstallationService.getLoaderColor(InstallationService.getVersionData(installation).loader)]),
 );
 
 // Create Global pseudo-installation
@@ -267,18 +236,11 @@ let loadedInstallationId: string | null = null;
 
 // Reactively update currentInstallation and packs
 $: {
-  const inst =
-    selectedId === "global"
-      ? globalInstallation
-      : get(installations).find((i) => i.id === selectedId) || null;
+  const inst = selectedId === "global" ? globalInstallation : get(installations).find((i) => i.id === selectedId) || null;
   currentInstallation = inst;
   selectedInstallation.set(inst);
 
-  if (
-    currentInstallation &&
-    currentInstallation.id !== loadedInstallationId &&
-    !loading
-  ) {
+  if (currentInstallation && currentInstallation.id !== loadedInstallationId && !loading) {
     loadedInstallationId = currentInstallation.id;
     loadResourcePacks(currentInstallation);
   } else if (!currentInstallation) {
@@ -324,9 +286,7 @@ $: orderedPacks =
   packMergingEnabled && currentPackOrder.length > 0
     ? (() => {
         const ordered = [];
-        const packMap = new Map(
-          packs.map((p) => [p.file_name, { ...p, id: p.file_name }]),
-        );
+        const packMap = new Map(packs.map((p) => [p.file_name, { ...p, id: p.file_name }]));
 
         // Add packs in specified order
         for (const fileName of currentPackOrder) {
@@ -357,11 +317,7 @@ $: filteredPacks = orderedPacks.filter((pack) => {
     const desc = info?.description || "";
     const file = pack.file_name;
 
-    return (
-      fuzzyMatch(name, searchQuery) ||
-      fuzzyMatch(desc, searchQuery) ||
-      fuzzyMatch(file, searchQuery)
-    );
+    return fuzzyMatch(name, searchQuery) || fuzzyMatch(desc, searchQuery) || fuzzyMatch(file, searchQuery);
   }
   return true;
 });
@@ -419,17 +375,13 @@ async function loadResourcePacks(installation: KableInstallation) {
 
       // Ensure all merged packs are in currentPackOrder
       // Add any merged packs that aren't in the order yet (append to end)
-      const missingFromOrder = mergedPacks.filter(
-        (pack) => !currentPackOrder.includes(pack),
-      );
+      const missingFromOrder = mergedPacks.filter((pack) => !currentPackOrder.includes(pack));
       if (missingFromOrder.length > 0) {
         currentPackOrder = [...currentPackOrder, ...missingFromOrder];
       }
 
       // Remove any packs from order that are no longer merged
-      currentPackOrder = currentPackOrder.filter((pack) =>
-        mergedPacks.includes(pack),
-      );
+      currentPackOrder = currentPackOrder.filter((pack) => mergedPacks.includes(pack));
 
       originalPackOrder = [...currentPackOrder];
     }
@@ -457,12 +409,7 @@ async function confirmOrder() {
 
   savingOrder = true;
   try {
-    await installationsApi.updateResourcePackSettings(
-      currentInstallation.id,
-      packMergingEnabled,
-      currentPackOrder,
-      mergedPacks,
-    );
+    await installationsApi.updateResourcePackSettings(currentInstallation.id, packMergingEnabled, currentPackOrder, mergedPacks);
 
     originalPackOrder = [...currentPackOrder];
     originalMergedPacks = [...mergedPacks];
@@ -484,9 +431,7 @@ async function moveToMerge(packFileName: string) {
   if (!currentInstallation || currentInstallation.id === "global") return;
 
   try {
-    const dedicatedFolder =
-      currentInstallation.dedicated_resource_pack_folder ||
-      currentInstallation.id;
+    const dedicatedFolder = currentInstallation.dedicated_resource_pack_folder || currentInstallation.id;
 
     await import("$lib/api/resourcepacks").then((api) =>
       api.movePackToMerged(
@@ -510,9 +455,7 @@ async function moveToIndividual(packFileName: string) {
   if (!currentInstallation || currentInstallation.id === "global") return;
 
   try {
-    const dedicatedFolder =
-      currentInstallation.dedicated_resource_pack_folder ||
-      currentInstallation.id;
+    const dedicatedFolder = currentInstallation.dedicated_resource_pack_folder || currentInstallation.id;
 
     await import("$lib/api/resourcepacks").then((api) =>
       api.movePackToIndividual(
@@ -533,9 +476,7 @@ async function moveToIndividual(packFileName: string) {
 }
 
 function checkForChanges() {
-  const orderChanged =
-    currentPackOrder.length !== originalPackOrder.length ||
-    currentPackOrder.some((name, idx) => name !== originalPackOrder[idx]);
+  const orderChanged = currentPackOrder.length !== originalPackOrder.length || currentPackOrder.some((name, idx) => name !== originalPackOrder[idx]);
 
   const mergedChanged =
     mergedPacks.length !== originalMergedPacks.length ||
@@ -556,9 +497,7 @@ function handleDndFinalize(e: CustomEvent<DndEvent>) {
   const { items } = e.detail;
   // Update items and order after drop
   mergePacksItems = items as any[];
-  currentPackOrder = mergePacksItems.map((p: any) =>
-    typeof p === "string" ? p : p.file_name,
-  );
+  currentPackOrder = mergePacksItems.map((p: any) => (typeof p === "string" ? p : p.file_name));
 
   checkForChanges();
 }
@@ -580,32 +519,18 @@ onMount(() => {
     <!-- Left sidebar: Installation carousel -->
     <div class="installation-sidebar">
       <h2>Installations</h2>
-      <div
-        class="installation-carousel"
-        bind:this={installationListContainer}
-        on:wheel={handleWheel}
-        on:keydown={handleKeydown}
-        tabindex="-1"
-        role="listbox">
+      <div class="installation-carousel" bind:this={installationListContainer} on:wheel={handleWheel} on:keydown={handleKeydown} tabindex="-1" role="listbox">
         <div class="carousel-container">
           {#each sortedInstallations as installation, index}
-            {@const selectedIndex = sortedInstallations.findIndex(
-              (inst) => inst.id === selectedId,
-            )}
-            {@const carouselEffects = getCarouselScale(
-              index,
-              selectedIndex >= 0 ? selectedIndex : 0,
-              sortedInstallations.length,
-            )}
+            {@const selectedIndex = sortedInstallations.findIndex((inst) => inst.id === selectedId)}
+            {@const carouselEffects = getCarouselScale(index, selectedIndex >= 0 ? selectedIndex : 0, sortedInstallations.length)}
             {#if carouselEffects.visible}
               <div
                 class="installation-item"
                 class:selected={installation.id === selectedId}
                 data-installation-id={installation.id}
                 style="
-              background: linear-gradient(135deg, {loaderColors[
-                  installation.id
-                ]}22 0%, {loaderColors[installation.id]}08 40%); 
+              background: linear-gradient(135deg, {loaderColors[installation.id]}22 0%, {loaderColors[installation.id]}08 40%); 
               --loader-color: {loaderColors[installation.id]}; 
               --loader-icon: '{loaderIcons[installation.id]}';
               --carousel-scale: {carouselEffects.scale};
@@ -617,19 +542,17 @@ onMount(() => {
               z-index: {carouselEffects.zIndex};
             "
                 on:click={() => selectInstallation(installation)}
-                on:keydown={(e) =>
-                  e.key === "Enter" && selectInstallation(installation)}
+                on:keydown={(e) => e.key === "Enter" && selectInstallation(installation)}
                 tabindex="0"
-                role="button">
+                role="button"
+              >
                 <div class="installation-icon">
                   <Icon name={loaderIcons[installation.id]} size="md" />
                 </div>
                 <div class="installation-meta">
                   <div class="installation-name">{installation.name}</div>
                   <div class="installation-details">
-                    <span class="installation-version"
-                      >{InstallationService.getVersionData(installation)
-                        .version_id}</span>
+                    <span class="installation-version">{InstallationService.getVersionData(installation).version_id}</span>
                   </div>
                 </div>
               </div>
@@ -645,16 +568,9 @@ onMount(() => {
         <div class="search-controls">
           <div class="search-input-wrapper">
             <span class="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Search resource packs (fuzzy search enabled)..."
-              bind:value={searchQuery}
-              class="search-input" />
+            <input type="text" placeholder="Search resource packs (fuzzy search enabled)..." bind:value={searchQuery} class="search-input" />
             {#if searchQuery}
-              <button
-                class="clear-btn"
-                on:click={() => (searchQuery = "")}
-                title="Clear search">✕</button>
+              <button class="clear-btn" on:click={() => (searchQuery = "")} title="Clear search">✕</button>
             {/if}
           </div>
         </div>
@@ -690,8 +606,7 @@ onMount(() => {
                   <span class="count-label">packs</span>
                 {:else}
                   <span class="total-count">{packs.length}</span>
-                  <span class="count-label"
-                    >{packs.length === 1 ? "pack" : "packs"}</span>
+                  <span class="count-label">{packs.length === 1 ? "pack" : "packs"}</span>
                 {/if}
               </div>
             {/if}
@@ -711,10 +626,7 @@ onMount(() => {
                   {/if}
                 </span>
               </div>
-              <button
-                class="confirm-order-btn"
-                on:click={confirmOrder}
-                disabled={savingOrder}>
+              <button class="confirm-order-btn" on:click={confirmOrder} disabled={savingOrder}>
                 {#if savingOrder}
                   <Icon name="refresh" size="sm" className="spin" />
                   <span>Saving...</span>
@@ -753,9 +665,7 @@ onMount(() => {
                     </div>
                     <div class="pack-count">{individualPacks.length}</div>
                   </div>
-                  <div class="container-hint">
-                    These packs load separately (not merged)
-                  </div>
+                  <div class="container-hint">These packs load separately (not merged)</div>
                   <div class="pack-list">
                     {#if individualPacks.length === 0}
                       <div class="empty-container">
@@ -769,15 +679,10 @@ onMount(() => {
                             {pack}
                             installation={currentInstallation}
                             extendedInfo={extendedPackInfo[pack.file_name]}
-                            onpackchanged={handlePackChanged} />
-                          <button
-                            class="move-btn"
-                            on:click={() => moveToMerge(pack.file_name)}
-                            title="Move to merge list">
-                            <Icon
-                              name="arrow-right"
-                              size="sm"
-                              forceType="svg" />
+                            onpackchanged={handlePackChanged}
+                          />
+                          <button class="move-btn" on:click={() => moveToMerge(pack.file_name)} title="Move to merge list">
+                            <Icon name="arrow-right" size="sm" forceType="svg" />
                           </button>
                         </div>
                       {/each}
@@ -794,9 +699,7 @@ onMount(() => {
                     </div>
                     <div class="pack-count">{mergePacksItems.length}</div>
                   </div>
-                  <div class="container-hint">
-                    Drag to reorder • Top = highest priority
-                  </div>
+                  <div class="container-hint">Drag to reorder • Top = highest priority</div>
                   <div class="pack-list">
                     {#if mergePacksItems.length === 0}
                       <div class="empty-container">
@@ -814,7 +717,8 @@ onMount(() => {
                           dropTargetStyle: {},
                         }}
                         on:consider={handleDndConsider}
-                        on:finalize={handleDndFinalize}>
+                        on:finalize={handleDndFinalize}
+                      >
                         {#each mergePacksItems as pack (pack.id)}
                           <div class="pack-item draggable">
                             <div class="drag-handle">
@@ -824,15 +728,10 @@ onMount(() => {
                               {pack}
                               installation={currentInstallation}
                               extendedInfo={extendedPackInfo[pack.file_name]}
-                              onpackchanged={handlePackChanged} />
-                            <button
-                              class="move-btn"
-                              on:click={() => moveToIndividual(pack.file_name)}
-                              title="Move to individual list">
-                              <Icon
-                                name="arrow-left"
-                                size="sm"
-                                forceType="svg" />
+                              onpackchanged={handlePackChanged}
+                            />
+                            <button class="move-btn" on:click={() => moveToIndividual(pack.file_name)} title="Move to individual list">
+                              <Icon name="arrow-left" size="sm" forceType="svg" />
                             </button>
                           </div>
                         {/each}
@@ -849,7 +748,8 @@ onMount(() => {
                     {pack}
                     installation={currentInstallation}
                     extendedInfo={extendedPackInfo[pack.file_name]}
-                    onpackchanged={handlePackChanged} />
+                    onpackchanged={handlePackChanged}
+                  />
                 {/each}
               </div>
             {/if}
@@ -885,8 +785,7 @@ onMount(() => {
   background: var(--container);
   border-radius: 0.75rem;
   border: 1px solid #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
-  box-shadow: 0 2px 12px
-    #{"color-mix(in srgb, var(--dark-900), 6%, transparent)"};
+  box-shadow: 0 2px 12px #{"color-mix(in srgb, var(--dark-900), 6%, transparent)"};
   overflow: hidden;
 }
 
@@ -900,18 +799,13 @@ onMount(() => {
   h2 {
     margin: 0;
     padding: 1.5rem 1.5rem 1rem 1.5rem;
-    background: linear-gradient(
-      135deg,
-      var(--primary) 0%,
-      var(--secondary) 100%
-    );
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
     font-weight: 700;
     font-size: 1.4em;
-    border-bottom: 1px solid
-      #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
+    border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
   }
 }
 
@@ -958,19 +852,14 @@ onMount(() => {
   transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
   &:hover {
-    border-color: var(
-      --loader-color,
-      #{"color-mix(in srgb, var(--primary), 15%, transparent)"}
-    );
-    box-shadow: 0 2px 8px
-      #{"color-mix(in srgb, var(--loader-color, var(--primary)), 10%, transparent)"};
+    border-color: var(--loader-color, #{"color-mix(in srgb, var(--primary), 15%, transparent)"});
+    box-shadow: 0 2px 8px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 10%, transparent)"};
   }
 
   &.selected {
     border-color: var(--loader-color, var(--primary));
     box-shadow:
-      0 4px 16px
-        #{"color-mix(in srgb, var(--loader-color, var(--primary)), 15%, transparent)"},
+      0 4px 16px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 15%, transparent)"},
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
     z-index: 10;
 
@@ -978,8 +867,7 @@ onMount(() => {
 
     &:hover {
       box-shadow:
-        0 6px 20px
-          #{"color-mix(in srgb, var(--loader-color, var(--primary)), 20%, transparent)"},
+        0 6px 20px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 20%, transparent)"},
         0 0 0 3px #{"color-mix(in srgb, var(--green-800), 30%, transparent)"},
         inset 0 1px 0 #{"color-mix(in srgb, #fff, 15%, transparent)"};
     }
@@ -992,20 +880,14 @@ onMount(() => {
       transform: translateY(-50%);
       width: 4px;
       height: 60%;
-      background: linear-gradient(
-        to bottom,
-        var(--green-700),
-        var(--green-900)
-      );
-      box-shadow: 0 0 8px
-        #{"color-mix(in srgb, var(--green-800), 40%, transparent)"};
+      background: linear-gradient(to bottom, var(--green-700), var(--green-900));
+      box-shadow: 0 0 8px #{"color-mix(in srgb, var(--green-800), 40%, transparent)"};
     }
   }
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px
-      #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
+    box-shadow: 0 0 0 2px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
   }
 }
 
@@ -1018,21 +900,14 @@ onMount(() => {
   justify-content: center;
   background: var(--container);
   color: var(--loader-color, var(--primary));
-  box-shadow: 0 2px 6px
-    #{"color-mix(in srgb, var(--dark-900), 8%, transparent)"};
+  box-shadow: 0 2px 6px #{"color-mix(in srgb, var(--dark-900), 8%, transparent)"};
   flex-shrink: 0;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
   .installation-item.selected & {
-    background: linear-gradient(
-      135deg,
-      var(--loader-color, var(--primary)) 0%,
-      #{"color-mix(in srgb, var(--loader-color, var(--secondary)), 80%, transparent)"}
-        100%
-    );
+    background: linear-gradient(135deg, var(--loader-color, var(--primary)) 0%, #{"color-mix(in srgb, var(--loader-color, var(--secondary)), 80%, transparent)"} 100%);
     color: white;
-    box-shadow: 0 3px 12px
-      #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
+    box-shadow: 0 3px 12px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
     transform: scale(1.05);
   }
 }
@@ -1059,8 +934,7 @@ onMount(() => {
   .installation-item.selected & {
     color: var(--loader-color, var(--primary));
     font-weight: 700;
-    text-shadow: 0 0 8px
-      #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
+    text-shadow: 0 0 8px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
   }
 }
 
@@ -1097,11 +971,7 @@ onMount(() => {
 }
 
 .packs-header {
-  background: linear-gradient(
-    135deg,
-    var(--card) 0%,
-    color-mix(in srgb, var(--primary), 2%, transparent) 100%
-  );
+  background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--primary), 2%, transparent) 100%);
   border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
   padding: 1.5rem 1.5rem 0.5rem;
 
@@ -1132,11 +1002,7 @@ onMount(() => {
     justify-content: space-between;
     margin: 0.75rem 0 0.5rem 0;
     padding: 0.75rem 1rem;
-    background: linear-gradient(
-      135deg,
-      #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 0%,
-      #{"color-mix(in srgb, var(--secondary), 3%, transparent)"} 100%
-    );
+    background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 3%, transparent)"} 100%);
     border: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
     border-radius: 0.5rem;
 
@@ -1156,23 +1022,17 @@ onMount(() => {
     padding: 0.5em 1.2em;
     border-radius: 0.5rem;
     border: 1px solid var(--green-700);
-    background: linear-gradient(
-      135deg,
-      var(--green-700) 0%,
-      var(--green-800) 100%
-    );
+    background: linear-gradient(135deg, var(--green-700) 0%, var(--green-800) 100%);
     color: white;
     font-size: 0.9em;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 8px
-      #{"color-mix(in srgb, var(--green-700), 25%, transparent)"};
+    box-shadow: 0 2px 8px #{"color-mix(in srgb, var(--green-700), 25%, transparent)"};
 
     &:hover:not(:disabled) {
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px
-        #{"color-mix(in srgb, var(--green-700), 35%, transparent)"};
+      box-shadow: 0 4px 12px #{"color-mix(in srgb, var(--green-700), 35%, transparent)"};
     }
 
     &:active:not(:disabled) {
@@ -1190,11 +1050,7 @@ onMount(() => {
   display: flex;
   align-items: center;
   gap: 0.3em;
-  background: linear-gradient(
-    135deg,
-    #{"color-mix(in srgb, var(--primary), 8%, transparent)"} 0%,
-    #{"color-mix(in srgb, var(--secondary), 4%, transparent)"} 100%
-  );
+  background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 8%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 4%, transparent)"} 100%);
   border: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
   border-radius: 1rem;
   padding: 0.4em 0.8em;
@@ -1202,8 +1058,7 @@ onMount(() => {
   font-weight: 500;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 1px 4px
-    #{"color-mix(in srgb, var(--dark-900), 6%, transparent)"};
+  box-shadow: 0 1px 4px #{"color-mix(in srgb, var(--dark-900), 6%, transparent)"};
 
   .filtered-count {
     color: var(--primary);
@@ -1391,17 +1246,8 @@ onMount(() => {
     border-color: color-mix(in srgb, var(--tertiary), 15%, transparent);
 
     .container-header {
-      background: linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--tertiary), 8%, transparent) 0%,
-        color-mix(in srgb, var(--tertiary), 3%, transparent) 100%
-      );
-      border-bottom-color: color-mix(
-        in srgb,
-        var(--tertiary),
-        12%,
-        transparent
-      );
+      background: linear-gradient(135deg, color-mix(in srgb, var(--tertiary), 8%, transparent) 0%, color-mix(in srgb, var(--tertiary), 3%, transparent) 100%);
+      border-bottom-color: color-mix(in srgb, var(--tertiary), 12%, transparent);
 
       .header-title {
         color: var(--tertiary);
@@ -1419,11 +1265,7 @@ onMount(() => {
     border-color: color-mix(in srgb, var(--primary), 15%, transparent);
 
     .container-header {
-      background: linear-gradient(
-        135deg,
-        color-mix(in srgb, var(--primary), 8%, transparent) 0%,
-        color-mix(in srgb, var(--secondary), 4%, transparent) 100%
-      );
+      background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 8%, transparent) 0%, color-mix(in srgb, var(--secondary), 4%, transparent) 100%);
       border-bottom-color: color-mix(in srgb, var(--primary), 12%, transparent);
 
       .header-title {

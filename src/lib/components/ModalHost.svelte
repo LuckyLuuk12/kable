@@ -26,7 +26,8 @@ function createContext(id: string) {
       e.preventDefault();
       app.dismissTop();
     }
-  }}>
+  }}
+>
   {#each app.stack as instance, index (instance.id)}
     {@const context = createContext(instance.id)}
     {@const _ = setContext(MODAL_CONTEXT, context)}
@@ -42,8 +43,8 @@ function createContext(id: string) {
         }
       }}
       role="button"
-      tabindex="0">
-    </div>
+      tabindex="0"
+    ></div>
 
     <div class="modal-container" style:z-index={1001 + index * 2}>
       <instance.component {...instance.props} />

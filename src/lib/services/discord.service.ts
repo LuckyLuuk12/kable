@@ -140,11 +140,7 @@ export class DiscordService implements Service {
   /**
    * Convenience: auto-update based on app state
    */
-  async syncFromApp(state: {
-    profile?: KableProfile | null;
-    section?: string;
-    mode: "idle" | "browse" | "play";
-  }) {
+  async syncFromApp(state: { profile?: KableProfile | null; section?: string; mode: "idle" | "browse" | "play" }) {
     if (!this.enabled) return;
 
     switch (state.mode) {

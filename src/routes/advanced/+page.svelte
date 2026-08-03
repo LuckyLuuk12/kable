@@ -74,12 +74,8 @@ function startEditingSymlink(symlink: SymlinkInfo) {
   editSource = symlink.source;
   // Extract parent folder from full destination path
   const destPath = symlink.destination;
-  const lastSlash = Math.max(
-    destPath.lastIndexOf("/"),
-    destPath.lastIndexOf("\\"),
-  );
-  editDestinationParent =
-    lastSlash > 0 ? destPath.substring(0, lastSlash) : destPath;
+  const lastSlash = Math.max(destPath.lastIndexOf("/"), destPath.lastIndexOf("\\"));
+  editDestinationParent = lastSlash > 0 ? destPath.substring(0, lastSlash) : destPath;
   editInstallationId = symlink.installation_id;
 }
 
@@ -96,13 +92,7 @@ async function saveEdit() {
 
   editError = null;
   try {
-    await SymlinksAPI.updateSymlink(
-      editingSymlink.id,
-      editingSymlink.destination,
-      editSource,
-      editDestinationParent,
-      editInstallationId,
-    );
+    await SymlinksAPI.updateSymlink(editingSymlink.id, editingSymlink.destination, editSource, editDestinationParent, editInstallationId);
     cancelEditing();
     await loadSymlinks();
   } catch (e) {
@@ -157,18 +147,13 @@ async function pickDestinationFolder() {
 
 async function handleCreateSymlink() {
   if (!newSymlinkSource || !newSymlinkDestinationParent) {
-    modalError =
-      "Please fill in both source and destination parent folder paths";
+    modalError = "Please fill in both source and destination parent folder paths";
     return;
   }
 
   modalError = null;
   try {
-    await SymlinksAPI.createCustomSymlink(
-      newSymlinkSource,
-      newSymlinkDestinationParent,
-      newSymlinkInstallationId,
-    );
+    await SymlinksAPI.createCustomSymlink(newSymlinkSource, newSymlinkDestinationParent, newSymlinkInstallationId);
     showCreateModal = false;
     newSymlinkSource = "";
     newSymlinkDestinationParent = "";
@@ -268,20 +253,11 @@ async function copyToClipboard(text: string) {
 
   <!-- Tab Navigation -->
   <nav class="tab-nav">
-    <button
-      class="tab-button"
-      class:active={activeTab === "symlinks"}
-      on:click={() => (activeTab = "symlinks")}
-    >
+    <button class="tab-button" class:active={activeTab === "symlinks"} on:click={() => (activeTab = "symlinks")}>
       <Icon name="link" />
       Symlink Manager
     </button>
-    <button
-      class="tab-button"
-      class:active={activeTab === "other"}
-      on:click={() => (activeTab = "other")}
-      disabled
-    >
+    <button class="tab-button" class:active={activeTab === "other"} on:click={() => (activeTab = "other")} disabled>
       <Icon name="settings" />
       Other Features (Coming Soon)
     </button>
@@ -293,13 +269,8 @@ async function copyToClipboard(text: string) {
       <div class="section-header">
         <div>
           <h2>Symlink Manager</h2>
-          <p>
-            Manage symbolic links for resource packs, shaders, worlds, mods, and
-            custom files
-          </p>
-          <p class="hint-text">
-            All symlinks in your .minecraft folder are automatically detected
-          </p>
+          <p>Manage symbolic links for resource packs, shaders, worlds, mods, and custom files</p>
+          <p class="hint-text">All symlinks in your .minecraft folder are automatically detected</p>
         </div>
         <button class="btn-primary" on:click={() => (showCreateModal = true)}>
           <Icon name="plus" forceType="svg" />
@@ -322,10 +293,7 @@ async function copyToClipboard(text: string) {
         <div class="empty-state">
           <Icon name="link" size="xl" />
           <p>No symlinks found</p>
-          <p class="empty-hint">
-            Symlinks are automatically created when you launch installations
-            with dedicated folders
-          </p>
+          <p class="empty-hint">Symlinks are automatically created when you launch installations with dedicated folders</p>
         </div>
       {:else}
         <div class="symlinks-table">
@@ -343,10 +311,7 @@ async function copyToClipboard(text: string) {
             </thead>
             <tbody>
               {#each symlinks as symlink}
-                <tr
-                  class:disabled={symlink.is_disabled}
-                  class:editing={editingSymlink === symlink}
-                >
+                <tr class:disabled={symlink.is_disabled} class:editing={editingSymlink === symlink}>
                   <td>
                     {#if symlink.is_disabled}
                       <span class="status-badge status-disabled">Disabled</span>
@@ -359,33 +324,16 @@ async function copyToClipboard(text: string) {
                   <td class="path-cell">
                     {#if editingSymlink === symlink}
                       <div class="path-edit-wrapper">
-                        <input
-                          type="text"
-                          class="path-input"
-                          bind:value={editSource}
-                          placeholder="Source path"
-                        />
-                        <button
-                          class="btn-icon-small"
-                          on:click={pickSourceFolder}
-                          title="Pick folder"
-                        >
+                        <input type="text" class="path-input" bind:value={editSource} placeholder="Source path" />
+                        <button class="btn-icon-small" on:click={pickSourceFolder} title="Pick folder">
                           <Icon name="folder" size="sm" />
                         </button>
-                        <button
-                          class="btn-icon-small"
-                          on:click={pickSourceFile}
-                          title="Pick file"
-                        >
+                        <button class="btn-icon-small" on:click={pickSourceFile} title="Pick file">
                           <Icon name="file" size="sm" />
                         </button>
                       </div>
                     {:else}
-                      <button
-                        class="path-button"
-                        title="Click to copy: {symlink.source}"
-                        on:click={() => copyToClipboard(symlink.source)}
-                      >
+                      <button class="path-button" title="Click to copy: {symlink.source}" on:click={() => copyToClipboard(symlink.source)}>
                         {truncatePath(symlink.source)}
                       </button>
                     {/if}
@@ -393,50 +341,28 @@ async function copyToClipboard(text: string) {
                   <td class="path-cell">
                     {#if editingSymlink === symlink}
                       <div class="path-edit-wrapper">
-                        <input
-                          type="text"
-                          class="path-input"
-                          bind:value={editDestinationParent}
-                          placeholder="Destination parent folder"
-                        />
-                        <button
-                          class="btn-icon-small"
-                          on:click={pickDestinationFolder}
-                          title="Pick parent folder"
-                        >
+                        <input type="text" class="path-input" bind:value={editDestinationParent} placeholder="Destination parent folder" />
+                        <button class="btn-icon-small" on:click={pickDestinationFolder} title="Pick parent folder">
                           <Icon name="folder" size="sm" />
                         </button>
                       </div>
                     {:else}
-                      <button
-                        class="path-button"
-                        title="Click to copy: {symlink.destination}"
-                        on:click={() => copyToClipboard(symlink.destination)}
-                      >
+                      <button class="path-button" title="Click to copy: {symlink.destination}" on:click={() => copyToClipboard(symlink.destination)}>
                         {truncatePath(symlink.destination)}
                       </button>
                     {/if}
                   </td>
                   <td>
-                    <span
-                      class="badge"
-                      class:badge-global={symlink.is_global}
-                      class:badge-local={!symlink.is_global}
-                    >
+                    <span class="badge" class:badge-global={symlink.is_global} class:badge-local={!symlink.is_global}>
                       {symlink.is_global ? "Global" : "Installation"}
                     </span>
                   </td>
                   <td>
                     {#if editingSymlink === symlink}
-                      <select
-                        class="path-input"
-                        bind:value={editInstallationId}
-                      >
+                      <select class="path-input" bind:value={editInstallationId}>
                         <option value={null}>Global (Always Active)</option>
                         {#each installations as installation}
-                          <option value={installation.id}
-                            >{installation.name}</option
-                          >
+                          <option value={installation.id}>{installation.name}</option>
                         {/each}
                       </select>
                     {:else if symlink.is_global}
@@ -455,48 +381,24 @@ async function copyToClipboard(text: string) {
                     {/if}
                     <div class="actions">
                       {#if editingSymlink === symlink}
-                        <button
-                          class="btn-icon btn-success"
-                          title="Save changes"
-                          on:click={saveEdit}
-                        >
+                        <button class="btn-icon btn-success" title="Save changes" on:click={saveEdit}>
                           <Icon name="check" forceType="svg" />
                         </button>
-                        <button
-                          class="btn-icon"
-                          title="Cancel"
-                          on:click={cancelEditing}
-                        >
+                        <button class="btn-icon" title="Cancel" on:click={cancelEditing}>
                           <Icon name="x" forceType="svg" />
                         </button>
                       {:else}
-                        <button
-                          class="btn-icon"
-                          title="Edit paths"
-                          on:click={() => startEditingSymlink(symlink)}
-                        >
+                        <button class="btn-icon" title="Edit paths" on:click={() => startEditingSymlink(symlink)}>
                           <Icon name="edit" forceType="svg" />
                         </button>
-                        <button
-                          class="btn-icon"
-                          title={symlink.is_disabled
-                            ? "Enable symlink"
-                            : "Disable symlink"}
-                          on:click={() => handleToggleDisabled(symlink)}
-                        >
-                          <Icon
-                            name={symlink.is_disabled ? "eye" : "eye-off"}
-                            forceType="svg"
-                          />
+                        <button class="btn-icon" title={symlink.is_disabled ? "Enable symlink" : "Disable symlink"} on:click={() => handleToggleDisabled(symlink)}>
+                          <Icon name={symlink.is_disabled ? "eye" : "eye-off"} forceType="svg" />
                         </button>
                       {/if}
                     </div>
                   </td>
                   <td>
-                    <div
-                      class="type-cell"
-                      title={getSymlinkTypeLabel(symlink.symlink_type)}
-                    >
+                    <div class="type-cell" title={getSymlinkTypeLabel(symlink.symlink_type)}>
                       <Icon name={getSymlinkTypeIcon(symlink.symlink_type)} />
                     </div>
                   </td>
@@ -548,26 +450,11 @@ async function copyToClipboard(text: string) {
         <div class="form-group">
           <label for="source">Source Path</label>
           <div class="input-with-buttons">
-            <input
-              id="source"
-              type="text"
-              bind:value={newSymlinkSource}
-              placeholder="C:\Path\to\source"
-            />
-            <button
-              type="button"
-              class="btn-icon"
-              on:click={pickSourceFolder}
-              title="Select folder"
-            >
+            <input id="source" type="text" bind:value={newSymlinkSource} placeholder="C:\Path\to\source" />
+            <button type="button" class="btn-icon" on:click={pickSourceFolder} title="Select folder">
               <Icon name="folder" size="sm" />
             </button>
-            <button
-              type="button"
-              class="btn-icon"
-              on:click={pickSourceFile}
-              title="Select file"
-            >
+            <button type="button" class="btn-icon" on:click={pickSourceFile} title="Select file">
               <Icon name="file" size="sm" />
             </button>
           </div>
@@ -576,25 +463,12 @@ async function copyToClipboard(text: string) {
         <div class="form-group">
           <label for="destination">Destination Parent Folder</label>
           <div class="input-with-buttons">
-            <input
-              id="destination"
-              type="text"
-              bind:value={newSymlinkDestinationParent}
-              placeholder="C:\Users\YourName\AppData\Roaming\.minecraft\resourcepacks"
-            />
-            <button
-              type="button"
-              class="btn-icon"
-              on:click={pickDestinationFolder}
-              title="Select parent folder"
-            >
+            <input id="destination" type="text" bind:value={newSymlinkDestinationParent} placeholder="C:\Users\YourName\AppData\Roaming\.minecraft\resourcepacks" />
+            <button type="button" class="btn-icon" on:click={pickDestinationFolder} title="Select parent folder">
               <Icon name="folder" size="sm" />
             </button>
           </div>
-          <p class="hint">
-            The parent folder where the symlink will be created (symlink will
-            have the same name as source)
-          </p>
+          <p class="hint">The parent folder where the symlink will be created (symlink will have the same name as source)</p>
         </div>
         <div class="form-group">
           <label for="installation">Installation (Optional)</label>
@@ -604,10 +478,7 @@ async function copyToClipboard(text: string) {
               <option value={installation.id}>{installation.name}</option>
             {/each}
           </select>
-          <p class="hint">
-            Choose which installation this symlink is active for, or leave as
-            Global to always apply
-          </p>
+          <p class="hint">Choose which installation this symlink is active for, or leave as Global to always apply</p>
         </div>
       </div>
       <div class="modal-footer">
@@ -618,9 +489,7 @@ async function copyToClipboard(text: string) {
             modalError = null;
           }}>Cancel</button
         >
-        <button class="btn-primary" on:click={handleCreateSymlink}
-          >Create</button
-        >
+        <button class="btn-primary" on:click={handleCreateSymlink}>Create</button>
       </div>
     </div>
   </div>
@@ -681,11 +550,7 @@ async function copyToClipboard(text: string) {
   }
 
   &.active {
-    background: linear-gradient(
-      135deg,
-      var(--primary) 0%,
-      var(--secondary) 100%
-    );
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
     color: var(--text-white);
     border-color: var(--text-transparent);
     box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 25%, transparent);

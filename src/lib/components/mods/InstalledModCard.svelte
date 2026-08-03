@@ -18,13 +18,7 @@ Shows mod icon, name, version, and provides actions:
 ```
 -->
 <script lang="ts">
-import type {
-  ExtendedModInfo,
-  KableInstallation,
-  ModInfoKind,
-  ModJarInfo,
-  ModrinthVersion,
-} from "$lib";
+import type { ExtendedModInfo, KableInstallation, ModInfoKind, ModJarInfo, ModrinthVersion } from "$lib";
 import { Icon, NotificationService, ProviderKind, VersionUtils } from "$lib";
 import { clickSound, errorSound } from "$lib/actions";
 import * as installationsApi from "$lib/api/installations";
@@ -52,17 +46,9 @@ export let mod: ModJarInfo;
 export let installation: KableInstallation;
 export let extendedInfo: ExtendedModInfo | null = null;
 export let onmodchanged: (() => void) | undefined = undefined;
-export let onopenversions: ((event: { mod: ModJarInfo }) => void) | undefined =
+export let onopenversions: ((event: { mod: ModJarInfo }) => void) | undefined = undefined;
+export let onupdatereport: ((event: { fileName: string; hasUpdate: boolean; latestVersion?: string; versionId?: string; mod?: ModJarInfo }) => void) | undefined =
   undefined;
-export let onupdatereport:
-  | ((event: {
-      fileName: string;
-      hasUpdate: boolean;
-      latestVersion?: string;
-      versionId?: string;
-      mod?: ModJarInfo;
-    }) => void)
-  | undefined = undefined;
 
 let loading = false;
 let showVersionModal = false;
@@ -86,17 +72,11 @@ let lastCheckedVersion = "";
 $: isDisabled = mod.disabled || false;
 $: displayName = mod.mod_name || mod.file_name.replace(/\.jar$/, "");
 // Prefer metadata version_number, then mod.mod_version, then fallback
-$: version =
-  modMetadata?.version_number ||
-  mod.mod_version ||
-  mod.file_name.replace(/\.jar$/, "");
+$: version = modMetadata?.version_number || mod.mod_version || mod.file_name.replace(/\.jar$/, "");
 $: iconUrl = extendedInfo?.icon_uri || null;
 
 // Reset check state if the mod file or mod.mod_version changed
-$: if (
-  mod.file_name !== lastCheckedFileName ||
-  mod.mod_version !== lastCheckedVersion
-) {
+$: if (mod.file_name !== lastCheckedFileName || mod.mod_version !== lastCheckedVersion) {
   lastCheckedFileName = mod.file_name;
   lastCheckedVersion = mod.mod_version || "";
   metadataChecked = false;
@@ -176,9 +156,7 @@ async function checkForUpdates() {
     if (!metadata) {
       metadata = await getCachedMetadata();
       if (!metadata) {
-        console.log(
-          `[InstalledModCard] No metadata for ${displayName}, skipping update check`,
-        );
+        console.log(`[InstalledModCard] No metadata for ${displayName}, skipping update check`);
       }
     }
 
@@ -187,9 +165,7 @@ async function checkForUpdates() {
     }
 
     if (!projectId) {
-      console.log(
-        `[InstalledModCard] No project ID for ${displayName}, skipping update check`,
-      );
+      console.log(`[InstalledModCard] No project ID for ${displayName}, skipping update check`);
       return;
     }
 
@@ -197,17 +173,9 @@ async function checkForUpdates() {
     const loader = extractLoader(installation.version_id);
     const gameVersion = extractGameVersion(installation.version_id);
 
-    const currentVersion =
-      metadata?.version_number || mod.mod_version || mod.file_name;
+    const currentVersion = metadata?.version_number || mod.mod_version || mod.file_name;
     const currentVersionId = metadata?.modrinth_version_id || null;
-    const updateCacheKey = [
-      installation.id,
-      projectId,
-      loader || "",
-      gameVersion || "",
-      currentVersionId || "",
-      currentVersion,
-    ].join("|");
+    const updateCacheKey = [installation.id, projectId, loader || "", gameVersion || "", currentVersionId || "", currentVersion].join("|");
 
     const applyUpdateResult = (result: UpdateCheckResult) => {
       latestVersion = result.latestVersion;
@@ -240,12 +208,7 @@ async function checkForUpdates() {
     }
 
     const checkPromise = (async (): Promise<UpdateCheckResult> => {
-      const versions = await modsApi.getProjectVersions(
-        provider,
-        projectId,
-        loader ? [loader] : undefined,
-        gameVersion ? [gameVersion] : undefined,
-      );
+      const versions = await modsApi.getProjectVersions(provider, projectId, loader ? [loader] : undefined, gameVersion ? [gameVersion] : undefined);
 
       if (!versions || versions.length === 0) {
         return {
@@ -258,10 +221,7 @@ async function checkForUpdates() {
       availableVersions = versions;
 
       const versionNumbers = versions.map((v) => v.version_number);
-      const resolvedLatestVersion = VersionUtils.findLatest(
-        versionNumbers,
-        gameVersion || undefined,
-      );
+      const resolvedLatestVersion = VersionUtils.findLatest(versionNumbers, gameVersion || undefined);
 
       if (!resolvedLatestVersion || !currentVersion) {
         return {
@@ -271,18 +231,12 @@ async function checkForUpdates() {
         };
       }
 
-      const latestVersionObj =
-        versions.find((v) => v.version_number === resolvedLatestVersion) ||
-        null;
+      const latestVersionObj = versions.find((v) => v.version_number === resolvedLatestVersion) || null;
       const resolvedHasUpdate = currentVersionId
         ? latestVersionObj
           ? latestVersionObj.id !== currentVersionId
           : false
-        : VersionUtils.isNewer(
-            resolvedLatestVersion,
-            currentVersion,
-            gameVersion || undefined,
-          );
+        : VersionUtils.isNewer(resolvedLatestVersion, currentVersion, gameVersion || undefined);
 
       return {
         hasUpdate: resolvedHasUpdate,
@@ -298,16 +252,11 @@ async function checkForUpdates() {
     updateCheckInflight.delete(updateCacheKey);
     applyUpdateResult(result);
     if (result.hasUpdate && result.latestVersion) {
-      console.log(
-        `[InstalledModCard] Update available for ${displayName}: ${currentVersion} -> ${result.latestVersion}`,
-      );
+      console.log(`[InstalledModCard] Update available for ${displayName}: ${currentVersion} -> ${result.latestVersion}`);
     }
     return;
   } catch (error) {
-    console.warn(
-      `[InstalledModCard] Failed to check for updates for ${displayName}:`,
-      error,
-    );
+    console.warn(`[InstalledModCard] Failed to check for updates for ${displayName}:`, error);
   } finally {
     checkingUpdate = false;
   }
@@ -322,19 +271,12 @@ async function toggleDisabled(event?: MouseEvent) {
 
   loading = true;
   try {
-    const newDisabledState = await installationsApi.toggleModDisabled(
-      installation,
-      mod.file_name,
-    );
+    const newDisabledState = await installationsApi.toggleModDisabled(installation, mod.file_name);
 
     // Update local state
     mod.disabled = newDisabledState;
 
-    NotificationService.success(
-      newDisabledState
-        ? `Disabled "${displayName}"`
-        : `Enabled "${displayName}"`,
-    );
+    NotificationService.success(newDisabledState ? `Disabled "${displayName}"` : `Enabled "${displayName}"`);
 
     onmodchanged?.();
   } catch (error) {
@@ -351,9 +293,7 @@ async function handleRemove(event: MouseEvent) {
   if (loading) return;
 
   // Confirm deletion
-  const confirmed = confirm(
-    `Remove "${displayName}"?\n\nThis will permanently delete the mod file.`,
-  );
+  const confirmed = confirm(`Remove "${displayName}"?\n\nThis will permanently delete the mod file.`);
   if (!confirmed) return;
 
   loading = true;
@@ -383,30 +323,20 @@ async function handleManageVersions(event: MouseEvent) {
     // PRIORITY 1: Check for Kable metadata file (exact project ID)
     if (metadata?.project_id) {
       projectId = metadata.project_id;
-      console.log(
-        `[InstalledModCard] Found metadata file with project_id: ${projectId}`,
-      );
+      console.log(`[InstalledModCard] Found metadata file with project_id: ${projectId}`);
     } else {
-      console.log(
-        `[InstalledModCard] No metadata file found for ${mod.file_name}:`,
-        "not cached/available",
-      );
+      console.log(`[InstalledModCard] No metadata file found for ${mod.file_name}:`, "not cached/available");
 
       // PRIORITY 2: Try to extract project ID from extended info page_uri
       if (extendedInfo?.page_uri) {
         const match = extendedInfo.page_uri.match(/\/mod\/([\w-]+)/);
-        projectId =
-          match?.[1] || extendedInfo.page_uri.split("/").pop() || null;
-        console.log(
-          `[InstalledModCard] Using project_id from page_uri: ${projectId}`,
-        );
+        projectId = match?.[1] || extendedInfo.page_uri.split("/").pop() || null;
+        console.log(`[InstalledModCard] Using project_id from page_uri: ${projectId}`);
       }
     }
 
     if (!projectId) {
-      NotificationService.warning(
-        `Could not find mod information for "${displayName}". Please reinstall this mod through Kable to enable version management.`,
-      );
+      NotificationService.warning(`Could not find mod information for "${displayName}". Please reinstall this mod through Kable to enable version management.`);
       return;
     }
 
@@ -438,17 +368,10 @@ async function handleManageVersions(event: MouseEvent) {
     const loader = extractLoader(installation.version_id);
     const gameVersion = extractGameVersion(installation.version_id);
 
-    const versions = await modsApi.getProjectVersions(
-      ProviderKind.Modrinth,
-      projectId,
-      loader ? [loader] : undefined,
-      gameVersion ? [gameVersion] : undefined,
-    );
+    const versions = await modsApi.getProjectVersions(ProviderKind.Modrinth, projectId, loader ? [loader] : undefined, gameVersion ? [gameVersion] : undefined);
 
     if (!versions || versions.length === 0) {
-      NotificationService.warning(
-        `No compatible versions found for "${displayName}" (${loader || "unknown loader"}, ${gameVersion || "unknown version"})`,
-      );
+      NotificationService.warning(`No compatible versions found for "${displayName}" (${loader || "unknown loader"}, ${gameVersion || "unknown version"})`);
       return;
     }
 
@@ -482,25 +405,15 @@ function extractGameVersion(versionId: string): string | null {
   return match ? match[1] : null;
 }
 
-async function handleVersionSelect(event: {
-  versionId: string;
-  versionNumber: string;
-}) {
+async function handleVersionSelect(event: { versionId: string; versionNumber: string }) {
   const { versionId, versionNumber } = event;
 
   if (!modInfoKind || !("Modrinth" in modInfoKind)) return;
 
   try {
-    await modsApi.downloadMod(
-      ProviderKind.Modrinth,
-      modInfoKind.Modrinth.project_id,
-      versionId,
-      installation,
-    );
+    await modsApi.downloadMod(ProviderKind.Modrinth, modInfoKind.Modrinth.project_id, versionId, installation);
 
-    NotificationService.success(
-      `Downloading "${displayName}" v${versionNumber}`,
-    );
+    NotificationService.success(`Downloading "${displayName}" v${versionNumber}`);
     showVersionModal = false;
     onmodchanged?.();
   } catch (error) {
@@ -529,7 +442,8 @@ function handleKeydown(event: KeyboardEvent) {
   on:keydown={handleKeydown}
   role="button"
   tabindex="0"
-  title={isDisabled ? "Click to enable" : "Click to disable"}>
+  title={isDisabled ? "Click to enable" : "Click to disable"}
+>
   <!-- Mod Icon and Name -->
   <div class="mod-info">
     <div class="mod-icon-wrapper">
@@ -554,9 +468,7 @@ function handleKeydown(event: KeyboardEvent) {
       </div>
       <div class="mod-version">
         {#if hasMetadata}
-          <span
-            class="kable-badge"
-            title="Installed with Kable - version management available">
+          <span class="kable-badge" title="Installed with Kable - version management available">
             <Image key="favicon" alt="Kable" width="14px" height="14px" />
           </span>
         {/if}
@@ -572,23 +484,14 @@ function handleKeydown(event: KeyboardEvent) {
       class:has-update={hasUpdate}
       on:click={handleManageVersions}
       use:clickSound
-      title={hasUpdate
-        ? `Update available: v${latestVersion}`
-        : "Manage versions"}
-      disabled={loading || loadingVersions}>
-      <Icon
-        name={hasUpdate ? "arrow-up" : "settings"}
-        size="sm"
-        forceType="svg" />
+      title={hasUpdate ? `Update available: v${latestVersion}` : "Manage versions"}
+      disabled={loading || loadingVersions}
+    >
+      <Icon name={hasUpdate ? "arrow-up" : "settings"} size="sm" forceType="svg" />
       <span>{hasUpdate ? "Update" : "Versions"}</span>
     </button>
 
-    <button
-      class="action-btn remove-btn"
-      on:click={handleRemove}
-      use:errorSound
-      title="Remove mod"
-      disabled={loading}>
+    <button class="action-btn remove-btn" on:click={handleRemove} use:errorSound title="Remove mod" disabled={loading}>
       <Icon name="trash" size="sm" forceType="svg" />
       <span>Remove</span>
     </button>
@@ -597,12 +500,7 @@ function handleKeydown(event: KeyboardEvent) {
 
 <!-- Version Selection Modal -->
 {#if modInfoKind && showVersionModal}
-  <ModVersionModal
-    mod={modInfoKind}
-    currentInstallation={installation}
-    installedVersion={version}
-    bind:open={showVersionModal}
-    onselectversion={handleVersionSelect} />
+  <ModVersionModal mod={modInfoKind} currentInstallation={installation} installedVersion={version} bind:open={showVersionModal} onselectversion={handleVersionSelect} />
 {/if}
 
 <style lang="scss">

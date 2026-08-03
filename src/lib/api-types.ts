@@ -97,10 +97,7 @@ export interface CurrentSkin {
   has_skin: boolean;
 }
 
-export type ShaderSource =
-  | { modrinth: "modrinth" }
-  | { curse_forge: "curse_forge" }
-  | { other: string };
+export type ShaderSource = { modrinth: "modrinth" } | { curse_forge: "curse_forge" } | { other: string };
 
 export interface ShaderSettings {
   quality: ShaderQuality;
@@ -169,17 +166,9 @@ export type UpdateMode = "on_confirm" | "automatic" | "manual";
 /**
  * This determines WHEN to check for updates
  */
-export type UpdateDetection =
-  | { on_startup: "on_startup" }
-  | { on_close: "on_close" }
-  | { periodically: number }
-  | { manual: "manual" };
+export type UpdateDetection = { on_startup: "on_startup" } | { on_close: "on_close" } | { periodically: number } | { manual: "manual" };
 
-export type Theme =
-  | { light: "light" }
-  | { dark: "dark" }
-  | { system: "system" }
-  | { custom: string };
+export type Theme = { light: "light" } | { dark: "dark" } | { system: "system" } | { custom: string };
 
 export interface SoundSettings {
   enabled: boolean;
@@ -228,12 +217,7 @@ export interface LoggingSettings {
 
 export type Language = "english";
 
-export type IconTemplate =
-  | { default: "default" }
-  | { icons: "icons" }
-  | { font_awesome: "font_awesome" }
-  | { svg: "svg" }
-  | { custom: string };
+export type IconTemplate = { default: "default" } | { icons: "icons" } | { font_awesome: "font_awesome" } | { svg: "svg" } | { custom: string };
 
 export interface GeneralSettings {
   java_path?: string;
@@ -279,10 +263,7 @@ export interface AppearanceSettings {
   sound_settings: SoundSettings;
 }
 
-export type ResourcePackSource =
-  | { modrinth: "modrinth" }
-  | { curse_forge: "curse_forge" }
-  | { other: string };
+export type ResourcePackSource = { modrinth: "modrinth" } | { curse_forge: "curse_forge" } | { other: string };
 
 export interface ResourcePackFilterFacets {
   query?: string;
@@ -607,7 +588,24 @@ export interface Facet {
 
 export type FacetOperator = "eq" | "not_eq" | "greater" | "greater_eq" | "less" | "less_eq";
 
-export type FacetField = "project_type" | "categories" | "version" | "client_side" | "server_side" | "open_source" | "title" | "author" | "follows" | "project_id" | "license" | "downloads" | "color" | "created_timestamp" | "modified_timestamp" | "date_created" | "date_modified";
+export type FacetField =
+  | "project_type"
+  | "categories"
+  | "version"
+  | "client_side"
+  | "server_side"
+  | "open_source"
+  | "title"
+  | "author"
+  | "follows"
+  | "project_id"
+  | "license"
+  | "downloads"
+  | "color"
+  | "created_timestamp"
+  | "modified_timestamp"
+  | "date_created"
+  | "date_modified";
 
 export interface ModrinthResults {
   /**
@@ -775,10 +773,7 @@ export interface CapeData {
   alias?: string;
 }
 
-export type WorldSource =
-  | { local: "local" }
-  | { remote: "remote" }
-  | { other: string };
+export type WorldSource = { local: "local" } | { remote: "remote" } | { other: string };
 
 export interface WorldDownload {
   name: string;
@@ -936,4 +931,3 @@ export interface DeviceCodeResponse {
   expires_in: number;
   interval: number;
 }
-

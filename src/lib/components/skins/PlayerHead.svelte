@@ -13,11 +13,9 @@ Falls back to user icon if no skin is available.
 ```
 -->
 <script lang="ts">
-import { onMount, onDestroy } from "svelte";
-import * as skinview3d from "skinview3d";
 import { Icon } from "$lib";
-import * as skinsApi from "$lib/api/skins";
-import type { LauncherAccount } from "$lib";
+import * as skinview3d from "skinview3d";
+import { onDestroy, onMount } from "svelte";
 
 export let account: LauncherAccount | null = null;
 export let size: number = 40;

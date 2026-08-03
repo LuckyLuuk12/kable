@@ -11,13 +11,10 @@ Includes installation carousel for quick switching and semantic search filtering
 -->
 <script lang="ts">
 import { type KableProfile, type ModJarInfo, app, Icon } from "$lib";
-import {
-  InstallationService,
-  ModsService as LegacyModsService,
-} from "$lib/old_services";
 import { extendedModInfo, selectedInstallation } from "$lib/stores";
 import { onMount } from "svelte";
 import { get } from "svelte/store";
+import { InstallationService, ModsService as LegacyModsService } from "../../../../src-tauri/src-backup/old_services";
 import InstalledModCard from "./InstalledModCard.svelte";
 
 let currentProfile: KableProfile | null = null;
@@ -54,10 +51,7 @@ function metadataKey(fileName: string): string {
 }
 
 // Track mods with available updates
-let modsWithUpdates = new Map<
-  string,
-  { mod: ModJarInfo; latestVersion: string; versionId: string }
->();
+let modsWithUpdates = new Map<string, { mod: ModJarInfo; latestVersion: string; versionId: string }>();
 let updatingAll = false;
 let loadingModpackSources = false;
 
@@ -86,9 +80,7 @@ function handleWheel(event: WheelEvent) {
 
   // Only change selection if we've scrolled enough
   if (Math.abs(scrollOffset) >= scrollThreshold) {
-    const selectedIndex = sortedInstallations.findIndex(
-      (inst) => inst.id === selectedId,
-    );
+    const selectedIndex = sortedInstallations.findIndex((inst) => inst.id === selectedId);
     let newIndex = selectedIndex;
 
     if (scrollOffset > 0) {
@@ -96,9 +88,7 @@ function handleWheel(event: WheelEvent) {
       newIndex = (selectedIndex + 1) % sortedInstallations.length;
     } else if (scrollOffset < 0) {
       // Scroll up - select previous installation (with wrapping)
-      newIndex =
-        (selectedIndex - 1 + sortedInstallations.length) %
-        sortedInstallations.length;
+      newIndex = (selectedIndex - 1 + sortedInstallations.length) % sortedInstallations.length;
     }
 
     if (newIndex !== selectedIndex) {
@@ -125,9 +115,7 @@ function handleKeydown(event: KeyboardEvent) {
   if (event.key === "ArrowUp" || event.key === "ArrowDown") {
     event.preventDefault();
 
-    const selectedIndex = sortedInstallations.findIndex(
-      (inst) => inst.id === selectedId,
-    );
+    const selectedIndex = sortedInstallations.findIndex((inst) => inst.id === selectedId);
     let newIndex = selectedIndex;
 
     if (event.key === "ArrowDown") {
@@ -135,9 +123,7 @@ function handleKeydown(event: KeyboardEvent) {
       newIndex = (selectedIndex + 1) % sortedInstallations.length;
     } else if (event.key === "ArrowUp") {
       // Select previous installation (with wrapping)
-      newIndex =
-        (selectedIndex - 1 + sortedInstallations.length) %
-        sortedInstallations.length;
+      newIndex = (selectedIndex - 1 + sortedInstallations.length) % sortedInstallations.length;
     }
 
     if (newIndex !== selectedIndex) {
@@ -169,10 +155,7 @@ function getCarouselScale(
   let relativePosition = currentIndex - selectedIndex;
   if (Math.abs(relativePosition) > totalItems / 2) {
     // Use wrapping path
-    relativePosition =
-      relativePosition > 0
-        ? relativePosition - totalItems
-        : relativePosition + totalItems;
+    relativePosition = relativePosition > 0 ? relativePosition - totalItems : relativePosition + totalItems;
   }
 
   // Only show items within a certain distance from the selected item
@@ -192,14 +175,9 @@ function getCarouselScale(
 
   // More dramatic scaling for centered layout, but adapt based on how well items fit
   // Compute fit ratio using the container height and total required height
-  const containerHeight = installationListContainer
-    ? installationListContainer.clientHeight
-    : totalItems * 120;
+  const containerHeight = installationListContainer ? installationListContainer.clientHeight : totalItems * 120;
   const baseItemHeight = 120;
-  const fitRatio = Math.min(
-    1,
-    containerHeight / Math.max(1, totalItems * baseItemHeight),
-  ); // 0..1
+  const fitRatio = Math.min(1, containerHeight / Math.max(1, totalItems * baseItemHeight)); // 0..1
 
   // When items fit well (fitRatio ~ 1) we want smaller spacing and less aggressive scale shrink
   const spacing = 20 * (1 - fitRatio) + 8; // ranges ~8..28
@@ -207,13 +185,9 @@ function getCarouselScale(
   const baseScaleFactors = [1.0, 0.85, 0.7, 0.55, 0.4];
   // scaleReduction closer to 0 means less shrink (when fitRatio=1), when fitRatio=0 keep original
   const scaleReduction = 1 - fitRatio * 0.3; // between 0.7 and 1
-  const scaleFactors = baseScaleFactors.map(
-    (s) => 1 - (1 - s) * scaleReduction,
-  );
+  const scaleFactors = baseScaleFactors.map((s) => 1 - (1 - s) * scaleReduction);
 
-  const opacityFactors = [1.0, 0.85, 0.7, 0.55, 0.4].map(
-    (o) => o * (0.9 + 0.1 * fitRatio),
-  );
+  const opacityFactors = [1.0, 0.85, 0.7, 0.55, 0.4].map((o) => o * (0.9 + 0.1 * fitRatio));
   const fontFactors = [1.0, 0.95, 0.9, 0.85, 0.8];
 
   const scale = scaleFactors[Math.min(distance, scaleFactors.length - 1)];
@@ -228,8 +202,7 @@ function getCarouselScale(
   // compressionFloor controls how much spacing nearest neighbors keep (0.0..1.0)
   const compressionFloor = 0.5; // previously ~0.6, lower -> tighter grouping
   const compression = compressionFloor + (1 - compressionFloor) * distanceNorm; // ranges compressionFloor..1.0
-  const translateY =
-    relativePosition * (itemHeight * scale + spacing * compression);
+  const translateY = relativePosition * (itemHeight * scale + spacing * compression);
 
   // Z-index for layering (selected item on top)
   const zIndex = 100 - distance;
@@ -239,20 +212,10 @@ function getCarouselScale(
 
 //  Loader styling helpers (inspired by InstallationsList)
 $: loaderIcons = Object.fromEntries(
-  $installations.map((installation) => [
-    installation.id,
-    InstallationService.getLoaderIcon(
-      InstallationService.getVersionData(installation).loader,
-    ),
-  ]),
+  $installations.map((installation) => [installation.id, InstallationService.getLoaderIcon(InstallationService.getVersionData(installation).loader)]),
 );
 $: loaderColors = Object.fromEntries(
-  $installations.map((installation) => [
-    installation.id,
-    InstallationService.getLoaderColor(
-      InstallationService.getVersionData(installation).loader,
-    ),
-  ]),
+  $installations.map((installation) => [installation.id, InstallationService.getLoaderColor(InstallationService.getVersionData(installation).loader)]),
 );
 
 //  Sort installations by favorite and date (same as InstallationsList)
@@ -280,11 +243,7 @@ $: {
   selectedInstallation.set(inst);
 
   // Only load mods if we haven't already loaded for this installation and we're not currently loading
-  if (
-    currentProfile &&
-    currentProfile.id !== loadedInstallationId &&
-    !loading
-  ) {
+  if (currentProfile && currentProfile.id !== loadedInstallationId && !loading) {
     loadedInstallationId = currentProfile.id;
     // Clear attempted info when switching installations to allow refetch
     attemptedExtendedInfo.clear();
@@ -330,17 +289,12 @@ $: {
       lastFetchedModsKey = modsKey;
       // Only fetch for mods that are missing in the store (undefined means not attempted, null means failed)
       const missing = mods.filter((mod) => {
-        return (
-          $extendedModInfo[mod.file_name] === undefined &&
-          !attemptedExtendedInfo.has(mod.file_name)
-        );
+        return $extendedModInfo[mod.file_name] === undefined && !attemptedExtendedInfo.has(mod.file_name);
       });
       if (missing.length > 0) {
         // Mark these mods as attempted to prevent infinite loops
         missing.forEach((mod) => attemptedExtendedInfo.add(mod.file_name));
-        Promise.all(
-          missing.map((mod) => LegacyModsService.getExtendedModInfo(mod)),
-        );
+        Promise.all(missing.map((mod) => LegacyModsService.getExtendedModInfo(mod)));
       }
     }
   } else {
@@ -351,20 +305,12 @@ $: {
 $: if (selectedId && mods && mods.length > 0) {
   const installationForMetadata = get(selectedInstallation) || null;
   if (installationForMetadata) {
-    const missingMeta = mods.filter(
-      (mod) => !modMetadataMap.has(metadataKey(mod.file_name)),
-    );
+    const missingMeta = mods.filter((mod) => !modMetadataMap.has(metadataKey(mod.file_name)));
     if (missingMeta.length > 0) {
       Promise.all(
         missingMeta.map(async (mod) => {
-          const loaded = await app.modsService.loadModMetadataMap(
-            installationForMetadata,
-            [mod],
-          );
-          return [
-            metadataKey(mod.file_name),
-            loaded.get(metadataKey(mod.file_name)) ?? null,
-          ] as const;
+          const loaded = await app.modsService.loadModMetadataMap(installationForMetadata, [mod]);
+          return [metadataKey(mod.file_name), loaded.get(metadataKey(mod.file_name)) ?? null] as const;
         }),
       ).then((pairs) => {
         if (pairs.length === 0) return;
@@ -408,11 +354,7 @@ $: filteredMods = mods.filter((mod) => {
     const name = info?.mod_jar_info?.mod_name || mod.mod_name || "";
     const desc = info?.description || "";
     const file = mod.file_name;
-    return (
-      fuzzyMatch(name, searchQuery) ||
-      fuzzyMatch(desc, searchQuery) ||
-      fuzzyMatch(file, searchQuery)
-    );
+    return fuzzyMatch(name, searchQuery) || fuzzyMatch(desc, searchQuery) || fuzzyMatch(file, searchQuery);
   }
   return true;
 });
@@ -471,14 +413,10 @@ $: sortedFilteredMods = (() => {
 
   const enabled = list.filter((mod) => !mod.disabled);
   const disabled = list.filter((mod) => mod.disabled);
-  return currentDisabledGrouping === "start"
-    ? [...disabled, ...enabled]
-    : [...enabled, ...disabled];
+  return currentDisabledGrouping === "start" ? [...disabled, ...enabled] : [...enabled, ...disabled];
 })();
 
-$: managedProjectIds = new Set(
-  modpackSources.flatMap((source) => source.managed_project_ids),
-);
+$: managedProjectIds = new Set(modpackSources.flatMap((source) => source.managed_project_ids));
 
 $: standaloneFilteredMods = sortedFilteredMods.filter((mod) => {
   const metadata = modMetadataMap.get(metadataKey(mod.file_name));
@@ -537,13 +475,7 @@ function handleModChanged() {
 }
 
 // Handle update reports from individual mod cards
-function handleUpdateReport(event: {
-  fileName: string;
-  hasUpdate: boolean;
-  latestVersion?: string;
-  versionId?: string;
-  mod?: ModJarInfo;
-}) {
+function handleUpdateReport(event: { fileName: string; hasUpdate: boolean; latestVersion?: string; versionId?: string; mod?: ModJarInfo }) {
   if (event.hasUpdate && event.latestVersion && event.versionId && event.mod) {
     modsWithUpdates.set(event.fileName, {
       mod: event.mod,
@@ -570,14 +502,8 @@ async function handleUpdateAll() {
       let projectId: string | null = null;
 
       const metadata = modMetadataMap.get(metadataKey(mod.file_name));
-      if (
-        metadata &&
-        typeof metadata === "object" &&
-        "project_id" in metadata
-      ) {
-        projectId = String(
-          (metadata as { project_id?: string }).project_id ?? "",
-        );
+      if (metadata && typeof metadata === "object" && "project_id" in metadata) {
+        projectId = String((metadata as { project_id?: string }).project_id ?? "");
       }
 
       const extendedInfo = $extendedModInfo[mod.file_name];
@@ -610,21 +536,13 @@ async function handleUpdateAll() {
 
   // Show result notification
   if (successCount > 0) {
-    import("$lib/old_services/NotificationService").then(
-      ({ NotificationService }) => {
-        NotificationService.success(
-          `Updated ${successCount} mod${successCount !== 1 ? "s" : ""}${failCount > 0 ? `. ${failCount} failed.` : ""}`,
-        );
-      },
-    );
+    import("../../../../src-tauri/src-backup/old_services/NotificationService").then(({ NotificationService }) => {
+      NotificationService.success(`Updated ${successCount} mod${successCount !== 1 ? "s" : ""}${failCount > 0 ? `. ${failCount} failed.` : ""}`);
+    });
   } else if (failCount > 0) {
-    import("$lib/old_services/NotificationService").then(
-      ({ NotificationService }) => {
-        NotificationService.error(
-          `Failed to update ${failCount} mod${failCount !== 1 ? "s" : ""}`,
-        );
-      },
-    );
+    import("../../../../src-tauri/src-backup/old_services/NotificationService").then(({ NotificationService }) => {
+      NotificationService.error(`Failed to update ${failCount} mod${failCount !== 1 ? "s" : ""}`);
+    });
   }
 
   // Reload mods to show updated state
@@ -647,14 +565,9 @@ async function handleModClick(mod: ModJarInfo) {
 async function toggleModDisabledAction(mod: ModJarInfo) {
   if (!currentProfile) return;
   try {
-    const newDisabled = await app.modsService.toggleModDisabled(
-      currentProfile,
-      mod.file_name,
-    );
+    const newDisabled = await app.modsService.toggleModDisabled(currentProfile, mod.file_name);
     // Update local list optimistically so UI reacts immediately
-    mods = mods.map((m) =>
-      m.file_name === mod.file_name ? { ...m, disabled: newDisabled } : m,
-    );
+    mods = mods.map((m) => (m.file_name === mod.file_name ? { ...m, disabled: newDisabled } : m));
   } catch (err) {
     console.error("Failed to toggle disabled state for", mod.file_name, err);
     // Try reloading mods to resync state
@@ -664,10 +577,7 @@ async function toggleModDisabledAction(mod: ModJarInfo) {
   }
 }
 
-async function loadMods(
-  installation: KableProfile,
-  options?: { silent?: boolean },
-) {
+async function loadMods(installation: KableProfile, options?: { silent?: boolean }) {
   const silent = options?.silent === true;
   if (!silent) {
     loading = true;
@@ -713,32 +623,18 @@ onMount(() => {
     <!-- Left sidebar: Installation carousel -->
     <div class="installation-sidebar">
       <h2>Installations</h2>
-      <div
-        class="installation-carousel"
-        bind:this={installationListContainer}
-        on:wheel={handleWheel}
-        on:keydown={handleKeydown}
-        tabindex="-1"
-        role="listbox">
+      <div class="installation-carousel" bind:this={installationListContainer} on:wheel={handleWheel} on:keydown={handleKeydown} tabindex="-1" role="listbox">
         <div class="carousel-container">
           {#each sortedInstallations as installation, index}
-            {@const selectedIndex = sortedInstallations.findIndex(
-              (inst) => inst.id === selectedId,
-            )}
-            {@const carouselEffects = getCarouselScale(
-              index,
-              selectedIndex >= 0 ? selectedIndex : 0,
-              sortedInstallations.length,
-            )}
+            {@const selectedIndex = sortedInstallations.findIndex((inst) => inst.id === selectedId)}
+            {@const carouselEffects = getCarouselScale(index, selectedIndex >= 0 ? selectedIndex : 0, sortedInstallations.length)}
             {#if carouselEffects.visible}
               <div
                 class="installation-item"
                 class:selected={installation.id === selectedId}
                 data-installation-id={installation.id}
                 style="
-              background: linear-gradient(135deg, {loaderColors[
-                  installation.id
-                ]}22 0%, {loaderColors[installation.id]}08 40%); 
+              background: linear-gradient(135deg, {loaderColors[installation.id]}22 0%, {loaderColors[installation.id]}08 40%); 
               --loader-color: {loaderColors[installation.id]}; 
               --loader-icon: '{loaderIcons[installation.id]}';
               --carousel-scale: {carouselEffects.scale};
@@ -750,8 +646,7 @@ onMount(() => {
               z-index: {carouselEffects.zIndex};
             "
                 on:click={() => selectInstallation(installation)}
-                on:keydown={(e) =>
-                  e.key === "Enter" && selectInstallation(installation)}
+                on:keydown={(e) => e.key === "Enter" && selectInstallation(installation)}
                 tabindex="0"
                 role="button">
                 <div class="installation-icon">
@@ -760,9 +655,7 @@ onMount(() => {
                 <div class="installation-meta">
                   <div class="installation-name">{installation.name}</div>
                   <div class="installation-details">
-                    <span class="installation-version"
-                      >{InstallationService.getVersionData(installation)
-                        .version_id}</span>
+                    <span class="installation-version">{InstallationService.getVersionData(installation).version_id}</span>
                   </div>
                 </div>
               </div>
@@ -778,16 +671,9 @@ onMount(() => {
         <div class="search-controls">
           <div class="search-input-wrapper">
             <span class="search-icon">🔍</span>
-            <input
-              type="text"
-              placeholder="Search mods (fuzzy search enabled)..."
-              bind:value={searchQuery}
-              class="search-input" />
+            <input type="text" placeholder="Search mods (fuzzy search enabled)..." bind:value={searchQuery} class="search-input" />
             {#if searchQuery}
-              <button
-                class="clear-btn"
-                on:click={() => (searchQuery = "")}
-                title="Clear search">✕</button>
+              <button class="clear-btn" on:click={() => (searchQuery = "")} title="Clear search">✕</button>
             {/if}
           </div>
         </div>
@@ -805,8 +691,7 @@ onMount(() => {
                     <span class="count-label">mods</span>
                   {:else}
                     <span class="total-count">{mods.length}</span>
-                    <span class="count-label"
-                      >{mods.length === 1 ? "mod" : "mods"}</span>
+                    <span class="count-label">{mods.length === 1 ? "mod" : "mods"}</span>
                   {/if}
                 </div>
               {/if}
@@ -819,15 +704,10 @@ onMount(() => {
                     class="update-all-btn"
                     on:click={handleUpdateAll}
                     disabled={updatingAll}
-                    title="Update {modsWithUpdates.size} mod{modsWithUpdates.size !==
-                    1
-                      ? 's'
-                      : ''}">
+                    title="Update {modsWithUpdates.size} mod{modsWithUpdates.size !== 1 ? 's' : ''}">
                     <Icon name="arrow-up" size="sm" forceType="svg" />
                     <span>
-                      {updatingAll
-                        ? "Updating..."
-                        : `Update All (${modsWithUpdates.size})`}
+                      {updatingAll ? "Updating..." : `Update All (${modsWithUpdates.size})`}
                     </span>
                   </button>
                 {/if}
@@ -838,12 +718,9 @@ onMount(() => {
                     class="source-toggle-btn"
                     class:active={sourceViewEnabled}
                     on:click={() => (sourceViewEnabled = !sourceViewEnabled)}
-                    title={sourceViewEnabled
-                      ? "Showing modpacks + standalone mods"
-                      : "Showing all mods"}>
+                    title={sourceViewEnabled ? "Showing modpacks + standalone mods" : "Showing all mods"}>
                     <Icon name="layers" size="sm" />
-                    <span
-                      >{sourceViewEnabled ? "Source On" : "Source Off"}</span>
+                    <span>{sourceViewEnabled ? "Source On" : "Source Off"}</span>
                   </button>
                 </label>
 
@@ -904,15 +781,10 @@ onMount(() => {
                   <h4>Installed Modpacks</h4>
                   <div class="modpack-grid">
                     {#each modpackSources as source (`${source.provider}:${source.mod_id}:${source.version_id || "latest"}`)}
-                      <button
-                        class="modpack-card"
-                        on:click={() => openModpackSource(source)}
-                        title="Open modpack page">
+                      <button class="modpack-card" on:click={() => openModpackSource(source)} title="Open modpack page">
                         <div class="modpack-icon">
                           {#if getModpackCardIcon(source)}
-                            <img
-                              src={getModpackCardIcon(source) || ""}
-                              alt={getModpackCardTitle(source)} />
+                            <img src={getModpackCardIcon(source) || ""} alt={getModpackCardTitle(source)} />
                           {:else}
                             <Icon name="package" size="md" />
                           {/if}
@@ -922,15 +794,10 @@ onMount(() => {
                             {getModpackCardTitle(source)}
                           </div>
                           <div class="modpack-subtitle">
-                            v{source.modpack_version ||
-                              source.version_id ||
-                              "unknown"}
+                            v{source.modpack_version || source.version_id || "unknown"}
                           </div>
                           <div class="modpack-count">
-                            {source.managed_project_ids.length} managed mod{source
-                              .managed_project_ids.length === 1
-                              ? ""
-                              : "s"}
+                            {source.managed_project_ids.length} managed mod{source.managed_project_ids.length === 1 ? "" : "s"}
                           </div>
                           {#if getModpackCardDescription(source)}
                             <div class="modpack-description">
@@ -1008,8 +875,7 @@ onMount(() => {
   background: var(--container);
   border-radius: 0.75rem;
   border: 1px solid #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
-  box-shadow: 0 2px 12px
-    #{"color-mix(in srgb, var(--dark-900), 6%, transparent)"};
+  box-shadow: 0 2px 12px #{"color-mix(in srgb, var(--dark-900), 6%, transparent)"};
   overflow: hidden;
 }
 
@@ -1024,18 +890,13 @@ onMount(() => {
   h2 {
     margin: 0;
     padding: 1.5rem 1.5rem 1rem 1.5rem;
-    background: linear-gradient(
-      135deg,
-      var(--primary) 0%,
-      var(--secondary) 100%
-    );
+    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
     font-weight: 700;
     font-size: 1.4em;
-    border-bottom: 1px solid
-      #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
+    border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
   }
 }
 
@@ -1087,20 +948,15 @@ onMount(() => {
   transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
   &:hover {
-    border-color: var(
-      --loader-color,
-      #{"color-mix(in srgb, var(--primary), 15%, transparent)"}
-    );
+    border-color: var(--loader-color, #{"color-mix(in srgb, var(--primary), 15%, transparent)"});
     // Properly maintain center position on hover
-    box-shadow: 0 2px 8px
-      #{"color-mix(in srgb, var(--loader-color, var(--primary)), 10%, transparent)"};
+    box-shadow: 0 2px 8px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 10%, transparent)"};
   }
 
   &.selected {
     border-color: var(--loader-color, var(--primary));
     box-shadow:
-      0 4px 16px
-        #{"color-mix(in srgb, var(--loader-color, var(--primary)), 15%, transparent)"},
+      0 4px 16px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 15%, transparent)"},
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
     z-index: 10; // Bring selected item to front
 
@@ -1110,8 +966,7 @@ onMount(() => {
     &:hover {
       // Keep the same transform as base state but with slight scale increase
       box-shadow:
-        0 6px 20px
-          #{"color-mix(in srgb, var(--loader-color, var(--primary)), 20%, transparent)"},
+        0 6px 20px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 20%, transparent)"},
         0 0 0 3px #{"color-mix(in srgb, var(--green-800), 30%, transparent)"},
         inset 0 1px 0 #{"color-mix(in srgb, #fff, 15%, transparent)"};
     }
@@ -1124,20 +979,14 @@ onMount(() => {
       transform: translateY(-50%);
       width: 4px;
       height: 60%;
-      background: linear-gradient(
-        to bottom,
-        var(--green-700),
-        var(--green-900)
-      );
-      box-shadow: 0 0 8px
-        #{"color-mix(in srgb, var(--green-800), 40%, transparent)"};
+      background: linear-gradient(to bottom, var(--green-700), var(--green-900));
+      box-shadow: 0 0 8px #{"color-mix(in srgb, var(--green-800), 40%, transparent)"};
     }
   }
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px
-      #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
+    box-shadow: 0 0 0 2px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
   }
 }
 
@@ -1150,21 +999,14 @@ onMount(() => {
   justify-content: center;
   background: var(--container);
   color: var(--loader-color, var(--primary));
-  box-shadow: 0 2px 6px
-    #{"color-mix(in srgb, var(--dark-900), 8%, transparent)"};
+  box-shadow: 0 2px 6px #{"color-mix(in srgb, var(--dark-900), 8%, transparent)"};
   flex-shrink: 0;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
   .installation-item.selected & {
-    background: linear-gradient(
-      135deg,
-      var(--loader-color, var(--primary)) 0%,
-      #{"color-mix(in srgb, var(--loader-color, var(--secondary)), 80%, transparent)"}
-        100%
-    );
+    background: linear-gradient(135deg, var(--loader-color, var(--primary)) 0%, #{"color-mix(in srgb, var(--loader-color, var(--secondary)), 80%, transparent)"} 100%);
     color: white;
-    box-shadow: 0 3px 12px
-      #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
+    box-shadow: 0 3px 12px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
     transform: scale(1.05);
   }
 }
@@ -1193,8 +1035,7 @@ onMount(() => {
   .installation-item.selected & {
     color: var(--loader-color, var(--primary));
     font-weight: 700;
-    text-shadow: 0 0 8px
-      #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
+    text-shadow: 0 0 8px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
   }
 }
 
@@ -1232,11 +1073,7 @@ onMount(() => {
 }
 
 .mods-header {
-  background: linear-gradient(
-    135deg,
-    var(--card) 0%,
-    color-mix(in srgb, var(--primary), 2%, transparent) 100%
-  );
+  background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--primary), 2%, transparent) 100%);
   border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
   padding: 1.2rem 1.5rem;
 
@@ -1312,11 +1149,7 @@ onMount(() => {
   display: flex;
   align-items: center;
   gap: 0.3em;
-  background: linear-gradient(
-    135deg,
-    #{"color-mix(in srgb, var(--primary), 8%, transparent)"} 0%,
-    #{"color-mix(in srgb, var(--secondary), 4%, transparent)"} 100%
-  );
+  background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 8%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 4%, transparent)"} 100%);
   border: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
   border-radius: 1rem;
   padding: 0.4em 0.8em;
@@ -1324,8 +1157,7 @@ onMount(() => {
   font-weight: 500;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 1px 4px
-    #{"color-mix(in srgb, var(--dark-900), 6%, transparent)"};
+  box-shadow: 0 1px 4px #{"color-mix(in srgb, var(--dark-900), 6%, transparent)"};
 
   .filtered-count {
     color: var(--primary);
@@ -1513,11 +1345,7 @@ onMount(() => {
 .modpack-card {
   border: 1px solid color-mix(in srgb, var(--primary), 18%, transparent);
   border-radius: 0.65rem;
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--primary), 8%, transparent) 0%,
-    var(--card) 100%
-  );
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 8%, transparent) 0%, var(--card) 100%);
   padding: 0.75rem;
   display: flex;
   align-items: flex-start;
@@ -1641,8 +1469,7 @@ onMount(() => {
     left: -5px;
     top: 18%;
     border-left: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-    border-bottom: 1px solid
-      color-mix(in srgb, var(--primary), 25%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
     border-right: none;
     border-top: none;
     transform: rotate(45deg);
@@ -1678,8 +1505,7 @@ onMount(() => {
     top: auto;
     bottom: -5px;
     transform: translateX(-50%) rotate(45deg);
-    border-bottom: 1px solid
-      color-mix(in srgb, var(--primary), 25%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
     border-right: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
     border-left: none;
     border-top: none;

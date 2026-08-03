@@ -1,0 +1,7 @@
+// Through the vite.config.ts we inject this into every <style> block so that we can use the variables and mixins in any component without having to import them manually.
+// Note that global.scss should be imported in the main +layout.svelte file so that the global styles are applied to the entire app.
+@forward "variables";
+
+@use "variables" as *;
+@use "./primitives" as *;
+@use "./transform" as *;

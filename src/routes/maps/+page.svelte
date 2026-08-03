@@ -50,20 +50,13 @@ $: filteredWorlds = (() => {
 
   // Filter by category (game mode)
   if (selectedCategory !== "all") {
-    filtered = filtered.filter(
-      (world) =>
-        world.game_mode?.toLowerCase() === selectedCategory.toLowerCase(),
-    );
+    filtered = filtered.filter((world) => world.game_mode?.toLowerCase() === selectedCategory.toLowerCase());
   }
 
   // Filter by search query
   if (searchQuery.trim()) {
     const query = searchQuery.toLowerCase();
-    filtered = filtered.filter(
-      (world) =>
-        world.name.toLowerCase().includes(query) ||
-        world.game_mode?.toLowerCase().includes(query),
-    );
+    filtered = filtered.filter((world) => world.name.toLowerCase().includes(query) || world.game_mode?.toLowerCase().includes(query));
   }
 
   // Sort worlds
@@ -84,11 +77,7 @@ $: filteredWorlds = (() => {
 })();
 
 async function deleteWorld(worldName: string) {
-  if (
-    !confirm(
-      `Are you sure you want to delete the world "${worldName}"? This action cannot be undone.`,
-    )
-  ) {
+  if (!confirm(`Are you sure you want to delete the world "${worldName}"? This action cannot be undone.`)) {
     return;
   }
 
@@ -144,13 +133,7 @@ function formatFileSize(bytes: number): string {
       </div>
     </div>
     <div class="header-actions">
-      <button
-        on:click={loadWorlds}
-        use:clickSound
-        class="btn btn-secondary {isRefreshing ? 'spinning' : ''}"
-        disabled={isLoading}
-        title="Refresh worlds list"
-      >
+      <button on:click={loadWorlds} use:clickSound class="btn btn-secondary {isRefreshing ? 'spinning' : ''}" disabled={isLoading} title="Refresh worlds list">
         <Icon name="refresh" size="sm" forceType="svg" />
       </button>
     </div>
@@ -167,12 +150,7 @@ function formatFileSize(bytes: number): string {
   <div class="filters-section">
     <div class="search-container">
       <Icon name="search" size="sm" />
-      <input
-        type="text"
-        placeholder="Search worlds by name or game mode..."
-        bind:value={searchQuery}
-        class="search-input"
-      />
+      <input type="text" placeholder="Search worlds by name or game mode..." bind:value={searchQuery} class="search-input" />
     </div>
     <div class="filter-controls">
       <select bind:value={selectedCategory} class="filter-select">
@@ -216,26 +194,13 @@ function formatFileSize(bytes: number): string {
           <div class="world-card">
             <div class="world-header">
               <div class="world-icon">
-                <Icon
-                  name={world.game_mode?.toLowerCase() === "hardcore"
-                    ? "skull"
-                    : "world"}
-                  size="lg"
-                />
+                <Icon name={world.game_mode?.toLowerCase() === "hardcore" ? "skull" : "world"} size="lg" />
               </div>
               <div class="world-info">
                 <h3 class="world-name">{world.name}</h3>
                 <div class="world-meta">
-                  <span
-                    class="badge badge-{world.game_mode?.toLowerCase() ||
-                      'survival'}"
-                  >
-                    <Icon
-                      name={categories.find(
-                        (c) => c.id === world.game_mode?.toLowerCase(),
-                      )?.icon || "map"}
-                      size="sm"
-                    />
+                  <span class="badge badge-{world.game_mode?.toLowerCase() || 'survival'}">
+                    <Icon name={categories.find((c) => c.id === world.game_mode?.toLowerCase())?.icon || "map"} size="sm" />
                     {world.game_mode || "Unknown"}
                   </span>
                   {#if world.version}
@@ -250,9 +215,7 @@ function formatFileSize(bytes: number): string {
                 <div class="stat-item">
                   <Icon name="clock" size="sm" />
                   <span class="stat-label">Last Played:</span>
-                  <span class="stat-value"
-                    >{new Date(world.last_played).toLocaleDateString()}</span
-                  >
+                  <span class="stat-value">{new Date(world.last_played).toLocaleDateString()}</span>
                 </div>
               {/if}
 
@@ -260,9 +223,7 @@ function formatFileSize(bytes: number): string {
                 <div class="stat-item">
                   <Icon name="folder" size="sm" />
                   <span class="stat-label">Size:</span>
-                  <span class="stat-value"
-                    >{formatFileSize(world.size_mb * 1024 * 1024)}</span
-                  >
+                  <span class="stat-value">{formatFileSize(world.size_mb * 1024 * 1024)}</span>
                 </div>
               {/if}
 
@@ -282,22 +243,12 @@ function formatFileSize(bytes: number): string {
             </div>
 
             <div class="world-actions">
-              <button
-                on:click={() => backupWorld(world.name)}
-                use:successSound
-                class="btn btn-secondary btn-sm"
-                title="Create backup"
-              >
+              <button on:click={() => backupWorld(world.name)} use:successSound class="btn btn-secondary btn-sm" title="Create backup">
                 <Icon name="archive" size="sm" />
                 Backup
               </button>
 
-              <button
-                on:click={() => deleteWorld(world.name)}
-                use:errorSound
-                class="btn btn-danger btn-sm"
-                title="Delete world"
-              >
+              <button on:click={() => deleteWorld(world.name)} use:errorSound class="btn btn-danger btn-sm" title="Delete world">
                 <Icon name="trash" size="sm" />
                 Delete
               </button>
@@ -323,11 +274,9 @@ function formatFileSize(bytes: number): string {
         </h3>
         <p>
           {#if searchQuery.trim() || selectedCategory !== "all"}
-            No worlds match your current filters. Try adjusting your search or
-            category.
+            No worlds match your current filters. Try adjusting your search or category.
           {:else}
-            No Minecraft worlds were found. Make sure Minecraft is installed and
-            you have created some worlds.
+            No Minecraft worlds were found. Make sure Minecraft is installed and you have created some worlds.
           {/if}
         </p>
         <button on:click={loadWorlds} class="btn btn-primary">

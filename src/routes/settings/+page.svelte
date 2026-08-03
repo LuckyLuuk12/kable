@@ -9,11 +9,7 @@ let saveStatus = "";
     <h1>Settings</h1>
     <p>Configure your launcher preferences</p>
     {#if saveStatus}
-      <div
-        class="warning-card"
-        class:success={saveStatus.includes("success")}
-        class:error={saveStatus.includes("Failed")}
-      >
+      <div class="warning-card" class:success={saveStatus.includes("success")} class:error={saveStatus.includes("Failed")}>
         {saveStatus}
       </div>
     {/if}

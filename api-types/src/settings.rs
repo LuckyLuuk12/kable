@@ -47,7 +47,7 @@ pub struct AppearanceSettings {
     pub language: Language,
     pub icon_template: Option<String>,
     pub custom_icon_templates: Vec<IconTemplate>,
-    pub selected_css_theme: Option<String>,
+    pub selected_css_theme: Option<Theme>,
     pub sound_settings: SoundSettings,
 }
 
@@ -156,7 +156,7 @@ pub enum UpdateNotificationStyle {
     Modal,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
 #[facet(rename_all = "snake_case")]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]

@@ -151,13 +151,7 @@ $: if (skinViewer && animation) {
 }
 </script>
 
-<canvas
-  bind:this={canvas}
-  {width}
-  {height}
-  class="skin-viewer-canvas"
-  style="width: {width}px; height: {height}px;"
-></canvas>
+<canvas bind:this={canvas} {width} {height} class="skin-viewer-canvas" style="width: {width}px; height: {height}px;"></canvas>
 
 <style>
 .skin-viewer-canvas {

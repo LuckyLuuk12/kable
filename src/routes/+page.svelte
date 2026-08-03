@@ -1,40 +1,29 @@
 <script lang="ts">
-import {
-  app,
-  Icon,
-  Image,
-  installations,
-  installationsError,
-  isLoadingInstallations,
-  type KableProfile,
-  settings,
-} from "$lib";
-import { launchSound } from "$lib/actions";
-import InstallationsList from "$lib/components/installations/InstallationsList.svelte";
-import { isLaunching } from "$lib/stores/launcher";
+import { app, Icon, Image, type KableProfile, launchSound, ProfilesList } from "$lib";
 import { onMount } from "svelte";
 
 // State variables
-let lastPlayedInstallations: KableProfile[] = [];
-let error: string | null = null;
-let viewMode: "grid" | "list" = "grid";
-let launchStatus = "";
-let openDropdownId: string | null = null;
+let lastPlayedInstallations: KableProfile[] = $state([]);
+let error: string | null = $state(null);
+let viewMode: "grid" | "list" = $state("grid");
+let launchStatus = $state("");
+let openDropdownId: string | null = $state(null);
+let isLaunching = $derived(app.launcherService.launching);
 
 // RAM allocation state
-let ramAllocation = 2048; // Default 2GB in MB
-let ramInputValue = "2048"; // String value for text input
-let isEditingRam = false;
+let ramAllocation = $state(2048); // Default 2GB in MB
+let ramInputValue = $state("2048"); // String value for text input
+let isEditingRam = $state(false);
 let _commitTimer: ReturnType<typeof setTimeout> | null = null;
-let skipReactiveSyncUntil = 0;
+let skipReactiveSyncUntil = $state(0);
 
 // Subscribe to the installations store and update RAM allocation
-$: {
+$effect(() => {
   // Only run reactive sync when not editing and not in the skip window
   if (Date.now() >= skipReactiveSyncUntil && !isEditingRam) {
-    console.log("Total installations:", $installations.length);
+    console.log("Total installations:", app.profilesService.profiles.length);
 
-    lastPlayedInstallations = $installations
+    lastPlayedInstallations = app.profilesService.profiles
       .sort((a: KableProfile, b: KableProfile) => {
         const aTime = new Date(a.last_used || 0).getTime();
         const bTime = new Date(b.last_used || 0).getTime();
@@ -47,15 +36,10 @@ $: {
     // Update RAM allocation when installation changes
     if (lastPlayedInstallations.length > 0) {
       const latestInstallation = lastPlayedInstallations[0];
-      console.log(
-        "Latest installation java_args:",
-        latestInstallation.java_args,
-      );
+      console.log("Latest installation java_args:", latestInstallation.java_args);
 
       // Extract RAM from java_args (look for -Xmx)
-      const xmxArg = latestInstallation.java_args?.find((arg) =>
-        arg.startsWith("-Xmx"),
-      );
+      const xmxArg = latestInstallation.java_args?.find((arg) => arg.startsWith("-Xmx"));
       if (xmxArg) {
         console.log("Found Xmx arg:", xmxArg);
         const memValue = xmxArg.replace("-Xmx", "").toLowerCase();
@@ -69,20 +53,13 @@ $: {
       }
     }
   }
-}
+});
 // Check if ads should be shown from settings
-$: showAds = $settings?.general?.show_ads ?? false;
-
-// Subscribe to loading and error states
-$: isLoading = $isLoadingInstallations;
-$: if ($installationsError) {
-  error = $installationsError;
-}
+let showAds = $derived(app.customizationService.settings?.content?.allow_ads ?? false);
 
 // Initialize on component mount
 onMount(() => {
   console.log("Home page mounted");
-  // GameManager is already initialized by the layout with installations loaded
 
   // Add click outside handler for dropdown
   function handleClickOutside(event: MouseEvent) {
@@ -123,74 +100,28 @@ function closeDropdown() {
 }
 
 async function handlePlay() {
-  isLaunching.set(true);
   launchStatus = "Preparing to launch...";
-  let result;
 
+  // Launch resolt only has pid, runtime_id and command, so we can't check for success. We'll assume it worked if no error was thrown.
   try {
-    // Try to launch the most recent installation
     if (lastPlayedInstallations.length > 0) {
       console.log("Launching installation:", lastPlayedInstallations[0]);
       launchStatus = `Launching ${lastPlayedInstallations[0].name}...`;
       // Launch the installation directly using Launcher
-      result = await app.launcherService.launch(lastPlayedInstallations[0]);
+      await app.launcherService.launch(lastPlayedInstallations[0]);
     } else {
       launchStatus = "Launching default Minecraft...";
       // Use Launcher for quick launch fallback
-      result = await app.launcherService.launchLatest();
+      await app.launcherService.launchLatest();
     }
-
-    if (result.success) {
-      launchStatus = "Launched Minecraft!";
-    } else {
-      launchStatus = `Launch failed: ${result.error || "Unknown error"}`;
-    }
+    launchStatus = "Launched Minecraft!";
   } catch (err) {
     console.error("Launch error:", err);
     launchStatus = `Launch failed: ${err}`;
   } finally {
     // Reset the button state quickly since Minecraft is now running independently
-    setTimeout(
-      () => {
-        launchStatus = "";
-        isLaunching.set(false);
-      },
-      result?.success ? 2000 : 5000,
-    );
-  }
-}
-
-async function handleInstallationLaunch(installation: KableProfile) {
-  const launchButton = event?.target as HTMLButtonElement;
-  const originalText = launchButton?.textContent || "";
-
-  if (launchButton) {
-    launchButton.disabled = true;
-    launchButton.textContent = "Launching...";
-  }
-
-  try {
-    // Launch the installation directly using Launcher
-    const result = await Launcher.launchInstallation(installation);
-
-    if (result.success) {
-      if (launchButton) {
-        launchButton.textContent = "Launched!";
-      }
-      // Installations will be kept in sync by the centralized bootstrap and store updates
-    } else {
-      alert(`Launch failed: ${result.error || "Unknown error"}`);
-    }
-  } catch (err) {
-    console.error("Installation launch error:", err);
-    alert(`Launch failed: ${err}`);
-  } finally {
-    // Reset button state after a short delay
     setTimeout(() => {
-      if (launchButton) {
-        launchButton.disabled = false;
-        launchButton.textContent = originalText;
-      }
+      launchStatus = "";
     }, 2000);
   }
 }
@@ -250,12 +181,7 @@ async function commitRamChange(immediate = false) {
   try {
     const newArgs = setXmxArg(inst.java_args || [], ramAllocation);
     const updated = { ...inst, java_args: newArgs } as typeof inst;
-    console.log(
-      "Committing RAM change for installation:",
-      inst.id,
-      ramAllocation,
-      "MB",
-    );
+    console.log("Committing RAM change for installation:", inst.id, ramAllocation, "MB");
     await app.profilesService.modify(inst, updated);
     console.log("RAM allocation committed");
   } catch (err) {
@@ -291,63 +217,30 @@ async function handleAdClick(url: string) {
   {#if showAds}
     <div class="advertisement-banner">
       <div class="banner-background">
-        <Image
-          key="advertisement-banner"
-          alt="Banner"
-          className="banner-image"
-          width="100%"
-          height="100%" />
+        <Image key="advertisement-banner" alt="Banner" className="banner-image" width="100%" height="100%" />
       </div>
       <div class="banner-overlay"></div>
       <div class="banner-content">
         <div class="banner-actions">
-          <button
-            class="banner-button primary"
-            on:click={() => handleAdClick("https://kablan.nl")}>
-            <Image
-              key="kablan-logo"
-              alt="Kablan"
-              className="button-image"
-              width="auto"
-              height="2.5rem" />
+          <button class="banner-button primary" onclick={() => handleAdClick("https://kablan.nl")}>
+            <Image key="kablan-logo" alt="Kablan" className="button-image" width="auto" height="2.5rem" />
             <span>Kablan.nl</span>
           </button>
 
-          <button
-            class="banner-button secondary"
-            on:click={() =>
-              handleAdClick("https://modrinth.com/mod/luckybindings")}>
-            <Image
-              key="luckybindings-logo"
-              alt="LuckyBindings"
-              className="button-image"
-              width="auto"
-              height="2.5rem" />
+          <button class="banner-button secondary" onclick={() => handleAdClick("https://modrinth.com/mod/luckybindings")}>
+            <Image key="luckybindings-logo" alt="LuckyBindings" className="button-image" width="auto" height="2.5rem" />
             <span>LuckyBindings Mod</span>
           </button>
 
-          <button
-            class="banner-button kofi"
-            on:click={() => handleAdClick("https://ko-fi.com/luckyluuk")}>
-            <Image
-              key="kofi-logo"
-              alt="Ko-fi"
-              className="button-image"
-              width="auto"
-              height="2.5rem" />
+          <button class="banner-button kofi" onclick={() => handleAdClick("https://ko-fi.com/luckyluuk")}>
+            <Image key="kofi-logo" alt="Ko-fi" className="button-image" width="auto" height="2.5rem" />
             <span>Support me on Ko-fi</span>
           </button>
         </div>
 
         <div class="artist-recruitment">
-          <span class="recruitment-text"
-            >Are you an artist, willing to improve my tools?
-          </span>
-          <button
-            class="recruitment-link"
-            on:click={() => handleAdClick("https://discord.gg/qRTevFvHbx")}>
-            Get in contact with me
-          </button>
+          <span class="recruitment-text">Are you an artist, willing to improve my tools? </span>
+          <button class="recruitment-link" onclick={() => handleAdClick("https://discord.gg/qRTevFvHbx")}> Get in contact with me </button>
         </div>
       </div>
     </div>
@@ -355,29 +248,20 @@ async function handleAdClick(url: string) {
 
   <!-- Hero Image Section - Official Launcher Style -->
   <div class="hero-image-container">
-    <Image
-      key="home-hero"
-      alt="Minecraft Hero Banner"
-      className="home-hero"
-      width="100%"
-      height="100%" />
+    <Image key="home-hero" alt="Minecraft Hero Banner" className="home-hero" width="100%" height="100%" />
   </div>
 
   <!-- Installations List Section -->
   <div class="installations-section">
-    <InstallationsList isGrid isSmall limit={15} />
+    <ProfilesList isGrid isSmall limit={15} />
   </div>
 
   <!-- Bottom Controls Section -->
   <div class="bottom-controls">
     <!-- Play Button (Centered) -->
     <div class="play-section">
-      <button
-        class="play-button"
-        on:click={handlePlay}
-        use:launchSound
-        disabled={$isLaunching || lastPlayedInstallations.length === 0}>
-        {#if $isLaunching}
+      <button class="play-button" onclick={handlePlay} use:launchSound disabled={isLaunching || lastPlayedInstallations.length === 0}>
+        {#if isLaunching}
           <Icon name="refresh" size="md" forceType="svg" className="spin" />
           <span>Launching...</span>
         {:else}
@@ -386,16 +270,10 @@ async function handleAdClick(url: string) {
         {/if}
       </button>
       {#if lastPlayedInstallations.length === 0}
-        <p class="no-installations">
-          No installations found. Please check your Minecraft directory in
-          settings.
-        </p>
+        <p class="no-installations">No installations found. Please check your Minecraft directory in settings.</p>
       {/if}
       {#if launchStatus}
-        <p
-          class="launch-status"
-          class:error={launchStatus.includes("fail") ||
-            launchStatus.includes("error")}>
+        <p class="launch-status" class:error={launchStatus.includes("fail") || launchStatus.includes("error")}>
           {launchStatus}
         </p>
       {/if}
@@ -421,11 +299,11 @@ async function handleAdClick(url: string) {
             type="range"
             class="ram-slider"
             bind:value={ramAllocation}
-            on:input={() => {
+            oninput={() => {
               updateRamFromSlider();
               isEditingRam = true;
             }}
-            on:change={() => {
+            onchange={() => {
               commitRamChange();
             }}
             min="512"
@@ -445,15 +323,15 @@ async function handleAdClick(url: string) {
             type="text"
             class="ram-input"
             bind:value={ramInputValue}
-            on:focus={() => {
+            onfocus={() => {
               isEditingRam = true;
             }}
-            on:blur={() => {
+            onblur={() => {
               updateRamFromInput();
               // commit immediately on blur and let commitRamChange manage isEditingRam
               commitRamChange(true);
             }}
-            on:keydown={(e) => {
+            onkeydown={(e) => {
               if (e.key === "Enter") {
                 updateRamFromInput();
                 // commit immediately on Enter
@@ -503,11 +381,7 @@ async function handleAdClick(url: string) {
   .banner-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(
-      to bottom,
-      rgba(0, 0, 0, 0.3) 0%,
-      rgba(0, 0, 0, 0.5) 100%
-    );
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.5) 100%);
   }
 
   .banner-content {
