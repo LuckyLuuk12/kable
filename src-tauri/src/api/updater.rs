@@ -2,19 +2,19 @@ use crate::features::updater;
 
 #[tauri::command]
 #[specta::specta]
-pub async fn check_for_updates(include_prerelease: bool) -> Result<api_types::updater::UpdateData, String> {
+pub async fn check_launcher_updates(include_prerelease: bool) -> Result<api_types::updater::UpdateData, String> {
     updater::check_for_updates(include_prerelease).await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn install_update(include_prerelease: bool) -> Result<(), String> {
+pub async fn install_launcher_update(include_prerelease: bool) -> Result<(), String> {
     updater::install_update(include_prerelease).await
 }
 
 #[tauri::command]
 #[specta::specta]
-pub async fn download_update(include_prerelease: bool) -> Result<String, String> {
+pub async fn download_launcher_update(include_prerelease: bool) -> Result<String, String> {
     updater::download_update(include_prerelease).await
 }
 

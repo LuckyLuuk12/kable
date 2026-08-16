@@ -9,8 +9,6 @@ pub struct KableProject {
     pub version_id: String,
     /// The filename of the mod jar file in the profile's dedicated mods folder, should match a ProjectVersion.files.filename, and is used to locate the mod jar file in the profile's dedicated mods folder
     pub filename: String,
-    /// Whether the mod is enabled or disabled, when disabled the jar should be in the <dedicated_mods_folder>/disabled folder, otherwise it should be in the <dedicated_mods_folder> folder
-    pub enabled: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]

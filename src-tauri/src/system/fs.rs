@@ -1,4 +1,4 @@
-use crate::constants::{CACHE_DIR, KABLE_DIR_NAME, LAUNCHER_DIR};
+use crate::constants::{CACHE_DIR, KABLE_DIR_NAME, LAUNCHER_DIR, PROFILES_DIR_NAME, PROJECTS_DIR_NAME};
 
 use dirs::home_dir;
 use std::path::{Path, PathBuf};
@@ -34,6 +34,15 @@ pub fn launcher_dir() -> FsResult<PathBuf> {
 
 pub fn cache_dir() -> FsResult<PathBuf> {
     Ok(kable_dir()?.join(CACHE_DIR))
+}
+/// Returns the <kable_dir>/<projects> directory in which shared "projects" are stored, e.g. mods, resourcepacks, shaders, etc. that can be enabled/disabled per profile.
+pub fn projects_dir() -> FsResult<PathBuf> {
+    Ok(kable_dir()?.join(PROJECTS_DIR_NAME))
+}
+
+/// Returns the <kable_dir>/<profiles> directory in which profile-specific info is stored like a config folder, options.txt, and other things that are usually in the .minecraft folder.
+pub fn profiles_dir() -> FsResult<PathBuf> {
+    Ok(kable_dir()?.join(PROFILES_DIR_NAME))
 }
 
 /// Resolve a path to an absolute path, relative to the kable_dir if not already absolute.

@@ -127,7 +127,7 @@ pub fn set_enabled(enabled: bool) -> Result<(), String> {
 pub fn set_playing(profile: &KableProfile) -> Result<(), String> {
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as i32;
 
-    let profile_name = &profile.name;
+    let profile_name = &profile.metadata.name;
     let version = &profile.version.minecraft_version.clone().unwrap_or_default(); // e.g. 1.20.1
     let loader = profile.version.loader;
 

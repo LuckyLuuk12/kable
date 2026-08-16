@@ -3,6 +3,7 @@
 use crate::features::profiles::kable_profile::{load_profiles, save_profiles};
 use crate::system::fs::rename;
 use api_types::profiles::KableProfile;
+use api_types::projects::KableProject;
 use std::path::Path;
 
 pub async fn get_profile(profile_id: &str) -> Result<KableProfile, String> {
@@ -41,7 +42,7 @@ pub async fn toggle_favorite(profile: KableProfile) -> Result<KableProfile, Stri
     let mut profiles = load_profiles().await?;
     if let Some(pos) = profiles.iter().position(|p| p.id == profile.id) {
         let mut updated_profile = profile.clone();
-        updated_profile.favorite = !profile.favorite;
+        updated_profile.metadata.favorite = !profile.metadata.favorite;
         profiles[pos] = updated_profile.clone();
         save_profiles(&profiles).await?;
         Ok(updated_profile)
@@ -55,7 +56,7 @@ pub async fn update_last_used(profile: KableProfile) -> Result<KableProfile, Str
     let mut profiles = load_profiles().await?;
     if let Some(pos) = profiles.iter().position(|p| p.id == profile.id) {
         let mut updated_profile = profile.clone();
-        updated_profile.last_used = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
+        updated_profile.metadata.last_used = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
         profiles[pos] = updated_profile.clone();
         save_profiles(&profiles).await?;
         Ok(updated_profile)
@@ -68,46 +69,13 @@ pub async fn list_profiles() -> Result<Vec<KableProfile>, String> {
     load_profiles().await
 }
 
-pub async fn change_id(profile: KableProfile, new_id: &str, update_folders: bool) -> Result<KableProfile, String> {
-    let mut profiles = load_profiles().await?;
-    if let Some(pos) = profiles.iter().position(|p| p.id == profile.id) {
-        let mut updated_profile = profile.clone();
-        updated_profile.id = new_id.to_string();
-        if update_folders {
-            // First rename the old folders if they exist, then update the profile to point to the new folders
-            updated_profile.dedicated_mods_folder =
-                modify_dedicated_folder(updated_profile.dedicated_mods_folder, &format!("{}/{}", crate::constants::MODS_DIR, new_id))
-                    .await?;
-            updated_profile.dedicated_config_folder =
-                modify_dedicated_folder(updated_profile.dedicated_config_folder, &format!("{}/{}", crate::constants::CONFIG_DIR, new_id))
-                    .await?;
-            updated_profile.dedicated_resource_pack_folder = modify_dedicated_folder(
-                updated_profile.dedicated_resource_pack_folder,
-                &format!("{}/{}", crate::constants::RESOURCEPACKS_DIR, new_id),
-            )
-            .await?;
-            updated_profile.dedicated_shaders_folder = modify_dedicated_folder(
-                updated_profile.dedicated_shaders_folder,
-                &format!("{}/{}", crate::constants::SHADERPACKS_DIR, new_id),
-            )
-            .await?;
-        }
-
-        profiles[pos] = updated_profile.clone();
-        save_profiles(&profiles).await?;
-        Ok(updated_profile)
-    } else {
-        Err(format!("Profile with id {} not found", profile.id))
+/// Modifies the profile.settings.<project.type> with its toggle(str) function, then uses the modify_profile function to save the updated profile to disk. This is used to enable/disable a project for a profile.
+pub async fn toggle_project(profile: KableProfile, project: KableProject) -> Result<KableProfile, String> {
+    let mut updated_profile = profile.clone();
+    let toggled = updated_profile.settings.toggle(project.project.project_type, &project.filename);
+    // if we toggled from disabled to enabled, we might have to download the project again as removing projects is possible from global projects folder if no profiles have it enabled:
+    if !toggled {
+        crate::features::projects::management::add_project(project.project, Some(&project.version_id)).await?;
     }
-}
-
-async fn modify_dedicated_folder(folder: Option<String>, new_folder: &str) -> Result<Option<String>, String> {
-    if let Some(old_folder) = folder {
-        rename(&Path::new(&old_folder), &Path::new(new_folder))
-            .await
-            .map_err(|e| format!("Failed to rename folder from {} to {}: {}", old_folder, new_folder, e))?;
-        Ok(Some(new_folder.to_string()))
-    } else {
-        Ok(None)
-    }
+    modify_profile(profile, updated_profile).await
 }

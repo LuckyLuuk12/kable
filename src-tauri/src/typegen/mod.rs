@@ -55,14 +55,12 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             // #endregion Launcher
             // #region Projects
             api::browse,
-            api::list_projects,
+            api::list_profile_projects,
             api::remove_project,
-            api::download_project,
-            api::enable_project,
-            api::disable_project,
+            api::add_project_to_profile,
             api::toggle_project,
-            api::check_for_project_update,
-            api::check_for_project_updates,
+            api::check_for_update,
+            api::check_for_updates,
             api::update_project,
             api::update_all_projects,
             // #endregion Projects
@@ -73,6 +71,7 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::modify_profile,
             api::delete_profile,
             api::get_versions,
+            api::toggle_project,
             // #endregion Profiles
             // #region Symlinks
             api::get_symlinks,
@@ -87,9 +86,9 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::open_path,
             // #endregion System
             // #region Updater
-            api::check_for_updates,
-            api::install_update,
-            api::download_update,
+            api::check_launcher_updates,
+            api::install_launcher_update,
+            api::download_launcher_update,
             api::apply_downloaded_update,
             api::get_current_version,
             // #endregion Updater

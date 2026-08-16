@@ -2,7 +2,10 @@ use std::path::Path;
 
 use crate::features::profiles::management;
 use crate::integrations::loaders;
-use api_types::profiles::{KableProfile, Versions};
+use api_types::{
+    profiles::{KableProfile, Versions},
+    projects::KableProject,
+};
 
 #[tauri::command]
 #[specta::specta]
@@ -36,7 +39,7 @@ pub async fn create_profile(
     exported_profile: Option<std::path::PathBuf>,
     mrpack: Option<String>,
 ) -> Result<KableProfile, String> {
-    crate::features::profiles::kable_profile::create_profile(version_id, base_profile, exported_profile, mrpack).await
+    crate::features::profiles::create::create_profile(version_id, base_profile, exported_profile, mrpack).await
 }
 // We should make a create_profile() function that wraps all ways of creating a profile so:
 // - from version_data (this data should include the version id and loader)
@@ -49,4 +52,10 @@ pub async fn create_profile(
 #[specta::specta]
 pub async fn get_versions() -> Result<Versions, String> {
     loaders::get_versions().await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn toggle_project(profile: KableProfile, kable_project: KableProject) -> Result<KableProfile, String> {
+    management::toggle_project(profile, kable_project).await
 }

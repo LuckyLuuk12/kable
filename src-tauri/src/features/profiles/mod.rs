@@ -14,6 +14,7 @@ pub mod advanced;
 pub mod create;
 pub mod kable_profile;
 pub mod management;
+pub mod merge;
 
 // #[derive(Clone)]
 // struct ProfileCache {

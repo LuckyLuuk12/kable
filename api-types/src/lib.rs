@@ -5,6 +5,7 @@ pub mod launcher;
 pub mod logging;
 pub mod maps;
 pub mod mojang;
+pub mod mrpack;
 pub mod profiles;
 pub mod projects;
 pub mod resourcepacks;

@@ -2,8 +2,8 @@ use crate::constants::{CONFIG_DIR, KABLE_PROFILES_FILE, MODS_DIR, RESOURCEPACKS_
 use crate::integrations::loaders::get_versions;
 use crate::integrations::minecraft::profiles::parse_launcher_profiles;
 use crate::system::fs::{launcher_dir, read_str, write_str};
-use api_types::profiles::KableProfile;
 use api_types::profiles::LauncherProfiles;
+use api_types::profiles::{KableProfile, Projects};
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -18,25 +18,28 @@ async fn into(launcher_profiles: LauncherProfiles) -> Result<Vec<KableProfile>, 
             None => continue,
         };
         let kable_profile = KableProfile {
-            id: id.clone(),
-            name: profile.name.unwrap_or(id.clone().to_string()),
-            icon: profile.icon,
+            id,
             version: version_data,
-            created: profile.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-            last_used: profile.last_used.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
-            java_args: profile.java_args.map(|args| args.split_whitespace().map(|s| s.to_string()).collect()).unwrap_or_else(Vec::new),
-            dedicated_mods_folder: Some(format!("{}/{}", MODS_DIR, id)),
-            dedicated_config_folder: Some(format!("{}/{}", CONFIG_DIR, id)),
-            dedicated_resource_pack_folder: Some(format!("{}/{}", RESOURCEPACKS_DIR, id)),
-            dedicated_shaders_folder: Some(format!("{}/{}", SHADERPACKS_DIR, id)),
-            favorite: false,
-            total_time_played_ms: 0,
-            parameters_map: HashMap::new(),
-            description: None,
-            times_launched: 0,
-            enable_pack_merging: true,
-            pack_order: Vec::new(),
-            merged_packs: Vec::new(),
+            metadata: api_types::profiles::KableProfileMetadata {
+                name: profile.name.unwrap_or_default(),
+                icon: profile.icon,
+                created: profile.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+                last_used: profile.last_used.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
+                favorite: false,
+                total_time_played_ms: 0,
+                description: None,
+                times_launched: 0,
+            },
+            settings: api_types::profiles::KableProfileSettings {
+                java_args: profile.java_args.map(|args| args.split_whitespace().map(|s| s.to_string()).collect()).unwrap_or_else(Vec::new),
+                parameters_map: HashMap::new(),
+                enable_pack_merging: true,
+                pack_order: Vec::new(),
+                merged_packs: Vec::new(),
+                mods: Projects::default(),
+                resourcepacks: Projects::default(),
+                shaders: Projects::default(),
+            },
         };
         kable_profiles.push(kable_profile);
     }
@@ -85,7 +88,7 @@ pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
     let kable_profiles = kable_profiles_result?;
 
     let mut profiles = merge_profiles(launcher_profiles, kable_profiles).await?;
-    profiles.sort_by(|a, b| b.last_used.cmp(&a.last_used));
+    profiles.sort_by(|a, b| b.metadata.last_used.cmp(&a.metadata.last_used));
 
     save_profiles(&profiles).await?;
     Ok(profiles)
@@ -96,118 +99,11 @@ pub async fn save_profiles(profiles: &[KableProfile]) -> Result<(), String> {
     let profiles_file = launcher_dir.join(KABLE_PROFILES_FILE);
     // Ensure profiles are sorted by last_used before saving
     let mut profiles = profiles.to_vec();
-    profiles.sort_by(|a, b| b.last_used.cmp(&a.last_used));
+    profiles.sort_by(|a, b| b.metadata.last_used.cmp(&a.metadata.last_used));
 
     let content = serde_json::to_string_pretty(&profiles).map_err(|e| format!("Failed to serialize profiles: {e}"))?;
 
     write_str(&profiles_file, &content, false).await?;
 
     Ok(())
-}
-
-/// The create_profile() function that wraps all ways of creating a profile so:
-/// - from version_data (this data should include the version id and loader)
-/// - from an (older) profile with newer/other version_data
-/// - from exported profile data (should be a zip with all info required to recreate the profile exactly, including mods, resource packs, etc. This is for profile sharing)
-/// - from 1 (or more) mrpack's
-/// - from any combination of the above, where the user can choose which data to take from each source (e.g. version data from version_data, mods from mrpack, etc.)
-/// This method will try to optimistically merge all the data sources into a single profile, and will return an error if it cannot do so.
-pub async fn create_profile(
-    version_id: Option<String>,
-    base_profile: Option<KableProfile>,
-    exported_profile: Option<PathBuf>,
-    mrpack: Option<String>,
-) -> Result<KableProfile, String> {
-    // ! Now in order we do: base_profile copy, exported_profile merge, mrpack merge, version_id update/downgrade
-    // If there is no base_profile though we just shift it such that the exported_profile becomes the base_profile,
-    // and if that is None then the mrpack becomes the base_profile, and if that is None then the version_id becomes the base_profile and we create one from scratch essentially
-    let mut new_profile = if let Some(base) = base_profile {
-        base
-    } else if let Some(exported) = exported_profile {
-        import(exported).await?
-    } else if let Some(mrpack) = mrpack {
-        crate::features::modpack::into(mrpack).await?
-    } else if let Some(version_id) = version_id {
-        new_profile(version_id).await?
-    } else {
-        return Err("At least one of version_id, base_profile, exported_profile, or mrpack must be provided".to_string());
-    };
-    // ! Now we should merge the other sources into the new_profile, if they exist, and then return it
-    if let Some(exported) = exported_profile {
-        let imported_profile = import(exported).await?;
-        // Check if this is different from base at all, if not then we don't need to merge it
-        if imported_profile != new_profile {
-            // Merge the imported_profile into new_profile, with imported_profile taking precedence over new_profile
-            new_profile = crate::features::profiles::merge::merge_profiles(new_profile, imported_profile)?;
-        }
-    }
-    if let Some(mrpack) = mrpack {
-        let mrpack_profile = crate::features::modpack::into(mrpack).await?;
-        // Check if this is different from base at all, if not then we don't need to merge it
-        if mrpack_profile != new_profile {
-            // Merge the mrpack_profile into new_profile, with mrpack_profile taking precedence over new_profile
-            new_profile = crate::features::profiles::merge::merge_profiles(new_profile, mrpack_profile)?;
-        }
-    }
-    if let Some(version_id) = version_id {
-        // Update the version_id of new_profile to the provided version_id, and update the version_data accordingly,
-        // and if the version_id is different from the current one then we should also update all data (mods, resource packs, etc.) to be compatible with the new version_id
-        new_profile.version = get_versions()
-            .await?
-            .0
-            .into_iter()
-            .find(|v| v.id == version_id)
-            .ok_or_else(|| format!("Version data for {} not found", version_id))?;
-        // TODO: Now use modrinth to get the latest compatible versions of mods, resource packs, etc. for the new version_id and update the new_profile accordingly
-    }
-    todo!()
-}
-
-async fn import(exported_profile: PathBuf) -> Result<KableProfile, String> {
-    // ! We need to parse the exported profile and return it as a KableProfile
-    todo!()
-}
-
-/// This only make a new profile instance (not saved to disk) with given version_id, unique id and default fields. This is used for creating a new profile from scratch,
-/// or for creating a new profile from an existing profile with a different version_id.
-async fn new_profile(version_id: String) -> Result<KableProfile, String> {
-    let all_versions = get_versions().await?.0;
-    let version_data = all_versions.iter().find(|v| v.id == version_id);
-    let version_data = match version_data {
-        Some(v) => v.clone(),
-        None => return Err(format!("Version data for {} not found", version_id)),
-    };
-    let mut id = uuid::Uuid::new_v4().to_string();
-    // check if id is not already used in existing profiles, if so generate a new one until it is unique
-    let existing_profiles = load_profiles().await?;
-    while existing_profiles.iter().any(|p| p.id == id) {
-        id = uuid::Uuid::new_v4().to_string();
-    }
-    let new_profile = KableProfile {
-        id: id.clone(),
-        name: format!("KableProfile ({})", version_id),
-        icon: None,
-        version: version_data,
-        created: chrono::Utc::now().to_rfc3339(),
-        last_used: chrono::Utc::now().to_rfc3339(),
-        java_args: Vec::new(),
-        dedicated_mods_folder: Some(format!("{}/{}", MODS_DIR, uuid::Uuid::new_v4())),
-        dedicated_config_folder: Some(format!("{}/{}", CONFIG_DIR, uuid::Uuid::new_v4())),
-        dedicated_resource_pack_folder: Some(format!("{}/{}", RESOURCEPACKS_DIR, uuid::Uuid::new_v4())),
-        dedicated_shaders_folder: Some(format!("{}/{}", SHADERPACKS_DIR, uuid::Uuid::new_v4())),
-        favorite: false,
-        total_time_played_ms: 0,
-        parameters_map: HashMap::new(),
-        description: Some(format!(
-            "Profile created from version `{}` at `{}` with unique ID `{}` through the Kable Launcher",
-            version_id,
-            chrono::Utc::now().to_rfc3339(),
-            id
-        )),
-        times_launched: 0,
-        enable_pack_merging: true,
-        pack_order: Vec::new(),
-        merged_packs: Vec::new(),
-    };
-    Ok(new_profile)
 }
