@@ -169,7 +169,7 @@ impl SymlinkManager {
     /// Make sure a KableProfile gets it dedicated_resource_packs_folder and/or dedicated_shaders_folder symlinked to .minecraft/resourcepacks and .minecraft/shaderpacks respectively.
     /// Checks if these are not already existing, source is not already .minecraft/resourcepacks or .minecraft/shaderpacks and if source exists.
     /// Symlinks created with this function are temporary and will be removed on exit of the launcher. If the profile has no dedicated folders, do nothing.
-    async fn setup_profile_symlinks(&mut self, profile: &KableProfile) -> Result<(), String> {
+    async fn setup_profile_symlinks(&mut self, _profile: &KableProfile) -> Result<(), String> {
         // TODO: We will have "projects" in global folders which we should symlink to temp/session ones and also implement cleanup
         // if let Some(dedicated_resourcepacks_folder) = &profile.dedicated_resource_pack_folder {
         //     let source = std::path::PathBuf::from(dedicated_resourcepacks_folder);

@@ -137,7 +137,7 @@ pub fn run() {
             // #region Profiles
             api::get_profiles,
             api::get_profile,
-            // api::create_profile,
+            api::create_profile,
             api::modify_profile,
             api::delete_profile,
             api::get_versions,

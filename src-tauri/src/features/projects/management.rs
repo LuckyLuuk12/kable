@@ -3,7 +3,7 @@
 use crate::api::browse;
 use crate::integrations::modrinth::client::download_project;
 use crate::system::fs;
-use api_types::profiles::{KableProfile, KableProfileSettings};
+use api_types::profiles::KableProfile;
 use api_types::projects::{KableProject, Project, ProjectSearch, ProjectType, UpdateMap};
 use futures::{stream, StreamExt, TryStreamExt};
 
@@ -260,6 +260,18 @@ async fn folder_for_project_type(project_type: ProjectType) -> Result<std::path:
     Ok(type_dir)
 }
 
+/// Given a string, check if the project is already installed in the global projects folder, and if so return the KableProject metadata, else return None
+pub async fn get_installed_project(project_type: ProjectType, filename: &str) -> Result<Option<KableProject>, String> {
+    let type_dir = folder_for_project_type(project_type).await?;
+    let metadata_path = std::path::Path::new(&type_dir).join(filename).with_extension("json");
+    if metadata_path.exists() {
+        let serialized_project = fs::read_str(&metadata_path).await?;
+        let project: KableProject = serde_json::from_str(&serialized_project).map_err(|e| e.to_string())?;
+        return Ok(Some(project));
+    }
+    Ok(None)
+}
+
 /// List all projects of a specific type from .kable/projects/<type>/* and return Vec<KableProject>
 /// We assume that the KableProject metadata is stored in .json files in the projects/<type> folder, and the jar files are stored in the same folder as the metadata.
 async fn list_projects_for_type(project_type: ProjectType) -> Result<Vec<KableProject>, String> {
@@ -338,6 +350,29 @@ pub async fn add_project(project: Project, version_id: Option<&str>) -> Result<K
     .await?;
     // 6. return the KableProject
     metadata
+}
+
+/// Ensures, given a profile that the mods, resourcepacks, and shaderpacks that are enabled in the profile's settings are actually present in the global projects folder, and if not, downloads them again.
+pub async fn ensure_profile_projects(profile: KableProfile) -> Result<(), String> {
+    for project_type in [ProjectType::Mod, ProjectType::Resourcepack, ProjectType::Shader] {
+        let enabled_project_filenames = profile.settings.by_project_type(project_type, true);
+        for filename in enabled_project_filenames {
+            if let Some(_kable_project) = get_installed_project(project_type, &filename).await? {
+                // project is installed, do nothing
+            } else {
+                // project is not installed, download it again
+                let project_search = ProjectSearch { query: Some(filename.clone()), ..Default::default() };
+                let results = browse(profile.clone(), project_search, true, project_type).await?;
+                if let Some(latest_project) = results.hits.into_iter().next() {
+                    let latest_version_id = latest_project.latest_version.as_deref();
+                    add_project_to_profile(profile.clone(), latest_project.clone(), latest_version_id).await?;
+                } else {
+                    return Err(format!("No project found for mod {}", filename));
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Given a project, find all profiles that have it enabled as safeguard but if there are none, remove it.

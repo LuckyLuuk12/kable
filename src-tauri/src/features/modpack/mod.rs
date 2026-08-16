@@ -1,11 +1,11 @@
-use std::path::PathBuf;
+// use std::path::PathBuf;
 
 use api_types::profiles::KableProfile;
 
 /// converts a MRPack zip file into a KableProfile assuming the string passed is a valid path to a MRPack zip file, and returns an error if it is not
-pub async fn into(mrpack: String) -> Result<KableProfile, String> {
+pub async fn into(_mrpack: String) -> Result<KableProfile, String> {
     // TODO: Implement this...
-    return Err("Not implemented yet".to_string());
+    Err("Not implemented yet".to_string())
 
     // let mrpack_path = std::path::PathBuf::from(mrpack);
     // if !mrpack_path.exists() {

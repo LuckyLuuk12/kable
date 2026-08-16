@@ -1,10 +1,8 @@
 // The simple profile management (rename/delete/list)
 
 use crate::features::profiles::kable_profile::{load_profiles, save_profiles};
-use crate::system::fs::rename;
 use api_types::profiles::KableProfile;
 use api_types::projects::KableProject;
-use std::path::Path;
 
 pub async fn get_profile(profile_id: &str) -> Result<KableProfile, String> {
     let profiles = load_profiles().await?;

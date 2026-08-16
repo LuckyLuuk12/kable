@@ -51,8 +51,8 @@ pub fn merge_profiles(first: &mut KableProfile, second: &mut KableProfile) -> Re
 
 /// merges the first.enabled with second.enabled hashsets and the first.disabled with second.disabled hashsets, and returns a new Projects struct with the merged enabled and disabled hashsets
 fn merge_projects(first: Projects, second: Projects) -> Projects {
-    let merged_enabled = first.enabled.into_iter().chain(second.enabled.into_iter()).collect();
-    let merged_disabled = first.disabled.into_iter().chain(second.disabled.into_iter()).collect();
+    let merged_enabled = first.enabled.into_iter().chain(second.enabled).collect();
+    let merged_disabled = first.disabled.into_iter().chain(second.disabled).collect();
 
     Projects { enabled: merged_enabled, disabled: merged_disabled }
 }
