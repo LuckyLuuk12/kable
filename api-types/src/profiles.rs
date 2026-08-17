@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-use crate::projects::ProjectType;
+use crate::projects::{KableProject, ProjectType};
 /// Represents a Kable Minecraft Profile, which contains more information than a standard Minecraft Profile:
 /// ```rs
 /// pub struct KableProfile {
@@ -319,6 +319,14 @@ impl KableProfileSettings {
             ProjectType::Resourcepack => self.resourcepacks = projects,
             ProjectType::Shader => self.shaders = projects,
             _ => {}
+        }
+    }
+    pub fn is_enabled(&self, project: KableProject) -> bool {
+        match project.project.project_type {
+            ProjectType::Mod => self.mods.enabled.contains(&project.filename),
+            ProjectType::Resourcepack => self.resourcepacks.enabled.contains(&project.filename),
+            ProjectType::Shader => self.shaders.enabled.contains(&project.filename),
+            _ => false,
         }
     }
 }

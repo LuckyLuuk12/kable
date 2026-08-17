@@ -4,7 +4,7 @@ PlayerHead - Renders a player's Minecraft head from their current skin
 Uses skinview3d to render just the head portion of a player's skin.
 Falls back to user icon if no skin is available.
 
-@prop {LauncherAccount | null} account - The account to display the head for
+@prop {KableAccount | null} account - The account to display the head for
 @prop {number} [size=40] - Size of the head in pixels
 
 @example
@@ -13,11 +13,11 @@ Falls back to user icon if no skin is available.
 ```
 -->
 <script lang="ts">
-import { Icon } from "$lib";
+import { Icon, type KableAccount } from "$lib";
 import * as skinview3d from "skinview3d";
 import { onDestroy, onMount } from "svelte";
 
-export let account: LauncherAccount | null = null;
+export let account: KableAccount | null = null;
 export let size: number = 40;
 
 let canvas: HTMLCanvasElement;
@@ -62,7 +62,8 @@ async function loadSkin(uuid: string) {
 
   try {
     // Fetch skin URL from backend (avoids CORS issues)
-    const url = await skinsApi.getSkinUrlByUuid(uuid);
+    // const url = await skinsApi.getSkinUrlByUuid(uuid);
+    const url = "https://crafatar.com/skins/" + uuid; // TODO: Replace with backend API call once we reworked all APIs..
     console.log("Skin URL from backend:", url);
 
     skinUrl = url;

@@ -58,7 +58,6 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::list_profile_projects,
             api::remove_project,
             api::add_project_to_profile,
-            api::toggle_project,
             api::check_for_update,
             api::check_for_updates,
             api::update_project,
@@ -72,6 +71,8 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::delete_profile,
             api::get_versions,
             api::toggle_project,
+            api::toggle_favorite,
+            api::is_project_enabled,
             // #endregion Profiles
             // #region Symlinks
             api::get_symlinks,

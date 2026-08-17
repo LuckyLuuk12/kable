@@ -47,21 +47,27 @@ export const commands = {
 	autoDetectJava: () => typedError<string, string>(__TAURI_INVOKE("auto_detect_java")),
 	getJavaPath: (javaPath: string | null) => typedError<string, string>(__TAURI_INVOKE("get_java_path", { javaPath })),
 	browse: (profile: KableProfile, search: ProjectSearch, smartFilter: boolean, projectType: ProjectType) => typedError<ModrinthResults_Serialize, string>(__TAURI_INVOKE("browse", { profile, search, smartFilter, projectType })),
-	listProjects: (profile: KableProfile, projectType: ProjectType) => typedError<KableProject_Serialize[], string>(__TAURI_INVOKE("list_projects", { profile, projectType })),
+	listProfileProjects: (profile: KableProfile, enabled: boolean) => typedError<Partial<{ [key in ProjectType]: KableProject_Serialize[] }>, string>(__TAURI_INVOKE("list_profile_projects", { profile, enabled })),
 	removeProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("remove_project", { profile, kableProject })),
-	downloadProject: (profile: KableProfile, project: Project_Deserialize, versionId: string | null) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("download_project", { profile, project, versionId })),
-	enableProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("enable_project", { profile, kableProject })),
-	disableProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("disable_project", { profile, kableProject })),
-	toggleProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("toggle_project", { profile, kableProject })),
-	checkForProjectUpdate: (kableProfile: KableProfile, kableProject: KableProject_Deserialize) => typedError<Project_Serialize, string>(__TAURI_INVOKE("check_for_project_update", { kableProfile, kableProject })),
-	checkForProjectUpdates: (profile: KableProfile, projectType: ProjectType) => typedError<UpdateMap_Serialize[], string>(__TAURI_INVOKE("check_for_project_updates", { profile, projectType })),
+	addProjectToProfile: (profile: KableProfile, project: Project_Deserialize, versionId: string | null) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("add_project_to_profile", { profile, project, versionId })),
+	checkForUpdate: (kableProfile: KableProfile, kableProject: KableProject_Deserialize) => typedError<Project_Serialize, string>(__TAURI_INVOKE("check_for_update", { kableProfile, kableProject })),
+	checkForUpdates: (profile: KableProfile, projectType: ProjectType) => typedError<UpdateMap_Serialize[], string>(__TAURI_INVOKE("check_for_updates", { profile, projectType })),
 	updateProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("update_project", { profile, kableProject })),
 	updateAllProjects: (profile: KableProfile, projectType: ProjectType) => typedError<KableProject_Serialize[], string>(__TAURI_INVOKE("update_all_projects", { profile, projectType })),
 	getProfiles: () => typedError<KableProfile[], string>(__TAURI_INVOKE("get_profiles")),
 	getProfile: (id: string) => typedError<KableProfile, string>(__TAURI_INVOKE("get_profile", { id })),
+	createProfile: (versionId: string | null, baseProfile: {
+	id: string,
+	version: ProfileVersion,
+	metadata: KableProfileMetadata,
+	settings: KableProfileSettings,
+} | null, exportedProfile: string | null, mrpack: string | null) => typedError<KableProfile, string>(__TAURI_INVOKE("create_profile", { versionId, baseProfile, exportedProfile, mrpack })),
 	modifyProfile: (oldProfile: KableProfile, newProfile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("modify_profile", { oldProfile, newProfile })),
 	deleteProfile: (id: string) => typedError<null, string>(__TAURI_INVOKE("delete_profile", { id })),
 	getVersions: () => typedError<Versions, string>(__TAURI_INVOKE("get_versions")),
+	toggleProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_project", { profile, kableProject })),
+	toggleFavorite: (profile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_favorite", { profile })),
+	isProjectEnabled: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<boolean, string>(__TAURI_INVOKE("is_project_enabled", { profile, kableProject })),
 	getSymlinks: () => typedError<Symlink[], string>(__TAURI_INVOKE("get_symlinks")),
 	temporarySymlinks: () => typedError<{ [key in string]: Symlink }, string>(__TAURI_INVOKE("temporary_symlinks")),
 	create: (link: SymlinkCreateRequest) => typedError<Symlink, string>(__TAURI_INVOKE("create", { link })),
@@ -70,9 +76,9 @@ export const commands = {
 	update: (old: Symlink, updated: Symlink) => typedError<Symlink, string>(__TAURI_INVOKE("update", { old, updated })),
 	openUrl: (url: string) => typedError<null, string>(__TAURI_INVOKE("open_url", { url })),
 	openPath: (path: string) => typedError<null, string>(__TAURI_INVOKE("open_path", { path })),
-	checkForUpdates: (includePrerelease: boolean) => typedError<UpdateData, string>(__TAURI_INVOKE("check_for_updates", { includePrerelease })),
-	installUpdate: (includePrerelease: boolean) => typedError<null, string>(__TAURI_INVOKE("install_update", { includePrerelease })),
-	downloadUpdate: (includePrerelease: boolean) => typedError<string, string>(__TAURI_INVOKE("download_update", { includePrerelease })),
+	checkLauncherUpdates: (includePrerelease: boolean) => typedError<UpdateData, string>(__TAURI_INVOKE("check_launcher_updates", { includePrerelease })),
+	installLauncherUpdate: (includePrerelease: boolean) => typedError<null, string>(__TAURI_INVOKE("install_launcher_update", { includePrerelease })),
+	downloadLauncherUpdate: (includePrerelease: boolean) => typedError<string, string>(__TAURI_INVOKE("download_launcher_update", { includePrerelease })),
 	applyDownloadedUpdate: () => typedError<null, string>(__TAURI_INVOKE("apply_downloaded_update")),
 	getCurrentVersion: () => typedError<string, string>(__TAURI_INVOKE("get_current_version")),
 };
@@ -237,24 +243,34 @@ export type KableMinecraftProfile = {
  */
 export type KableProfile = {
 	id: string,
+	version: ProfileVersion,
+	metadata: KableProfileMetadata,
+	settings: KableProfileSettings,
+};
+
+export type KableProfileMetadata = {
 	name: string,
 	icon: string | null,
-	version: ProfileVersion,
 	created: string,
 	last_used: string,
-	java_args: string[],
-	dedicated_mods_folder: string | null,
-	dedicated_resource_pack_folder: string | null,
-	dedicated_shaders_folder: string | null,
-	dedicated_config_folder: string | null,
 	favorite: boolean,
 	total_time_played_ms: number,
-	parameters_map: { [key in string]: string },
 	description: string | null,
 	times_launched: number,
+};
+
+export type KableProfileSettings = {
+	parameters_map: { [key in string]: string },
+	java_args: string[],
 	enable_pack_merging?: boolean,
+	/**  Lists the packs, by filename relative to the resource pack folder, in the order they are "stacked" when merging, if enabled. */
 	pack_order?: string[],
+	/**  Lists the packs, by filename relative to the resource pack folder, which should be merged into a single pack before we launch the game */
 	merged_packs?: string[],
+	/**  lists of enabled/disabled content/projects, the ToggleableContent lists contain filenames relative to the respective folders, e.g. "mods/forge-1.19.2-43.2.0.jar" or "resourcepacks/faithful-1.19.zip" */
+	mods: Projects,
+	resourcepacks: Projects,
+	shaders: Projects,
 };
 
 /**  Represents a project in a profile's dedicated mods folder, including its metadata and whether it is enabled or disabled */
@@ -268,8 +284,6 @@ export type KableProject_Deserialize = {
 	version_id: string,
 	/**  The filename of the mod jar file in the profile's dedicated mods folder, should match a ProjectVersion.files.filename, and is used to locate the mod jar file in the profile's dedicated mods folder */
 	filename: string,
-	/**  Whether the mod is enabled or disabled, when disabled the jar should be in the <dedicated_mods_folder>/disabled folder, otherwise it should be in the <dedicated_mods_folder> folder */
-	enabled: boolean,
 };
 
 /**  Represents a project in a profile's dedicated mods folder, including its metadata and whether it is enabled or disabled */
@@ -280,8 +294,6 @@ export type KableProject_Serialize = {
 	version_id: string,
 	/**  The filename of the mod jar file in the profile's dedicated mods folder, should match a ProjectVersion.files.filename, and is used to locate the mod jar file in the profile's dedicated mods folder */
 	filename: string,
-	/**  Whether the mod is enabled or disabled, when disabled the jar should be in the <dedicated_mods_folder>/disabled folder, otherwise it should be in the <dedicated_mods_folder> folder */
-	enabled: boolean,
 };
 
 export type Language = "english";
@@ -559,6 +571,11 @@ export type Project_Serialize = {
 	gallery?: string[] | null,
 	/**  The featured gallery image of the project */
 	featured_gallery?: string | null,
+};
+
+export type Projects = {
+	enabled: string[],
+	disabled: string[],
 };
 
 export type RequestedStatus = "listed" | "archived" | "draft" | "unlisted";

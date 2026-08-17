@@ -5,15 +5,17 @@ This is used for managing installed projects (per profile) and allows for easy u
 
 -->
 <script lang="ts">
-import { type KableProject_Deserialize } from "$lib";
+import { type KableProfile, type KableProject_Deserialize } from "$lib";
 import InstalledProjectCard from "./InstalledProjectCard.svelte";
+
+let { profile }: { profile: KableProfile } = $props();
 
 let installedProjects: KableProject_Deserialize[] = [];
 </script>
 
 <div class="installed-projects">
   {#each installedProjects as project (project.project.project_id)}
-    <InstalledProjectCard {project} />
+    <InstalledProjectCard {profile} {project} />
   {/each}
 </div>
 

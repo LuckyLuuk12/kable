@@ -2,6 +2,7 @@ import { type KableProfile, type KableProject_Deserialize, type KableProject_Ser
 import type { Service } from "./app.service";
 
 export class ProjectsService implements Service {
+  // TODO: rethink if we should hold the "global share" of projects here and have a map-state keyed by profiles
   projects = $state<KableProject_Serialize[]>([]);
   loading = $state(false);
   loadedForProfileId = $state<string | null>(null);
@@ -21,7 +22,9 @@ export class ProjectsService implements Service {
 
     this.loading = true;
     try {
-      this.projects = await api.listProjects(profile, projectType);
+      const enabledProfileProjects = await api.listProfileProjects(profile, true);
+      const disabledProfileProjects = await api.listProfileProjects(profile, false);
+      this.projects = [...enabledProfileProjects[projectType] ?? [], ...disabledProfileProjects[projectType] ?? []];
       this.loadedForProfileId = profile.id;
     } finally {
       this.loading = false;
@@ -97,7 +100,7 @@ export class ProjectsService implements Service {
    */
   async download(profile: KableProfile, project: Project_Deserialize, versionId: string | null) {
     try {
-      const result = await api.downloadProject(profile, project, versionId);
+      const result = await api.addProjectToProfile(profile, project, versionId);
 
       this.projects = [...this.projects, result];
       return result;
@@ -122,16 +125,32 @@ export class ProjectsService implements Service {
     }
   }
 
+  async isEnabled(profile: KableProfile, project: KableProject_Deserialize) {
+    try {
+      return await api.isProjectEnabled(profile, project);
+    } catch (e) {
+      console.error("API call failed: `return await api.isProjectEnabled(profile, project);`", e);
+      throw e;
+    }
+  }
+
   /**
    * Enable project
    */
   async enable(profile: KableProfile, project: KableProject_Deserialize) {
     try {
-      const updated = await api.enableProject(profile, project);
+      const isEnabled = await api.isProjectEnabled(profile, project);
+      if (isEnabled) {
+        console.warn("Project is already enabled", project);
+        return project;
+      }
 
-      this.projects = this.projects.map((p) => (p.project.project_id === updated.project.project_id ? updated : p));
+      const updatedProfile = await api.toggleProject(profile, project);
 
-      return updated;
+      // Reload the projects list
+      await this.load(profile, project.project.project_type);
+
+      return updatedProfile;
     } catch (e) {
       console.error("Failed to enable project", e);
       throw e;
@@ -141,12 +160,20 @@ export class ProjectsService implements Service {
    * Disable project
    */
   async disable(profile: KableProfile, project: KableProject_Deserialize) {
+
     try {
-      const updated = await api.disableProject(profile, project);
+      const isEnabled = await api.isProjectEnabled(profile, project);
+      if (!isEnabled) {
+        console.warn("Project is already disabled", project);
+        return project;
+      }
 
-      this.projects = this.projects.map((p) => (p.project.project_id === updated.project.project_id ? updated : p));
+      const updatedProfile = await api.toggleProject(profile, project);
 
-      return updated;
+      // Reload the projects list
+      await this.load(profile, project.project.project_type);
+
+      return updatedProfile;
     } catch (e) {
       console.error("Failed to disable project", e);
       throw e;
@@ -158,10 +185,13 @@ export class ProjectsService implements Service {
    */
   async toggle(profile: KableProfile, project: KableProject_Deserialize) {
     try {
-      const updated = await api.toggleProject(profile, project);
 
-      this.projects = this.projects.map((p) => (p.project.project_id === updated.project.project_id ? updated : p));
-      return updated;
+      const updatedProfile = await api.toggleProject(profile, project);
+
+      // Reload the projects list
+      await this.load(profile, project.project.project_type);
+
+      return updatedProfile;
     } catch (e) {
       console.error("Failed to toggle project", e);
       throw e;
@@ -173,7 +203,7 @@ export class ProjectsService implements Service {
    */
   async checkUpdates(profile: KableProfile, projectType: ProjectType) {
     try {
-      return await api.checkForProjectUpdates(profile, projectType);
+      return await api.checkForUpdates(profile, projectType);
     } catch (e) {
       console.error("API call failed: `return await api.checkForProjectUpdates(profile, projectType);`", e);
       throw e;

@@ -16,7 +16,7 @@ pub const DEFAULT_OAUTH_PORT: u16 = 43110;
 
 // App Folder names - all are relative to .kable except .kable itself which is relative to .minecraft
 /// Root folder for all kable data, usually <user path>/.minecraft/.kable (on Windows: C:\Users\<User>\AppData\Roaming\.minecraft\.kable)
-pub const KABLE_DIR_NAME: &str = ".kable";
+pub const KABLE_DIR_NAME: &str = if cfg!(debug_assertions) { ".kable-dev" } else { ".kable" };
 /// subfolder of KABLE_DIR_NAME for storing shared "projects", e.g. mods, resourcepacks, shaders, etc. that can be enabled/disabled per profile
 pub const PROJECTS_DIR_NAME: &str = "projects";
 /// subfolder of KABLE_DIR_NAME for storing profile-specific data like config folder, options.txt, and other things that are usually in .minecraft folder

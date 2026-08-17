@@ -11,7 +11,7 @@ Java arguments, resolution, memory allocation, and advanced parameters.
 ```
 -->
 <script lang="ts">
-import type { KableProfile } from "$lib";
+import type { KableProfile, KableProfileMetadata } from "$lib";
 import { app } from "$lib";
 import { clickSound, successSound } from "$lib/actions";
 import { tick } from "svelte";
@@ -32,8 +32,8 @@ export async function open(installationToEdit: KableProfile) {
   originalInstallation = structuredClone(installationToEdit);
 
   // Initialize fields
-  javaArgsString = installation.java_args?.join(" ") || "";
-  parametersJson = JSON.stringify(installation.parameters_map || {}, null, 2);
+  javaArgsString = installation.settings.java_args?.join(" ") || "";
+  parametersJson = JSON.stringify(installation.settings.parameters_map || {}, null, 2);
   showOptional = false;
 
   // Wait for DOM to update
@@ -54,10 +54,10 @@ function close() {
   }, 300); // Wait for close animation
 }
 
-function handleInput(e: Event, field: keyof KableProfile) {
+function handleSettingsInput(e: Event, field: keyof KableProfileMetadata) {
   if (!installation) return;
   const target = e.target as HTMLInputElement;
-  installation = { ...installation, [field]: target.value };
+  installation = { ...installation, settings: { ...installation.settings, [field]: target.value } } as KableProfile;
 }
 
 function handleJavaArgsInput(e: Event) {
@@ -137,13 +137,13 @@ async function confirmEdit() {
   if (!installation) return;
 
   // Update java_args and parameters from the string fields
-  installation.java_args = javaArgsString.split(" ").filter((arg) => arg.length > 0);
+  installation.settings.java_args = javaArgsString.split(" ").filter((arg) => arg.length > 0);
 
   // merge parameters from JSON editor if valid
   try {
     const parsed = JSON.parse(parametersJson || "{}");
     if (parsed && typeof parsed === "object") {
-      installation.parameters_map = parsed;
+      installation.settings.parameters_map = parsed;
     }
   } catch (e) {
     // if parsing fails, keep existing map and log
@@ -175,33 +175,33 @@ function handleBackdropClick(e: MouseEvent) {
 
 <dialog bind:this={dialogRef} class="edit-installation-modal" on:click={handleBackdropClick}>
   <h2>
-    Edit Installation{#if installation?.name}
-      — {installation.name}{/if}
+    Edit Installation{#if installation?.metadata.name}
+      — {installation.metadata.name}{/if}
   </h2>
   {#if installation}
     <form on:submit|preventDefault={confirmEdit} class="two-column-form">
       <div class="left-column">
         <label>
           Name:
-          <input type="text" bind:value={installation.name} on:input={(e) => handleInput(e, "name")} />
+          <input type="text" bind:value={installation.metadata.name} on:input={(e) => handleSettingsInput(e, "name")} />
         </label>
 
         <label>
           Icon:
           <div class="file-row">
-            <input type="text" bind:value={installation.icon} on:input={(e) => handleInput(e, "icon")} />
+            <input type="text" bind:value={installation.metadata.icon} on:input={(e) => handleSettingsInput(e, "icon")} />
             <button type="button" class="btn" on:click={pickIconFile}>Choose...</button>
           </div>
         </label>
 
         <label>
           Description (optional):
-          <textarea bind:value={installation.description}></textarea>
+          <textarea bind:value={installation.metadata.description}></textarea>
         </label>
 
         <label class="favorite-row">
           <span>Favorite:</span>
-          <input type="checkbox" bind:checked={installation.favorite} />
+          <input type="checkbox" bind:checked={installation.metadata.favorite} />
         </label>
       </div>
 
@@ -212,38 +212,6 @@ function handleBackdropClick(e: MouseEvent) {
             <label>
               Java Args:
               <input type="text" bind:value={javaArgsString} on:input={handleJavaArgsInput} />
-            </label>
-
-            <label>
-              Dedicated Mods Folder (optional):
-              <div class="file-row">
-                <input type="text" bind:value={installation.dedicated_mods_folder} on:input={(e) => handleInput(e, "dedicated_mods_folder")} />
-                <button type="button" class="btn" on:click={() => pickFolder("dedicated_mods_folder")}>Browse...</button>
-              </div>
-            </label>
-
-            <label>
-              Dedicated Resource Pack Folder (optional):
-              <div class="file-row">
-                <input type="text" bind:value={installation.dedicated_resource_pack_folder} on:input={(e) => handleInput(e, "dedicated_resource_pack_folder")} />
-                <button type="button" class="btn" on:click={() => pickFolder("dedicated_resource_pack_folder")}>Browse...</button>
-              </div>
-            </label>
-
-            <label>
-              Dedicated Shaders Folder (optional):
-              <div class="file-row">
-                <input type="text" bind:value={installation.dedicated_shaders_folder} on:input={(e) => handleInput(e, "dedicated_shaders_folder")} />
-                <button type="button" class="btn" on:click={() => pickFolder("dedicated_shaders_folder")}>Browse...</button>
-              </div>
-            </label>
-
-            <label>
-              Dedicated Config Folder (optional):
-              <div class="file-row">
-                <input type="text" bind:value={installation.dedicated_config_folder} on:input={(e) => handleInput(e, "dedicated_config_folder")} />
-                <button type="button" class="btn" on:click={() => pickFolder("dedicated_config_folder")}>Browse...</button>
-              </div>
             </label>
 
             <label>
@@ -262,29 +230,6 @@ function handleBackdropClick(e: MouseEvent) {
   {/if}
   <!-- Hidden inputs for folder and icon selection (used instead of tauri dialog) -->
   <input id="icon-file-input" type="file" accept="image/png,image/jpeg,image/svg+xml,image/x-icon,image/webp" style="display:none;" on:change={handleIconFileSelect} />
-  <!-- Folder inputs: use webkitdirectory to allow picking a folder and read its relative paths -->
-  <input id="folder-input-dedicated_mods_folder" type="file" webkitdirectory style="display:none;" on:change={(e) => handleFolderSelect(e, "dedicated_mods_folder")} />
-  <input
-    id="folder-input-dedicated_resource_pack_folder"
-    type="file"
-    webkitdirectory
-    style="display:none;"
-    on:change={(e) => handleFolderSelect(e, "dedicated_resource_pack_folder")}
-  />
-  <input
-    id="folder-input-dedicated_shaders_folder"
-    type="file"
-    webkitdirectory
-    style="display:none;"
-    on:change={(e) => handleFolderSelect(e, "dedicated_shaders_folder")}
-  />
-  <input
-    id="folder-input-dedicated_config_folder"
-    type="file"
-    webkitdirectory
-    style="display:none;"
-    on:change={(e) => handleFolderSelect(e, "dedicated_config_folder")}
-  />
 </dialog>
 
 <style lang="scss">

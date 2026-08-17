@@ -10,9 +10,8 @@ Displays update information including version numbers and allows users to instal
 ```
 -->
 <script lang="ts">
-import { app } from "$lib";
-import { clickSound, successSound } from "$lib/actions";
-import { settings } from "$lib/stores";
+import { app, clickSound, successSound } from "$lib";
+// import { settings } from "$lib/stores";
 import { marked } from "marked";
 import { onMount } from "svelte";
 
@@ -40,9 +39,9 @@ async function handleCheckForUpdates() {
 
   try {
     // Respect the user's nightly update preference
-    const checkNightly = $settings?.advanced?.check_nightly_updates ?? false;
+    const checkNightly = app.customizationService.settings?.advanced?.enable_nightly_updates ?? false;
     console.log("[AutoUpdater] Checking for updates with checkNightly:", checkNightly);
-    console.log("[AutoUpdater] Full settings.advanced:", $settings?.advanced);
+    console.log("[AutoUpdater] Full settings.advanced:", app.customizationService.settings?.advanced);
     updateInfo = await app.updaterService.check(checkNightly);
 
     if (updateInfo?.body) {
@@ -65,7 +64,7 @@ async function handleInstallUpdate() {
   error = "";
 
   try {
-    const checkNightly = $settings?.advanced?.check_nightly_updates ?? false;
+    const checkNightly = app.customizationService.settings?.advanced?.enable_nightly_updates ?? false;
     await app.updaterService.install(checkNightly);
     // App will restart automatically after update
   } catch (e) {
@@ -79,7 +78,7 @@ async function handleDownloadUpdate() {
   isDownloading = true;
   error = "";
   try {
-    const checkNightly = $settings?.advanced?.check_nightly_updates ?? false;
+    const checkNightly = app.customizationService.settings?.advanced?.enable_nightly_updates ?? false;
     downloadedPath = await app.updaterService.download(checkNightly);
   } catch (e) {
     error = `Failed to download update: ${e}`;
@@ -132,8 +131,7 @@ async function handleInstallDownloaded() {
             on:click={handleDownloadUpdate}
             use:clickSound
             disabled={isDownloading || isInstalling}
-            title="Download installer now; will be applied on restart or when you click 'Install downloaded'"
-          >
+            title="Download installer now; will be applied on restart or when you click 'Install downloaded'">
             {#if isDownloading}
               Downloading...
             {:else}
@@ -156,8 +154,7 @@ async function handleInstallDownloaded() {
             on:click={handleInstallDownloaded}
             use:successSound
             disabled={!downloadedPath || isApplying}
-            title="Install the previously downloaded update and restart the app"
-          >
+            title="Install the previously downloaded update and restart the app">
             {#if isApplying}
               Installing...
             {:else}

@@ -15,37 +15,68 @@ Supports both grid and list view modes with sorting and filtering.
 ```
 -->
 <script lang="ts">
-import { app, clickSound, errorSound, Icon, launchSound } from "$lib";
+import { app, clickSound, errorSound, Icon, launchSound, type KableProfile } from "$lib";
 import { onDestroy, onMount } from "svelte";
 import EditProfileModal from "./EditProfileModal.svelte";
 
-export let isGrid: boolean = false;
-export let isSmall: boolean = false;
+let { isGrid, isSmall, error, limit } = $props<{
+  isGrid?: boolean;
+  isSmall?: boolean;
+  error?: string | null;
+  limit?: number | null;
+}>();
 
-export let error: string | null = null;
-export let limit: number | null = null;
+onMount(() => {
+  // Initial check
+  setTimeout(checkActionsFit, 100);
+
+  // Set up resize observer for more accurate detection
+  if (typeof ResizeObserver !== "undefined") {
+    resizeObserver = new ResizeObserver(() => {
+      checkActionsFit();
+    });
+
+    const container = document.querySelector(".installations-list");
+    if (container) {
+      resizeObserver.observe(container);
+    }
+  }
+
+  // Fallback to window resize
+  window.addEventListener("resize", handleResize);
+});
+
+onDestroy(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+  }
+  window.removeEventListener("resize", handleResize);
+});
 
 let isLoading = $derived(app.profilesService.loading || app.launcherService.loadingVersions);
 
 // Debug logging to verify store updates
 $effect(() => {
   console.log("[InstallationsList] installations changed, count:", app.profilesService.profiles.length);
-  console.log("[InstallationsList] First installation favorite:", app.profilesService.profiles[0]?.favorite);
+  console.log("[InstallationsList] First installation favorite:", app.profilesService.profiles[0]?.metadata.favorite);
 });
 
-$: limitedInstallations = app.profilesService.profiles
-  .map((inst) => ({ ...inst })) // Create new object references to ensure reactivity
-  .sort((a, b) => {
-    // Favorites first
-    if ((a.favorite ? 1 : 0) !== (b.favorite ? 1 : 0)) {
-      return (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
-    }
-    // Then by last_used (most recent first)
-    const aTime = a.last_used ? new Date(a.last_used).getTime() : 0;
-    const bTime = b.last_used ? new Date(b.last_used).getTime() : 0;
-    return bTime - aTime;
-  })
-  .slice(0, limit || app.profilesService.profiles.length);
+let limitedInstallations = $state([] as KableProfile[]);
+$effect(() => {
+  const sorted = app.profilesService.profiles
+    .map((inst) => ({ ...inst })) // Create new object references to ensure reactivity
+    .sort((a, b) => {
+      // Favorites first
+      if ((a.metadata.favorite ? 1 : 0) !== (b.metadata.favorite ? 1 : 0)) {
+        return (b.metadata.favorite ? 1 : 0) - (a.metadata.favorite ? 1 : 0);
+      }
+      // Then by last_used (most recent first)
+      const aTime = a.metadata.last_used ? new Date(a.metadata.last_used).getTime() : 0;
+      const bTime = b.metadata.last_used ? new Date(b.metadata.last_used).getTime() : 0;
+      return bTime - aTime;
+    });
+  limitedInstallations = sorted.slice(0, limit || sorted.length);
+});
 
 // Debug limitedInstallations changes
 $effect(() => {
@@ -53,30 +84,30 @@ $effect(() => {
   if (limitedInstallations.length > 0) {
     console.log("[InstallationsList] First limited installation:", {
       id: limitedInstallations[0].id,
-      name: limitedInstallations[0].name,
-      favorite: limitedInstallations[0].favorite,
+      name: limitedInstallations[0].metadata.name,
+      favorite: limitedInstallations[0].metadata.favorite,
     });
   }
 });
-// Make reactive to BOTH $installations AND $versions for progressive loading
-$: loaderIcons = (() => {
-  // Force reactive dependency on versions store
-  const currentVersions = app.launcherService.versions;
-  return Object.fromEntries(
-    app.profilesService.profiles.map((installation) => [installation.id, app.profilesService.getLoaderIcon(InstallationService.getVersionData(installation).loader)]),
-  );
-})();
 
-$: loaderColors = (() => {
+let loaderIcons = $state({} as { [key: string]: string });
+$effect(() => {
   // Force reactive dependency on versions store
   const currentVersions = app.launcherService.versions;
-  return Object.fromEntries(
-    app.profilesService.profiles.map((installation) => [installation.id, InstallationService.getLoaderColor(InstallationService.getVersionData(installation).loader)]),
+  loaderIcons = Object.fromEntries(app.profilesService.profiles.map((installation) => [installation.id, app.profilesService.getLoaderIcon(installation.version.loader)]));
+});
+
+let loaderColors = $state({} as { [key: string]: string });
+$effect(() => {
+  // Force reactive dependency on versions store
+  const currentVersions = app.launcherService.versions;
+  loaderColors = Object.fromEntries(
+    app.profilesService.profiles.map((installation) => [installation.id, app.profilesService.getLoaderColor(installation.version.loader)]),
   );
-})();
+});
 
 // Dynamic action display logic
-let useDropdownForActions: { [key: string]: boolean } = {};
+let useDropdownForActions: { [key: string]: boolean } = $state({});
 let resizeObserver: ResizeObserver | null = null;
 
 // Modal control: reference to the modal component
@@ -131,33 +162,6 @@ function checkActionsFit() {
 function handleResize() {
   checkActionsFit();
 }
-
-onMount(() => {
-  // Initial check
-  setTimeout(checkActionsFit, 100);
-
-  // Set up resize observer for more accurate detection
-  if (typeof ResizeObserver !== "undefined") {
-    resizeObserver = new ResizeObserver(() => {
-      checkActionsFit();
-    });
-
-    const container = document.querySelector(".installations-list");
-    if (container) {
-      resizeObserver.observe(container);
-    }
-  }
-
-  // Fallback to window resize
-  window.addEventListener("resize", handleResize);
-});
-
-onDestroy(() => {
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-  }
-  window.removeEventListener("resize", handleResize);
-});
 
 // Re-check when installations change or isSmall prop changes
 $effect(() => {
@@ -221,13 +225,13 @@ $effect(() => {
             <div class="card-top-actions">
               <button
                 class="star-btn"
-                title={installation.favorite ? "Unfavorite" : "Favorite"}
+                title={installation.metadata.favorite ? "Unfavorite" : "Favorite"}
                 onclick={async (e) => {
                   e.stopPropagation();
                   await app.profilesService.toggleFavorite(installation);
                 }}>
-                {#key installation.favorite}
-                  <Icon name="star" forceType={installation.favorite ? "emoji" : "svg"} size="md" />
+                {#key installation.metadata.favorite}
+                  <Icon name="star" forceType={installation.metadata.favorite ? "emoji" : "svg"} size="md" />
                 {/key}
               </button>
               {#if isSmall}
@@ -240,14 +244,17 @@ $effect(() => {
                       <Icon name="edit" size="sm" />
                       Edit
                     </button>
-                    <button use:clickSound onclick={async () => await app.profilesService.createInstallation(installation.version.id)} title="Duplicate Installation">
+                    <button
+                      use:clickSound
+                      onclick={async () => await app.profilesService.createProfile(installation.version.id, installation)}
+                      title="Duplicate Installation">
                       <Icon name="duplicate" size="sm" />
                       Duplicate
                     </button>
                     <button
                       use:clickSound
                       onclick={async () => {
-                        await app.profilesService.exportInstallation(installation);
+                        await app.profilesService.exportProfile(installation);
                       }}
                       title="Export Installation">
                       <Icon name="download" size="sm" />
@@ -279,9 +286,9 @@ $effect(() => {
             <div class="installation-main">
               <div class="installation-icon-column">
                 <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColors[installation.id]}; background: rgba(0,0,0,0.0);">
-                  {#if installation.icon}
-                    {#if typeof installation.icon === "string" && (installation.icon.startsWith("data:") || installation.icon.startsWith("http") || installation.icon.startsWith("file:") || installation.icon.startsWith("/"))}
-                      <img src={installation.icon} alt="installation icon" class="installation-img" />
+                  {#if installation.metadata.icon}
+                    {#if typeof installation.metadata.icon === "string" && (installation.metadata.icon.startsWith("data:") || installation.metadata.icon.startsWith("http") || installation.metadata.icon.startsWith("file:") || installation.metadata.icon.startsWith("/"))}
+                      <img src={installation.metadata.icon} alt="installation icon" class="installation-img" />
                     {:else}
                       <!-- For short installation.icon names, prefer the loader-specific icon instead -->
                       <Icon name={loaderIcons[installation.id]} size="lg" />
@@ -300,8 +307,8 @@ $effect(() => {
                   onclick={async () => {
                     await app.launcherService.launch(installation);
                   }}
-                  disabled={isLaunching}>
-                  {#if $currentLaunchingInstallation && $currentLaunchingInstallation.id === installation.id}
+                  disabled={app.launcherService.launching}>
+                  {#if app.launcherService.launchingProfileId && app.launcherService.launchingProfileId === installation.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
                     <span style="margin-left:0.5rem">Launching...</span>
                   {:else}
@@ -311,7 +318,7 @@ $effect(() => {
               </div>
               <div class="installation-meta">
                 <div class="installation-title-row">
-                  <h3>{installation.name || installation.version.id}</h3>
+                  <h3>{installation.metadata.name || installation.version.id}</h3>
                 </div>
                 {#if installation.version.id}
                   <div class="loader-version-row">
@@ -324,8 +331,8 @@ $effect(() => {
                       <span class="meta-key">Total time:</span>
                       <span class="meta-value last-played small-meta-value">
                         <Icon name="clock" size="sm" />
-                        {installation.total_time_played_ms
-                          ? `${Math.floor(installation.total_time_played_ms / 3600000)}h ${Math.floor((installation.total_time_played_ms % 3600000) / 60000)}m`
+                        {installation.metadata.total_time_played_ms
+                          ? `${Math.floor(installation.metadata.total_time_played_ms / 3600000)}h ${Math.floor((installation.metadata.total_time_played_ms % 3600000) / 60000)}m`
                           : "0h 0m"}
                       </span>
                     </div>
@@ -336,20 +343,20 @@ $effect(() => {
                       <span class="meta-key">Created:</span>
                       <span class="meta-value created-date"
                         ><Icon name="calendar" size="sm" />
-                        {installation.created ? new Date(installation.created).toLocaleDateString() : "Unknown"}</span>
+                        {installation.metadata.created ? new Date(installation.metadata.created).toLocaleDateString() : "Unknown"}</span>
                     </div>
                     <div class="meta-cell">
                       <span class="meta-key">Last played:</span>
                       <span class="meta-value last-played"
                         ><Icon name="clock" size="sm" />
-                        {installation.last_used ? new Date(installation.last_used).toLocaleDateString() : "Never"}</span>
+                        {installation.metadata.last_used ? new Date(installation.metadata.last_used).toLocaleDateString() : "Never"}</span>
                     </div>
                     <div class="meta-cell">
                       <span class="meta-key">Total time:</span>
                       <span class="meta-value total-time">
                         <Icon name="clock" size="sm" />
-                        {installation.total_time_played_ms
-                          ? `${Math.floor(installation.total_time_played_ms / 3600000)}h ${Math.floor((installation.total_time_played_ms % 3600000) / 60000)}m`
+                        {installation.metadata.total_time_played_ms
+                          ? `${Math.floor(installation.metadata.total_time_played_ms / 3600000)}h ${Math.floor((installation.metadata.total_time_played_ms % 3600000) / 60000)}m`
                           : "0h 0m"}
                       </span>
                     </div>
@@ -367,7 +374,7 @@ $effect(() => {
                 <button
                   use:clickSound
                   class="btn btn-secondary"
-                  onclick={async () => await app.profilesService.createInstallation(installation.version.id)}
+                  onclick={async () => await app.profilesService.createProfile(installation.version.id)}
                   title="Duplicate Installation">
                   <Icon name="duplicate" size="sm" />
                   Duplicate
@@ -376,7 +383,7 @@ $effect(() => {
                   use:clickSound
                   class="btn btn-secondary"
                   onclick={async () => {
-                    await app.profilesService.exportInstallation(installation);
+                    await app.profilesService.exportProfile(installation);
                   }}
                   title="Export Installation">
                   <Icon name="download" size="sm" />
@@ -397,7 +404,7 @@ $effect(() => {
                   <Icon name="link" size="sm" />
                   Create Shortcut
                 </button>
-                <button use:errorSound class="btn btn-danger" on:click={async () => await app.profilesService.remove(installation.id)} title="Delete Installation">
+                <button use:errorSound class="btn btn-danger" onclick={async () => await app.profilesService.remove(installation.id)} title="Delete Installation">
                   <Icon name="trash" size="sm" />
                   Delete
                 </button>
@@ -416,11 +423,11 @@ $effect(() => {
               <!-- Icon and Play Button -->
               <div class="list-item-icon-section">
                 <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColors[installation.id]};">
-                  {#if installation.icon}
-                    {#if typeof installation.icon === "string" && (installation.icon.startsWith("data:") || installation.icon.startsWith("http") || installation.icon.startsWith("file:") || installation.icon.startsWith("/"))}
-                      <img src={installation.icon} alt="installation icon" class="installation-img list-img" />
+                  {#if installation.metadata.icon}
+                    {#if typeof installation.metadata.icon === "string" && (installation.metadata.icon.startsWith("data:") || installation.metadata.icon.startsWith("http") || installation.metadata.icon.startsWith("file:") || installation.metadata.icon.startsWith("/"))}
+                      <img src={installation.metadata.icon} alt="installation icon" class="installation-img list-img" />
                     {:else}
-                      <Icon name={installation.icon} size="md" />
+                      <Icon name={installation.metadata.icon} size="md" />
                     {/if}
                   {:else}
                     <Icon name={loaderIcons[installation.id]} size="md" />
@@ -433,11 +440,11 @@ $effect(() => {
                   style="background: linear-gradient(90deg, {loaderColors[installation.id] || 'var(--loader-primary)'} 60%, {loaderColors[installation.id]
                     ? `${loaderColors[installation.id]}cc`
                     : 'var(--loader-secondary)'} 100%); color: var(--text-white) !important;"
-                  on:click={async () => {
+                  onclick={async () => {
                     await app.launcherService.launch(installation);
                   }}
-                  disabled={isLaunching}>
-                  {#if currentLaunchingInstallation && currentLaunchingInstallation.id === installation.id}
+                  disabled={app.launcherService.launching}>
+                  {#if app.launcherService.launchingProfileId && app.launcherService.launchingProfileId === installation.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
                     <span style="margin-left:0.5rem">Launching...</span>
                   {:else}
@@ -450,30 +457,30 @@ $effect(() => {
               <div class="list-item-content">
                 <!-- Title Row with Actions -->
                 <div class="list-title-actions-row">
-                  <h3>{installation.name || installation.version.id}</h3>
+                  <h3>{installation.metadata.name || installation.version.id}</h3>
                   <div class="list-actions-section">
                     <button
                       class="star-btn"
-                      title={installation.favorite ? "Unfavorite" : "Favorite"}
+                      title={installation.metadata.favorite ? "Unfavorite" : "Favorite"}
                       onclick={async (e) => {
                         e.stopPropagation();
                         await app.profilesService.toggleFavorite(installation);
                       }}>
-                      {#key installation.favorite}
-                        <Icon name="star" forceType={installation.favorite ? "emoji" : "svg"} size="sm" />
+                      {#key installation.metadata.favorite}
+                        <Icon name="star" forceType={installation.metadata.favorite ? "emoji" : "svg"} size="sm" />
                       {/key}
                     </button>
 
                     <!-- Inline Actions (shown when they fit) -->
                     <div class="list-inline-actions" class:hidden={useDropdownForActions[installation.id]}>
-                      <button use:clickSound class="list-action-btn" on:click={() => editModal?.open(installation)} title="Edit Installation">
+                      <button use:clickSound class="list-action-btn" onclick={() => editModal?.open(installation)} title="Edit Installation">
                         <Icon name="edit" size="sm" />
                         Edit
                       </button>
                       <button
                         use:clickSound
                         class="list-action-btn"
-                        onclick={async () => await app.profilesService.createInstallation(installation.version.id)}
+                        onclick={async () => await app.profilesService.createProfile(installation.version.id)}
                         title="Duplicate Installation">
                         <Icon name="duplicate" size="sm" />
                         Duplicate
@@ -481,7 +488,7 @@ $effect(() => {
                       <button
                         use:clickSound
                         class="list-action-btn"
-                        onclick={async () => await app.profilesService.exportInstallation(installation)}
+                        onclick={async () => await app.profilesService.exportProfile(installation)}
                         title="Export Installation">
                         <Icon name="download" size="sm" />
                         Export
@@ -504,7 +511,7 @@ $effect(() => {
                       <button
                         use:errorSound
                         class="list-action-btn danger"
-                        on:click={async () => await app.profilesService.remove(installation.id)}
+                        onclick={async () => await app.profilesService.remove(installation.id)}
                         title="Delete Installation">
                         <Icon name="trash" size="sm" />
                         Delete
@@ -517,15 +524,15 @@ $effect(() => {
                         <Icon name="more-horizontal" size="sm" />
                       </button>
                       <div class="dropdown-menu">
-                        <button use:clickSound on:click={() => editModal?.open(installation)} title="Edit Installation">
+                        <button use:clickSound onclick={() => editModal?.open(installation)} title="Edit Installation">
                           <Icon name="edit" size="sm" />
                           Edit
                         </button>
-                        <button use:clickSound onclick={async () => await app.profilesService.createInstallation(installation.version.id)} title="Duplicate Installation">
+                        <button use:clickSound onclick={async () => await app.profilesService.createProfile(installation.version.id)} title="Duplicate Installation">
                           <Icon name="duplicate" size="sm" />
                           Duplicate
                         </button>
-                        <button use:clickSound onclick={async () => await app.profilesService.exportInstallation(installation)} title="Export Installation">
+                        <button use:clickSound onclick={async () => await app.profilesService.exportProfile(installation)} title="Export Installation">
                           <Icon name="download" size="sm" />
                           Export
                         </button>
@@ -555,17 +562,17 @@ $effect(() => {
 
                 <!-- Version and Stats Row -->
                 <div class="list-version-stats-row">
-                  {#if installation.version.id && installation.name}
+                  {#if installation.version.id && installation.metadata.name}
                     <span class="list-version" style="color: {loaderColors[installation.id]};">{installation.version.id}</span>
                   {/if}
                   <div class="list-stats-section">
                     <div class="list-meta-item">
                       <Icon name="calendar" size="sm" />
-                      <span>{installation.created ? new Date(installation.created).toLocaleDateString() : "Unknown"}</span>
+                      <span>{installation.metadata.created ? new Date(installation.metadata.created).toLocaleDateString() : "Unknown"}</span>
                     </div>
                     <div class="list-meta-item">
                       <Icon name="clock" size="sm" />
-                      <span>{installation.last_used ? new Date(installation.last_used).toLocaleDateString() : "Never"}</span>
+                      <span>{installation.metadata.last_used ? new Date(installation.metadata.last_used).toLocaleDateString() : "Never"}</span>
                     </div>
                   </div>
                 </div>

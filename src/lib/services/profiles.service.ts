@@ -61,8 +61,7 @@ export class ProfilesService implements Service {
   /// Modifies a profile's favorite status, and then updates with the this.modify method to ensure the change is persisted and reflected in the profiles list.
   async toggleFavorite(profile: KableProfile) {
     try {
-      const updatedProfile = { ...profile, favorite: !profile.favorite };
-      await this.modify(profile, updatedProfile);
+      await api.toggleFavorite(profile);
     } catch (e) {
       console.error("Failed to toggle favorite status for profile", e);
     }
@@ -87,6 +86,25 @@ export class ProfilesService implements Service {
     }
   }
 
+  getLoaderIcon(loader: LoaderKind): string {
+    switch (loader) {
+      case "vanilla":
+        return "vanilla";
+      case "fabric":
+        return "fabric";
+      case "forge":
+        return "forge";
+      case "quilt":
+        return "quilt";
+      case "neo_forge":
+        return "neo_forge";
+      case "iris_fabric":
+        return "iris_fabric";
+      default:
+        return "unknown"; // Default icon for unknown loaders
+    }
+  }
+
   async remove(id: string) {
     try {
       await api.deleteProfile(id);
@@ -101,12 +119,29 @@ export class ProfilesService implements Service {
     }
   }
 
-  async createProfile(versionId: string) {
+  async createProfile(versionId: string, baseProfile: KableProfile | null = null, exportedZip: string | null = null, mrpack: string | null = null) {
     try {
-      const newProfile = await api.createProfile(versionId);
+      // TODO: change to versionId, baseProfile, exportedZip, mrpack, instead of 3 nulls
+      const newProfile = await api.createProfile(versionId, baseProfile, exportedZip, mrpack);
       this.profiles = [...this.profiles, newProfile];
     } catch (e) {
       console.error("Failed to create profile", e);
+    }
+  }
+
+  async createShortcut(profile: KableProfile) {
+    try {
+      // await api.createShortcut(profile);
+    } catch (e) {
+      console.error("Failed to create shortcut for profile", e);
+    }
+  }
+
+  async exportProfile(profile: KableProfile) {
+    try {
+      // await api.exportProfile(profile);
+    } catch (e) {
+      console.error("Failed to export profile", e);
     }
   }
 

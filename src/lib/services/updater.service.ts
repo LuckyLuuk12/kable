@@ -30,7 +30,7 @@ export class UpdaterService implements Service {
     this.error = null;
 
     try {
-      const result = await api.checkForUpdates(includePrerelease);
+      const result = await api.checkLauncherUpdates(includePrerelease);
       this.updateInfo = result;
       return result;
     } catch (e) {
@@ -49,7 +49,7 @@ export class UpdaterService implements Service {
     this.error = null;
 
     try {
-      const path = await api.downloadUpdate(includePrerelease);
+      const path = await api.downloadLauncherUpdate(includePrerelease);
       return path;
     } catch (e) {
       this.error = String(e);
@@ -67,7 +67,7 @@ export class UpdaterService implements Service {
     this.error = null;
 
     try {
-      await api.installUpdate(includePrerelease);
+      await api.installLauncherUpdate(includePrerelease);
       return true;
     } catch (e) {
       this.error = String(e);

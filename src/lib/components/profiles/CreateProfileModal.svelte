@@ -273,7 +273,7 @@ function handleBackdropClick(e: MouseEvent) {
           <select id="source-installation" bind:value={sourceInstallationId} class="source-select">
             <option value={null}>None - Start fresh</option>
             {#each availableProfiles as installation (installation.id)}
-              <option value={installation.id}>{installation.name} ({installation.version.id})</option>
+              <option value={installation.id}>{installation.metadata.name} ({installation.version.id})</option>
             {/each}
           </select>
         </label>

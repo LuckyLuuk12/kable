@@ -8,6 +8,7 @@ use chrono::Utc;
 use crate::constants::KABLE_ACCOUNTS_FILE;
 use crate::features::accounts::secure_token;
 use crate::system::fs::{create_dir, launcher_dir, read_str, write_str};
+use crate::Logger;
 
 pub async fn add_account(account: KableAccount) -> Result<(), String> {
     let mut accounts_json = ensure_accounts_file().await?;
@@ -68,6 +69,7 @@ pub async fn get_active_account() -> Result<KableAccount, String> {
 /// List all accounts, this will also attempt to refresh all accounts before returning, if refreshing fails it will just return the accounts without refreshing. This way we ensure the file is always in a valid state and we attempt to keep tokens fresh without risking failure to list accounts at all.
 pub async fn list_accounts() -> Result<Vec<KableAccount>, String> {
     let accounts_json = ensure_accounts_file().await?; // this attempts refreshing already
+    Logger::debug_global(format!("Listing {} accounts", accounts_json.accounts.len()).as_str(), None);
     Ok(accounts_json.accounts.values().cloned().collect())
 }
 

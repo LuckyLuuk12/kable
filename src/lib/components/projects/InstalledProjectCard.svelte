@@ -14,21 +14,38 @@ So we only show the name, version (and if it fits) the release date of the proje
 import { app, type KableProfile, type KableProject_Deserialize } from "$lib";
 let { profile, project }: { profile: KableProfile; project: KableProject_Deserialize } = $props();
 
+// let isEnabled = $derived(async () => await app.projectsService.isEnabled(profile, project));
+let isEnabled = $state(false);
+
+$effect(() => {
+  let cancelled = false;
+
+  app.projectsService.isEnabled(profile, project).then((value) => {
+    if (!cancelled) {
+      isEnabled = value;
+    }
+  });
+
+  return () => {
+    cancelled = true;
+  };
+});
+
 async function toggle(event: Event | undefined = undefined) {
   if (event instanceof KeyboardEvent && event.key !== "Enter" && event.key !== " ") return;
   // if undefined event it is just the onclick event and we want to toggle the project enabled state
   await app.projectsService.toggle(profile, project);
+  isEnabled = await app.projectsService.isEnabled(profile, project);
 }
 </script>
 
 <div
   class="installed-project-card"
-  title="Click to {project.enabled ? 'disable' : 'enable'} {project.project.title}"
+  title="Click to {isEnabled ? 'disable' : 'enable'} {project.project.title}"
   onclick={async (e) => await toggle(e)}
   onkeydown={async (e) => await toggle(e)}
   role="button"
-  tabindex="0"
->
+  tabindex="0">
   <h3>{project.project.title}</h3>
   <p>Version: {project.version_id}</p>
   <p>Release Date: {project.project.versions.find((v) => v.id === project.version_id)?.date_published}</p>

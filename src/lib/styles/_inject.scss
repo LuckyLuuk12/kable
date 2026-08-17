@@ -3,5 +3,6 @@
 @forward "variables";
 
 @use "variables" as *;
-@use "./primitives" as *;
-@use "./transform" as *;
+// Since global.scss already exports the css classes from primitives, transform, etc we can only forward variables for proper injection.
+// @use "./primitives" as *;
+// @use "./transform" as *;

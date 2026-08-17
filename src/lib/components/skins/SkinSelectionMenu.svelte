@@ -12,10 +12,8 @@ to the current Microsoft account. Includes 3D preview and management tools.
 ```
 -->
 <script lang="ts">
+import { clickSound, errorSound, Icon, SkinViewer3D, successSound, type AccountCape, type AccountSkin } from "$lib";
 import { onMount } from "svelte";
-import { Icon, SkinViewer3D, SkinsService } from "$lib";
-import { clickSound, successSound, errorSound } from "$lib/actions";
-import type { AccountSkin, AccountCape } from "$lib";
 
 // State
 let accountSkins: AccountSkin[] = [];
@@ -48,7 +46,7 @@ async function loadData(skipCapes = false) {
   error = "";
   try {
     // Fetch skins and active cape
-    const [skinsRes, activeCapeRes] = await Promise.allSettled([SkinsService.getAllSkins(), SkinsService.getActiveCape()]);
+    const [skinsRes, activeCapeRes] = await Promise.allSettled([app.skinsService.getAllSkins(), app.skinsService.getActiveCape()]);
 
     if (skinsRes.status === "fulfilled") {
       // Force reactivity by creating new array reference
@@ -67,7 +65,7 @@ async function loadData(skipCapes = false) {
     // Only fetch capes list if we don't have it yet (and not skipping)
     if (!skipCapes && capes.length === 0) {
       try {
-        capes = await SkinsService.getCapes();
+        capes = await app.skinsService.getCapes();
       } catch (err: any) {
         console.warn("Failed to load capes list:", err);
         // Don't show error for capes - it's not critical
@@ -85,7 +83,7 @@ async function handleApplySkin(skinId: string) {
   loading = true;
   error = "";
   try {
-    await SkinsService.applySkin(skinId);
+    await app.skinsService.applySkin(skinId);
     // Only reload skins and active cape, skip refetching capes list
     await loadData(true);
     // Force reactivity update
@@ -102,7 +100,7 @@ async function handleApplyCape(capeId: string | null) {
   loading = true;
   error = "";
   try {
-    await SkinsService.applyCape(capeId);
+    await app.skinsService.applyCape(capeId);
 
     // Update active cape locally without refetching everything
     if (capeId === null) {
@@ -114,7 +112,7 @@ async function handleApplyCape(capeId: string | null) {
 
     // Only verify the active cape status, don't reload all capes
     try {
-      const updatedCape = await SkinsService.getActiveCape();
+      const updatedCape = await app.skinsService.getActiveCape();
       activeCape = updatedCape;
     } catch (err) {
       console.warn("Failed to verify active cape:", err);
@@ -142,7 +140,7 @@ async function saveEdit() {
   try {
     // Strip 'local_' prefix if present (backend expects just 'skin_1', not 'local_skin_1')
     const skinId = editingSkin.id.replace(/^local_/, "");
-    await SkinsService.modifySkin(skinId, editName, editCapeId, editSlim);
+    await app.skinsService.modifySkin(skinId, editName, editCapeId, editSlim);
     // Only reload skins, skip refetching capes
     await loadData(true);
     // Force reactivity update
@@ -166,7 +164,7 @@ async function removeSkin(skinId: string, e: Event) {
   try {
     // Strip 'local_' prefix if present (backend expects just 'skin_1', not 'local_skin_1')
     const backendSkinId = skinId.replace(/^local_/, "");
-    await SkinsService.removeSkin(backendSkinId);
+    await app.skinsService.removeSkin(backendSkinId);
     // Only reload skins, skip refetching capes
     await loadData(true);
     // Force reactivity update
@@ -189,7 +187,7 @@ async function openUploadDialog() {
 }
 
 async function selectFile() {
-  const path = await SkinsService.selectSkinFile();
+  const path = await app.skinsService.selectSkinFile();
   if (path) {
     addFilePath = path;
     // Auto-populate name from filename if empty
@@ -206,13 +204,13 @@ async function uploadSkin() {
   error = "";
   try {
     // Upload skin first
-    await SkinsService.uploadSkin({
+    await app.skinsService.uploadSkin({
       model: addSlim ? "Slim" : "Classic",
       file_path: addFilePath,
     });
 
     // Get only LOCAL skins to find the newly added one
-    const localSkins = await SkinsService.getLocalSkins();
+    const localSkins = await app.skinsService.getLocalSkins();
 
     // Find the most recently added local skin (they have IDs like 'local_skin_13')
     // The newest one will have the highest skin number
@@ -230,7 +228,7 @@ async function uploadSkin() {
     if (newestLocalSkinId) {
       // Strip 'local_' prefix for backend (backend expects 'skin_13', not 'local_skin_13')
       const backendSkinId = newestLocalSkinId.replace(/^local_/, "");
-      await SkinsService.modifySkin(backendSkinId, addName, addCapeId, addSlim);
+      await app.skinsService.modifySkin(backendSkinId, addName, addCapeId, addSlim);
     }
 
     // Reload data to reflect the changes
@@ -304,8 +302,7 @@ function getModel(m: string): "classic" | "slim" | "auto" {
                 tabindex="0"
                 class:current={SkinsService.isSkinActive(skin)}
                 on:mouseenter={() => (hoveredSkinId = skin.id)}
-                on:mouseleave={() => (hoveredSkinId = null)}
-              >
+                on:mouseleave={() => (hoveredSkinId = null)}>
                 <div class="preview">
                   {#if skin.url}
                     <SkinViewer3D skinUrl={skin.url} height={140} model={getModel(skin.model)} animation={hoveredSkinId === skin.id ? "walk" : "idle"} />
@@ -327,14 +324,12 @@ function getModel(m: string): "classic" | "slim" | "auto" {
                   <div class="actions">
                     {#if !SkinsService.isSkinActive(skin)}
                       <button use:successSound class="apply" on:click={() => handleApplySkin(skin.id)} disabled={loading}
-                        ><Icon name="check" size="sm" forceType="svg" />Apply</button
-                      >
+                        ><Icon name="check" size="sm" forceType="svg" />Apply</button>
                     {/if}
                     <button use:clickSound on:click={() => openEditModal(skin)} disabled={loading} title="Edit"><Icon name="edit" size="sm" /></button>
                     {#if !SkinsService.isSkinActive(skin)}
                       <button use:errorSound class="danger" on:click={(e) => removeSkin(skin.id, e)} disabled={loading} title="Remove"
-                        ><Icon name="trash" size="sm" /></button
-                      >
+                        ><Icon name="trash" size="sm" /></button>
                     {/if}
                   </div>
                 </div>
@@ -387,13 +382,11 @@ function getModel(m: string): "classic" | "slim" | "auto" {
         <label
           >Cape <select bind:value={editCapeId}
             ><option value="">None</option>{#each capes as c}<option value={c.id}>{SkinsService.getCapeDisplayName(c)}</option>{/each}</select
-          ></label
-        >
+          ></label>
         <label
           >Model <div class="radio-group">
             <label><input type="radio" bind:group={editSlim} value={false} />Classic</label><label><input type="radio" bind:group={editSlim} value={true} />Slim</label>
-          </div></label
-        >
+          </div></label>
       </div>
       <div class="modal-footer">
         <button use:clickSound on:click={() => (showEditModal = false)}>Cancel</button>

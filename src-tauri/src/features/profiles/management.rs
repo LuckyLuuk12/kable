@@ -77,3 +77,8 @@ pub async fn toggle_project(profile: KableProfile, project: KableProject) -> Res
     }
     modify_profile(profile, updated_profile).await
 }
+
+pub async fn is_project_enabled(profile: KableProfile, project: KableProject) -> Result<bool, String> {
+    let updated_profile = profile.clone();
+    Ok(updated_profile.settings.is_enabled(project))
+}

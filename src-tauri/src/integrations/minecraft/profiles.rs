@@ -1,5 +1,6 @@
 use crate::constants::LAUNCHER_PROFILES_FILE;
 use crate::system::fs::{mc_dir, read_str, write_str};
+use crate::Logger;
 use api_types::profiles::LauncherProfiles;
 
 //?----------------------------------------------------------------------
@@ -22,5 +23,6 @@ pub async fn parse_launcher_profiles() -> Result<LauncherProfiles, String> {
     }
     let launcher_profiles: LauncherProfiles =
         serde_json::from_str(&content).map_err(|e| format!("Failed to parse launcher profiles: {e}\n\n{content}"))?;
+    Logger::debug_global(format!("Parsed {} launcher profiles", launcher_profiles.profiles.len()).as_str(), None);
     Ok(launcher_profiles)
 }

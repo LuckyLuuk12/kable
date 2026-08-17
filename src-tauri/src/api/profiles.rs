@@ -57,3 +57,15 @@ pub async fn get_versions() -> Result<Versions, String> {
 pub async fn toggle_project(profile: KableProfile, kable_project: KableProject) -> Result<KableProfile, String> {
     management::toggle_project(profile, kable_project).await
 }
+
+#[tauri::command]
+#[specta::specta]
+pub async fn toggle_favorite(profile: KableProfile) -> Result<KableProfile, String> {
+    management::toggle_favorite(profile).await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn is_project_enabled(profile: KableProfile, kable_project: KableProject) -> Result<bool, String> {
+    management::is_project_enabled(profile, kable_project).await
+}

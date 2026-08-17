@@ -3,6 +3,7 @@ import type { Service } from "./app.service";
 
 export class LauncherService implements Service {
   launching = $state(false);
+  launchingProfileId = $state<string | null>(null);
   lastLaunch = $state<LaunchResult | null>(null);
 
   javaPath = $state<string | null>(null);
@@ -21,6 +22,7 @@ export class LauncherService implements Service {
    */
   async launch(profile: KableProfile): Promise<LaunchResult> {
     this.launching = true;
+    this.launchingProfileId = profile.id;
 
     try {
       const result = await api.launchGame(profile);
@@ -28,6 +30,7 @@ export class LauncherService implements Service {
       return result;
     } finally {
       this.launching = false;
+      this.launchingProfileId = null;
       // TODO: execute the on_game_launch action if set in settings
     }
   }
