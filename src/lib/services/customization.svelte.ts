@@ -1,5 +1,5 @@
-import { type AppearanceSettings, type CategorizedLauncherSettings, type ContentSettings, type IconTemplate, type SoundSettings, api } from "$lib";
-import type { Service } from "./app.service";
+import { type AppearanceSettings, type CategorizedLauncherSettings, type IconTemplate, type SoundSettings, api } from "$lib";
+import type { Service } from "./app.svelte";
 
 type SoundpackListEntry = {
   name: string;
@@ -48,7 +48,7 @@ export class CustomizationService implements Service {
   private soundBuffers = new Map<string, AudioBuffer>();
   private currentSoundpack = "default";
   private soundpackMetadata: SoundpackManifest | null = null;
-  private initialized = false;
+  private soundInitialized = false;
 
   private masterVolume = 1.0;
   private soundVolume = 1.0;
@@ -77,6 +77,19 @@ export class CustomizationService implements Service {
     music: {},
   };
 
+  private saveTimer: ReturnType<typeof setTimeout> | undefined;
+
+  scheduleSave(delay = 300) {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+    }
+
+    this.saveTimer = setTimeout(() => {
+      this.saveTimer = undefined;
+      this.saveSettingsAsync();
+    }, delay);
+  }
+
   /**
    * Load full settings bundle once
    */
@@ -93,7 +106,7 @@ export class CustomizationService implements Service {
       }
     }
 
-    if (!this.initialized) {
+    if (!this.soundInitialized) {
       await this.initializeSoundSystem();
     }
   }
@@ -124,21 +137,6 @@ export class CustomizationService implements Service {
   // #endregion GENERAL
 
   // #region APPEARANCE
-  get appearance(): AppearanceSettings | undefined {
-    return this.settings?.appearance;
-  }
-
-  set appearance(value: AppearanceSettings | undefined) {
-    if (!this.settings) return;
-
-    // If selected sound or icon template is changed we need to update the selectedSoundpack and selectedIconTemplate states accordingly to make sure reactive UI updates trigger:
-    this.selectedIconTemplate = value?.icon_template ?? null;
-    this.selectedSoundpack = value?.sound_settings?.selected_soundpack ?? "default";
-
-    this.settings = { ...this.settings, appearance: value };
-
-    this.saveSettingsAsync();
-  }
 
   // #region language
   setLanguage(language: AppearanceSettings["language"]) {
@@ -261,7 +259,7 @@ export class CustomizationService implements Service {
   // #region sounds
   // We handle sound settings and soundpack management here, including loading, playing, and managing soundpacks and music tracks.
   private async initializeSoundSystem(): Promise<void> {
-    if (this.initialized) return;
+    if (this.soundInitialized) return;
 
     this.isSoundsLoading = true;
     this.soundError = null;
@@ -283,7 +281,7 @@ export class CustomizationService implements Service {
         }
       }
 
-      this.initialized = true;
+      this.soundInitialized = true;
       console.log("[CustomizationService] Sound system initialized with soundpack:", this.currentSoundpack);
     } catch (error) {
       console.error("[CustomizationService] Failed to initialize sounds:", error);
@@ -694,16 +692,6 @@ export class CustomizationService implements Service {
   // #endregion APPEARANCE
 
   // #region CONTENT
-  get content(): ContentSettings | undefined {
-    return this.settings?.content;
-  }
-
-  set content(value: ContentSettings | undefined) {
-    if (!this.settings) return;
-    this.settings = { ...this.settings, content: value };
-
-    this.saveSettingsAsync();
-  }
 
   // #endregion CONTENT
 
@@ -740,7 +728,7 @@ export class CustomizationService implements Service {
 
     this.soundBuffers.clear();
     this.soundpackMetadata = null;
-    this.initialized = false;
+    this.soundInitialized = false;
     this.currentSoundpack = "default";
     this.selectedSoundpack = "default";
     this.availableSoundpacks = [];

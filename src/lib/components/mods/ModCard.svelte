@@ -544,8 +544,6 @@ function handleCardKeydown(event: KeyboardEvent) {
 <ModVersionModal {mod} {currentInstallation} {installedVersion} bind:open={showVersionModal} onselectversion={handleVersionSelect} />
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
-
 .mod-card {
   background: var(--card);
   border: 1px solid rgba($color-accent, 0.08);

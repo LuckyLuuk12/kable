@@ -10,329 +10,361 @@ and log visibility in the navigation.
 ```
 -->
 <script lang="ts">
-import { clickSound } from "$lib/actions";
-import { settings } from "$lib/stores";
-import { SettingsService } from "../../../../src-tauri/src-backup/old_services/SettingsService";
-const logLevels = ["debug", "info", "warn", "error"];
-function disableFileSizeLimit() {
-  SettingsService.update("logging", {
-    ...$settings.logging,
-    log_file_size_limit_mb: "disabled",
-  });
+import { app, type LoggingSettings } from "$lib";
+
+const logLevels = ["debug", "info", "warn", "error"] as const;
+
+function updateLogging<K extends keyof LoggingSettings>(field: K, value: LoggingSettings[K]) {
+  const settings = app.customizationService.settings;
+  if (!settings) return;
+
+  app.customizationService.settings = {
+    ...settings,
+    logging: {
+      ...settings.logging,
+      [field]: value,
+    },
+  };
+
+  app.customizationService.scheduleSave();
 }
-function disableRetentionDays() {
-  SettingsService.update("logging", {
-    ...$settings.logging,
-    log_retention_days: "disabled",
-  });
+
+function updateNumber(event: Event, field: keyof LoggingSettings, min: number, max: number) {
+  const value = Number((event.currentTarget as HTMLInputElement).value);
+
+  if (!Number.isFinite(value)) return;
+
+  updateLogging(field, Math.max(min, Math.min(max, value)) as never);
 }
+
+// function toggleLogLevel(level: (typeof logLevels)[number]) {
+//   const settings = app.customizationService.settings;
+//   const currentLevels = settings?.logging?.default_log_levels;
+
+//   if (!settings || !currentLevels) return;
+
+//   const levels = currentLevels.includes(level) ? currentLevels.filter((current) => current !== level) : [...currentLevels, level];
+
+//   updateLogging("default_log_levels" as never, levels as never);
+// }
 </script>
 
-<div class="settings-tab">
-  <h2>Logging Settings</h2>
-  <form>
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="show-logs-page-nav">Show Logs Page in Navigation</label>
-        <p class="setting-description">Display the logs page in the sidebar navigation</p>
-      </div>
-      <div class="setting-control">
-        <label class="toggle-switch">
-          <input type="checkbox" id="show-logs-page-nav" bind:checked={$settings.logging.show_logs_page_in_nav} />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
+{#if app.customizationService.settings}
+  <div class="settings-tab">
+    <h2>Logging Settings</h2>
+    <p>Configure application logging, storage, performance, and log filtering.</p>
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="enable-persistent-logging">Persistent Log Storage</label>
-        <p class="setting-description">Save logs to disk for permanent storage and analysis</p>
-      </div>
-      <div class="setting-control">
-        <label class="toggle-switch">
-          <input type="checkbox" id="enable-persistent-logging" bind:checked={$settings.logging.enable_persistent_logging} />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="enable-log-compression">Log Compression</label>
-        <p class="setting-description">Automatically compress large log files to save disk space</p>
-      </div>
-      <div class="setting-control">
-        <label class="toggle-switch">
-          <input type="checkbox" id="enable-log-compression" bind:checked={$settings.logging.enable_log_compression} />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="log-file-size-limit">Log File Size Limit (MB)</label>
-        <p class="setting-description">Maximum size for individual log files before compression</p>
-      </div>
-      <div class="setting-control slider-control log-file-size-layout">
-        <div class="log-file-size-inputs">
-          <input
-            type="range"
-            id="log-file-size-limit-slider"
-            min="1"
-            max="1024"
-            value={$settings.logging.log_file_size_limit_mb === "disabled" ? 1 : $settings.logging.log_file_size_limit_mb}
-            disabled={$settings.logging.log_file_size_limit_mb === "disabled"}
-            on:input={(e) => {
-              if ($settings.logging.log_file_size_limit_mb !== "disabled") {
-                SettingsService.update("logging", {
-                  ...$settings.logging,
-                  log_file_size_limit_mb: Number((e.target as HTMLInputElement).value),
-                });
-              }
-            }}
-          />
-          <input
-            type="number"
-            id="log-file-size-limit"
-            min="1"
-            max="1024"
-            value={$settings.logging.log_file_size_limit_mb === "disabled" ? "" : $settings.logging.log_file_size_limit_mb}
-            disabled={$settings.logging.log_file_size_limit_mb === "disabled"}
-            on:input={(e) => {
-              if ($settings.logging.log_file_size_limit_mb !== "disabled") {
-                SettingsService.update("logging", {
-                  ...$settings.logging,
-                  log_file_size_limit_mb: Number((e.target as HTMLInputElement).value),
-                });
-              }
-            }}
-          />
+    <form>
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="logging-enabled">Enable Logging</label>
+          <p class="setting-description">Enable logging throughout the launcher.</p>
         </div>
-        <div class="log-file-size-btn">
-          <button use:clickSound type="button" on:click={disableFileSizeLimit}>Disable</button>
-        </div>
-      </div>
-    </div>
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="log-retention-days">Log Retention Period (days)</label>
-        <p class="setting-description">How many days to keep log files before automatic cleanup</p>
-      </div>
-      <div class="setting-control slider-control log-retention-layout">
-        <div class="log-retention-inputs">
-          <input
-            type="range"
-            id="log-retention-days-slider"
-            min="1"
-            max="365"
-            value={$settings.logging.log_retention_days === "disabled" ? 1 : $settings.logging.log_retention_days}
-            disabled={$settings.logging.log_retention_days === "disabled"}
-            on:input={(e) => {
-              if ($settings.logging.log_retention_days !== "disabled") {
-                SettingsService.update("logging", {
-                  ...$settings.logging,
-                  log_retention_days: Number((e.target as HTMLInputElement).value),
-                });
-              }
-            }}
-          />
-          <input
-            type="number"
-            id="log-retention-days"
-            min="1"
-            max="365"
-            value={$settings.logging.log_retention_days === "disabled" ? "" : $settings.logging.log_retention_days}
-            disabled={$settings.logging.log_retention_days === "disabled"}
-            on:input={(e) => {
-              if ($settings.logging.log_retention_days !== "disabled") {
-                SettingsService.update("logging", {
-                  ...$settings.logging,
-                  log_retention_days: Number((e.target as HTMLInputElement).value),
-                });
-              }
-            }}
-          />
-        </div>
-        <div class="log-retention-btn">
-          <button use:clickSound type="button" on:click={disableRetentionDays}>Disable</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="merge-log-tabs">Merge Log Tabs</label>
-        <p class="setting-description">Try to merge log tabs into one if they are from the same game instance</p>
-      </div>
-      <div class="setting-control">
-        <label class="toggle-switch">
-          <input type="checkbox" id="merge-log-tabs" bind:checked={$settings.logging.merge_log_tabs} />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="max-memory-logs">Maximum Logs in Memory</label>
-        <p class="setting-description">Maximum number of log entries to keep in memory per instance (prevents memory overflow)</p>
-      </div>
-      <div class="setting-control slider-control">
-        <input
-          type="range"
-          id="max-memory-logs-slider"
-          min="1000"
-          max="20000"
-          step="500"
-          value={$settings.logging.max_memory_logs ?? 5000}
-          on:input={(e) => {
-            SettingsService.update("logging", {
-              ...$settings.logging,
-              max_memory_logs: Number((e.target as HTMLInputElement).value),
-            });
-          }}
-        />
-        <input
-          type="number"
-          id="max-memory-logs"
-          min="1000"
-          max="20000"
-          value={$settings.logging.max_memory_logs ?? 5000}
-          on:input={(e) => {
-            SettingsService.update("logging", {
-              ...$settings.logging,
-              max_memory_logs: Number((e.target as HTMLInputElement).value),
-            });
-          }}
-        />
-      </div>
-    </div>
-
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="enable-dedupe">Enable Log Deduplication</label>
-        <p class="setting-description">Automatically filter out duplicate log messages to reduce memory usage</p>
-      </div>
-      <div class="setting-control">
-        <label class="toggle-switch">
-          <input
-            type="checkbox"
-            id="enable-dedupe"
-            checked={$settings.logging.enable_dedupe ?? true}
-            on:change={(e) => {
-              SettingsService.update("logging", {
-                ...$settings.logging,
-                enable_dedupe: (e.target as HTMLInputElement).checked,
-              });
-            }}
-          />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="dedupe-window-size">Deduplication Window Size</label>
-        <p class="setting-description">Number of recent messages to check for duplicates (higher = more accurate, slower)</p>
-      </div>
-      <div class="setting-control slider-control">
-        <input
-          type="range"
-          id="dedupe-window-size-slider"
-          min="10"
-          max="200"
-          step="10"
-          value={$settings.logging.dedupe_window_size ?? 50}
-          disabled={!($settings.logging.enable_dedupe ?? true)}
-          on:input={(e) => {
-            SettingsService.update("logging", {
-              ...$settings.logging,
-              dedupe_window_size: Number((e.target as HTMLInputElement).value),
-            });
-          }}
-        />
-        <input
-          type="number"
-          id="dedupe-window-size"
-          min="10"
-          max="200"
-          value={$settings.logging.dedupe_window_size ?? 50}
-          disabled={!($settings.logging.enable_dedupe ?? true)}
-          on:input={(e) => {
-            SettingsService.update("logging", {
-              ...$settings.logging,
-              dedupe_window_size: Number((e.target as HTMLInputElement).value),
-            });
-          }}
-        />
-      </div>
-    </div>
-
-    <div class="setting-item">
-      <div class="setting-info">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label>Default Log Levels</label>
-        <p class="setting-description">Which log levels are shown by default</p>
-      </div>
-      <div class="setting-control log-levels-control">
-        {#each logLevels as level}
-          <label
-            class="log-level-label {$settings.logging.default_log_levels.includes(level as 'debug' | 'info' | 'warn' | 'error') ? 'selected' : 'unselected'}"
-            role="none"
-            tabindex="-1"
-            on:click={(e) => {
-              const typedLevel = level as "debug" | "info" | "warn" | "error";
-              const idx = $settings.logging.default_log_levels.indexOf(typedLevel);
-              if (idx === -1) {
-                console.log(`Adding log level: ${typedLevel}`);
-                SettingsService.update("logging", {
-                  ...$settings.logging,
-                  default_log_levels: [...$settings.logging.default_log_levels, typedLevel],
-                });
-              } else {
-                console.log(`Removing log level: ${typedLevel}`);
-                SettingsService.update("logging", {
-                  ...$settings.logging,
-                  default_log_levels: $settings.logging.default_log_levels.filter((l) => l !== typedLevel),
-                });
-              }
-              e.preventDefault();
-            }}
-            on:keydown={(e) => {
-              if (e.key === " " || e.key === "Enter") {
-                const typedLevel = level as "debug" | "info" | "warn" | "error";
-                const idx = $settings.logging.default_log_levels.indexOf(typedLevel);
-                if (idx === -1) {
-                  SettingsService.update("logging", {
-                    ...$settings.logging,
-                    default_log_levels: [...$settings.logging.default_log_levels, typedLevel],
-                  });
-                } else {
-                  SettingsService.update("logging", {
-                    ...$settings.logging,
-                    default_log_levels: $settings.logging.default_log_levels.filter((l) => l !== typedLevel),
-                  });
-                }
-                e.preventDefault();
-              }
-            }}
-          >
-            <input type="checkbox" bind:group={$settings.logging.default_log_levels} value={level} class="visually-hidden" />
-            {level}
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              id="logging-enabled"
+              checked={app.customizationService.settings.logging?.enabled ?? true}
+              onchange={(event) => updateLogging("enabled", (event.currentTarget as HTMLInputElement).checked)}
+            />
+            <span class="toggle-slider"></span>
           </label>
-        {/each}
+        </div>
       </div>
-    </div>
-  </form>
-</div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="persistent-logging">Persistent Log Storage</label>
+          <p class="setting-description">Save logs to disk so they remain available after restarting the launcher.</p>
+        </div>
+
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              id="persistent-logging"
+              checked={app.customizationService.settings.logging?.persistent ?? true}
+              onchange={(event) => updateLogging("persistent", (event.currentTarget as HTMLInputElement).checked)}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="log-compression">Log Compression</label>
+          <p class="setting-description">Compress stored log files to reduce disk usage.</p>
+        </div>
+
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              id="log-compression"
+              checked={app.customizationService.settings.logging?.compression ?? true}
+              onchange={(event) => updateLogging("compression", (event.currentTarget as HTMLInputElement).checked)}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="retention-days">Log Retention Period</label>
+          <p class="setting-description">Number of days log files are retained before automatic cleanup.</p>
+        </div>
+
+        <div class="setting-control slider-control">
+          <input
+            type="range"
+            id="retention-days-slider"
+            min="1"
+            max="365"
+            value={app.customizationService.settings.logging?.retention_days ?? 30}
+            onchange={(event) => updateNumber(event, "retention_days", 1, 365)}
+          />
+
+          <input
+            type="number"
+            id="retention-days"
+            min="1"
+            max="365"
+            value={app.customizationService.settings.logging?.retention_days ?? 30}
+            onchange={(event) => updateNumber(event, "retention_days", 1, 365)}
+          />
+
+          <span>days</span>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="max-file-size">Maximum Log File Size</label>
+          <p class="setting-description">Maximum size of an individual log file before it is rotated or compressed.</p>
+        </div>
+
+        <div class="setting-control slider-control">
+          <input
+            type="range"
+            id="max-file-size-slider"
+            min="1"
+            max="1024"
+            value={app.customizationService.settings.logging?.max_file_size_mb ?? 50}
+            onchange={(event) => updateNumber(event, "max_file_size_mb", 1, 1024)}
+          />
+
+          <input
+            type="number"
+            id="max-file-size"
+            min="1"
+            max="1024"
+            value={app.customizationService.settings.logging?.max_file_size_mb ?? 50}
+            onchange={(event) => updateNumber(event, "max_file_size_mb", 1, 1024)}
+          />
+
+          <span>MB</span>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="frontend-batch-size">Frontend Batch Size</label>
+          <p class="setting-description">Maximum number of frontend log entries sent to the backend in one batch.</p>
+        </div>
+
+        <div class="setting-control slider-control">
+          <input
+            type="range"
+            id="frontend-batch-size-slider"
+            min="1"
+            max="1000"
+            step="1"
+            value={app.customizationService.settings.logging?.frontend_batch_size ?? 100}
+            onchange={(event) => updateNumber(event, "frontend_batch_size", 1, 1000)}
+          />
+
+          <input
+            type="number"
+            id="frontend-batch-size"
+            min="1"
+            max="1000"
+            value={app.customizationService.settings.logging?.frontend_batch_size ?? 100}
+            onchange={(event) => updateNumber(event, "frontend_batch_size", 1, 1000)}
+          />
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="frontend-batch-interval">Frontend Batch Interval</label>
+          <p class="setting-description">Maximum time in milliseconds between frontend log batches.</p>
+        </div>
+
+        <div class="setting-control slider-control">
+          <input
+            type="range"
+            id="frontend-batch-interval-slider"
+            min="10"
+            max="5000"
+            step="10"
+            value={app.customizationService.settings.logging?.frontend_batch_interval_ms ?? 250}
+            onchange={(event) => updateNumber(event, "frontend_batch_interval_ms", 10, 5000)}
+          />
+
+          <input
+            type="number"
+            id="frontend-batch-interval"
+            min="10"
+            max="5000"
+            step="10"
+            value={app.customizationService.settings.logging?.frontend_batch_interval_ms ?? 250}
+            onchange={(event) => updateNumber(event, "frontend_batch_interval_ms", 10, 5000)}
+          />
+
+          <span>ms</span>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="frontend-max-per-second">Frontend Log Rate Limit</label>
+          <p class="setting-description">Maximum number of frontend log entries allowed per second.</p>
+        </div>
+
+        <div class="setting-control slider-control">
+          <input
+            type="range"
+            id="frontend-max-per-second-slider"
+            min="1"
+            max="10000"
+            step="10"
+            value={app.customizationService.settings.logging?.frontend_max_per_second ?? 1000}
+            onchange={(event) => updateNumber(event, "frontend_max_per_second", 1, 10000)}
+          />
+
+          <input
+            type="number"
+            id="frontend-max-per-second"
+            min="1"
+            max="10000"
+            step="10"
+            value={app.customizationService.settings.logging?.frontend_max_per_second ?? 1000}
+            onchange={(event) => updateNumber(event, "frontend_max_per_second", 1, 10000)}
+          />
+
+          <span>/sec</span>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="max-memory-logs">Maximum Logs in Memory</label>
+          <p class="setting-description">Maximum number of log entries retained in memory per instance.</p>
+        </div>
+
+        <div class="setting-control slider-control">
+          <input
+            type="range"
+            id="max-memory-logs-slider"
+            min="1000"
+            max="20000"
+            step="500"
+            value={app.customizationService.settings.logging?.max_memory_logs ?? 5000}
+            onchange={(event) => updateNumber(event, "max_memory_logs", 1000, 20000)}
+          />
+
+          <input
+            type="number"
+            id="max-memory-logs"
+            min="1000"
+            max="20000"
+            step="500"
+            value={app.customizationService.settings.logging?.max_memory_logs ?? 5000}
+            onchange={(event) => updateNumber(event, "max_memory_logs", 1000, 20000)}
+          />
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="dedupe-enabled">Log Deduplication</label>
+          <p class="setting-description">Filter duplicate log messages to reduce memory usage and unnecessary processing.</p>
+        </div>
+
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              id="dedupe-enabled"
+              checked={app.customizationService.settings.logging?.dedupe_enabled ?? true}
+              onchange={(event) => updateLogging("dedupe_enabled", (event.currentTarget as HTMLInputElement).checked)}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="dedupe-window-size">Deduplication Window Size</label>
+          <p class="setting-description">Number of recent messages checked for duplicates.</p>
+        </div>
+
+        <div class="setting-control slider-control">
+          <input
+            type="range"
+            id="dedupe-window-size-slider"
+            min="10"
+            max="200"
+            step="10"
+            value={app.customizationService.settings.logging?.dedupe_window_size ?? 50}
+            disabled={!(app.customizationService.settings.logging?.dedupe_enabled ?? true)}
+            onchange={(event) => updateNumber(event, "dedupe_window_size", 10, 200)}
+          />
+
+          <input
+            type="number"
+            id="dedupe-window-size"
+            min="10"
+            max="200"
+            step="10"
+            value={app.customizationService.settings.logging?.dedupe_window_size ?? 50}
+            disabled={!(app.customizationService.settings.logging?.dedupe_enabled ?? true)}
+            onchange={(event) => updateNumber(event, "dedupe_window_size", 10, 200)}
+          />
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label>Default Log Levels</label>
+          <p class="setting-description">Select which log levels are enabled by default.</p>
+        </div>
+
+        <!-- <div class="setting-control log-levels-control">
+          {#each logLevels as level}
+            <label
+              class:selected={app.customizationService.settings.logging?.default_log_levels?.includes(level)}
+              class:unselected={!app.customizationService.settings.logging?.default_log_levels?.includes(level)}
+              class="log-level-label">
+              <input
+                type="checkbox"
+                checked={app.customizationService.settings.logging?.default_log_levels?.includes(level) ?? true}
+                onchange={() => toggleLogLevel(level)} />
+              {level}
+            </label>
+          {/each}
+        </div> -->
+      </div>
+    </form>
+  </div>
+{/if}
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
-
 .settings-tab {
   background: var(--container);
   border-radius: var(--border-radius-large);

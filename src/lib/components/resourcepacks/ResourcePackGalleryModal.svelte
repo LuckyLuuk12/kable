@@ -140,8 +140,6 @@ function handleBackdropClick(e: MouseEvent) {
 {/if}
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
-
 .gallery-modal {
   width: 100%;
   height: 100%;

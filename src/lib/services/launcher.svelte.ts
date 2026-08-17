@@ -1,5 +1,5 @@
 import { type KableProfile, type LaunchResult, type Versions, api } from "$lib";
-import type { Service } from "./app.service";
+import type { Service } from "./app.svelte";
 
 export class LauncherService implements Service {
   launching = $state(false);

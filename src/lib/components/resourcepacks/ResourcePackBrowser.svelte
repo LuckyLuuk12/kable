@@ -665,7 +665,6 @@ onMount(async () => {
 <ResourcePackGalleryModal ResourcePack={selectedResourcePackForGallery} bind:visible={showGalleryModal} on:close={closeGallery} />
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 @use "sass:color";
 
 .ResourcePack-browser {

@@ -352,7 +352,6 @@ function handleBackdropClick(e: MouseEvent) {
 </dialog>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 .create-installation-modal {
   padding: 2rem;
   background: var(--container);

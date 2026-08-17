@@ -504,7 +504,6 @@ function handleKeydown(event: KeyboardEvent) {
 {/if}
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 @use "sass:color";
 @use "sass:map";
 

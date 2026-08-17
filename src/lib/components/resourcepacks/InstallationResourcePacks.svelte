@@ -771,7 +771,6 @@ onMount(() => {
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 .installation-resourcepacks {
   margin: 0;
   height: 100%;

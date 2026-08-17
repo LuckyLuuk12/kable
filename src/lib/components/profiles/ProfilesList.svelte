@@ -605,8 +605,6 @@ $effect(() => {
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
-
 /* Constrain installation-provided icons to the same visual area as the built-in icons */
 .installation-img {
   width: 48px;

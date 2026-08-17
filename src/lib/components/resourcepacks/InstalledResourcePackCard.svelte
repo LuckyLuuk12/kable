@@ -155,7 +155,6 @@ async function handleVisitPage(event: MouseEvent) {
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 @use "sass:color";
 @use "sass:map";
 

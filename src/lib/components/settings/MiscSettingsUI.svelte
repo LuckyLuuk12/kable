@@ -10,62 +10,53 @@ and other general launcher features.
 ```
 -->
 <script lang="ts">
-import { settings } from "$lib";
-import { onMount } from "svelte";
+import { app } from "$lib";
 
-let isWideScreen = true;
-function checkScreen() {
-  isWideScreen = window.innerWidth >= 700;
+function setEnableFun(enabled: boolean) {
+  const settings = app.customizationService.settings;
+  if (!settings) return;
+
+  app.customizationService.settings = {
+    ...settings,
+    misc: {
+      ...settings.misc,
+      enable_fun: enabled,
+    },
+  };
+
+  app.customizationService.scheduleSave();
 }
-onMount(() => {
-  checkScreen();
-  window.addEventListener("resize", checkScreen);
-  return () => window.removeEventListener("resize", checkScreen);
-});
 </script>
 
-<div class="settings-tab">
-  <h2>Miscellaneous Settings</h2>
-  <form>
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="use-titlebar">Use Titlebar</label>
-        <p class="setting-description">Enable a custom titlebar for the application</p>
-      </div>
-      <div class="setting-control">
-        <label class="toggle-switch">
-          <input type="checkbox" id="use-titlebar" bind:checked={$settings.misc.use_titlebar} />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
+{#if app.customizationService.settings}
+  <div class="settings-tab">
+    <h2>Miscellaneous Settings</h2>
+    <p>Configure miscellaneous launcher features and experimental options.</p>
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label>Authentication Preference</label>
-        <p class="setting-description">Choose your preferred authentication flow</p>
+    <form>
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="enable-fun">Fun Features</label>
+          <p class="setting-description">Enable additional fun and non-essential features in the launcher.</p>
+        </div>
+
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              id="enable-fun"
+              checked={app.customizationService.settings.misc?.enable_fun ?? false}
+              onchange={(event) => setEnableFun((event.currentTarget as HTMLInputElement).checked)}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
-      <div class="setting-control">
-        {#if isWideScreen}
-          <div class="radio-group">
-            <label><input type="radio" name="auth-preference" value="code" bind:group={$settings.misc.auth_preference} /> Code Flow (Recommended)</label>
-            <label><input type="radio" name="auth-preference" value="device_code" bind:group={$settings.misc.auth_preference} /> Device Code Flow</label>
-          </div>
-        {:else}
-          <select id="auth-preference" bind:value={$settings.misc.auth_preference}>
-            <option value="code">Code Flow (Recommended)</option>
-            <option value="device_code">Device Code Flow</option>
-          </select>
-        {/if}
-      </div>
-    </div>
-  </form>
-</div>
+    </form>
+  </div>
+{/if}
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
-
 .settings-tab {
   background: var(--container);
   border-radius: var(--border-radius-large);

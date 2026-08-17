@@ -10,69 +10,99 @@ and other content-related settings.
 ```
 -->
 <script lang="ts">
-import { clickSound } from "$lib/actions";
-import { settings } from "$lib/stores";
-function disableMaxWorldBackups() {
-  $settings.content.max_world_backups = "disabled";
-}
+import { app } from "$lib";
 </script>
 
 <div class="settings-tab">
-  <h2>Content Management Settings</h2>
-  <form>
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="auto-backup-worlds">Auto-backup Worlds</label>
-        <p class="setting-description">Automatically create backups before modifying worlds</p>
-      </div>
-      <div class="setting-control">
-        <label class="toggle-switch">
-          <input type="checkbox" id="auto-backup-worlds" bind:checked={$settings.content.auto_backup_worlds} />
-        </label>
-      </div>
-    </div>
+  <h2>Content Settings</h2>
+  <p>Configure content-related features and notifications.</p>
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="max-world-backups">Maximum World Backups</label>
-        <p class="setting-description">How many backups to keep per world (set to 0 or 'disabled' to turn off)</p>
-      </div>
-      <div class="setting-control">
-        <input type="number" id="max-world-backups" min="0" bind:value={$settings.content.max_world_backups} />
-        <button use:clickSound type="button" on:click={disableMaxWorldBackups}>Disable</button>
-      </div>
-    </div>
+  {#if app.customizationService.settings?.content}
+    <form>
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="allow-adult-content">Allow Adult Content</label>
+          <p class="setting-description">Allow content that may be intended for mature audiences.</p>
+        </div>
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="per-installation-mods">Per-Installation Mods Folder</label>
-        <p class="setting-description">Use a separate mods folder for each installation</p>
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              id="allow-adult-content"
+              bind:checked={app.customizationService.settings.content!.allow_adult_content}
+              onchange={() => app.customizationService.scheduleSave()}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
-      <div class="setting-control">
-        <label class="toggle-switch">
-          <input type="checkbox" id="per-installation-mods" bind:checked={$settings.content.use_per_installation_mods_folder} />
-        </label>
-      </div>
-    </div>
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="per-installation-resource-packs">Per-Installation Resource Packs</label>
-        <p class="setting-description">Use a separate resource packs folder for each installation</p>
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="allow-ads">Allow Advertisements</label>
+          <p class="setting-description">Allow advertisements to be displayed by the launcher.</p>
+        </div>
+
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              id="allow-ads"
+              bind:checked={app.customizationService.settings.content!.allow_ads}
+              onchange={() => app.customizationService.scheduleSave()}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
-      <div class="setting-control">
-        <label class="toggle-switch">
-          <input type="checkbox" id="per-installation-resource-packs" bind:checked={$settings.content.use_per_installation_resource_packs} />
-        </label>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="enable-recommendations">Recommendations</label>
+          <p class="setting-description">Enable personalized content and feature recommendations.</p>
+        </div>
+
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              id="enable-recommendations"
+              bind:checked={app.customizationService.settings.content!.enable_recommendations}
+              onchange={() => app.customizationService.scheduleSave()}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
-    </div>
-  </form>
-  <!-- Save status and backend update logic handled in parent Settings component -->
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="enable-notifications">Notifications</label>
+          <p class="setting-description">Allow the launcher to display content-related notifications.</p>
+        </div>
+
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              id="enable-notifications"
+              bind:checked={app.customizationService.settings.content!.enable_notifications}
+              onchange={() => app.customizationService.scheduleSave()}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </form>
+  {:else if app.customizationService.loading}
+    <p>Loading content settings...</p>
+  {:else}
+    <p>Content settings are unavailable.</p>
+  {/if}
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
-
 .settings-tab {
   background: var(--container);
   border-radius: var(--border-radius-large);

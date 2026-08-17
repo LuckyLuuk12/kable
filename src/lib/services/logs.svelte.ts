@@ -1,4 +1,4 @@
-import type { Service } from "./app.service";
+import type { Service } from "./app.svelte";
 
 export class LogsService implements Service {
   async init() {

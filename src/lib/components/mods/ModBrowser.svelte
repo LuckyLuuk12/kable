@@ -946,7 +946,6 @@ onMount(async () => {
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 @use "sass:color";
 
 .mod-browser {

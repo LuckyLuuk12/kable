@@ -1,5 +1,5 @@
 import { type KableAccount, type KableProfile, type LoaderKind, api } from "$lib";
-import type { Service } from "./app.service";
+import type { Service } from "./app.svelte";
 
 export class ProfilesService implements Service {
   profiles = $state<KableProfile[]>([]);

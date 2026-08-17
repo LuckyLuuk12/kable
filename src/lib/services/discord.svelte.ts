@@ -1,5 +1,5 @@
 import { type KableProfile, api } from "$lib";
-import type { Service } from "./app.service";
+import type { Service } from "./app.svelte";
 
 export class DiscordService implements Service {
   enabled = $state(false);

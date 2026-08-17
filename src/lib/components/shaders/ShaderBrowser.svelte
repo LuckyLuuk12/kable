@@ -645,7 +645,6 @@ onMount(async () => {
 <ShaderGalleryModal shader={selectedShaderForGallery} bind:visible={showGalleryModal} on:close={closeGallery} />
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 @use "sass:color";
 
 .shader-browser {

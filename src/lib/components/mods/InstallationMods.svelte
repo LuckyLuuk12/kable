@@ -866,7 +866,6 @@ onMount(() => {
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
 .installation-mods {
   margin: 0;
   height: 100%;

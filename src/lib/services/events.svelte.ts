@@ -1,6 +1,6 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import type { AppService, Service } from "./app.service";
+import type { AppService, Service } from "./app.svelte";
 
 type NavigationEventPayload = Record<string, never>;
 

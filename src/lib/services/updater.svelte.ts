@@ -1,5 +1,5 @@
 import { type UpdateData, api } from "$lib";
-import type { Service } from "./app.service";
+import type { Service } from "./app.svelte";
 
 export class UpdaterService implements Service {
   updateInfo = $state<UpdateData | null>(null);

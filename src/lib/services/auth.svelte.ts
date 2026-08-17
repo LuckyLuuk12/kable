@@ -1,5 +1,5 @@
 import { type DeviceCodeResponse, type KableAccount, type MicrosoftToken, api } from "$lib";
-import type { Service } from "./app.service";
+import type { Service } from "./app.svelte";
 
 export class AuthService implements Service {
   accounts = $state<KableAccount[]>([]);

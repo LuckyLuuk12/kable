@@ -1,15 +1,15 @@
 import { api } from "$lib";
 import type { Component } from "svelte";
-import { AuthService } from "./auth.service";
-import { CustomizationService } from "./customization.service";
-import { DiscordService } from "./discord.service";
-import { EventsService } from "./events.service";
-import { LauncherService } from "./launcher.service";
-import { LogsService } from "./logs.service";
-import { NotificationService } from "./notification.service";
-import { ProfilesService } from "./profiles.service";
-import { ProjectsService } from "./projects.service";
-import { UpdaterService } from "./updater.service";
+import { AuthService } from "./auth.svelte";
+import { CustomizationService } from "./customization.svelte";
+import { DiscordService } from "./discord.svelte";
+import { EventsService } from "./events.svelte";
+import { LauncherService } from "./launcher.svelte";
+import { LogsService } from "./logs.svelte";
+import { NotificationService } from "./notification.svelte";
+import { ProfilesService } from "./profiles.svelte";
+import { ProjectsService } from "./projects.svelte";
+import { UpdaterService } from "./updater.svelte";
 
 type ModalInstance = {
   id: string;

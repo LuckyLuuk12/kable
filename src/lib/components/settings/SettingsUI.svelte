@@ -10,127 +10,134 @@ navigation and responsive mini-nav sidebar.
 ```
 -->
 <script lang="ts">
-import { app } from "$lib";
-import { onDestroy, onMount } from "svelte";
+import { onMount } from "svelte";
 import { AdvancedSettingsUI, AppearanceSettingsUI, ContentSettingsUI, GeneralSettingsUI, LoggingSettingsUI, MiscSettingsUI, NetworkSettingsUI } from ".";
-// Periodic save logic
 
-let settings = $derived(app.customizationService.settings);
-let lastSettings: any = null;
+const sections = ["general", "appearance", "logging", "content", "network", "advanced", "misc"] as const;
 
-// Validate memory settings before saving
-function getValidatedSettings() {
-  const snapshot = settings;
-  if (snapshot?.general) {
-    snapshot.general.default_memory = validateMemory(snapshot.general.default_memory.toString()) || 1024;
-  }
-  return snapshot;
-}
+let currentSection = $state<(typeof sections)[number]>("general");
+let miniNavElement = $state<HTMLElement | null>(null);
+let settingsElement = $state<HTMLDivElement | null>(null);
+let miniNavWidth = $state(0);
 
-let saveInterval: ReturnType<typeof setInterval> | null = null;
-let unsubscribeSettings: (() => void) | null = null;
+let resizeObserver: ResizeObserver | null = null;
+let sectionObserver: IntersectionObserver | null = null;
 
-if (typeof window !== "undefined") {
-  // Save settings on page unload
-  window.addEventListener("beforeunload", () => {
-    lastSettings = getValidatedSettings();
-    SettingsService.saveSettings(lastSettings);
+function scrollToSection(section: (typeof sections)[number]) {
+  const element = document.getElementById(section);
+  if (!element || !settingsElement) return;
+
+  currentSection = section;
+
+  const top = element.offsetTop - settingsElement.offsetTop;
+
+  settingsElement.scrollTo({
+    top,
+    behavior: "smooth",
   });
 }
 
-let sectionInterval: ReturnType<typeof setInterval> | null = null;
-let resizeObserver: ResizeObserver | null = null;
-
 onMount(() => {
-  sectionInterval = setInterval(updateCurrentSection, 1000);
+  if (miniNavElement) {
+    miniNavWidth = miniNavElement.offsetWidth;
 
-  // Set up ResizeObserver for mini-nav width changes
-  if (typeof window !== "undefined" && "ResizeObserver" in window) {
-    resizeObserver = new ResizeObserver(() => {
-      if (miniNavElement) {
-        miniNavWidth = miniNavElement.offsetWidth;
-      }
-    });
+    if ("ResizeObserver" in window) {
+      resizeObserver = new ResizeObserver(() => {
+        if (miniNavElement) {
+          miniNavWidth = miniNavElement.offsetWidth;
+        }
+      });
 
-    if (miniNavElement) {
       resizeObserver.observe(miniNavElement);
     }
   }
 
-  // Auto-save interval logic
-  if (typeof window !== "undefined") {
-    let prevIntervalSetting: number | null = null;
-    unsubscribeSettings = settings.subscribe(($settings) => {
-      let intervalSetting = $settings.advanced.auto_save_interval;
-      const isEnabled = typeof intervalSetting === "number" && intervalSetting > 0;
-      intervalSetting = validateNumber(intervalSetting.toString(), 5000, 3600000) || 30000; // Default to 30 seconds if invalid
-      if (isEnabled) {
-        if (saveInterval) {
-          clearInterval(saveInterval);
-          saveInterval = null;
-        }
-        saveInterval = setInterval(() => {
-          lastSettings = getValidatedSettings();
-          SettingsService.saveSettings(lastSettings);
-        }, intervalSetting);
-        prevIntervalSetting = intervalSetting;
-      } else {
-        if (saveInterval) {
-          clearInterval(saveInterval);
-          saveInterval = null;
+  if (!settingsElement) return;
+
+  const sectionElements = sections.map((section) => document.getElementById(section)).filter((element): element is HTMLElement => element !== null);
+
+  sectionObserver = new IntersectionObserver(
+    (entries) => {
+      const visibleSections = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+
+      if (visibleSections.length > 0) {
+        const section = visibleSections[0].target.id;
+
+        if (sections.includes(section as (typeof sections)[number])) {
+          currentSection = section as (typeof sections)[number];
         }
       }
-    });
+    },
+    {
+      root: settingsElement,
+      threshold: [0.1, 0.25, 0.5, 0.75],
+      rootMargin: "-5% 0px -60% 0px",
+    },
+  );
+
+  for (const element of sectionElements) {
+    sectionObserver.observe(element);
   }
-});
-onDestroy(() => {
-  if (saveInterval) {
-    clearInterval(saveInterval);
-    saveInterval = null;
-  }
-  if (sectionInterval) {
-    clearInterval(sectionInterval);
-    sectionInterval = null;
-  }
-  if (resizeObserver) {
-    resizeObserver.disconnect();
+
+  return () => {
+    sectionObserver?.disconnect();
+    resizeObserver?.disconnect();
+
+    sectionObserver = null;
     resizeObserver = null;
-  }
-  if (unsubscribeSettings) {
-    unsubscribeSettings();
-    unsubscribeSettings = null;
-  }
-  window.removeEventListener("beforeunload", () => {
-    lastSettings = getValidatedSettings();
-    SettingsService.saveSettings(lastSettings);
-  });
-  SettingsService.saveSettings(getValidatedSettings());
+  };
 });
 </script>
 
-<!-- a small fixed nav on the left side with links to specific tabs -->
-<div class="settings-content" style="--mini-nav-width: {miniNavWidth}px;">
-  <div class="mini-nav" bind:this={miniNavElement}>
-    {#each sections as section}
-      <a href={`#${section}`} class:active={$currentSection === section} on:click={() => currentSection.set(section)}
-        >{section.charAt(0).toUpperCase() + section.slice(1)}</a
+<div class="settings-content" style={`--mini-nav-width: ${miniNavWidth}px`}>
+  <nav class="mini-nav" bind:this={miniNavElement} aria-label="Settings sections">
+    {#each sections as section (section)}
+      <a
+        href={`#${section}`}
+        class:active={currentSection === section}
+        aria-current={currentSection === section ? "page" : undefined}
+        onclick={(event) => {
+          event.preventDefault();
+          scrollToSection(section);
+        }}
       >
+        {section.charAt(0).toUpperCase() + section.slice(1)}
+      </a>
     {/each}
-  </div>
-  <div class="settings">
-    <div id="general"><GeneralSettingsUI /></div>
-    <div id="appearance"><AppearanceSettingsUI /></div>
-    <div id="logging"><LoggingSettingsUI /></div>
-    <div id="content"><ContentSettingsUI /></div>
-    <div id="network"><NetworkSettingsUI /></div>
-    <div id="advanced"><AdvancedSettingsUI /></div>
-    <div id="misc"><MiscSettingsUI /></div>
+  </nav>
+
+  <div class="settings" bind:this={settingsElement}>
+    <section id="general">
+      <GeneralSettingsUI />
+    </section>
+
+    <section id="appearance">
+      <AppearanceSettingsUI />
+    </section>
+
+    <section id="logging">
+      <LoggingSettingsUI />
+    </section>
+
+    <section id="content">
+      <ContentSettingsUI />
+    </section>
+
+    <section id="network">
+      <NetworkSettingsUI />
+    </section>
+
+    <section id="advanced">
+      <AdvancedSettingsUI />
+    </section>
+
+    <section id="misc">
+      <MiscSettingsUI />
+    </section>
   </div>
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
-
 .settings-content {
   display: flex;
   flex-direction: row;
@@ -140,6 +147,7 @@ onDestroy(() => {
   max-height: 80vh;
   min-height: 0;
 }
+
 .mini-nav {
   position: fixed;
   display: flex;
@@ -150,18 +158,22 @@ onDestroy(() => {
   align-self: center;
   transform: translateY(-40%);
 }
+
 .mini-nav a {
   color: var(--tertiary);
-  &.active {
-    color: var(--primary);
-  }
   text-decoration: none;
   position: relative;
   padding-bottom: 2px;
   transition: all 0.4s ease;
+
+  &.active {
+    color: var(--primary);
+  }
+
   &:hover {
     transform: scale(1.15) translateY(-0.15rem) translateX(0.15rem);
   }
+
   &::before {
     content: "";
     position: absolute;
@@ -176,13 +188,16 @@ onDestroy(() => {
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 1;
   }
+
   &:hover::before {
     transform: scaleX(1);
   }
+
   &.active::before {
     background: var(--primary);
   }
 }
+
 .settings {
   display: flex;
   flex-direction: column;
@@ -192,5 +207,9 @@ onDestroy(() => {
   max-height: 100%;
   overflow-y: auto;
   margin-left: calc(var(--mini-nav-width, 120px) + 2rem);
+}
+
+.settings > section {
+  scroll-margin-top: 1rem;
 }
 </style>

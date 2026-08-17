@@ -367,8 +367,6 @@ function formatDate(dateString: string): string {
 {/if}
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/_variables.scss" as *;
-
 .modal-backdrop {
   position: fixed;
   top: 0;

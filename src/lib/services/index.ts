@@ -1,3 +1,3 @@
-export * from "./app.service";
-export * from "./events.service";
-export * from "./logs.service";
+export * from "./app.svelte";
+export * from "./events.svelte";
+export * from "./logs.svelte";

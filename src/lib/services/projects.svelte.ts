@@ -1,5 +1,5 @@
 import { type KableProfile, type KableProject_Deserialize, type KableProject_Serialize, type Project_Deserialize, type ProjectSearch, type ProjectType, api } from "$lib";
-import type { Service } from "./app.service";
+import type { Service } from "./app.svelte";
 
 export class ProjectsService implements Service {
   // TODO: rethink if we should hold the "global share" of projects here and have a map-state keyed by profiles
