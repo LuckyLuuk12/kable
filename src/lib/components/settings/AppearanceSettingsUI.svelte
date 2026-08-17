@@ -10,12 +10,8 @@ UI scaling, and color schemes. Supports custom theme uploads.
 ```
 -->
 <script lang="ts">
-import { Icon } from "$lib";
-import { clickSound, errorSound, successSound } from "$lib/actions";
-import { app } from "$lib/services";
-import { settings } from "$lib/stores";
+import { app, clickSound, errorSound, Icon, successSound } from "$lib";
 import { onMount } from "svelte";
-import { availableTemplates, IconService, SettingsService } from "../../../../src-tauri/src-backup/old_services";
 
 let showCustomTemplates = false;
 let showIconUpload = false;
@@ -641,7 +637,7 @@ async function openIconsDirectory() {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  background: linear-gradient(to right, $colors-accent, $colors-accent-secondary);
+  background: linear-gradient(to right, $color-accent, $color-accent-secondary);
   color: var(--text-transparent);
   background-clip: text;
   -webkit-background-clip: text;

@@ -217,7 +217,7 @@ onMount(() => {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  background: linear-gradient(to right, $colors-accent, $colors-accent-secondary);
+  background: linear-gradient(to right, $color-accent, $color-accent-secondary);
   color: var(--text-transparent);
   background-clip: text;
   -webkit-background-clip: text;

@@ -10,18 +10,20 @@ navigation and responsive mini-nav sidebar.
 ```
 -->
 <script lang="ts">
-import { settings, SettingsService } from "$lib";
+import { app } from "$lib";
 import { onDestroy, onMount } from "svelte";
-import { writable } from "svelte/store";
 import { AdvancedSettingsUI, AppearanceSettingsUI, ContentSettingsUI, GeneralSettingsUI, LoggingSettingsUI, MiscSettingsUI, NetworkSettingsUI } from ".";
 // Periodic save logic
-import { get } from "svelte/store";
+
+let settings = $derived(app.customizationService.settings);
 let lastSettings: any = null;
 
 // Validate memory settings before saving
 function getValidatedSettings() {
-  const snapshot = get(settings);
-  snapshot.advanced.default_memory = validateMemory(snapshot.advanced.default_memory.toString()) || 1024;
+  const snapshot = settings;
+  if (snapshot?.general) {
+    snapshot.general.default_memory = validateMemory(snapshot.general.default_memory.toString()) || 1024;
+  }
   return snapshot;
 }
 

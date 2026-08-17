@@ -1,8 +1,15 @@
 <!-- @component
 AdvancedSettingsUI - Advanced configuration settings panel
 
-Provides interface for advanced launcher settings including JVM overrides,
-custom paths, experimental features, and key-value extra settings.
+Provides interface for advanced launcher settings including all fields from this type:
+```
+export type AdvancedSettings = {
+  enable_advanced_features?: boolean;
+  enable_nightly_updates?: boolean;
+  developer_mode?: boolean;
+  extra?: { [key in string]: string };
+};
+```
 
 @example
 ```svelte
@@ -10,17 +17,18 @@ custom paths, experimental features, and key-value extra settings.
 ```
 -->
 <script lang="ts">
-import Icon from "$lib/components/Icon.svelte";
-import { settings } from "$lib/stores";
-import { get } from "svelte/store";
+import { Icon, app } from "$lib";
 // Local state for editing extra settings
 import { onMount } from "svelte";
+
+let settings = $derived(app.customizationService.settings);
 let localExtra: Array<{ key: string; value: string }> = [];
+let collapsed = $state(true);
 
 // Initialize localExtra from store on mount
 onMount(() => {
-  const adv = get(settings).advanced;
-  const entries = Object.entries(adv.extra || {});
+  const adv = settings?.advanced;
+  const entries = Object.entries(adv?.extra || {});
   localExtra = entries.map(([key, value]) => ({
     key,
     value: typeof value === "string" ? value : JSON.stringify(value),
@@ -29,12 +37,12 @@ onMount(() => {
 
 // Sync localExtra to store
 function syncToStore() {
-  const adv = { ...get(settings).advanced };
+  const adv = { ...settings?.advanced };
   adv.extra = {};
   for (const { key, value } of localExtra) {
     if (key) adv.extra[key] = parseValue(value);
   }
-  settings.update((s) => ({ ...s, advanced: adv }));
+  app.customizationService.settings = { ...settings, advanced: adv };
 }
 
 function handleKeyChange(index: number, newKey: string) {
@@ -81,9 +89,9 @@ function parseValue(val: string): any {
         <label for="enable-experimental-features">Experimental Features</label>
         <p class="setting-description">Enable experimental launcher features</p>
       </div>
-      <div class="setting-control">
+      <!-- <div class="setting-control">
         <label class="toggle-switch">
-          <input type="checkbox" id="enable-experimental-features" bind:checked={$settings.advanced.enable_experimental_features} />
+          <input type="checkbox" id="enable-experimental-features" bind:checked={settings?.advanced?.enable_experimental_features} />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -95,8 +103,8 @@ function parseValue(val: string): any {
         <p class="setting-description">Default RAM allocated to new installations</p>
       </div>
       <div class="setting-control slider-control">
-        <input type="range" id="default-memory-slider" min="512" max="131072" step="256" bind:value={$settings.advanced.default_memory} />
-        <input type="number" id="default-memory" min="512" max="131072" step="256" bind:value={$settings.advanced.default_memory} />
+        <input type="range" id="default-memory-slider" min="512" max="131072" step="256" bind:value={settings?.advanced?.default_memory} />
+        <input type="number" id="default-memory" min="512" max="131072" step="256" bind:value={settings?.advanced?.default_memory} />
       </div>
     </div>
 
@@ -107,87 +115,104 @@ function parseValue(val: string): any {
       </div>
       <div class="setting-control">
         <label class="toggle-switch">
-          <input type="checkbox" id="separate-logs-window" bind:checked={$settings.advanced.separate_logs_window} />
+          <input type="checkbox" id="separate-logs-window" bind:checked={settings?.advanced?.separate_logs_window} />
           <span class="toggle-slider"></span>
         </label>
       </div>
-    </div>
+    </div> -->
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="show-advanced-page">Show Advanced Page</label>
-        <p class="setting-description">Display the Advanced page in the navigation bar</p>
-      </div>
-      <div class="setting-control">
-        <label class="toggle-switch">
-          <input type="checkbox" id="show-advanced-page" bind:checked={$settings.advanced.show_advanced_page} />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="check-nightly-updates">Check Nightly Updates</label>
-        <p class="setting-description">Enable automatic checks for nightly/prerelease builds (unstable, for testing)</p>
-      </div>
-      <div class="setting-control">
-        <label class="toggle-switch">
-          <input type="checkbox" id="check-nightly-updates" bind:checked={$settings.advanced.check_nightly_updates} />
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-    </div>
-
-    <div class="setting-item advanced-extra-item">
-      <div class="setting-info">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label id="advanced-extra-label">Advanced Extra Settings</label>
-        <p class="setting-description">
-          Add, edit, or remove advanced key-value pairs. Values can be JSON, strings, numbers, or hex (e.g. <code>0x1234</code>), and are used by advanced features.
-        </p>
-      </div>
-      <div class="setting-control advanced-extra-control">
-        <div class="extra-table">
-          <div class="extra-table-header">
-            <span>Key</span>
-            <span>Value (JSON)</span>
-            <span class="collapse-toggle">
-              <button type="button" class="collapse-btn" on:click={() => (collapsed = !collapsed)} title={collapsed ? "Expand all" : "Collapse all"}>
-                <Icon name={collapsed ? "chevron-down" : "chevron-up"} forceType="svg" />
-              </button>
-            </span>
-          </div>
-          {#if !collapsed}
-            {#each localExtra as entry, i (entry.key)}
-              <div class="extra-row">
-                <input
-                  class="extra-key"
-                  type="text"
-                  aria-labelledby="advanced-extra-label"
-                  bind:value={entry.key}
-                  on:input={(e) => handleKeyChange(i, (e.target as HTMLInputElement).value)}
-                  placeholder="Key"
-                  autocomplete="off"
-                />
-                <textarea
-                  class="extra-value"
-                  aria-label="Value for extra setting"
-                  bind:value={entry.value}
-                  on:input={(e) => handleValueChange(i, (e.target as HTMLTextAreaElement).value)}
-                  placeholder="Value (JSON)"
-                  autocomplete="off"
-                  rows="1"
-                  style="resize:vertical; min-height:2.1em; max-height:12em; width:100%;"
-                ></textarea>
-                <button type="button" class="remove-btn" on:click={() => removeExtra(i)} title="Remove">
-                  <Icon name="delete" forceType="svg" />
-                </button>
-              </div>
-            {/each}
-          {/if}
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="show-advanced-page">Show Advanced Page</label>
+          <p class="setting-description">Display the Advanced page in the navigation bar</p>
         </div>
-        <button type="button" class="add-btn" on:click={addExtra}>Add Extra Setting</button>
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              id="show-advanced-page"
+              onchange={(event) => {
+                if (settings?.advanced) {
+                  settings.advanced.enable_advanced_features = (event.currentTarget as HTMLInputElement).checked;
+                }
+              }}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="check-nightly-updates">Check Nightly Updates</label>
+          <p class="setting-description">Enable automatic checks for nightly/prerelease builds (unstable, for testing)</p>
+        </div>
+        <div class="setting-control">
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              id="check-nightly-updates"
+              onchange={(event) => {
+                if (settings?.advanced) {
+                  settings.advanced.enable_nightly_updates = (event.currentTarget as HTMLInputElement).checked;
+                }
+              }}
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="setting-item advanced-extra-item">
+        <div class="setting-info">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
+          <label id="advanced-extra-label">Advanced Extra Settings</label>
+          <p class="setting-description">
+            Add, edit, or remove advanced key-value pairs. Values can be JSON, strings, numbers, or hex (e.g. <code>0x1234</code>), and are used by advanced features.
+          </p>
+        </div>
+        <div class="setting-control advanced-extra-control">
+          <div class="extra-table">
+            <div class="extra-table-header">
+              <span>Key</span>
+              <span>Value (JSON)</span>
+              <span class="collapse-toggle">
+                <button type="button" class="collapse-btn" onclick={() => (collapsed = !collapsed)} title={collapsed ? "Expand all" : "Collapse all"}>
+                  <Icon name={collapsed ? "chevron-down" : "chevron-up"} forceType="svg" />
+                </button>
+              </span>
+            </div>
+            {#if !collapsed}
+              {#each localExtra as entry, i (entry.key)}
+                <div class="extra-row">
+                  <input
+                    class="extra-key"
+                    type="text"
+                    aria-labelledby="advanced-extra-label"
+                    bind:value={entry.key}
+                    oninput={(e) => handleKeyChange(i, (e.target as HTMLInputElement).value)}
+                    placeholder="Key"
+                    autocomplete="off"
+                  />
+                  <textarea
+                    class="extra-value"
+                    aria-label="Value for extra setting"
+                    bind:value={entry.value}
+                    oninput={(e) => handleValueChange(i, (e.target as HTMLTextAreaElement).value)}
+                    placeholder="Value (JSON)"
+                    autocomplete="off"
+                    rows="1"
+                    style="resize:vertical; min-height:2.1em; max-height:12em; width:100%;"
+                  ></textarea>
+                  <button type="button" class="remove-btn" onclick={() => removeExtra(i)} title="Remove">
+                    <Icon name="delete" forceType="svg" />
+                  </button>
+                </div>
+              {/each}
+            {/if}
+          </div>
+          <button type="button" class="add-btn" onclick={addExtra}>Add Extra Setting</button>
+        </div>
       </div>
     </div>
   </form>
@@ -211,7 +236,7 @@ function parseValue(val: string): any {
   font-size: 1.5rem;
   font-weight: 600;
   margin-bottom: 0.5rem;
-  background: linear-gradient(to right, $colors-accent, $colors-accent-secondary);
+  background: linear-gradient(to right, $color-accent, $color-accent-secondary);
   color: var(--text-transparent);
   background-clip: text;
   -webkit-background-clip: text;

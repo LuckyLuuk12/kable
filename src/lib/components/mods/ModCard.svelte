@@ -548,7 +548,7 @@ function handleCardKeydown(event: KeyboardEvent) {
 
 .mod-card {
   background: var(--card);
-  border: 1px solid rgba($colors-accent, 0.08);
+  border: 1px solid rgba($color-accent, 0.08);
   border-radius: 0.5rem;
   overflow: hidden;
   transition: all 0.2s ease;
@@ -569,8 +569,8 @@ function handleCardKeydown(event: KeyboardEvent) {
     &:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 25px rgba($dark-900, 0.15);
-      background: rgba($colors-accent, 0.02);
-      border-color: rgba($colors-accent, 0.15);
+      background: rgba($color-accent, 0.02);
+      border-color: rgba($color-accent, 0.15);
     }
   }
 
@@ -580,8 +580,8 @@ function handleCardKeydown(event: KeyboardEvent) {
     min-height: fit-content;
 
     &:hover {
-      background: rgba($colors-accent, 0.02);
-      border-color: rgba($colors-accent, 0.12);
+      background: rgba($color-accent, 0.02);
+      border-color: rgba($color-accent, 0.12);
       transform: none;
       box-shadow: 0 2px 8px rgba($dark-900, 0.08);
     }
@@ -700,8 +700,8 @@ function handleCardKeydown(event: KeyboardEvent) {
     align-items: center;
     gap: 0.25rem;
     padding: 0.375rem 0.5rem;
-    background: rgba($colors-accent-secondary, 0.1);
-    border: 1px solid rgba($colors-accent-secondary, 0.3);
+    background: rgba($color-accent-secondary, 0.1);
+    border: 1px solid rgba($color-accent-secondary, 0.3);
     border-radius: 0.25rem;
     color: var(--secondary);
     font-size: 0.7rem;
@@ -715,8 +715,8 @@ function handleCardKeydown(event: KeyboardEvent) {
     margin-left: auto;
 
     &:hover {
-      background: rgba($colors-accent-secondary, 0.15);
-      border-color: rgba($colors-accent-secondary, 0.4);
+      background: rgba($color-accent-secondary, 0.15);
+      border-color: rgba($color-accent-secondary, 0.4);
     }
   }
 
@@ -758,8 +758,8 @@ function handleCardKeydown(event: KeyboardEvent) {
 
   .list-tag {
     padding: 0.0625rem 0.25rem;
-    background: rgba($colors-accent, 0.1);
-    border: 1px solid rgba($colors-accent, 0.2);
+    background: rgba($color-accent, 0.1);
+    border: 1px solid rgba($color-accent, 0.2);
     border-radius: 0.5rem;
     color: var(--primary);
     font-size: 0.6rem;
@@ -861,9 +861,9 @@ function handleCardKeydown(event: KeyboardEvent) {
     margin-left: auto;
 
     &:hover:not(:disabled) {
-      background: rgba($colors-accent-tertiary, 0.9);
+      background: rgba($color-accent-tertiary, 0.9);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba($colors-accent-tertiary, 0.3);
+      box-shadow: 0 4px 12px rgba($color-accent-tertiary, 0.3);
     }
 
     &:disabled {
@@ -876,8 +876,8 @@ function handleCardKeydown(event: KeyboardEvent) {
     background: var(--secondary);
 
     &:hover:not(:disabled) {
-      background: rgba($colors-accent-secondary, 0.9);
-      box-shadow: 0 4px 12px rgba($colors-accent-secondary, 0.3);
+      background: rgba($color-accent-secondary, 0.9);
+      box-shadow: 0 4px 12px rgba($color-accent-secondary, 0.3);
     }
   }
 
@@ -906,8 +906,8 @@ function handleCardKeydown(event: KeyboardEvent) {
     max-width: 300px;
 
     &:hover {
-      background: rgba($colors-accent, 0.03);
-      border-color: rgba($colors-accent, 0.2);
+      background: rgba($color-accent, 0.03);
+      border-color: rgba($color-accent, 0.2);
       transform: none;
       box-shadow: 0 2px 6px rgba($dark-900, 0.1);
     }
@@ -1010,7 +1010,7 @@ function handleCardKeydown(event: KeyboardEvent) {
           color: white;
 
           &:hover:not(:disabled) {
-            background: rgba($colors-accent-tertiary, 0.8);
+            background: rgba($color-accent-tertiary, 0.8);
             transform: translateY(-1px);
           }
 
@@ -1025,18 +1025,18 @@ function handleCardKeydown(event: KeyboardEvent) {
           background: var(--secondary);
 
           &:hover:not(:disabled) {
-            background: rgba($colors-accent-secondary, 0.8);
+            background: rgba($color-accent-secondary, 0.8);
           }
         }
 
         &.versions-btn {
-          background: rgba($colors-accent-secondary, 0.1);
+          background: rgba($color-accent-secondary, 0.1);
           color: var(--secondary);
-          border: 1px solid rgba($colors-accent-secondary, 0.3);
+          border: 1px solid rgba($color-accent-secondary, 0.3);
 
           &:hover {
-            background: rgba($colors-accent-secondary, 0.2);
-            border-color: rgba($colors-accent-secondary, 0.5);
+            background: rgba($color-accent-secondary, 0.2);
+            border-color: rgba($color-accent-secondary, 0.5);
           }
         }
 
@@ -1093,7 +1093,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       gap: 0.25rem;
 
       .flex-tag {
-        background: rgba($colors-accent, 0.08);
+        background: rgba($color-accent, 0.08);
         color: var(--primary);
         padding: 0.125rem 0.25rem;
         border-radius: 0.1875rem;
@@ -1210,7 +1210,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       height: 28px;
 
       &:hover:not(:disabled) {
-        background: rgba($colors-accent-secondary, 0.8);
+        background: rgba($color-accent-secondary, 0.8);
         transform: translateY(-1px);
       }
 
@@ -1237,7 +1237,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       height: 28px;
 
       &:hover:not(:disabled) {
-        background: rgba($colors-accent-tertiary, 0.8);
+        background: rgba($color-accent-tertiary, 0.8);
         transform: translateY(-1px);
       }
 
@@ -1252,7 +1252,7 @@ function handleCardKeydown(event: KeyboardEvent) {
       background: var(--secondary);
 
       &:hover:not(:disabled) {
-        background: rgba($colors-accent-secondary, 0.8);
+        background: rgba($color-accent-secondary, 0.8);
       }
     }
 

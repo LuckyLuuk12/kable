@@ -6,6 +6,7 @@ import { DiscordService } from "./discord.service";
 import { EventsService } from "./events.service";
 import { LauncherService } from "./launcher.service";
 import { LogsService } from "./logs.service";
+import { NotificationService } from "./notification.service";
 import { ProfilesService } from "./profiles.service";
 import { ProjectsService } from "./projects.service";
 import { UpdaterService } from "./updater.service";
@@ -24,6 +25,7 @@ export interface Service {
 }
 
 export class AppService {
+  notificationService = new NotificationService();
   authService = new AuthService();
   customizationService = new CustomizationService();
   discordService = new DiscordService();
@@ -37,6 +39,7 @@ export class AppService {
   /// ! note that the order of services here matters, as some services depend on others being initialized first
   get services(): Service[] {
     return [
+      this.notificationService,
       this.customizationService,
       this.updaterService,
       this.authService,

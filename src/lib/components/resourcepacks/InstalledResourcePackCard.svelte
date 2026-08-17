@@ -161,7 +161,7 @@ async function handleVisitPage(event: MouseEvent) {
 
 .installed-pack-card {
   background: var(--card);
-  border: 1px solid rgba($colors-accent, 0.08);
+  border: 1px solid rgba($color-accent, 0.08);
   border-radius: 0.5rem;
   padding: 0.25rem;
   display: flex;
@@ -267,7 +267,7 @@ async function handleVisitPage(event: MouseEvent) {
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
-  border: 1px solid rgba($colors-accent, 0.2);
+  border: 1px solid rgba($color-accent, 0.2);
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: 0.75rem;
@@ -277,7 +277,7 @@ async function handleVisitPage(event: MouseEvent) {
 
   &:hover:not(:disabled) {
     background: var(--bg-tertiary);
-    border-color: rgba($colors-accent, 0.3);
+    border-color: rgba($color-accent, 0.3);
     transform: translateY(-1px);
   }
 

@@ -5,13 +5,10 @@ Displays notification history in a dropdown tray accessible from a bell icon.
 Shows recent notifications and allows clearing history.
 -->
 <script lang="ts">
-import { Icon, NotificationService } from "$lib";
-import { clickSound } from "$lib/actions";
-import * as systemApi from "$lib/api/system";
+import { Icon, app, clickSound } from "$lib";
 import { onDestroy, onMount } from "svelte";
-import { notificationHistory } from "../../../../src-tauri/src-backup/old_services/NotificationService";
 
-let isOpen = false;
+let isOpen = $state(false);
 let trayElement: HTMLDivElement;
 
 function toggleTray() {
@@ -23,16 +20,16 @@ function closeTray() {
 }
 
 function clearHistory() {
-  NotificationService.clearHistory();
+  app.notificationService.clearHistory();
   closeTray();
 }
 
 async function openHelp() {
   try {
-    await systemApi.openUrl("https://github.com/LuckyLuuk12/kable/wiki");
+    await app.openUrl("https://github.com/LuckyLuuk12/kable/wiki");
   } catch (error) {
     console.error("Failed to open help wiki:", error);
-    NotificationService.error("Failed to open help page");
+    app.notificationService.error("Failed to open help page");
   }
 }
 
@@ -77,10 +74,10 @@ function formatTime(date: Date): string {
 </script>
 
 <div class="notification-tray" bind:this={trayElement}>
-  <button use:clickSound class="tray-toggle" on:click|stopPropagation={toggleTray} aria-label="Notification history" title="Notification history">
+  <button use:clickSound class="tray-toggle" onclick={toggleTray} aria-label="Notification history" title="Notification history">
     <Icon name="help" size="sm" />
-    {#if $notificationHistory.length > 0}
-      <span class="notification-badge">{$notificationHistory.length}</span>
+    {#if app.notificationService.notificationHistory.length > 0}
+      <span class="notification-badge">{app.notificationService.notificationHistory.length}</span>
     {/if}
   </button>
 
@@ -89,9 +86,9 @@ function formatTime(date: Date): string {
       <div class="tray-header">
         <h3>Notifications</h3>
         <div class="header-actions">
-          <button use:clickSound class="help-btn" on:click={openHelp} title="Get help"> Get Help </button>
-          {#if $notificationHistory.length > 0}
-            <button use:clickSound class="clear-btn" on:click={clearHistory}>
+          <button use:clickSound class="help-btn" onclick={openHelp} title="Get help"> Get Help </button>
+          {#if app.notificationService.notificationHistory.length > 0}
+            <button use:clickSound class="clear-btn" onclick={clearHistory}>
               <Icon name="trash" size="sm" />
               Clear
             </button>
@@ -100,13 +97,13 @@ function formatTime(date: Date): string {
       </div>
 
       <div class="tray-content">
-        {#if $notificationHistory.length === 0}
+        {#if app.notificationService.notificationHistory.length === 0}
           <div class="empty-state">
             <Icon name="activity" size="lg" />
             <p>No notifications yet</p>
           </div>
         {:else}
-          {#each $notificationHistory as notification (notification.id)}
+          {#each app.notificationService.notificationHistory as notification (notification.id)}
             <div class="tray-item notification-{notification.type}">
               <div class="item-icon">
                 <Icon name={iconMap[notification.type]} size="sm" />

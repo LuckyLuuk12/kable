@@ -22,7 +22,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 
 | Key | Source | Snippet |
 | --- | --- | --- |
-| activity | [NotificationTray](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/notifications/NotificationTray.svelte#L105) | <pre><code class="language-html">&lt;Icon name="activity" size="lg" /&gt;</code></pre> |
+| activity | [NotificationTray](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/notifications/NotificationTray.svelte#L102) | <pre><code class="language-html">&lt;Icon name="activity" size="lg" /&gt;</code></pre> |
 | activity | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L265) | <pre><code class="language-html">&lt;Icon name="activity" size="md" /&gt;</code></pre> |
 | activity | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L760) | <pre><code class="language-html">&lt;Icon name="activity" size="sm" /&gt;</code></pre> |
 | alert | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L92) | <pre><code class="language-html">&lt;Icon name="alert" size="sm" /&gt;</code></pre> |
@@ -104,9 +104,9 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | cube | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L454) | <pre><code class="language-html">&lt;Icon name="cube" size="md" /&gt;</code></pre> |
 | cube | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L210) | <pre><code class="language-html">&lt;Icon name="cube" size="xl" /&gt;</code></pre> |
 | cube | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L126) | <pre><code class="language-html">&lt;Icon name="cube" size="md" /&gt;</code></pre> |
-| delete | [AdvancedSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AdvancedSettingsUI.svelte#L184) | <pre><code class="language-html">&lt;Icon name="delete" forceType="svg" /&gt;</code></pre> |
-| delete | [AppearanceSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AppearanceSettingsUI.svelte#L322) | <pre><code class="language-html">&lt;Icon name="delete" /&gt;</code></pre> |
-| delete | [AppearanceSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AppearanceSettingsUI.svelte#L477) | <pre><code class="language-html">&lt;Icon name="delete" /&gt;</code></pre> |
+| delete | [AdvancedSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AdvancedSettingsUI.svelte#L208) | <pre><code class="language-html">&lt;Icon name="delete" forceType="svg" /&gt;</code></pre> |
+| delete | [AppearanceSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AppearanceSettingsUI.svelte#L318) | <pre><code class="language-html">&lt;Icon name="delete" /&gt;</code></pre> |
+| delete | [AppearanceSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AppearanceSettingsUI.svelte#L473) | <pre><code class="language-html">&lt;Icon name="delete" /&gt;</code></pre> |
 | download | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L299) | <pre><code class="language-html">&lt;Icon name="download" size="sm" forceType="svg" /&gt;</code></pre> |
 | download | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L374) | <pre><code class="language-html">&lt;Icon name="download" size="sm" forceType="svg" /&gt;</code></pre> |
 | download | [ModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModCard.svelte#L389) | <pre><code class="language-html">&lt;Icon name="download" size="sm" forceType="svg" /&gt;</code></pre> |
@@ -158,7 +158,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | gamepad | [Maps Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/maps/+page.svelte#L232) | <pre><code class="language-html">&lt;Icon name="gamepad" size="sm" /&gt;</code></pre> |
 | globe | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L856) | <pre><code class="language-html">&lt;Icon name="globe" size="sm" /&gt;</code></pre> |
 | hard-drive | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L229) | <pre><code class="language-html">&lt;Icon name="hard-drive" size="md" /&gt;</code></pre> |
-| help | [NotificationTray](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/notifications/NotificationTray.svelte#L81) | <pre><code class="language-html">&lt;Icon name="help" size="sm" /&gt;</code></pre> |
+| help | [NotificationTray](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/notifications/NotificationTray.svelte#L78) | <pre><code class="language-html">&lt;Icon name="help" size="sm" /&gt;</code></pre> |
 | image | [CreateProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/CreateProfileModal.svelte#L311) | <pre><code class="language-html">&lt;Icon name="image" size="sm" /&gt;</code></pre> |
 | image | [InstallationResourcePacks](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/InstallationResourcePacks.svelte#L758) | <pre><code class="language-html">&lt;Icon name="image" size="xl" /&gt;</code></pre> |
 | image | [InstalledResourcePackCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/resourcepacks/InstalledResourcePackCard.svelte#L106) | <pre><code class="language-html">&lt;Icon name="image" size="md" /&gt;</code></pre> |
@@ -287,7 +287,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | trash | [AccountManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AccountManager.svelte#L165) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt; Remove</code></pre> |
 | trash | [InstalledModCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/InstalledModCard.svelte#L495) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" forceType="svg" /&gt;</code></pre> |
 | trash | [ModBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/mods/ModBrowser.svelte#L823) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" forceType="svg" /&gt;</code></pre> |
-| trash | [NotificationTray](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/notifications/NotificationTray.svelte#L95) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
+| trash | [NotificationTray](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/notifications/NotificationTray.svelte#L92) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L284) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L419) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L534) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
@@ -323,4 +323,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L440) | <pre><code class="language-html">&lt;Icon name="x" /&gt;</code></pre> |
 | zap | [Logs Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/logs/+page.svelte#L792) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2026-08-17T00:09:49.241Z_
+_Generated: 2026-08-17T00:47:46.022Z_
