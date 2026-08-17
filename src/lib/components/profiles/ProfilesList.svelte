@@ -221,7 +221,8 @@ $effect(() => {
             class={isSmall ? "installation-card small" : "installation-card"}
             style="background: linear-gradient(135deg, {loaderColors[installation.id]}22 0%, {loaderColors[installation.id]}08 40%); --loader-color: {loaderColors[
               installation.id
-            ]}55; z-index: {(limitedInstallations.length - i) * 2}; position: relative;">
+            ]}55; z-index: {(limitedInstallations.length - i) * 2}; position: relative;"
+          >
             <div class="card-top-actions">
               <button
                 class="star-btn"
@@ -229,7 +230,8 @@ $effect(() => {
                 onclick={async (e) => {
                   e.stopPropagation();
                   await app.profilesService.toggleFavorite(installation);
-                }}>
+                }}
+              >
                 {#key installation.metadata.favorite}
                   <Icon name="star" forceType={installation.metadata.favorite ? "emoji" : "svg"} size="md" />
                 {/key}
@@ -247,7 +249,8 @@ $effect(() => {
                     <button
                       use:clickSound
                       onclick={async () => await app.profilesService.createProfile(installation.version.id, installation)}
-                      title="Duplicate Installation">
+                      title="Duplicate Installation"
+                    >
                       <Icon name="duplicate" size="sm" />
                       Duplicate
                     </button>
@@ -256,7 +259,8 @@ $effect(() => {
                       onclick={async () => {
                         await app.profilesService.exportProfile(installation);
                       }}
-                      title="Export Installation">
+                      title="Export Installation"
+                    >
                       <Icon name="download" size="sm" />
                       Export
                     </button>
@@ -270,7 +274,8 @@ $effect(() => {
                           console.error("Failed to create shortcut:", err);
                         }
                       }}
-                      title="Create Shortcut">
+                      title="Create Shortcut"
+                    >
                       <Icon name="link" size="sm" />
                       Create Shortcut
                     </button>
@@ -307,7 +312,8 @@ $effect(() => {
                   onclick={async () => {
                     await app.launcherService.launch(installation);
                   }}
-                  disabled={app.launcherService.launching}>
+                  disabled={app.launcherService.launching}
+                >
                   {#if app.launcherService.launchingProfileId && app.launcherService.launchingProfileId === installation.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
                     <span style="margin-left:0.5rem">Launching...</span>
@@ -343,13 +349,15 @@ $effect(() => {
                       <span class="meta-key">Created:</span>
                       <span class="meta-value created-date"
                         ><Icon name="calendar" size="sm" />
-                        {installation.metadata.created ? new Date(installation.metadata.created).toLocaleDateString() : "Unknown"}</span>
+                        {installation.metadata.created ? new Date(installation.metadata.created).toLocaleDateString() : "Unknown"}</span
+                      >
                     </div>
                     <div class="meta-cell">
                       <span class="meta-key">Last played:</span>
                       <span class="meta-value last-played"
                         ><Icon name="clock" size="sm" />
-                        {installation.metadata.last_used ? new Date(installation.metadata.last_used).toLocaleDateString() : "Never"}</span>
+                        {installation.metadata.last_used ? new Date(installation.metadata.last_used).toLocaleDateString() : "Never"}</span
+                      >
                     </div>
                     <div class="meta-cell">
                       <span class="meta-key">Total time:</span>
@@ -375,7 +383,8 @@ $effect(() => {
                   use:clickSound
                   class="btn btn-secondary"
                   onclick={async () => await app.profilesService.createProfile(installation.version.id)}
-                  title="Duplicate Installation">
+                  title="Duplicate Installation"
+                >
                   <Icon name="duplicate" size="sm" />
                   Duplicate
                 </button>
@@ -385,7 +394,8 @@ $effect(() => {
                   onclick={async () => {
                     await app.profilesService.exportProfile(installation);
                   }}
-                  title="Export Installation">
+                  title="Export Installation"
+                >
                   <Icon name="download" size="sm" />
                   Export
                 </button>
@@ -400,7 +410,8 @@ $effect(() => {
                       console.error("Failed to create shortcut:", err);
                     }
                   }}
-                  title="Create Shortcut">
+                  title="Create Shortcut"
+                >
                   <Icon name="link" size="sm" />
                   Create Shortcut
                 </button>
@@ -418,7 +429,8 @@ $effect(() => {
             class:dropdown-active={useDropdownForActions[installation.id]}
             style="background: linear-gradient(135deg, {loaderColors[installation.id]}15 0%, {loaderColors[installation.id]}05 40%); --loader-color: {loaderColors[
               installation.id
-            ]}55;">
+            ]}55;"
+          >
             <div class="list-item-main">
               <!-- Icon and Play Button -->
               <div class="list-item-icon-section">
@@ -443,7 +455,8 @@ $effect(() => {
                   onclick={async () => {
                     await app.launcherService.launch(installation);
                   }}
-                  disabled={app.launcherService.launching}>
+                  disabled={app.launcherService.launching}
+                >
                   {#if app.launcherService.launchingProfileId && app.launcherService.launchingProfileId === installation.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
                     <span style="margin-left:0.5rem">Launching...</span>
@@ -465,7 +478,8 @@ $effect(() => {
                       onclick={async (e) => {
                         e.stopPropagation();
                         await app.profilesService.toggleFavorite(installation);
-                      }}>
+                      }}
+                    >
                       {#key installation.metadata.favorite}
                         <Icon name="star" forceType={installation.metadata.favorite ? "emoji" : "svg"} size="sm" />
                       {/key}
@@ -481,7 +495,8 @@ $effect(() => {
                         use:clickSound
                         class="list-action-btn"
                         onclick={async () => await app.profilesService.createProfile(installation.version.id)}
-                        title="Duplicate Installation">
+                        title="Duplicate Installation"
+                      >
                         <Icon name="duplicate" size="sm" />
                         Duplicate
                       </button>
@@ -489,7 +504,8 @@ $effect(() => {
                         use:clickSound
                         class="list-action-btn"
                         onclick={async () => await app.profilesService.exportProfile(installation)}
-                        title="Export Installation">
+                        title="Export Installation"
+                      >
                         <Icon name="download" size="sm" />
                         Export
                       </button>
@@ -504,7 +520,8 @@ $effect(() => {
                             console.error("Failed to create shortcut:", err);
                           }
                         }}
-                        title="Create Shortcut">
+                        title="Create Shortcut"
+                      >
                         <Icon name="link" size="sm" />
                         Create Shortcut
                       </button>
@@ -512,7 +529,8 @@ $effect(() => {
                         use:errorSound
                         class="list-action-btn danger"
                         onclick={async () => await app.profilesService.remove(installation.id)}
-                        title="Delete Installation">
+                        title="Delete Installation"
+                      >
                         <Icon name="trash" size="sm" />
                         Delete
                       </button>
@@ -546,7 +564,8 @@ $effect(() => {
                               console.error("Failed to create shortcut:", err);
                             }
                           }}
-                          title="Create Shortcut">
+                          title="Create Shortcut"
+                        >
                           <Icon name="link" size="sm" />
                           Create Shortcut
                         </button>

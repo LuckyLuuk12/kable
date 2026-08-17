@@ -278,7 +278,8 @@ async function openIconsDirectory() {
             on:dragleave={handleCssDragLeave}
             on:drop={handleCssDrop}
             on:keydown={(e) => e.key === "Enter" && document.getElementById("css-file-input")?.click()}
-            on:click={() => document.getElementById("css-file-input")?.click()}>
+            on:click={() => document.getElementById("css-file-input")?.click()}
+          >
             <input type="file" id="css-file-input" accept=".css" on:change={handleCssFileSelect} style="display:none;" />
             <div class="upload-placeholder">
               <h4>Drag & drop or click to select a CSS file</h4>
@@ -392,7 +393,8 @@ async function openIconsDirectory() {
         <select
           id="selected-icon-template"
           bind:value={$settings.appearance.selected_icon_template}
-          on:change={(e) => selectIconTemplate((e.target as HTMLSelectElement).value)}>
+          on:change={(e) => selectIconTemplate((e.target as HTMLSelectElement).value)}
+        >
           {#each $availableTemplates as template}
             <option value={template.name}>{template.displayName || template.name}</option>
           {/each}
@@ -431,7 +433,8 @@ async function openIconsDirectory() {
             on:dragleave={handleDragLeave}
             on:drop={handleDrop}
             on:keydown={(e) => e.key === "Enter" && document.getElementById("template-file-input")?.click()}
-            on:click={() => document.getElementById("template-file-input")?.click()}>
+            on:click={() => document.getElementById("template-file-input")?.click()}
+          >
             <input type="file" id="template-file-input" accept=".json,.yml,.yaml" on:change={handleFileSelect} style="display:none;" />
             <div class="upload-placeholder">
               <h4>Drag & drop or click to select a template file</h4>
@@ -495,7 +498,8 @@ async function openIconsDirectory() {
             bind:checked={$settings.appearance.sound.enabled}
             on:change={() => {
               app.customizationService.setSoundEnabled($settings.appearance.sound?.enabled ?? true);
-            }} />
+            }}
+          />
         </div>
       </div>
 
@@ -511,7 +515,8 @@ async function openIconsDirectory() {
             bind:checked={$settings.appearance.sound.music_enabled}
             on:change={() => {
               app.customizationService.setMusicEnabled($settings.appearance.sound?.music_enabled ?? true);
-            }} />
+            }}
+          />
         </div>
       </div>
 
@@ -533,7 +538,8 @@ async function openIconsDirectory() {
               bind:value={$settings.appearance.sound.master_volume}
               on:input={(e) => {
                 app.customizationService.setMasterVolume(parseInt((e.target as HTMLInputElement).value));
-              }} />
+              }}
+            />
           </div>
         </div>
 
@@ -555,7 +561,8 @@ async function openIconsDirectory() {
                 bind:value={$settings.appearance.sound.sound_volume}
                 on:input={(e) => {
                   app.customizationService.setSoundVolume(parseInt((e.target as HTMLInputElement).value));
-                }} />
+                }}
+              />
             </div>
           </div>
         {/if}
@@ -578,7 +585,8 @@ async function openIconsDirectory() {
                 bind:value={$settings.appearance.sound.music_volume}
                 on:input={(e) => {
                   app.customizationService.setMusicVolume(parseInt((e.target as HTMLInputElement).value));
-                }} />
+                }}
+              />
             </div>
           </div>
         {/if}
@@ -597,7 +605,8 @@ async function openIconsDirectory() {
                 await app.customizationService.loadSoundpack(pack);
                 saveStatus = "Soundpack changed successfully";
                 setTimeout(() => (saveStatus = ""), 2000);
-              }}>
+              }}
+            >
               {#each app.customizationService.availableSoundpacks as pack}
                 <option value={pack.name}>{pack.displayName}</option>
               {/each}

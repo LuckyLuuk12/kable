@@ -131,7 +131,8 @@ async function handleInstallDownloaded() {
             on:click={handleDownloadUpdate}
             use:clickSound
             disabled={isDownloading || isInstalling}
-            title="Download installer now; will be applied on restart or when you click 'Install downloaded'">
+            title="Download installer now; will be applied on restart or when you click 'Install downloaded'"
+          >
             {#if isDownloading}
               Downloading...
             {:else}
@@ -154,7 +155,8 @@ async function handleInstallDownloaded() {
             on:click={handleInstallDownloaded}
             use:successSound
             disabled={!downloadedPath || isApplying}
-            title="Install the previously downloaded update and restart the app">
+            title="Install the previously downloaded update and restart the app"
+          >
             {#if isApplying}
               Installing...
             {:else}

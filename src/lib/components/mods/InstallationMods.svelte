@@ -648,7 +648,8 @@ onMount(() => {
                 on:click={() => selectInstallation(installation)}
                 on:keydown={(e) => e.key === "Enter" && selectInstallation(installation)}
                 tabindex="0"
-                role="button">
+                role="button"
+              >
                 <div class="installation-icon">
                   <Icon name={loaderIcons[installation.id]} size="md" />
                 </div>
@@ -704,7 +705,8 @@ onMount(() => {
                     class="update-all-btn"
                     on:click={handleUpdateAll}
                     disabled={updatingAll}
-                    title="Update {modsWithUpdates.size} mod{modsWithUpdates.size !== 1 ? 's' : ''}">
+                    title="Update {modsWithUpdates.size} mod{modsWithUpdates.size !== 1 ? 's' : ''}"
+                  >
                     <Icon name="arrow-up" size="sm" forceType="svg" />
                     <span>
                       {updatingAll ? "Updating..." : `Update All (${modsWithUpdates.size})`}
@@ -718,7 +720,8 @@ onMount(() => {
                     class="source-toggle-btn"
                     class:active={sourceViewEnabled}
                     on:click={() => (sourceViewEnabled = !sourceViewEnabled)}
-                    title={sourceViewEnabled ? "Showing modpacks + standalone mods" : "Showing all mods"}>
+                    title={sourceViewEnabled ? "Showing modpacks + standalone mods" : "Showing all mods"}
+                  >
                     <Icon name="layers" size="sm" />
                     <span>{sourceViewEnabled ? "Source On" : "Source Off"}</span>
                   </button>
@@ -821,7 +824,8 @@ onMount(() => {
                         installation={currentProfile}
                         extendedInfo={$extendedModInfo[mod.file_name]}
                         onmodchanged={handleModChanged}
-                        onupdatereport={handleUpdateReport} />
+                        onupdatereport={handleUpdateReport}
+                      />
                     {/each}
                   </div>
                 {:else}
@@ -839,7 +843,8 @@ onMount(() => {
                     installation={currentProfile}
                     extendedInfo={$extendedModInfo[mod.file_name]}
                     onmodchanged={handleModChanged}
-                    onupdatereport={handleUpdateReport} />
+                    onupdatereport={handleUpdateReport}
+                  />
                 {/each}
               </div>
             {/if}

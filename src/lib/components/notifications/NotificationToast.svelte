@@ -66,7 +66,8 @@ const iconMap = {
   on:keydown={handleKeyDown}
   role={notification.onClick ? "button" : "alert"}
   tabindex={notification.onClick ? 0 : -1}
-  aria-live="polite">
+  aria-live="polite"
+>
   <div class="notification-icon">
     <Icon name={iconMap[notification.type]} size="sm" forceType="svg" />
   </div>

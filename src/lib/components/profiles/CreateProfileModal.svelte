@@ -221,7 +221,8 @@ function handleBackdropClick(e: MouseEvent) {
           type="button"
           class="loader-btn {selectedLoader === loader ? 'selected' : ''}"
           style="background: {app.profilesService.getLoaderColor(loader)}20; color: {app.profilesService.getLoaderColor(loader)};"
-          onclick={() => (selectedLoader = loader)}>
+          onclick={() => (selectedLoader = loader)}
+        >
           <span class="loader-icon">
             <!-- TODO: Change this to Image and add images for all loaders to the assets -->
             <!-- <Icon
@@ -286,7 +287,8 @@ function handleBackdropClick(e: MouseEvent) {
                   type="checkbox"
                   checked={allCopyOptionsSelected}
                   indeterminate={someCopyOptionsSelected && !allCopyOptionsSelected}
-                  onchange={toggleAllCopyOptions} />
+                  onchange={toggleAllCopyOptions}
+                />
                 <span>Select All</span>
               </label>
             </div>

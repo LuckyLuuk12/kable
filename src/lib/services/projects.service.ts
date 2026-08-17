@@ -24,7 +24,7 @@ export class ProjectsService implements Service {
     try {
       const enabledProfileProjects = await api.listProfileProjects(profile, true);
       const disabledProfileProjects = await api.listProfileProjects(profile, false);
-      this.projects = [...enabledProfileProjects[projectType] ?? [], ...disabledProfileProjects[projectType] ?? []];
+      this.projects = [...(enabledProfileProjects[projectType] ?? []), ...(disabledProfileProjects[projectType] ?? [])];
       this.loadedForProfileId = profile.id;
     } finally {
       this.loading = false;
@@ -160,7 +160,6 @@ export class ProjectsService implements Service {
    * Disable project
    */
   async disable(profile: KableProfile, project: KableProject_Deserialize) {
-
     try {
       const isEnabled = await api.isProjectEnabled(profile, project);
       if (!isEnabled) {
@@ -185,7 +184,6 @@ export class ProjectsService implements Service {
    */
   async toggle(profile: KableProfile, project: KableProject_Deserialize) {
     try {
-
       const updatedProfile = await api.toggleProject(profile, project);
 
       // Reload the projects list

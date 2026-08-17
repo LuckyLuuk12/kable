@@ -308,7 +308,8 @@ async function handleAdClick(url: string) {
             }}
             min="512"
             max="32768"
-            step="256" />
+            step="256"
+          />
           <div class="slider-labels">
             <span>512MB</span>
             <span>8GB</span>
@@ -338,7 +339,8 @@ async function handleAdClick(url: string) {
                 commitRamChange(true);
               }
             }}
-            placeholder="2048" />
+            placeholder="2048"
+          />
           <span class="ram-unit">MB</span>
         </div>
       </div>

@@ -91,7 +91,8 @@ function disableRetentionDays() {
                   log_file_size_limit_mb: Number((e.target as HTMLInputElement).value),
                 });
               }
-            }} />
+            }}
+          />
           <input
             type="number"
             id="log-file-size-limit"
@@ -106,7 +107,8 @@ function disableRetentionDays() {
                   log_file_size_limit_mb: Number((e.target as HTMLInputElement).value),
                 });
               }
-            }} />
+            }}
+          />
         </div>
         <div class="log-file-size-btn">
           <button use:clickSound type="button" on:click={disableFileSizeLimit}>Disable</button>
@@ -135,7 +137,8 @@ function disableRetentionDays() {
                   log_retention_days: Number((e.target as HTMLInputElement).value),
                 });
               }
-            }} />
+            }}
+          />
           <input
             type="number"
             id="log-retention-days"
@@ -150,7 +153,8 @@ function disableRetentionDays() {
                   log_retention_days: Number((e.target as HTMLInputElement).value),
                 });
               }
-            }} />
+            }}
+          />
         </div>
         <div class="log-retention-btn">
           <button use:clickSound type="button" on:click={disableRetentionDays}>Disable</button>
@@ -189,7 +193,8 @@ function disableRetentionDays() {
               ...$settings.logging,
               max_memory_logs: Number((e.target as HTMLInputElement).value),
             });
-          }} />
+          }}
+        />
         <input
           type="number"
           id="max-memory-logs"
@@ -201,7 +206,8 @@ function disableRetentionDays() {
               ...$settings.logging,
               max_memory_logs: Number((e.target as HTMLInputElement).value),
             });
-          }} />
+          }}
+        />
       </div>
     </div>
 
@@ -221,7 +227,8 @@ function disableRetentionDays() {
                 ...$settings.logging,
                 enable_dedupe: (e.target as HTMLInputElement).checked,
               });
-            }} />
+            }}
+          />
           <span class="toggle-slider"></span>
         </label>
       </div>
@@ -246,7 +253,8 @@ function disableRetentionDays() {
               ...$settings.logging,
               dedupe_window_size: Number((e.target as HTMLInputElement).value),
             });
-          }} />
+          }}
+        />
         <input
           type="number"
           id="dedupe-window-size"
@@ -259,7 +267,8 @@ function disableRetentionDays() {
               ...$settings.logging,
               dedupe_window_size: Number((e.target as HTMLInputElement).value),
             });
-          }} />
+          }}
+        />
       </div>
     </div>
 
@@ -310,7 +319,8 @@ function disableRetentionDays() {
                 }
                 e.preventDefault();
               }
-            }}>
+            }}
+          >
             <input type="checkbox" bind:group={$settings.logging.default_log_levels} value={level} class="visually-hidden" />
             {level}
           </label>
