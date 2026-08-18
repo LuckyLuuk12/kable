@@ -50,6 +50,7 @@ $effect(() => {
 
 async function updateIcon() {
   iconData = await app.customizationService.getIcon(name, forceType);
+  console.log("Icon:", name, "forceType:", forceType, "result:", iconData);
 }
 
 // Validate SVG content for security

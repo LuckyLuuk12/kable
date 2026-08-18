@@ -1,4 +1,5 @@
 import { type AppearanceSettings, type CategorizedLauncherSettings, type IconTemplate, type SoundSettings, api } from "$lib";
+import { SvelteMap } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
 
 type SoundpackListEntry = {
@@ -45,7 +46,7 @@ export class CustomizationService implements Service {
   isMusicEnabled = $state(true);
 
   private audioContext: AudioContext | null = null;
-  private soundBuffers = new Map<string, AudioBuffer>();
+  private soundBuffers = new SvelteMap<string, AudioBuffer>();
   private currentSoundpack = "default";
   private soundpackMetadata: SoundpackManifest | null = null;
   private soundInitialized = false;
@@ -250,8 +251,12 @@ export class CustomizationService implements Service {
   async getIcon(key: string, overrideTemplate?: string) {
     // If the type of the selected template is not "builtin" we NEVER use the override template, override template is only used if a builtin is used as builtins match my personal design opinions
     const selectedTemplateId = this.settings?.appearance?.icon_template ?? overrideTemplate ?? "windows";
-    const selectedTemplate = (await this.getIconTemplates()).find((t) => t.id === selectedTemplateId);
-    return selectedTemplate?.icons[key] ?? selectedTemplate?.icons[selectedTemplate?.fallback_icon];
+    const templates = await this.getIconTemplates();
+    console.log("[CustomizationService] Getting icon for key:", key, "with overrideTemplate:", overrideTemplate, "selectedTemplateId:", selectedTemplateId, "available templates:", templates.map((t) => t.id));
+    const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
+    const res = selectedTemplate?.icons[key] ?? selectedTemplate?.icons[selectedTemplate?.fallback_icon];
+    console.log("[CustomizationService] Icon result for key:", key, ":", res);
+    return res;
   }
 
   // #endregion icons

@@ -47,9 +47,10 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "targets": "all",
-    "resources": [
-      "../static/*"
-    ],
+    "resources": {
+      "../static/icons/*": "icons/",
+      "../static/*": ""
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

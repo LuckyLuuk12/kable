@@ -4,7 +4,9 @@
   "version": "1.0.0",
   "type": "builtin",
   "default_icon_type": "emoji",
-  "author": "Kable",
+  "author": [
+    "Kable"
+  ],
   "description": "Default emoji-based icons",
   "iconType": "emoji",
   "fallbackIcon": "❓",

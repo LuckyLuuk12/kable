@@ -1,6 +1,6 @@
-use crate::app_handle;
 use crate::constants::{CONFIG_DIR, ICONS_DIR};
 use crate::system::fs::{create_dir, launcher_dir, read_str};
+use crate::{app_handle, Logger};
 use api_types::icons::IconTemplate;
 use std::fs;
 use std::path::PathBuf;
@@ -43,14 +43,30 @@ pub async fn get_builtin_icon_templates() -> Result<Vec<IconTemplate>, String> {
             .resolve("icons/win.json", tauri::path::BaseDirectory::Resource)
             .map_err(|e| format!("Failed to resolve built-in icons path: {}", e))?,
     ];
+
     let mut templates = Vec::new();
     for path in paths {
-        if let Ok(content) = read_str(&path).await {
-            if let Ok(template) = serde_json::from_str::<IconTemplate>(&content) {
+        Logger::info_global(format!("Loading built-in icon template: {:?}", path).as_str(), None);
+
+        let content = match read_str(&path).await {
+            Ok(content) => content,
+            Err(err) => {
+                Logger::error_global(format!("Failed to read {:?}: {}", path, err).as_str(), None);
+                continue;
+            }
+        };
+
+        match serde_json::from_str::<IconTemplate>(&content) {
+            Ok(template) => {
+                Logger::info_global(format!("Successfully loaded icon template: {:?}", path).as_str(), None);
                 templates.push(template);
+            }
+            Err(err) => {
+                Logger::error_global(format!("Failed to deserialize {:?}: {}", path, err).as_str(), None);
             }
         }
     }
+    Logger::info_global(format!("Loaded built-in icon templates: {:?}", templates).as_str(), None);
     Ok(templates)
 }
 
