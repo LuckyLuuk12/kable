@@ -39,13 +39,13 @@ let currentTab: "selection" | "editor" = "selection";
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background: var(--background);
-  border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  background: $color-background;
+  border-bottom: 1px solid color-mix(in srgb, $color-accent, 8%, transparent);
   flex-shrink: 0;
 
   .tab-btn {
     padding: 0.5rem 1rem;
-    border: 1px solid var(--dark-600);
+    border: 1px solid $color-border;
     border-radius: 0.5rem;
     background: var(--card);
     color: var(--text);
@@ -55,15 +55,15 @@ let currentTab: "selection" | "editor" = "selection";
     transition: all 0.15s;
 
     &:hover {
-      border-color: var(--primary);
-      background: color-mix(in srgb, var(--primary), 5%, transparent);
+      border-color: $color-accent;
+      background: color-mix(in srgb, $color-accent, 5%, transparent);
     }
 
     &.active {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      background: linear-gradient(135deg, $color-accent 0%, $color-accent-secondary 100%);
       color: var(--text-white);
       border-color: var(--text-transparent);
-      box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 25%, transparent);
+      box-shadow: 0 2px 8px color-mix(in srgb, $color-accent, 25%, transparent);
     }
   }
 }

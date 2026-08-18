@@ -1,5 +1,5 @@
 <script lang="ts">
-import { settings, SettingsUI } from "$lib";
+import { app, SettingsUI } from "$lib";
 
 let saveStatus = "";
 </script>
@@ -15,7 +15,7 @@ let saveStatus = "";
     {/if}
   </div>
 
-  {#if $settings}
+  {#if app.customizationService.settings}
     <SettingsUI />
   {:else}
     <div class="loading-state">
@@ -64,7 +64,7 @@ let saveStatus = "";
     width: 40px;
     height: 40px;
     border: 4px solid var(--input);
-    border-top: 4px solid var(--primary);
+    border-top: 4px solid $color-accent;
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 1rem;

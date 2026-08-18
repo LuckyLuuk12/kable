@@ -27,7 +27,7 @@ let downloadedPath: string | null = null;
 
 onMount(async () => {
   try {
-    currentVersion = await app.updaterService.getCurrentVersion();
+    currentVersion = (await app.updaterService.getCurrentVersion()) ?? "Unknown";
   } catch (e) {
     console.error("Failed to get current version:", e);
   }
@@ -205,7 +205,7 @@ async function handleInstallDownloaded() {
   }
 
   .version {
-    color: var(--primary);
+    color: $color-accent;
     font-weight: 500;
   }
 }
@@ -217,7 +217,7 @@ async function handleInstallDownloaded() {
 }
 
 .check-button {
-  background: var(--primary);
+  background: $color-accent;
   color: white;
   border: none;
   border-radius: 0.375rem;
@@ -229,7 +229,7 @@ async function handleInstallDownloaded() {
   align-self: flex-start;
 
   &:hover:not(:disabled) {
-    background: var(--primary-hover, #{"color-mix(in srgb, var(--primary) 90%, black)"});
+    background: var(--primary-hover, #{"color-mix(in srgb, $color-accent 90%, black)"});
   }
 
   &:disabled {
@@ -240,13 +240,13 @@ async function handleInstallDownloaded() {
 
 .update-available {
   background: var(--container);
-  border: 2px solid var(--primary);
+  border: 2px solid $color-accent;
   border-radius: 0.5rem;
   padding: 1rem;
 
   h4 {
     margin: 0 0 0.75rem 0;
-    color: var(--primary);
+    color: $color-accent;
     font-size: 1rem;
     font-weight: 600;
   }
@@ -285,7 +285,7 @@ async function handleInstallDownloaded() {
       }
 
       :global(a) {
-        color: var(--primary);
+        color: $color-accent;
         text-decoration: underline;
         transition: opacity 0.15s;
 
@@ -309,7 +309,7 @@ async function handleInstallDownloaded() {
         border-radius: 0.25rem;
         font-family: "Courier New", monospace;
         font-size: 0.85em;
-        color: var(--primary);
+        color: $color-accent;
       }
 
       :global(pre) {
@@ -378,7 +378,7 @@ async function handleInstallDownloaded() {
       }
 
       :global(blockquote) {
-        border-left: 3px solid var(--primary);
+        border-left: 3px solid $color-accent;
         padding-left: 0.75rem;
         margin: 0.5rem 0;
         color: var(--text-muted);
@@ -427,7 +427,7 @@ async function handleInstallDownloaded() {
 }
 
 .download-button {
-  background: var(--primary);
+  background: $color-accent;
   color: white;
   border: none;
   border-radius: 0.375rem;

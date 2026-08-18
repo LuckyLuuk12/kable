@@ -701,7 +701,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     background: rgba($color-accent-secondary, 0.1);
     border: 1px solid rgba($color-accent-secondary, 0.3);
     border-radius: 0.25rem;
-    color: var(--secondary);
+    color: $color-accent-secondary;
     font-size: 0.7rem;
     font-weight: 500;
     cursor: pointer;
@@ -759,7 +759,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     background: rgba($color-accent, 0.1);
     border: 1px solid rgba($color-accent, 0.2);
     border-radius: 0.5rem;
-    color: var(--primary);
+    color: $color-accent;
     font-size: 0.6rem;
     font-weight: 500;
     white-space: nowrap;
@@ -845,7 +845,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     align-items: center;
     gap: 0.25rem;
     padding: 0.375rem 0.5rem;
-    background: var(--tertiary);
+    background: $color-accent-tertiary;
     border: none;
     border-radius: 0.25rem;
     color: white;
@@ -871,7 +871,7 @@ function handleCardKeydown(event: KeyboardEvent) {
   }
 
   .list-update-btn {
-    background: var(--secondary);
+    background: $color-accent-secondary;
 
     &:hover:not(:disabled) {
       background: rgba($color-accent-secondary, 0.9);
@@ -1004,7 +1004,7 @@ function handleCardKeydown(event: KeyboardEvent) {
 
         &.download-btn,
         &.update-btn {
-          background: var(--tertiary);
+          background: $color-accent-tertiary;
           color: white;
 
           &:hover:not(:disabled) {
@@ -1020,7 +1020,7 @@ function handleCardKeydown(event: KeyboardEvent) {
         }
 
         &.update-btn {
-          background: var(--secondary);
+          background: $color-accent-secondary;
 
           &:hover:not(:disabled) {
             background: rgba($color-accent-secondary, 0.8);
@@ -1029,7 +1029,7 @@ function handleCardKeydown(event: KeyboardEvent) {
 
         &.versions-btn {
           background: rgba($color-accent-secondary, 0.1);
-          color: var(--secondary);
+          color: $color-accent-secondary;
           border: 1px solid rgba($color-accent-secondary, 0.3);
 
           &:hover {
@@ -1092,7 +1092,7 @@ function handleCardKeydown(event: KeyboardEvent) {
 
       .flex-tag {
         background: rgba($color-accent, 0.08);
-        color: var(--primary);
+        color: $color-accent;
         padding: 0.125rem 0.25rem;
         border-radius: 0.1875rem;
         font-size: 0.65em;
@@ -1194,7 +1194,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     flex-shrink: 0;
 
     .compact-versions-btn {
-      background: var(--secondary);
+      background: $color-accent-secondary;
       color: white;
       border: none;
       border-radius: 0.25rem;
@@ -1221,7 +1221,7 @@ function handleCardKeydown(event: KeyboardEvent) {
 
     .compact-download-btn,
     .compact-update-btn {
-      background: var(--tertiary);
+      background: $color-accent-tertiary;
       color: white;
       border: none;
       border-radius: 0.25rem;
@@ -1247,7 +1247,7 @@ function handleCardKeydown(event: KeyboardEvent) {
     }
 
     .compact-update-btn {
-      background: var(--secondary);
+      background: $color-accent-secondary;
 
       &:hover:not(:disabled) {
         background: rgba($color-accent-secondary, 0.8);

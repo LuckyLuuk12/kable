@@ -1,7 +1,7 @@
 <script lang="ts">
-import { onMount, onDestroy, tick } from "svelte";
 import { page } from "$app/stores";
-import { Icon, logsService, gameInstances, currentLogs, selectedInstanceId, type GameInstance, settings } from "$lib";
+import { currentLogs, gameInstances, Icon, logsService, selectedInstanceId, settings, type GameInstance } from "$lib";
+import { onDestroy, onMount, tick } from "svelte";
 
 // String pool for common values to reduce memory
 const STRING_POOL = {
@@ -1040,8 +1040,8 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       align-items: center;
       gap: 0.25rem;
       padding: 0.25rem 0.75rem;
-      background: color-mix(in srgb, var(--primary), 10%, transparent);
-      color: var(--primary);
+      background: color-mix(in srgb, $color-accent, 10%, transparent);
+      color: $color-accent;
       border-radius: var(--border-radius);
       font-size: 0.875rem;
       font-weight: 500;
@@ -1078,7 +1078,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
 
       &:focus {
         outline: none;
-        border-color: var(--primary);
+        border-color: $color-accent;
       }
 
       &::placeholder {
@@ -1116,13 +1116,13 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
         }
 
         &.active {
-          background: var(--primary);
+          background: $color-accent;
           color: var(--text-white);
         }
 
         &:focus {
           outline: none;
-          box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--primary), 30%, transparent);
+          box-shadow: inset 0 0 0 2px color-mix(in srgb, $color-accent, 30%, transparent);
         }
       }
     }
@@ -1153,12 +1153,12 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
 
         &:hover {
           background: var(--dark-200);
-          border-color: var(--primary);
+          border-color: $color-accent;
         }
 
         &:focus {
           outline: none;
-          border-color: var(--primary);
+          border-color: $color-accent;
         }
       }
 
@@ -1197,7 +1197,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
           }
 
           input[type="checkbox"] {
-            accent-color: var(--primary);
+            accent-color: $color-accent;
           }
           .log-level-count {
             margin-left: auto;
@@ -1223,7 +1223,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       cursor: pointer;
 
       input[type="checkbox"] {
-        accent-color: var(--primary);
+        accent-color: $color-accent;
       }
     }
   }
@@ -1264,7 +1264,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       }
 
       &.active {
-        background: var(--primary);
+        background: $color-accent;
         color: var(--text);
       }
 
@@ -1338,7 +1338,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
       }
 
       &.active {
-        background: var(--primary);
+        background: $color-accent;
         color: var(--text-white);
       }
 
@@ -1372,8 +1372,8 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
     &.copy-notification-active {
       .log-entries-wrapper .log-entries {
         .log-entry {
-          background: color-mix(in srgb, var(--primary), 10%, transparent);
-          border: 1px solid color-mix(in srgb, var(--primary), 20%, transparent);
+          background: color-mix(in srgb, $color-accent, 10%, transparent);
+          border: 1px solid color-mix(in srgb, $color-accent, 20%, transparent);
         }
       }
     }
@@ -1486,7 +1486,7 @@ $: hasActiveFilters = searchTerm || enabledLogLevelsCount < 4;
 
           &:hover {
             opacity: 1;
-            color: var(--primary);
+            color: $color-accent;
           }
 
           &:active {

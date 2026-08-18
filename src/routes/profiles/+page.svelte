@@ -1,9 +1,8 @@
 <script lang="ts">
-import { CreateInstallationModal, EditInstallationModal, Icon, InstallationService, InstallationsList, type KableInstallation } from "$lib";
-import * as installationsApi from "$lib/api/installations";
+import { app, CreateProfileModal, EditProfileModal, Icon, ProfilesList, type KableProfile } from "$lib";
 
-let createModalRef: CreateInstallationModal;
-let editModalRef: EditInstallationModal;
+let createModalRef: CreateProfileModal;
+let editModalRef: EditProfileModal;
 
 let isSmall = false;
 let isGrid = true;
@@ -11,8 +10,8 @@ let isRefreshing = false;
 let isRefreshingVersions = false;
 let isImporting = false;
 
-function editInstallation(installation: KableInstallation) {
-  editModalRef?.open(installation);
+function editProfile(profile: KableProfile) {
+  editModalRef?.open(profile);
 }
 
 function openCreateModal() {
@@ -22,7 +21,7 @@ function openCreateModal() {
 async function refreshInstallations() {
   isRefreshing = true;
   try {
-    await InstallationService.refreshInstallations();
+    await app.profilesService.refreshProfiles();
   } finally {
     isRefreshing = false;
   }
@@ -31,7 +30,7 @@ async function refreshInstallations() {
 async function refreshVersionManifests() {
   isRefreshingVersions = true;
   try {
-    await InstallationService.refreshVersionManifests();
+    await app.launcherService.loadVersions();
   } finally {
     isRefreshingVersions = false;
   }
@@ -40,11 +39,11 @@ async function refreshVersionManifests() {
 async function importKableInstallation() {
   try {
     isImporting = true;
-    const path = await installationsApi.selectInstallationZip();
+    // const path = await app.profilesService.selectInstallationZip();
 
-    if (path) {
-      await InstallationService.importInstallation(path);
-    }
+    // if (path) {
+    // await app.profilesService.importInstallation(path);
+    // }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";
     console.error("Failed to import installation:", error);
@@ -56,11 +55,11 @@ async function importKableInstallation() {
 async function importFromMinecraftFolder() {
   try {
     isImporting = true;
-    const path = await installationsApi.selectMinecraftFolder();
+    // const path = await app.profilesService.selectMinecraftFolder();
 
-    if (path) {
-      const result = await InstallationService.importFromMinecraftFolder(path);
-    }
+    // if (path) {
+    // const result = await app.profilesService.importFromMinecraftFolder(path);
+    // }
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : "Unknown error";
     console.error("Failed to import from .minecraft folder:", error);
@@ -115,15 +114,13 @@ async function importFromMinecraftFolder() {
     </div>
   </div>
 
-  <InstallationsList {isGrid} {isSmall} on:edit={(e) => editInstallation(e.detail)} />
+  <ProfilesList {isGrid} {isSmall} on:edit={(e) => editProfile(e.detail)} />
 
-  <CreateInstallationModal bind:this={createModalRef} />
-  <EditInstallationModal bind:this={editModalRef} />
+  <CreateProfileModal bind:this={createModalRef} />
+  <EditProfileModal bind:this={editModalRef} />
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/variables" as *;
-
 .installations-page {
   width: 100%;
   max-width: none;
@@ -168,10 +165,10 @@ async function importFromMinecraftFolder() {
     font-size: 1.1rem;
     padding: 0.75rem 1.5rem;
     background: none;
-    color: var(--primary);
+    color: $color-accent;
     border-radius: var(--border-radius);
     box-shadow: none;
-    border: 1.5px solid var(--primary);
+    border: 1.5px solid $color-accent;
     font-weight: 600;
     transition:
       color 0.13s,
@@ -179,7 +176,7 @@ async function importFromMinecraftFolder() {
       border 0.13s;
     &:hover,
     &:focus {
-      background: color-mix(in srgb, var(--primary), 10%, transparent);
+      background: color-mix(in srgb, $color-accent, 10%, transparent);
       color: var(--primary-900);
       border-color: var(--primary-700);
     }
@@ -200,7 +197,7 @@ async function importFromMinecraftFolder() {
       color 0.13s,
       border-color 0.13s;
     &:hover:not(:disabled) {
-      background: color-mix(in srgb, var(--primary), 10%, transparent);
+      background: color-mix(in srgb, $color-accent, 10%, transparent);
       color: var(--primary-900);
       border-color: var(--primary-800);
     }
@@ -235,13 +232,13 @@ async function importFromMinecraftFolder() {
         border-color 0.13s;
 
       &:hover {
-        background: color-mix(in srgb, var(--primary), 10%, transparent);
+        background: color-mix(in srgb, $color-accent, 10%, transparent);
         color: var(--primary-900);
         border-color: var(--primary-800);
       }
 
       &.is-active {
-        background: color-mix(in srgb, var(--primary), 10%, transparent);
+        background: color-mix(in srgb, $color-accent, 10%, transparent);
         color: var(--primary-900);
         border-color: var(--primary-800);
       }

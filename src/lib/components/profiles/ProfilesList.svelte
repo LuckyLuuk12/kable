@@ -638,10 +638,10 @@ $effect(() => {
   border: 1px solid color-mix(in srgb, var(--dark-400), 3%, transparent);
   background:
     radial-gradient(circle at var(--dot1-x, 30%) var(--dot1-y, 40%), #{"color-mix(in srgb, var(--primary-900), 4.5%, transparent)"} 0%, transparent 18%),
-    radial-gradient(circle at var(--dot2-x, 70%) var(--dot2-y, 60%), #{"color-mix(in srgb, var(--secondary), 3.5%, transparent)"} 0%, transparent 15%),
-    radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 20%), #{"color-mix(in srgb, var(--tertiary), 3%, transparent)"} 0%, transparent 13%),
+    radial-gradient(circle at var(--dot2-x, 70%) var(--dot2-y, 60%), #{"color-mix(in srgb, $color-accent-secondary, 3.5%, transparent)"} 0%, transparent 15%),
+    radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 20%), #{"color-mix(in srgb, $color-accent-tertiary, 3%, transparent)"} 0%, transparent 13%),
     radial-gradient(circle at var(--dot4-x, 80%) var(--dot4-y, 80%), #{"color-mix(in srgb, var(--quaternary), 3.5%, transparent)"} 0%, transparent 16%),
-    linear-gradient(120deg, #{"color-mix(in srgb, var(--container), 98%, transparent)"} 60%, #{"color-mix(in srgb, var(--primary), 4%, transparent)"} 100%);
+    linear-gradient(120deg, #{"color-mix(in srgb, var(--container), 98%, transparent)"} 60%, #{"color-mix(in srgb, $color-accent, 4%, transparent)"} 100%);
   box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08); // 2px 4px
   overflow: visible;
   animation: move-dots 32s ease infinite alternate;
@@ -934,7 +934,7 @@ $effect(() => {
     box-shadow:
       0 0.25rem 1rem rgba(80, 80, 90, 0.1),
       0 0.125rem 0.25rem rgba(80, 80, 90, 0.06);
-    border-color: var(--loader-color, var(--primary));
+    border-color: var(--loader-color, $color-accent);
   }
 }
 
@@ -1173,7 +1173,7 @@ $effect(() => {
     box-shadow:
       0 0.375rem 1.5rem rgba(80, 80, 90, 0.13),
       0 0.125rem 0.5rem rgba(80, 80, 90, 0.07); // 6px 24px, 2px 8px
-    border-color: var(--loader-color, var(--primary));
+    border-color: var(--loader-color, $color-accent);
   }
   &.small {
     padding: 0.6rem 0.6rem 0.6rem 0.6rem;
@@ -1210,7 +1210,7 @@ $effect(() => {
     background: none !important;
     border: none;
     box-shadow: none;
-    color: var(--primary);
+    color: $color-accent;
     font-weight: 600;
     transition: color 0.13s;
     padding: 0;

@@ -465,7 +465,7 @@ function getModel(m: string): "classic" | "slim" | "auto" {
 
 .header {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--primary), 10%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, $color-accent, 10%, transparent);
   flex-shrink: 0;
 
   .title-row {
@@ -482,7 +482,7 @@ function getModel(m: string): "classic" | "slim" | "auto" {
       h1 {
         font-size: 1.5rem;
         font-weight: 700;
-        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        background: linear-gradient(135deg, $color-accent, $color-accent-secondary);
         background-clip: text;
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -497,7 +497,7 @@ function getModel(m: string): "classic" | "slim" | "auto" {
 
     .upload-btn {
       padding: 0.6rem 1.2rem;
-      background: linear-gradient(135deg, var(--primary), var(--secondary));
+      background: linear-gradient(135deg, $color-accent, $color-accent-secondary);
       color: var(--text-white);
       border: none;
       border-radius: 0.5rem;
@@ -507,11 +507,11 @@ function getModel(m: string): "classic" | "slim" | "auto" {
       align-items: center;
       gap: 0.5rem;
       transition: all 0.2s;
-      box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 25%, transparent);
+      box-shadow: 0 2px 8px color-mix(in srgb, $color-accent, 25%, transparent);
 
       &:hover:not(:disabled) {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px color-mix(in srgb, var(--primary), 35%, transparent);
+        box-shadow: 0 4px 12px color-mix(in srgb, $color-accent, 35%, transparent);
       }
       &:disabled {
         opacity: 0.5;
@@ -617,7 +617,7 @@ section {
   }
 
   &::-webkit-scrollbar-track {
-    background: var(--background);
+    background: $color-background;
     border-radius: 3px;
   }
 
@@ -626,7 +626,7 @@ section {
     border-radius: 3px;
 
     &:hover {
-      background: var(--primary);
+      background: $color-accent;
     }
   }
 
@@ -643,9 +643,9 @@ section {
     text-align: center;
 
     &:hover:not(:disabled) {
-      border-color: var(--primary);
+      border-color: $color-accent;
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px color-mix(in srgb, var(--primary), 20%, transparent);
+      box-shadow: 0 4px 12px color-mix(in srgb, $color-accent, 20%, transparent);
     }
 
     &.active {
@@ -661,7 +661,7 @@ section {
     .cape-preview {
       width: 100%;
       aspect-ratio: 1;
-      background: var(--background);
+      background: $color-background;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -724,7 +724,7 @@ section {
   button {
     margin-top: 0.75rem;
     padding: 0.6rem 1.2rem;
-    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    background: linear-gradient(135deg, $color-accent, $color-accent-secondary);
     color: var(--text-white);
     border: none;
     border-radius: 0.5rem;
@@ -749,7 +749,7 @@ section {
   }
 
   &::-webkit-scrollbar-track {
-    background: var(--background);
+    background: $color-background;
     border-radius: 3px;
   }
 
@@ -758,7 +758,7 @@ section {
     border-radius: 3px;
 
     &:hover {
-      background: var(--primary);
+      background: $color-accent;
     }
   }
 
@@ -773,8 +773,8 @@ section {
     flex-direction: row;
 
     &:hover {
-      border-color: var(--primary);
-      box-shadow: 0 4px 12px color-mix(in srgb, var(--primary), 15%, transparent);
+      border-color: $color-accent;
+      box-shadow: 0 4px 12px color-mix(in srgb, $color-accent, 15%, transparent);
     }
 
     &.current {
@@ -786,7 +786,7 @@ section {
       width: 140px;
       height: 140px;
       flex-shrink: 0;
-      background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 5%, transparent), color-mix(in srgb, var(--secondary), 5%, transparent));
+      background: linear-gradient(135deg, color-mix(in srgb, $color-accent, 5%, transparent), color-mix(in srgb, $color-accent-secondary, 5%, transparent));
       display: flex;
       align-items: center;
       justify-content: center;
@@ -826,7 +826,7 @@ section {
 
         .tag {
           padding: 0.15rem 0.4rem;
-          background: var(--background);
+          background: $color-background;
           border-radius: 0.25rem;
           color: var(--text-secondary);
         }
@@ -854,7 +854,7 @@ section {
 
         button {
           padding: 0.4rem 0.5rem;
-          background: var(--background);
+          background: $color-background;
           border: 1px solid var(--border);
           border-radius: 0.4rem;
           cursor: pointer;
@@ -869,8 +869,8 @@ section {
 
           &:hover:not(:disabled) {
             background: var(--card);
-            border-color: var(--primary);
-            color: var(--primary);
+            border-color: $color-accent;
+            color: $color-accent;
           }
 
           &.apply {
@@ -945,7 +945,7 @@ section {
       cursor: pointer;
       padding: 0.25rem;
       &:hover {
-        color: var(--primary);
+        color: $color-accent;
       }
     }
   }
@@ -968,7 +968,7 @@ section {
       &.file-select-label {
         .file-select-btn {
           padding: 0.75rem;
-          background: var(--background);
+          background: $color-background;
           border: 2px dashed var(--border);
           border-radius: 0.5rem;
           color: var(--text);
@@ -982,9 +982,9 @@ section {
           transition: all 0.2s;
 
           &:hover {
-            border-color: var(--primary);
-            background: color-mix(in srgb, var(--primary), 5%, transparent);
-            color: var(--primary);
+            border-color: $color-accent;
+            background: color-mix(in srgb, $color-accent, 5%, transparent);
+            color: $color-accent;
           }
         }
 
@@ -1015,7 +1015,7 @@ section {
       input,
       select {
         padding: 0.75rem;
-        background: var(--background);
+        background: $color-background;
         border: 1px solid var(--border);
         border-radius: 0.5rem;
         color: var(--text);
@@ -1023,7 +1023,7 @@ section {
 
         &:focus {
           outline: none;
-          border-color: var(--primary);
+          border-color: $color-accent;
         }
       }
     }
@@ -1036,7 +1036,7 @@ section {
         flex: 1;
         flex-direction: row;
         padding: 0.75rem;
-        background: var(--background);
+        background: $color-background;
         border: 2px solid var(--border);
         border-radius: 0.5rem;
         cursor: pointer;
@@ -1045,8 +1045,8 @@ section {
         font-weight: 500;
 
         &:has(input:checked) {
-          border-color: var(--primary);
-          background: color-mix(in srgb, var(--primary), 10%, transparent);
+          border-color: $color-accent;
+          background: color-mix(in srgb, $color-accent, 10%, transparent);
         }
 
         input {
@@ -1069,21 +1069,21 @@ section {
       border-radius: 0.5rem;
       font-weight: 600;
       cursor: pointer;
-      background: var(--background);
+      background: $color-background;
       color: var(--text);
 
       &.primary {
-        background: linear-gradient(135deg, var(--primary), var(--secondary));
+        background: linear-gradient(135deg, $color-accent, $color-accent-secondary);
         color: var(--text-white);
         border: none;
-        box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 25%, transparent);
+        box-shadow: 0 2px 8px color-mix(in srgb, $color-accent, 25%, transparent);
         display: flex;
         align-items: center;
         gap: 0.5rem;
 
         &:hover:not(:disabled) {
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px color-mix(in srgb, var(--primary), 35%, transparent);
+          box-shadow: 0 4px 12px color-mix(in srgb, $color-accent, 35%, transparent);
         }
       }
 

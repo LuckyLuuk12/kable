@@ -506,7 +506,7 @@ button[type="button"] {
   border-color: var(--dark-200);
 }
 .log-level-label:focus {
-  border: 2px solid var(--primary);
+  border: 2px solid $color-accent;
 }
 .visually-hidden {
   position: absolute;

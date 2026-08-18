@@ -106,9 +106,13 @@ pub struct TauriSink;
 
 impl ProcessSink for TauriSink {
     fn handle(&self, runtime_id: RuntimeId, event: ProcessEvent) {
+        let Ok(app) = crate::app_handle() else {
+            return;
+        };
+
         match event {
             ProcessEvent::GameLaunched(profile) => {
-                let _ = crate::app_handle().emit(
+                let _ = app.emit(
                     "game-launched",
                     serde_json::json!({
                         "runtimeId": runtime_id,
@@ -118,7 +122,7 @@ impl ProcessSink for TauriSink {
             }
 
             ProcessEvent::Stdout(line) => {
-                let _ = crate::app_handle().emit(
+                let _ = app.emit(
                     "game-process-event",
                     serde_json::json!({
                         "runtimeId": runtime_id,
@@ -131,7 +135,7 @@ impl ProcessSink for TauriSink {
             }
 
             ProcessEvent::Stderr(line) => {
-                let _ = crate::app_handle().emit(
+                let _ = app.emit(
                     "game-process-event",
                     serde_json::json!({
                         "runtimeId": runtime_id,
@@ -144,7 +148,7 @@ impl ProcessSink for TauriSink {
             }
 
             ProcessEvent::Exit(code) => {
-                let _ = crate::app_handle().emit(
+                let _ = app.emit(
                     "game-process-event",
                     serde_json::json!({
                         "runtimeId": runtime_id,
@@ -155,7 +159,7 @@ impl ProcessSink for TauriSink {
             }
 
             ProcessEvent::Custom { key, data } => {
-                let _ = crate::app_handle().emit(
+                let _ = app.emit(
                     "game-process-event",
                     serde_json::json!({
                         "runtimeId": runtime_id,

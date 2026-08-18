@@ -12,10 +12,10 @@ Shows shader icon, name, and provides actions:
 @prop {(() => void) | undefined} onshaderchanged - Callback invoked when shader is toggled or removed
 -->
 <script lang="ts">
-import { Icon, NotificationService } from "$lib";
 import type { KableInstallation } from "$lib";
-import * as installationsApi from "$lib/api/installations";
+import { Icon, NotificationService } from "$lib";
 import { clickSound, errorSound } from "$lib/actions";
+import * as installationsApi from "$lib/api/installations";
 
 export let shader: any;
 export let installation: KableInstallation;
@@ -151,7 +151,7 @@ async function handleVisitPage(event: MouseEvent) {
 <style lang="scss">
 .installed-shader-card {
   background: var(--card);
-  border: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  border: 1px solid color-mix(in srgb, $color-accent, 8%, transparent);
   border-radius: 0.5rem;
   padding: 0.25rem;
   display: flex;
@@ -257,7 +257,7 @@ async function handleVisitPage(event: MouseEvent) {
   gap: 0.25rem;
   padding: 0.25rem 0.5rem;
   border-radius: 0.25rem;
-  border: 1px solid color-mix(in srgb, var(--primary), 20%, transparent);
+  border: 1px solid color-mix(in srgb, $color-accent, 20%, transparent);
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: 0.75rem;
@@ -267,7 +267,7 @@ async function handleVisitPage(event: MouseEvent) {
 
   &:hover:not(:disabled) {
     background: var(--bg-tertiary);
-    border-color: color-mix(in srgb, var(--primary), 30%, transparent);
+    border-color: color-mix(in srgb, $color-accent, 30%, transparent);
     transform: translateY(-1px);
   }
 

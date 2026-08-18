@@ -396,7 +396,7 @@ function handleBackdropClick(e: MouseEvent) {
         color: var(--text);
         transition: box-shadow 0.2s;
         &.selected {
-          box-shadow: 0 0 0 2px var(--primary);
+          box-shadow: 0 0 0 2px $color-accent;
         }
         .loader-icon {
           display: flex;
@@ -431,7 +431,7 @@ function handleBackdropClick(e: MouseEvent) {
 
         &:focus {
           outline: none;
-          border-color: var(--primary);
+          border-color: $color-accent;
         }
 
         &::placeholder {
@@ -451,7 +451,7 @@ function handleBackdropClick(e: MouseEvent) {
 
         &:focus {
           outline: none;
-          border-color: var(--primary);
+          border-color: $color-accent;
         }
 
         option {
@@ -459,7 +459,7 @@ function handleBackdropClick(e: MouseEvent) {
           cursor: pointer;
 
           &:hover {
-            background: color-mix(in srgb, var(--primary), 10%, transparent);
+            background: color-mix(in srgb, $color-accent, 10%, transparent);
           }
         }
       }
@@ -477,8 +477,8 @@ function handleBackdropClick(e: MouseEvent) {
           border-color 0.2s;
 
         &:hover {
-          background: color-mix(in srgb, var(--primary), 10%, transparent);
-          border-color: var(--primary);
+          background: color-mix(in srgb, $color-accent, 10%, transparent);
+          border-color: $color-accent;
         }
       }
 
@@ -514,7 +514,7 @@ function handleBackdropClick(e: MouseEvent) {
         user-select: none;
 
         &:hover {
-          color: var(--primary);
+          color: $color-accent;
         }
       }
 
@@ -535,7 +535,7 @@ function handleBackdropClick(e: MouseEvent) {
 
           &:focus {
             outline: none;
-            border-color: var(--primary);
+            border-color: $color-accent;
           }
         }
 
@@ -550,7 +550,7 @@ function handleBackdropClick(e: MouseEvent) {
 
             .toggle-all {
               font-weight: 600;
-              color: var(--primary);
+              color: $color-accent;
             }
           }
 
@@ -572,8 +572,8 @@ function handleBackdropClick(e: MouseEvent) {
             transition: all 0.2s;
 
             &:hover {
-              border-color: var(--primary);
-              background: color-mix(in srgb, var(--primary), 5%, transparent);
+              border-color: $color-accent;
+              background: color-mix(in srgb, $color-accent, 5%, transparent);
             }
 
             input[type="checkbox"] {
@@ -616,7 +616,7 @@ function handleBackdropClick(e: MouseEvent) {
           gap: 0.5rem;
           padding: 0.75rem;
           border-radius: var(--border-radius);
-          background: color-mix(in srgb, var(--primary), 5%, transparent);
+          background: color-mix(in srgb, $color-accent, 5%, transparent);
           color: var(--placeholder);
           font-size: 0.85rem;
         }
@@ -633,7 +633,7 @@ function handleBackdropClick(e: MouseEvent) {
         font-size: 1rem;
         cursor: pointer;
         &.btn-primary {
-          background: var(--primary);
+          background: $color-accent;
           color: var(--text);
         }
         &.btn-secondary {

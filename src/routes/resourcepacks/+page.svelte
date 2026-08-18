@@ -1,17 +1,15 @@
 <script lang="ts">
-import { ResourcePackBrowser, InstallationResourcePacks } from "$lib";
-import { selectedInstallation } from "$lib";
-import type { KableInstallation } from "$lib";
-
-let currentTab: "installed" | "browse" = "installed";
+import { ProjectsPage } from "$lib";
 </script>
 
 <svelte:head>
   <title>Resource Packs - Kable</title>
 </svelte:head>
 
-<div class="page resourcepacks-page">
-  <!-- Tab Navigation -->
+<ProjectsPage projectType="resourcepack" />
+
+<!-- <div class="page resourcepacks-page">
+
   <div class="tab-navigation">
     <button class="tab-btn" class:active={currentTab === "installed"} on:click={() => (currentTab = "installed")}> 📦 Installed Packs </button>
     <button class="tab-btn" class:active={currentTab === "browse"} on:click={() => (currentTab = "browse")}> 🔍 Browse Packs </button>
@@ -23,7 +21,6 @@ let currentTab: "installed" | "browse" = "installed";
     {/if}
   </div>
 
-  <!-- Tab Content -->
   <div class="tab-content">
     {#if currentTab === "installed"}
       <InstallationResourcePacks />
@@ -31,7 +28,7 @@ let currentTab: "installed" | "browse" = "installed";
       <ResourcePackBrowser />
     {/if}
   </div>
-</div>
+</div> -->
 
 <style lang="scss">
 .resourcepacks-page {
@@ -47,12 +44,12 @@ let currentTab: "installed" | "browse" = "installed";
   align-items: center;
   gap: 0.5rem;
   padding-bottom: 0.5rem;
-  background: var(--background);
-  border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  background: $color-background;
+  border-bottom: 1px solid color-mix(in srgb, $color-accent, 8%, transparent);
 
   .tab-btn {
     padding: 0.6rem 1.2rem;
-    border: 1px solid var(--dark-600);
+    border: 1px solid $color-border;
     border-radius: 0.5rem;
     background: var(--card);
     color: var(--text);
@@ -62,26 +59,26 @@ let currentTab: "installed" | "browse" = "installed";
     transition: all 0.15s;
 
     &:hover {
-      border-color: var(--primary);
-      background: color-mix(in srgb, var(--primary), 5%, transparent);
+      border-color: $color-accent;
+      background: color-mix(in srgb, $color-accent, 5%, transparent);
     }
 
     &.active {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      background: linear-gradient(135deg, $color-accent 0%, $color-accent-secondary 100%);
       color: var(--text-white);
       border-color: var(--text-transparent);
-      box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 25%, transparent);
+      box-shadow: 0 2px 8px color-mix(in srgb, $color-accent, 25%, transparent);
     }
   }
 
   .current-installation {
     margin-left: auto;
     padding: 0.6rem 1rem;
-    background: color-mix(in srgb, var(--primary), 8%, transparent);
-    border: 1px solid color-mix(in srgb, var(--primary), 15%, transparent);
+    background: color-mix(in srgb, $color-accent, 8%, transparent);
+    border: 1px solid color-mix(in srgb, $color-accent, 15%, transparent);
     border-radius: 0.5rem;
     font-size: 0.85em;
-    color: var(--primary);
+    color: $color-accent;
 
     strong {
       font-weight: 600;

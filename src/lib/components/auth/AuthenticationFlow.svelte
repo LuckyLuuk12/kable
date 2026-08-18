@@ -156,8 +156,6 @@ function cancelDeviceCode() {
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/variables" as *;
-
 .auth-flow {
   width: 100%;
   padding: 1.5rem;
@@ -288,7 +286,7 @@ function cancelDeviceCode() {
     justify-content: center;
     width: 24px;
     height: 24px;
-    background: var(--primary);
+    background: $color-accent;
     color: white;
     border-radius: 50%;
     font-size: 0.8125rem;
@@ -310,10 +308,10 @@ function cancelDeviceCode() {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.625rem 0.875rem;
-  background: color-mix(in srgb, var(--primary), 8%, transparent);
-  border: 1px solid var(--primary);
+  background: color-mix(in srgb, $color-accent, 8%, transparent);
+  border: 1px solid $color-accent;
   border-radius: 6px;
-  color: var(--primary);
+  color: $color-accent;
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
@@ -322,11 +320,11 @@ function cancelDeviceCode() {
   word-break: break-all;
 
   &:hover {
-    background: color-mix(in srgb, var(--primary), 15%, transparent);
+    background: color-mix(in srgb, $color-accent, 15%, transparent);
   }
 
   &:active {
-    background: color-mix(in srgb, var(--primary), 20%, transparent);
+    background: color-mix(in srgb, $color-accent, 20%, transparent);
     transform: scale(0.98);
   }
 }
@@ -338,23 +336,23 @@ function cancelDeviceCode() {
   gap: 0.625rem;
   padding: 1rem;
   background: var(--dark-800);
-  border: 2px solid var(--primary);
+  border: 2px solid $color-accent;
   border-radius: 8px;
 
   .user-code {
     font-size: 1.375rem;
     font-weight: 700;
-    color: var(--primary);
+    color: $color-accent;
     letter-spacing: 0.15em;
     font-family: "Courier New", "Courier", monospace;
   }
 
   .copy-btn {
     background: none;
-    border: 1px solid var(--primary);
+    border: 1px solid $color-accent;
     border-radius: 5px;
     padding: 0.4375rem;
-    color: var(--primary);
+    color: $color-accent;
     cursor: pointer;
     transition: all 0.15s ease;
     display: flex;
@@ -362,7 +360,7 @@ function cancelDeviceCode() {
     justify-content: center;
 
     &:hover {
-      background: color-mix(in srgb, var(--primary), 10%, transparent);
+      background: color-mix(in srgb, $color-accent, 10%, transparent);
     }
 
     &:active {
@@ -377,7 +375,7 @@ function cancelDeviceCode() {
   justify-content: center;
   gap: 0.625rem;
   padding: 0.875rem;
-  background: color-mix(in srgb, var(--primary), 5%, transparent);
+  background: color-mix(in srgb, $color-accent, 5%, transparent);
   border-radius: 6px;
   color: var(--text);
   font-size: 0.8125rem;
@@ -385,8 +383,8 @@ function cancelDeviceCode() {
   .spinner {
     width: 14px;
     height: 14px;
-    border: 2px solid var(--dark-600);
-    border-top-color: var(--primary);
+    border: 2px solid $color-border;
+    border-top-color: $color-accent;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }

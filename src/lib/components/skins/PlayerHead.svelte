@@ -183,7 +183,7 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary), var(--primary-600));
+  background: linear-gradient(135deg, $color-accent, var(--primary-600));
   color: white;
   border-radius: 50%;
 }

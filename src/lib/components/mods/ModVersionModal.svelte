@@ -421,7 +421,7 @@ function formatDate(dateString: string): string {
       gap: 0.25rem;
       padding: 0.25rem 0.5rem;
       background: rgba($color-accent-secondary, 0.1);
-      color: var(--secondary);
+      color: $color-accent-secondary;
       border-radius: 4px;
       font-size: 0.75rem;
       font-weight: 500;
@@ -480,7 +480,7 @@ function formatDate(dateString: string): string {
 
       &:focus {
         outline: none;
-        border-color: var(--primary);
+        border-color: $color-accent;
         box-shadow: 0 0 0 3px rgba($color-accent, 0.1);
       }
     }
@@ -560,7 +560,7 @@ function formatDate(dateString: string): string {
       line-height: 1.4;
 
       .version-highlight {
-        color: var(--primary);
+        color: $color-accent;
         font-weight: 700;
       }
     }
@@ -570,7 +570,7 @@ function formatDate(dateString: string): string {
       align-items: center;
       gap: 0.5rem;
       padding: 0.5rem 1rem;
-      background: var(--tertiary);
+      background: $color-accent-tertiary;
       border: none;
       border-radius: 0.375rem;
       color: white;
@@ -582,7 +582,7 @@ function formatDate(dateString: string): string {
       height: fit-content;
 
       &:hover {
-        background: color-mix(in srgb, var(--tertiary) 85%, black);
+        background: color-mix(in srgb, $color-accent-tertiary 85%, black);
         transform: scale(1.05);
       }
     }
@@ -607,7 +607,7 @@ function formatDate(dateString: string): string {
       background: rgba($color-accent-secondary, 0.1);
       border: 1px solid rgba($color-accent-secondary, 0.3);
       border-radius: 0.25rem;
-      color: var(--secondary);
+      color: $color-accent-secondary;
       font-weight: 600;
       font-size: 0.7rem;
       text-transform: capitalize;
@@ -646,7 +646,7 @@ function formatDate(dateString: string): string {
       background: rgba($color-accent, 0.1);
       border: 1px solid rgba($color-accent, 0.3);
       border-radius: 0.25rem;
-      color: var(--primary);
+      color: $color-accent;
       font-weight: 600;
       font-size: 0.7rem;
       cursor: pointer;
@@ -684,7 +684,7 @@ function formatDate(dateString: string): string {
     .toggle-changelog-btn {
       background: none;
       border: none;
-      color: var(--primary);
+      color: $color-accent;
       font-size: 0.75rem;
       font-weight: 600;
       cursor: pointer;

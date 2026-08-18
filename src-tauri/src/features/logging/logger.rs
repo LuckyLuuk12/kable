@@ -15,12 +15,21 @@ impl Logger {
     }
 
     pub fn log(level: LogLevel, message: &str, instance_id: Option<&str>) {
-        let app = crate::app_handle();
-        let event =
-            LogEvent::new(level, message, None, instance_id.map(|s| s.to_string()), None, None, chrono::Utc::now().timestamp_millis());
+        let event = LogEvent::new(
+            level.clone(),
+            message,
+            None,
+            instance_id.map(|s| s.to_string()),
+            None,
+            None,
+            chrono::Utc::now().timestamp_millis(),
+        );
 
         LogManager::emit(event);
-        let _ = app;
+
+        if crate::app_handle().is_err() {
+            Self::console_log(level, message, instance_id);
+        }
     }
 
     pub fn log_fmt(level: LogLevel, args: fmt::Arguments<'_>, instance_id: Option<&str>) {

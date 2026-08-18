@@ -144,7 +144,7 @@ async fn replace_variables(profile: &KableProfile, manifest: &McVersionManifest,
 
     let active_account = crate::features::accounts::management::get_active_account().await?;
 
-    let monitor = crate::app_handle().primary_monitor().ok().flatten();
+    let monitor = crate::app_handle()?.primary_monitor().ok().flatten();
     let (width, height) = monitor
         .map(|m| {
             let s = m.size();

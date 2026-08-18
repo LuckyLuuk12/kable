@@ -328,7 +328,7 @@ form {
   min-width: 5rem;
   border: 1px solid var(--dark-200);
   border-radius: 4px;
-  background: var(--background);
+  background: $color-background;
   color: var(--text);
   font-size: 1rem;
 }
@@ -336,7 +336,7 @@ form {
   flex: 2 1 60%;
   border: 1px solid var(--dark-200);
   border-radius: 4px;
-  background: var(--background);
+  background: $color-background;
   color: var(--text);
   font-size: 1rem;
   font-family: inherit;

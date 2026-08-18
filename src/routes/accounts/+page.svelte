@@ -1,29 +1,21 @@
 <script lang="ts">
+import { AccountManager, AccountSwitcher, app, Icon, type LoaderKind } from "$lib";
 import { onMount } from "svelte";
-import { Icon, AccountSwitcher, AccountManager, InstallationService, MapsService } from "$lib";
 
-// State variables
 let error: string | null = null;
-let stats = InstallationService.getStatistics();
-let worldStats: Awaited<ReturnType<typeof MapsService.getStatistics>> | null = null;
 
-// Reactively update stats when installations change
-$: {
-  // This will re-run whenever the installations store changes
-  stats = InstallationService.getStatistics();
-}
+let stats = $derived(app.profilesService.getStatistics());
+
+// let worldStats: Awaited<ReturnType<typeof app.mapsService.getStatistics>> | null = null;
+let worldStats: any = null; // TODO: Replace with proper type once we rework the maps service
 
 onMount(async () => {
-  await loadWorldStats();
-});
-
-async function loadWorldStats() {
   try {
-    worldStats = await MapsService.getStatistics();
+    // worldStats = await app.mapsService.getStatistics();
   } catch (err) {
     console.error("Failed to load world statistics:", err);
   }
-}
+});
 
 function formatPlaytime(ms: number): string {
   if (!ms || ms < 0) return "0h 0m";
@@ -33,6 +25,7 @@ function formatPlaytime(ms: number): string {
 
   if (hours === 0) return `${minutes}m`;
   if (minutes === 0) return `${hours}h`;
+
   return `${hours}h ${minutes}m`;
 }
 
@@ -43,6 +36,7 @@ function formatPlaytimeLong(ms: number): string {
 
   if (hours < 24) {
     const minutes = Math.floor((ms % 3600000) / 60000);
+
     return minutes > 0 ? `${hours} hours, ${minutes} minutes` : `${hours} hours`;
   }
 
@@ -50,17 +44,20 @@ function formatPlaytimeLong(ms: number): string {
   const remainingHours = hours % 24;
 
   if (remainingHours === 0) return `${days} days`;
+
   return `${days} days, ${remainingHours} hours`;
 }
 
 function formatSize(sizeMB: number): string {
   if (sizeMB < 1024) {
     return `${sizeMB.toFixed(1)} MB`;
-  } else if (sizeMB < 1024 * 1024) {
-    return `${(sizeMB / 1024).toFixed(2)} GB`;
-  } else {
-    return `${(sizeMB / (1024 * 1024)).toFixed(2)} TB`;
   }
+
+  if (sizeMB < 1024 * 1024) {
+    return `${(sizeMB / 1024).toFixed(2)} GB`;
+  }
+
+  return `${(sizeMB / (1024 * 1024)).toFixed(2)} TB`;
 }
 </script>
 
@@ -78,20 +75,24 @@ function formatSize(sizeMB: number): string {
   {/if}
 
   <div class="profile-sections">
-    <!-- Top Row: Account Switcher and Account Management -->
     <div class="top-row">
-      <!-- Account Switcher Section -->
       <section class="profile-section">
         <div class="section-header">
-          <h2><Icon name="user" forceType="svg" /> Quick Account Switcher</h2>
+          <h2>
+            <Icon name="user" forceType="svg" />
+            Quick Account Switcher
+          </h2>
         </div>
+
         <AccountSwitcher />
       </section>
 
-      <!-- Account Management Section -->
       <section class="profile-section">
         <div class="section-header">
-          <h2><Icon name="user-plus" forceType="svg" /> Account Management</h2>
+          <h2>
+            <Icon name="user-plus" forceType="svg" />
+            Account Management
+          </h2>
         </div>
 
         <div class="account-management-container">
@@ -100,43 +101,45 @@ function formatSize(sizeMB: number): string {
       </section>
     </div>
 
-    <!-- Statistics Section -->
     <section class="profile-section stats-section">
       <div class="section-header">
-        <h2><Icon name="chart" /> Minecraft Statistics</h2>
+        <h2>
+          <Icon name="chart" />
+          Minecraft Statistics
+        </h2>
       </div>
 
       <div class="stats-grid">
-        <!-- Total Playtime -->
         <div class="stat-card">
           <div class="stat-icon">
             <Icon name="clock" size="md" />
           </div>
+
           <div class="stat-content">
             <h4>Total Playtime</h4>
             <p class="stat-value">
-              {formatPlaytimeLong(stats.totalPlaytimeMs)}
+              {formatPlaytimeLong(stats.profiles.totalPlaytimeMs)}
             </p>
           </div>
         </div>
 
-        <!-- Total Installations -->
         <div class="stat-card">
           <div class="stat-icon">
             <Icon name="cube" size="md" />
           </div>
+
           <div class="stat-content">
-            <h4>Total Installations</h4>
-            <p class="stat-value">{stats.totalInstallations}</p>
+            <h4>Total Profiles</h4>
+            <p class="stat-value">{stats.profiles.totalProfiles}</p>
           </div>
         </div>
 
-        <!-- Total Worlds -->
         {#if worldStats}
           <div class="stat-card">
             <div class="stat-icon">
               <Icon name="map" size="md" />
             </div>
+
             <div class="stat-content">
               <h4>Total Worlds</h4>
               <p class="stat-value">{worldStats.totalWorlds}</p>
@@ -144,30 +147,32 @@ function formatSize(sizeMB: number): string {
           </div>
         {/if}
 
-        <!-- Last Played Installation -->
         <div class="stat-card">
           <div class="stat-icon">
             <Icon name="calendar" size="md" />
           </div>
+
           <div class="stat-content">
             <h4>Last Played</h4>
             <p class="stat-value">
-              {stats.lastPlayedDate ? new Date(stats.lastPlayedDate).toLocaleDateString() : "Never"}
+              {stats.profiles.lastPlayedDate ? new Date(stats.profiles.lastPlayedDate).toLocaleDateString() : "Never"}
             </p>
           </div>
         </div>
 
-        <!-- Last Played World -->
         {#if worldStats?.lastPlayedWorld}
           <div class="stat-card">
             <div class="stat-icon">
               <Icon name="clock" size="md" />
             </div>
+
             <div class="stat-content">
               <h4>Last Played World</h4>
+
               <p class="stat-value" title={worldStats.lastPlayedWorld.name}>
-                {worldStats.lastPlayedWorld.name.length > 20 ? worldStats.lastPlayedWorld.name.substring(0, 20) + "..." : worldStats.lastPlayedWorld.name}
+                {worldStats.lastPlayedWorld.name.length > 20 ? `${worldStats.lastPlayedWorld.name.substring(0, 20)}...` : worldStats.lastPlayedWorld.name}
               </p>
+
               <p class="stat-subtext">
                 {new Date(worldStats.lastPlayedWorld.last_played || 0).toLocaleDateString()}
               </p>
@@ -175,46 +180,50 @@ function formatSize(sizeMB: number): string {
           </div>
         {/if}
 
-        <!-- Total Launches -->
         <div class="stat-card">
           <div class="stat-icon">
             <Icon name="play" size="md" />
           </div>
+
           <div class="stat-content">
             <h4>Total Launches</h4>
-            <p class="stat-value">{stats.totalLaunches}</p>
+            <p class="stat-value">{stats.profiles.totalLaunches}</p>
           </div>
         </div>
 
-        <!-- Most Played Installation -->
-        {#if stats.mostPlayedInstallation}
+        {#if stats.profiles.mostPlayedProfile}
           <div class="stat-card">
-            <div class="stat-icon" style="color: {InstallationService.getLoaderColor(InstallationService.getVersionData(stats.mostPlayedInstallation).loader)}">
-              <Icon name={InstallationService.getLoaderIcon(InstallationService.getVersionData(stats.mostPlayedInstallation).loader)} size="md" />
+            <div class="stat-icon">
+              <Icon name="cube" size="md" />
             </div>
+
             <div class="stat-content">
               <h4>Most Played</h4>
-              <p class="stat-value" title={formatPlaytimeLong(stats.mostPlayedInstallation.total_time_played_ms)}>
-                {stats.mostPlayedInstallation.name}
+
+              <p class="stat-value" title={formatPlaytimeLong(stats.profiles.mostPlayedProfile.metadata.total_time_played_ms)}>
+                {stats.profiles.mostPlayedProfile.metadata.name || stats.profiles.mostPlayedProfile.version.id}
               </p>
+
               <p class="stat-subtext">
-                {formatPlaytime(stats.mostPlayedInstallation.total_time_played_ms)}
+                {formatPlaytime(stats.profiles.mostPlayedProfile.metadata.total_time_played_ms)}
               </p>
             </div>
           </div>
         {/if}
 
-        <!-- Largest World -->
         {#if worldStats?.largestWorld}
           <div class="stat-card">
             <div class="stat-icon">
               <Icon name="maximize" size="md" />
             </div>
+
             <div class="stat-content">
               <h4>Largest World</h4>
+
               <p class="stat-value" title={worldStats.largestWorld.name}>
-                {worldStats.largestWorld.name.length > 20 ? worldStats.largestWorld.name.substring(0, 20) + "..." : worldStats.largestWorld.name}
+                {worldStats.largestWorld.name.length > 20 ? `${worldStats.largestWorld.name.substring(0, 20)}...` : worldStats.largestWorld.name}
               </p>
+
               <p class="stat-subtext">
                 {formatSize(worldStats.largestWorld.size_mb)}
               </p>
@@ -222,12 +231,12 @@ function formatSize(sizeMB: number): string {
           </div>
         {/if}
 
-        <!-- Total World Size -->
         {#if worldStats}
           <div class="stat-card">
             <div class="stat-icon">
               <Icon name="hard-drive" size="md" />
             </div>
+
             <div class="stat-content">
               <h4>Total World Size</h4>
               <p class="stat-value">{formatSize(worldStats.totalSizeMB)}</p>
@@ -235,23 +244,23 @@ function formatSize(sizeMB: number): string {
           </div>
         {/if}
 
-        <!-- Favorite Installations -->
         <div class="stat-card">
           <div class="stat-icon">
             <Icon name="star" size="md" />
           </div>
+
           <div class="stat-content">
-            <h4>Favorite Installations</h4>
-            <p class="stat-value">{stats.favoriteCount}</p>
+            <h4>Favorite Profiles</h4>
+            <p class="stat-value">{stats.profiles.favoriteCount}</p>
           </div>
         </div>
 
-        <!-- Total Backups -->
         {#if worldStats}
           <div class="stat-card">
             <div class="stat-icon">
               <Icon name="archive" size="md" />
             </div>
+
             <div class="stat-content">
               <h4>Total Backups</h4>
               <p class="stat-value">{worldStats.totalBackups}</p>
@@ -259,24 +268,26 @@ function formatSize(sizeMB: number): string {
           </div>
         {/if}
 
-        <!-- Average Launches -->
         <div class="stat-card">
           <div class="stat-icon">
             <Icon name="activity" size="md" />
           </div>
+
           <div class="stat-content">
             <h4>Average Launches</h4>
-            <p class="stat-value">{stats.averageLaunchesPerInstallation}</p>
-            <p class="stat-subtext">per installation</p>
+            <p class="stat-value">
+              {stats.profiles.averageLaunchesPerProfile}
+            </p>
+            <p class="stat-subtext">per profile</p>
           </div>
         </div>
 
-        <!-- Average Backups -->
         {#if worldStats}
           <div class="stat-card">
             <div class="stat-icon">
               <Icon name="layers" size="md" />
             </div>
+
             <div class="stat-content">
               <h4>Average Backups</h4>
               <p class="stat-value">{worldStats.averageBackupsPerWorld}</p>
@@ -285,31 +296,39 @@ function formatSize(sizeMB: number): string {
           </div>
         {/if}
 
-        <!-- Favorite Mod Loader -->
-        {#if stats.mostUsedLoader}
+        {#if stats.profiles.mostUsedLoader}
           <div class="stat-card">
-            <div class="stat-icon" style="color: {InstallationService.getLoaderColor(stats.mostUsedLoader)}">
-              <Icon name={InstallationService.getLoaderIcon(stats.mostUsedLoader)} size="md" />
+            <div class="stat-icon">
+              <Icon name={app.profilesService.getLoaderIcon(stats.profiles.mostUsedLoader as LoaderKind)} size="md" />
             </div>
+
             <div class="stat-content">
               <h4>Favorite Mod Loader</h4>
-              <p class="stat-value">{stats.mostUsedLoader}</p>
+
+              <p class="stat-value">
+                {stats.profiles.mostUsedLoader}
+              </p>
+
               <p class="stat-subtext">
-                {stats.loaderCounts[stats.mostUsedLoader]} installations
+                {stats.profiles.loaderCounts[stats.profiles.mostUsedLoader]} profiles
               </p>
             </div>
           </div>
         {/if}
 
-        <!-- Favorite Game Mode -->
         {#if worldStats?.mostCommonGameMode}
           <div class="stat-card">
             <div class="stat-icon">
               <Icon name="gamepad" size="md" />
             </div>
+
             <div class="stat-content">
               <h4>Favorite Game Mode</h4>
-              <p class="stat-value">{worldStats.mostCommonGameMode}</p>
+
+              <p class="stat-value">
+                {worldStats.mostCommonGameMode}
+              </p>
+
               <p class="stat-subtext">
                 {worldStats.gameModeCounts[worldStats.mostCommonGameMode]} worlds
               </p>
@@ -317,12 +336,12 @@ function formatSize(sizeMB: number): string {
           </div>
         {/if}
 
-        <!-- Hardcore Worlds -->
         {#if worldStats && worldStats.hardcoreCount > 0}
           <div class="stat-card">
             <div class="stat-icon" style="color: var(--red)">
               <Icon name="skull" size="md" />
             </div>
+
             <div class="stat-content">
               <h4>Hardcore Worlds</h4>
               <p class="stat-value">{worldStats.hardcoreCount}</p>
@@ -350,7 +369,7 @@ function formatSize(sizeMB: number): string {
     margin: 0 0 0.5rem;
     font-size: 2.5rem;
     font-weight: 700;
-    background: linear-gradient(135deg, var(--primary), var(--tertiary));
+    background: linear-gradient(135deg, $color-accent, $color-accent-tertiary);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -382,28 +401,35 @@ function formatSize(sizeMB: number): string {
 }
 
 .profile-section {
-  background: var(--container);
-  border: 1px solid var(--dark-600);
-  border-radius: var(--border-radius-large);
-  padding: 2rem;
-  transition: all 0.3s ease;
   position: relative;
+
+  padding: 2rem;
+
+  background: var(--container);
+  border: 1px solid $color-border;
+  border-radius: var(--border-radius-large);
+
+  transition: all 0.3s ease;
+
   overflow: visible;
   word-wrap: break-word;
   overflow-wrap: break-word;
 
   &::before {
     content: "";
+
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
+
     height: 1px;
-    background: linear-gradient(90deg, transparent, #{"color-mix(in srgb, var(--primary), 30%, transparent)"}, transparent);
+
+    background: linear-gradient(90deg, transparent, #{"color-mix(in srgb, $color-accent, 30%, transparent)"}, transparent);
   }
 
   &:hover {
-    border-color: color-mix(in srgb, var(--primary), 30%, transparent);
+    border-color: color-mix(in srgb, $color-accent, 30%, transparent);
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
   }
 
@@ -411,26 +437,32 @@ function formatSize(sizeMB: number): string {
     display: flex;
     justify-content: space-between;
     align-items: center;
+
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
+
     border-bottom: 1px solid color-mix(in srgb, var(--dark-600), 50%, transparent);
 
     h2 {
-      margin: 0;
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--text);
+      position: relative;
+
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      position: relative;
+
+      margin: 0;
+
+      color: var(--text);
+      font-size: 1.25rem;
+      font-weight: 600;
+
       word-wrap: break-word;
     }
   }
 }
 
 .stats-section {
-  grid-column: 1 / -1; /* Full width in the main container */
+  grid-column: 1 / -1;
 
   .stats-grid {
     display: grid;
@@ -438,33 +470,48 @@ function formatSize(sizeMB: number): string {
     gap: 1.5rem;
 
     .stat-card {
-      background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 3%, transparent)"} 0%, #{"color-mix(in srgb, var(--tertiary), 2%, transparent)"} 100%);
-      border: 1px solid #{"color-mix(in srgb, var(--dark-600), 60%, transparent)"};
-      border-radius: var(--border-radius);
-      padding: 1.5rem;
+      position: relative;
+
       display: flex;
       align-items: center;
       gap: 1rem;
+
+      padding: 1.5rem;
+
+      background: linear-gradient(
+        135deg,
+        #{"color-mix(in srgb, $color-accent, 3%, transparent)"} 0%,
+        #{"color-mix(in srgb, $color-accent-tertiary, 2%, transparent)"} 100%
+      );
+
+      border: 1px solid #{"color-mix(in srgb, var(--dark-600), 60%, transparent)"};
+      border-radius: var(--border-radius);
+
       transition: all 0.3s ease;
-      position: relative;
+
       overflow: hidden;
       word-wrap: break-word;
       overflow-wrap: break-word;
 
       &::before {
         content: "";
+
         position: absolute;
         top: 0;
         left: 0;
+
         width: 100%;
         height: 2px;
-        background: linear-gradient(90deg, var(--primary), var(--tertiary));
+
+        background: linear-gradient(90deg, $color-accent, $color-accent-tertiary);
+
         transform: translateX(-100%);
         transition: transform 0.3s ease;
       }
 
       &:hover {
-        border-color: color-mix(in srgb, var(--primary), 30%, transparent);
+        border-color: color-mix(in srgb, $color-accent, 30%, transparent);
+
         transform: translateY(-2px);
         box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
 
@@ -474,24 +521,35 @@ function formatSize(sizeMB: number): string {
       }
 
       .stat-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: var(--border-radius);
-        background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 15%, transparent)"}, #{"color-mix(in srgb, var(--tertiary), 10%, transparent)"});
+        position: relative;
+
         display: flex;
         align-items: center;
         justify-content: center;
-        color: var(--primary);
+
+        width: 48px;
+        height: 48px;
+
         flex-shrink: 0;
-        position: relative;
+
+        background: linear-gradient(135deg, #{"color-mix(in srgb, $color-accent, 15%, transparent)"}, #{"color-mix(in srgb, $color-accent-tertiary, 10%, transparent)"});
+
+        border-radius: var(--border-radius);
+
+        color: $color-accent;
 
         &::after {
           content: "";
+
           position: absolute;
           inset: -1px;
-          border-radius: var(--border-radius);
-          background: linear-gradient(135deg, var(--primary), var(--tertiary));
+
           z-index: -1;
+
+          border-radius: var(--border-radius);
+
+          background: linear-gradient(135deg, $color-accent, $color-accent-tertiary);
+
           opacity: 0.3;
           filter: blur(4px);
         }
@@ -499,38 +557,51 @@ function formatSize(sizeMB: number): string {
 
       .stat-content {
         flex: 1;
+
         word-wrap: break-word;
         overflow-wrap: break-word;
 
         h4 {
           margin: 0 0 0.25rem;
+
+          color: var(--placeholder);
+
           font-size: 0.875rem;
           font-weight: 500;
-          color: var(--placeholder);
+
           text-transform: uppercase;
           letter-spacing: 0.5px;
+
           word-wrap: break-word;
         }
 
         .stat-value {
           margin: 0;
+
+          color: var(--text);
+
           font-size: 1.25rem;
           font-weight: 600;
-          color: var(--text);
-          background: linear-gradient(135deg, var(--primary), var(--tertiary));
+          line-height: 1.3;
+
+          background: linear-gradient(135deg, $color-accent, $color-accent-tertiary);
+
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
+
           word-wrap: break-word;
           overflow-wrap: break-word;
-          line-height: 1.3;
         }
 
         .stat-subtext {
-          margin: 0.25rem 0 0 0;
+          margin: 0.25rem 0 0;
+
+          color: var(--placeholder);
+
           font-size: 0.75rem;
           font-weight: 400;
-          color: var(--placeholder);
+
           opacity: 0.8;
         }
       }
@@ -542,12 +613,16 @@ function formatSize(sizeMB: number): string {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+
+  margin-bottom: 1rem;
   padding: 1rem;
+
   background: color-mix(in srgb, var(--red), 10%, transparent);
+
   border: 1px solid var(--red);
   border-radius: var(--border-radius);
+
   color: var(--red);
-  margin-bottom: 1rem;
 }
 
 @media (max-width: 768px) {

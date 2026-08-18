@@ -1,4 +1,4 @@
-<script lang="ts">
+<!-- <script lang="ts">
 import { app, Icon, Image, type KableProfile, launchSound, ProfilesList } from "$lib";
 import { onMount } from "svelte";
 
@@ -25,8 +25,8 @@ $effect(() => {
 
     lastPlayedInstallations = app.profilesService.profiles
       .sort((a: KableProfile, b: KableProfile) => {
-        const aTime = new Date(a.last_used || 0).getTime();
-        const bTime = new Date(b.last_used || 0).getTime();
+        const aTime = new Date(a.metadata.last_used || 0).getTime();
+        const bTime = new Date(b.metadata.last_used || 0).getTime();
         return bTime - aTime;
       })
       .slice(0, 8); // Show up to 8 installations
@@ -36,10 +36,10 @@ $effect(() => {
     // Update RAM allocation when installation changes
     if (lastPlayedInstallations.length > 0) {
       const latestInstallation = lastPlayedInstallations[0];
-      console.log("Latest installation java_args:", latestInstallation.java_args);
+      console.log("Latest installation java_args:", latestInstallation.settings.java_args);
 
       // Extract RAM from java_args (look for -Xmx)
-      const xmxArg = latestInstallation.java_args?.find((arg) => arg.startsWith("-Xmx"));
+      const xmxArg = latestInstallation.settings.java_args?.find((arg) => arg.startsWith("-Xmx"));
       if (xmxArg) {
         console.log("Found Xmx arg:", xmxArg);
         const memValue = xmxArg.replace("-Xmx", "").toLowerCase();
@@ -106,7 +106,7 @@ async function handlePlay() {
   try {
     if (lastPlayedInstallations.length > 0) {
       console.log("Launching installation:", lastPlayedInstallations[0]);
-      launchStatus = `Launching ${lastPlayedInstallations[0].name}...`;
+      launchStatus = `Launching ${lastPlayedInstallations[0].metadata.name}...`;
       // Launch the installation directly using Launcher
       await app.launcherService.launch(lastPlayedInstallations[0]);
     } else {
@@ -179,7 +179,7 @@ async function commitRamChange(immediate = false) {
   const inst = lastPlayedInstallations[0];
   isEditingRam = true; // keep UI stable while we persist
   try {
-    const newArgs = setXmxArg(inst.java_args || [], ramAllocation);
+    const newArgs = setXmxArg(inst.settings.java_args || [], ramAllocation);
     const updated = { ...inst, java_args: newArgs } as typeof inst;
     console.log("Committing RAM change for installation:", inst.id, ramAllocation, "MB");
     await app.profilesService.modify(inst, updated);
@@ -213,7 +213,7 @@ async function handleAdClick(url: string) {
 </script>
 
 <div class="page-wrapper">
-  <!-- Personal advertisement (which users can disable in settings) -->
+  <!-- Personal advertisement (which users can disable in settings) - ->
   {#if showAds}
     <div class="advertisement-banner">
       <div class="banner-background">
@@ -246,19 +246,19 @@ async function handleAdClick(url: string) {
     </div>
   {/if}
 
-  <!-- Hero Image Section - Official Launcher Style -->
+  <!-- Hero Image Section - Official Launcher Style - ->
   <div class="hero-image-container">
     <Image key="home-hero" alt="Minecraft Hero Banner" className="home-hero" width="100%" height="100%" />
   </div>
 
-  <!-- Installations List Section -->
+  <!-- Installations List Section - ->
   <div class="installations-section">
     <ProfilesList isGrid isSmall limit={15} />
   </div>
 
-  <!-- Bottom Controls Section -->
+  <!-- Bottom Controls Section - ->
   <div class="bottom-controls">
-    <!-- Play Button (Centered) -->
+    <!-- Play Button (Centered) - ->
     <div class="play-section">
       <button class="play-button" onclick={handlePlay} use:launchSound disabled={isLaunching || lastPlayedInstallations.length === 0}>
         {#if isLaunching}
@@ -279,13 +279,13 @@ async function handleAdClick(url: string) {
       {/if}
     </div>
 
-    <!-- RAM Allocation Controls (Bottom Right) -->
+    <!-- RAM Allocation Controls (Bottom Right) - ->
     <div class="ram-controls">
       <div class="ram-header">
         <span class="installation-name">
           {lastPlayedInstallations.length > 0
-            ? lastPlayedInstallations[0].name !== ""
-              ? lastPlayedInstallations[0].name
+            ? lastPlayedInstallations[0].metadata.name !== ""
+              ? lastPlayedInstallations[0].metadata.name
               : lastPlayedInstallations[0].version.id
             : "No Installation"}
         </span>
@@ -293,7 +293,7 @@ async function handleAdClick(url: string) {
       </div>
 
       <div class="ram-inputs">
-        <!-- Slider Input -->
+        <!-- Slider Input - ->
         <div class="ram-slider-container">
           <input
             type="range"
@@ -318,7 +318,7 @@ async function handleAdClick(url: string) {
           </div>
         </div>
 
-        <!-- Text Input -->
+        <!-- Text Input - ->
         <div class="ram-text-container">
           <input
             type="text"
@@ -349,7 +349,7 @@ async function handleAdClick(url: string) {
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/variables" as *;
+
 .page-wrapper {
   display: flex;
   flex-direction: column;
@@ -498,7 +498,7 @@ async function handleAdClick(url: string) {
         transition: color 0.2s ease;
 
         &:hover {
-          color: var(--primary);
+          color: $color-accent;
         }
       }
     }
@@ -565,7 +565,7 @@ async function handleAdClick(url: string) {
   margin: 0;
   padding: 1rem;
   background: var(--card);
-  border: 1px solid var(--dark-600);
+  border: 1px solid $color-border;
   border-radius: 0.5rem;
   max-width: 23.75rem;
   min-width: 20rem;
@@ -590,7 +590,7 @@ async function handleAdClick(url: string) {
     }
 
     .ram-display {
-      color: var(--primary);
+      color: $color-accent;
       font-weight: 600;
       flex-shrink: 0;
     }
@@ -616,7 +616,7 @@ async function handleAdClick(url: string) {
           appearance: none;
           width: 1rem;
           height: 1rem;
-          background: var(--primary);
+          background: $color-accent;
           border-radius: 50%;
           cursor: pointer;
           transition: all 0.2s ease;
@@ -630,7 +630,7 @@ async function handleAdClick(url: string) {
         &::-moz-range-thumb {
           width: 1rem;
           height: 1rem;
-          background: var(--primary);
+          background: $color-accent;
           border-radius: 50%;
           border: none;
           cursor: pointer;
@@ -671,7 +671,7 @@ async function handleAdClick(url: string) {
 
         &:focus {
           outline: none;
-          border-color: var(--primary);
+          border-color: $color-accent;
         }
 
         &::placeholder {
@@ -693,7 +693,7 @@ async function handleAdClick(url: string) {
   align-items: center;
   gap: 0.75rem;
   padding: 1rem 2rem;
-  background: var(--primary);
+  background: $color-accent;
   color: var(--text-white);
   border: none;
   border-radius: 0.75rem;
@@ -770,5 +770,26 @@ async function handleAdClick(url: string) {
     width: 100%;
     max-width: 300px;
   }
+}
+</style> -->
+<script lang="ts">
+import { AdvertisementBanner, PlayButton, ProfilesList, RamAllocation } from "$lib";
+</script>
+
+<div class="home-page">
+  <AdvertisementBanner />
+  <ProfilesList />
+  <PlayButton />
+  <RamAllocation />
+</div>
+
+<style lang="scss">
+.home-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  max-height: 100%;
+  background: $color-background;
+  overflow: hidden;
 }
 </style>

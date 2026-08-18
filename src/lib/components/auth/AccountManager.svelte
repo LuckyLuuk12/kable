@@ -193,8 +193,6 @@ Displays current account status and allows switching between authentication flow
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/variables" as *;
-
 .account-manager {
   display: flex;
   flex-direction: column;
@@ -297,13 +295,13 @@ Displays current account status and allows switching between authentication flow
   border-radius: 50%;
   font-weight: 600;
   color: white;
-  border: 3px solid var(--dark-600);
+  border: 3px solid $color-border;
   transition: border-color 0.2s ease;
   overflow: hidden;
 
   &.minecraft-head {
-    background: linear-gradient(135deg, var(--primary), var(--primary-600));
-    border-color: var(--dark-600);
+    background: linear-gradient(135deg, $color-accent, var(--primary-600));
+    border-color: $color-border;
   }
 
   &.large {
@@ -394,7 +392,7 @@ Displays current account status and allows switching between authentication flow
   text-align: center;
   padding: 48px 24px;
   background: var(--container);
-  border: 1px solid var(--dark-600);
+  border: 1px solid $color-border;
   border-radius: 1rem;
 }
 
@@ -405,7 +403,7 @@ Displays current account status and allows switching between authentication flow
     width: 64px;
     height: 64px;
     margin: 0 auto 16px;
-    background: linear-gradient(135deg, var(--primary), var(--primary-600));
+    background: linear-gradient(135deg, $color-accent, var(--primary-600));
     border-radius: 16px;
     display: flex;
     align-items: center;

@@ -1,8 +1,8 @@
 <script lang="ts">
-import { onMount } from "svelte";
-import { MapsService, SettingsService, Icon } from "$lib";
+import { Icon, MapsService } from "$lib";
+import { clickSound, errorSound, successSound } from "$lib/actions";
 import type { LocalWorld } from "$lib/types";
-import { clickSound, successSound, errorSound } from "$lib/actions";
+import { onMount } from "svelte";
 
 let searchQuery = "";
 let selectedCategory = "all";
@@ -331,8 +331,8 @@ function formatFileSize(bytes: number): string {
         align-items: center;
         gap: 0.25rem;
         padding: 0.25rem 0.75rem;
-        background: color-mix(in srgb, var(--primary), 10%, transparent);
-        color: var(--primary);
+        background: color-mix(in srgb, $color-accent, 10%, transparent);
+        color: $color-accent;
         border-radius: var(--border-radius);
         font-size: 0.875rem;
         font-weight: 500;
@@ -397,7 +397,7 @@ function formatFileSize(bytes: number): string {
 
       &:focus {
         outline: none;
-        border-color: var(--primary);
+        border-color: $color-accent;
       }
 
       &::placeholder {
@@ -422,7 +422,7 @@ function formatFileSize(bytes: number): string {
 
       &:focus {
         outline: none;
-        border-color: var(--primary);
+        border-color: $color-accent;
       }
     }
   }
@@ -461,7 +461,7 @@ function formatFileSize(bytes: number): string {
   text-align: center;
 
   :global(svg) {
-    color: var(--primary);
+    color: $color-accent;
     margin-bottom: 1rem;
     animation: spin 1s linear infinite;
   }
@@ -491,7 +491,7 @@ function formatFileSize(bytes: number): string {
   gap: 1rem;
 
   &:hover {
-    border-color: var(--primary);
+    border-color: $color-accent;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }
@@ -508,9 +508,9 @@ function formatFileSize(bytes: number): string {
       display: flex;
       align-items: center;
       justify-content: center;
-      background: color-mix(in srgb, var(--primary), 10%, transparent);
+      background: color-mix(in srgb, $color-accent, 10%, transparent);
       border-radius: var(--border-radius);
-      color: var(--primary);
+      color: $color-accent;
     }
 
     .world-info {

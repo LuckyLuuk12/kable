@@ -265,7 +265,7 @@ function handleBackdropClick(e: MouseEvent) {
 
   &:hover:not(:disabled) {
     background: var(--container);
-    border-color: var(--primary);
+    border-color: $color-accent;
     transform: scale(1.05);
   }
 
@@ -290,7 +290,7 @@ function handleBackdropClick(e: MouseEvent) {
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
-  scrollbar-color: var(--primary) transparent;
+  scrollbar-color: $color-accent transparent;
 
   &::-webkit-scrollbar {
     height: 6px;
@@ -301,7 +301,7 @@ function handleBackdropClick(e: MouseEvent) {
   }
 
   &::-webkit-scrollbar-thumb {
-    background: var(--primary);
+    background: $color-accent;
     border-radius: 3px;
   }
 
@@ -324,13 +324,13 @@ function handleBackdropClick(e: MouseEvent) {
     }
 
     &:hover {
-      border-color: var(--secondary);
+      border-color: $color-accent-secondary;
       transform: scale(1.05);
     }
 
     &.active {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary), 30%, transparent);
+      border-color: $color-accent;
+      box-shadow: 0 0 0 2px color-mix(in srgb, $color-accent, 30%, transparent);
     }
   }
 }

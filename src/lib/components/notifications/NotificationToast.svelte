@@ -6,11 +6,9 @@ Displays a single notification with auto-dismiss, hover-to-persist, and markdown
 @prop {Notification} notification - The notification to display
 -->
 <script lang="ts">
-import { Icon } from "$lib";
-import { app } from "$lib/services";
+import { Icon, app } from "$lib";
+import { type Notification } from "$lib/services/notification.svelte";
 import { onMount } from "svelte";
-import { NotificationService } from "../../../../src-tauri/src-backup/old_services";
-import type { Notification } from "../../../../src-tauri/src-backup/old_services/NotificationService";
 
 export let notification: Notification;
 
@@ -20,17 +18,17 @@ onMount(() => {
 });
 
 function handleMouseEnter() {
-  NotificationService.setHovered(notification.id, true);
+  app.notificationService.setHovered(notification.id, true);
 }
 
 function handleMouseLeave() {
-  NotificationService.setHovered(notification.id, false);
+  app.notificationService.setHovered(notification.id, false);
   // Will auto-dismiss after original duration completes
 }
 
 function handleDismiss(event: MouseEvent) {
   event.stopPropagation();
-  NotificationService.dismiss(notification.id);
+  app.notificationService.dismiss(notification.id);
 }
 
 function handleClick() {
@@ -84,8 +82,6 @@ const iconMap = {
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/variables" as *;
-
 .notification-toast {
   display: flex;
   align-items: center;
@@ -141,8 +137,8 @@ const iconMap = {
 
   &.notification-info {
     background: var(--container);
-    border-color: var(--primary);
-    color: var(--primary);
+    border-color: $color-accent;
+    color: $color-accent;
   }
 }
 

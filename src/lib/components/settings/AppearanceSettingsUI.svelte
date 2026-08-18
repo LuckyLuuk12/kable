@@ -840,14 +840,14 @@ select {
   gap: 1rem;
 }
 .upload-zone {
-  border: 2px dashed var(--primary);
+  border: 2px dashed $color-accent;
   border-radius: var(--border-radius-large);
   padding: 1.5rem;
   text-align: center;
   cursor: pointer;
   transition: border-color 0.2s;
   &.drag-over {
-    border-color: var(--secondary);
+    border-color: $color-accent-secondary;
   }
   &.error {
     border-color: var(--red);
@@ -857,7 +857,7 @@ select {
   h4 {
     margin: 0 0 0.5rem 0;
     font-size: 1.1rem;
-    color: var(--primary);
+    color: $color-accent;
   }
   p {
     margin: 0 0 1rem 0;
@@ -893,8 +893,8 @@ select {
   font-size: 1rem;
   padding: 0.4em 0.8em;
   border-radius: var(--border-radius);
-  border: 1px solid var(--primary);
-  color: var(--primary);
+  border: 1px solid $color-accent;
+  color: $color-accent;
   margin-bottom: 0.5rem;
   width: 100%;
   max-width: 320px;
@@ -903,8 +903,8 @@ select {
     background 0.2s,
     border-color 0.2s;
   &:hover {
-    border-color: var(--secondary);
-    color: var(--secondary);
+    border-color: $color-accent-secondary;
+    color: $color-accent-secondary;
   }
 }
 .custom-templates-rows {
@@ -924,7 +924,7 @@ select {
 }
 .custom-template-row .template-name {
   font-weight: 500;
-  color: var(--primary);
+  color: $color-accent;
   flex: 1;
 }
 .custom-template-row .icon-btn {

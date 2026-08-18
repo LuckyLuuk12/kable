@@ -26,8 +26,8 @@ pub fn set_app_handle(handle: &AppHandle) {
     APP_HANDLE.set(handle.clone()).ok();
 }
 
-pub fn app_handle() -> AppHandle {
-    APP_HANDLE.get().expect("App Handle has not been initialized").clone()
+pub fn app_handle() -> Result<AppHandle, String> {
+    APP_HANDLE.get().cloned().ok_or_else(|| "App Handle has not been initialized".into())
 }
 
 /// ? This starts the Tauri application

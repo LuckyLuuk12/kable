@@ -99,7 +99,11 @@ export class UpdaterService implements Service {
    * Current version (static read)
    */
   async getCurrentVersion() {
-    return await api.getCurrentVersion();
+    try {
+      return await api.getCurrentVersion();
+    } catch (e) {
+      console.error("API call failed: `return await api.getCurrentVersion();`", e);
+    }
   }
 
   /**

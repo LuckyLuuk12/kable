@@ -115,7 +115,7 @@ pub async fn check_for_updates(include_prerelease: bool) -> Result<UpdateData, S
 
     let endpoint = Url::parse(&endpoint_str).map_err(|e| format!("Failed to parse endpoint URL: {}", e))?;
 
-    let app = crate::app_handle();
+    let app = crate::app_handle()?;
 
     let mut builder = app.updater_builder().endpoints(vec![endpoint]).map_err(|e| format!("Failed to set endpoints: {}", e))?;
 
@@ -158,7 +158,7 @@ pub async fn install_update(include_prerelease: bool) -> Result<(), String> {
 
     let endpoint = Url::parse(&endpoint_str).map_err(|e| format!("Failed to parse endpoint URL: {}", e))?;
 
-    let app = crate::app_handle();
+    let app = crate::app_handle()?;
 
     let mut builder = app.updater_builder().endpoints(vec![endpoint]).map_err(|e| format!("Failed to set endpoints: {}", e))?;
 
@@ -196,7 +196,7 @@ pub async fn download_update(include_prerelease: bool) -> Result<String, String>
 
     let endpoint = Url::parse(&endpoint_str).map_err(|e| format!("Failed to parse endpoint URL: {}", e))?;
 
-    let app = crate::app_handle();
+    let app = crate::app_handle()?;
 
     let mut builder = app.updater_builder().endpoints(vec![endpoint]).map_err(|e| format!("Failed to set endpoints: {}", e))?;
 

@@ -8,7 +8,7 @@ This is used for managing installed projects (per profile) and allows for easy u
 import { type KableProfile, type KableProject_Deserialize } from "$lib";
 import InstalledProjectCard from "./InstalledProjectCard.svelte";
 
-let { profile }: { profile: KableProfile } = $props();
+let { profile }: { profile: KableProfile | null } = $props();
 
 let installedProjects: KableProject_Deserialize[] = [];
 </script>

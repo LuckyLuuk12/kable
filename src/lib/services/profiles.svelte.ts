@@ -1,6 +1,22 @@
 import { type KableAccount, type KableProfile, type LoaderKind, api } from "$lib";
 import type { Service } from "./app.svelte";
 
+export type ProfileStatistics = {
+  totalPlaytimeMs: number;
+  totalProfiles: number;
+  lastPlayedDate: string | null;
+  totalLaunches: number;
+  favoriteCount: number;
+  averageLaunchesPerProfile: number;
+  mostPlayedProfile: KableProfile | null;
+  mostUsedLoader: string | null;
+  loaderCounts: Record<string, number>;
+};
+
+export type AccountStatistics = {
+  profiles: ProfileStatistics;
+};
+
 export class ProfilesService implements Service {
   profiles = $state<KableProfile[]>([]);
   activeProfileId = $state<string | null>(null);
@@ -26,6 +42,18 @@ export class ProfilesService implements Service {
 
   get activeProfile(): KableProfile | null {
     return this.profiles.find((p) => p.id === this.activeProfileId) ?? null;
+  }
+
+  async refreshProfiles() {
+    this.loading = true;
+    try {
+      const profiles = await api.getProfiles();
+      this.profiles = profiles;
+    } catch (e) {
+      console.error("Failed to refresh profiles", e);
+    } finally {
+      this.loading = false;
+    }
   }
 
   async setActive(profile: KableProfile) {
@@ -143,6 +171,68 @@ export class ProfilesService implements Service {
     } catch (e) {
       console.error("Failed to export profile", e);
     }
+  }
+
+  public getStatistics(): AccountStatistics {
+    const profiles = this.profiles;
+
+    const totalProfiles = profiles.length;
+
+    const totalPlaytimeMs = profiles.reduce((total, profile) => total + profile.metadata.total_time_played_ms, 0);
+
+    const totalLaunches = profiles.reduce((total, profile) => total + profile.metadata.times_launched, 0);
+
+    const favoriteCount = profiles.filter((profile) => profile.metadata.favorite).length;
+
+    const lastPlayedDate = profiles.reduce<string | null>((latest, profile) => {
+      if (!latest) {
+        return profile.metadata.last_used;
+      }
+
+      return new Date(profile.metadata.last_used) > new Date(latest) ? profile.metadata.last_used : latest;
+    }, null);
+
+    const mostPlayedProfile = profiles.reduce<KableProfile | null>((mostPlayed, profile) => {
+      if (!mostPlayed || profile.metadata.total_time_played_ms > mostPlayed.metadata.total_time_played_ms) {
+        return profile;
+      }
+
+      return mostPlayed;
+    }, null);
+
+    const loaderCounts: Record<string, number> = {};
+
+    for (const profile of profiles) {
+      const loader = profile.version.loader;
+
+      if (!loader) {
+        continue;
+      }
+
+      loaderCounts[loader] = (loaderCounts[loader] ?? 0) + 1;
+    }
+
+    const mostUsedLoader = Object.entries(loaderCounts).reduce<string | null>((mostUsed, [loader, count]) => {
+      if (!mostUsed || count > loaderCounts[mostUsed]) {
+        return loader;
+      }
+
+      return mostUsed;
+    }, null);
+
+    return {
+      profiles: {
+        totalPlaytimeMs,
+        totalProfiles,
+        lastPlayedDate,
+        totalLaunches,
+        favoriteCount,
+        averageLaunchesPerProfile: totalProfiles > 0 ? totalLaunches / totalProfiles : 0,
+        mostPlayedProfile,
+        mostUsedLoader,
+        loaderCounts,
+      },
+    };
   }
 
   async destroy() {

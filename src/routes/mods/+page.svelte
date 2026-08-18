@@ -1,53 +1,11 @@
 <script lang="ts">
-import { InstallationMods, ModBrowser, Launcher, Icon } from "$lib";
-import { ProviderKind, selectedInstallation } from "$lib";
-import type { KableInstallation } from "$lib";
-import { launchSound } from "$lib/actions";
-
-let currentTab: "installed" | "browse" = "installed";
-let isLaunching = false;
-
-// Handle mod download from browser
-async function handleModDownload(event: { modId: string; versionId?: string; installation: KableInstallation }) {
-  const { modId, versionId, installation } = event;
-
-  try {
-    // Use the ModsService to download the mod
-    const { ModsService } = await import("$lib");
-    const modsService = new ModsService(ProviderKind.Modrinth); // Use appropriate provider
-    await modsService.downloadMod(modId, versionId || null, installation);
-
-    // Show success message
-    console.log(`Successfully downloaded mod ${modId} to ${installation.name}`);
-  } catch (error) {
-    console.error("Failed to download mod:", error);
-    alert(`Failed to download mod: ${error}`);
-  }
-}
-
-// Handle launching the selected installation
-async function handleLaunch() {
-  if (!$selectedInstallation || isLaunching) return;
-
-  isLaunching = true;
-  try {
-    const result = await Launcher.launchInstallation($selectedInstallation);
-    if (!result.success) {
-      alert(`Launch failed: ${result.error || "Unknown error"}`);
-    }
-  } catch (error) {
-    console.error("Failed to launch installation:", error);
-    alert(`Launch failed: ${error}`);
-  } finally {
-    setTimeout(() => {
-      isLaunching = false;
-    }, 2000);
-  }
-}
+import { ProjectsPage } from "$lib";
 </script>
 
-<div class="mods-page">
-  <!-- Tab Navigation -->
+<ProjectsPage projectType="mod" />
+
+<!-- <div class="mods-page">
+
   <div class="tab-navigation">
     <button class="tab-btn" class:active={currentTab === "installed"} on:click={() => (currentTab = "installed")}> 📦 Installed Mods </button>
     <button class="tab-btn" class:active={currentTab === "browse"} on:click={() => (currentTab = "browse")}> 🔍 Browse Mods </button>
@@ -69,7 +27,6 @@ async function handleLaunch() {
     {/if}
   </div>
 
-  <!-- Tab Content -->
   <div class="tab-content">
     {#if currentTab === "installed"}
       <InstallationMods />
@@ -77,7 +34,7 @@ async function handleLaunch() {
       <ModBrowser ondownloadmod={handleModDownload} />
     {/if}
   </div>
-</div>
+</div> -->
 
 <style lang="scss">
 .mods-page {
@@ -93,12 +50,12 @@ async function handleLaunch() {
   align-items: center;
   gap: 0.5rem;
   padding-bottom: 0.5rem;
-  background: var(--background);
-  border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  background: $color-background;
+  border-bottom: 1px solid color-mix(in srgb, $color-accent, 8%, transparent);
 
   .tab-btn {
     padding: 0.6rem 1.2rem;
-    border: 1px solid var(--dark-600);
+    border: 1px solid $color-border;
     border-radius: 0.5rem;
     background: var(--card);
     color: var(--text);
@@ -108,26 +65,26 @@ async function handleLaunch() {
     transition: all 0.15s;
 
     &:hover {
-      border-color: var(--primary);
-      background: color-mix(in srgb, var(--primary), 5%, transparent);
+      border-color: $color-accent;
+      background: color-mix(in srgb, $color-accent, 5%, transparent);
     }
 
     &.active {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      background: linear-gradient(135deg, $color-accent 0%, $color-accent-secondary 100%);
       color: var(--text-white);
       border-color: var(--text-transparent);
-      box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 25%, transparent);
+      box-shadow: 0 2px 8px color-mix(in srgb, $color-accent, 25%, transparent);
     }
   }
 
   .current-installation {
     margin-left: auto;
     padding: 0.6rem 1rem;
-    background: color-mix(in srgb, var(--primary), 8%, transparent);
-    border: 1px solid color-mix(in srgb, var(--primary), 15%, transparent);
+    background: color-mix(in srgb, $color-accent, 8%, transparent);
+    border: 1px solid color-mix(in srgb, $color-accent, 15%, transparent);
     border-radius: 0.5rem;
     font-size: 0.85em;
-    color: var(--primary);
+    color: $color-accent;
 
     strong {
       font-weight: 600;
@@ -139,7 +96,7 @@ async function handleLaunch() {
     align-items: center;
     gap: 0.5rem;
     padding: 0.6rem 1.2rem;
-    border: 1px solid var(--dark-600);
+    border: 1px solid $color-border;
     border-radius: 0.5rem;
     background: linear-gradient(135deg, color-mix(in srgb, var(--green), 90%, transparent) 0%, color-mix(in srgb, var(--green), 75%, transparent) 100%);
     color: var(--text-white);

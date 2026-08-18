@@ -13,21 +13,11 @@ Initializes all required services on mount.
 <script lang="ts">
 import { resolve } from "$app/paths";
 import { page } from "$app/state";
-import { Icon, PlayerHead, app, buttonSound } from "$lib";
+import { app, buttonSound, Icon, PlayerHead } from "$lib";
 import "$lib/styles/global.scss";
-import { onDestroy, onMount } from "svelte";
+import { onDestroy, onMount, type Snippet } from "svelte";
 
-// Here we initialize all the required managers and services
-onMount(async () => {
-  console.log("Starting layout initialization...");
-  try {
-    await app.initAll();
-    console.log("Layout initialization complete");
-  } catch (error: any) {
-    console.error("Tauri initialization error:", error);
-    app.logsService.emitLauncherEvent(`Initialization error: ${error}`, "error");
-  }
-});
+let { children }: { children: Snippet } = $props();
 
 // Navigation items - conditionally include logs based on settings
 let navItems = $derived([
@@ -168,7 +158,13 @@ onDestroy(() => {
   <nav class="sidebar" class:collapsed={isNavCollapsed}>
     <!-- Header Section with Profile -->
     <div class="header-section">
-      <a use:buttonSound href={resolve("/account", {})} class="user-profile" class:active={currentPath === "/account"}>
+      <a
+        use:buttonSound
+        href={resolve("/accounts", {})}
+        class="user-profile"
+        class:active={currentPath === "/accounts"}
+        data-title="Account Settings"
+        aria-label="Account Settings">
         <div class="user-avatar">
           <PlayerHead account={activeAccount} size={40} />
         </div>
@@ -186,8 +182,7 @@ onDestroy(() => {
         class="hamburger-btn"
         onclick={toggleNavigation}
         aria-label={isNavCollapsed ? "Expand navigation" : "Collapse navigation"}
-        data-title={isNavCollapsed ? "Expand navigation (Ctrl+B)" : "Collapse navigation (Ctrl+B)"}
-      >
+        data-title={isNavCollapsed ? "Expand navigation (Ctrl+B)" : "Collapse navigation (Ctrl+B)"}>
         <Icon name={isNavCollapsed ? "arrow-right" : "arrow-left"} size="lg" forceType="svg" />
       </button>
     </div>
@@ -210,8 +205,7 @@ onDestroy(() => {
         class="nav-item settings-item"
         class:active={currentPath === "/settings"}
         data-title="Settings"
-        aria-label="Settings"
-      >
+        aria-label="Settings">
         <Icon name="settings" size="md" className="nav-icon" />
         <span class="label" class:collapsed={isNavCollapsed}>Settings</span>
       </a>
@@ -219,25 +213,24 @@ onDestroy(() => {
   </nav>
 
   <main class="content">
-    <slot />
+    {@render children()}
   </main>
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/variables" as *;
-
 .app-layout {
   display: flex;
   height: 100%;
-  overflow: scroll;
-  background: var(--background);
-  color: var(--text);
+  width: 100%;
+  overflow: hidden;
+  background: $color-background;
+  color: $color-text;
 }
 
 .sidebar {
   min-width: calc(fit-content + 2rem);
-  background: var(--container);
-  border-right: 1px solid var(--dark-600);
+  background: $color-surface-1;
+  border-right: 1px solid $color-border;
   display: flex;
   flex-direction: column;
   padding: 0.25rem;
@@ -274,7 +267,7 @@ onDestroy(() => {
     &:hover,
     &.active {
       & .user-avatar {
-        background: var(--primary);
+        background: $color-accent;
       }
     }
 
@@ -283,7 +276,7 @@ onDestroy(() => {
       width: 2.5rem;
       height: 2.5rem;
       border-radius: 40%;
-      background: color-mix(in srgb, var(--primary), 10%, transparent);
+      background: color-mix(in srgb, $color-accent, 10%, transparent);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -306,7 +299,7 @@ onDestroy(() => {
         margin: 0;
         font-size: 1rem;
         font-weight: 800;
-        color: var(--primary);
+        color: $color-accent;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -339,8 +332,8 @@ onDestroy(() => {
     justify-content: center;
 
     &:hover {
-      color: var(--primary);
-      border-color: var(--primary);
+      color: $color-accent;
+      border-color: $color-accent;
     }
   }
 }
@@ -364,11 +357,11 @@ onDestroy(() => {
   position: relative;
 
   &:hover {
-    background: var(--button-hover);
+    background: $color-surface-2;
   }
 
   &.active {
-    background: linear-gradient(155deg, #{"color-mix(in srgb, var(--primary) 15%, transparent)"}, #{"color-mix(in srgb, var(--primary) 1%, transparent)"});
+    background: linear-gradient(155deg, #{"color-mix(in srgb, $color-accent 15%, transparent)"}, #{"color-mix(in srgb, $color-accent 1%, transparent)"});
     backdrop-filter: blur(15px);
     color: var(--text-white);
   }
@@ -399,13 +392,12 @@ onDestroy(() => {
 
 .bottom-section {
   margin-top: auto;
-  border-top: 1px solid var(--dark-600);
+  border-top: 1px solid $color-border;
 }
 
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 1.5rem;
   transition: margin-left 0.3s ease;
 }
 
@@ -432,7 +424,6 @@ onDestroy(() => {
 
   .content {
     margin-left: 0;
-    padding: 1rem;
   }
 
   .app-layout {
@@ -474,7 +465,7 @@ onDestroy(() => {
   transition:
     opacity 0.12s ease,
     transform 0.12s ease;
-  border: 1px solid var(--dark-600);
+  border: 1px solid $color-border;
   z-index: 2147483647;
 }
 

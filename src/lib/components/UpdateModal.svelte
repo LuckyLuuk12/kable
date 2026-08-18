@@ -154,8 +154,6 @@ function handleKeydown(e: KeyboardEvent) {
 {/if}
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/variables" as *;
-
 .modal-backdrop {
   position: fixed;
   top: 0;
@@ -185,7 +183,7 @@ function handleKeydown(e: KeyboardEvent) {
 .modal-content {
   background: var(--card);
   border-radius: 0.75rem;
-  border: 2px solid var(--primary);
+  border: 2px solid $color-accent;
   box-shadow:
     0 20px 60px rgba(0, 0, 0, 0.5),
     0 0 0 1px rgba(255, 255, 255, 0.05);
@@ -214,8 +212,8 @@ function handleKeydown(e: KeyboardEvent) {
   align-items: flex-start;
   justify-content: space-between;
   padding: 1.5rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--primary), 15%, transparent);
-  background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 8%, transparent) 0%, color-mix(in srgb, var(--secondary), 5%, transparent) 100%);
+  border-bottom: 1px solid color-mix(in srgb, $color-accent, 15%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, $color-accent, 8%, transparent) 0%, color-mix(in srgb, $color-accent-secondary, 5%, transparent) 100%);
 
   .header-content {
     display: flex;
@@ -227,13 +225,13 @@ function handleKeydown(e: KeyboardEvent) {
       flex-shrink: 0;
       width: 48px;
       height: 48px;
-      background: var(--primary);
+      background: $color-accent;
       border-radius: 0.5rem;
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
-      box-shadow: 0 4px 12px color-mix(in srgb, var(--primary), 30%, transparent);
+      box-shadow: 0 4px 12px color-mix(in srgb, $color-accent, 30%, transparent);
     }
 
     .header-text {
@@ -253,7 +251,7 @@ function handleKeydown(e: KeyboardEvent) {
         color: var(--text-muted);
 
         strong {
-          color: var(--primary);
+          color: $color-accent;
           font-weight: 600;
         }
 
@@ -336,7 +334,7 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 :global(.markdown-content a) {
-  color: var(--primary);
+  color: $color-accent;
   text-decoration: underline;
   transition: opacity 0.15s;
 }
@@ -360,7 +358,7 @@ function handleKeydown(e: KeyboardEvent) {
   border-radius: 0.25rem;
   font-family: "Courier New", monospace;
   font-size: 0.85em;
-  color: var(--primary);
+  color: $color-accent;
 }
 
 :global(.markdown-content pre) {
@@ -426,7 +424,7 @@ function handleKeydown(e: KeyboardEvent) {
 }
 
 :global(.markdown-content blockquote) {
-  border-left: 3px solid var(--primary);
+  border-left: 3px solid $color-accent;
   padding-left: 1rem;
   margin: 0.5rem 0;
   color: var(--text-muted);
@@ -490,24 +488,24 @@ function handleKeydown(e: KeyboardEvent) {
   }
 
   .btn-download {
-    background: color-mix(in srgb, var(--tertiary), 15%, transparent);
-    border: 1px solid color-mix(in srgb, var(--tertiary), 30%, transparent);
-    color: var(--tertiary);
+    background: color-mix(in srgb, $color-accent-tertiary, 15%, transparent);
+    border: 1px solid color-mix(in srgb, $color-accent-tertiary, 30%, transparent);
+    color: $color-accent-tertiary;
 
     &:hover:not(:disabled) {
-      background: color-mix(in srgb, var(--tertiary), 25%, transparent);
-      border-color: var(--tertiary);
+      background: color-mix(in srgb, $color-accent-tertiary, 25%, transparent);
+      border-color: $color-accent-tertiary;
     }
   }
 
   .btn-primary {
-    background: var(--primary);
+    background: $color-accent;
     color: white;
 
     &:hover:not(:disabled) {
-      background: color-mix(in srgb, var(--primary), 90%, black);
+      background: color-mix(in srgb, $color-accent, 90%, black);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px color-mix(in srgb, var(--primary), 30%, transparent);
+      box-shadow: 0 4px 12px color-mix(in srgb, $color-accent, 30%, transparent);
     }
 
     &:active:not(:disabled) {

@@ -127,8 +127,6 @@ function formatTime(date: Date): string {
 </div>
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/variables" as *;
-
 .notification-tray {
   position: relative;
   display: flex;
@@ -139,18 +137,18 @@ function formatTime(date: Date): string {
   position: relative;
   background: transparent;
   border: none;
-  color: var(--text);
+  color: $color-text;
   cursor: pointer;
   padding: 0.5rem;
-  border-radius: var(--border-radius);
+  border-radius: $radius-md;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
 
   &:hover {
-    background: var(--button-hover);
-    color: var(--primary);
+    background: $color-hover;
+    color: $color-accent;
   }
 }
 
@@ -158,8 +156,8 @@ function formatTime(date: Date): string {
   position: absolute;
   top: 0.25rem;
   right: 0.25rem;
-  background: var(--red);
-  color: var(--text-white);
+  background: $color-error;
+  color: $color-text;
   font-size: 0.65rem;
   font-weight: 700;
   padding: 0.125rem 0.35rem;
@@ -175,9 +173,9 @@ function formatTime(date: Date): string {
   right: 0;
   width: 360px;
   max-height: 500px;
-  background: var(--card);
-  border: 1px solid var(--dark-600);
-  border-radius: var(--border-radius);
+  background: $color-surface-3;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
   box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
@@ -190,13 +188,13 @@ function formatTime(date: Date): string {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--dark-600);
+  border-bottom: 1px solid $color-border;
 
   h3 {
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
-    color: var(--text);
+    color: $color-text;
   }
 
   .header-actions {
@@ -220,20 +218,20 @@ function formatTime(date: Date): string {
   }
 
   .help-btn {
-    color: var(--primary);
+    color: $color-accent;
 
     &:hover {
-      background: color-mix(in srgb, var(--primary), 10%, transparent);
-      color: var(--primary);
+      background: color-mix(in srgb, $color-accent, 10%, transparent);
+      color: $color-accent;
     }
   }
 
   .clear-btn {
-    color: var(--placeholder);
+    color: $color-text-muted;
 
     &:hover {
       background: color-mix(in srgb, var(--red), 10%, transparent);
-      color: var(--red);
+      color: $color-error;
     }
   }
 }
@@ -296,9 +294,9 @@ function formatTime(date: Date): string {
   }
 
   &.notification-info {
-    border-left-color: var(--primary);
+    border-left-color: $color-accent;
     .item-icon {
-      color: var(--primary);
+      color: $color-accent;
     }
   }
 }
@@ -322,7 +320,7 @@ function formatTime(date: Date): string {
     word-wrap: break-word;
 
     :global(code) {
-      background: var(--background);
+      background: $color-background;
       padding: 0.125rem 0.25rem;
       border-radius: 0.25rem;
       font-family: monospace;

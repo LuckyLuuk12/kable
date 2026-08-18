@@ -5,12 +5,12 @@ Displays all active notifications in a stacked layout in the top-right corner.
 Automatically manages notification lifecycle and transitions.
 -->
 <script lang="ts">
-import { notifications } from "../../../../src-tauri/src-backup/old_services/NotificationService";
+import { app } from "$lib";
 import NotificationToast from "./NotificationToast.svelte";
 </script>
 
 <div class="notification-container">
-  {#each $notifications as notification (notification.id)}
+  {#each app.notificationService.notifications as notification (notification.id)}
     <NotificationToast {notification} />
   {/each}
 </div>

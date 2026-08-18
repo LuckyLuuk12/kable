@@ -142,8 +142,6 @@ async function switchAccount(account: KableAccount) {
 {/if}
 
 <style lang="scss">
-//@use "@kablan/clean-ui/scss/variables" as *;
-
 .account-switcher {
   position: relative;
   display: inline-block;
@@ -158,7 +156,7 @@ async function switchAccount(account: KableAccount) {
   padding: 0.75rem 1rem;
   width: 100%;
   background: var(--container);
-  border: 0.0625rem solid var(--dark-600);
+  border: 0.0625rem solid $color-border;
   border-radius: 0.75rem;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -167,8 +165,8 @@ async function switchAccount(account: KableAccount) {
 
   &:hover:not(:disabled) {
     background: var(--button-hover);
-    border-color: var(--primary);
-    box-shadow: 0 0.125rem 0.5rem color-mix(in srgb, var(--primary), 15%, transparent);
+    border-color: $color-accent;
+    box-shadow: 0 0.125rem 0.5rem color-mix(in srgb, $color-accent, 15%, transparent);
   }
 
   &:disabled {
@@ -192,7 +190,7 @@ async function switchAccount(account: KableAccount) {
   height: 2.25rem;
   border-radius: 50%;
   background: var(--container);
-  border: 0.125rem solid var(--dark-600);
+  border: 0.125rem solid $color-border;
   transition: border-color 0.2s ease;
   display: flex;
   align-items: center;
@@ -203,9 +201,9 @@ async function switchAccount(account: KableAccount) {
   overflow: hidden;
 
   &.minecraft-head {
-    background: linear-gradient(135deg, var(--primary), var(--primary-600));
+    background: linear-gradient(135deg, $color-accent, var(--primary-600));
     color: white;
-    border-color: var(--dark-600);
+    border-color: $color-border;
   }
 
   .avatar-letter {
@@ -275,7 +273,7 @@ async function switchAccount(account: KableAccount) {
   left: 0;
   right: 0;
   background: var(--card);
-  border: 0.0625rem solid var(--dark-600);
+  border: 0.0625rem solid $color-border;
   border-radius: 0.75rem;
   box-shadow:
     0 0.625rem 1.5625rem rgba(0, 0, 0, 0.3),
@@ -291,7 +289,7 @@ async function switchAccount(account: KableAccount) {
   overflow: hidden;
 
   &.active {
-    background: color-mix(in srgb, var(--primary), 10%, transparent);
+    background: color-mix(in srgb, $color-accent, 10%, transparent);
   }
 
   &.add-account-item {

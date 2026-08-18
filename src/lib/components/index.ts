@@ -3,11 +3,13 @@ export * from "./auth";
 // export * from "./mods";
 export * from "./notifications";
 export * from "./profiles";
+export * from "./projects";
 // export * from "./resourcepacks";
 export * from "./settings";
 // export * from "./shaders";
 export * from "./skins";
 
+export { default as AdvertisementBanner } from "./AdvertisementBanner.svelte";
 export { default as AutoUpdater } from "./AutoUpdater.svelte";
 export { default as Icon } from "./Icon.svelte";
 export { default as Image } from "./Image.svelte";

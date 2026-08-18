@@ -216,14 +216,14 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(90deg, transparent 0%, #{"color-mix(in srgb, var(--primary), 40%, transparent)"} 50%, transparent 100%);
+    background: linear-gradient(90deg, transparent 0%, #{"color-mix(in srgb, $color-accent, 40%, transparent)"} 50%, transparent 100%);
     opacity: 0;
     transition: opacity 0.2s ease;
   }
 
   &:hover {
-    border: 1px solid var(--secondary);
-    box-shadow: 0 4px 12px #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+    border: 1px solid $color-accent-secondary;
+    box-shadow: 0 4px 12px #{"color-mix(in srgb, $color-accent, 15%, transparent)"};
     transform: translateY(-2px);
 
     &::before {
@@ -494,7 +494,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
   padding: 0.5rem 0.75rem;
   border: 0px solid transparent;
   border-radius: 0.375rem;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  background: linear-gradient(135deg, $color-accent 0%, $color-accent-secondary 100%);
   color: white;
   font-weight: 600;
   font-size: 0.8em;
@@ -503,7 +503,7 @@ async function handleVisit(e: MouseEvent | KeyboardEvent) {
 
   &:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px #{"color-mix(in srgb, var(--primary), 25%, transparent)"};
+    box-shadow: 0 4px 8px #{"color-mix(in srgb, $color-accent, 25%, transparent)"};
   }
 
   &:active:not(:disabled) {

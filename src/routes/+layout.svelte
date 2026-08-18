@@ -6,7 +6,7 @@ import { onMount } from "svelte";
 
 let { children } = $props();
 
-let currentThemeName = app.customizationService.appearance?.selected_css_theme || "system";
+let currentThemeName = app.customizationService.settings?.appearance?.selected_css_theme || "system";
 
 onMount(async () => {
   // First initialize the app and load any necessary data
@@ -19,7 +19,7 @@ onMount(async () => {
     app.logsService.emitLauncherEvent(`Initialization error: ${error}`, "error");
   }
   // Load the custom CSS theme if one is selected
-  const theme = app.customizationService.appearance?.selected_css_theme || "system";
+  const theme = app.customizationService.settings?.appearance?.selected_css_theme || "system";
   await app.customizationService.setTheme(theme);
 });
 
@@ -31,7 +31,7 @@ $effect(() => {
 
 // Reload theme CSS by listening with effect() to settings from app.customizationService
 $effect(() => {
-  const newTheme = app.customizationService.appearance?.selected_css_theme || "system";
+  const newTheme = app.customizationService.settings?.appearance?.selected_css_theme || "system";
   if (newTheme !== currentThemeName) {
     console.log("Theme changed from", currentThemeName, "to", newTheme);
     app.customizationService.setTheme(newTheme);

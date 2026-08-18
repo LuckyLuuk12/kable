@@ -30,15 +30,15 @@ pub async fn get_icon_templates() -> Result<Vec<IconTemplate>, String> {
 
 pub async fn get_builtin_icon_templates() -> Result<Vec<IconTemplate>, String> {
     let paths = [
-        app_handle()
+        app_handle()?
             .path()
             .resolve("icons/fa.json", tauri::path::BaseDirectory::Resource)
             .map_err(|e| format!("Failed to resolve built-in icons path: {}", e))?,
-        app_handle()
+        app_handle()?
             .path()
             .resolve("icons/svg.json", tauri::path::BaseDirectory::Resource)
             .map_err(|e| format!("Failed to resolve built-in icons path: {}", e))?,
-        app_handle()
+        app_handle()?
             .path()
             .resolve("icons/win.json", tauri::path::BaseDirectory::Resource)
             .map_err(|e| format!("Failed to resolve built-in icons path: {}", e))?,

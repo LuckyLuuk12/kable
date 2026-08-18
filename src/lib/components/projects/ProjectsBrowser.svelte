@@ -9,13 +9,13 @@ It is used in various routes/pages as we make different pages per project type (
 
 -->
 <script lang="ts">
-import { type KableProfile, type Project } from "$lib";
+import { type KableProfile, type Project, type ProjectType } from "$lib";
 import ProjectCard from "./ProjectCard.svelte";
 
-let { selectedProfile = null }: { selectedProfile: KableProfile | null } = $props();
+let { profile = null, projectType }: { profile: KableProfile | null; projectType: ProjectType } = $props();
 
 //
-let projects: Project[] = [];
+let projects: Project[] = $state([]);
 </script>
 
 <div class="projects-browser">

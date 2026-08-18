@@ -160,14 +160,14 @@ onMount(() => {
 }
 
 .mini-nav a {
-  color: var(--tertiary);
+  color: $color-accent-tertiary;
   text-decoration: none;
   position: relative;
   padding-bottom: 2px;
   transition: all 0.4s ease;
 
   &.active {
-    color: var(--primary);
+    color: $color-accent;
   }
 
   &:hover {
@@ -181,7 +181,7 @@ onMount(() => {
     bottom: 0;
     width: 100%;
     height: 2px;
-    background: var(--tertiary);
+    background: $color-accent-tertiary;
     border-radius: 2px;
     transform: scaleX(0);
     transform-origin: left;
@@ -194,7 +194,7 @@ onMount(() => {
   }
 
   &.active::before {
-    background: var(--primary);
+    background: $color-accent;
   }
 }
 

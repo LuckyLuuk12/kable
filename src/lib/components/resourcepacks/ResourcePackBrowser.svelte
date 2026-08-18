@@ -673,7 +673,7 @@ onMount(async () => {
   height: 100%;
   background: var(--container);
   border-radius: 0.5rem;
-  border: 1px solid #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
+  border: 1px solid #{"color-mix(in srgb, $color-accent, 8%, transparent)"};
   box-shadow: 0 2px 8px #{"color-mix(in srgb, var(--dark-900), 4%, transparent)"};
   overflow: hidden;
 }
@@ -683,12 +683,12 @@ onMount(async () => {
   background: linear-gradient(
     135deg,
     #{"color-mix(in srgb, var(--container), 95%, transparent)"} 0%,
-    #{"color-mix(in srgb, var(--primary), 4%, transparent)"} 30%,
-    #{"color-mix(in srgb, var(--secondary), 2%, transparent)"} 70%,
+    #{"color-mix(in srgb, $color-accent, 4%, transparent)"} 30%,
+    #{"color-mix(in srgb, $color-accent-secondary, 2%, transparent)"} 70%,
     #{"color-mix(in srgb, var(--card), 80%, transparent)"} 100%
   );
   backdrop-filter: blur(12px);
-  border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+  border-bottom: 1px solid #{"color-mix(in srgb, $color-accent, 15%, transparent)"};
   padding: 0.75rem 1rem;
   position: relative;
 
@@ -702,8 +702,8 @@ onMount(async () => {
     background: linear-gradient(
       90deg,
       transparent 0%,
-      #{"color-mix(in srgb, var(--primary), 30%, transparent)"} 20%,
-      #{"color-mix(in srgb, var(--secondary), 20%, transparent)"} 80%,
+      #{"color-mix(in srgb, $color-accent, 30%, transparent)"} 20%,
+      #{"color-mix(in srgb, $color-accent-secondary, 20%, transparent)"} 80%,
       transparent 100%
     );
   }
@@ -716,7 +716,7 @@ onMount(async () => {
 
     h2 {
       margin: 0;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+      background: linear-gradient(135deg, $color-accent 0%, $color-accent-secondary 100%);
       background-clip: text;
       -webkit-background-clip: text;
       color: transparent;
@@ -746,7 +746,7 @@ onMount(async () => {
     .installation-select {
       flex: 1;
       padding: 0.5rem 0.75rem;
-      border: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+      border: 1px solid #{"color-mix(in srgb, $color-accent, 15%, transparent)"};
       border-radius: 0.375rem;
       background: var(--card);
       color: var(--text);
@@ -757,13 +757,13 @@ onMount(async () => {
 
       &:focus {
         outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 2px #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
+        border-color: $color-accent;
+        box-shadow: 0 0 0 2px #{"color-mix(in srgb, $color-accent, 10%, transparent)"};
       }
 
       &:hover {
-        border-color: var(--primary);
-        background: #{"color-mix(in srgb, var(--primary), 3%, transparent)"};
+        border-color: $color-accent;
+        background: #{"color-mix(in srgb, $color-accent, 3%, transparent)"};
       }
 
       option {
@@ -791,7 +791,7 @@ onMount(async () => {
   width: 240px;
   background: linear-gradient(135deg, #{"color-mix(in srgb, var(--container), 95%, transparent)"} 0%, #{"color-mix(in srgb, var(--card), 80%, transparent)"} 100%);
   backdrop-filter: blur(8px);
-  border-right: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+  border-right: 1px solid #{"color-mix(in srgb, $color-accent, 12%, transparent)"};
   display: flex;
   flex-direction: column;
   transition: all 0.3s ease;
@@ -822,8 +822,12 @@ onMount(async () => {
     justify-content: space-between;
     padding: 0.5rem 0.75rem;
     height: 2.6875rem;
-    border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
-    background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 6%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 3%, transparent)"} 100%);
+    border-bottom: 1px solid #{"color-mix(in srgb, $color-accent, 12%, transparent)"};
+    background: linear-gradient(
+      135deg,
+      #{"color-mix(in srgb, $color-accent, 6%, transparent)"} 0%,
+      #{"color-mix(in srgb, $color-accent-secondary, 3%, transparent)"} 100%
+    );
     backdrop-filter: blur(4px);
 
     h3 {
@@ -848,8 +852,8 @@ onMount(async () => {
         transition: all 0.15s;
 
         &:hover {
-          background: #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
-          color: var(--primary);
+          background: #{"color-mix(in srgb, $color-accent, 10%, transparent)"};
+          color: $color-accent;
         }
       }
     }
@@ -880,16 +884,16 @@ onMount(async () => {
         align-items: center;
         justify-content: space-between;
         padding: 0.375rem 0.5rem;
-        background: #{"color-mix(in srgb, var(--primary), 5%, transparent)"};
-        border: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+        background: #{"color-mix(in srgb, $color-accent, 5%, transparent)"};
+        border: 1px solid #{"color-mix(in srgb, $color-accent, 12%, transparent)"};
         border-radius: 0.25rem;
         cursor: pointer;
         transition: all 0.15s;
         margin-bottom: 0.375rem;
 
         &:hover {
-          background: #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
-          border-color: var(--primary);
+          background: #{"color-mix(in srgb, $color-accent, 8%, transparent)"};
+          border-color: $color-accent;
         }
 
         .filter-label {
@@ -914,7 +918,7 @@ onMount(async () => {
           max-width: 90%;
           min-width: fit-content;
           padding: 0.5rem 0.5rem 0.5rem 2rem;
-          border: 1px solid var(--dark-600);
+          border: 1px solid $color-border;
           border-radius: 0.375rem;
           background: var(--input);
           color: var(--text);
@@ -922,8 +926,8 @@ onMount(async () => {
 
           &:focus {
             outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 2px #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
+            border-color: $color-accent;
+            box-shadow: 0 0 0 2px #{"color-mix(in srgb, $color-accent, 10%, transparent)"};
           }
 
           &::placeholder {
@@ -957,7 +961,7 @@ onMount(async () => {
           display: flex;
           border-radius: 0.25rem;
           overflow: hidden;
-          border: 1px solid var(--dark-600);
+          border: 1px solid $color-border;
           transition: all 0.15s;
 
           &:hover {
@@ -966,7 +970,7 @@ onMount(async () => {
 
           &.included {
             border-color: var(--green);
-            background: #{"color-mix(in srgb, var(--primary), 5%, transparent)"};
+            background: #{"color-mix(in srgb, $color-accent, 5%, transparent)"};
           }
 
           &.excluded {
@@ -986,7 +990,7 @@ onMount(async () => {
             transition: all 0.15s;
 
             &:hover {
-              background: #{"color-mix(in srgb, var(--primary), 3%, transparent)"};
+              background: #{"color-mix(in srgb, $color-accent, 3%, transparent)"};
             }
 
             .option-label {
@@ -1021,7 +1025,7 @@ onMount(async () => {
 
             &.exclude-btn {
               padding: 0.5rem;
-              border-left: 1px solid var(--dark-600);
+              border-left: 1px solid $color-border;
               min-width: 2rem;
               justify-content: center;
 
@@ -1046,8 +1050,8 @@ onMount(async () => {
 
     .smart-filter-section {
       padding: 0.75rem;
-      background: #{"color-mix(in srgb, var(--primary), 5%, transparent)"};
-      border: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+      background: #{"color-mix(in srgb, $color-accent, 5%, transparent)"};
+      border: 1px solid #{"color-mix(in srgb, $color-accent, 15%, transparent)"};
       border-radius: 0.375rem;
       margin-bottom: 0.75rem;
 
@@ -1062,7 +1066,7 @@ onMount(async () => {
           width: 16px;
           height: 16px;
           cursor: pointer;
-          accent-color: var(--primary);
+          accent-color: $color-accent;
         }
 
         .toggle-label {
@@ -1099,7 +1103,7 @@ onMount(async () => {
   height: 2.6875rem;
   background: linear-gradient(135deg, var(--container) 0%, #{"color-mix(in srgb, var(--card), 60%, transparent)"} 100%);
   backdrop-filter: blur(6px);
-  border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 12%, transparent)"};
+  border-bottom: 1px solid #{"color-mix(in srgb, $color-accent, 12%, transparent)"};
 
   .toolbar-left {
     display: flex;
@@ -1120,7 +1124,7 @@ onMount(async () => {
 
       .page-btn.compact {
         padding: 0.25rem 0.375rem;
-        border: 1px solid #{"color-mix(in srgb, var(--primary), 20%, transparent)"};
+        border: 1px solid #{"color-mix(in srgb, $color-accent, 20%, transparent)"};
         border-radius: 0.25rem;
         background: #{"color-mix(in srgb, var(--card), 80%, transparent)"};
         color: var(--text);
@@ -1135,15 +1139,15 @@ onMount(async () => {
         justify-content: center;
 
         &:hover:not(:disabled) {
-          border-color: var(--primary);
-          background: #{"color-mix(in srgb, var(--primary), 10%, transparent)"};
-          color: var(--primary);
+          border-color: $color-accent;
+          background: #{"color-mix(in srgb, $color-accent, 10%, transparent)"};
+          color: $color-accent;
         }
 
         &.active {
           background: var(--card);
-          color: var(--primary);
-          border-color: var(--primary);
+          color: $color-accent;
+          border-color: $color-accent;
           font-weight: 600;
         }
 
@@ -1170,7 +1174,7 @@ onMount(async () => {
 
     .view-controls {
       display: flex;
-      border: 1px solid var(--dark-600);
+      border: 1px solid $color-border;
       border-radius: 0.25rem;
       overflow: hidden;
 
@@ -1183,24 +1187,24 @@ onMount(async () => {
         transition: all 0.15s;
 
         &:hover {
-          background: #{"color-mix(in srgb, var(--primary), 5%, transparent)"};
+          background: #{"color-mix(in srgb, $color-accent, 5%, transparent)"};
           color: var(--text);
         }
 
         &.active {
-          background: var(--primary);
+          background: $color-accent;
           color: white;
         }
 
         &:not(:last-child) {
-          border-right: 1px solid var(--dark-600);
+          border-right: 1px solid $color-border;
         }
       }
     }
 
     .page-size-select {
       padding: 0.25rem 0.375rem;
-      border: 1px solid var(--dark-600);
+      border: 1px solid $color-border;
       border-radius: 0.25rem;
       background: var(--card);
       color: var(--text);
@@ -1209,7 +1213,7 @@ onMount(async () => {
 
       &:focus {
         outline: none;
-        border-color: var(--primary);
+        border-color: $color-accent;
       }
     }
   }
@@ -1233,11 +1237,19 @@ onMount(async () => {
   }
 
   &::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 60%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 40%, transparent)"} 100%);
+    background: linear-gradient(
+      135deg,
+      #{"color-mix(in srgb, $color-accent, 60%, transparent)"} 0%,
+      #{"color-mix(in srgb, $color-accent-secondary, 40%, transparent)"} 100%
+    );
     border-radius: 4px;
 
     &:hover {
-      background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 80%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 60%, transparent)"} 100%);
+      background: linear-gradient(
+        135deg,
+        #{"color-mix(in srgb, $color-accent, 80%, transparent)"} 0%,
+        #{"color-mix(in srgb, $color-accent-secondary, 60%, transparent)"} 100%
+      );
     }
   }
 }
@@ -1280,17 +1292,17 @@ onMount(async () => {
   align-items: center;
   gap: 0.375rem;
   padding: 0.5rem 1rem;
-  border: 1px solid var(--primary);
+  border: 1px solid $color-accent;
   border-radius: 0.375rem;
-  background: color-mix(in srgb, var(--primary), 10%, transparent);
-  color: var(--primary);
+  background: color-mix(in srgb, $color-accent, 10%, transparent);
+  color: $color-accent;
   font-weight: 500;
   font-size: 0.8em;
   cursor: pointer;
   transition: all 0.15s;
 
   &:hover {
-    background: var(--primary);
+    background: $color-accent;
     color: white;
   }
 }
@@ -1354,7 +1366,7 @@ onMount(async () => {
     width: 100%;
     max-height: 200px;
     border-right: none;
-    border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+    border-bottom: 1px solid #{"color-mix(in srgb, $color-accent, 15%, transparent)"};
     background: linear-gradient(135deg, #{"color-mix(in srgb, var(--container), 90%, transparent)"} 0%, #{"color-mix(in srgb, var(--card), 70%, transparent)"} 100%);
 
     &.collapsed {

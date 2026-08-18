@@ -1,8 +1,8 @@
 <script lang="ts">
-import { onMount } from "svelte";
+import { Icon, InstallationService } from "$lib";
 import { SymlinksAPI, type SymlinkInfo } from "$lib/api";
-import { InstallationService, Icon } from "$lib";
 import type { KableInstallation } from "$lib/types";
+import { onMount } from "svelte";
 
 let symlinks: SymlinkInfo[] = [];
 let installations: KableInstallation[] = [];
@@ -527,7 +527,7 @@ async function copyToClipboard(text: string) {
   gap: 0.5rem;
   margin-bottom: 1rem;
   padding: 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, $color-accent, 8%, transparent);
 }
 
 .tab-button {
@@ -535,7 +535,7 @@ async function copyToClipboard(text: string) {
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 1.2rem;
-  border: 1px solid var(--dark-600);
+  border: 1px solid $color-border;
   border-radius: 0.5rem;
   background: var(--card);
   color: var(--text);
@@ -545,15 +545,15 @@ async function copyToClipboard(text: string) {
   transition: all 0.15s;
 
   &:hover:not(:disabled) {
-    border-color: var(--primary);
-    background: color-mix(in srgb, var(--primary), 5%, transparent);
+    border-color: $color-accent;
+    background: color-mix(in srgb, $color-accent, 5%, transparent);
   }
 
   &.active {
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    background: linear-gradient(135deg, $color-accent 0%, $color-accent-secondary 100%);
     color: var(--text-white);
     border-color: var(--text-transparent);
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--primary), 25%, transparent);
+    box-shadow: 0 2px 8px color-mix(in srgb, $color-accent, 25%, transparent);
   }
 
   &:disabled {
@@ -654,7 +654,7 @@ async function copyToClipboard(text: string) {
 
   tbody {
     tr {
-      border-bottom: 1px solid var(--dark-600);
+      border-bottom: 1px solid $color-border;
       transition: background 0.2s;
 
       &:hover {
@@ -730,7 +730,7 @@ async function copyToClipboard(text: string) {
 
   &:hover {
     background: var(--dark-600);
-    color: var(--primary);
+    color: $color-accent;
   }
 
   &:active {
@@ -757,7 +757,7 @@ async function copyToClipboard(text: string) {
 
   &:focus {
     outline: none;
-    border-color: var(--primary);
+    border-color: $color-accent;
   }
 }
 
@@ -775,12 +775,12 @@ async function copyToClipboard(text: string) {
 
   &:hover {
     background: var(--dark-500);
-    border-color: var(--primary);
+    border-color: $color-accent;
   }
 }
 
 tr.editing {
-  background: color-mix(in srgb, var(--primary), 5%, transparent);
+  background: color-mix(in srgb, $color-accent, 5%, transparent);
 }
 
 .badge {
@@ -791,7 +791,7 @@ tr.editing {
   font-weight: 600;
 
   &.badge-global {
-    background: var(--primary);
+    background: $color-accent;
     color: white;
   }
 
@@ -879,12 +879,12 @@ tr.editing {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+  background: linear-gradient(135deg, $color-accent 0%, $color-accent-secondary 100%);
   color: white;
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--primary), 30%, transparent);
+    box-shadow: 0 4px 12px color-mix(in srgb, $color-accent, 30%, transparent);
   }
 }
 
@@ -895,7 +895,7 @@ tr.editing {
 
   &:hover {
     background: var(--dark-500);
-    border-color: var(--primary);
+    border-color: $color-accent;
   }
 }
 
@@ -932,7 +932,7 @@ tr.editing {
   justify-content: space-between;
   align-items: center;
   padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid var(--dark-600);
+  border-bottom: 1px solid $color-border;
 
   h3 {
     margin: 0;
@@ -949,7 +949,7 @@ tr.editing {
   justify-content: flex-end;
   gap: 0.75rem;
   padding: 1.25rem 1.5rem;
-  border-top: 1px solid var(--dark-600);
+  border-top: 1px solid $color-border;
 }
 
 .form-group {
@@ -971,7 +971,7 @@ tr.editing {
     width: 100%;
     padding: 0.7rem 0.9rem;
     background: var(--dark-700);
-    border: 1px solid var(--dark-600);
+    border: 1px solid $color-border;
     border-radius: var(--border-radius);
     color: var(--text);
     font-size: 0.9rem;
@@ -979,8 +979,8 @@ tr.editing {
 
     &:focus {
       outline: none;
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary), 10%, transparent);
+      border-color: $color-accent;
+      box-shadow: 0 0 0 3px color-mix(in srgb, $color-accent, 10%, transparent);
     }
   }
 

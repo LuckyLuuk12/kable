@@ -520,7 +520,7 @@ async function handleUpdateAll() {
         continue;
       }
 
-      await app.modsService.downloadMod(projectId, versionId, currentProfile);
+      await app.projectsService.downloadMod(projectId, versionId, currentProfile);
       successCount++;
     } catch (error) {
       console.error(`Failed to update ${mod.file_name}:`, error);
@@ -878,7 +878,7 @@ onMount(() => {
   gap: 1.5rem;
   background: var(--container);
   border-radius: 0.75rem;
-  border: 1px solid #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
+  border: 1px solid #{"color-mix(in srgb, $color-accent, 8%, transparent)"};
   box-shadow: 0 2px 12px #{"color-mix(in srgb, var(--dark-900), 6%, transparent)"};
   overflow: hidden;
 }
@@ -887,20 +887,20 @@ onMount(() => {
 .installation-sidebar {
   width: 320px;
   min-width: 320px;
-  border-right: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  border-right: 1px solid color-mix(in srgb, $color-accent, 8%, transparent);
   display: flex;
   flex-direction: column;
 
   h2 {
     margin: 0;
     padding: 1.5rem 1.5rem 1rem 1.5rem;
-    background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+    background: linear-gradient(135deg, $color-accent 0%, $color-accent-secondary 100%);
     background-clip: text;
     -webkit-background-clip: text;
     color: transparent;
     font-weight: 700;
     font-size: 1.4em;
-    border-bottom: 1px solid #{"color-mix(in srgb, var(--primary), 8%, transparent)"};
+    border-bottom: 1px solid #{"color-mix(in srgb, $color-accent, 8%, transparent)"};
   }
 }
 
@@ -952,15 +952,15 @@ onMount(() => {
   transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 
   &:hover {
-    border-color: var(--loader-color, #{"color-mix(in srgb, var(--primary), 15%, transparent)"});
+    border-color: var(--loader-color, #{"color-mix(in srgb, $color-accent, 15%, transparent)"});
     // Properly maintain center position on hover
-    box-shadow: 0 2px 8px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 10%, transparent)"};
+    box-shadow: 0 2px 8px #{"color-mix(in srgb, var(--loader-color, $color-accent), 10%, transparent)"};
   }
 
   &.selected {
-    border-color: var(--loader-color, var(--primary));
+    border-color: var(--loader-color, $color-accent);
     box-shadow:
-      0 4px 16px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 15%, transparent)"},
+      0 4px 16px #{"color-mix(in srgb, var(--loader-color, $color-accent), 15%, transparent)"},
       inset 0 1px 0 rgba(255, 255, 255, 0.1);
     z-index: 10; // Bring selected item to front
 
@@ -970,7 +970,7 @@ onMount(() => {
     &:hover {
       // Keep the same transform as base state but with slight scale increase
       box-shadow:
-        0 6px 20px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 20%, transparent)"},
+        0 6px 20px #{"color-mix(in srgb, var(--loader-color, $color-accent), 20%, transparent)"},
         0 0 0 3px #{"color-mix(in srgb, var(--green-800), 30%, transparent)"},
         inset 0 1px 0 #{"color-mix(in srgb, #fff, 15%, transparent)"};
     }
@@ -990,7 +990,7 @@ onMount(() => {
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
+    box-shadow: 0 0 0 2px #{"color-mix(in srgb, var(--loader-color, $color-accent), 30%, transparent)"};
   }
 }
 
@@ -1002,15 +1002,19 @@ onMount(() => {
   align-items: center;
   justify-content: center;
   background: var(--container);
-  color: var(--loader-color, var(--primary));
+  color: var(--loader-color, $color-accent);
   box-shadow: 0 2px 6px #{"color-mix(in srgb, var(--dark-900), 8%, transparent)"};
   flex-shrink: 0;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 
   .installation-item.selected & {
-    background: linear-gradient(135deg, var(--loader-color, var(--primary)) 0%, #{"color-mix(in srgb, var(--loader-color, var(--secondary)), 80%, transparent)"} 100%);
+    background: linear-gradient(
+      135deg,
+      var(--loader-color, $color-accent) 0%,
+      #{"color-mix(in srgb, var(--loader-color, $color-accent-secondary), 80%, transparent)"} 100%
+    );
     color: white;
-    box-shadow: 0 3px 12px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
+    box-shadow: 0 3px 12px #{"color-mix(in srgb, var(--loader-color, $color-accent), 30%, transparent)"};
     transform: scale(1.05);
   }
 }
@@ -1037,9 +1041,9 @@ onMount(() => {
 
   // Selected state - use solid color instead of gradient to avoid transparency issues
   .installation-item.selected & {
-    color: var(--loader-color, var(--primary));
+    color: var(--loader-color, $color-accent);
     font-weight: 700;
-    text-shadow: 0 0 8px #{"color-mix(in srgb, var(--loader-color, var(--primary)), 30%, transparent)"};
+    text-shadow: 0 0 8px #{"color-mix(in srgb, var(--loader-color, $color-accent), 30%, transparent)"};
   }
 }
 
@@ -1059,12 +1063,12 @@ onMount(() => {
 }
 
 .installation-version {
-  background: color-mix(in srgb, var(--tertiary), 10%, transparent);
-  color: var(--tertiary);
+  background: color-mix(in srgb, $color-accent-tertiary, 10%, transparent);
+  color: $color-accent-tertiary;
 
   .installation-item.selected & {
-    background: #{"color-mix(in srgb, var(--loader-color, var(--tertiary)), 15%, transparent)"};
-    color: var(--loader-color, var(--tertiary));
+    background: #{"color-mix(in srgb, var(--loader-color, $color-accent-tertiary), 15%, transparent)"};
+    color: var(--loader-color, $color-accent-tertiary);
   }
 }
 
@@ -1077,8 +1081,8 @@ onMount(() => {
 }
 
 .mods-header {
-  background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, var(--primary), 2%, transparent) 100%);
-  border-bottom: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+  background: linear-gradient(135deg, var(--card) 0%, color-mix(in srgb, $color-accent, 2%, transparent) 100%);
+  border-bottom: 1px solid color-mix(in srgb, $color-accent, 8%, transparent);
   padding: 1.2rem 1.5rem;
 
   .mods-title-section {
@@ -1153,8 +1157,8 @@ onMount(() => {
   display: flex;
   align-items: center;
   gap: 0.3em;
-  background: linear-gradient(135deg, #{"color-mix(in srgb, var(--primary), 8%, transparent)"} 0%, #{"color-mix(in srgb, var(--secondary), 4%, transparent)"} 100%);
-  border: 1px solid #{"color-mix(in srgb, var(--primary), 15%, transparent)"};
+  background: linear-gradient(135deg, #{"color-mix(in srgb, $color-accent, 8%, transparent)"} 0%, #{"color-mix(in srgb, $color-accent-secondary, 4%, transparent)"} 100%);
+  border: 1px solid #{"color-mix(in srgb, $color-accent, 15%, transparent)"};
   border-radius: 1rem;
   padding: 0.4em 0.8em;
   font-size: 0.85em;
@@ -1164,7 +1168,7 @@ onMount(() => {
   box-shadow: 0 1px 4px #{"color-mix(in srgb, var(--dark-900), 6%, transparent)"};
 
   .filtered-count {
-    color: var(--primary);
+    color: $color-accent;
     font-weight: 600;
   }
 
@@ -1220,16 +1224,15 @@ onMount(() => {
 
 .control-select {
   padding: 0.55rem 0.7rem;
-  border: 1px solid var(--dark-600);
+  border: 1px solid $color-border;
   border-radius: 0.6rem;
   background: var(--input);
   color: var(--text);
   font-size: 0.9rem;
-
-  &:focus {
+  $color-border &:focus {
     outline: none;
-    border-color: color-mix(in srgb, var(--primary), 60%, transparent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary), 15%, transparent);
+    border-color: color-mix(in srgb, $color-accent, 60%, transparent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, $color-accent, 15%, transparent);
   }
 }
 
@@ -1239,7 +1242,7 @@ onMount(() => {
   gap: 0.35rem;
   padding: 0.55rem 0.75rem;
   border-radius: 0.6rem;
-  border: 1px solid var(--dark-600);
+  border: 1px solid $color-border;
   background: var(--input);
   color: var(--text);
   cursor: pointer;
@@ -1247,7 +1250,7 @@ onMount(() => {
   transition: all 0.15s ease;
 
   &:hover {
-    border-color: color-mix(in srgb, var(--primary), 50%, transparent);
+    border-color: color-mix(in srgb, $color-accent, 50%, transparent);
   }
 
   &.active {
@@ -1274,7 +1277,7 @@ onMount(() => {
   .search-input {
     flex: 1;
     padding: 0.75rem 1rem 0.75rem 2.5rem;
-    border: 1px solid var(--dark-600);
+    border: 1px solid $color-border;
     border-radius: 0.75rem;
     background: var(--input);
     color: var(--text);
@@ -1282,7 +1285,7 @@ onMount(() => {
 
     &:focus {
       outline: none;
-      border-color: var(--primary);
+      border-color: $color-accent;
     }
 
     &::placeholder {
@@ -1347,9 +1350,9 @@ onMount(() => {
 }
 
 .modpack-card {
-  border: 1px solid color-mix(in srgb, var(--primary), 18%, transparent);
+  border: 1px solid color-mix(in srgb, $color-accent, 18%, transparent);
   border-radius: 0.65rem;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--primary), 8%, transparent) 0%, var(--card) 100%);
+  background: linear-gradient(135deg, color-mix(in srgb, $color-accent, 8%, transparent) 0%, var(--card) 100%);
   padding: 0.75rem;
   display: flex;
   align-items: flex-start;
@@ -1358,7 +1361,7 @@ onMount(() => {
   text-align: left;
 
   &:hover {
-    border-color: color-mix(in srgb, var(--primary), 35%, transparent);
+    border-color: color-mix(in srgb, $color-accent, 35%, transparent);
     transform: translateY(-1px);
   }
 }
@@ -1472,8 +1475,8 @@ onMount(() => {
   &::before {
     left: -5px;
     top: 18%;
-    border-left: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-    border-bottom: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
+    border-left: 1px solid color-mix(in srgb, $color-accent, 25%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, $color-accent, 25%, transparent);
     border-right: none;
     border-top: none;
     transform: rotate(45deg);
@@ -1490,8 +1493,8 @@ onMount(() => {
     right: -5px;
     left: auto;
     top: 18%;
-    border-right: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-    border-top: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
+    border-right: 1px solid color-mix(in srgb, $color-accent, 25%, transparent);
+    border-top: 1px solid color-mix(in srgb, $color-accent, 25%, transparent);
     border-left: none;
     border-bottom: none;
     transform: rotate(45deg);
@@ -1509,8 +1512,8 @@ onMount(() => {
     top: auto;
     bottom: -5px;
     transform: translateX(-50%) rotate(45deg);
-    border-bottom: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-    border-right: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, $color-accent, 25%, transparent);
+    border-right: 1px solid color-mix(in srgb, $color-accent, 25%, transparent);
     border-left: none;
     border-top: none;
   }
@@ -1526,8 +1529,8 @@ onMount(() => {
     top: -5px;
     bottom: auto;
     transform: translateX(-50%) rotate(45deg);
-    border-top: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
-    border-left: 1px solid color-mix(in srgb, var(--primary), 25%, transparent);
+    border-top: 1px solid color-mix(in srgb, $color-accent, 25%, transparent);
+    border-left: 1px solid color-mix(in srgb, $color-accent, 25%, transparent);
     border-right: none;
     border-bottom: none;
   }
@@ -1594,7 +1597,7 @@ onMount(() => {
 
   .mods-section {
     border-left: none;
-    border-top: 1px solid color-mix(in srgb, var(--primary), 8%, transparent);
+    border-top: 1px solid color-mix(in srgb, $color-accent, 8%, transparent);
   }
 
   .mods-title-section {

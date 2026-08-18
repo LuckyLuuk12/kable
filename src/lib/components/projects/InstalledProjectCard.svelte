@@ -12,12 +12,13 @@ So we only show the name, version (and if it fits) the release date of the proje
 -->
 <script lang="ts">
 import { app, type KableProfile, type KableProject_Deserialize } from "$lib";
-let { profile, project }: { profile: KableProfile; project: KableProject_Deserialize } = $props();
+let { profile, project }: { profile: KableProfile | null; project: KableProject_Deserialize } = $props();
 
 // let isEnabled = $derived(async () => await app.projectsService.isEnabled(profile, project));
 let isEnabled = $state(false);
 
 $effect(() => {
+  if (!profile || !project) return;
   let cancelled = false;
 
   app.projectsService.isEnabled(profile, project).then((value) => {
@@ -34,6 +35,7 @@ $effect(() => {
 async function toggle(event: Event | undefined = undefined) {
   if (event instanceof KeyboardEvent && event.key !== "Enter" && event.key !== " ") return;
   // if undefined event it is just the onclick event and we want to toggle the project enabled state
+  if (!profile) return;
   await app.projectsService.toggle(profile, project);
   isEnabled = await app.projectsService.isEnabled(profile, project);
 }
