@@ -15,12 +15,12 @@ import { onDestroy } from "svelte";
 // import * as systemApi from "$lib/api/system";
 
 // Authentication state
-let error: string | null = null;
+let error: string | null = $state(null);
 
 // Device Code Flow state
-let deviceCodeData: any = null;
-let isPollingDeviceCode = false;
-let pollInterval: ReturnType<typeof setInterval> | null = null;
+let deviceCodeData: any = $state(null);
+let isPollingDeviceCode = $state(false);
+let pollInterval: ReturnType<typeof setInterval> | null = $state(null);
 
 let isAuthenticating = $derived(app.authService.authenticating);
 

@@ -13,65 +13,60 @@ Falls back to user icon if no skin is available.
 ```
 -->
 <script lang="ts">
-import { Icon, type KableAccount } from "$lib";
+import { type KableAccount, Icon } from "$lib";
 import * as skinview3d from "skinview3d";
-import { onDestroy, onMount } from "svelte";
+import { onDestroy } from "svelte";
 
-export let account: KableAccount | null = null;
-export let size: number = 40;
+let { account = null, size = 40 }: { account?: KableAccount | null; size?: number } = $props();
 
-let canvas: HTMLCanvasElement;
-let skinViewer: any = null;
-let skinUrl = "";
-let isLoading = true;
-let hasError = false;
-let currentUuid = "";
+let canvas: HTMLCanvasElement | undefined = $state();
+let skinViewer: skinview3d.SkinViewer | null = $state(null);
+let skinUrl = $state("");
+let isLoading = $state(true);
+let hasError = $state(false);
+let currentUuid = $state("");
 
-// Load skin when account changes
-$: {
+$effect(() => {
   const uuid = account?.minecraft_profile?.id;
-  if (uuid && uuid !== currentUuid) {
-    // Clean up existing viewer when switching accounts
-    if (skinViewer) {
-      skinViewer.dispose();
-      skinViewer = null;
-    }
+
+  if (!uuid) {
+    currentUuid = "";
     skinUrl = "";
-    currentUuid = uuid;
-    loadSkin(uuid);
-  } else if (!uuid) {
     hasError = true;
     isLoading = false;
-  }
-}
-
-// Initialize viewer when canvas and skinUrl are both ready
-$: if (canvas && skinUrl && !skinViewer) {
-  initSkinViewer();
-}
-
-async function loadSkin(uuid: string) {
-  if (!uuid) {
-    console.log("No UUID provided to loadSkin");
     return;
   }
 
-  console.log("Loading skin for UUID:", uuid);
+  if (uuid === currentUuid) {
+    return;
+  }
+
+  disposeSkinViewer();
+
+  currentUuid = uuid;
+  loadSkin(uuid);
+});
+
+$effect(() => {
+  if (!canvas || !skinUrl || skinViewer) {
+    return;
+  }
+
+  initSkinViewer();
+});
+
+async function loadSkin(uuid: string) {
   isLoading = true;
   hasError = false;
 
   try {
-    // Fetch skin URL from backend (avoids CORS issues)
-    // const url = await skinsApi.getSkinUrlByUuid(uuid);
-    const url = "https://crafatar.com/skins/" + uuid; // TODO: Replace with backend API call once we reworked all APIs..
-    console.log("Skin URL from backend:", url);
+    const url = `https://crafatar.com/skins/${uuid}`;
 
     skinUrl = url;
     isLoading = false;
-    // Canvas will be ready after isLoading becomes false
-    // initSkinViewer will be called by the reactive statement
   } catch (error) {
     console.error("Failed to load skin for UUID:", uuid, error);
+
     hasError = true;
     isLoading = false;
   }
@@ -79,23 +74,12 @@ async function loadSkin(uuid: string) {
 
 function initSkinViewer() {
   if (!canvas || !skinUrl) {
-    console.log("Cannot init skin viewer - missing canvas or skinUrl", {
-      canvas: !!canvas,
-      skinUrl,
-    });
     return;
   }
 
-  // Clean up existing viewer
-  if (skinViewer) {
-    skinViewer.dispose();
-    skinViewer = null;
-  }
+  disposeSkinViewer();
 
   try {
-    console.log("Initializing skin viewer with URL:", skinUrl);
-
-    // Create a small viewer focused on the head
     skinViewer = new skinview3d.SkinViewer({
       canvas,
       width: size,
@@ -103,47 +87,37 @@ function initSkinViewer() {
       skin: skinUrl,
     });
 
-    // Position camera to show just the head (head is at y=24 in Minecraft model)
-    // skinViewer.camera.position.x = -2;
-    // skinViewer.camera.position.y = 12;
-    // skinViewer.camera.position.z = 10;
-    // skinViewer.camera.lookAt(0, 205, 0);
-    // skinViewer.camera.setViewOffset(fullWidth: number, fullHeight: number, x: number, y: number, width: number, height: number)
     skinViewer.camera.setViewOffset(215, 500, 5, -5, 210, 200);
 
-    // Disable controls for static head display
     if (skinViewer.controls) {
       skinViewer.controls.enableRotate = false;
       skinViewer.controls.enableZoom = false;
       skinViewer.controls.enablePan = false;
     }
 
-    // Set idle animation
-    if (skinview3d.IdleAnimation) {
-      skinViewer.animation = new skinview3d.IdleAnimation();
-    }
+    skinViewer.animation = new skinview3d.IdleAnimation();
 
     hasError = false;
     isLoading = false;
-    console.log("Skin viewer initialized successfully");
   } catch (error) {
     console.error("Failed to initialize skin viewer:", error);
+
     hasError = true;
     isLoading = false;
   }
 }
 
-onMount(() => {
-  if (account?.minecraft_profile?.id) {
-    loadSkin(account.minecraft_profile.id);
+function disposeSkinViewer() {
+  if (!skinViewer) {
+    return;
   }
-});
+
+  skinViewer.dispose();
+  skinViewer = null;
+}
 
 onDestroy(() => {
-  if (skinViewer) {
-    skinViewer.dispose();
-    skinViewer = null;
-  }
+  disposeSkinViewer();
 });
 </script>
 
@@ -183,7 +157,7 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, $color-accent, var(--primary-600));
+  background: linear-gradient(135deg, var(--color-accent), var(--primary-600));
   color: white;
   border-radius: 50%;
 }

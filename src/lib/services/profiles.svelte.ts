@@ -102,7 +102,7 @@ export class ProfilesService implements Service {
       case "fabric":
         return "#dbb866"; // Fabric's golden color
       case "forge":
-        return "#466381"; // Forge's dark color
+        return "#1e2d43"; // Forge's dark color
       case "quilt":
         return "#9c5aa0"; // Quilt's purple color
       case "neo_forge":

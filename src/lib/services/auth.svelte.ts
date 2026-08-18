@@ -128,8 +128,8 @@ export class AuthService implements Service {
     if (!account?.access_token) return "offline";
 
     if (account.access_token_expires_at) {
-      const expiryDate = new Date(account.access_token_expires_at);
-      if (expiryDate <= new Date()) return "expired";
+      const expiryDate = new SvelteDate(account.access_token_expires_at);
+      if (expiryDate <= new SvelteDate()) return "expired";
     }
 
     return "online";
@@ -141,7 +141,7 @@ export class AuthService implements Service {
   formatTokenExpiry(account: KableAccount | null, now: number = Date.now()): string {
     if (!account || !account.access_token_expires_at) return "Never expires";
 
-    const expiryDate = new Date(account.access_token_expires_at);
+    const expiryDate = new SvelteDate(account.access_token_expires_at);
     const diff = expiryDate.getTime() - now;
 
     if (diff <= 0) return "Expired";

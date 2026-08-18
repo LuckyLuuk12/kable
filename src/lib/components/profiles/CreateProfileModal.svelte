@@ -19,7 +19,7 @@ import { SvelteMap } from "svelte/reactivity";
 let versionListRef: HTMLSelectElement;
 
 let dialogRef: HTMLDialogElement;
-let availableVersions: Versions = [];
+let availableVersions: Versions = $state([]);
 let loaderOptions: LoaderKind[] = $state([]);
 let selectedLoader: LoaderKind = $state("vanilla");
 let selectedVersionId: string = $state("");
@@ -36,10 +36,11 @@ let showCopySection = $state(false);
 
 const INITIAL_DISPLAY_COUNT = 50;
 const LOAD_MORE_COUNT = 50;
-let displayCount = INITIAL_DISPLAY_COUNT;
+let displayCount = $state(INITIAL_DISPLAY_COUNT);
+const LOADER_ORDER: LoaderKind[] = ["fabric", "iris_fabric", "quilt", "vanilla", "forge", "neo_forge"];
 
 // Get available installations for copying
-let availableProfiles = app.profilesService.profiles;
+let availableProfiles = $derived(app.profilesService.profiles);
 
 // Toggle all copy options
 let allCopyOptionsSelected = $derived(copyMods && copyResourcePacks && copyShaders);
@@ -141,7 +142,7 @@ onMount(async () => {
       availableVersions = await app.launcherService.loadVersions();
     }
 
-    loaderOptions = Array.from(new Set(availableVersions.map((v) => v.loader)));
+    loaderOptions = Array.from(new Set(availableVersions.map((v) => v.loader))).sort((a, b) => LOADER_ORDER.indexOf(a) - LOADER_ORDER.indexOf(b));
     selectedLoader = loaderOptions[0] ?? "vanilla";
     if (filteredVersions.length > 0) {
       selectedVersionId = filteredVersions[0].id;
@@ -221,8 +222,7 @@ function handleBackdropClick(e: MouseEvent) {
           type="button"
           class="loader-btn {selectedLoader === loader ? 'selected' : ''}"
           style="background: {app.profilesService.getLoaderColor(loader)}20; color: {app.profilesService.getLoaderColor(loader)};"
-          onclick={() => (selectedLoader = loader)}
-        >
+          onclick={() => (selectedLoader = loader)}>
           <span class="loader-icon">
             <!-- TODO: Change this to Image and add images for all loaders to the assets -->
             <!-- <Icon
@@ -287,8 +287,7 @@ function handleBackdropClick(e: MouseEvent) {
                   type="checkbox"
                   checked={allCopyOptionsSelected}
                   indeterminate={someCopyOptionsSelected && !allCopyOptionsSelected}
-                  onchange={toggleAllCopyOptions}
-                />
+                  onchange={toggleAllCopyOptions} />
                 <span>Select All</span>
               </label>
             </div>
@@ -354,8 +353,8 @@ function handleBackdropClick(e: MouseEvent) {
 <style lang="scss">
 .create-installation-modal {
   padding: 2rem;
-  background: var(--container);
-  border-radius: var(--border-radius);
+  background: $color-surface-1;
+  border-radius: $radius-lg;
   width: 85%;
   height: 85%;
   max-width: 65vw;
@@ -373,7 +372,7 @@ function handleBackdropClick(e: MouseEvent) {
 
   h2 {
     margin-bottom: 1rem;
-    color: var(--text);
+    color: $color-text;
   }
   form {
     display: flex;
@@ -388,17 +387,19 @@ function handleBackdropClick(e: MouseEvent) {
         align-items: center;
         gap: 0.5rem;
         padding: 0.75rem 1.25rem;
-        border-radius: var(--border-radius);
+        border-radius: $radius-lg;
         border: none;
         font-size: 1rem;
         cursor: pointer;
-        background: var(--container);
-        color: var(--text);
+        background: $color-surface-2;
+        color: $color-text;
         transition: box-shadow 0.2s;
         &.selected {
           box-shadow: 0 0 0 2px $color-accent;
         }
         .loader-icon {
+          width: 1.5rem;
+          height: 1.5rem;
           display: flex;
           align-items: center;
         }
@@ -408,7 +409,7 @@ function handleBackdropClick(e: MouseEvent) {
       }
     }
     label {
-      color: var(--text);
+      color: $color-text;
       font-size: 1rem;
       display: flex;
       flex-direction: column;
@@ -422,10 +423,10 @@ function handleBackdropClick(e: MouseEvent) {
       .version-search {
         width: 100%;
         padding: 0.6rem;
-        border-radius: var(--border-radius);
-        border: 1px solid var(--dark-300);
-        background: var(--card);
-        color: var(--text);
+        border-radius: $radius-lg;
+        border: 1px solid $color-border;
+        background: $color-surface-2;
+        color: $color-text;
         font-size: 1rem;
         transition: border-color 0.2s;
 
@@ -435,17 +436,17 @@ function handleBackdropClick(e: MouseEvent) {
         }
 
         &::placeholder {
-          color: var(--placeholder);
+          color: $color-text-muted;
         }
       }
 
       .version-list {
         width: 100%;
         padding: 0.5rem;
-        border-radius: var(--border-radius);
-        border: 1px solid var(--dark-300);
-        background: var(--card);
-        color: var(--text);
+        border-radius: $radius-lg;
+        border: 1px solid $color-border;
+        background: $color-surface-2;
+        color: $color-text;
         font-size: 0.95rem;
         min-height: 300px;
 
@@ -466,10 +467,10 @@ function handleBackdropClick(e: MouseEvent) {
 
       .load-more-btn {
         padding: 0.5rem 1rem;
-        border-radius: var(--border-radius);
-        border: 1px solid var(--dark-300);
-        background: var(--card);
-        color: var(--text);
+        border-radius: $radius-lg;
+        border: 1px solid $color-border;
+        background: $color-surface-2;
+        color: $color-text;
         font-size: 0.9rem;
         cursor: pointer;
         transition:
@@ -484,14 +485,14 @@ function handleBackdropClick(e: MouseEvent) {
 
       .version-count {
         font-size: 0.85rem;
-        color: var(--placeholder);
+        color: $color-text-muted;
         text-align: center;
         padding: 0.25rem;
       }
 
       .no-results {
         font-size: 0.9rem;
-        color: var(--placeholder);
+        color: $color-text-muted;
         text-align: center;
         padding: 1rem;
         font-style: italic;
@@ -499,15 +500,15 @@ function handleBackdropClick(e: MouseEvent) {
     }
 
     .copy-section {
-      border: 1px solid var(--dark-300);
-      border-radius: var(--border-radius);
+      border: 1px solid $color-border;
+      border-radius: $radius-lg;
       padding: 1rem;
       background: var(--card);
 
       summary {
         cursor: pointer;
         font-weight: 600;
-        color: var(--text);
+        color: $color-text;
         display: flex;
         align-items: center;
         gap: 0.5rem;
@@ -527,10 +528,10 @@ function handleBackdropClick(e: MouseEvent) {
         .source-select {
           width: 100%;
           padding: 0.6rem;
-          border-radius: var(--border-radius);
-          border: 1px solid var(--dark-300);
-          background: var(--input);
-          color: var(--text);
+          border-radius: $radius-lg;
+          border: 1px solid $color-border;
+          background: $color-surface-2;
+          color: $color-text;
           font-size: 0.95rem;
 
           &:focus {
@@ -546,7 +547,7 @@ function handleBackdropClick(e: MouseEvent) {
 
           .copy-option-header {
             padding-bottom: 0.5rem;
-            border-bottom: 1px solid var(--dark-300);
+            border-bottom: 1px solid $color-border;
 
             .toggle-all {
               font-weight: 600;
@@ -565,9 +566,9 @@ function handleBackdropClick(e: MouseEvent) {
             align-items: flex-start;
             gap: 0.75rem;
             padding: 0.75rem;
-            border-radius: var(--border-radius);
-            background: var(--container);
-            border: 1px solid var(--dark-300);
+            border-radius: $radius-lg;
+            background: $color-surface-2;
+            border: 1px solid $color-border;
             cursor: pointer;
             transition: all 0.2s;
 
@@ -596,13 +597,13 @@ function handleBackdropClick(e: MouseEvent) {
 
                 .option-label {
                   font-weight: 500;
-                  color: var(--text);
+                  color: $color-text;
                   font-size: 0.95rem;
                 }
 
                 .option-description {
                   font-size: 0.8rem;
-                  color: var(--placeholder);
+                  color: $color-text-muted;
                   line-height: 1.3;
                 }
               }
@@ -615,9 +616,9 @@ function handleBackdropClick(e: MouseEvent) {
           align-items: center;
           gap: 0.5rem;
           padding: 0.75rem;
-          border-radius: var(--border-radius);
+          border-radius: $radius-lg;
           background: color-mix(in srgb, $color-accent, 5%, transparent);
-          color: var(--placeholder);
+          color: $color-text-muted;
           font-size: 0.85rem;
         }
       }
@@ -628,23 +629,23 @@ function handleBackdropClick(e: MouseEvent) {
       gap: 1rem;
       button {
         padding: 0.5rem 1.5rem;
-        border-radius: var(--border-radius);
+        border-radius: $radius-lg;
         border: none;
         font-size: 1rem;
         cursor: pointer;
         &.btn-primary {
           background: $color-accent;
-          color: var(--text);
+          color: $color-text;
         }
         &.btn-secondary {
-          background: var(--container);
-          color: var(--text);
+          background: $color-surface-2;
+          color: $color-text;
         }
       }
     }
   }
   .error-message {
-    color: var(--red);
+    color: $color-error;
     margin-bottom: 1rem;
   }
 }
