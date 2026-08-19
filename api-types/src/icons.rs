@@ -19,7 +19,7 @@ pub struct IconTemplate {
 
 #[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
 #[facet(rename_all = "snake_case")]
-#[serde(rename_all = "snake_case")]
+#[serde(untagged, rename_all = "snake_case")] // ! NOTE: untagged means we CAN NOT cache this type...
 #[repr(u8)]
 pub enum IconData {
     Full { icon: String, r#type: IconType },

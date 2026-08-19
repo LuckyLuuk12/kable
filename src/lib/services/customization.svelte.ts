@@ -36,6 +36,7 @@ export class CustomizationService implements Service {
   loading = $state(false);
   saving = $state(false);
 
+  iconTemplates = $state<IconTemplate[]>([]);
   selectedIconTemplate = $state<string | null>(null);
 
   selectedSoundpack = $state("default");
@@ -100,6 +101,7 @@ export class CustomizationService implements Service {
       try {
         this.settings = await api.getSettings();
         this.initializeSoundSystem();
+        console.log("[CustomizationService] Loaded customization settings");
       } catch (error) {
         console.error("Failed to load customization settings:", error);
       } finally {
@@ -212,13 +214,28 @@ export class CustomizationService implements Service {
   // #endregion themes
 
   // #region icons
+  private iconTemplatesRequest: Promise<IconTemplate[]> | null = null;
+
   async getIconTemplates(): Promise<IconTemplate[]> {
-    try {
-      return await api.getIconTemplates();
-    } catch (error) {
-      console.error("[CustomizationService] Failed to load icon templates:", error);
-      throw error;
+    if (this.iconTemplatesRequest) {
+      return this.iconTemplatesRequest;
     }
+
+    this.iconTemplatesRequest = (async () => {
+      console.log("[CustomizationService] Fetching icon templates...");
+
+      try {
+        this.iconTemplates = await api.getIconTemplates();
+        return this.iconTemplates;
+      } catch (error) {
+        console.error("[CustomizationService] Failed to load icon templates:", error);
+        throw error;
+      } finally {
+        this.iconTemplatesRequest = null;
+      }
+    })();
+
+    return this.iconTemplatesRequest;
   }
 
   async saveCustomIconTemplate(template: IconTemplate) {
@@ -250,12 +267,14 @@ export class CustomizationService implements Service {
   // Handle getting icons by key/name in current template, if there is no selected template, we use "windows" by default with support of overriding icons with optional parameter:
   async getIcon(key: string, overrideTemplate?: string) {
     // If the type of the selected template is not "builtin" we NEVER use the override template, override template is only used if a builtin is used as builtins match my personal design opinions
-    const selectedTemplateId = this.settings?.appearance?.icon_template ?? overrideTemplate ?? "windows";
-    const templates = await this.getIconTemplates();
-    console.log("[CustomizationService] Getting icon for key:", key, "with overrideTemplate:", overrideTemplate, "selectedTemplateId:", selectedTemplateId, "available templates:", templates.map((t) => t.id));
+    const selectedTemplateId = this.settings?.appearance?.icon_template ?? overrideTemplate ?? "emoji";
+    if (this.iconTemplates?.length === 0) {
+      console.log("[CustomizationService] Icon templates not loaded, fetching...");
+      this.iconTemplates = await this.getIconTemplates();
+    }
+    const templates = this.iconTemplates;
     const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
     const res = selectedTemplate?.icons[key] ?? selectedTemplate?.icons[selectedTemplate?.fallback_icon];
-    console.log("[CustomizationService] Icon result for key:", key, ":", res);
     return res;
   }
 

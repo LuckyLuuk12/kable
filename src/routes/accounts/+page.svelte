@@ -1,5 +1,5 @@
 <script lang="ts">
-import { AccountManager, AccountSwitcher, app, Icon, type LoaderKind } from "$lib";
+import { AccountManager, app, Icon, type LoaderKind } from "$lib";
 import { onMount } from "svelte";
 
 let error: string | null = null;
@@ -62,51 +62,49 @@ function formatSize(sizeMB: number): string {
 </script>
 
 <div class="profile-page">
-  <div class="page-header">
-    <h1>Profile & Account</h1>
-    <p>Manage your Microsoft account and view your Minecraft statistics</p>
-  </div>
+  <header class="page-header">
+    <div class="page-header-content">
+      <span class="page-eyebrow">Account</span>
+      <h1>Profile & Account</h1>
+      <p>Manage your Minecraft accounts and view your launcher statistics.</p>
+    </div>
+  </header>
 
   {#if error}
     <div class="error-message">
       <Icon name="alert" size="sm" />
-      {error}
+      <span>{error}</span>
     </div>
   {/if}
 
-  <div class="profile-sections">
-    <div class="top-row">
-      <section class="profile-section">
-        <div class="section-header">
-          <h2>
-            <Icon name="user" forceType="svg" />
-            Quick Account Switcher
-          </h2>
+  <main class="profile-content">
+    <section class="account-section">
+      <div class="section-heading">
+        <div class="section-heading-icon">
+          <Icon name="user-plus" forceType="svg" />
         </div>
 
-        <AccountSwitcher />
-      </section>
-
-      <section class="profile-section">
-        <div class="section-header">
-          <h2>
-            <Icon name="user-plus" forceType="svg" />
-            Account Management
-          </h2>
+        <div>
+          <h2>Accounts</h2>
+          <p>Manage your Microsoft accounts and choose which one to use with Kable.</p>
         </div>
+      </div>
 
-        <div class="account-management-container">
-          <AccountManager />
-        </div>
-      </section>
-    </div>
+      <div class="account-container">
+        <AccountManager />
+      </div>
+    </section>
 
-    <section class="profile-section stats-section">
-      <div class="section-header">
-        <h2>
+    <section class="stats-section">
+      <div class="section-heading">
+        <div class="section-heading-icon">
           <Icon name="chart" />
-          Minecraft Statistics
-        </h2>
+        </div>
+
+        <div>
+          <h2>Minecraft Statistics</h2>
+          <p>An overview of your Minecraft usage across Kable.</p>
+        </div>
       </div>
 
       <div class="stats-grid">
@@ -304,13 +302,10 @@ function formatSize(sizeMB: number): string {
 
             <div class="stat-content">
               <h4>Favorite Mod Loader</h4>
-
-              <p class="stat-value">
-                {stats.profiles.mostUsedLoader}
-              </p>
-
+              <p class="stat-value">{stats.profiles.mostUsedLoader}</p>
               <p class="stat-subtext">
-                {stats.profiles.loaderCounts[stats.profiles.mostUsedLoader]} profiles
+                {stats.profiles.loaderCounts[stats.profiles.mostUsedLoader]}
+                profiles
               </p>
             </div>
           </div>
@@ -324,21 +319,18 @@ function formatSize(sizeMB: number): string {
 
             <div class="stat-content">
               <h4>Favorite Game Mode</h4>
-
-              <p class="stat-value">
-                {worldStats.mostCommonGameMode}
-              </p>
-
+              <p class="stat-value">{worldStats.mostCommonGameMode}</p>
               <p class="stat-subtext">
-                {worldStats.gameModeCounts[worldStats.mostCommonGameMode]} worlds
+                {worldStats.gameModeCounts[worldStats.mostCommonGameMode]}
+                worlds
               </p>
             </div>
           </div>
         {/if}
 
         {#if worldStats && worldStats.hardcoreCount > 0}
-          <div class="stat-card">
-            <div class="stat-icon" style="color: var(--red)">
+          <div class="stat-card hardcore">
+            <div class="stat-icon">
               <Icon name="skull" size="md" />
             </div>
 
@@ -350,292 +342,5 @@ function formatSize(sizeMB: number): string {
         {/if}
       </div>
     </section>
-  </div>
+  </main>
 </div>
-
-<style lang="scss">
-.profile-page {
-  width: 100%;
-  padding: 0 2rem;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-}
-
-.page-header {
-  margin-bottom: 2rem;
-  text-align: center;
-
-  h1 {
-    margin: 0 0 0.5rem;
-    font-size: 2.5rem;
-    font-weight: 700;
-    background: linear-gradient(135deg, $color-accent, $color-accent-tertiary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  p {
-    margin: 0;
-    color: var(--placeholder);
-    font-size: 1.125rem;
-    line-height: 1.6;
-  }
-}
-
-.profile-sections {
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-}
-
-.top-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  align-items: stretch;
-
-  @media (max-width: 1024px) {
-    grid-template-columns: 1fr;
-  }
-}
-
-.profile-section {
-  position: relative;
-
-  padding: 2rem;
-
-  background: var(--container);
-  border: 1px solid $color-border;
-  border-radius: var(--border-radius-large);
-
-  transition: all 0.3s ease;
-
-  overflow: visible;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-
-  &::before {
-    content: "";
-
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-
-    height: 1px;
-
-    background: linear-gradient(90deg, transparent, #{"color-mix(in srgb, $color-accent, 30%, transparent)"}, transparent);
-  }
-
-  &:hover {
-    border-color: color-mix(in srgb, $color-accent, 30%, transparent);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  }
-
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-
-    border-bottom: 1px solid color-mix(in srgb, var(--dark-600), 50%, transparent);
-
-    h2 {
-      position: relative;
-
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-
-      margin: 0;
-
-      color: var(--text);
-      font-size: 1.25rem;
-      font-weight: 600;
-
-      word-wrap: break-word;
-    }
-  }
-}
-
-.stats-section {
-  grid-column: 1 / -1;
-
-  .stats-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 1.5rem;
-
-    .stat-card {
-      position: relative;
-
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-
-      padding: 1.5rem;
-
-      background: linear-gradient(
-        135deg,
-        #{"color-mix(in srgb, $color-accent, 3%, transparent)"} 0%,
-        #{"color-mix(in srgb, $color-accent-tertiary, 2%, transparent)"} 100%
-      );
-
-      border: 1px solid #{"color-mix(in srgb, var(--dark-600), 60%, transparent)"};
-      border-radius: var(--border-radius);
-
-      transition: all 0.3s ease;
-
-      overflow: hidden;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-
-      &::before {
-        content: "";
-
-        position: absolute;
-        top: 0;
-        left: 0;
-
-        width: 100%;
-        height: 2px;
-
-        background: linear-gradient(90deg, $color-accent, $color-accent-tertiary);
-
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-      }
-
-      &:hover {
-        border-color: color-mix(in srgb, $color-accent, 30%, transparent);
-
-        transform: translateY(-2px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-
-        &::before {
-          transform: translateX(0);
-        }
-      }
-
-      .stat-icon {
-        position: relative;
-
-        display: flex;
-        align-items: center;
-        justify-content: center;
-
-        width: 48px;
-        height: 48px;
-
-        flex-shrink: 0;
-
-        background: linear-gradient(135deg, #{"color-mix(in srgb, $color-accent, 15%, transparent)"}, #{"color-mix(in srgb, $color-accent-tertiary, 10%, transparent)"});
-
-        border-radius: var(--border-radius);
-
-        color: $color-accent;
-
-        &::after {
-          content: "";
-
-          position: absolute;
-          inset: -1px;
-
-          z-index: -1;
-
-          border-radius: var(--border-radius);
-
-          background: linear-gradient(135deg, $color-accent, $color-accent-tertiary);
-
-          opacity: 0.3;
-          filter: blur(4px);
-        }
-      }
-
-      .stat-content {
-        flex: 1;
-
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-
-        h4 {
-          margin: 0 0 0.25rem;
-
-          color: var(--placeholder);
-
-          font-size: 0.875rem;
-          font-weight: 500;
-
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-
-          word-wrap: break-word;
-        }
-
-        .stat-value {
-          margin: 0;
-
-          color: var(--text);
-
-          font-size: 1.25rem;
-          font-weight: 600;
-          line-height: 1.3;
-
-          background: linear-gradient(135deg, $color-accent, $color-accent-tertiary);
-
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
-
-          word-wrap: break-word;
-          overflow-wrap: break-word;
-        }
-
-        .stat-subtext {
-          margin: 0.25rem 0 0;
-
-          color: var(--placeholder);
-
-          font-size: 0.75rem;
-          font-weight: 400;
-
-          opacity: 0.8;
-        }
-      }
-    }
-  }
-}
-
-.error-message {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-
-  margin-bottom: 1rem;
-  padding: 1rem;
-
-  background: color-mix(in srgb, var(--red), 10%, transparent);
-
-  border: 1px solid var(--red);
-  border-radius: var(--border-radius);
-
-  color: var(--red);
-}
-
-@media (max-width: 768px) {
-  .profile-section {
-    padding: 1rem;
-  }
-
-  .stats-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  .top-row {
-    grid-template-columns: 1fr !important;
-  }
-}
-</style>

@@ -83,6 +83,7 @@ pub fn run() {
             // #region Accounts
             api::start_authentication,
             api::poll_authentication,
+            api::authenticate,
             api::list_accounts,
             api::add_account,
             api::remove_account,

@@ -104,6 +104,13 @@ pub struct MinecraftProfile {
     pub requires_skin_change: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct MinecraftProfileResponse {
+    pub id: String,
+    pub name: String,
+}
+
 // ? Impl launcher account json into kable account json
 impl From<LauncherAccount> for KableAccount {
     fn from(launcher_account: LauncherAccount) -> Self {

@@ -165,14 +165,16 @@ async fn replace_variables(profile: &KableProfile, manifest: &McVersionManifest,
     result = result.replace("${assets_index_name}", asset_index);
     result = result.replace("${assets_root}", &assets_root.to_string_lossy());
 
-    result = result.replace("${auth_access_token}", &active_account.access_token);
-    result = result.replace("${auth_player_name}", &active_account.minecraft_profile.name);
-    result = result.replace("${auth_uuid}", &active_account.minecraft_profile.id);
-    result = result.replace("${auth_xuid}", &active_account.remote_id);
-    result = result.replace("${clientId}", &active_account.minecraft_profile.id);
+    if let Some(active_account) = active_account {
+        result = result.replace("${auth_access_token}", &active_account.access_token);
+        result = result.replace("${auth_player_name}", &active_account.minecraft_profile.name);
+        result = result.replace("${auth_uuid}", &active_account.minecraft_profile.id);
+        result = result.replace("${auth_xuid}", &active_account.remote_id);
+        result = result.replace("${clientId}", &active_account.minecraft_profile.id);
+        result = result.replace("${user_type}", &active_account.account_type);
+    }
 
     result = result.replace("${game_directory}", &mc_root.to_string_lossy());
-    result = result.replace("${user_type}", &active_account.account_type);
 
     result = result.replace("${version_name}", &profile.version.id);
     result = result.replace("${version_type}", &profile.version.version_type.clone().unwrap_or(ProfileVersionType::Release).to_string());

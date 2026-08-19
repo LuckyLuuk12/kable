@@ -10,26 +10,22 @@ navigation and responsive mini-nav sidebar.
 ```
 -->
 <script lang="ts">
-import { onMount } from "svelte";
 import { AdvancedSettingsUI, AppearanceSettingsUI, ContentSettingsUI, GeneralSettingsUI, LoggingSettingsUI, MiscSettingsUI, NetworkSettingsUI } from ".";
 
 const sections = ["general", "appearance", "logging", "content", "network", "advanced", "misc"] as const;
 
-let currentSection = $state<(typeof sections)[number]>("general");
-let miniNavElement = $state<HTMLElement | null>(null);
+type Section = (typeof sections)[number];
+
+let currentSection = $state<Section>("general");
 let settingsElement = $state<HTMLDivElement | null>(null);
-let miniNavWidth = $state(0);
 
-let resizeObserver: ResizeObserver | null = null;
-let sectionObserver: IntersectionObserver | null = null;
-
-function scrollToSection(section: (typeof sections)[number]) {
+function scrollToSection(section: Section) {
   const element = document.getElementById(section);
   if (!element || !settingsElement) return;
 
   currentSection = section;
 
-  const top = element.offsetTop - settingsElement.offsetTop;
+  const top = element.getBoundingClientRect().top - settingsElement.getBoundingClientRect().top + settingsElement.scrollTop;
 
   settingsElement.scrollTo({
     top,
@@ -37,60 +33,45 @@ function scrollToSection(section: (typeof sections)[number]) {
   });
 }
 
-onMount(() => {
-  if (miniNavElement) {
-    miniNavWidth = miniNavElement.offsetWidth;
+$effect(() => {
+  const element = settingsElement;
+  if (!element) return;
 
-    if ("ResizeObserver" in window) {
-      resizeObserver = new ResizeObserver(() => {
-        if (miniNavElement) {
-          miniNavWidth = miniNavElement.offsetWidth;
-        }
-      });
+  const updateCurrentSection = () => {
+    const containerTop = element.getBoundingClientRect().top;
 
-      resizeObserver.observe(miniNavElement);
-    }
-  }
+    let closestSection: Section = sections[0];
+    let closestDistance = Infinity;
 
-  if (!settingsElement) return;
+    for (const section of sections) {
+      const sectionElement = document.getElementById(section);
+      if (!sectionElement) continue;
 
-  const sectionElements = sections.map((section) => document.getElementById(section)).filter((element): element is HTMLElement => element !== null);
+      const distance = Math.abs(sectionElement.getBoundingClientRect().top - containerTop);
 
-  sectionObserver = new IntersectionObserver(
-    (entries) => {
-      const visibleSections = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-
-      if (visibleSections.length > 0) {
-        const section = visibleSections[0].target.id;
-
-        if (sections.includes(section as (typeof sections)[number])) {
-          currentSection = section as (typeof sections)[number];
-        }
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestSection = section;
       }
-    },
-    {
-      root: settingsElement,
-      threshold: [0.1, 0.25, 0.5, 0.75],
-      rootMargin: "-5% 0px -60% 0px",
-    },
-  );
+    }
 
-  for (const element of sectionElements) {
-    sectionObserver.observe(element);
-  }
+    currentSection = closestSection;
+  };
+
+  element.addEventListener("scroll", updateCurrentSection, {
+    passive: true,
+  });
+
+  updateCurrentSection();
 
   return () => {
-    sectionObserver?.disconnect();
-    resizeObserver?.disconnect();
-
-    sectionObserver = null;
-    resizeObserver = null;
+    element.removeEventListener("scroll", updateCurrentSection);
   };
 });
 </script>
 
-<div class="settings-content" style={`--mini-nav-width: ${miniNavWidth}px`}>
-  <nav class="mini-nav" bind:this={miniNavElement} aria-label="Settings sections">
+<div class="settings-content">
+  <nav class="mini-nav" aria-label="Settings sections">
     {#each sections as section (section)}
       <a
         href={`#${section}`}
@@ -139,62 +120,104 @@ onMount(() => {
 
 <style lang="scss">
 .settings-content {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 2rem;
+
   width: 100%;
-  max-height: 80vh;
+  height: calc(100vh - 3 * $space-md);
   min-height: 0;
+  padding: $space-md;
+
+  overflow: hidden;
 }
 
 .mini-nav {
-  position: fixed;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  flex: 0 0 auto;
-  min-width: fit-content;
+  gap: 0.35rem;
+
   align-self: center;
-  transform: translateY(-40%);
+
+  min-width: 9rem;
+  padding: 0.5rem;
+
+  border: 1px solid $color-border-muted;
+  border-radius: $radius-xl;
+
+  background: color-mix(in srgb, $color-surface-1 70%, transparent);
+  box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.06);
 }
 
 .mini-nav a {
-  color: $color-accent-tertiary;
-  text-decoration: none;
   position: relative;
-  padding-bottom: 2px;
-  transition: all 0.4s ease;
 
-  &.active {
-    color: $color-accent;
-  }
+  display: flex;
+  align-items: center;
 
-  &:hover {
-    transform: scale(1.15) translateY(-0.15rem) translateX(0.15rem);
-  }
+  min-height: 2.25rem;
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
+
+  border-radius: $radius-md;
+
+  color: $color-text-muted;
+  text-decoration: none;
+
+  font-size: 0.875rem;
+  font-weight: 500;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 
   &::before {
     content: "";
+
     position: absolute;
-    left: 0;
-    bottom: 0;
-    width: 100%;
-    height: 2px;
-    background: $color-accent-tertiary;
-    border-radius: 2px;
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 1;
-  }
+    left: 0.35rem;
+    top: 50%;
 
-  &:hover::before {
-    transform: scaleX(1);
-  }
+    width: 0.2rem;
+    height: 0.4rem;
 
-  &.active::before {
+    border-radius: 999px;
+
     background: $color-accent;
+
+    opacity: 0;
+    transform: translateY(-50%) scaleY(0.5);
+
+    transition:
+      opacity 0.2s ease,
+      height 0.2s ease,
+      transform 0.2s ease;
+  }
+
+  &:hover {
+    color: $color-text;
+    background: $color-surface-2;
+    transform: translateX(0.15rem);
+  }
+
+  &.active {
+    color: $color-accent;
+
+    background: color-mix(in srgb, $color-accent 10%, $color-surface-1);
+
+    &::before {
+      height: 1.25rem;
+      opacity: 1;
+      transform: translateY(-50%) scaleY(1);
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+
+    box-shadow:
+      0 0 0 2px $color-focus,
+      0 0 0 4px color-mix(in srgb, $color-focus 20%, transparent);
   }
 }
 
@@ -202,11 +225,12 @@ onMount(() => {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  flex: 1 1 0;
+
   min-width: 0;
-  max-height: 100%;
+  min-height: 0;
+
   overflow-y: auto;
-  margin-left: calc(var(--mini-nav-width, 120px) + 2rem);
+  overflow-x: hidden;
 }
 
 .settings > section {

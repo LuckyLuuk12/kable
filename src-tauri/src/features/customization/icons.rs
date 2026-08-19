@@ -46,8 +46,6 @@ pub async fn get_builtin_icon_templates() -> Result<Vec<IconTemplate>, String> {
 
     let mut templates = Vec::new();
     for path in paths {
-        Logger::info_global(format!("Loading built-in icon template: {:?}", path).as_str(), None);
-
         let content = match read_str(&path).await {
             Ok(content) => content,
             Err(err) => {
@@ -66,7 +64,6 @@ pub async fn get_builtin_icon_templates() -> Result<Vec<IconTemplate>, String> {
             }
         }
     }
-    Logger::info_global(format!("Loaded built-in icon templates: {:?}", templates).as_str(), None);
     Ok(templates)
 }
 

@@ -7,13 +7,14 @@ use crate::constants::{
     DEFAULT_AZURE_CLIENT_ID, DEFAULT_AZURE_REDIRECT_URI, DEFAULT_OAUTH_PORT, DEVICE_CODE_URL, MSA_AUTHORIZE_URL, MSA_TOKEN_URL,
 };
 use crate::system::net::async_http_client;
-use api_types::auth::{DeviceCodeResponse, MicrosoftToken};
+use api_types::auth::{DeviceCodeResponse, MicrosoftToken, MinecraftProfileResponse};
 use api_types::Timestamp;
 use chrono::{Duration, Utc};
 use oauth2::{
     basic::BasicClient, AuthUrl, ClientId, DeviceAuthorizationUrl, Scope, StandardDeviceAuthorizationResponse, TokenResponse, TokenUrl,
 };
 use once_cell::sync::Lazy;
+use reqwest::Client;
 use std::collections::HashMap;
 use std::env::var;
 use std::sync::{Arc, Mutex};
@@ -127,4 +128,22 @@ pub async fn refresh_microsoft_token(token: MicrosoftToken) -> Result<MicrosoftT
         expires_at: Timestamp(new_expires_at),
         refresh_token: token_result.refresh_token().map(|rt| rt.secret().to_string()),
     })
+}
+
+pub async fn fetch_minecraft_profile(access_token: &str) -> Result<MinecraftProfileResponse, String> {
+    let response = Client::new()
+        .get("https://api.minecraftservices.com/minecraft/profile")
+        .bearer_auth(access_token)
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch Minecraft profile: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response.text().await.unwrap_or_default();
+
+        return Err(format!("Minecraft profile API returned {}: {}", status, body));
+    }
+
+    response.json::<MinecraftProfileResponse>().await.map_err(|e| format!("Failed to parse Minecraft profile: {}", e))
 }

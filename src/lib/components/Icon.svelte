@@ -16,7 +16,7 @@ Automatically selects the appropriate icon type based on the IconService configu
 ```
 -->
 <script lang="ts">
-import { app, type IconData } from "$lib";
+import { app, type IconData, type IconType } from "$lib";
 import { onMount } from "svelte";
 
 let {
@@ -26,7 +26,7 @@ let {
   forceType = undefined,
 }: { name: string; size?: "sm" | "md" | "lg" | "xl"; className?: string; forceType?: string | undefined } = $props();
 
-let iconData: IconData | undefined;
+let iconData: IconData | undefined = $state({ icon: "❓", type: "emoji" });
 
 // Size mappings
 const sizeClasses = {
@@ -50,7 +50,6 @@ $effect(() => {
 
 async function updateIcon() {
   iconData = await app.customizationService.getIcon(name, forceType);
-  console.log("Icon:", name, "forceType:", forceType, "result:", iconData);
 }
 
 // Validate SVG content for security
@@ -80,9 +79,23 @@ function isValidSvg(content: string): boolean {
   return !dangerousPatterns.some((pattern) => pattern.test(content));
 }
 
-// Reactive statements for rendering
-let type = $derived(iconData?.full?.type || null);
-let icon = $derived(iconData?.full?.icon ?? iconData?.legacy ?? "❓");
+function detectIconType(icon: string): IconType {
+  const trimmed = icon.trim();
+
+  if (trimmed.startsWith("<")) {
+    return "svg";
+  }
+
+  if (trimmed.startsWith("fa ")) {
+    return "css_class";
+  }
+
+  return "emoji";
+}
+
+let type = $derived(typeof iconData === "string" ? detectIconType(iconData) : (iconData?.type ?? null));
+
+let icon = $derived(typeof iconData === "string" ? iconData : (iconData?.icon ?? "❓"));
 
 // Log warning if SVG type but invalid content
 $effect(() => {

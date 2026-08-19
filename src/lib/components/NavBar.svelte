@@ -164,7 +164,8 @@ onDestroy(() => {
         class="user-profile"
         class:active={currentPath === "/accounts"}
         data-title="Account Settings"
-        aria-label="Account Settings">
+        aria-label="Account Settings"
+      >
         <div class="user-avatar">
           <PlayerHead account={activeAccount} size={40} />
         </div>
@@ -182,7 +183,8 @@ onDestroy(() => {
         class="hamburger-btn"
         onclick={toggleNavigation}
         aria-label={isNavCollapsed ? "Expand navigation" : "Collapse navigation"}
-        data-title={isNavCollapsed ? "Expand navigation (Ctrl+B)" : "Collapse navigation (Ctrl+B)"}>
+        data-title={isNavCollapsed ? "Expand navigation (Ctrl+B)" : "Collapse navigation (Ctrl+B)"}
+      >
         <Icon name={isNavCollapsed ? "arrow-right" : "arrow-left"} size="lg" forceType="svg" />
       </button>
     </div>
@@ -205,7 +207,8 @@ onDestroy(() => {
         class="nav-item settings-item"
         class:active={currentPath === "/settings"}
         data-title="Settings"
-        aria-label="Settings">
+        aria-label="Settings"
+      >
         <Icon name="settings" size="md" className="nav-icon" />
         <span class="label" class:collapsed={isNavCollapsed}>Settings</span>
       </a>

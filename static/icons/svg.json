@@ -8,8 +8,8 @@
     "Kable"
   ],
   "description": "Clean SVG-based icons",
-  "iconType": "svg",
-  "fallbackIcon": "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='10'/><path d='M9,9h6v6H9z'/></svg>",
+  "icon_type": "svg",
+  "fallback_icon": "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='10'/><path d='M9,9h6v6H9z'/></svg>",
   "icons": {
     "activity": "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><polyline points='22,12 18,12 15,21 9,3 6,12 2,12'/></svg>",
     "air": "<svg viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2'/><path d='M9.6 4.6A2 2 0 1 1 11 8H2'/><path d='M12.6 19.4A2 2 0 1 0 14 16H2'/></svg>",

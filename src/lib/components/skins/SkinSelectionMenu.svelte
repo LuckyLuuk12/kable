@@ -300,7 +300,8 @@ function getModel(m: string): "classic" | "slim" | "auto" {
                 tabindex="0"
                 class:current={SkinsService.isSkinActive(skin)}
                 on:mouseenter={() => (hoveredSkinId = skin.id)}
-                on:mouseleave={() => (hoveredSkinId = null)}>
+                on:mouseleave={() => (hoveredSkinId = null)}
+              >
                 <div class="preview">
                   {#if skin.url}
                     <SkinViewer3D skinUrl={skin.url} height={140} model={getModel(skin.model)} animation={hoveredSkinId === skin.id ? "walk" : "idle"} />
@@ -322,12 +323,14 @@ function getModel(m: string): "classic" | "slim" | "auto" {
                   <div class="actions">
                     {#if !SkinsService.isSkinActive(skin)}
                       <button use:successSound class="apply" on:click={() => handleApplySkin(skin.id)} disabled={loading}
-                        ><Icon name="check" size="sm" forceType="svg" />Apply</button>
+                        ><Icon name="check" size="sm" forceType="svg" />Apply</button
+                      >
                     {/if}
                     <button use:clickSound on:click={() => openEditModal(skin)} disabled={loading} title="Edit"><Icon name="edit" size="sm" /></button>
                     {#if !SkinsService.isSkinActive(skin)}
                       <button use:errorSound class="danger" on:click={(e) => removeSkin(skin.id, e)} disabled={loading} title="Remove"
-                        ><Icon name="trash" size="sm" /></button>
+                        ><Icon name="trash" size="sm" /></button
+                      >
                     {/if}
                   </div>
                 </div>
@@ -380,11 +383,13 @@ function getModel(m: string): "classic" | "slim" | "auto" {
         <label
           >Cape <select bind:value={editCapeId}
             ><option value="">None</option>{#each capes as c}<option value={c.id}>{SkinsService.getCapeDisplayName(c)}</option>{/each}</select
-          ></label>
+          ></label
+        >
         <label
           >Model <div class="radio-group">
             <label><input type="radio" bind:group={editSlim} value={false} />Classic</label><label><input type="radio" bind:group={editSlim} value={true} />Slim</label>
-          </div></label>
+          </div></label
+        >
       </div>
       <div class="modal-footer">
         <button use:clickSound on:click={() => (showEditModal = false)}>Cancel</button>

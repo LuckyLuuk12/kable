@@ -8,8 +8,8 @@
     "Kable"
   ],
   "description": "Default emoji-based icons",
-  "iconType": "emoji",
-  "fallbackIcon": "❓",
+  "icon_type": "emoji",
+  "fallback_icon": "❓",
   "icons": {
     "activity": "📊",
     "air": "💨",

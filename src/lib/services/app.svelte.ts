@@ -56,10 +56,31 @@ export class AppService {
     console.log("Creating AppService...");
   }
 
+  private initPromise: Promise<void> | null = null;
+
   async initAll() {
-    for (const s of this.services) {
-      await s.init();
+    if (this.initPromise) {
+      return this.initPromise;
     }
+
+    this.initPromise = this.initialize();
+
+    try {
+      await this.initPromise;
+    } catch (error) {
+      this.initPromise = null;
+      throw error;
+    }
+  }
+
+  private async initialize() {
+    console.log("[AppService] Initializing all services...");
+
+    for (const service of this.services) {
+      await service.init();
+    }
+
+    console.log("[AppService] All services initialized.");
   }
 
   async destroyAll() {
@@ -141,4 +162,16 @@ export class AppService {
   // #endregion Modal
 }
 
-export const app = new AppService();
+let app: AppService;
+// This is some voodoo magic for HMR (Hot Module Replacement) to preserve the app instance across reloads
+if (import.meta.hot?.data.app) {
+  app = import.meta.hot.data.app;
+} else {
+  app = new AppService();
+
+  if (import.meta.hot) {
+    import.meta.hot.data.app = app;
+  }
+}
+
+export { app };

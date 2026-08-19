@@ -427,7 +427,8 @@ async function copyToClipboard(text: string) {
           onclick={() => {
             showCreateModal = false;
             modalError = null;
-          }}>
+          }}
+        >
           <Icon name="x" />
         </button>
       </div>
@@ -478,7 +479,8 @@ async function copyToClipboard(text: string) {
           onclick={() => {
             showCreateModal = false;
             modalError = null;
-          }}>Cancel</button>
+          }}>Cancel</button
+        >
         <button class="btn-primary" onclick={handleCreateSymlink}>Create</button>
       </div>
     </div>

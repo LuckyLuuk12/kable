@@ -51,6 +51,10 @@ select,
 textarea {
   font: inherit;
   color: inherit;
+  background: $color-surface-3;
+  border-radius: $radius-md !important;
+  border: 1px solid $color-accent;
+  outline: none;
 }
 
 button {
@@ -76,7 +80,7 @@ html {
 //Scrollbar system (consistent UI layer)
 * {
   scrollbar-width: thin;
-  scrollbar-color: $color-placeholder transparent;
+  scrollbar-color: $color-accent transparent;
 }
 
 *::-webkit-scrollbar {
@@ -85,7 +89,7 @@ html {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: $color-placeholder;
+  background: $color-accent;
   border-radius: $layout-scrollbar-radius;
 }
 
