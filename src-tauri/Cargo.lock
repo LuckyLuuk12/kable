@@ -2970,6 +2970,7 @@ dependencies = [
  "uuid 1.23.3",
  "walkdir",
  "windows-sys 0.61.2",
+ "windows-version",
  "zip 8.6.0",
 ]
 

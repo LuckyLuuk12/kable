@@ -1,5 +1,9 @@
-use crate::{features::launcher::resolver, features::launcher::runtime_inject};
+use crate::{
+    features::launcher::{resolver, runtime_inject},
+    Logger,
+};
 use api_types::{launcher::LaunchResult, profiles::KableProfile};
+use std::process::Command;
 use std::process::Stdio;
 use tokio::process::Command as TokioCommand;
 
@@ -9,6 +13,7 @@ pub async fn launch_game(
 ) -> Result<LaunchResult, String> {
     // 1. Resolve and prepare the command
     let cmd = resolver::resolve(profile.clone()).await?;
+    log_command(&cmd, &profile);
     // 3. Spawn process and track it with runtime injection
     let mut tokio_cmd = TokioCommand::new(cmd.get_program());
     tokio_cmd.args(cmd.get_args());
@@ -29,7 +34,38 @@ pub async fn launch_game(
     runtime.run(pipeline).await?;
 
     // Update last used timestamp for the profile
-    let _ = crate::features::profiles::management::update_last_used(profile).await?;
-
+    let _ = crate::features::profiles::management::update_last_used(profile.clone()).await?;
+    Logger::debug_global(format!("Game launched with PID: {}, Runtime ID: {}", pid, runtime_id).as_str(), Some(profile.id.as_str()));
     Ok(LaunchResult { pid, runtime_id: runtime_id.to_string(), command: format!("{:?}", cmd) })
+}
+
+fn log_command(cmd: &Command, profile: &KableProfile) {
+    let program = cmd.get_program().to_string_lossy();
+
+    let mut redact_next = false;
+
+    let args = cmd
+        .get_args()
+        .map(|arg| {
+            let arg = arg.to_string_lossy();
+
+            if redact_next {
+                redact_next = false;
+                return "<redacted>".to_string();
+            }
+
+            if matches!(arg.as_ref(), "--accessToken" | "--clientId" | "--xuid") {
+                redact_next = true;
+            }
+
+            if arg.contains(' ') || arg.contains(';') {
+                format!("{arg:?}")
+            } else {
+                arg.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    Logger::debug_global(format!("Launching game: {program:?} {args}").as_str(), Some(profile.id.as_str()));
 }
