@@ -4,6 +4,16 @@ use crate::features::profiles::kable_profile::{load_profiles, save_profiles};
 use api_types::profiles::KableProfile;
 use api_types::projects::KableProject;
 
+pub async fn save_profile(profile: KableProfile) -> Result<KableProfile, String> {
+    let mut profiles = load_profiles().await?;
+    if profiles.iter().any(|p| p.id == profile.id) {
+        return Err(format!("Profile with id {} already exists", profile.id));
+    }
+    profiles.push(profile.clone());
+    save_profiles(&profiles).await?;
+    Ok(profile)
+}
+
 pub async fn get_profile(profile_id: &str) -> Result<KableProfile, String> {
     let profiles = load_profiles().await?;
     profiles.into_iter().find(|p| p.id == profile_id).ok_or_else(|| format!("Profile with id {} not found", profile_id))

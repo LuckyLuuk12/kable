@@ -120,7 +120,10 @@ export class AppService {
   // #region Modal
   public readonly stack = $state<ModalInstance[]>([]);
 
-  public show<TResult = void>(component: Component, props: Record<string, unknown> = {}): Promise<TResult> {
+  public show<TResult = void, TProps extends Record<string, unknown> = Record<string, unknown>>(
+    component: Component<TProps>,
+    props: TProps = {} as TProps,
+  ): Promise<TResult> {
     return new Promise<TResult>((resolve) => {
       this.stack.push({
         id: crypto.randomUUID(),

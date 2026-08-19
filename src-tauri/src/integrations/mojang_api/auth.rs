@@ -19,6 +19,8 @@ use std::collections::HashMap;
 use std::env::var;
 use std::sync::{Arc, Mutex};
 
+const MSA_SCOPE: &str = "XboxLive.signin offline_access";
+
 /// ! Global state to store device authorization responses for polling
 static DEVICE_AUTH_STORAGE: Lazy<Arc<Mutex<HashMap<String, StandardDeviceAuthorizationResponse>>>> =
     Lazy::new(|| Arc::new(Mutex::new(HashMap::new())));
@@ -55,7 +57,7 @@ pub async fn start_authentication() -> Result<DeviceCodeResponse, String> {
         .set_device_authorization_url(DeviceAuthorizationUrl::new(DEVICE_CODE_URL.to_string()).unwrap());
     let details: StandardDeviceAuthorizationResponse = client
         .exchange_device_code()
-        .add_scope(Scope::new("XboxLive.signin offline_access".to_string()))
+        .add_scope(Scope::new(MSA_SCOPE.to_string()))
         .request_async(&async_http_client)
         .await
         .map_err(|e| e.to_string())?;
@@ -117,6 +119,7 @@ pub async fn refresh_microsoft_token(token: MicrosoftToken) -> Result<MicrosoftT
 
     let token_result = client
         .exchange_refresh_token(&oauth2::RefreshToken::new(refresh_token))
+        .add_scope(Scope::new(MSA_SCOPE.to_string()))
         .request_async(&async_http_client)
         .await
         .map_err(|e| format!("Failed to refresh token: {}", e))?;

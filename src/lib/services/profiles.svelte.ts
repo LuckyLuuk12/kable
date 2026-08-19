@@ -19,7 +19,6 @@ export type AccountStatistics = {
 
 export class ProfilesService implements Service {
   profiles = $state<KableProfile[]>([]);
-  activeProfileId = $state<string | null>(null);
 
   loaded = $state(false);
   loading = $state(false);
@@ -29,19 +28,14 @@ export class ProfilesService implements Service {
 
     this.loading = true;
     try {
-      const [profiles, activeAccount] = await Promise.all([api.getProfiles(), api.getActiveAccount()]);
+      const [profiles] = await Promise.all([api.getProfiles()]);
 
       this.profiles = profiles;
-      this.activeProfileId = activeAccount?.minecraft_profile.id ?? null;
 
       this.loaded = true;
     } finally {
       this.loading = false;
     }
-  }
-
-  get activeProfile(): KableProfile | null {
-    return this.profiles.find((p) => p.id === this.activeProfileId) ?? null;
   }
 
   async refreshProfiles() {
@@ -56,14 +50,13 @@ export class ProfilesService implements Service {
     }
   }
 
-  async setActive(profile: KableProfile) {
-    try {
-      await api.setActiveAccount(profile as unknown as KableAccount);
-
-      this.activeProfileId = profile.id;
-    } catch (e) {
-      console.error("Failed to set active profile", e);
-    }
+  /**
+   * Creates a deep clone of the given profile object in memory. This is useful for creating a temporary copy of a profile for editing purposes without affecting the original profile until changes are saved.
+   * @param profile The profile to clone.
+   * @returns A deep clone of the given profile.
+   */
+  memoryClone(profile: KableProfile): KableProfile {
+    return JSON.parse(JSON.stringify(profile));
   }
 
   async add(profile: KableProfile) {
@@ -125,7 +118,7 @@ export class ProfilesService implements Service {
       case "quilt":
         return "quilt";
       case "neo_forge":
-        return "neo_forge";
+        return "neoforge";
       case "iris_fabric":
         return "iris_fabric";
       default:
@@ -141,16 +134,13 @@ export class ProfilesService implements Service {
     }
 
     this.profiles = this.profiles.filter((p) => p.id !== id);
-
-    if (this.activeProfileId === id) {
-      this.activeProfileId = null;
-    }
   }
 
   async createProfile(versionId: string, baseProfile: KableProfile | null = null, exportedZip: string | null = null, mrpack: string | null = null) {
     try {
       // TODO: change to versionId, baseProfile, exportedZip, mrpack, instead of 3 nulls
       const newProfile = await api.createProfile(versionId, baseProfile, exportedZip, mrpack);
+      console.log("[Profiles] Created new profile:", newProfile?.metadata.name);
       this.profiles = [...this.profiles, newProfile];
     } catch (e) {
       console.error("Failed to create profile", e);
@@ -237,7 +227,6 @@ export class ProfilesService implements Service {
 
   async destroy() {
     this.profiles = [];
-    this.activeProfileId = null;
     this.loaded = false;
   }
 }

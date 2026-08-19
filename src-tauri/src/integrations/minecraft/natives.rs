@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::integrations::minecraft::versions::types::{Library, LibraryDownloads};
+use crate::integrations::minecraft::versions::types::Library;
 
 pub struct NativeResolver {
     pub mc_root: PathBuf,
@@ -29,11 +29,11 @@ impl NativeResolver {
         let mut seen = HashSet::new();
 
         for lib in libs {
-            let Some(download) = &lib.downloads else {
+            if !self.is_allowed(lib) {
                 continue;
-            };
+            }
 
-            let Some((url, jar_path)) = self.resolve_native_artifact(lib, download)? else {
+            let Some((url, jar_path)) = self.resolve_native_artifact(lib)? else {
                 continue;
             };
 
@@ -44,6 +44,10 @@ impl NativeResolver {
             }
 
             if !self.file_exists(&full_jar_path) {
+                if let Some(parent) = full_jar_path.parent() {
+                    crate::system::fs::create_dir(parent).await?;
+                }
+
                 crate::system::net::download_to_file(&url, &full_jar_path).await?;
             }
 
@@ -53,86 +57,151 @@ impl NativeResolver {
         Ok(target_dir)
     }
 
-    fn resolve_native_artifact(&self, lib: &Library, downloads: &LibraryDownloads) -> Result<Option<(String, PathBuf)>, String> {
-        let artifact = match &downloads.artifact {
-            Some(a) => a,
-            None => return Ok(None),
-        };
-
-        let Some(name) = &lib.name else {
+    fn resolve_native_artifact(&self, lib: &Library) -> Result<Option<(String, PathBuf)>, String> {
+        let Some(os) = self.native_os() else {
             return Ok(None);
         };
 
-        let classifier = self.native_classifier();
-
-        if classifier.is_none() {
+        let Some(natives) = &lib.natives else {
             return Ok(None);
-        }
-
-        let classifier = classifier.unwrap();
-
-        let base = name.split(':').collect::<Vec<&str>>();
-
-        if base.len() < 3 {
-            return Ok(None);
-        }
-
-        let group = base[0];
-        let artifact_id = base[1];
-        let version = base[2];
-
-        let jar_name = format!("{}/{}/{}/{}-{}-{}.jar", group.replace('.', "/"), artifact_id, version, artifact_id, version, classifier);
-
-        let url = match &artifact.url {
-            Some(u) => u.clone(),
-            None => return Ok(None),
         };
 
-        Ok(Some((url, self.libraries_dir.join(jar_name))))
+        let Some(classifier) = natives.get(os) else {
+            return Ok(None);
+        };
+
+        let Some(downloads) = &lib.downloads else {
+            return Ok(None);
+        };
+
+        let Some(classifiers) = &downloads.classifiers else {
+            return Ok(None);
+        };
+
+        let Some(artifact) = classifiers.get(classifier) else {
+            return Ok(None);
+        };
+
+        let Some(url) = &artifact.url else {
+            return Ok(None);
+        };
+
+        let Some(path) = &artifact.path else {
+            return Ok(None);
+        };
+
+        Ok(Some((url.clone(), PathBuf::from(path))))
     }
 
-    fn native_classifier(&self) -> Option<&'static str> {
+    fn native_os(&self) -> Option<&'static str> {
         match std::env::consts::OS {
-            "windows" => Some("natives-windows"),
-            "linux" => Some("natives-linux"),
-            "macos" => Some("natives-osx"),
+            "windows" => Some("windows"),
+            "linux" => Some("linux"),
+            "macos" => Some("osx"),
             _ => None,
         }
     }
 
     fn extract_natives(&self, jar_path: &Path, target_dir: &Path) -> Result<(), String> {
-        let file = std::fs::File::open(jar_path).map_err(|e| format!("Failed to open native jar: {e}"))?;
+        let file = std::fs::File::open(jar_path).map_err(|e| format!("Failed to open native jar {}: {e}", jar_path.display()))?;
 
-        let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("Failed to read zip: {e}"))?;
+        let mut archive = zip::ZipArchive::new(file).map_err(|e| format!("Failed to read native jar {}: {e}", jar_path.display()))?;
 
         for i in 0..archive.len() {
-            let mut entry = archive.by_index(i).map_err(|e| format!("Zip read error: {e}"))?;
+            let mut entry = archive.by_index(i).map_err(|e| format!("Zip read error in {}: {e}", jar_path.display()))?;
 
-            let name = entry.name().to_string();
-
-            if !self.is_native_file(&name) {
+            if entry.is_dir() {
                 continue;
             }
 
-            let out_path = target_dir.join(name);
+            let name = entry.name();
 
-            if let Some(parent) = out_path.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create dirs: {e}"))?;
+            if !Self::is_native_file(name) {
+                continue;
             }
 
-            let mut outfile = std::fs::File::create(&out_path).map_err(|e| format!("Failed to write native: {e}"))?;
+            let relative_path = Path::new(name);
 
-            std::io::copy(&mut entry, &mut outfile).map_err(|e| format!("Failed to extract native: {e}"))?;
+            if relative_path.is_absolute()
+                || relative_path.components().any(|component| matches!(component, std::path::Component::ParentDir))
+            {
+                return Err(format!("Unsafe path in native jar {}: {name}", jar_path.display()));
+            }
+
+            let out_path = target_dir.join(relative_path);
+
+            if let Some(parent) = out_path.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| format!("Failed to create native directory {}: {e}", parent.display()))?;
+            }
+
+            let out_str = out_path.to_string_lossy();
+
+            let mut outfile = std::fs::File::create(&out_path).map_err(|e| format!("Failed to write native {out_str}: {e}"))?;
+
+            std::io::copy(&mut entry, &mut outfile).map_err(|e| format!("Failed to extract native {out_str}: {e}"))?;
         }
 
         Ok(())
     }
 
-    fn is_native_file(&self, path: &str) -> bool {
-        !(path.starts_with("META-INF/") || path.ends_with(".sha1") || path.ends_with(".sf") || path.ends_with(".RSA"))
+    fn is_native_file(path: &str) -> bool {
+        path.ends_with(".dll") || path.ends_with(".so") || path.ends_with(".dylib")
+    }
+
+    fn is_allowed(&self, lib: &Library) -> bool {
+        let Some(rules) = &lib.rules else {
+            return true;
+        };
+
+        let mut allowed = false;
+
+        for rule in rules {
+            if !self.rule_matches(rule) {
+                continue;
+            }
+
+            match rule.action.as_deref() {
+                Some("allow") => allowed = true,
+                Some("disallow") => allowed = false,
+                _ => {}
+            }
+        }
+
+        allowed
+    }
+
+    fn rule_matches(&self, rule: &crate::integrations::minecraft::versions::types::LibraryRule) -> bool {
+        let Some(os) = &rule.os else {
+            return true;
+        };
+
+        let current_os = std::env::consts::OS;
+
+        if let Some(name) = &os.name {
+            let matches = match name.as_str() {
+                "windows" => current_os == "windows",
+                "linux" => current_os == "linux",
+                "osx" | "mac" | "macos" => current_os == "macos",
+                _ => false,
+            };
+
+            if !matches {
+                return false;
+            }
+        }
+
+        if let Some(arch) = &os.arch {
+            let current_arch = std::env::consts::ARCH;
+
+            if arch != current_arch {
+                return false;
+            }
+        }
+
+        true
     }
 
     fn file_exists(&self, path: &Path) -> bool {
-        path.exists()
+        path.is_file()
     }
 }

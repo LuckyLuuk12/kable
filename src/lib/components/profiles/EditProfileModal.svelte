@@ -1,264 +1,158 @@
-<!-- @component
-EditInstallationModal - Modal dialog for editing existing Minecraft installations
-
-Provides interface for modifying installation settings including name, version,
-Java arguments, resolution, memory allocation, and advanced parameters.
-
-@example
-```svelte
-◄EditInstallationModal bind:this={editModal} /►
-◄button on:click={() =► editModal.open(installation)}►Edit Installation◄/button►
-```
--->
 <script lang="ts">
-import type { KableProfile, KableProfileMetadata } from "$lib";
-import { app } from "$lib";
+import { app, type KableProfile } from "$lib";
 import { clickSound, successSound } from "$lib/actions";
-import { tick } from "svelte";
+import { MODAL_CONTEXT, type ModalContext } from "$lib/utils/modal";
+import { getContext } from "svelte";
 
-// Working copy of the installation being edited
-let installation: KableProfile | null = null;
-let originalInstallation: KableProfile | null = null;
+const modal = getContext<ModalContext>(MODAL_CONTEXT);
 
-let javaArgsString: string = "";
-let parametersJson: string = "{}";
-let dialogRef: HTMLDialogElement;
-let showOptional = false;
+let {
+  profile,
+}: {
+  profile: KableProfile;
+} = $props();
 
-// Exported function to open the modal with an installation
-export async function open(installationToEdit: KableProfile) {
-  // Clone the installation to work with
-  installation = structuredClone(installationToEdit);
-  originalInstallation = structuredClone(installationToEdit);
-
-  // Initialize fields
-  javaArgsString = installation.settings.java_args?.join(" ") || "";
-  parametersJson = JSON.stringify(installation.settings.parameters_map || {}, null, 2);
-  showOptional = false;
-
-  // Wait for DOM to update
-  await tick();
-
-  // Show the dialog
-  if (dialogRef) {
-    dialogRef.showModal();
-  }
-}
-
-function close() {
-  dialogRef?.close();
-  // Clear the installation after closing
-  setTimeout(() => {
-    installation = null;
-    originalInstallation = null;
-  }, 300); // Wait for close animation
-}
-
-function handleSettingsInput(e: Event, field: keyof KableProfileMetadata) {
-  if (!installation) return;
-  const target = e.target as HTMLInputElement;
-  installation = { ...installation, settings: { ...installation.settings, [field]: target.value } } as KableProfile;
-}
-
-function handleJavaArgsInput(e: Event) {
-  const target = e.target as HTMLInputElement;
-  javaArgsString = target.value;
-}
-
-async function pickFolder(field: keyof KableProfile) {
-  // Trigger the hidden folder input for the requested field
-  const inputId = `folder-input-${String(field)}`;
-  const input = document.getElementById(inputId) as HTMLInputElement | null;
-  input?.click();
-}
-
-async function pickIconFile() {
-  // Trigger the hidden icon file input
-  const input = document.getElementById("icon-file-input") as HTMLInputElement | null;
-  input?.click();
-}
-
-// Handler for when a folder is selected via the hidden input
-function handleFolderSelect(e: Event, field: keyof KableProfile) {
-  if (!installation) return;
-  const target = e.target as HTMLInputElement;
-  const files = target.files;
-  if (!files || files.length === 0) return;
-  // Use webkitRelativePath to determine the selected folder root when available
-  const first = files[0];
-  let folderPath: string | null = null;
-  const anyFirst = first as any;
-  // Some desktop webviews and Tauri variants expose a `.path` on File objects
-  if (anyFirst.path) {
-    // use the parent directory of the first file
-    const p: string = anyFirst.path as string;
-    const normalized = p.replace(/\\/g, "/");
-    const parts = normalized.split("/");
-    if (parts.length > 1) parts.pop();
-    folderPath = parts.join("/");
-  } else if (anyFirst.webkitRelativePath) {
-    const rel = anyFirst.webkitRelativePath as string;
-    const parts = rel.split("/");
-    if (parts.length > 0) folderPath = parts[0];
-  }
-  if (!folderPath) folderPath = first.name || null;
-  if (folderPath)
-    installation = {
-      ...installation,
-      [field]: folderPath,
-    } as KableProfile;
-  // clear the input value so re-selecting the same folder triggers change
-  target.value = "";
-}
-
-// Handler for icon file selection
-function handleIconFileSelect(e: Event) {
-  if (!installation) return;
-  const target = e.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if (!file) return;
-  // Read file as data URL (base64) and store as the icon string
-  const reader = new FileReader();
-  reader.onload = () => {
-    const result = reader.result as string | null;
-    if (result) {
-      installation = { ...installation, icon: result } as KableProfile;
-    }
-  };
-  reader.onerror = (err) => {
-    console.warn("Failed to read icon file", err);
-  };
-  reader.readAsDataURL(file);
-  // clear the input value so selecting same file again triggers change
-  target.value = "";
-}
+let installation = $state(app.profilesService.memoryClone(profile));
+let javaArgsString = $state(installation.settings.java_args?.join(" ") ?? "");
+let parametersJson = $state(JSON.stringify(installation.settings.parameters_map ?? {}, null, 2));
+let showOptional = $state(false);
+let isSaving = $state(false);
+let error = $state<string | null>(null);
 
 async function confirmEdit() {
-  if (!installation) return;
+  error = null;
 
-  // Update java_args and parameters from the string fields
   installation.settings.java_args = javaArgsString.split(" ").filter((arg) => arg.length > 0);
 
-  // merge parameters from JSON editor if valid
   try {
     const parsed = JSON.parse(parametersJson || "{}");
-    if (parsed && typeof parsed === "object") {
+
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
       installation.settings.parameters_map = parsed;
     }
-  } catch (e) {
-    // if parsing fails, keep existing map and log
-    console.warn("Failed to parse parameters JSON, keeping original map", e);
+  } catch {
+    error = "Parameters must contain valid JSON.";
+    return;
   }
 
-  console.log("[Modal] About to update installation:", {
-    id: installation.id,
-    installation,
-  });
-  await app.profilesService.modify(installation, installation);
+  isSaving = true;
 
-  // Close the modal after successful save
-  close();
+  try {
+    await app.profilesService.modify(installation, installation);
+    modal.resolve(true);
+  } catch (e) {
+    error = e instanceof Error ? e.message : "Failed to update installation.";
+  } finally {
+    isSaving = false;
+  }
 }
 
 function cancelEdit() {
-  // Just close without saving changes
-  close();
-}
-
-function handleBackdropClick(e: MouseEvent) {
-  // Only close if clicking the backdrop (dialog element itself), not its children
-  if (e.target === dialogRef) {
-    cancelEdit();
-  }
+  modal.dismiss();
 }
 </script>
 
-<dialog bind:this={dialogRef} class="edit-installation-modal" on:click={handleBackdropClick}>
+<div class="edit-installation-modal">
   <h2>
-    Edit Installation{#if installation?.metadata.name}
-      — {installation.metadata.name}{/if}
+    Edit Installation{#if installation.metadata.name}
+      - {installation.metadata.name}
+    {/if}
   </h2>
-  {#if installation}
-    <form on:submit|preventDefault={confirmEdit} class="two-column-form">
-      <div class="left-column">
-        <label>
-          Name:
-          <input type="text" bind:value={installation.metadata.name} on:input={(e) => handleSettingsInput(e, "name")} />
-        </label>
 
-        <label>
-          Icon:
-          <div class="file-row">
-            <input type="text" bind:value={installation.metadata.icon} on:input={(e) => handleSettingsInput(e, "icon")} />
-            <button type="button" class="btn" on:click={pickIconFile}>Choose...</button>
-          </div>
-        </label>
-
-        <label>
-          Description (optional):
-          <textarea bind:value={installation.metadata.description}></textarea>
-        </label>
-
-        <label class="favorite-row">
-          <span>Favorite:</span>
-          <input type="checkbox" bind:checked={installation.metadata.favorite} />
-        </label>
-      </div>
-
-      <div class="right-column">
-        <details bind:open={showOptional} class="optional-section">
-          <summary>Optional settings</summary>
-          <div class="optional-content">
-            <label>
-              Java Args:
-              <input type="text" bind:value={javaArgsString} on:input={handleJavaArgsInput} />
-            </label>
-
-            <label>
-              Parameters (JSON object):
-              <textarea bind:value={parametersJson} rows="6"></textarea>
-            </label>
-          </div>
-        </details>
-      </div>
-
-      <div class="actions" style="grid-column: 1 / -1;">
-        <button use:successSound type="submit" class="btn btn-primary">Confirm</button>
-        <button use:clickSound type="button" class="btn btn-secondary" on:click={cancelEdit}>Cancel</button>
-      </div>
-    </form>
+  {#if error}
+    <div class="error-message">{error}</div>
   {/if}
-  <!-- Hidden inputs for folder and icon selection (used instead of tauri dialog) -->
-  <input id="icon-file-input" type="file" accept="image/png,image/jpeg,image/svg+xml,image/x-icon,image/webp" style="display:none;" on:change={handleIconFileSelect} />
-</dialog>
+
+  <form
+    class="two-column-form"
+    onsubmit={(e) => {
+      e.preventDefault();
+      confirmEdit();
+    }}>
+    <div class="left-column">
+      <label>
+        Name:
+        <input type="text" bind:value={installation.metadata.name} />
+      </label>
+
+      <label>
+        Icon:
+        <input type="text" bind:value={installation.metadata.icon} />
+      </label>
+
+      <label>
+        Description (optional):
+        <textarea bind:value={installation.metadata.description}></textarea>
+      </label>
+
+      <label class="favorite-row">
+        <span>Favorite:</span>
+        <input type="checkbox" bind:checked={installation.metadata.favorite} />
+      </label>
+    </div>
+
+    <div class="right-column">
+      <details bind:open={showOptional} class="optional-section">
+        <summary>Optional settings</summary>
+
+        <div class="optional-content">
+          <label>
+            Java Args:
+            <input type="text" bind:value={javaArgsString} />
+          </label>
+
+          <label>
+            Parameters (JSON object):
+            <textarea bind:value={parametersJson} rows="6"></textarea>
+          </label>
+        </div>
+      </details>
+    </div>
+
+    <div class="actions">
+      <button use:successSound type="submit" class="btn btn-primary" disabled={isSaving}>
+        {#if isSaving}
+          Saving...
+        {:else}
+          Confirm
+        {/if}
+      </button>
+
+      <button use:clickSound type="button" class="btn btn-secondary" onclick={cancelEdit} disabled={isSaving}> Cancel </button>
+    </div>
+  </form>
+</div>
 
 <style lang="scss">
 .edit-installation-modal {
   padding: 2rem;
-  background: var(--container);
-  border-radius: var(--border-radius);
-  max-width: 80vw;
+  background: $color-surface-1;
+  border-radius: $radius-md;
+  width: 80vw;
+  max-width: 900px;
   max-height: 90vh;
   overflow-y: auto;
-  border: none;
   box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.3);
-  margin: auto;
-
-  &::backdrop {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    background: rgba(0, 0, 0, 0.4);
-  }
 
   h2 {
     margin-bottom: 1rem;
     color: var(--text);
   }
+
+  .error-message {
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: $radius-md;
+    background: color-mix(in srgb, $color-error, transparent 85%);
+    color: $color-error;
+  }
+
   form {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
     align-items: start;
+
     label {
       color: var(--text);
       font-size: 1rem;
@@ -266,57 +160,54 @@ function handleBackdropClick(e: MouseEvent) {
       flex-direction: column;
       gap: 0.5rem;
     }
-    .file-row {
-      display: flex;
-      gap: 0.5rem;
-      input[type="text"] {
-        flex: 1;
-      }
-      .btn {
-        padding: 0.25rem 0.75rem;
-        border-radius: 0.375rem;
-        border: 1px solid rgba(0, 0, 0, 0.1);
-        background: var(--surface);
-        cursor: pointer;
-      }
-    }
-    .actions {
-      display: flex;
-      gap: 1rem;
-      justify-content: flex-end;
-      button {
-        padding: 0.5rem 1.5rem;
-        border-radius: var(--border-radius);
-        border: none;
-        font-size: 1rem;
-        cursor: pointer;
-      }
-    }
-    .left-column {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
+
+    .left-column,
     .right-column {
       display: flex;
       flex-direction: column;
       gap: 1rem;
     }
+
     .favorite-row {
-      display: flex;
+      flex-direction: row;
       align-items: center;
       gap: 0.5rem;
     }
-    .optional-section summary {
-      cursor: pointer;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      color: var(--text);
+
+    .optional-section {
+      summary {
+        cursor: pointer;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: $color-text;
+      }
     }
+
     .optional-content {
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .actions {
+      grid-column: 1 / -1;
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+
+      button {
+        padding: 0.5rem 1.5rem;
+        border-radius: $radius-md;
+        border: none;
+        font-size: 1rem;
+        cursor: pointer;
+
+        &:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+      }
     }
   }
 }

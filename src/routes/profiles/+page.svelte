@@ -1,9 +1,6 @@
 <script lang="ts">
 import { app, CreateProfileModal, EditProfileModal, Icon, ProfilesList, type KableProfile } from "$lib";
 
-let createModalRef: CreateProfileModal;
-let editModalRef: EditProfileModal;
-
 let isSmall = false;
 let isGrid = true;
 let isRefreshing = false;
@@ -11,15 +8,16 @@ let isRefreshingVersions = false;
 let isImporting = false;
 
 function editProfile(profile: KableProfile) {
-  editModalRef?.open(profile);
+  app.show(EditProfileModal, { profile });
 }
 
 function openCreateModal() {
-  createModalRef?.open();
+  app.show(CreateProfileModal);
 }
 
 async function refreshInstallations() {
   isRefreshing = true;
+
   try {
     await app.profilesService.refreshProfiles();
   } finally {
@@ -29,6 +27,7 @@ async function refreshInstallations() {
 
 async function refreshVersionManifests() {
   isRefreshingVersions = true;
+
   try {
     await app.launcherService.loadVersions();
   } finally {
@@ -39,13 +38,13 @@ async function refreshVersionManifests() {
 async function importKableInstallation() {
   try {
     isImporting = true;
+
     // const path = await app.profilesService.selectInstallationZip();
 
     // if (path) {
-    // await app.profilesService.importInstallation(path);
+    //   await app.profilesService.importInstallation(path);
     // }
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Unknown error";
     console.error("Failed to import installation:", error);
   } finally {
     isImporting = false;
@@ -55,14 +54,14 @@ async function importKableInstallation() {
 async function importFromMinecraftFolder() {
   try {
     isImporting = true;
+
     // const path = await app.profilesService.selectMinecraftFolder();
 
     // if (path) {
-    // const result = await app.profilesService.importFromMinecraftFolder(path);
+    //   await app.profilesService.importFromMinecraftFolder(path);
     // }
   } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : "Unknown error";
-    console.error("Failed to import from .minecraft folder:", error);
+    console.error("Failed to import from Minecraft folder:", error);
   } finally {
     isImporting = false;
   }
@@ -100,8 +99,7 @@ async function importFromMinecraftFolder() {
         class="btn btn-secondary {isRefreshingVersions ? 'spinning' : ''}"
         on:click={refreshVersionManifests}
         disabled={isRefreshingVersions}
-        title="Force refresh version manifests from network (useful for new snapshots)"
-      >
+        title="Force refresh version manifests from network (useful for new snapshots)">
         <Icon name="sync" size="md" forceType="svg" />
         Refresh Versions
       </button>
@@ -114,10 +112,10 @@ async function importFromMinecraftFolder() {
     </div>
   </div>
 
-  <ProfilesList {isGrid} {isSmall} on:edit={(e) => editProfile(e.detail)} />
+  <ProfilesList {isGrid} {isSmall} />
 
-  <CreateProfileModal bind:this={createModalRef} />
-  <EditProfileModal bind:this={editModalRef} />
+  <!-- <CreateProfileModal bind:this={createModalRef} />
+  <EditProfileModal bind:this={editModalRef} /> -->
 </div>
 
 <style lang="scss">

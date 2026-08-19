@@ -4,18 +4,40 @@ use crate::integrations::minecraft::profiles::parse_launcher_profiles;
 use crate::system::fs::{launcher_dir, read_str, write_str};
 use api_types::profiles::LauncherProfiles;
 use api_types::profiles::{KableProfile, Projects};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 /// A way to convert a official launcher profile into a KableProfile, which is the internal representation of a profile in Kable
 async fn into(launcher_profiles: LauncherProfiles) -> Result<Vec<KableProfile>, String> {
     let mut kable_profiles = Vec::new();
     let all_versions = get_versions().await?.0;
+
+    let latest_release = all_versions
+        .iter()
+        .filter(|v| v.loader == api_types::profiles::LoaderKind::Vanilla && v.stable == Some(true))
+        .max_by(|a, b| a.release_time.cmp(&b.release_time));
+
+    let latest_snapshot = all_versions
+        .iter()
+        .filter(|v| {
+            v.loader == api_types::profiles::LoaderKind::Vanilla
+                && v.version_type == Some(api_types::profiles::ProfileVersionType::Snapshot)
+        })
+        .max_by(|a, b| a.release_time.cmp(&b.release_time));
+
     for (id, profile) in launcher_profiles.profiles {
-        let version_data = all_versions.iter().find(|v| v.id == profile.last_version_id.clone().unwrap_or_default());
-        let version_data = match version_data {
-            Some(v) => v.clone(),
-            None => continue,
+        let version_id = profile.last_version_id.as_deref();
+
+        let version_data = match version_id {
+            Some("latest-release") => latest_release,
+            Some("latest-snapshot") => latest_snapshot,
+            Some(version_id) => all_versions.iter().find(|v| v.id == version_id),
+            None => None,
         };
+
+        let Some(version_data) = version_data.cloned() else {
+            continue;
+        };
+
         let kable_profile = KableProfile {
             id,
             version: version_data,
@@ -40,8 +62,10 @@ async fn into(launcher_profiles: LauncherProfiles) -> Result<Vec<KableProfile>, 
                 shaders: Projects::default(),
             },
         };
+
         kable_profiles.push(kable_profile);
     }
+
     Ok(kable_profiles)
 }
 
@@ -59,18 +83,18 @@ async fn parse_kable_profiles() -> Result<Vec<KableProfile>, String> {
 /// This will take the official launcher profiles and the, if existing, kable profiles and merge them into a single list of KableProfiles
 /// with the kable profiles taking precedence over the official launcher profiles in case of duplicate profile IDs
 async fn merge_profiles(launcher_profiles: LauncherProfiles, kable_profiles: Vec<KableProfile>) -> Result<Vec<KableProfile>, String> {
-    let mut merged_profiles = Vec::new();
+    let mut merged_profiles = into(launcher_profiles).await?;
+
     let mut kable_profiles_map: HashMap<String, KableProfile> = HashMap::new();
 
-    // Insert kable profiles into the map
     for profile in kable_profiles {
         kable_profiles_map.insert(profile.id.clone(), profile);
     }
 
-    merged_profiles.extend(into(launcher_profiles).await?);
-
-    // Add all kable profiles to the merged list
     merged_profiles.extend(kable_profiles_map.into_values());
+
+    let mut seen = HashSet::new();
+    merged_profiles.retain(|profile| seen.insert(profile.id.clone()));
 
     Ok(merged_profiles)
 }

@@ -10,7 +10,7 @@ pub const FORGE_MAVEN_METADATA_URL: &str = "https://files.minecraftforge.net/net
 pub const NEOFORGE_VERSION_URL: &str = "https://maven.neoforged.net/api/maven/versions/releases/net%2Fneoforged%2Fneoforge";
 pub const DEVICE_CODE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode";
 pub const MSA_AUTHORIZE_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize";
-pub const MSA_TOKEN_URL: &str = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+pub const MSA_TOKEN_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
 pub const DEFAULT_AZURE_REDIRECT_URI: &str = "http://localhost:43110/callback";
 pub const DEFAULT_OAUTH_PORT: u16 = 43110;
 

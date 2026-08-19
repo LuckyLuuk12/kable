@@ -1,6 +1,7 @@
 <script lang="ts">
 import { page } from "$app/state";
 import { app, NavBar, TitleBar } from "$lib";
+import ModalHost from "$lib/components/ModalHost.svelte";
 import "$lib/styles/global.scss";
 import { onMount } from "svelte";
 
@@ -44,3 +45,4 @@ $effect(() => {
     {@render children()}
   </NavBar>
 </TitleBar>
+<ModalHost />

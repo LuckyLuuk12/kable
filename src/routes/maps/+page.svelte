@@ -1,6 +1,5 @@
 <script lang="ts">
-import { Icon, MapsService } from "$lib";
-import { clickSound, errorSound, successSound } from "$lib/actions";
+import { Icon, app, clickSound, errorSound, successSound } from "$lib";
 import type { LocalWorld } from "$lib/types";
 import { onMount } from "svelte";
 
@@ -33,7 +32,7 @@ async function loadWorlds() {
   isRefreshing = true;
   error = null;
   try {
-    localWorlds = await MapsService.getLocalWorlds();
+    localWorlds = await app.mapsService.getLocalWorlds();
     // filteredWorlds will update automatically via reactive statement
   } catch (err) {
     console.error("Failed to load worlds:", err);
@@ -82,7 +81,7 @@ async function deleteWorld(worldName: string) {
   }
 
   try {
-    await MapsService.deleteWorld(worldName);
+    await app.mapsService.deleteWorld(worldName);
     await loadWorlds(); // Refresh the list
   } catch (err) {
     console.error("Failed to delete world:", err);
@@ -92,7 +91,7 @@ async function deleteWorld(worldName: string) {
 
 async function backupWorld(worldName: string) {
   try {
-    const backupName = await MapsService.backupWorld(worldName);
+    const backupName = await app.mapsService.backupWorld(worldName);
     // Show success message with backup location info
     const successMessage = `World "${worldName}" backed up successfully as "${backupName}".\nBackups are stored in .minecraft/kable/world-backups/`;
     alert(successMessage);
@@ -154,7 +153,7 @@ function formatFileSize(bytes: number): string {
     </div>
     <div class="filter-controls">
       <select bind:value={selectedCategory} class="filter-select">
-        {#each categories as category}
+        {#each categories as category (category.id)}
           <option value={category.id}>
             {category.name}
           </option>
@@ -190,7 +189,7 @@ function formatFileSize(bytes: number): string {
       </div>
     {:else if filteredWorlds.length > 0}
       <div class="worlds-grid">
-        {#each filteredWorlds as world}
+        {#each filteredWorlds as world (world.name)}
           <div class="world-card">
             <div class="world-header">
               <div class="world-icon">

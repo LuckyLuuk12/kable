@@ -1,10 +1,9 @@
 <script lang="ts">
 import { app } from "$lib";
+import { type ModalContext, MODAL_CONTEXT } from "$lib/utils/modal";
 import { setContext } from "svelte";
 
-export const MODAL_CONTEXT = Symbol();
-
-function createContext(id: string) {
+function createContext(id: string): ModalContext {
   return {
     resolve(value: unknown) {
       app.resolve(id, value);
@@ -26,15 +25,14 @@ function createContext(id: string) {
       e.preventDefault();
       app.dismissTop();
     }
-  }}
->
+  }}>
   {#each app.stack as instance, index (instance.id)}
     {@const context = createContext(instance.id)}
     {@const _ = setContext(MODAL_CONTEXT, context)}
 
     <div
       class="modal-backdrop"
-      style:z-index={1000 + index * 2}
+      style:z-index={5000 + index * 2}
       onclick={() => app.dismiss(instance.id)}
       onkeydown={(e) => {
         if (e.key === "Enter") {
@@ -43,10 +41,10 @@ function createContext(id: string) {
         }
       }}
       role="button"
-      tabindex="0"
-    ></div>
+      tabindex="0">
+    </div>
 
-    <div class="modal-container" style:z-index={1001 + index * 2}>
+    <div class="modal-container" style:z-index={5001 + index * 2}>
       <instance.component {...instance.props} />
     </div>
   {/each}

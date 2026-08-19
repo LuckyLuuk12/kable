@@ -234,6 +234,7 @@ pub struct DownloadArtifact {
 pub struct Library {
     pub name: Option<String>,
     pub downloads: Option<LibraryDownloads>,
+    pub natives: Option<HashMap<String, String>>,
     // Top-level fields for Fabric/Quilt style manifests
     pub url: Option<String>,
     pub sha1: Option<String>,
@@ -247,6 +248,7 @@ pub struct Library {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LibraryDownloads {
     pub artifact: Option<DownloadArtifact>,
+    pub classifiers: Option<HashMap<String, DownloadArtifact>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

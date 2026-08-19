@@ -1,654 +1,809 @@
-<!-- @component
-CreateInstallationModal - Modal dialog for creating new Minecraft installations
-
-Allows users to select a Minecraft version, mod loader (Vanilla, Fabric, Forge, etc.),
-and configure installation settings. Supports searching and filtering versions.
-Optionally copy mods/resourcepacks/shaders from an existing installation.
-
-@example
-```svelte
-◄CreateInstallationModal bind:this={createModal} /►
-◄button on:click={() =► createModal.open()}►Create Installation◄/button►
-```
--->
 <script lang="ts">
-import { Icon, Image, app, clickSound, successSound, type LoaderKind, type ProfileVersion, type Versions } from "$lib";
-import { onMount } from "svelte";
-import { SvelteMap } from "svelte/reactivity";
+import { Icon, Image, app, clickSound, successSound, type LoaderKind, type ProfileVersion } from "$lib";
+import { MODAL_CONTEXT, type ModalContext } from "$lib/utils/modal";
+import { open } from "@tauri-apps/plugin-dialog";
+import { getContext } from "svelte";
+import { SvelteSet } from "svelte/reactivity";
 
-let versionListRef: HTMLSelectElement;
+type CreationSource = "none" | "profile" | "zip" | "mrpack";
 
-let dialogRef: HTMLDialogElement;
-let availableVersions: Versions = $state([]);
-let loaderOptions: LoaderKind[] = $state([]);
-let selectedLoader: LoaderKind = $state("vanilla");
-let selectedVersionId: string = $state("");
-let searchQuery: string = $state("");
-let isLoading = $state(false);
-let error: string | null = $state(null);
+const modal = getContext<ModalContext>(MODAL_CONTEXT);
 
-// Copy from existing installation
-let sourceInstallationId: string | null = $state(null);
-let copyMods = $state(false);
-let copyResourcePacks = $state(false);
-let copyShaders = $state(false);
-let showCopySection = $state(false);
-
-const INITIAL_DISPLAY_COUNT = 50;
-const LOAD_MORE_COUNT = 50;
-let displayCount = $state(INITIAL_DISPLAY_COUNT);
 const LOADER_ORDER: LoaderKind[] = ["fabric", "iris_fabric", "quilt", "vanilla", "forge", "neo_forge"];
 
-// Get available installations for copying
-let availableProfiles = $derived(app.profilesService.profiles);
+const ROW_HEIGHT = 36;
+const VIRTUALIZATION_OVERSCAN = 8;
 
-// Toggle all copy options
-let allCopyOptionsSelected = $derived(copyMods && copyResourcePacks && copyShaders);
-let someCopyOptionsSelected = $derived(copyMods || copyResourcePacks || copyShaders);
+let selectedLoader = $state<LoaderKind>("fabric");
+let selectedVersionId = $state("");
+let searchQuery = $state("");
 
-function toggleAllCopyOptions() {
-  if (allCopyOptionsSelected) {
-    copyMods = false;
-    copyResourcePacks = false;
-    copyShaders = false;
-  } else {
-    copyMods = true;
-    copyResourcePacks = true;
-    copyShaders = true;
-  }
-}
+let creationSource = $state<CreationSource>("none");
+let selectedProfileId = $state<string | null>(null);
+let exportedZip = $state<string | null>(null);
+let mrpack = $state<string | null>(null);
 
-// Reset copy options when source installation changes
+let isCreating = $state(false);
+let error = $state<string | null>(null);
+
+let versionListElement = $state<HTMLDivElement | null>(null);
+let versionListHeight = $state(360);
+let scrollTop = $state(0);
+
+const availableVersions = $derived(app.launcherService.versions ?? []);
+let isLoading = $state(false);
+const availableProfiles = $derived(app.profilesService.profiles);
+
 $effect(() => {
-  if (sourceInstallationId === null) {
-    copyMods = false;
-    copyResourcePacks = false;
-    copyShaders = false;
+  if (availableVersions.length === 0) {
+    loadVersions();
   }
 });
 
-// Create a map of loader -> versions for O(1) lookup instead of filtering every time
-let versionsByLoader = $derived.by(() => {
-  const map = new SvelteMap<LoaderKind, ProfileVersion[]>();
-  for (const version of availableVersions) {
-    if (!map.has(version.loader)) {
-      map.set(version.loader, []);
-    }
-    map.get(version.loader)!.push(version);
-  }
-  return map;
-});
+async function loadVersions() {
+  if (isLoading) return;
 
-let allVersionsForLoader = $derived(versionsByLoader.get(selectedLoader) ?? []);
-
-// Filter by search query
-let filteredVersions = $derived(searchQuery.trim() ? allVersionsForLoader.filter((v) => v.id.toLowerCase().includes(searchQuery.toLowerCase())) : allVersionsForLoader);
-
-// Only display a subset for performance
-let displayedVersions = $derived(filteredVersions.slice(0, displayCount));
-let hasMoreVersions = $derived(displayedVersions.length < filteredVersions.length);
-
-// Reset display count when loader or search changes
-$effect(() => {
-  if (selectedLoader || searchQuery) {
-    displayCount = INITIAL_DISPLAY_COUNT;
-  }
-});
-
-// Ensure selected version is valid when filtered versions change
-$effect(() => {
-  if (filteredVersions.length > 0 && !filteredVersions.find((v) => v.id === selectedVersionId)) {
-    selectedVersionId = filteredVersions[0]?.id ?? "";
-  }
-});
-
-function loadMoreVersions() {
-  displayCount += LOAD_MORE_COUNT;
-}
-
-function handleScroll(event: Event) {
-  const target = event.target as HTMLSelectElement;
-  const scrollThreshold = 100; // pixels from bottom
-  const isNearBottom = target.scrollHeight - target.scrollTop - target.clientHeight < scrollThreshold;
-
-  if (isNearBottom && hasMoreVersions) {
-    loadMoreVersions();
-  }
-}
-
-export function open() {
-  // Reset copy options
-  sourceInstallationId = null;
-  copyMods = false;
-  copyResourcePacks = false;
-  copyShaders = false;
-  showCopySection = false;
-
-  dialogRef?.showModal();
-}
-
-export function close() {
-  dialogRef?.close();
-}
-
-onMount(async () => {
-  isLoading = true;
-  try {
-    // Use versions from launcherService state if available, otherwise load them
-    if (app.launcherService.versions) {
-      availableVersions = app.launcherService.versions;
-    } else {
-      // Load versions if not already loaded (this will update the store too)
-      availableVersions = await app.launcherService.loadVersions();
-    }
-
-    loaderOptions = Array.from(new Set(availableVersions.map((v) => v.loader))).sort((a, b) => LOADER_ORDER.indexOf(a) - LOADER_ORDER.indexOf(b));
-    selectedLoader = loaderOptions[0] ?? "vanilla";
-    if (filteredVersions.length > 0) {
-      selectedVersionId = filteredVersions[0].id;
-    }
-  } catch (e) {
-    error = "Failed to load versions.";
-  } finally {
-    isLoading = false;
-  }
-});
-
-async function confirmCreate(e: Event) {
-  e.preventDefault();
-  if (!selectedVersionId) return;
   isLoading = true;
   error = null;
 
   try {
-    // Check if we're copying from an existing installation
-    if (sourceInstallationId && (copyMods || copyResourcePacks || copyShaders)) {
-      const sourceInstallation = availableProfiles.find((i) => i.id === sourceInstallationId);
-
-      // TODO: Implement the actual backend for this and uncomment the following code when ready
-      if (sourceInstallation) {
-        // await app.profilesService.createProfileFromExisting(selectedVersionId, sourceInstallation, {
-        //   copyMods,
-        //   copyResourcePacks,
-        //   copyShaders,
-        // });
-      } else {
-        throw new Error("Source installation not found");
-      }
-    } else {
-      // Regular installation creation
-      // await app.profilesService.createProfile(selectedVersionId);
-    }
-
-    close();
+    await app.launcherService.loadVersions();
   } catch (e) {
-    error = e instanceof Error ? e.message : "Failed to create installation.";
+    error = e instanceof Error ? e.message : "Failed to load versions.";
   } finally {
     isLoading = false;
   }
 }
 
-function cancelCreate() {
-  close();
+const loaderOptions = $derived.by(() => {
+  const loaders = new SvelteSet<LoaderKind>();
+
+  for (const version of availableVersions) {
+    loaders.add(version.loader);
+  }
+
+  return Array.from(loaders).sort((a, b) => {
+    const aIndex = LOADER_ORDER.indexOf(a);
+    const bIndex = LOADER_ORDER.indexOf(b);
+
+    if (aIndex === -1 && bIndex === -1) {
+      return a.localeCompare(b);
+    }
+
+    if (aIndex === -1) {
+      return 1;
+    }
+
+    if (bIndex === -1) {
+      return -1;
+    }
+
+    return aIndex - bIndex;
+  });
+});
+
+const versionsForLoader = $derived(availableVersions.filter((version) => version.loader === selectedLoader));
+
+const filteredVersions = $derived.by(() => {
+  const query = searchQuery.trim().toLowerCase();
+
+  if (!query) {
+    return versionsForLoader;
+  }
+
+  return versionsForLoader.filter((version) => version.id.toLowerCase().includes(query));
+});
+
+const selectedProfile = $derived(selectedProfileId ? (availableProfiles.find((profile) => profile.id === selectedProfileId) ?? null) : null);
+
+const totalVersionHeight = $derived(filteredVersions.length * ROW_HEIGHT);
+
+const firstVisibleIndex = $derived(Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - VIRTUALIZATION_OVERSCAN));
+
+const lastVisibleIndex = $derived(Math.min(filteredVersions.length, Math.ceil((scrollTop + versionListHeight) / ROW_HEIGHT) + VIRTUALIZATION_OVERSCAN));
+
+const visibleVersions = $derived(filteredVersions.slice(firstVisibleIndex, lastVisibleIndex));
+
+const visibleOffset = $derived(firstVisibleIndex * ROW_HEIGHT);
+
+const canCreate = $derived(
+  !isCreating &&
+    selectedVersionId !== "" &&
+    (creationSource !== "profile" || selectedProfile !== null) &&
+    (creationSource !== "zip" || exportedZip !== null) &&
+    (creationSource !== "mrpack" || mrpack !== null),
+);
+
+$effect(() => {
+  if (loaderOptions.length === 0) {
+    selectedLoader = "vanilla";
+    return;
+  }
+
+  if (!loaderOptions.includes(selectedLoader)) {
+    selectedLoader = loaderOptions[0];
+  }
+});
+
+$effect(() => {
+  const firstVersion = filteredVersions[0];
+
+  if (!firstVersion || !filteredVersions.some((version) => version.id === selectedVersionId)) {
+    selectedVersionId = firstVersion?.id ?? "";
+  }
+});
+
+function selectLoader(loader: LoaderKind) {
+  selectedLoader = loader;
+  searchQuery = "";
+  resetVersionScroll();
 }
 
-function handleBackdropClick(e: MouseEvent) {
-  console.log("[CreateModal] Click detected", {
-    target: e.target,
-    currentTarget: e.currentTarget,
-    dialogRef,
-    isDialogTarget: e.target === dialogRef,
-  });
+function selectVersion(version: ProfileVersion) {
+  selectedVersionId = version.id;
+}
 
-  // Check if click target is the dialog element itself (backdrop), not its content
-  if (e.target === dialogRef) {
-    console.log("[CreateModal] Closing modal - clicked on backdrop");
-    cancelCreate();
-  } else {
-    console.log("[CreateModal] Not closing - clicked inside content");
+function handleVersionScroll() {
+  if (!versionListElement) {
+    return;
+  }
+
+  scrollTop = versionListElement.scrollTop;
+}
+
+function handleVersionResize() {
+  if (!versionListElement) {
+    return;
+  }
+
+  versionListHeight = versionListElement.clientHeight;
+}
+
+function resetVersionScroll() {
+  scrollTop = 0;
+
+  if (versionListElement) {
+    versionListElement.scrollTop = 0;
+  }
+}
+
+function selectSource(source: CreationSource) {
+  creationSource = source;
+  error = null;
+
+  if (source !== "profile") {
+    selectedProfileId = null;
+  }
+
+  if (source !== "zip") {
+    exportedZip = null;
+  }
+
+  if (source !== "mrpack") {
+    mrpack = null;
+  }
+}
+
+async function selectZip() {
+  error = null;
+
+  try {
+    const path = await open({
+      multiple: false,
+      directory: false,
+      filters: [
+        {
+          name: "Exported Profile",
+          extensions: ["zip"],
+        },
+      ],
+    });
+
+    if (typeof path === "string") {
+      exportedZip = path;
+    }
+  } catch (e) {
+    console.error("Failed to open file dialog:", e);
+    error = e instanceof Error ? e.message : "Failed to select ZIP file.";
+  }
+}
+
+async function selectMrpack() {
+  error = null;
+
+  try {
+    const path = await open({
+      multiple: false,
+      directory: false,
+      filters: [
+        {
+          name: "Modrinth Pack",
+          extensions: ["mrpack"],
+        },
+      ],
+    });
+
+    if (typeof path === "string") {
+      mrpack = path;
+    }
+  } catch (e) {
+    error = e instanceof Error ? e.message : "Failed to select Modrinth pack.";
+  }
+}
+
+async function createProfile(event: SubmitEvent) {
+  event.preventDefault();
+
+  if (!canCreate) {
+    return;
+  }
+
+  isCreating = true;
+  error = null;
+
+  try {
+    await app.profilesService.createProfile(
+      selectedVersionId,
+      creationSource === "profile" ? selectedProfile : null,
+      creationSource === "zip" ? exportedZip : null,
+      creationSource === "mrpack" ? mrpack : null,
+    );
+
+    modal.resolve();
+  } catch (e) {
+    error = e instanceof Error ? e.message : "Failed to create installation.";
+  } finally {
+    isCreating = false;
+  }
+}
+
+function cancel() {
+  if (!isCreating) {
+    modal.dismiss();
   }
 }
 </script>
 
-<dialog bind:this={dialogRef} class="create-installation-modal" onclick={handleBackdropClick}>
-  <h2>Create New Installation</h2>
+<div class="create-profile-modal">
+  <header class="modal-header">
+    <h2>Create New Installation</h2>
+
+    <button use:clickSound type="button" class="close-button" aria-label="Close" onclick={cancel} disabled={isCreating}>
+      <Icon name="x" size="sm" />
+    </button>
+  </header>
+
   {#if error}
-    <div class="error-message">{error}</div>
-  {/if}
-  <form onsubmit={confirmCreate}>
-    <div class="loader-select-row">
-      {#each loaderOptions as loader (loader)}
-        <button
-          type="button"
-          class="loader-btn {selectedLoader === loader ? 'selected' : ''}"
-          style="background: {app.profilesService.getLoaderColor(loader)}20; color: {app.profilesService.getLoaderColor(loader)};"
-          onclick={() => (selectedLoader = loader)}
-        >
-          <span class="loader-icon">
-            <!-- TODO: Change this to Image and add images for all loaders to the assets -->
-            <!-- <Icon
-              name={app.profilesService.getLoaderIcon(loader)}
-              size="md"
-              forceType="svg" /> -->
-            <Image key={loader} />
-          </span>
-          <span class="loader-label">{loader.replace(/_/g, " ").replace(/(^|\s)([a-z])/g, (_, p1, p2) => p1 + p2.toUpperCase())}</span>
-        </button>
-      {/each}
+    <div class="error-message">
+      <Icon name="alert-circle" size="sm" />
+      <span>{error}</span>
     </div>
-    <div class="version-select-section">
-      <label for="version-search">
-        Search Version:
-        <input id="version-search" type="text" bind:value={searchQuery} placeholder="Search for a version..." class="version-search" />
-      </label>
-      <label for="version-select">
-        Version:
-        <select id="version-select" bind:value={selectedVersionId} bind:this={versionListRef} onscroll={handleScroll} size="10" class="version-list">
-          {#each displayedVersions as version (version.id)}
-            <option value={version.id}>{version.id}</option>
-          {/each}
-        </select>
-      </label>
-      {#if hasMoreVersions}
-        <button type="button" class="load-more-btn" onclick={loadMoreVersions}>
-          Load more... ({displayedVersions.length} of {filteredVersions.length})
-        </button>
-      {:else if filteredVersions.length > 0}
+  {/if}
+
+  <form onsubmit={createProfile}>
+    <section class="section">
+      <div class="section-label">Mod Loader</div>
+
+      <div class="loader-select-row">
+        {#each loaderOptions as loader (loader)}
+          <button
+            type="button"
+            class:selected={selectedLoader === loader}
+            class="loader-button"
+            style:background={`${app.profilesService.getLoaderColor(loader)}20`}
+            style:color={app.profilesService.getLoaderColor(loader)}
+            onclick={() => selectLoader(loader)}>
+            <span class="loader-icon">
+              <Image key={loader} />
+            </span>
+
+            <span class="loader-label">
+              {loader.replace(/_/g, " ").replace(/(^|\s)([a-z])/g, (_, prefix, character) => prefix + character.toUpperCase())}
+            </span>
+          </button>
+        {/each}
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-label">Minecraft Version</div>
+
+      <input
+        class="version-search"
+        type="text"
+        bind:value={searchQuery}
+        placeholder="Search versions..."
+        aria-label="Search Minecraft versions"
+        oninput={resetVersionScroll} />
+
+      {#if filteredVersions.length > 0}
+        <div
+          bind:this={versionListElement}
+          class="version-list"
+          role="listbox"
+          tabindex="0"
+          aria-label="Minecraft versions"
+          onscroll={handleVersionScroll}
+          onresize={handleVersionResize}>
+          <div class="version-list-content" style:height={`${totalVersionHeight}px`}>
+            <div class="version-list-items" style:transform={`translateY(${visibleOffset}px)`}>
+              {#each visibleVersions as version (version.id)}
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selectedVersionId === version.id}
+                  class:selected={selectedVersionId === version.id}
+                  class="version-option"
+                  onclick={() => selectVersion(version)}>
+                  {version.id}
+                </button>
+              {/each}
+            </div>
+          </div>
+        </div>
+
         <div class="version-count">
-          Showing all {filteredVersions.length} version{filteredVersions.length !== 1 ? "s" : ""}
+          {filteredVersions.length}
+          version{filteredVersions.length === 1 ? "" : "s"}
+        </div>
+      {:else}
+        <div class="no-results">
+          No versions found{searchQuery ? ` matching "${searchQuery}"` : ""}.
         </div>
       {/if}
-      {#if searchQuery && filteredVersions.length === 0}
-        <div class="no-results">No versions found matching "{searchQuery}"</div>
-      {/if}
-    </div>
+    </section>
 
-    <!-- Copy from existing installation (optional) -->
-    <details class="copy-section" bind:open={showCopySection}>
-      <summary>
-        <Icon name="copy" size="sm" />
-        Copy from existing installation (optional)
-      </summary>
-      <div class="copy-content">
-        <label for="source-installation">
-          Source Installation:
-          <select id="source-installation" bind:value={sourceInstallationId} class="source-select">
-            <option value={null}>None - Start fresh</option>
-            {#each availableProfiles as installation (installation.id)}
-              <option value={installation.id}>{installation.metadata.name} ({installation.version.id})</option>
+    <section class="section">
+      <div class="section-label">Creation Source</div>
+
+      <div class="source-tabs" role="tablist">
+        <button type="button" role="tab" aria-selected={creationSource === "none"} class:active={creationSource === "none"} onclick={() => selectSource("none")}>
+          <Icon name="plus" size="sm" />
+          Empty
+        </button>
+
+        <button type="button" role="tab" aria-selected={creationSource === "profile"} class:active={creationSource === "profile"} onclick={() => selectSource("profile")}>
+          <Icon name="copy" size="sm" />
+          Existing Profile
+        </button>
+
+        <button type="button" role="tab" aria-selected={creationSource === "zip"} class:active={creationSource === "zip"} onclick={() => selectSource("zip")}>
+          <Icon name="archive" size="sm" />
+          Exported ZIP
+        </button>
+
+        <button type="button" role="tab" aria-selected={creationSource === "mrpack"} class:active={creationSource === "mrpack"} onclick={() => selectSource("mrpack")}>
+          <Icon name="package" size="sm" />
+          Modrinth Pack
+        </button>
+      </div>
+
+      <div class="source-content">
+        {#if creationSource === "none"}
+          <div class="source-description">Create a fresh installation for the selected Minecraft version.</div>
+        {:else if creationSource === "profile"}
+          <label for="base-profile">Base Profile</label>
+
+          <select id="base-profile" class="source-select" bind:value={selectedProfileId}>
+            <option value={null}>Select a profile...</option>
+
+            {#each availableProfiles as profile (profile.id)}
+              <option value={profile.id}>
+                {profile.metadata.name} ({profile.version.id})
+              </option>
             {/each}
           </select>
-        </label>
 
-        {#if sourceInstallationId}
-          <div class="copy-options">
-            <div class="copy-option-header">
-              <label class="copy-option toggle-all">
-                <input
-                  type="checkbox"
-                  checked={allCopyOptionsSelected}
-                  indeterminate={someCopyOptionsSelected && !allCopyOptionsSelected}
-                  onchange={toggleAllCopyOptions}
-                />
-                <span>Select All</span>
-              </label>
+          <div class="source-description">Use an existing installation as the base for the new profile.</div>
+        {:else if creationSource === "zip"}
+          <div class="file-picker">
+            <div class:file-selected={exportedZip} class="file-name">
+              {exportedZip ?? "No exported profile selected"}
             </div>
 
-            <div class="copy-option-list">
-              <label class="copy-option">
-                <input type="checkbox" bind:checked={copyMods} />
-                <div class="option-content">
-                  <Icon name="package" size="sm" />
-                  <div class="option-text">
-                    <span class="option-label">Copy Mods</span>
-                    <span class="option-description">Mods will be updated/downgraded to match the new version</span>
-                  </div>
-                </div>
-              </label>
+            <button use:clickSound type="button" class="btn btn-secondary" onclick={selectZip} disabled={isCreating}>
+              <Icon name="folder" size="sm" />
+              Choose ZIP
+            </button>
+          </div>
 
-              <label class="copy-option">
-                <input type="checkbox" bind:checked={copyResourcePacks} />
-                <div class="option-content">
-                  <Icon name="image" size="sm" />
-                  <div class="option-text">
-                    <span class="option-label">Copy Resource Packs</span>
-                    <span class="option-description">Resource packs will be copied as-is</span>
-                  </div>
-                </div>
-              </label>
-
-              <label class="copy-option">
-                <input type="checkbox" bind:checked={copyShaders} />
-                <div class="option-content">
-                  <Icon name="sun" size="sm" />
-                  <div class="option-text">
-                    <span class="option-label">Copy Shaders</span>
-                    <span class="option-description">Shaders will be copied as-is</span>
-                  </div>
-                </div>
-              </label>
+          <div class="source-description">Import an exported Kable profile from a ZIP file.</div>
+        {:else if creationSource === "mrpack"}
+          <div class="file-picker">
+            <div class:file-selected={mrpack} class="file-name">
+              {mrpack ?? "No Modrinth pack selected"}
             </div>
+
+            <button use:clickSound type="button" class="btn btn-secondary" onclick={selectMrpack} disabled={isCreating}>
+              <Icon name="folder" size="sm" />
+              Choose Pack
+            </button>
           </div>
-        {:else}
-          <div class="copy-hint">
-            <Icon name="info" size="sm" />
-            <span>Select a source installation to copy mods, resource packs, and shaders</span>
-          </div>
+
+          <div class="source-description">Import a Modrinth .mrpack file.</div>
         {/if}
       </div>
-    </details>
+    </section>
 
-    <div class="actions">
-      <button use:successSound type="submit" class="btn btn-primary" disabled={isLoading}>
-        {#if isLoading}
+    <footer class="actions">
+      <button use:clickSound type="button" class="btn btn-secondary" onclick={cancel} disabled={isCreating}> Cancel </button>
+
+      <button use:successSound type="submit" class="btn btn-primary" disabled={!canCreate}>
+        {#if isCreating}
           <Icon name="refresh" size="sm" className="spin" />
           Creating...
         {:else}
+          <Icon name="plus" size="sm" />
           Create
         {/if}
       </button>
-      <button use:clickSound type="button" class="btn btn-secondary" onclick={cancelCreate} disabled={isLoading}>Cancel</button>
-    </div>
+    </footer>
   </form>
-</dialog>
+</div>
 
 <style lang="scss">
-.create-installation-modal {
-  padding: 2rem;
-  background: $color-surface-1;
-  border-radius: $radius-lg;
-  width: 85%;
-  height: 85%;
-  max-width: 65vw;
-  max-height: 85vh;
+.create-profile-modal {
+  width: min(900px, 90vw);
+  max-height: 90vh;
   overflow-y: auto;
-  border: none;
-  box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.3);
-  margin: auto;
 
-  &::backdrop {
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    background: rgba(0, 0, 0, 0.4);
+  padding: 1.5rem;
+
+  background: $color-surface-1;
+  color: $color-text;
+
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  box-shadow: 0 0.75rem 3rem rgba(0, 0, 0, 0.35);
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+
+    h2 {
+      margin: 0;
+      color: $color-text;
+    }
+
+    .close-button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+
+      border: none;
+      border-radius: $radius-lg;
+      background: transparent;
+      color: $color-text-muted;
+
+      cursor: pointer;
+
+      &:hover {
+        background: $color-surface-2;
+        color: $color-text;
+      }
+    }
   }
 
-  h2 {
+  .error-message {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
     margin-bottom: 1rem;
-    color: $color-text;
+    padding: 0.75rem 1rem;
+
+    border-radius: $radius-lg;
+    background: color-mix(in srgb, $color-error 15%, transparent);
+    color: $color-error;
   }
+
   form {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    .loader-select-row {
-      display: flex;
-      gap: 1rem;
-      margin-bottom: 1rem;
-      .loader-btn {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1.25rem;
-        border-radius: $radius-lg;
-        border: none;
-        font-size: 1rem;
-        cursor: pointer;
-        background: $color-surface-2;
-        color: $color-text;
-        transition: box-shadow 0.2s;
-        &.selected {
-          box-shadow: 0 0 0 2px $color-accent;
-        }
-        .loader-icon {
-          width: 1.5rem;
-          height: 1.5rem;
-          display: flex;
-          align-items: center;
-        }
-        .loader-label {
-          font-weight: 500;
-        }
-      }
-    }
-    label {
-      color: $color-text;
-      font-size: 1rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-    .version-select-section {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
+    gap: 1.5rem;
+  }
 
-      .version-search {
-        width: 100%;
-        padding: 0.6rem;
-        border-radius: $radius-lg;
-        border: 1px solid $color-border;
-        background: $color-surface-2;
-        color: $color-text;
-        font-size: 1rem;
-        transition: border-color 0.2s;
+  .section {
+    display: flex;
+    flex-direction: column;
+  }
 
-        &:focus {
-          outline: none;
-          border-color: $color-accent;
-        }
+  .section-label {
+    margin-bottom: 0.5rem;
 
-        &::placeholder {
-          color: $color-text-muted;
-        }
-      }
+    color: $color-text-muted;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
 
-      .version-list {
-        width: 100%;
-        padding: 0.5rem;
-        border-radius: $radius-lg;
-        border: 1px solid $color-border;
-        background: $color-surface-2;
-        color: $color-text;
-        font-size: 0.95rem;
-        min-height: 300px;
+  .loader-select-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
 
-        &:focus {
-          outline: none;
-          border-color: $color-accent;
-        }
+  .loader-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
 
-        option {
-          padding: 0.4rem;
-          cursor: pointer;
+    padding: 0.65rem 1rem;
 
-          &:hover {
-            background: color-mix(in srgb, $color-accent, 10%, transparent);
-          }
-        }
-      }
+    border: 2px solid transparent;
+    border-radius: $radius-lg;
 
-      .load-more-btn {
-        padding: 0.5rem 1rem;
-        border-radius: $radius-lg;
-        border: 1px solid $color-border;
-        background: $color-surface-2;
-        color: $color-text;
-        font-size: 0.9rem;
-        cursor: pointer;
-        transition:
-          background 0.2s,
-          border-color 0.2s;
+    cursor: pointer;
 
-        &:hover {
-          background: color-mix(in srgb, $color-accent, 10%, transparent);
-          border-color: $color-accent;
-        }
-      }
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
 
-      .version-count {
-        font-size: 0.85rem;
-        color: $color-text-muted;
-        text-align: center;
-        padding: 0.25rem;
-      }
-
-      .no-results {
-        font-size: 0.9rem;
-        color: $color-text-muted;
-        text-align: center;
-        padding: 1rem;
-        font-style: italic;
-      }
+    &.selected {
+      border-color: $color-accent;
     }
 
-    .copy-section {
-      border: 1px solid $color-border;
+    .loader-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      width: 1.5rem;
+      height: 1.5rem;
+    }
+
+    .loader-label {
+      font-weight: 500;
+    }
+  }
+
+  .version-search {
+    width: 100%;
+    box-sizing: border-box;
+
+    padding: 0.65rem 0.75rem;
+    margin-bottom: 0.5rem;
+
+    border: 1px solid $color-border;
+    border-radius: $radius-lg;
+
+    background: $color-surface-2;
+    color: $color-text;
+
+    font-size: 0.95rem;
+
+    &:focus {
+      outline: none;
+      border-color: $color-accent;
+    }
+
+    &::placeholder {
+      color: $color-text-muted;
+    }
+  }
+
+  .version-list {
+    height: 360px;
+    overflow-y: auto;
+
+    border: 1px solid $color-border;
+    border-radius: $radius-lg;
+
+    background: $color-surface-2;
+
+    &:focus {
+      outline: none;
+      border-color: $color-accent;
+    }
+  }
+
+  .version-list-content {
+    position: relative;
+    width: 100%;
+  }
+
+  .version-list-items {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+  }
+
+  .version-option {
+    display: block;
+
+    width: 100%;
+    height: 36px;
+    padding: 0 0.75rem;
+
+    border: none;
+    border-bottom: 1px solid color-mix(in srgb, $color-border 50%, transparent);
+
+    background: transparent;
+    color: $color-text;
+
+    text-align: left;
+    font-size: 0.9rem;
+
+    cursor: pointer;
+
+    &:hover {
+      background: color-mix(in srgb, $color-accent 10%, transparent);
+    }
+
+    &.selected {
+      background: color-mix(in srgb, $color-accent 20%, transparent);
+      color: $color-accent;
+      font-weight: 600;
+    }
+  }
+
+  .version-count {
+    margin-top: 0.4rem;
+
+    color: $color-text-muted;
+    font-size: 0.8rem;
+    text-align: right;
+  }
+
+  .no-results {
+    padding: 2rem;
+
+    border: 1px solid $color-border;
+    border-radius: $radius-lg;
+
+    background: $color-surface-2;
+    color: $color-text-muted;
+
+    text-align: center;
+  }
+
+  .source-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+
+    gap: 0.25rem;
+    padding: 0.25rem;
+
+    border-radius: $radius-lg;
+    background: $color-surface-2;
+
+    button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+
+      min-width: 0;
+      padding: 0.65rem 0.75rem;
+
+      border: none;
       border-radius: $radius-lg;
-      padding: 1rem;
-      background: var(--card);
 
-      summary {
-        cursor: pointer;
-        font-weight: 600;
+      background: transparent;
+      color: $color-text-muted;
+
+      cursor: pointer;
+      font-size: 0.9rem;
+
+      &.active {
+        background: $color-surface-1;
         color: $color-text;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        user-select: none;
 
-        &:hover {
-          color: $color-accent;
-        }
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
       }
 
-      .copy-content {
-        margin-top: 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-
-        .source-select {
-          width: 100%;
-          padding: 0.6rem;
-          border-radius: $radius-lg;
-          border: 1px solid $color-border;
-          background: $color-surface-2;
-          color: $color-text;
-          font-size: 0.95rem;
-
-          &:focus {
-            outline: none;
-            border-color: $color-accent;
-          }
-        }
-
-        .copy-options {
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-
-          .copy-option-header {
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid $color-border;
-
-            .toggle-all {
-              font-weight: 600;
-              color: $color-accent;
-            }
-          }
-
-          .copy-option-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-          }
-
-          .copy-option {
-            display: flex;
-            align-items: flex-start;
-            gap: 0.75rem;
-            padding: 0.75rem;
-            border-radius: $radius-lg;
-            background: $color-surface-2;
-            border: 1px solid $color-border;
-            cursor: pointer;
-            transition: all 0.2s;
-
-            &:hover {
-              border-color: $color-accent;
-              background: color-mix(in srgb, $color-accent, 5%, transparent);
-            }
-
-            input[type="checkbox"] {
-              margin-top: 0.125rem;
-              cursor: pointer;
-              width: 1.125rem;
-              height: 1.125rem;
-            }
-
-            .option-content {
-              display: flex;
-              align-items: flex-start;
-              gap: 0.5rem;
-              flex: 1;
-
-              .option-text {
-                display: flex;
-                flex-direction: column;
-                gap: 0.25rem;
-
-                .option-label {
-                  font-weight: 500;
-                  color: $color-text;
-                  font-size: 0.95rem;
-                }
-
-                .option-description {
-                  font-size: 0.8rem;
-                  color: $color-text-muted;
-                  line-height: 1.3;
-                }
-              }
-            }
-          }
-        }
-
-        .copy-hint {
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0.75rem;
-          border-radius: $radius-lg;
-          background: color-mix(in srgb, $color-accent, 5%, transparent);
-          color: $color-text-muted;
-          font-size: 0.85rem;
-        }
-      }
-    }
-
-    .actions {
-      display: flex;
-      gap: 1rem;
-      button {
-        padding: 0.5rem 1.5rem;
-        border-radius: $radius-lg;
-        border: none;
-        font-size: 1rem;
-        cursor: pointer;
-        &.btn-primary {
-          background: $color-accent;
-          color: $color-text;
-        }
-        &.btn-secondary {
-          background: $color-surface-2;
-          color: $color-text;
-        }
+      &:hover:not(.active) {
+        color: $color-text;
       }
     }
   }
-  .error-message {
-    color: $color-error;
-    margin-bottom: 1rem;
+
+  .source-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    margin-top: 1rem;
+  }
+
+  .source-content label {
+    color: $color-text;
+    font-size: 0.9rem;
+    font-weight: 500;
+  }
+
+  .source-select {
+    width: 100%;
+    box-sizing: border-box;
+
+    padding: 0.65rem 0.75rem;
+
+    border: 1px solid $color-border;
+    border-radius: $radius-lg;
+
+    background: $color-surface-2;
+    color: $color-text;
+
+    &:focus {
+      outline: none;
+      border-color: $color-accent;
+    }
+  }
+
+  .source-description {
+    color: $color-text-muted;
+    font-size: 0.8rem;
+  }
+
+  .file-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+
+    .file-name {
+      min-width: 0;
+      flex: 1;
+
+      overflow: hidden;
+
+      padding: 0.65rem 0.75rem;
+
+      border: 1px solid $color-border;
+      border-radius: $radius-lg;
+
+      background: $color-surface-2;
+      color: $color-text-muted;
+
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      &.file-selected {
+        color: $color-text;
+      }
+    }
+  }
+
+  .actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+
+    padding-top: 0.5rem;
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+
+      padding: 0.6rem 1.25rem;
+
+      border: none;
+      border-radius: $radius-lg;
+
+      cursor: pointer;
+      font-size: 0.95rem;
+
+      &:disabled {
+        cursor: default;
+        opacity: 0.5;
+      }
+    }
+
+    .btn-primary {
+      background: $color-accent;
+      color: $color-text;
+    }
+
+    .btn-secondary {
+      background: $color-surface-2;
+      color: $color-text;
+    }
   }
 }
 </style>

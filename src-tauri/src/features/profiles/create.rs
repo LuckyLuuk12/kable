@@ -6,6 +6,7 @@ use crate::{
     features::{profiles::kable_profile::load_profiles, projects::management::ensure_profile_projects},
     integrations::loaders::{get_version_data, get_versions},
     system::fs::profiles_dir,
+    Logger,
 };
 
 /*
@@ -69,6 +70,16 @@ pub async fn create_profile(
     exported_profile: Option<PathBuf>,
     mrpack: Option<String>,
 ) -> Result<KableProfile, String> {
+    Logger::debug_global(
+        &format!(
+            "[create_profile] Creating profile with version_id: {:?}, base_profile: {:?}, exported_profile: {:?}, mrpack: {:?}",
+            version_id,
+            base_profile.as_ref().map(|p| p.id.clone()),
+            exported_profile,
+            mrpack
+        ),
+        None,
+    );
     // ! Now in order we do: base_profile copy, exported_profile merge, mrpack merge, version_id update/downgrade
     // If there is no base_profile though we just shift it such that the exported_profile becomes the base_profile,
     // and if that is None then the mrpack becomes the base_profile, and if that is None then the version_id becomes the base_profile and we create one from scratch essentially
@@ -114,7 +125,14 @@ pub async fn create_profile(
         // Now we disabled any incompatible projects.
         let _incompatible_projects = crate::features::projects::management::check_incompatible_projects(new_profile.clone(), true).await?;
     }
-    Ok(new_profile)
+    Logger::debug_global(
+        &format!(
+            "[create_profile] Created profile with id: {}, version_id: {}, loader: {:?}",
+            new_profile.id, new_profile.version.id, new_profile.version.loader
+        ),
+        None,
+    );
+    super::management::save_profile(new_profile).await
 }
 
 /// The pathbuf should point to a folder/zip that contains a kable.export.json file which contains a KableProfile in JSON format.

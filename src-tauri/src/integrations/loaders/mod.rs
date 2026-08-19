@@ -162,56 +162,59 @@ async fn get_meta_versions(loader: LoaderKind) -> Result<Versions, String> {
                 // All manifest don't exactly match the ProfileVersion struct so we do some custom parsing here
                 let manifest: Value = loader_response.json().await.map_err(|e| e.to_string())?;
 
-                // Process the manifest and add versions to the list
-                let loader_ver = manifest.get("loader").and_then(|l| l.get("version")).and_then(|i| i.as_str()).unwrap_or_default();
-                let stable = manifest.get("loader").and_then(|l| l.get("stable")).and_then(|i| i.as_bool()).unwrap_or_default();
-                versions.push(ProfileVersion {
-                    // id is like "fabric-loader-0.18.4-1.21.11"
-                    id: format!(
-                        "{}-loader-{}-{}",
-                        match loader {
-                            LoaderKind::Fabric => "fabric",
-                            LoaderKind::IrisFabric => "iris-fabric",
-                            LoaderKind::Quilt => "quilt",
-                            _ => "unknown",
-                        },
-                        loader_ver,
-                        mc_version
-                    ),
-                    // Displayy name is like "Fabric 0.18.4 for Minecraft 1.21.11"
-                    display_name: format!(
-                        "{} {} for Minecraft {}",
-                        match loader {
-                            LoaderKind::Fabric => "Fabric",
-                            LoaderKind::IrisFabric => "Iris Fabric",
-                            LoaderKind::Quilt => "Quilt",
-                            _ => "Unknown",
-                        },
-                        loader_ver,
-                        mc_version
-                    ),
-                    loader,
-                    minecraft_version: Some(mc_version.to_string()),
-                    loader_version: Some(loader_ver.to_string()),
-                    version_type: None,
-                    stable: Some(stable),
-                    release_time: None,
-                    updated_time: None,
-                    url: None,
-                    // Quilt has a loader.hashes.sha1 field but fabric not so only set sha1 for Quilt, otherwise None
-                    sha1: if loader == LoaderKind::Quilt {
-                        manifest
-                            .get("loader")
-                            .and_then(|l| l.get("hashes"))
-                            .and_then(|h| h.get("sha1"))
-                            .and_then(|s| s.as_str())
-                            .map(|s| s.to_string())
-                    } else {
-                        None
-                    },
-                    compliance_level: None,
-                    recommended: None,
-                });
+                if let Some(loader_entries) = manifest.as_array() {
+                    for entry in loader_entries {
+                        let Some(loader_data) = entry.get("loader") else {
+                            continue;
+                        };
+
+                        let Some(loader_ver) = loader_data.get("version").and_then(|v| v.as_str()) else {
+                            continue;
+                        };
+
+                        let stable = loader_data.get("stable").and_then(|v| v.as_bool()).unwrap_or(false);
+
+                        versions.push(ProfileVersion {
+                            id: format!(
+                                "{}-loader-{}-{}",
+                                match loader {
+                                    LoaderKind::Fabric => "fabric",
+                                    LoaderKind::IrisFabric => "iris-fabric",
+                                    LoaderKind::Quilt => "quilt",
+                                    _ => "unknown",
+                                },
+                                loader_ver,
+                                mc_version
+                            ),
+                            display_name: format!(
+                                "{} {} for Minecraft {}",
+                                match loader {
+                                    LoaderKind::Fabric => "Fabric",
+                                    LoaderKind::IrisFabric => "Iris Fabric",
+                                    LoaderKind::Quilt => "Quilt",
+                                    _ => "Unknown",
+                                },
+                                loader_ver,
+                                mc_version
+                            ),
+                            loader,
+                            minecraft_version: Some(mc_version.to_string()),
+                            loader_version: Some(loader_ver.to_string()),
+                            version_type: None,
+                            stable: Some(stable),
+                            release_time: None,
+                            updated_time: None,
+                            url: None,
+                            sha1: if loader == LoaderKind::Quilt {
+                                loader_data.get("hashes").and_then(|h| h.get("sha1")).and_then(|s| s.as_str()).map(|s| s.to_string())
+                            } else {
+                                None
+                            },
+                            compliance_level: None,
+                            recommended: None,
+                        });
+                    }
+                }
             }
         }
     }
@@ -277,45 +280,46 @@ async fn get_neoforge_versions() -> Result<Versions, String> {
                     let is_alpha = version_str.contains("alpha");
                     let is_snapshot = version_str.contains("snapshot") || is_snapshot;
                     let looks_unstable = is_beta || is_alpha || is_snapshot;
-                    if let Some(last_dot_index) = version_str.rfind('.') {
-                        // split version_str into mc_version and neoforge_version by the last dot, so 21.11.41-beta -> mc_version = 1.21.11 and neoforge_version = 41-beta, but if the version is in the new format like
-                        // 26.1.2.28-beta then mc_version = 26.1.2 and neoforge_version = 28-beta,
-                        // we can detect this by checking if the part before the last dot starts with "1." or not, if it starts with "1." we are in the old format and need to add "1." to the mc_version,
-                        // otherwise we are in the new format and can use the mc_version as is
-                        let mc_version = if let Some(last_dot_index) = version_str.rfind('.') {
-                            let potential_mc_version = &version_str[..last_dot_index];
-                            if potential_mc_version.starts_with("1.") {
-                                format!("1.{}", potential_mc_version)
-                            } else {
-                                potential_mc_version.to_string()
-                            }
-                        } else {
-                            continue; // skip if there is no dot, should not happen
-                        };
-                        let neoforge_version = &version_str[last_dot_index + 1..];
-                        versions.push(ProfileVersion {
-                            // the neoforge id to run neoforge requires only neoforge-<version from manifest list>
-                            id: format!("neoforge-{}", neoforge_version),
-                            display_name: format!("NeoForge {} for Minecraft {}", neoforge_version, mc_version),
-                            loader: LoaderKind::NeoForge,
-                            minecraft_version: Some(mc_version.to_string()),
-                            loader_version: Some(neoforge_version.to_string()),
-                            version_type: match (is_snapshot, looks_unstable) {
-                                (true, _) => Some(api_types::profiles::ProfileVersionType::Snapshot),
-                                (false, true) => Some(api_types::profiles::ProfileVersionType::OldBeta), // we don't have exact version types for beta/alpha so just mark them as old beta
-                                (false, false) => Some(api_types::profiles::ProfileVersionType::Release),
-                            },
-                            stable: Some(!is_snapshot && !looks_unstable),
-                            release_time: None,
-                            updated_time: None,
-                            // We should likely just put a link here to the latest neoforge installer as we don't have urls for neoforge...
-                            url: None,
-                            sha1: None,
-                            compliance_level: None,
-                            // I don't recommend forge nor neoforge so we just default to false here..
-                            recommended: Some(false),
-                        });
-                    }
+                    let parts: Vec<&str> = version_str.split('.').collect();
+
+                    let (mc_version, neoforge_version) = if version_str.starts_with("1.") {
+                        // Old format:
+                        // 21.11.11-beta -> Minecraft 1.21.11, NeoForge 11-beta
+                        if parts.len() < 3 {
+                            continue;
+                        }
+
+                        (format!("1.{}.{}", parts[0], parts[1]), parts[2..].join("."))
+                    } else {
+                        // New format:
+                        // 26.1.2.81 -> Minecraft 26.1, NeoForge 2.81
+                        // 26.1.0.5-beta -> Minecraft 26.1, NeoForge 0.5-beta
+                        if parts.len() < 3 {
+                            continue;
+                        }
+
+                        (format!("{}.{}", parts[0], parts[1]), parts[2..].join("."))
+                    };
+
+                    versions.push(ProfileVersion {
+                        id: format!("neoforge-{}", version_str),
+                        display_name: format!("NeoForge {} for Minecraft {}", neoforge_version, mc_version),
+                        loader: LoaderKind::NeoForge,
+                        minecraft_version: Some(mc_version),
+                        loader_version: Some(neoforge_version),
+                        version_type: match (is_snapshot, looks_unstable) {
+                            (true, _) => Some(api_types::profiles::ProfileVersionType::Snapshot),
+                            (false, true) => Some(api_types::profiles::ProfileVersionType::OldBeta),
+                            (false, false) => Some(api_types::profiles::ProfileVersionType::Release),
+                        },
+                        stable: Some(!is_snapshot && !looks_unstable),
+                        release_time: None,
+                        updated_time: None,
+                        url: None,
+                        sha1: None,
+                        compliance_level: None,
+                        recommended: Some(false),
+                    });
                 }
             }
         }
