@@ -85,134 +85,145 @@ async function removeCurrentAccount() {
 
 <div class="account-manager">
   {#if currentAccount}
-    <div class="account-section">
-      <div class="account-header">
-        <div class="account-switcher">
-          <button
-            class="account-switcher-button"
-            class:open={accountSwitcherOpen}
-            onclick={() => (accountSwitcherOpen = !accountSwitcherOpen)}
-            aria-expanded={accountSwitcherOpen}
-            aria-haspopup="listbox"
-          >
-            <div class="account-switcher-avatar">
-              <PlayerHead account={currentAccount} size={40} />
-            </div>
+    <div class="account-content">
+      <div class="account-main">
+        <div class="account-avatar">
+          <PlayerHead account={currentAccount} size={72} />
 
-            <div class="account-switcher-details">
-              <span class="account-switcher-name">{accountDisplayName}</span>
-              <span class="account-switcher-status">
-                {getAccountStatusLabel(currentAccount)}
-              </span>
-            </div>
+          <span
+            class="status-dot"
+            class:online={accountStatus === "online"}
+            class:offline={accountStatus === "offline"}
+            class:expired={accountStatus === "expired"}
+            title={getAccountStatusLabel(currentAccount)}></span>
+        </div>
 
-            <Icon name="chevron-down" size="sm" />
-          </button>
+        <div class="account-identity">
+          <div class="account-name-row">
+            <h3>{accountDisplayName}</h3>
 
-          {#if accountSwitcherOpen}
-            <div class="account-switcher-menu" role="listbox">
-              <div class="account-switcher-label">Accounts</div>
+            <span class="status-badge" class:online={accountStatus === "online"} class:offline={accountStatus === "offline"} class:expired={accountStatus === "expired"}>
+              {getAccountStatusLabel(currentAccount)}
+            </span>
+          </div>
 
-              {#each accounts as account (account.local_id)}
-                <button
-                  class="account-option"
-                  class:active={account.local_id === currentAccount.local_id}
-                  onclick={() => selectAccount(account)}
-                  role="option"
-                  aria-selected={account.local_id === currentAccount.local_id}
-                >
-                  <div class="account-option-avatar">
-                    <PlayerHead {account} size={36} />
-                    <span
-                      class="account-option-status"
-                      class:online={getAccountStatusClass(account) === "online"}
-                      class:offline={getAccountStatusClass(account) === "offline"}
-                      class:expired={getAccountStatusClass(account) === "expired"}
-                    ></span>
-                  </div>
+          <p class="account-description">
+            {#if accountStatus === "online"}
+              {tokenExpiryDisplay}
+            {:else if accountStatus === "expired"}
+              Your authentication token has expired.
+            {:else}
+              This account is currently offline.
+            {/if}
+          </p>
 
-                  <div class="account-option-details">
-                    <span class="account-option-name">
-                      {authService.getAccountDisplayName(account)}
-                    </span>
-                    <span class="account-option-status-text">
-                      {getAccountStatusLabel(account)}
-                    </span>
-                  </div>
-
-                  {#if account.local_id === currentAccount.local_id}
-                    <Icon name="check" size="sm" />
-                  {/if}
-                </button>
-              {/each}
-
-              <div class="account-switcher-separator"></div>
-
-              <button class="account-option add-account" onclick={openAddAccount}>
-                <div class="account-option-add-icon">
-                  <Icon name="plus" size="sm" />
-                </div>
-
-                <div class="account-option-details">
-                  <span class="account-option-name">Add account</span>
-                  <span class="account-option-status-text"> Sign in with Microsoft </span>
-                </div>
-              </button>
-            </div>
-          {/if}
+          <span class="account-uuid" title={accountUuid}>
+            {accountUuid}
+          </span>
         </div>
 
         <div class="account-actions">
-          <button class="btn btn-secondary icon-button" onclick={removeCurrentAccount} disabled={isLoading} title="Remove account" aria-label="Remove account">
+          <div class="account-switcher">
+            <button
+              class="switcher-button"
+              class:open={accountSwitcherOpen}
+              onclick={() => (accountSwitcherOpen = !accountSwitcherOpen)}
+              aria-expanded={accountSwitcherOpen}
+              aria-haspopup="listbox">
+              <Icon name="user" size="sm" forceType="svg" />
+              <span>Switch account</span>
+              <Icon name="chevron-down" size="sm" forceType="svg" />
+            </button>
+
+            {#if accountSwitcherOpen}
+              <div class="switcher-menu" role="listbox">
+                <div class="switcher-heading">Your accounts</div>
+
+                {#each accounts as account (account.local_id)}
+                  <button
+                    class="account-option"
+                    class:active={account.local_id === currentAccount.local_id}
+                    onclick={() => selectAccount(account)}
+                    role="option"
+                    aria-selected={account.local_id === currentAccount.local_id}>
+                    <div class="option-avatar">
+                      <PlayerHead {account} size={36} />
+
+                      <span
+                        class="option-status"
+                        class:online={getAccountStatusClass(account) === "online"}
+                        class:offline={getAccountStatusClass(account) === "offline"}
+                        class:expired={getAccountStatusClass(account) === "expired"}></span>
+                    </div>
+
+                    <div class="option-details">
+                      <span class="option-name">
+                        {authService.getAccountDisplayName(account)}
+                      </span>
+
+                      <span class="option-status-text">
+                        {getAccountStatusLabel(account)}
+                      </span>
+                    </div>
+
+                    {#if account.local_id === currentAccount.local_id}
+                      <Icon name="check" size="sm" />
+                    {/if}
+                  </button>
+                {/each}
+
+                <div class="menu-divider"></div>
+
+                <button class="add-account-button" onclick={openAddAccount}>
+                  <span class="add-icon">
+                    <Icon name="plus" size="sm" />
+                  </span>
+
+                  <span>
+                    <strong>Add account</strong>
+                    <small>Sign in with Microsoft</small>
+                  </span>
+                </button>
+              </div>
+            {/if}
+          </div>
+
+          <button class="remove-button" onclick={removeCurrentAccount} disabled={isLoading} title="Remove account" aria-label="Remove account">
             <Icon name="trash" size="sm" />
           </button>
         </div>
       </div>
 
-      <div class="current-account-card">
-        <div class="account-avatar-container">
-          <div class="account-avatar minecraft-head large" title={accountAvatarTitle}>
-            <PlayerHead account={currentAccount} size={64} />
-          </div>
-
-          <div
-            class="status-indicator"
-            class:online={accountStatus === "online"}
-            class:offline={accountStatus === "offline"}
-            class:expired={accountStatus === "expired"}
-            title={getAccountStatusLabel(currentAccount)}
-          ></div>
+      <div class="account-meta">
+        <div class="meta-item">
+          <span class="meta-label">Account</span>
+          <span class="meta-value">{accountDisplayName}</span>
         </div>
 
-        <div class="account-details">
-          <div class="account-details-main">
-            <h4>{accountDisplayName}</h4>
-            <span class="account-uuid">{accountUuid}</span>
-          </div>
+        <div class="meta-item">
+          <span class="meta-label">Authentication</span>
 
-          <div class="account-details-status">
+          <span class="meta-value" class:success={accountStatus === "online"} class:warning={accountStatus === "offline"} class:error={accountStatus === "expired"}>
             {#if accountStatus === "online"}
-              <span class="token-status">
-                {tokenExpiryDisplay}
-              </span>
+              {tokenExpiryDisplay}
             {:else if accountStatus === "expired"}
-              <span class="token-status expired"> Token expired </span>
+              Token expired
             {:else}
-              <span class="token-status offline"> Offline </span>
+              Offline
             {/if}
-          </div>
+          </span>
         </div>
       </div>
 
       {#if showAuthFlow}
-        <div class="auth-flow-container">
-          <div class="auth-flow-header">
+        <div class="auth-section">
+          <div class="auth-header">
             <div>
-              <h4>Add account</h4>
-              <p>Sign in with another Microsoft account.</p>
+              <h4>Add Microsoft account</h4>
+              <p>Sign in with another Microsoft account to add it to Kable.</p>
             </div>
 
-            <button class="btn btn-secondary icon-button" onclick={closeAuthFlow} aria-label="Close authentication">
+            <button class="close-button" onclick={closeAuthFlow} aria-label="Close authentication">
               <Icon name="x" size="sm" />
             </button>
           </div>
@@ -222,20 +233,17 @@ async function removeCurrentAccount() {
       {/if}
     </div>
   {:else}
-    <div class="no-accounts-container">
-      <div class="welcome-message">
-        <div class="welcome-icon">
-          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-            <circle cx="24" cy="16" r="8" stroke="currentColor" stroke-width="2" />
-            <path d="M8 40c0-8.837 7.163-16 16-16s16 7.163 16 16" stroke="currentColor" stroke-width="2" />
-          </svg>
-        </div>
-
-        <h3>Welcome to Kable</h3>
-        <p>Sign in with your Microsoft account to get started with Minecraft.</p>
+    <div class="empty-state">
+      <div class="empty-icon">
+        <Icon name="user-plus" size="lg" />
       </div>
 
-      <div class="auth-flow-container">
+      <div class="empty-content">
+        <h3>No Microsoft account connected</h3>
+        <p>Sign in with your Microsoft account to launch Minecraft and manage your profiles.</p>
+      </div>
+
+      <div class="empty-auth">
         <AuthenticationFlow />
       </div>
     </div>
@@ -245,60 +253,199 @@ async function removeCurrentAccount() {
 <style lang="scss">
 .account-manager {
   width: 100%;
+}
+
+.account-content {
   display: flex;
   flex-direction: column;
+}
+
+.account-main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
   gap: 1.25rem;
 }
 
-.account-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
+.account-avatar {
+  position: relative;
 
-.account-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  justify-content: center;
+
+  width: 76px;
+  height: 76px;
+
+  flex-shrink: 0;
+
+  overflow: hidden;
+
+  background: $color-surface-2;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+}
+
+.status-dot {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+
+  width: 13px;
+  height: 13px;
+
+  border: 3px solid $color-surface-2;
+  border-radius: 50%;
+
+  &.online {
+    background: $color-success;
+  }
+
+  &.offline {
+    background: $color-warning;
+  }
+
+  &.expired {
+    background: $color-error;
+  }
+}
+
+.account-identity {
+  min-width: 0;
+}
+
+.account-name-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+
+  h3 {
+    min-width: 0;
+
+    margin: 0;
+
+    color: $color-text;
+    font-size: 1.25rem;
+    font-weight: 650;
+    line-height: 1.25;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  padding: 0.2rem 0.5rem;
+
+  border: 1px solid;
+  border-radius: 999px;
+
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.2;
+
+  &::before {
+    content: "";
+
+    width: 5px;
+    height: 5px;
+
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  &.online {
+    color: $color-success;
+    background: color-mix(in srgb, $color-success 8%, transparent);
+    border-color: color-mix(in srgb, $color-success 20%, transparent);
+  }
+
+  &.offline {
+    color: $color-warning;
+    background: color-mix(in srgb, $color-warning 8%, transparent);
+    border-color: color-mix(in srgb, $color-warning 20%, transparent);
+  }
+
+  &.expired {
+    color: $color-error;
+    background: color-mix(in srgb, $color-error 8%, transparent);
+    border-color: color-mix(in srgb, $color-error 20%, transparent);
+  }
+}
+
+.account-description {
+  margin: 0.35rem 0 0;
+
+  color: $color-text-muted;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.account-uuid {
+  display: block;
+
+  max-width: min(100%, 360px);
+
+  margin-top: 0.5rem;
+
+  color: $color-text-muted;
+
+  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+  font-size: 0.65rem;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.7;
+}
+
+.account-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .account-switcher {
   position: relative;
-  width: min(360px, 100%);
 }
 
-.account-switcher-button {
-  width: 100%;
-  min-height: 58px;
+.switcher-button {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  padding: 0.55rem 0.75rem;
-  background: $color-surface-3;
+  gap: 0.5rem;
+
+  height: 2.35rem;
+  padding: 0 0.75rem;
+
+  color: $color-text-muted;
+  background: $color-surface-2;
+
   border: 1px solid $color-border;
   border-radius: $radius-md;
-  color: $color-text;
+
+  font-size: 0.75rem;
+  font-weight: 500;
+
   cursor: pointer;
-  text-align: left;
+
   transition:
+    color 0.15s ease,
     border-color 0.15s ease,
-    background 0.15s ease,
-    box-shadow 0.15s ease;
+    background 0.15s ease;
 
   &:hover,
   &.open {
-    border-color: color-mix(in srgb, $color-accent 55%, $color-border);
-    background: color-mix(in srgb, $color-surface-3 92%, $color-accent);
-  }
-
-  &.open {
-    box-shadow: 0 0 0 3px color-mix(in srgb, $color-accent 8%, transparent);
+    color: $color-text;
+    border-color: color-mix(in srgb, $color-accent 35%, $color-border);
+    background: color-mix(in srgb, $color-accent 5%, $color-surface-2);
   }
 
   > :last-child {
-    margin-left: auto;
-    color: $color-text-muted;
     transition: transform 0.15s ease;
   }
 
@@ -308,132 +455,131 @@ async function removeCurrentAccount() {
   }
 }
 
-.account-switcher-avatar {
-  width: 42px;
-  height: 42px;
-  flex-shrink: 0;
-  overflow: hidden;
-  border: 1px solid $color-border;
-  border-radius: 50%;
-  background: $color-surface-2;
-}
-
-.account-switcher-details {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 0.2rem;
-}
-
-.account-switcher-name {
-  color: $color-text;
-  font-size: 0.9rem;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.account-switcher-status {
+.remove-button,
+.close-button {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  color: $color-text-muted;
-  font-size: 0.7rem;
+  justify-content: center;
 
-  &::before {
-    content: "";
-    width: 6px;
-    height: 6px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    background: $color-success;
+  width: 2.35rem;
+  height: 2.35rem;
+  padding: 0;
+
+  color: $color-text-muted;
+  background: transparent;
+
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+
+  cursor: pointer;
+
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+
+  &:hover:not(:disabled) {
+    color: $color-error;
+    border-color: color-mix(in srgb, $color-error 35%, $color-border);
+    background: color-mix(in srgb, $color-error 6%, transparent);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
   }
 }
 
-.account-switcher-menu {
+.switcher-menu {
   position: absolute;
+
   top: calc(100% + 0.5rem);
-  left: 0;
   right: 0;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  padding: 0.45rem;
+
+  z-index: 20;
+
+  width: 280px;
+
+  padding: 0.4rem;
+
   background: $color-surface-3;
+
   border: 1px solid $color-border;
   border-radius: $radius-md;
+
   box-shadow:
-    0 16px 40px rgba(0, 0, 0, 0.28),
-    0 4px 12px rgba(0, 0, 0, 0.12);
-  backdrop-filter: blur(1rem) saturate(1.2);
+    0 12px 30px rgba(0, 0, 0, 0.22),
+    0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
-.account-switcher-label {
-  padding: 0.5rem 0.65rem 0.45rem;
+.switcher-heading {
+  padding: 0.5rem 0.6rem;
+
   color: $color-text-muted;
+
   font-size: 0.65rem;
   font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
 }
 
 .account-option {
-  width: 100%;
-  min-height: 52px;
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.5rem 0.6rem;
+  gap: 0.65rem;
+
+  width: 100%;
+  min-height: 52px;
+
+  padding: 0.45rem 0.55rem;
+
+  color: $color-text;
   background: transparent;
+
   border: 1px solid transparent;
   border-radius: calc($radius-md - 2px);
-  color: $color-text;
+
   cursor: pointer;
   text-align: left;
+
   transition:
     background 0.12s ease,
     border-color 0.12s ease;
 
   &:hover {
-    background: color-mix(in srgb, $color-surface-2 70%, transparent);
+    background: $color-surface-2;
   }
 
   &.active {
-    background: color-mix(in srgb, $color-accent 8%, transparent);
-    border-color: color-mix(in srgb, $color-accent 18%, transparent);
-  }
+    background: color-mix(in srgb, $color-accent 7%, transparent);
+    border-color: color-mix(in srgb, $color-accent 15%, transparent);
 
-  > :last-child {
-    margin-left: auto;
-    color: $color-accent;
-  }
-
-  &.add-account {
-    color: $color-accent;
-
-    &:hover {
-      background: color-mix(in srgb, $color-accent 8%, transparent);
+    > :last-child {
+      color: $color-accent;
     }
   }
 }
 
-.account-option-avatar {
+.option-avatar {
   position: relative;
+
   width: 36px;
   height: 36px;
+
   flex-shrink: 0;
+
   border-radius: 50%;
-  overflow: visible;
 }
 
-.account-option-status {
+.option-status {
   position: absolute;
+
   right: -1px;
   bottom: -1px;
+
   width: 9px;
   height: 9px;
+
   border: 2px solid $color-surface-3;
   border-radius: 50%;
 
@@ -450,377 +596,326 @@ async function removeCurrentAccount() {
   }
 }
 
-.account-option-details {
+.option-details {
+  min-width: 0;
+  flex: 1;
+
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  gap: 0.15rem;
+  gap: 0.1rem;
 }
 
-.account-option-name {
+.option-name {
   color: $color-text;
-  font-size: 0.85rem;
+
+  font-size: 0.8rem;
   font-weight: 500;
-  line-height: 1.2;
+
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.account-option-status-text {
+.option-status-text {
   color: $color-text-muted;
-  font-size: 0.68rem;
+  font-size: 0.65rem;
 }
 
-.account-switcher-separator {
+.menu-divider {
   height: 1px;
-  margin: 0.4rem 0;
+  margin: 0.35rem 0;
+
   background: $color-border;
 }
 
-.account-option-add-icon {
+.add-account-button {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+
+  width: 100%;
+
+  padding: 0.55rem;
+
+  color: $color-accent;
+  background: transparent;
+
+  border: 0;
+  border-radius: calc($radius-md - 2px);
+
+  cursor: pointer;
+  text-align: left;
+
+  &:hover {
+    background: color-mix(in srgb, $color-accent 7%, transparent);
+  }
+
+  strong,
+  small {
+    display: block;
+  }
+
+  strong {
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  small {
+    margin-top: 0.1rem;
+
+    color: $color-text-muted;
+    font-size: 0.65rem;
+  }
+}
+
+.add-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
   width: 36px;
   height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+
   flex-shrink: 0;
-  color: $color-accent;
+
   border: 1px dashed color-mix(in srgb, $color-accent 40%, $color-border);
   border-radius: 50%;
-  background: color-mix(in srgb, $color-accent 5%, transparent);
 }
 
-.account-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+/* Secondary information */
+
+.account-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+
+  border-top: 1px solid $color-border;
 }
 
-.icon-button {
-  width: 2.35rem;
-  height: 2.35rem;
-  min-width: 2.35rem;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Current account */
-
-.current-account-card {
-  position: relative;
-  min-height: 190px;
-  display: flex;
-  align-items: center;
-  gap: 2rem;
-  padding: 2rem 2.25rem;
-  overflow: hidden;
-  background: radial-gradient(circle at 0% 100%, color-mix(in srgb, $color-accent 9%, transparent), transparent 45%), $color-surface-3;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
-
-  &::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 35%;
-    height: 100%;
-    pointer-events: none;
-    background: linear-gradient(90deg, transparent, color-mix(in srgb, $color-accent 3%, transparent));
-  }
-}
-
-.account-avatar-container {
-  position: relative;
-  flex-shrink: 0;
-  z-index: 1;
-}
-
-.account-avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border: 3px solid $color-border;
-  border-radius: 50%;
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.2),
-    0 0 0 6px color-mix(in srgb, $color-accent 5%, transparent);
-
-  &.minecraft-head {
-    background: linear-gradient(135deg, $color-accent, $color-accent-secondary);
-  }
-
-  &.large {
-    width: 96px;
-    height: 96px;
-  }
-}
-
-.status-indicator {
-  position: absolute;
-  right: 1px;
-  bottom: 1px;
-  width: 19px;
-  height: 19px;
-  border: 4px solid $color-surface-3;
-  border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-
-  &.online {
-    background: $color-success;
-  }
-
-  &.offline {
-    background: $color-warning;
-  }
-
-  &.expired {
-    background: $color-error;
-  }
-}
-
-.account-details {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
-  min-width: 0;
-  flex: 1;
-}
-
-.account-details-main {
+.meta-item {
   display: flex;
   flex-direction: column;
-  min-width: 0;
-  gap: 0.5rem;
+  gap: 0.2rem;
 
-  h4 {
-    margin: 0;
-    color: $color-text;
-    font-size: 1.45rem;
-    font-weight: 650;
-    line-height: 1.2;
+  min-width: 0;
+
+  &:not(:first-child) {
+    padding-left: 1.25rem;
+    border-left: 1px solid $color-border;
   }
 }
 
-.account-uuid {
-  width: fit-content;
-  max-width: 100%;
-  padding: 0.3rem 0.5rem;
+.meta-label {
   color: $color-text-muted;
-  background: $color-surface-2;
-  border: 1px solid $color-border;
-  border-radius: calc($radius-md - 3px);
-  font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
-  font-size: 0.68rem;
+
+  font-size: 0.65rem;
+  font-weight: 600;
+
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.meta-value {
+  min-width: 0;
+
+  color: $color-text;
+
+  font-size: 0.8rem;
+  font-weight: 500;
+
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
 
-.account-details-status {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-}
-
-.token-status {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.45rem 0.7rem;
-  color: $color-success;
-  background: color-mix(in srgb, $color-success 7%, transparent);
-  border: 1px solid color-mix(in srgb, $color-success 18%, transparent);
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  white-space: nowrap;
-
-  &::before {
-    content: "";
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
+  &.success {
+    color: $color-success;
   }
 
-  &.expired {
-    color: $color-error;
-    background: color-mix(in srgb, $color-error 7%, transparent);
-    border-color: color-mix(in srgb, $color-error 18%, transparent);
-  }
-
-  &.offline {
+  &.warning {
     color: $color-warning;
-    background: color-mix(in srgb, $color-warning 7%, transparent);
-    border-color: color-mix(in srgb, $color-warning 18%, transparent);
+  }
+
+  &.error {
+    color: $color-error;
   }
 }
 
 /* Authentication */
 
-.auth-flow-container {
+.auth-section {
+  margin-top: 1.25rem;
+
   overflow: hidden;
-  background: $color-surface-3;
+
+  background: $color-surface-2;
+
   border: 1px solid $color-border;
   border-radius: $radius-md;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
 }
 
-.auth-flow-header {
+.auth-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1.1rem 1.35rem;
-  background: color-mix(in srgb, $color-surface-2 45%, transparent);
+
+  padding: 1rem 1.15rem;
+
   border-bottom: 1px solid $color-border;
 
   h4 {
     margin: 0 0 0.2rem;
+
+    color: $color-text;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+
+    color: $color-text-muted;
+    font-size: 0.7rem;
+  }
+}
+
+/* Empty state */
+
+.empty-state {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 1.25rem;
+
+  padding: 1.5rem;
+
+  background: $color-surface-2;
+
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+}
+
+.empty-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 52px;
+  height: 52px;
+
+  color: $color-accent;
+
+  background: color-mix(in srgb, $color-accent 8%, transparent);
+
+  border: 1px solid color-mix(in srgb, $color-accent 18%, transparent);
+  border-radius: $radius-md;
+}
+
+.empty-content {
+  min-width: 0;
+
+  h3 {
+    margin: 0 0 0.3rem;
+
     color: $color-text;
     font-size: 0.95rem;
     font-weight: 600;
   }
 
   p {
+    max-width: 500px;
+
     margin: 0;
+
     color: $color-text-muted;
+
     font-size: 0.75rem;
-  }
-}
-
-/* Empty state */
-
-.no-accounts-container {
-  width: 100%;
-  min-height: 420px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem;
-  text-align: center;
-  background: radial-gradient(circle at 50% 0%, color-mix(in srgb, $color-accent 8%, transparent), transparent 45%), $color-surface-3;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
-}
-
-.welcome-message {
-  margin-bottom: 2rem;
-
-  .welcome-icon {
-    width: 72px;
-    height: 72px;
-    margin: 0 auto 1.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    background: linear-gradient(135deg, $color-accent, $color-accent-secondary);
-    border-radius: 18px;
-    box-shadow: 0 10px 30px color-mix(in srgb, $color-accent 18%, transparent);
-  }
-
-  h3 {
-    margin: 0 0 0.5rem;
-    color: $color-text;
-    font-size: 1.4rem;
-    font-weight: 650;
-  }
-
-  p {
-    max-width: 480px;
-    margin: 0 auto;
-    color: $color-text-muted;
-    font-size: 0.85rem;
     line-height: 1.5;
   }
 }
 
-.no-accounts-container > .auth-flow-container {
-  width: min(520px, 100%);
-  text-align: left;
-  box-shadow: none;
+.empty-auth {
+  grid-column: 1 / -1;
+
+  padding-top: 1rem;
+
+  border-top: 1px solid $color-border;
 }
 
 /* Responsive */
 
-@media (max-width: 700px) {
-  .account-header {
-    align-items: stretch;
-  }
-
-  .account-switcher {
-    min-width: 0;
-    flex: 1;
-  }
-
-  .current-account-card {
-    min-height: 0;
-    align-items: flex-start;
-    gap: 1.25rem;
-    padding: 1.5rem;
-  }
-
-  .account-avatar.large {
-    width: 72px;
-    height: 72px;
-  }
-
-  .account-details {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.8rem;
-  }
-
-  .account-details-status {
-    align-self: flex-start;
-  }
-}
-
-@media (max-width: 500px) {
-  .account-header {
-    flex-direction: column;
-  }
-
-  .account-switcher {
-    width: 100%;
+@media (max-width: 800px) {
+  .account-main {
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .account-actions {
-    justify-content: flex-end;
+    grid-column: 2;
+  }
+}
+
+@media (max-width: 560px) {
+  .account-main {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1rem;
   }
 
-  .current-account-card {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+  .account-avatar {
+    width: 60px;
+    height: 60px;
   }
 
-  .account-details {
-    align-items: center;
+  .account-name-row {
+    h3 {
+      font-size: 1.05rem;
+    }
+  }
+
+  .account-actions {
+    grid-column: 1 / -1;
+
     width: 100%;
   }
 
-  .account-details-main {
-    align-items: center;
+  .account-switcher {
+    flex: 1;
   }
 
-  .account-uuid {
-    max-width: 100%;
+  .switcher-button {
+    width: 100%;
+    justify-content: center;
   }
 
-  .no-accounts-container {
-    min-height: 0;
-    padding: 2rem 1rem;
+  .remove-button {
+    flex-shrink: 0;
+  }
+
+  .account-meta {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .meta-item:not(:first-child) {
+    padding-left: 0;
+    padding-top: 0.75rem;
+
+    border-top: 1px solid $color-border;
+    border-left: 0;
+  }
+
+  .empty-state {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .empty-icon {
+    margin: 0 auto;
+  }
+
+  .empty-auth {
+    text-align: left;
   }
 }
 </style>

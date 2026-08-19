@@ -344,3 +344,322 @@ function formatSize(sizeMB: number): string {
     </section>
   </main>
 </div>
+
+<style lang="scss">
+.profile-page {
+  width: 100%;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 2.5rem 2.5rem 5rem;
+  box-sizing: border-box;
+}
+
+.page-header {
+  margin-bottom: 2.5rem;
+}
+
+.page-header-content {
+  max-width: 720px;
+}
+
+.page-eyebrow {
+  display: block;
+  margin-bottom: 0.5rem;
+
+  color: $color-accent;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.page-header h1 {
+  margin: 0 0 0.6rem;
+
+  color: var(--text);
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.page-header p {
+  margin: 0;
+
+  color: var(--placeholder);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.profile-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+/* Account */
+
+.account-section,
+.stats-section {
+  min-width: 0;
+}
+
+.account-section {
+  padding: 1.5rem;
+
+  background: $color-surface-1;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+
+  margin-bottom: 1.5rem;
+}
+
+.section-heading-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+
+  color: $color-accent;
+  background: color-mix(in srgb, $color-accent 9%, transparent);
+  border: 1px solid color-mix(in srgb, $color-accent 18%, transparent);
+  border-radius: $radius-md;
+}
+
+.section-heading h2 {
+  margin: 0 0 0.2rem;
+
+  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.section-heading p {
+  margin: 0;
+
+  color: var(--placeholder);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.account-container {
+  min-width: 0;
+}
+
+.account-container :global(.account-manager) {
+  width: 100%;
+}
+
+/* Statistics */
+
+.stats-section {
+  padding: 1.5rem;
+
+  background: $color-surface-2;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+}
+
+.stats-section .section-heading {
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.25rem;
+
+  border-bottom: 1px solid $color-border;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+
+.stat-card {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+
+  min-width: 0;
+  min-height: 82px;
+  padding: 1rem;
+
+  background: color-mix(in srgb, $color-surface-2 72%, $color-surface-3);
+
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+
+  overflow: hidden;
+
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &::after {
+    content: "";
+
+    position: absolute;
+    inset: 0;
+
+    pointer-events: none;
+
+    background: linear-gradient(135deg, color-mix(in srgb, $color-accent 4%, transparent), transparent 50%);
+
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+
+  &:hover {
+    background: color-mix(in srgb, $color-accent 3%, var(--container));
+
+    border-color: color-mix(in srgb, $color-accent 25%, $color-border);
+
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+
+    &::after {
+      opacity: 1;
+    }
+  }
+
+  &.hardcore {
+    .stat-icon {
+      color: $color-error;
+      background: color-mix(in srgb, $color-error 8%, transparent);
+      border-color: color-mix(in srgb, $color-error 18%, transparent);
+    }
+  }
+}
+
+.stat-icon {
+  position: relative;
+  z-index: 1;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+
+  color: $color-accent;
+  background: color-mix(in srgb, $color-accent 8%, transparent);
+  border: 1px solid color-mix(in srgb, $color-accent 15%, transparent);
+  border-radius: $radius-md;
+}
+
+.stat-content {
+  position: relative;
+  z-index: 1;
+
+  min-width: 0;
+  flex: 1;
+}
+
+.stat-content h4 {
+  margin: 0 0 0.2rem;
+
+  color: $color-text-muted;
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.045em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  margin: 0;
+
+  color: $color-text;
+  font-size: 1.1rem;
+  font-weight: 650;
+  line-height: 1.3;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-subtext {
+  margin: 0.15rem 0 0;
+
+  color: $color-text-muted;
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+
+/* Error */
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+
+  margin-bottom: 1.5rem;
+  padding: 0.8rem 1rem;
+
+  color: $color-error;
+  background: color-mix(in srgb, $color-error 8%, transparent);
+  border: 1px solid color-mix(in srgb, $color-error 30%, transparent);
+  border-radius: $radius-md;
+
+  font-size: 0.85rem;
+}
+
+/* Responsive */
+
+@media (max-width: 900px) {
+  .profile-page {
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .profile-page {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .page-header {
+    margin-bottom: 2rem;
+  }
+
+  .account-section,
+  .stats-section {
+    padding: 1rem;
+  }
+
+  .section-heading {
+    align-items: flex-start;
+  }
+
+  .section-heading-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>
