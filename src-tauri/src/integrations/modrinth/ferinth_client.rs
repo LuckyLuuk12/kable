@@ -13,12 +13,12 @@ use ferinth::{
     Ferinth,
 };
 
-use crate::{integrations::modrinth::as_string, Logger};
-
+use crate::Logger;
 use api_types::projects::{
     ClientSide, DependencyType, Facet, FacetField, FacetGroup, FacetOperator, FileType, ModrinthResults, Project, ProjectSearch,
     ProjectType, ProjectVersion, SearchIndex, ServerSide, Status, VersionDependency, VersionFile, VersionFileHashes, VersionType,
 };
+use futures::future::join_all;
 
 // ============================================================================
 // CLIENT
@@ -177,7 +177,7 @@ async fn test_search(project_type: Option<String>, mut project_search: ProjectSe
         serde_json::from_str(&body).map_err(|e| format!("Failed to deserialize Ferinth response: {e}\nBody: {body}"))?;
 
     Ok(ModrinthResults {
-        hits: response.hits.into_iter().map(convert_search_hit).collect(),
+        hits: join_all(response.hits.into_iter().map(convert_search_hit)).await,
 
         offset: i32::try_from(response.offset).unwrap_or(0),
 
@@ -222,7 +222,7 @@ async fn search(project_type: Option<String>, project_search: ProjectSearch) -> 
         .map_err(|e| format!("Failed to search Modrinth: {e}"))?;
 
     Ok(ModrinthResults {
-        hits: response.hits.into_iter().map(convert_search_hit).collect(),
+        hits: join_all(response.hits.into_iter().map(convert_search_hit)).await,
 
         offset: i32::try_from(response.offset).unwrap_or(0),
 
@@ -232,11 +232,23 @@ async fn search(project_type: Option<String>, project_search: ProjectSearch) -> 
     })
 }
 
+pub async fn get_version_data(version_ids: Vec<String>) -> Result<Vec<ProjectVersion>, String> {
+    if version_ids.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let ids: Vec<&str> = version_ids.iter().map(String::as_str).collect();
+
+    let versions = client().version_get_multiple(&ids).await.map_err(|e| format!("Failed to get Modrinth versions: {}", e))?;
+
+    Ok(versions.into_iter().map(convert_version).collect())
+}
+
 // ============================================================================
 // SEARCH HIT CONVERSION
 // ============================================================================
 
-fn convert_search_hit(value: ferinth::structures::search::SearchHit) -> Project {
+async fn convert_search_hit(value: ferinth::structures::search::SearchHit) -> Project {
     Project {
         slug: value.slug.unwrap_or_default(),
 
@@ -268,7 +280,7 @@ fn convert_search_hit(value: ferinth::structures::search::SearchHit) -> Project 
 
         display_categories: Some(value.display_categories),
 
-        versions: Vec::new(), // TODO: make modrinth api requests to fetch full version data here.
+        versions: get_version_data(value.game_versions).await.unwrap_or_default(),
 
         follows: i32::try_from(value.follows).unwrap_or(0),
 
@@ -324,9 +336,11 @@ async fn add_version_data(projects: Vec<Project>, project_search: ProjectSearch)
             .map_err(|e| format!("Failed to get versions for project {}: {}", project.project_id, e))?;
 
         project.versions = versions.into_iter().map(convert_version).collect();
-
+        Logger::debug_global(&format!("Added version data for project {}: {} versions", project.project_id, project.versions.len()), None);
         results.push(project);
     }
+
+    Logger::debug_global(&format!("Added version data for {} projects", results.len()), None);
 
     Ok(results)
 }

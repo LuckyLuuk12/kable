@@ -1,4 +1,5 @@
 import { api } from "$lib";
+import { type ModalInstance } from "$lib/utils/modal";
 import type { Component } from "svelte";
 import { AuthService } from "./auth.svelte";
 import { CustomizationService } from "./customization.svelte";
@@ -11,12 +12,12 @@ import { ProfilesService } from "./profiles.svelte";
 import { ProjectsService } from "./projects.svelte";
 import { UpdaterService } from "./updater.svelte";
 
-type ModalInstance = {
-  id: string;
-  component: Component;
-  props: Record<string, unknown>;
-  resolve: (value: unknown) => void;
-};
+// type ModalInstance = {
+//   id: string;
+//   component: Component;
+//   props: Record<string, unknown>;
+//   resolve: (value: unknown) => void;
+// };
 
 export interface Service {
   init(): Promise<void> | void;

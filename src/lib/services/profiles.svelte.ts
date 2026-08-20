@@ -1,4 +1,5 @@
 import { type KableAccount, type KableProfile, type LoaderKind, api } from "$lib";
+import { SvelteDate } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
 
 export type ProfileStatistics = {
@@ -198,7 +199,7 @@ export class ProfilesService implements Service {
         return profile.metadata.last_used;
       }
 
-      return new Date(profile.metadata.last_used) > new Date(latest) ? profile.metadata.last_used : latest;
+      return new SvelteDate(profile.metadata.last_used) > new SvelteDate(latest) ? profile.metadata.last_used : latest;
     }, null);
 
     const mostPlayedProfile = profiles.reduce<KableProfile | null>((mostPlayed, profile) => {

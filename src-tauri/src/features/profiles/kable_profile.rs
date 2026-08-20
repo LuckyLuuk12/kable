@@ -1,9 +1,11 @@
 use crate::constants::KABLE_PROFILES_FILE;
 use crate::integrations::loaders::get_versions;
 use crate::integrations::minecraft::profiles::parse_launcher_profiles;
+use crate::system::cache::{invalidate, invalidate_no_args};
 use crate::system::fs::{launcher_dir, read_str, write_str};
 use api_types::profiles::LauncherProfiles;
 use api_types::profiles::{KableProfile, Projects};
+use kable_macros::persistent_cache;
 use std::collections::{HashMap, HashSet};
 
 /// A way to convert a official launcher profile into a KableProfile, which is the internal representation of a profile in Kable
@@ -101,6 +103,7 @@ async fn merge_profiles(launcher_profiles: LauncherProfiles, kable_profiles: Vec
 
 /// async execute loading of the 2 different profile sources then join / await completion of both in async, save the profiles, and return the merged result
 /// After sorting by lastUsed such that the most recently used profile is first in the list
+#[persistent_cache(parent = "profiles", ttl_secs = 3600)] // cache for 1 hour
 pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
     let launcher_profiles_future = parse_launcher_profiles();
     let kable_profiles_future = parse_kable_profiles();
@@ -127,6 +130,8 @@ pub async fn save_profiles(profiles: &[KableProfile]) -> Result<(), String> {
     let content = serde_json::to_string_pretty(&profiles).map_err(|e| format!("Failed to serialize profiles: {e}"))?;
 
     write_str(&profiles_file, &content, false).await?;
+
+    invalidate_no_args("profiles", "save_profiles").await?;
 
     Ok(())
 }

@@ -69,11 +69,9 @@ function showDetails() {
 }
 
 function showVersions() {
-  if (!installed) return;
-
   app.show(ProjectVersionsModal, {
     profile,
-    project: installed,
+    project,
   });
 }
 
@@ -145,7 +143,7 @@ function showGallery() {
 
     <button class="action-button" type="button" disabled={!profile || liking} onclick={toggleLike} title="Like project"> Like </button>
 
-    <button class="action-button" type="button" disabled={!installed} onclick={showVersions}> Versions </button>
+    <button class="action-button" type="button" onclick={showVersions}> Versions </button>
 
     {#if hasGallery}
       <button class="action-button" type="button" onclick={showGallery}> Gallery </button>
@@ -176,11 +174,12 @@ function showGallery() {
   gap: 12px;
 
   padding: 14px;
-  border: 1px solid var(--border-color, #2a2a2a);
+
+  border: 1px solid $color-border-muted;
   border-radius: 12px;
 
-  background: var(--surface-color, #181818);
-  color: var(--text-color, #f2f2f2);
+  background: $color-surface-1;
+  color: $color-text;
 
   transition:
     border-color 0.15s ease,
@@ -188,12 +187,12 @@ function showGallery() {
     box-shadow 0.15s ease;
 
   &:hover {
-    border-color: var(--border-hover-color, #3a3a3a);
-    background: var(--surface-hover-color, #1c1c1c);
+    border-color: $color-border;
+    background: $color-surface-2;
   }
 
   &.installed {
-    border-color: var(--accent-color, #5865f2);
+    border-color: $color-accent-active;
   }
 }
 
@@ -201,8 +200,8 @@ function showGallery() {
   display: flex;
   width: 100%;
   min-width: 0;
-
   gap: 14px;
+
   padding: 0;
 
   border: 0;
@@ -213,7 +212,7 @@ function showGallery() {
   cursor: pointer;
 
   &:focus-visible {
-    outline: 2px solid var(--accent-color, #5865f2);
+    outline: 2px solid $color-focus;
     outline-offset: 4px;
     border-radius: 6px;
   }
@@ -221,18 +220,21 @@ function showGallery() {
 
 .project-icon {
   flex: 0 0 64px;
+
   width: 64px;
   height: 64px;
 
   overflow: hidden;
   border-radius: 10px;
 
-  background: var(--icon-background, #242424);
+  background: $color-surface-2;
 
   img {
     display: block;
+
     width: 100%;
     height: 100%;
+
     object-fit: cover;
   }
 }
@@ -245,10 +247,10 @@ function showGallery() {
   width: 100%;
   height: 100%;
 
+  color: $color-text;
+
   font-size: 26px;
   font-weight: 700;
-
-  color: var(--text-color, #f2f2f2);
 }
 
 .project-content {
@@ -282,11 +284,11 @@ function showGallery() {
   flex: 0 0 auto;
 
   padding: 2px 7px;
+
   border-radius: 999px;
 
-  background: color-mix(in srgb, var(--accent-color, #5865f2) 15%, transparent);
-
-  color: var(--accent-color, #7c83ff);
+  background: $color-selected;
+  color: $color-accent-muted;
 
   font-size: 10px;
   font-weight: 600;
@@ -295,18 +297,19 @@ function showGallery() {
 }
 
 .description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+
   margin: 0;
 
   overflow: hidden;
 
-  color: var(--text-secondary, #999);
+  color: $color-text-muted;
 
   font-size: 12px;
   line-height: 1.45;
-
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
 }
 
 .metadata {
@@ -318,20 +321,21 @@ function showGallery() {
 
   overflow: hidden;
 
-  color: var(--text-muted, #666);
+  color: $color-placeholder;
 
   font-size: 11px;
   line-height: 1.3;
 
   span {
     overflow: hidden;
-    text-overflow: ellipsis;
+
     white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   .separator {
     flex: 0 0 auto;
-    color: var(--text-muted, #555);
+    color: $color-border;
   }
 }
 
@@ -347,10 +351,11 @@ function showGallery() {
     flex: 0 0 auto;
 
     padding: 3px 7px;
+
     border-radius: 5px;
 
-    background: var(--tag-background, #242424);
-    color: var(--text-secondary, #999);
+    background: $color-surface-2;
+    color: $color-text-muted;
 
     font-size: 10px;
     line-height: 1.2;
@@ -367,13 +372,13 @@ function showGallery() {
 }
 
 .installed-version {
-  margin-right: auto;
-
   max-width: 140px;
+
+  margin-right: auto;
 
   overflow: hidden;
 
-  color: var(--text-muted, #777);
+  color: $color-placeholder;
 
   font-family: monospace;
   font-size: 10px;
@@ -388,11 +393,11 @@ function showGallery() {
   min-height: 28px;
   padding: 0 9px;
 
-  border: 1px solid var(--button-border, #303030);
+  border: 1px solid $color-border-muted;
   border-radius: 6px;
 
-  background: var(--button-background, #202020);
-  color: var(--text-secondary, #aaa);
+  background: $color-surface-2;
+  color: $color-text-muted;
 
   font: inherit;
   font-size: 11px;
@@ -407,9 +412,9 @@ function showGallery() {
     opacity 0.12s ease;
 
   &:hover:not(:disabled) {
-    border-color: var(--button-border-hover, #444);
-    background: var(--button-background-hover, #292929);
-    color: var(--text-color, #f2f2f2);
+    border-color: $color-border;
+    background: $color-surface-3;
+    color: $color-text;
   }
 
   &:active:not(:disabled) {
@@ -417,7 +422,7 @@ function showGallery() {
   }
 
   &:focus-visible {
-    outline: 2px solid var(--accent-color, #5865f2);
+    outline: 2px solid $color-focus;
     outline-offset: 2px;
   }
 
@@ -427,12 +432,17 @@ function showGallery() {
   }
 
   &.primary {
-    border-color: var(--accent-color, #5865f2);
-    background: var(--accent-color, #5865f2);
-    color: white;
+    border-color: $color-accent;
+    background: $color-accent;
+    color: $color-text;
 
     &:hover:not(:disabled) {
-      filter: brightness(1.1);
+      border-color: $color-accent-hover;
+      background: $color-accent-hover;
+    }
+
+    &:active:not(:disabled) {
+      background: $color-accent-active;
     }
 
     &:disabled {
@@ -448,6 +458,7 @@ function showGallery() {
 
   .project-icon {
     flex-basis: 52px;
+
     width: 52px;
     height: 52px;
   }

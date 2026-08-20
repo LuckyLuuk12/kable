@@ -34,12 +34,19 @@ const sortedProfiles = $derived(
 
 const selectedIndex = $derived(sortedProfiles.findIndex((item) => item.id === profile?.id));
 
-const loaderIcons = $derived(Object.fromEntries(sortedProfiles.map((profile) => [profile.id, app.profilesService.getLoaderIcon(profile.version.loader)])));
+const loaderImage = $derived(Object.fromEntries(sortedProfiles.map((profile) => [profile.id, app.profilesService.getLoaderImage(profile.version.loader)])));
 
 const loaderColors = $derived(Object.fromEntries(sortedProfiles.map((profile) => [profile.id, app.profilesService.getLoaderColor(profile.version.loader)])));
 
 function selectProfile(nextProfile: KableProfile) {
+  if (profile?.id === nextProfile.id) {
+    return;
+  }
+
   profile = nextProfile;
+  (async () => {
+    await app.projectsService.select(nextProfile);
+  })();
 }
 
 function selectRelative(offset: number) {
@@ -157,9 +164,11 @@ function getCarouselScale(currentIndex: number, selectedIndex: number, totalItem
 }
 
 $effect(() => {
-  if (!profile && sortedProfiles.length > 0) {
-    profile = sortedProfiles[0];
+  if (profile || sortedProfiles.length === 0) {
+    return;
   }
+
+  profile = sortedProfiles[0];
 });
 </script>
 
@@ -201,7 +210,7 @@ $effect(() => {
           role="option"
           aria-selected={item.id === profile?.id}>
           <div class="profile-icon">
-            <Image key={loaderIcons[item.id]} />
+            <Image key={loaderImage[item.id]} />
           </div>
 
           <div class="profile-meta">

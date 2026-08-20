@@ -11,7 +11,7 @@ Provides:
 - Profile launching
 -->
 <script lang="ts">
-import { type KableProfile, type ProjectType, app, Icon } from "$lib";
+import { type ProjectType, app, Icon } from "$lib";
 
 import InstalledProjects from "./InstalledProjects.svelte";
 import ProfilePicker from "./ProfilePicker.svelte";
@@ -24,7 +24,7 @@ let {
 } = $props();
 
 let currentTab: "installed" | "browse" = $state("installed");
-let profile = $state<KableProfile | null>(null);
+let profile = $state(app.profilesService.profiles.find((p) => p.id === app.projectsService.loadedForProfileId) ?? null);
 let pickerCollapsed = $state(false);
 
 let projectLabel = $derived(projectType === "mod" ? "Mods" : projectType === "resourcepack" ? "Resource Packs" : projectType === "shader" ? "Shaders" : "Modpacks");

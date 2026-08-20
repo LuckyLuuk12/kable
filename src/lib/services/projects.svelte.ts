@@ -330,4 +330,18 @@ export class ProjectsService implements Service {
     this.projects = [];
     this.loadedForProfileId = null;
   }
+
+  async select(profile: KableProfile | null) {
+    this.loadedForProfileId = profile?.id ?? null;
+    if (profile) {
+      // re-fetch projects:
+      for (const type of ["mod", "resourcepack", "shader", "modpack"] as ProjectType[]) {
+        await this.load(profile, type);
+
+      }
+    } else {
+      this.projects = [];
+    }
+    console.log("[ProjectsService] selected profile changed to", profile?.metadata.name ?? "null", "with", this.projects.length, "projects loaded");
+  }
 }

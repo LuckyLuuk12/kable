@@ -2,8 +2,10 @@
 use crate::integrations::modrinth::ferinth_client::{search_mods, search_resourcepacks, search_shaderpacks};
 use api_types::profiles::KableProfile;
 use api_types::projects::{Facet, FacetField, FacetGroup, FacetOperator, ModrinthResults, ProjectSearch, ProjectType};
+use kable_macros::persistent_cache;
 
 /// Given an installation search for mods, apply version and loader filters and return the results
+#[persistent_cache(parent = "projects", ttl_secs = 302400)] // cache for 3.5 days
 pub async fn browse(
     profile: KableProfile,
     search: ProjectSearch,
