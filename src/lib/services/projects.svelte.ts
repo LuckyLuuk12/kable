@@ -4,14 +4,17 @@ import {
   type Project,
   type ProjectSearch,
   type ProjectType,
+  type ProjectVersion,
   api
 } from "$lib";
+import { SvelteSet } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
 
 export class ProjectsService implements Service {
   projects = $state<KableProject[]>([]);
   loading = $state(false);
   loadedForProfileId = $state<string | null>(null);
+  loadedTypes = $state<SvelteSet<ProjectType>>(new SvelteSet());
 
   async init() {
     //
@@ -29,13 +32,13 @@ export class ProjectsService implements Service {
     profile: KableProfile,
     projectType: ProjectType
   ) {
-    if (
-      this.loadedForProfileId === profile.id &&
-      this.projects.some(
-        (project) =>
-          project.project.project_type === projectType
-      )
-    ) {
+    if (this.loadedForProfileId !== profile.id) {
+      this.projects = [];
+      this.loadedForProfileId = profile.id;
+      this.loadedTypes = new SvelteSet();
+    }
+
+    if (this.loadedTypes.has(projectType)) {
       return;
     }
 
@@ -47,12 +50,32 @@ export class ProjectsService implements Service {
         api.listProfileProjects(profile, false)
       ]);
 
-      this.projects = [
+      console.log("[ProjectsService] load", projectType,
+        {
+          enabled,
+          disabled,
+          enabledForType: enabled[projectType],
+          disabledForType: disabled[projectType]
+        });
+
+      const loadedProjects = [
         ...(enabled[projectType] ?? []),
         ...(disabled[projectType] ?? [])
       ];
 
-      this.loadedForProfileId = profile.id;
+      console.log("[ProjectsService] loaded projects", projectType, loadedProjects);
+
+      this.projects = [
+        ...this.projects.filter(
+          (project) => project.project.project_type !== projectType
+        ),
+        ...loadedProjects
+      ];
+
+      this.loadedTypes = new SvelteSet([
+        ...this.loadedTypes,
+        projectType
+      ]);
     } finally {
       this.loading = false;
     }
@@ -332,16 +355,64 @@ export class ProjectsService implements Service {
   }
 
   async select(profile: KableProfile | null) {
+    this.projects = [];
+    this.loadedTypes = new SvelteSet();
     this.loadedForProfileId = profile?.id ?? null;
-    if (profile) {
-      // re-fetch projects:
-      for (const type of ["mod", "resourcepack", "shader", "modpack"] as ProjectType[]) {
-        await this.load(profile, type);
 
-      }
-    } else {
-      this.projects = [];
+    if (!profile) {
+      console.log(
+        "[ProjectsService] selected profile changed to null with 0 projects loaded"
+      );
+      return;
     }
-    console.log("[ProjectsService] selected profile changed to", profile?.metadata.name ?? "null", "with", this.projects.length, "projects loaded");
+
+    for (const type of [
+      "mod",
+      "resourcepack",
+      "shader"
+    ] as ProjectType[]) {
+      await this.load(profile, type);
+    }
+
+    console.log(
+      "[ProjectsService] selected profile changed to",
+      profile.metadata.name,
+      "with",
+      this.projects.length,
+      "projects loaded"
+    );
+  }
+
+  isVersionCompatible(
+    profile: KableProfile,
+    version: ProjectVersion,
+    projectType: ProjectType
+  ): boolean {
+    const minecraftVersion = profile.version.minecraft_version;
+
+    if (
+      minecraftVersion &&
+      !version.game_versions.includes(minecraftVersion)
+    ) {
+      return false;
+    }
+
+    const loaderRelevant =
+      projectType === "mod" ||
+      projectType === "modpack";
+
+    if (!loaderRelevant) {
+      return true;
+    }
+
+    const profileLoader = profile.version.loader
+      .toString()
+      .toLowerCase()
+      .replace(/^iris_/, "");
+
+    return version.loaders.some(
+      (loader) =>
+        loader.toLowerCase().replace(/^iris_/, "") === profileLoader
+    );
   }
 }

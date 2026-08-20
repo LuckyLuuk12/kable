@@ -19,6 +19,12 @@ let {
 let projects = $derived(app.projectsService.getByType(projectType));
 let loading = $derived(app.projectsService.loading);
 
+$effect(() => {
+  if (profile) {
+    app.projectsService.load(profile, projectType);
+  }
+});
+
 let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "resourcepack" ? "resource packs" : projectType === "shader" ? "shaders" : "modpacks");
 </script>
 

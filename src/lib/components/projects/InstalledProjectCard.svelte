@@ -3,7 +3,7 @@
 This card differs from the @ProjectCard component in that it is used to display an already-installed project.
 -->
 <script lang="ts">
-import { app, type KableProfile, type KableProject } from "$lib";
+import { app, Icon, type KableProfile, type KableProject } from "$lib";
 import ProjectGalleryModal from "./ProjectGalleryModal.svelte";
 import ProjectModal from "./ProjectModal.svelte";
 import ProjectVersionsModal from "./ProjectVersionsModal.svelte";
@@ -142,30 +142,52 @@ function showGallery() {
       title={isEnabled ? "Disable project" : "Enable project"}
       aria-label={isEnabled ? `Disable ${project.project.title}` : `Enable ${project.project.title}`}
       onclick={toggle}>
-      {isEnabled ? "Disable" : "Enable"}
+      <Icon name={isEnabled ? "error" : "success"} forceType="svg" />
     </button>
 
-    <button class="action-button" type="button" disabled={loading} onclick={showVersions}> Versions </button>
+    <button class="action-button" type="button" disabled={loading} title="Versions" aria-label={`Versions for ${project.project.title}`} onclick={showVersions}>
+      <Icon name="list" forceType="svg" />
+    </button>
 
-    <button class="action-button" type="button" disabled={loading} onclick={showDetails}> Details </button>
+    <button class="action-button" type="button" disabled={loading} title="Details" aria-label={`Details for ${project.project.title}`} onclick={showDetails}>
+      <Icon name="info" forceType="svg" />
+    </button>
 
     {#if hasGallery}
-      <button class="action-button" type="button" disabled={loading} onclick={showGallery}> Gallery </button>
+      <button class="action-button" type="button" disabled={loading} title="Gallery" aria-label={`Gallery for ${project.project.title}`} onclick={showGallery}>
+        <Icon name="image" forceType="svg" />
+      </button>
     {/if}
 
-    <button class="action-button danger" type="button" disabled={!profile || loading} onclick={remove}> Uninstall </button>
+    <button
+      class="action-button danger"
+      type="button"
+      disabled={!profile || loading}
+      title="Uninstall"
+      aria-label={`Uninstall ${project.project.title}`}
+      onclick={remove}>
+      <Icon name="trash" forceType="svg" />
+    </button>
   </div>
 </article>
 
 <style lang="scss">
 .installed-project-card {
-  display: flex;
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 44px;
+  grid-template-areas: "icon content actions";
   align-items: center;
-  gap: $space-lg;
-  padding: $space-lg;
+  gap: $space-md;
+
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: $space-md;
+
   background: $color-surface-1;
   border: 1px solid $color-border-muted;
   border-radius: $radius-lg;
+
   transition:
     background-color 120ms ease,
     border-color 120ms ease,
@@ -177,16 +199,18 @@ function showGallery() {
   }
 
   &.disabled {
-    opacity: 0.7;
+    opacity: 0.65;
   }
 }
 
 .project-icon {
-  flex: 0 0 52px;
-  width: 52px;
-  height: 52px;
+  grid-area: icon;
+
+  width: 48px;
+  height: 48px;
   overflow: hidden;
-  border-radius: $radius-lg;
+
+  border-radius: $radius-md;
   background: $color-surface-3;
 
   img,
@@ -204,14 +228,15 @@ function showGallery() {
 .icon-placeholder {
   display: grid;
   place-items: center;
+
   color: $color-text-muted;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 600;
 }
 
 .project-content {
+  grid-area: content;
   min-width: 0;
-  flex: 1;
 }
 
 .project-header {
@@ -223,10 +248,14 @@ function showGallery() {
   h3 {
     min-width: 0;
     margin: 0;
+
     overflow: hidden;
+
     color: $color-text;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
+    line-height: 1.3;
+
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -234,16 +263,22 @@ function showGallery() {
 
 .status {
   flex: 0 0 auto;
-  padding: $space-1 $space-sm;
+
+  padding: 2px $space-sm;
+
+  border: 1px solid $color-border-muted;
   border-radius: $radius-round;
+
   background: $color-surface-3;
   color: $color-text-muted;
-  font-size: 0.7rem;
+
+  font-size: 0.65rem;
   font-weight: 600;
   line-height: 1.4;
 
   &.enabled {
-    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.2);
+    background: rgba(34, 197, 94, 0.08);
     color: $color-success;
   }
 }
@@ -251,92 +286,99 @@ function showGallery() {
 .project-meta {
   display: flex;
   align-items: center;
-  gap: $space-sm;
-  margin-top: $space-xs;
+  gap: $space-xs;
+
+  margin-top: 3px;
+
+  overflow: hidden;
+
   color: $color-text-muted;
-  font-size: 0.8rem;
+  font-size: 0.72rem;
+  line-height: 1.4;
+
+  span {
+    min-width: 0;
+  }
 }
 
 .separator {
+  flex: 0 0 auto;
   color: $color-placeholder;
 }
 
 .project-actions {
-  display: flex;
-  align-items: center;
-  gap: $space-sm;
-  flex: 0 0 auto;
+  grid-area: actions;
+
+  display: grid;
+  grid-template-columns: repeat(2, 20px);
+  grid-auto-rows: 20px;
+  justify-content: end;
+  gap: $space-md;
+
+  width: 43px;
 }
 
 .action-button {
-  padding: $space-sm $space-md;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
-  background: $color-surface-2;
+  display: grid;
+  place-items: center;
+
+  width: 20px;
+  height: 20px;
+  padding: 0;
+
+  border: 1px solid transparent;
+  border-radius: $radius-sm;
+
+  background: transparent;
   color: $color-text-muted;
-  font: inherit;
-  font-size: 0.8rem;
+
   cursor: pointer;
+
   transition:
-    background-color 120ms ease,
-    border-color 120ms ease,
-    color 120ms ease;
+    background-color 100ms ease,
+    border-color 100ms ease,
+    color 100ms ease;
+
+  :global(svg) {
+    width: 12px;
+    height: 12px;
+  }
 
   &:hover:not(:disabled) {
     background: $color-surface-3;
-    border-color: $color-border;
+    border-color: $color-border-muted;
     color: $color-text;
   }
 
   &:focus-visible {
     outline: 2px solid $color-focus;
-    outline-offset: 2px;
+    outline-offset: 1px;
   }
 
   &:disabled {
+    opacity: 0.35;
     cursor: default;
-    opacity: 0.5;
   }
 
   &.toggle {
-    border-color: $color-accent;
-    background: $color-accent;
-    color: $color-text;
+    color: $color-accent;
 
     &:hover:not(:disabled) {
-      background: $color-accent-hover;
-      border-color: $color-accent-hover;
+      background: $color-selected;
+      color: $color-accent-hover;
     }
 
     &.active {
-      background: transparent;
-      color: $color-accent-muted;
-
-      &:hover:not(:disabled) {
-        background: $color-selected;
-        color: $color-text;
-      }
+      color: $color-text-muted;
     }
   }
 
   &.danger {
     &:hover:not(:disabled) {
-      border-color: $color-error;
-      background: rgba(239, 68, 68, 0.12);
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.2);
       color: $color-error;
     }
-  }
-}
-
-@media (max-width: 800px) {
-  .installed-project-card {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .project-actions {
-    width: 100%;
-    flex-wrap: wrap;
   }
 }
 </style>

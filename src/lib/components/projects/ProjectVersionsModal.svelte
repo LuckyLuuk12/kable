@@ -29,9 +29,7 @@ let {
 let loading = $state(false);
 let search = $state("");
 let showFilters = $state(false);
-let filterLoader = $state(true);
-let filterMinecraftVersion = $state(true);
-let filterLoaderVersion = $state(true);
+let filterCompatibility = $state(true);
 
 let expandedChangelog = $state<string | null>(null);
 
@@ -46,16 +44,6 @@ let installedVersionId = $derived(isKableProject(project) ? project.version_id :
 let selectedVersionId = $state<string | null>(null);
 
 let selectedVersion = $derived(selectedVersionId ? (projectData.versions.find((version) => version.id === selectedVersionId) ?? null) : null);
-
-let profileLoader = $derived(profile?.version.loader ?? null);
-
-let profileMinecraftVersion = $derived(profile?.version.minecraft_version ?? null);
-
-/*
- * Loader versions are not always represented in the same way by every
- * profile/version type, so this intentionally checks several common fields.
- */
-let profileLoaderVersion = $derived(profile?.version.loader_version ?? profile?.version.loader_version ?? null);
 
 function normalize(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
@@ -100,82 +88,32 @@ function versionMatchesSearch(version: ProjectVersion): boolean {
   return fuzzyMatch(search, version.name) || fuzzyMatch(search, version.version_number) || fuzzyMatch(search, version.id) || fuzzyMatch(search, version.changelog ?? "");
 }
 
-function normalizeLoader(loader: string): string {
-  return loader.toLowerCase().replace(/^iris_/, "");
-}
-
-function versionMatchesLoader(version: ProjectVersion): boolean {
-  if (!filterLoader || !profileLoader) {
+function versionMatchesCompatibility(version: ProjectVersion): boolean {
+  if (!filterCompatibility || !profile) {
     return true;
   }
 
-  const loader = normalizeLoader(profileLoader);
-
-  return version.loaders.some((versionLoader) => normalizeLoader(versionLoader) === loader);
-}
-
-function versionMatchesMinecraft(version: ProjectVersion): boolean {
-  if (!filterMinecraftVersion || !profileMinecraftVersion) {
-    return true;
-  }
-
-  const minecraftVersion = normalize(profileMinecraftVersion);
-
-  return version.game_versions.some((versionGameVersion) => normalize(versionGameVersion) === minecraftVersion);
-}
-
-function versionMatchesLoaderVersion(version: ProjectVersion): boolean {
-  if (!filterLoaderVersion || !profileLoaderVersion) {
-    return true;
-  }
-
-  const target = normalize(profileLoaderVersion);
-
-  /*
-   * Modrinth versions do not consistently expose loader versions.
-   * If there is no loader-version information on the project version,
-   * do not hide it.
-   */
-  const versionData = version as ProjectVersion & {
-    loader_versions?: string[];
-    loaderVersions?: string[];
-  };
-
-  const versions = versionData.loader_versions ?? versionData.loaderVersions;
-
-  if (!versions || versions.length === 0) {
-    return true;
-  }
-
-  return versions.some((versionLoaderVersion) => normalize(versionLoaderVersion) === target);
+  return app.projectsService.isVersionCompatible(profile, version, projectData.project_type);
 }
 
 function versionMatchesFilters(version: ProjectVersion): boolean {
-  return versionMatchesSearch(version) && versionMatchesLoader(version) && versionMatchesMinecraft(version) && versionMatchesLoaderVersion(version);
+  return versionMatchesSearch(version) && versionMatchesCompatibility(version);
 }
 
 let sortedVersions = $derived(
   [...projectData.versions].filter(versionMatchesFilters).sort((a, b) => new Date(b.date_published).getTime() - new Date(a.date_published).getTime()),
 );
 
-let hasActiveFilters = $derived(filterLoader || filterMinecraftVersion || filterLoaderVersion);
-
 let filterDescription = $derived.by(() => {
-  const filters: string[] = [];
-
-  if (filterLoader && profileLoader) {
-    filters.push(profileLoader);
+  if (!filterCompatibility) {
+    return "All versions";
   }
 
-  if (filterMinecraftVersion && profileMinecraftVersion) {
-    filters.push(profileMinecraftVersion);
+  if (!profile) {
+    return "No profile selected";
   }
 
-  if (filterLoaderVersion && profileLoaderVersion) {
-    filters.push(profileLoaderVersion);
-  }
-
-  return filters.length > 0 ? filters.join(" · ") : "No filters";
+  return "Compatible with profile";
 });
 
 function formatDate(date: string) {
@@ -222,12 +160,6 @@ async function installVersion(version: ProjectVersion) {
 
       selectedVersionId = version.id;
     } else {
-      /*
-       * Project is not installed yet, so create/install it through the
-       * projects service.
-       *
-       * Adjust this call if your service uses a differently named method.
-       */
       await app.projectsService.download(profile, project, version.id);
 
       selectedVersionId = version.id;
@@ -292,31 +224,19 @@ $effect(() => {
 
       <div class="filter-options">
         <label class="filter-option">
-          <input type="checkbox" bind:checked={filterLoader} />
-          <span>
-            <strong>Loader</strong>
-            <small>
-              {profileLoader ?? "Profile has no loader"}
-            </small>
-          </span>
-        </label>
+          <input type="checkbox" bind:checked={filterCompatibility} disabled={!profile} />
 
-        <label class="filter-option">
-          <input type="checkbox" bind:checked={filterMinecraftVersion} />
           <span>
-            <strong>Minecraft version</strong>
-            <small>
-              {profileMinecraftVersion ?? "Profile has no Minecraft version"}
-            </small>
-          </span>
-        </label>
+            <strong>Compatibility</strong>
 
-        <label class="filter-option">
-          <input type="checkbox" bind:checked={filterLoaderVersion} />
-          <span>
-            <strong>Loader version</strong>
             <small>
-              {profileLoaderVersion ?? "Profile has no loader version"}
+              {#if profile}
+                {projectData.project_type === "mod" || projectData.project_type === "modpack"
+                  ? `${profile.version.minecraft_version ?? "Any Minecraft version"} · ${profile.version.loader}`
+                  : (profile.version.minecraft_version ?? "Any Minecraft version")}
+              {:else}
+                No profile selected
+              {/if}
             </small>
           </span>
         </label>
