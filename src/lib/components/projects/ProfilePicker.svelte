@@ -7,7 +7,7 @@ to select a profile (similar to how modern "24h clock inputs" work).
 Additionally a simple dropdown select and fuzzy search input can be selected instead of the carousel, but these are not the default and are not used in most places.
 -->
 <script lang="ts">
-import { type KableProfile, Icon, app } from "$lib";
+import { type KableProfile, Image, app } from "$lib";
 
 let { profile = $bindable<KableProfile | null>(null) }: { profile?: KableProfile | null } = $props();
 let profiles = $derived(app.profilesService.profiles);
@@ -199,10 +199,9 @@ $effect(() => {
           }}
           tabindex="0"
           role="option"
-          aria-selected={item.id === profile?.id}
-        >
+          aria-selected={item.id === profile?.id}>
           <div class="profile-icon">
-            <Icon name={loaderIcons[item.id]} size="md" />
+            <Image key={loaderIcons[item.id]} />
           </div>
 
           <div class="profile-meta">
@@ -224,12 +223,12 @@ $effect(() => {
 
 <style lang="scss">
 .profile-carousel {
-  flex: 1;
-  overflow: hidden;
-  padding: 0.5rem;
   position: relative;
-  display: flex;
-  align-items: center;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: $space-sm;
 
   &:focus {
     outline: none;
@@ -237,104 +236,148 @@ $effect(() => {
 }
 
 .carousel-container {
+  position: relative;
   width: 100%;
   height: 100%;
-  position: relative;
-  display: flex;
-  flex-direction: column;
+  min-height: 0;
   pointer-events: none;
 }
 
 .profile-item {
-  padding: 1rem 1.2rem;
-  margin: 0;
-  border-radius: 0.6rem;
-  cursor: pointer;
-  border: 1px solid transparent;
   position: absolute;
-  top: 35%;
+  top: 50%;
   left: 50%;
-  transform-origin: center center;
+
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: $space-md;
+
+  width: calc(100% - $space-sm * 2);
+  margin: 0;
+  padding: $space-md $space-lg;
+
+  border: 1px solid $color-border-muted;
+  border-radius: $radius-lg;
+
+  background: $color-surface-2;
+
+  color: $color-text;
+  cursor: pointer;
+
+  transform-origin: center center;
+
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  width: 100%;
+
   pointer-events: auto;
 
-  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition:
+    transform 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    opacity 0.35s ease,
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
 
   &:hover {
-    border-color: var(--loader-color);
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--loader-color), 10% transparent);
+    border-color: color-mix(in srgb, var(--loader-color) 45%, $color-border);
+
+    background: $color-surface-3;
   }
 
   &.selected {
-    border: 2px solid var(--green-800);
+    border-color: color-mix(in srgb, var(--loader-color) 65%, $color-border);
+
+    background: color-mix(in srgb, var(--loader-color) 7%, $color-surface-2);
 
     box-shadow:
-      0 4px 16px color-mix(in srgb, var(--loader-color), 15% transparent),
-      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      0 2px 8px rgba(0, 0, 0, 0.12),
+      inset 0 0 0 1px color-mix(in srgb, var(--loader-color) 10%, transparent);
 
     &::before {
       content: "";
+
       position: absolute;
-      left: -0.4rem;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 4px;
-      height: 60%;
-      background: linear-gradient(to bottom, var(--green-700), var(--green-900));
+      left: -1px;
+      top: 20%;
+      bottom: 20%;
+
+      width: 3px;
+
+      border-radius: $radius-round;
+
+      background: var(--loader-color);
     }
   }
 
-  &:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--loader-color), 30% transparent);
+  &:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--loader-color) 60%, transparent);
+
+    outline-offset: 2px;
   }
 }
 
 .profile-icon {
-  width: calc(48px * var(--carousel-scale, 1));
-  height: calc(48px * var(--carousel-scale, 1));
-  border-radius: 0.5rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--container);
-  color: var(--loader-color);
+
+  width: calc(44px * var(--carousel-scale, 1));
+  height: calc(44px * var(--carousel-scale, 1));
+
   flex-shrink: 0;
-  transition: all 0.25s;
+
+  border: 1px solid color-mix(in srgb, var(--loader-color) 25%, $color-border-muted);
+
+  border-radius: $radius-md;
+
+  background: color-mix(in srgb, var(--loader-color) 10%, $color-surface-1);
+
+  color: var(--loader-color);
+
+  transition:
+    width 0.25s ease,
+    height 0.25s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 
   .profile-item.selected & {
-    background: linear-gradient(135deg, var(--loader-color) 0%, color-mix(in srgb, var(--loader-color), 80% transparent) 100%);
-    color: white;
-    transform: scale(1.05);
+    border-color: color-mix(in srgb, var(--loader-color) 45%, $color-border-muted);
+
+    background: color-mix(in srgb, var(--loader-color) 18%, $color-surface-1);
+
+    color: var(--loader-color);
   }
 }
 
 .profile-meta {
-  flex: 1;
-  min-width: 0;
   display: flex;
+  flex: 1;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: $space-xs;
+
+  min-width: 0;
 }
 
 .profile-name {
-  font-weight: calc(500 + (var(--carousel-scale, 1) * 100));
-  margin-bottom: 0.2em;
-  text-overflow: ellipsis;
   overflow: hidden;
+
+  margin-bottom: 0.15em;
+
+  color: $color-text;
+
+  font-size: calc(var(--carousel-font-size, 1) * 0.9em);
+  font-weight: 600;
+
+  text-overflow: ellipsis;
   white-space: nowrap;
-  transition: all 0.25s;
-  font-size: calc(var(--carousel-font-size, 1) * 1em);
-  color: var(--text);
+
+  transition:
+    color 0.2s ease,
+    font-weight 0.2s ease;
 
   .profile-item.selected & {
     color: var(--loader-color);
-    font-weight: 700;
+    font-weight: 650;
   }
 }
 
@@ -345,17 +388,33 @@ $effect(() => {
 }
 
 .profile-version {
-  font-size: calc(var(--carousel-font-size, 1) * 0.75em);
-  padding: 0.15em 0.4em;
-  border-radius: 0.3em;
+  display: inline-flex;
+  align-items: center;
+
+  padding: $space-1 $space-sm;
+
+  border: 1px solid $color-border-muted;
+  border-radius: $radius-round;
+
+  background: $color-surface-1;
+  color: $color-text-muted;
+
+  font-size: calc(var(--carousel-font-size, 1) * 0.72em);
   font-weight: 500;
-  transition: all 0.25s;
-  opacity: calc(var(--carousel-opacity, 1) * 0.9);
-  background: color-mix(in srgb, $color-accent-tertiary, 10% transparent);
-  color: $color-accent-tertiary;
+  line-height: 1.2;
+
+  opacity: calc(0.75 + var(--carousel-opacity, 0) * 0.25);
+
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 
   .profile-item.selected & {
-    background: color-mix(in srgb, var(--loader-color), 15% transparent);
+    border-color: color-mix(in srgb, var(--loader-color) 35%, $color-border-muted);
+
+    background: color-mix(in srgb, var(--loader-color) 8%, $color-surface-1);
+
     color: var(--loader-color);
   }
 }

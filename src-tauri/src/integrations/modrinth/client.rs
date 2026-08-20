@@ -3,8 +3,10 @@
 // We still do some conversion / wrapping of types to make it more ergonomic to use in our codebase, but this crate does a lot of the heavy lifting for us.
 use std::path::PathBuf;
 
+use crate::Logger;
+
 use super::as_string::AsString;
-use api_types::projects::{FacetField, ModrinthResults, Project, ProjectSearch, ProjectVersion};
+use api_types::projects::{Facet, FacetField, FacetGroup, FacetOperator, ModrinthResults, Project, ProjectSearch, ProjectVersion};
 use modrinth_api::apis::{configuration::Configuration, projects_api::search_projects};
 
 pub fn modrinth_configuration() -> Configuration {
@@ -17,25 +19,23 @@ pub fn modrinth_configuration() -> Configuration {
 //?----------------------------------------------------------------------
 
 async fn search(project_type: Option<String>, project_search: ProjectSearch) -> Result<ModrinthResults, String> {
-    let mut facets_str = String::new();
+    let mut facet_groups = project_search.facets.clone();
 
-    if let Some(pt) = project_type {
-        facets_str.push_str(&format!("project_type:{}", pt));
+    if let Some(project_type) = project_type {
+        facet_groups.insert(
+            0,
+            FacetGroup { facets: vec![Facet { field: FacetField::ProjectType, operator: FacetOperator::Eq, value: project_type }] },
+        );
     }
 
-    let extra = project_search.facets.as_string();
-    if !extra.is_empty() {
-        if !facets_str.is_empty() {
-            facets_str.push(',');
-        }
-        facets_str.push_str(extra.as_str());
-    }
+    let facets = if facet_groups.is_empty() { None } else { Some(facet_groups.as_string()) };
 
-    let facets = Some(facets_str.as_str());
+    Logger::debug_global(&format!("Searching Modrinth with query: {:?}, facets: {:?}", project_search.query, facets), None);
+
     let projects = search_projects(
         &modrinth_configuration(),
         project_search.query.as_deref(),
-        facets,
+        facets.as_deref(),
         Some(project_search.index.unwrap_or_default().as_string().as_str()),
         project_search.offset,
         project_search.limit,

@@ -1,7 +1,7 @@
 // List, Remove, Add, Enable/Disable projects, we make this kinda "project type agnostic" so we can use it for mods, resourcepacks, shaderpacks, etc.
 // for now I implement all project features here download/install, remove, enable/disable, update, list, check for updates, etc. Later we can split them into separate files if needed
 use crate::api::browse;
-use crate::integrations::modrinth::client::download_project;
+use crate::integrations::modrinth::ferinth_client::download_project;
 use crate::system::fs;
 use api_types::profiles::KableProfile;
 use api_types::projects::{KableProject, Project, ProjectSearch, ProjectType, UpdateMap};

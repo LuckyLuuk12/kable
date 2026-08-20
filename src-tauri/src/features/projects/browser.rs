@@ -1,5 +1,5 @@
 // Placeholder: mod browser backend - searching, next page, filtering, etc.
-use crate::integrations::modrinth::client::{search_mods, search_resourcepacks, search_shaderpacks};
+use crate::integrations::modrinth::ferinth_client::{search_mods, search_resourcepacks, search_shaderpacks};
 use api_types::profiles::KableProfile;
 use api_types::projects::{Facet, FacetField, FacetGroup, FacetOperator, ModrinthResults, ProjectSearch, ProjectType};
 

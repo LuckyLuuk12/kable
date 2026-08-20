@@ -166,15 +166,20 @@ export class AppService {
 }
 
 let app: AppService;
-// This is some voodoo magic for HMR (Hot Module Replacement) to preserve the app instance across reloads
+
 if (import.meta.hot?.data.app) {
   app = import.meta.hot.data.app;
 } else {
   app = new AppService();
+  import.meta.hot && (import.meta.hot.data.app = app);
+}
 
-  if (import.meta.hot) {
-    import.meta.hot.data.app = app;
-  }
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    queueMicrotask(async () => {
+      await app.restartAll();
+    });
+  });
 }
 
 export { app };

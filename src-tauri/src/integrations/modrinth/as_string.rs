@@ -7,7 +7,10 @@ pub trait AsString {
 /// converts Vec<FacetGroup> to a string like "[facet_group.as_string() | facet_group in facet_groups]"
 impl AsString for Vec<FacetGroup> {
     fn as_string(&self) -> String {
-        self.iter().map(|fg| fg.as_string()).collect::<Vec<_>>().join(",").to_string()
+        serde_json::to_string(
+            &self.iter().map(|group| group.facets.iter().map(|facet| facet.as_string()).collect::<Vec<_>>()).collect::<Vec<_>>(),
+        )
+        .unwrap_or_default()
     }
 }
 

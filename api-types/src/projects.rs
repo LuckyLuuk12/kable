@@ -116,7 +116,7 @@ pub struct Project {
     #[serde(rename = "description")]
     pub description: String,
     /// A list of the categories that the project has
-    #[serde(rename = "categories", skip_serializing_if = "Option::is_none")]
+    // #[serde(rename = "categories", skip_serializing_if = "Option::is_none")]
     pub categories: Option<Vec<String>>,
     /// The client side support of the project
     #[serde(rename = "client_side")]
@@ -131,17 +131,17 @@ pub struct Project {
     #[serde(rename = "downloads")]
     pub downloads: i32,
     /// The URL of the project's icon
-    #[serde(rename = "icon_url", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
+    // #[serde(rename = "icon_url", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    // #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub icon_url: Option<Option<String>>,
     /// The RGB color of the project, automatically generated from the project icon
-    #[serde(rename = "color", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    #[specta(type = specta_serde::Phased<Option<Option<i32>>, Option<Option<i32>>>)]
+    // #[serde(rename = "color", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    // #[specta(type = specta_serde::Phased<Option<Option<i32>>, Option<Option<i32>>>)]
     pub color: Option<Option<i32>>,
     /// The ID of the moderation thread associated with this project
-    #[serde(rename = "thread_id", skip_serializing_if = "Option::is_none")]
+    // #[serde(rename = "thread_id", skip_serializing_if = "Option::is_none")]
     pub thread_id: Option<String>,
-    #[serde(rename = "monetization_status", skip_serializing_if = "Option::is_none")]
+    // #[serde(rename = "monetization_status", skip_serializing_if = "Option::is_none")]
     pub monetization_status: Option<MonetizationStatus>,
     /// The ID of the project
     #[serde(rename = "project_id")]
@@ -150,7 +150,7 @@ pub struct Project {
     #[serde(rename = "author")]
     pub author: String,
     /// A list of the categories that the project has which are not secondary
-    #[serde(rename = "display_categories", skip_serializing_if = "Option::is_none")]
+    // #[serde(rename = "display_categories", skip_serializing_if = "Option::is_none")]
     pub display_categories: Option<Vec<String>>,
     /// A list of the minecraft versions supported by the project
     #[serde(rename = "versions")]
@@ -165,17 +165,17 @@ pub struct Project {
     #[serde(rename = "date_modified")]
     pub date_modified: String,
     /// The latest version of minecraft that this project supports
-    #[serde(rename = "latest_version", skip_serializing_if = "Option::is_none")]
+    // #[serde(rename = "latest_version", skip_serializing_if = "Option::is_none")]
     pub latest_version: Option<String>,
     /// The SPDX license ID of a project
     #[serde(rename = "license")]
     pub license: String,
     /// All gallery images attached to the project
-    #[serde(rename = "gallery", skip_serializing_if = "Option::is_none")]
+    // #[serde(rename = "gallery", skip_serializing_if = "Option::is_none")]
     pub gallery: Option<Vec<String>>,
     /// The featured gallery image of the project
-    #[serde(rename = "featured_gallery", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
+    // #[serde(rename = "featured_gallery", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    // #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub featured_gallery: Option<Option<String>>,
 }
 
@@ -220,6 +220,14 @@ pub enum ProjectType {
     Resourcepack,
     #[serde(rename = "shader")]
     Shader,
+    #[serde(rename = "plugin")]
+    Plugin,
+    #[serde(rename = "datapack")]
+    Datapack,
+    #[serde(rename = "minecraft-java-server")]
+    MinecraftJavaServer,
+    #[serde(rename = "other")]
+    Other,
 }
 
 /// The monetization status of the project
@@ -234,6 +242,8 @@ pub enum MonetizationStatus {
     Demonetized,
     #[serde(rename = "force-demonetized")]
     ForceDemonetized,
+    #[serde(rename = "other")]
+    Other,
 }
 
 //?---------------------------------------------------------------------
@@ -243,74 +253,74 @@ pub enum MonetizationStatus {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct ProjectVersion {
     /// The name of this version
-    #[serde(rename = "name")]
+    // #[serde(rename = "name")]
     pub name: String,
     /// The version number. Ideally will follow semantic versioning
-    #[serde(rename = "version_number")]
+    // #[serde(rename = "version_number")]
     pub version_number: String,
     /// The changelog for this version
-    #[serde(rename = "changelog", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
+    // #[serde(rename = "changelog", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    // #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub changelog: Option<Option<String>>,
     /// A list of specific versions of projects that this version depends on
-    #[serde(rename = "dependencies", skip_serializing_if = "Option::is_none")]
+    // #[serde(rename = "dependencies", skip_serializing_if = "Option::is_none")]
     pub dependencies: Option<Vec<VersionDependency>>,
     /// A list of versions of Minecraft that this version supports
-    #[serde(rename = "game_versions")]
+    // #[serde(rename = "game_versions")]
     pub game_versions: Vec<String>,
     /// The release channel for this version
-    #[serde(rename = "version_type")]
+    // #[serde(rename = "version_type")]
     pub version_type: VersionType,
     /// The mod loaders that this version supports
-    #[serde(rename = "loaders")]
+    // #[serde(rename = "loaders")]
     pub loaders: Vec<String>,
     /// Whether the version is featured or not
-    #[serde(rename = "featured")]
+    // #[serde(rename = "featured")]
     pub featured: bool,
-    #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
+    // #[serde(rename = "status", skip_serializing_if = "Option::is_none")]
     pub status: Option<Status>,
-    #[serde(rename = "requested_status", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    #[specta(type = specta_serde::Phased<Option<Option<RequestedStatus>>, Option<Option<RequestedStatus>>>)]
+    // #[serde(rename = "requested_status", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    // #[specta(type = specta_serde::Phased<Option<Option<RequestedStatus>>, Option<Option<RequestedStatus>>>)]
     pub requested_status: Option<Option<RequestedStatus>>,
     /// The ID of the version, encoded as a base62 string
-    #[serde(rename = "id")]
+    // #[serde(rename = "id")]
     pub id: String,
     /// The ID of the project this version is for
-    #[serde(rename = "project_id")]
+    // #[serde(rename = "project_id")]
     pub project_id: String,
     /// The ID of the author who published this version
-    #[serde(rename = "author_id")]
+    // #[serde(rename = "author_id")]
     pub author_id: String,
-    #[serde(rename = "date_published")]
+    // #[serde(rename = "date_published")]
     pub date_published: String,
     /// The number of times this version has been downloaded
-    #[serde(rename = "downloads")]
+    // #[serde(rename = "downloads")]
     pub downloads: i32,
     /// A link to the changelog for this version. Always null, only kept for legacy compatibility.
-    #[serde(rename = "changelog_url", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
+    // #[serde(rename = "changelog_url", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    // #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub changelog_url: Option<Option<String>>,
     /// A list of files available for download for this version
-    #[serde(rename = "files")]
+    // #[serde(rename = "files")]
     pub files: Vec<VersionFile>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct VersionDependency {
     /// The ID of the version that this version depends on
-    #[serde(rename = "version_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
+    // #[serde(rename = "version_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    // #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub version_id: Option<Option<String>>,
     /// The ID of the project that this version depends on
-    #[serde(rename = "project_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
+    // #[serde(rename = "project_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    // #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub project_id: Option<Option<String>>,
     /// The file name of the dependency, mostly used for showing external dependencies on modpacks
-    #[serde(rename = "file_name", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
+    // #[serde(rename = "file_name", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    // #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
     pub file_name: Option<Option<String>>,
     /// The type of dependency that this version has
-    #[serde(rename = "dependency_type")]
+    // #[serde(rename = "dependency_type")]
     pub dependency_type: DependencyType,
 }
 
@@ -327,6 +337,8 @@ pub enum DependencyType {
     Incompatible,
     #[serde(rename = "embedded")]
     Embedded,
+    #[serde(rename = "other")]
+    Other,
 }
 
 /// The release channel for this version
@@ -378,6 +390,8 @@ pub enum RequestedStatus {
     Draft,
     #[serde(rename = "unlisted")]
     Unlisted,
+    #[serde(rename = "other")]
+    Other,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
@@ -397,16 +411,16 @@ pub struct VersionFile {
     #[serde(rename = "size")]
     pub size: i32,
     /// The type of the additional file, used mainly for adding resource packs to datapacks
-    #[serde(rename = "file_type", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
-    #[specta(type = specta_serde::Phased<Option<Option<FileType>>, Option<Option<FileType>>>)]
+    // #[serde(rename = "file_type", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
+    // #[specta(type = specta_serde::Phased<Option<Option<FileType>>, Option<Option<FileType>>>)]
     pub file_type: Option<Option<FileType>>,
 }
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
 pub struct VersionFileHashes {
-    #[serde(rename = "sha512", skip_serializing_if = "Option::is_none")]
+    // #[serde(rename = "sha512", skip_serializing_if = "Option::is_none")]
     pub sha512: Option<String>,
-    #[serde(rename = "sha1", skip_serializing_if = "Option::is_none")]
+    // #[serde(rename = "sha1", skip_serializing_if = "Option::is_none")]
     pub sha1: Option<String>,
 }
 
@@ -419,6 +433,16 @@ pub enum FileType {
     RequiredResourcePack,
     #[serde(rename = "optional-resource-pack")]
     OptionalResourcePack,
+    #[serde(rename = "sources-jar")]
+    SourcesJar,
+    #[serde(rename = "dev-jar")]
+    DevJar,
+    #[serde(rename = "javadoc-jar")]
+    JavadocJar,
+    #[serde(rename = "signature")]
+    Signature,
+    #[serde(rename = "unknown")]
+    Unknown,
 }
 
 //?----------------------------------------------------------------------
@@ -615,32 +639,3 @@ impl From<modrinth_api::models::version_file::FileType> for FileType {
         }
     }
 }
-
-// impl Into<ProjectType> for modrinth_api::models::project::ProjectType {
-//     fn into(self) -> ProjectType {
-//         match self {
-//             modrinth_api::models::project::ProjectType::Mod => ProjectType::Mod,
-//             modrinth_api::models::project::ProjectType::Modpack => ProjectType::Modpack,
-//             modrinth_api::models::project::ProjectType::Resourcepack => ProjectType::Resourcepack,
-//             modrinth_api::models::project::ProjectType::Shader => ProjectType::Shader,
-//         }
-//     }
-// }
-
-// impl Into<ProjectSearch> for modrinth_api::models::search::SearchQuery {
-//     fn into(self) -> ProjectSearch {
-//         ProjectSearch {
-//             query: self.query,
-//             facets: self.facets.into_iter().map(|group| FacetGroup { facets: group.facets }).collect(),
-//             index: self.index.map(|index| match index {
-//                 modrinth_api::models::project::SearchIndex::Relevance => SearchIndex::Relevance,
-//                 modrinth_api::models::search::SearchIndex::Downloads => SearchIndex::Downloads,
-//                 modrinth_api::models::search::SearchIndex::Follows => SearchIndex::Follows,
-//                 modrinth_api::models::search::SearchIndex::Newest => SearchIndex::Newest,
-//                 modrinth_api::models::search::SearchIndex::Updated => SearchIndex::Updated,
-//             }),
-//             offset: self.offset,
-//             limit: self.limit,
-//         }
-//     }
-// }

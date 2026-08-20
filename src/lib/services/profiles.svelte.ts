@@ -126,6 +126,25 @@ export class ProfilesService implements Service {
     }
   }
 
+  getLoaderImage(loader: LoaderKind): string {
+    switch (loader) {
+      case "vanilla":
+        return "vanilla";
+      case "fabric":
+        return "fabric";
+      case "forge":
+        return "forge";
+      case "quilt":
+        return "quilt";
+      case "neo_forge":
+        return "neo_forge";
+      case "iris_fabric":
+        return "iris_fabric";
+      default:
+        return "unknown"; // Default image for unknown loaders
+    }
+  }
+
   async remove(id: string) {
     try {
       await api.deleteProfile(id);

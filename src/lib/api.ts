@@ -68,14 +68,14 @@ export const commands = {
 	launchGame: (profile: KableProfile) => typedError<LaunchResult, string>(__TAURI_INVOKE("launch_game", { profile })),
 	autoDetectJava: () => typedError<string, string>(__TAURI_INVOKE("auto_detect_java")),
 	getJavaPath: (javaPath: string | null) => typedError<string, string>(__TAURI_INVOKE("get_java_path", { javaPath })),
-	browse: (profile: KableProfile, search: ProjectSearch, smartFilter: boolean, projectType: ProjectType) => typedError<ModrinthResults_Serialize, string>(__TAURI_INVOKE("browse", { profile, search, smartFilter, projectType })),
-	listProfileProjects: (profile: KableProfile, enabled: boolean) => typedError<Partial<{ [key in ProjectType]: KableProject_Serialize[] }>, string>(__TAURI_INVOKE("list_profile_projects", { profile, enabled })),
-	removeProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("remove_project", { profile, kableProject })),
-	addProjectToProfile: (profile: KableProfile, project: Project_Deserialize, versionId: string | null) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("add_project_to_profile", { profile, project, versionId })),
-	checkForUpdate: (kableProfile: KableProfile, kableProject: KableProject_Deserialize) => typedError<Project_Serialize, string>(__TAURI_INVOKE("check_for_update", { kableProfile, kableProject })),
-	checkForUpdates: (profile: KableProfile, projectType: ProjectType) => typedError<UpdateMap_Serialize[], string>(__TAURI_INVOKE("check_for_updates", { profile, projectType })),
-	updateProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProject_Serialize, string>(__TAURI_INVOKE("update_project", { profile, kableProject })),
-	updateAllProjects: (profile: KableProfile, projectType: ProjectType) => typedError<KableProject_Serialize[], string>(__TAURI_INVOKE("update_all_projects", { profile, projectType })),
+	browse: (profile: KableProfile, search: ProjectSearch, smartFilter: boolean, projectType: ProjectType) => typedError<ModrinthResults, string>(__TAURI_INVOKE("browse", { profile, search, smartFilter, projectType })),
+	listProfileProjects: (profile: KableProfile, enabled: boolean) => typedError<Partial<{ [key in ProjectType]: KableProject[] }>, string>(__TAURI_INVOKE("list_profile_projects", { profile, enabled })),
+	removeProject: (profile: KableProfile, kableProject: KableProject) => typedError<KableProject, string>(__TAURI_INVOKE("remove_project", { profile, kableProject })),
+	addProjectToProfile: (profile: KableProfile, project: Project, versionId: string | null) => typedError<KableProject, string>(__TAURI_INVOKE("add_project_to_profile", { profile, project, versionId })),
+	checkForUpdate: (kableProfile: KableProfile, kableProject: KableProject) => typedError<Project, string>(__TAURI_INVOKE("check_for_update", { kableProfile, kableProject })),
+	checkForUpdates: (profile: KableProfile, projectType: ProjectType) => typedError<UpdateMap[], string>(__TAURI_INVOKE("check_for_updates", { profile, projectType })),
+	updateProject: (profile: KableProfile, kableProject: KableProject) => typedError<KableProject, string>(__TAURI_INVOKE("update_project", { profile, kableProject })),
+	updateAllProjects: (profile: KableProfile, projectType: ProjectType) => typedError<KableProject[], string>(__TAURI_INVOKE("update_all_projects", { profile, projectType })),
 	getProfiles: () => typedError<KableProfile[], string>(__TAURI_INVOKE("get_profiles")),
 	getProfile: (id: string) => typedError<KableProfile, string>(__TAURI_INVOKE("get_profile", { id })),
 	createProfile: (versionId: string | null, baseProfile: {
@@ -87,9 +87,9 @@ export const commands = {
 	modifyProfile: (oldProfile: KableProfile, newProfile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("modify_profile", { oldProfile, newProfile })),
 	deleteProfile: (id: string) => typedError<null, string>(__TAURI_INVOKE("delete_profile", { id })),
 	getVersions: () => typedError<Versions, string>(__TAURI_INVOKE("get_versions")),
-	toggleProject: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_project", { profile, kableProject })),
+	toggleProject: (profile: KableProfile, kableProject: KableProject) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_project", { profile, kableProject })),
 	toggleFavorite: (profile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_favorite", { profile })),
-	isProjectEnabled: (profile: KableProfile, kableProject: KableProject_Deserialize) => typedError<boolean, string>(__TAURI_INVOKE("is_project_enabled", { profile, kableProject })),
+	isProjectEnabled: (profile: KableProfile, kableProject: KableProject) => typedError<boolean, string>(__TAURI_INVOKE("is_project_enabled", { profile, kableProject })),
 	getSymlinks: () => typedError<Symlink[], string>(__TAURI_INVOKE("get_symlinks")),
 	temporarySymlinks: () => typedError<{ [key in string]: Symlink }, string>(__TAURI_INVOKE("temporary_symlinks")),
 	create: (link: SymlinkCreateRequest) => typedError<Symlink, string>(__TAURI_INVOKE("create", { link })),
@@ -141,7 +141,7 @@ export type ContentSettings = {
 	enable_notifications?: boolean,
 };
 
-export type DependencyType = "required" | "optional" | "incompatible" | "embedded";
+export type DependencyType = "required" | "optional" | "incompatible" | "embedded" | "other";
 
 export type DeviceCodeResponse = {
 	device_code: string,
@@ -167,7 +167,7 @@ export type FacetGroup = {
 
 export type FacetOperator = "eq" | "not_eq" | "greater" | "greater_eq" | "less" | "less_eq";
 
-export type FileType = "required-resource-pack" | "optional-resource-pack";
+export type FileType = "required-resource-pack" | "optional-resource-pack" | "sources-jar" | "dev-jar" | "javadoc-jar" | "signature" | "unknown";
 
 export type GeneralSettings = {
 	java_path?: string | null,
@@ -293,22 +293,9 @@ export type KableProfileSettings = {
 };
 
 /**  Represents a project in a profile's dedicated mods folder, including its metadata and whether it is enabled or disabled */
-export type KableProject = KableProject_Serialize | KableProject_Deserialize;
-
-/**  Represents a project in a profile's dedicated mods folder, including its metadata and whether it is enabled or disabled */
-export type KableProject_Deserialize = {
+export type KableProject = {
 	/**  The project itself, containing all of its metadata */
-	project: Project_Deserialize,
-	/**  Should match a ProjectVersion.id and indicate what version of the mod is installed in the profile's dedicated mods folder */
-	version_id: string,
-	/**  The filename of the mod jar file in the profile's dedicated mods folder, should match a ProjectVersion.files.filename, and is used to locate the mod jar file in the profile's dedicated mods folder */
-	filename: string,
-};
-
-/**  Represents a project in a profile's dedicated mods folder, including its metadata and whether it is enabled or disabled */
-export type KableProject_Serialize = {
-	/**  The project itself, containing all of its metadata */
-	project: Project_Serialize,
+	project: Project,
 	/**  Should match a ProjectVersion.id and indicate what version of the mod is installed in the profile's dedicated mods folder */
 	version_id: string,
 	/**  The filename of the mod jar file in the profile's dedicated mods folder, should match a ProjectVersion.files.filename, and is used to locate the mod jar file in the profile's dedicated mods folder */
@@ -351,22 +338,9 @@ export type MiscSettings = {
 	enable_fun?: boolean,
 };
 
-export type ModrinthResults = ModrinthResults_Serialize | ModrinthResults_Deserialize;
-
-export type ModrinthResults_Deserialize = {
+export type ModrinthResults = {
 	/**  The list of results */
-	hits: Project_Deserialize[],
-	/**  The number of results that were skipped by the query */
-	offset: number,
-	/**  The number of results that were returned by the query */
-	limit: number,
-	/**  The total number of results that match the query */
-	total_hits: number,
-};
-
-export type ModrinthResults_Serialize = {
-	/**  The list of results */
-	hits: Project_Serialize[],
+	hits: Project[],
 	/**  The number of results that were skipped by the query */
 	offset: number,
 	/**  The number of results that were returned by the query */
@@ -376,7 +350,7 @@ export type ModrinthResults_Serialize = {
 };
 
 /**  The monetization status of the project */
-export type MonetizationStatus = "monetized" | "demonetized" | "force-demonetized";
+export type MonetizationStatus = "monetized" | "demonetized" | "force-demonetized" | "other";
 
 export type NetworkSettings = {
 	max_download_threads?: number | null,
@@ -413,90 +387,7 @@ export type ProfileVersion = {
 
 export type ProfileVersionType = "release" | "snapshot" | "old_beta" | "old_alpha";
 
-export type Project = Project_Serialize | Project_Deserialize;
-
-export type ProjectSearch = {
-	query: string | null,
-	facets: FacetGroup[],
-	index: SearchIndex | null,
-	offset: number | null,
-	limit: number | null,
-};
-
-/**  The project type of the project */
-export type ProjectType = "mod" | "modpack" | "resourcepack" | "shader";
-
-export type ProjectVersion = ProjectVersion_Serialize | ProjectVersion_Deserialize;
-
-export type ProjectVersion_Deserialize = {
-	/**  The name of this version */
-	name: string,
-	/**  The version number. Ideally will follow semantic versioning */
-	version_number: string,
-	/**  The changelog for this version */
-	changelog?: string | null,
-	/**  A list of specific versions of projects that this version depends on */
-	dependencies: VersionDependency_Deserialize[] | null,
-	/**  A list of versions of Minecraft that this version supports */
-	game_versions: string[],
-	/**  The release channel for this version */
-	version_type: VersionType,
-	/**  The mod loaders that this version supports */
-	loaders: string[],
-	/**  Whether the version is featured or not */
-	featured: boolean,
-	status: Status | null,
-	requested_status?: RequestedStatus | null,
-	/**  The ID of the version, encoded as a base62 string */
-	id: string,
-	/**  The ID of the project this version is for */
-	project_id: string,
-	/**  The ID of the author who published this version */
-	author_id: string,
-	date_published: string,
-	/**  The number of times this version has been downloaded */
-	downloads: number,
-	/**  A link to the changelog for this version. Always null, only kept for legacy compatibility. */
-	changelog_url?: string | null,
-	/**  A list of files available for download for this version */
-	files: VersionFile_Deserialize[],
-};
-
-export type ProjectVersion_Serialize = {
-	/**  The name of this version */
-	name: string,
-	/**  The version number. Ideally will follow semantic versioning */
-	version_number: string,
-	/**  The changelog for this version */
-	changelog?: string | null,
-	/**  A list of specific versions of projects that this version depends on */
-	dependencies?: VersionDependency_Serialize[] | null,
-	/**  A list of versions of Minecraft that this version supports */
-	game_versions: string[],
-	/**  The release channel for this version */
-	version_type: VersionType,
-	/**  The mod loaders that this version supports */
-	loaders: string[],
-	/**  Whether the version is featured or not */
-	featured: boolean,
-	status?: Status | null,
-	requested_status?: RequestedStatus | null,
-	/**  The ID of the version, encoded as a base62 string */
-	id: string,
-	/**  The ID of the project this version is for */
-	project_id: string,
-	/**  The ID of the author who published this version */
-	author_id: string,
-	date_published: string,
-	/**  The number of times this version has been downloaded */
-	downloads: number,
-	/**  A link to the changelog for this version. Always null, only kept for legacy compatibility. */
-	changelog_url?: string | null,
-	/**  A list of files available for download for this version */
-	files: VersionFile_Serialize[],
-};
-
-export type Project_Deserialize = {
+export type Project = {
 	/**  The slug of a project, used for vanity URLs. Regex: ```^[\\w!@$()`.+,\"\\-']{3,64}$``` */
 	slug: string,
 	/**  The title or name of the project */
@@ -514,9 +405,9 @@ export type Project_Deserialize = {
 	/**  The total number of downloads of the project */
 	downloads: number,
 	/**  The URL of the project's icon */
-	icon_url?: string | null,
+	icon_url: string | null,
 	/**  The RGB color of the project, automatically generated from the project icon */
-	color?: number | null,
+	color: number | null,
 	/**  The ID of the moderation thread associated with this project */
 	thread_id: string | null,
 	monetization_status: MonetizationStatus | null,
@@ -527,7 +418,7 @@ export type Project_Deserialize = {
 	/**  A list of the categories that the project has which are not secondary */
 	display_categories: string[] | null,
 	/**  A list of the minecraft versions supported by the project */
-	versions: ProjectVersion_Deserialize[],
+	versions: ProjectVersion[],
 	/**  The total number of users following the project */
 	follows: number,
 	/**  The date the project was added to search */
@@ -541,55 +432,52 @@ export type Project_Deserialize = {
 	/**  All gallery images attached to the project */
 	gallery: string[] | null,
 	/**  The featured gallery image of the project */
-	featured_gallery?: string | null,
+	featured_gallery: string | null,
 };
 
-export type Project_Serialize = {
-	/**  The slug of a project, used for vanity URLs. Regex: ```^[\\w!@$()`.+,\"\\-']{3,64}$``` */
-	slug: string,
-	/**  The title or name of the project */
-	title: string,
-	/**  A short description of the project */
-	description: string,
-	/**  A list of the categories that the project has */
-	categories?: string[] | null,
-	/**  The client side support of the project */
-	client_side: ClientSide,
-	/**  The server side support of the project */
-	server_side: ServerSide,
-	/**  The project type of the project */
-	project_type: ProjectType,
-	/**  The total number of downloads of the project */
-	downloads: number,
-	/**  The URL of the project's icon */
-	icon_url?: string | null,
-	/**  The RGB color of the project, automatically generated from the project icon */
-	color?: number | null,
-	/**  The ID of the moderation thread associated with this project */
-	thread_id?: string | null,
-	monetization_status?: MonetizationStatus | null,
-	/**  The ID of the project */
+export type ProjectSearch = {
+	query: string | null,
+	facets: FacetGroup[],
+	index: SearchIndex | null,
+	offset: number | null,
+	limit: number | null,
+};
+
+/**  The project type of the project */
+export type ProjectType = "mod" | "modpack" | "resourcepack" | "shader" | "plugin" | "datapack" | "minecraft-java-server" | "other";
+
+export type ProjectVersion = {
+	/**  The name of this version */
+	name: string,
+	/**  The version number. Ideally will follow semantic versioning */
+	version_number: string,
+	/**  The changelog for this version */
+	changelog: string | null,
+	/**  A list of specific versions of projects that this version depends on */
+	dependencies: VersionDependency[] | null,
+	/**  A list of versions of Minecraft that this version supports */
+	game_versions: string[],
+	/**  The release channel for this version */
+	version_type: VersionType,
+	/**  The mod loaders that this version supports */
+	loaders: string[],
+	/**  Whether the version is featured or not */
+	featured: boolean,
+	status: Status | null,
+	requested_status: RequestedStatus | null,
+	/**  The ID of the version, encoded as a base62 string */
+	id: string,
+	/**  The ID of the project this version is for */
 	project_id: string,
-	/**  The username of the project's author */
-	author: string,
-	/**  A list of the categories that the project has which are not secondary */
-	display_categories?: string[] | null,
-	/**  A list of the minecraft versions supported by the project */
-	versions: ProjectVersion_Serialize[],
-	/**  The total number of users following the project */
-	follows: number,
-	/**  The date the project was added to search */
-	date_created: string,
-	/**  The date the project was last modified */
-	date_modified: string,
-	/**  The latest version of minecraft that this project supports */
-	latest_version?: string | null,
-	/**  The SPDX license ID of a project */
-	license: string,
-	/**  All gallery images attached to the project */
-	gallery?: string[] | null,
-	/**  The featured gallery image of the project */
-	featured_gallery?: string | null,
+	/**  The ID of the author who published this version */
+	author_id: string,
+	date_published: string,
+	/**  The number of times this version has been downloaded */
+	downloads: number,
+	/**  A link to the changelog for this version. Always null, only kept for legacy compatibility. */
+	changelog_url: string | null,
+	/**  A list of files available for download for this version */
+	files: VersionFile[],
 };
 
 export type Projects = {
@@ -597,7 +485,7 @@ export type Projects = {
 	disabled: string[],
 };
 
-export type RequestedStatus = "listed" | "archived" | "draft" | "unlisted";
+export type RequestedStatus = "listed" | "archived" | "draft" | "unlisted" | "other";
 
 export type SearchIndex = "relevance" | "downloads" | "follows" | "newest" | "updated";
 
@@ -654,16 +542,9 @@ export type UpdateDetection = "on_startup" | "on_close" |
 /**  Checks for updates every N seconds */
 { periodically: number } | "manual";
 
-export type UpdateMap = UpdateMap_Serialize | UpdateMap_Deserialize;
-
-export type UpdateMap_Deserialize = {
-	kable_project: KableProject_Deserialize,
-	update: Project_Deserialize | null,
-};
-
-export type UpdateMap_Serialize = {
-	kable_project: KableProject_Serialize,
-	update: Project_Serialize | null,
+export type UpdateMap = {
+	kable_project: KableProject,
+	update: Project | null,
 };
 
 /**  This determines HOW, once checked, to perform the update. */
@@ -677,70 +558,34 @@ export type UpdateMode =
 
 export type UpdateNotificationStyle = "notification" | "modal";
 
-export type VersionDependency = VersionDependency_Serialize | VersionDependency_Deserialize;
-
-export type VersionDependency_Deserialize = {
+export type VersionDependency = {
 	/**  The ID of the version that this version depends on */
-	version_id?: string | null,
+	version_id: string | null,
 	/**  The ID of the project that this version depends on */
-	project_id?: string | null,
+	project_id: string | null,
 	/**  The file name of the dependency, mostly used for showing external dependencies on modpacks */
-	file_name?: string | null,
+	file_name: string | null,
 	/**  The type of dependency that this version has */
 	dependency_type: DependencyType,
 };
 
-export type VersionDependency_Serialize = {
-	/**  The ID of the version that this version depends on */
-	version_id?: string | null,
-	/**  The ID of the project that this version depends on */
-	project_id?: string | null,
-	/**  The file name of the dependency, mostly used for showing external dependencies on modpacks */
-	file_name?: string | null,
-	/**  The type of dependency that this version has */
-	dependency_type: DependencyType,
+export type VersionFile = {
+	hashes: VersionFileHashes,
+	/**  A direct link to the file */
+	url: string,
+	/**  The name of the file */
+	filename: string,
+	/**  Whether this file is the primary one for its version. Only a maximum of one file per version will have this set to true. If there are not any primary files, it can be inferred that the first file is the primary one. */
+	primary: boolean,
+	/**  The size of the file in bytes */
+	size: number,
+	/**  The type of the additional file, used mainly for adding resource packs to datapacks */
+	file_type: FileType | null,
 };
 
-export type VersionFile = VersionFile_Serialize | VersionFile_Deserialize;
-
-export type VersionFileHashes = VersionFileHashes_Serialize | VersionFileHashes_Deserialize;
-
-export type VersionFileHashes_Deserialize = {
+export type VersionFileHashes = {
 	sha512: string | null,
 	sha1: string | null,
-};
-
-export type VersionFileHashes_Serialize = {
-	sha512?: string | null,
-	sha1?: string | null,
-};
-
-export type VersionFile_Deserialize = {
-	hashes: VersionFileHashes_Deserialize,
-	/**  A direct link to the file */
-	url: string,
-	/**  The name of the file */
-	filename: string,
-	/**  Whether this file is the primary one for its version. Only a maximum of one file per version will have this set to true. If there are not any primary files, it can be inferred that the first file is the primary one. */
-	primary: boolean,
-	/**  The size of the file in bytes */
-	size: number,
-	/**  The type of the additional file, used mainly for adding resource packs to datapacks */
-	file_type?: FileType | null,
-};
-
-export type VersionFile_Serialize = {
-	hashes: VersionFileHashes_Serialize,
-	/**  A direct link to the file */
-	url: string,
-	/**  The name of the file */
-	filename: string,
-	/**  Whether this file is the primary one for its version. Only a maximum of one file per version will have this set to true. If there are not any primary files, it can be inferred that the first file is the primary one. */
-	primary: boolean,
-	/**  The size of the file in bytes */
-	size: number,
-	/**  The type of the additional file, used mainly for adding resource packs to datapacks */
-	file_type?: FileType | null,
 };
 
 /**  The release channel for this version */

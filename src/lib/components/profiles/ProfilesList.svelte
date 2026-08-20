@@ -15,7 +15,7 @@ Supports both grid and list view modes with sorting and filtering.
 ```
 -->
 <script lang="ts">
-import { app, clickSound, errorSound, Icon, launchSound, type KableProfile } from "$lib";
+import { app, clickSound, errorSound, Icon, Image, launchSound, type KableProfile } from "$lib";
 import { onDestroy, onMount } from "svelte";
 import EditProfileModal from "./EditProfileModal.svelte";
 
@@ -31,6 +31,7 @@ let isLoading = $derived(app.profilesService.loading || app.launcherService.load
 let limitedInstallations = $state([] as KableProfile[]);
 
 let loaderIcons = $state({} as { [key: string]: string });
+let loaderImages = $state({} as { [key: string]: string });
 let loaderColors = $state({} as { [key: string]: string });
 
 let useDropdownForActions: { [key: string]: boolean } = $state({});
@@ -88,6 +89,10 @@ $effect(() => {
 
 $effect(() => {
   loaderIcons = Object.fromEntries(app.profilesService.profiles.map((profile) => [profile.id, app.profilesService.getLoaderIcon(profile.version.loader)]));
+});
+
+$effect(() => {
+  loaderImages = Object.fromEntries(app.profilesService.profiles.map((profile) => [profile.id, app.profilesService.getLoaderImage(profile.version.loader)]));
 });
 
 $effect(() => {
@@ -277,10 +282,10 @@ $effect(() => {
                     {#if typeof installation.metadata.icon === "string" && (installation.metadata.icon.startsWith("data:") || installation.metadata.icon.startsWith("http") || installation.metadata.icon.startsWith("file:") || installation.metadata.icon.startsWith("/"))}
                       <img src={installation.metadata.icon} alt="installation icon" class="installation-img" />
                     {:else}
-                      <Icon name={loaderIcons[installation.id]} size="lg" />
+                      <Image key={loaderImages[installation.id]} />
                     {/if}
                   {:else}
-                    <Icon name={loaderIcons[installation.id]} size="lg" />
+                    <Image key={loaderImages[installation.id]} />
                   {/if}
 
                   <span class="icon-tooltip">{installation.version.loader}</span>
@@ -433,7 +438,7 @@ $effect(() => {
                       <Icon name={installation.metadata.icon} size="md" />
                     {/if}
                   {:else}
-                    <Icon name={loaderIcons[installation.id]} size="md" />
+                    <Image key={loaderImages[installation.id] ?? "vanilla"} />
                   {/if}
 
                   <span class="icon-tooltip">{installation.version.loader}</span>
