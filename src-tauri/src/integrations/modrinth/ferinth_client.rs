@@ -214,7 +214,7 @@ async fn search(project_type: Option<String>, project_search: ProjectSearch) -> 
 
     let limit = project_search.limit.unwrap_or(20);
 
-    Logger::debug_global(&format!("Searching Modrinth for projects of type {project_type:?} "), None);
+    Logger::debug_global(&format!("Searching on Modrinth for {project_type:?} with sort {sort:?}, limit {limit}, offset {offset}"), None);
 
     let response = client()
         .search_paged(query, sort, usize::try_from(limit).unwrap_or(20), usize::try_from(offset).unwrap_or(0), facets)

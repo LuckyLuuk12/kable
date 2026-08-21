@@ -60,10 +60,11 @@ function launch() {
         <Icon name={pickerCollapsed ? "chevron-right" : "chevron-left"} forceType="svg" />
       </button>
     </header>
-
-    <div class="profile-picker">
-      <ProfilePicker bind:profile />
-    </div>
+    {#if !pickerCollapsed}
+      <div class="profile-picker">
+        <ProfilePicker bind:profile />
+      </div>
+    {/if}
   </aside>
 
   <main class="content">
@@ -85,7 +86,7 @@ function launch() {
           </span>
 
           <button class="launch-btn" type="button" onclick={launch}>
-            <Icon name="play" forceType="svg" />
+            <Icon name="play" forceType="svg" size="sm" />
             <span>Launch</span>
           </button>
         </div>
@@ -115,9 +116,9 @@ function launch() {
 
 .profile-panel {
   display: flex;
-  flex: 0 0 240px;
+  flex: 0 0 300px;
   flex-direction: column;
-  width: 240px;
+  width: 300px;
   min-width: 240px;
   height: 100%;
   overflow: hidden;
@@ -129,9 +130,9 @@ function launch() {
     flex-basis 180ms ease;
 
   &.collapsed {
-    flex-basis: 72px;
-    width: 72px;
-    min-width: 72px;
+    flex-basis: fit-content;
+    width: fit-content;
+    min-width: fit-content;
   }
 }
 
@@ -141,8 +142,8 @@ function launch() {
   justify-content: space-between;
   gap: $space-sm;
   flex: 0 0 auto;
-  min-height: $layout-tabbar-height;
-  padding: $space-sm $space-md;
+  height: $layout-tabbar-height;
+  padding: $space-md;
   border-bottom: 1px solid $color-border-muted;
 }
 
@@ -213,15 +214,13 @@ function launch() {
   justify-content: space-between;
   gap: $space-lg;
   flex: 0 0 auto;
-  min-height: $layout-tabbar-height;
-  padding: $space-sm $space-md;
+  height: $layout-tabbar-height;
   border-bottom: 1px solid $color-border;
 }
 
 .navigation {
   display: flex;
   align-items: center;
-  gap: $space-xs;
 }
 
 .tab-btn {
@@ -229,8 +228,8 @@ function launch() {
   align-items: center;
   justify-content: center;
   padding: $space-sm $space-md;
-  border: 1px solid transparent;
-  border-radius: $radius-md;
+  border-right: 1px solid transparent;
+  border-radius: unset !important;
   background: transparent;
   color: $color-text-muted;
   font: inherit;
@@ -284,7 +283,7 @@ function launch() {
   background: transparent;
   color: $color-success;
   font: inherit;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   cursor: pointer;
 
   &:hover {

@@ -636,7 +636,7 @@ $effect(() => {
 
 .installations-list {
   padding: 2rem;
-  border-radius: var(--border-radius);
+  border-radius: $radius-md;
   border: 1px solid color-mix(in srgb, var(--dark-400), 3%, transparent);
   background:
     radial-gradient(circle at var(--dot1-x, 30%) var(--dot1-y, 40%), #{"color-mix(in srgb, var(--primary-900), 4.5%, transparent)"} 0%, transparent 18%),

@@ -54,6 +54,8 @@ function createContext(id: string): ModalContext {
 .modal-root {
   position: fixed;
   inset: 0;
+  z-index: 2147483647;
+  isolation: isolate;
   pointer-events: none;
 }
 
