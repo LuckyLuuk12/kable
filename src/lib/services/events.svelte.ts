@@ -17,7 +17,7 @@ export class EventsService implements Service {
   private initialized = false;
   private unlisteners: UnlistenFn[] = [];
 
-  constructor(private app: AppService) {}
+  constructor(private app: AppService) { }
 
   async init() {
     if (this.initialized) return;
@@ -28,14 +28,14 @@ export class EventsService implements Service {
 
   private async setupEventListeners() {
     const navigationToLogs = await listen<NavigationEventPayload>("navigate-to-logs", async () => {
-      this.app.logsService.emitLauncherEvent("Navigating to logs page due to game settings", "info");
+      // this.app.logsService.emitLauncherEvent("Navigating to logs page due to game settings", "info");
 
       const { goto } = await import("$app/navigation");
       await goto("/logs");
     });
 
     const navigationToHome = await listen<NavigationEventPayload>("navigate-to-home", async () => {
-      this.app.logsService.emitLauncherEvent("Navigating to home page due to game settings", "info");
+      // this.app.logsService.emitLauncherEvent("Navigating to home page due to game settings", "info");
 
       const { goto } = await import("$app/navigation");
       await goto("/");
@@ -57,12 +57,12 @@ export class EventsService implements Service {
     });
 
     const restartRequested = await listen<GameRestartEventPayload>("game-restart-requested", (event) => {
-      this.app.logsService.emitLauncherEvent(`Game restart requested due to crash (exit code: ${event.payload.exit_code})`, "warn");
+      // this.app.logsService.emitLauncherEvent(`Game restart requested due to crash (exit code: ${event.payload.exit_code})`, "warn");
       alert("Game restart feature is not implemented yet. Please launch manually.");
     });
 
     const gameStarted = await listen<{ pid: number; installation_id: string }>("game-started", (event) => {
-      this.app.logsService.emitLauncherEvent(`Game started (PID: ${event.payload.pid})`, "info");
+      // this.app.logsService.emitLauncherEvent(`Game started (PID: ${event.payload.pid})`, "info");
 
       this.app.launcherService.launching = false;
       this.app.launcherService.lastLaunch = null;
@@ -107,7 +107,7 @@ export class EventsService implements Service {
   }
 
   private async handleUserChoice(settingType: string, choice: string) {
-    this.app.logsService.emitLauncherEvent(`User chose "${choice}" for ${settingType}`, "info");
+    // this.app.logsService.emitLauncherEvent(`User chose "${choice}" for ${settingType}`, "info");
 
     const window = getCurrentWindow();
 
@@ -126,11 +126,11 @@ export class EventsService implements Service {
         await (await import("$app/navigation")).goto("/");
         break;
       case "restart":
-        this.app.logsService.emitLauncherEvent("Game restart requested by user", "info");
+        // this.app.logsService.emitLauncherEvent("Game restart requested by user", "info");
         alert("Game restart feature is not implemented yet. Please launch manually.");
         break;
       case "keep_open":
-        this.app.logsService.emitLauncherEvent("Keeping launcher open as requested", "info");
+        // this.app.logsService.emitLauncherEvent("Keeping launcher open as requested", "info");
         break;
       default:
         console.warn(`Unknown choice: ${choice}`);

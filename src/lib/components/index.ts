@@ -1,5 +1,6 @@
 // Component exports
 export * from "./auth";
+export * from "./logs";
 // export * from "./mods";
 export * from "./notifications";
 export * from "./profiles";
