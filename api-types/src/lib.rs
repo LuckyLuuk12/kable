@@ -15,6 +15,7 @@ pub mod skins;
 pub mod sounds;
 pub mod symlinks;
 pub mod updater;
+pub mod worlds;
 
 use chrono::{DateTime, Utc};
 

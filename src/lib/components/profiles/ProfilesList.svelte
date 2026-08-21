@@ -655,6 +655,7 @@ function formatLastUsed(date: string | null | undefined) {
 
 .installation-main {
   display: grid;
+  border-radius: $radius-lg;
   grid-template-columns: 5rem minmax(0, 1fr);
   align-items: start;
 
@@ -662,7 +663,7 @@ function formatLastUsed(date: string | null | undefined) {
   gap: 0.85rem;
 
   margin: 0;
-  padding: 0.25rem 0 0;
+  padding: 0.05rem 0 0;
 }
 
 .installation-icon-column {
@@ -862,9 +863,9 @@ function formatLastUsed(date: string | null | undefined) {
   grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: stretch;
 
-  gap: 0.3rem;
+  gap: 0.1rem;
 
-  margin-top: 0.75rem;
+  margin-top: 0.55rem;
   padding-top: 0.55rem;
 
   border-top: 1px solid $color-surface-3;
@@ -872,8 +873,6 @@ function formatLastUsed(date: string | null | undefined) {
   button {
     min-width: 0;
     width: 100%;
-
-    padding: 0.45rem 0.3rem;
 
     display: flex;
     align-items: center;

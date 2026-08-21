@@ -12,6 +12,7 @@ pub mod projects;
 pub mod symlink;
 pub mod system;
 pub mod updater;
+pub mod worlds;
 
 pub use accounts::*;
 pub use customization::*;
@@ -27,3 +28,4 @@ pub use projects::*;
 pub use symlink::*;
 pub use system::*;
 pub use updater::*;
+pub use worlds::*;

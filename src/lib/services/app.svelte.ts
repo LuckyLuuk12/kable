@@ -11,6 +11,7 @@ import { NotificationService } from "./notification.svelte";
 import { ProfilesService } from "./profiles.svelte";
 import { ProjectsService } from "./projects.svelte";
 import { UpdaterService } from "./updater.svelte";
+import { WorldsService } from "./worlds.svelte";
 
 // type ModalInstance = {
 //   id: string;
@@ -36,6 +37,7 @@ export class AppService {
   profilesService = new ProfilesService();
   projectsService = new ProjectsService();
   updaterService = new UpdaterService();
+  worldsService = new WorldsService();
 
   /// ! note that the order of services here matters, as some services depend on others being initialized first
   get services(): Service[] {
@@ -50,6 +52,7 @@ export class AppService {
       this.launcherService,
       this.profilesService,
       this.projectsService,
+      this.worldsService,
     ];
   }
 

@@ -27,7 +27,7 @@ let navItems = $derived([
   { path: "/resourcepacks", label: "Resource Packs", icon: "image" },
   { path: "/shaders", label: "Shaders", icon: "shaders" },
   // { path: '/resources', label: 'Resources', icon: 'resources' },
-  { path: "/maps", label: "Worlds", icon: "world" },
+  { path: "/worlds", label: "Worlds", icon: "world" },
   { path: "/skins", label: "Skins", icon: "palette" },
   // Only show logs if enabled in settings (default: true for developers)
   ...(app.customizationService.settings?.advanced?.enable_advanced_features !== false ? [{ path: "/logs", label: "Logs", icon: "terminal" }] : []),

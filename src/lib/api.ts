@@ -103,6 +103,15 @@ export const commands = {
 	downloadLauncherUpdate: (includePrerelease: boolean) => typedError<string, string>(__TAURI_INVOKE("download_launcher_update", { includePrerelease })),
 	applyDownloadedUpdate: () => typedError<null, string>(__TAURI_INVOKE("apply_downloaded_update")),
 	getCurrentVersion: () => typedError<string, string>(__TAURI_INVOKE("get_current_version")),
+	loadWorlds: () => typedError<WorldSummary[], string>(__TAURI_INVOKE("load_worlds")),
+	loadWorld: (path: string) => typedError<World, string>(__TAURI_INVOKE("load_world", { path })),
+	loadWorldLevel: (path: string) => typedError<WorldLevel, string>(__TAURI_INVOKE("load_world_level", { path })),
+	loadWorldPlayers: (path: string) => typedError<WorldPlayer[], string>(__TAURI_INVOKE("load_world_players", { path })),
+	loadWorldPlayer: (path: string, uuid: string) => typedError<WorldPlayer, string>(__TAURI_INVOKE("load_world_player", { path, uuid })),
+	loadWorldDimensions: (path: string) => typedError<WorldDimension[], string>(__TAURI_INVOKE("load_world_dimensions", { path })),
+	loadWorldRegionStorage: (path: string) => typedError<WorldRegionStorage[], string>(__TAURI_INVOKE("load_world_region_storage", { path })),
+	loadWorldDatapacks: (path: string) => typedError<WorldDatapack[], string>(__TAURI_INVOKE("load_world_datapacks", { path })),
+	loadWorldNbt: (path: string) => typedError<NbtValue, string>(__TAURI_INVOKE("load_world_nbt", { path })),
 };
 
 /* Types */
@@ -352,6 +361,13 @@ export type ModrinthResults = {
 /**  The monetization status of the project */
 export type MonetizationStatus = "monetized" | "demonetized" | "force-demonetized" | "other";
 
+export type NbtEntry = {
+	name: string,
+	value: NbtValue,
+};
+
+export type NbtValue = { type: "Byte"; value: number } | { type: "Short"; value: number } | { type: "Int"; value: number } | { type: "Long"; value: string } | { type: "Float"; value: number | null } | { type: "Double"; value: number | null } | { type: "ByteArray"; value: number[] } | { type: "String"; value: string } | { type: "List"; value: NbtValue[] } | { type: "Compound"; value: NbtEntry[] } | { type: "IntArray"; value: number[] } | { type: "LongArray"; value: string[] };
+
 export type NetworkSettings = {
 	max_download_threads?: number | null,
 	max_download_speed_kbps?: number | null,
@@ -594,6 +610,208 @@ export type VersionType = "release" | "beta" | "alpha" |
 "incomplete";
 
 export type Versions = ProfileVersion[];
+
+export type World = {
+	id: string,
+	name: string,
+	path: string,
+	icon: string | null,
+	last_modified: string | null,
+	level: WorldLevel | null,
+	players: WorldPlayer[],
+	dimensions: WorldDimension[],
+	datapacks: WorldDatapack[],
+	region_storage: WorldRegionStorage[],
+	advancements: WorldAdvancement[],
+	statistics: WorldPlayerStatistics[],
+};
+
+export type WorldAdvancement = {
+	id: string,
+	player_uuid: string,
+	done: boolean,
+	criteria: WorldAdvancementProgress[],
+};
+
+export type WorldAdvancementProgress = {
+	id: string,
+	achieved_at: string | null,
+	raw: NbtValue | null,
+};
+
+export type WorldBorder = {
+	center_x: number | null,
+	center_z: number | null,
+	size: number | null,
+	damage_per_block: number | null,
+	safe_zone: number | null,
+	warning_blocks: number | null,
+	warning_time: number | null,
+	lerp_target: number | null,
+	lerp_time: string | null,
+};
+
+export type WorldChunk = {
+	x: number,
+	z: number,
+	region_x: number,
+	region_z: number,
+	sector_offset: number,
+	sector_count: number,
+	timestamp: string | null,
+	compression: WorldChunkCompression | null,
+	compressed_size: number | null,
+	data: number[] | null,
+};
+
+export type WorldChunkCompression = "gzip" | "zlib" | "uncompressed" | "lz4" | { custom: number };
+
+export type WorldDatapack = {
+	id: string,
+	name: string | null,
+	description: string | null,
+	pack_format: number | null,
+	min_format: number | null,
+	max_format: number | null,
+	enabled: boolean,
+	path: string,
+};
+
+export type WorldDifficulty = "peaceful" | "easy" | "normal" | "hard" | "unknown";
+
+export type WorldDimension = {
+	id: string,
+	kind: WorldDimensionKind,
+	path: string,
+	region_storage: WorldRegionStorage | null,
+	chunk_count: string,
+	region_count: string,
+};
+
+export type WorldDimensionKind = "overworld" | "nether" | "end" | "custom" | "unknown";
+
+export type WorldGameMode = "survival" | "creative" | "adventure" | "spectator" | "unknown";
+
+export type WorldGameRule = {
+	name: string,
+	value: string,
+};
+
+export type WorldInventoryItem = {
+	slot: number,
+	item_id: string,
+	count: number,
+	nbt: NbtValue | null,
+};
+
+export type WorldLevel = {
+	data_version: number | null,
+	version: WorldVersion | null,
+	level_name: string | null,
+	game_mode: WorldGameMode | null,
+	difficulty: WorldDifficulty | null,
+	hardcore: boolean | null,
+	allow_commands: boolean | null,
+	seed: string | null,
+	time: WorldTime | null,
+	spawn: WorldSpawn | null,
+	weather: WorldWeather | null,
+	world_border: WorldBorder | null,
+	game_rules: WorldGameRule[],
+	nbt: NbtValue | null,
+};
+
+export type WorldPlayer = {
+	uuid: string,
+	path: string,
+	name: string | null,
+	dimension: string | null,
+	position: WorldPosition | null,
+	rotation: WorldRotation | null,
+	health: number | null,
+	food_level: number | null,
+	food_saturation: number | null,
+	experience_level: number | null,
+	experience: number | null,
+	total_experience: number | null,
+	game_mode: WorldGameMode | null,
+	inventory: WorldInventoryItem[],
+	ender_items: NbtValue | null,
+	nbt: NbtValue | null,
+};
+
+export type WorldPlayerStatistics = {
+	uuid: string,
+	path: string,
+	statistics: WorldStatistic[],
+};
+
+export type WorldPosition = {
+	x: number | null,
+	y: number | null,
+	z: number | null,
+};
+
+export type WorldRegion = {
+	x: number,
+	z: number,
+	path: string,
+	size: string,
+	chunk_count: number,
+	chunks: WorldChunk[],
+};
+
+export type WorldRegionStorage = {
+	path: string,
+	region_count: string,
+	chunk_count: string,
+	total_size: string,
+	regions: WorldRegion[],
+};
+
+export type WorldRotation = {
+	yaw: number | null,
+	pitch: number | null,
+};
+
+export type WorldSpawn = {
+	x: number,
+	y: number,
+	z: number,
+	angle: number | null,
+};
+
+export type WorldStatistic = {
+	category: string,
+	name: string,
+	value: string,
+};
+
+export type WorldSummary = {
+	id: string,
+	name: string,
+	path: string,
+	icon: string | null,
+	last_modified: string | null,
+};
+
+export type WorldTime = {
+	game_time: string | null,
+	day_time: string | null,
+};
+
+export type WorldVersion = {
+	name: string | null,
+	id: number | null,
+	snapshot: boolean | null,
+};
+
+export type WorldWeather = {
+	raining: boolean | null,
+	rain_time: number | null,
+	thundering: boolean | null,
+	thunder_time: number | null,
+};
 
 /* Tauri Specta runtime */
 async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {

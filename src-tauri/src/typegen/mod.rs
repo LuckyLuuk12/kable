@@ -94,6 +94,17 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::apply_downloaded_update,
             api::get_current_version,
             // #endregion Updater
+            // #region Worlds
+            api::load_worlds,
+            api::load_world,
+            api::load_world_level,
+            api::load_world_players,
+            api::load_world_player,
+            api::load_world_dimensions,
+            api::load_world_region_storage,
+            api::load_world_datapacks,
+            api::load_world_nbt,
+            // #endregion Worlds
         ])
         .events(collect_events![]);
 
