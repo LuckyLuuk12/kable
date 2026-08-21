@@ -1,7 +1,7 @@
 use crate::constants::KABLE_PROFILES_FILE;
 use crate::integrations::loaders::get_versions;
 use crate::integrations::minecraft::profiles::parse_launcher_profiles;
-use crate::system::cache::{invalidate, invalidate_no_args};
+use crate::system::cache::invalidate_no_args;
 use crate::system::fs::{launcher_dir, read_str, write_str};
 use api_types::profiles::LauncherProfiles;
 use api_types::profiles::{KableProfile, Projects};
@@ -131,7 +131,5 @@ pub async fn save_profiles(profiles: &[KableProfile]) -> Result<(), String> {
 
     write_str(&profiles_file, &content, false).await?;
 
-    invalidate_no_args("profiles", "save_profiles").await?;
-
-    Ok(())
+    invalidate_no_args("profiles", "load_profiles").await
 }

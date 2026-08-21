@@ -32,6 +32,7 @@ where
 {
     let key = hash_args(&args);
     let path = root.join(parent).join(format!("{key}.bin"));
+    let path_str = path.to_string_lossy().to_string();
 
     let lock = super::locks::get_lock(&key);
     let _guard = lock.lock().await;
@@ -45,7 +46,7 @@ where
         };
 
         if !entry.is_expired(Utc::now().timestamp() as u64) && entry.is_current_format() {
-            Logger::debug_global(&format!("Cache hit for key: {key}"), None);
+            Logger::debug_global(&format!("Cache hit for key: {path_str}"), None);
             return Ok(entry.value);
         }
     }
@@ -57,7 +58,7 @@ where
     let bytes =
         bincode::serde::encode_to_vec(&entry, bincode::config::standard()).map_err(|e| format!("Failed to encode cache entry: {}", e))?;
 
-    Logger::debug_global(&format!("Cache miss for key: {key}. Storing new entry."), None);
+    Logger::debug_global(&format!("Cache miss for key: {path_str}. Storing new entry."), None);
     write(&path, &bytes, false).await.map_err(|e| format!("Failed to write cache entry: {}", e))?;
 
     Ok(result)

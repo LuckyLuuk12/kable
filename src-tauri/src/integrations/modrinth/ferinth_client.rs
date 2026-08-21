@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use ferinth::{
     structures::{
         project::ProjectType as FerinthProjectType,
-        search::{Facet as FerinthFacet, Response, Sort as FerinthSort},
+        search::{Facet as FerinthFacet, Sort as FerinthSort},
         version::{
             AdditionalFileType as FerinthFileType, Dependency as FerinthDependency, DependencyType as FerinthDependencyType,
             RequestedStatus as FerinthRequestedStatus, Status as FerinthStatus, Version as FerinthVersion,
@@ -91,104 +91,7 @@ fn convert_sort(index: SearchIndex) -> FerinthSort {
 // SEARCH
 // ============================================================================
 
-async fn test_search(project_type: Option<String>, mut project_search: ProjectSearch) -> Result<ModrinthResults, String> {
-    use super::as_string::*;
-
-    let mut facet_groups = project_search.facets.clone();
-
-    if let Some(project_type) = project_type {
-        facet_groups.insert(
-            0,
-            FacetGroup {
-                facets: vec![Facet {
-                    field: FacetField::ProjectType,
-                    operator: api_types::projects::FacetOperator::Eq,
-                    value: project_type,
-                }],
-            },
-        );
-    }
-
-    facet_groups.iter_mut().for_each(|group| {
-        group.facets.retain(|facet| facet.field != FacetField::Version);
-    });
-
-    facet_groups.retain(|group| !group.facets.is_empty());
-
-    let facets: Vec<Vec<FerinthFacet>> =
-        vec![vec![FerinthFacet::Custom { _type: "project_type".to_string(), operation: "=".to_string(), value: "mod".to_string() }]];
-
-    let query = project_search.query.clone().unwrap_or_default();
-
-    let sort = convert_sort(project_search.index.unwrap_or_default());
-
-    let offset = project_search.offset.unwrap_or(0);
-
-    let limit = project_search.limit.unwrap_or(20);
-
-    Logger::debug_global(
-        &format!(
-            "TEST Query: {:?}\n\
-             TEST Facet groups: {:#?}\n\
-             TEST Converted facets: {:#?}\n\
-             TEST Sort: {:?}\n\
-             TEST Limit: {}\n\
-             TEST Offset: {}",
-            query, facet_groups, facets, sort, limit, offset
-        ),
-        None,
-    );
-
-    let mut request = reqwest::Client::new().get("https://api.modrinth.com/v2/search").query(&[
-        ("query", query.as_str()),
-        (
-            "index",
-            match sort {
-                FerinthSort::Relevance => "relevance",
-                FerinthSort::Downloads => "downloads",
-                FerinthSort::Follows => "follows",
-                FerinthSort::Newest => "newest",
-                FerinthSort::Updated => "updated",
-            },
-        ),
-        ("limit", &limit.to_string()),
-        ("offset", &offset.to_string()),
-    ]);
-
-    if !facets.is_empty() {
-        let facets_json = serde_json::to_string(&facets).map_err(|e| format!("Failed to serialize facets: {e}"))?;
-
-        request = request.query(&[("facets", facets_json)]);
-    }
-
-    let response = request.send().await.map_err(|e| format!("Failed to send request: {e}"))?;
-
-    let status = response.status();
-
-    let body = response.text().await.map_err(|e| format!("Failed to read response: {e}"))?;
-
-    Logger::debug_global(&format!("TEST HTTP status: {status}\nTEST response: {body}"), None);
-
-    if !status.is_success() {
-        return Err(format!("Modrinth returned HTTP {status}: {body}"));
-    }
-
-    let response: Response =
-        serde_json::from_str(&body).map_err(|e| format!("Failed to deserialize Ferinth response: {e}\nBody: {body}"))?;
-
-    Ok(ModrinthResults {
-        hits: join_all(response.hits.into_iter().map(convert_search_hit)).await,
-
-        offset: i32::try_from(response.offset).unwrap_or(0),
-
-        limit: i32::try_from(response.limit).unwrap_or(20),
-
-        total_hits: i32::try_from(response.total_hits).unwrap_or(0),
-    })
-}
-
 async fn search(project_type: Option<String>, project_search: ProjectSearch) -> Result<ModrinthResults, String> {
-    // return test_search(project_type, project_search).await;
     let mut facet_groups = project_search.facets.clone();
 
     if let Some(project_type) = project_type.clone() {

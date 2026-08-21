@@ -321,7 +321,7 @@ fn current_os_version() -> Option<String> {
     {
         let version = windows_version::OsVersion::current();
 
-        return Some(format!("{}.{}.{}", version.major, version.minor, version.build));
+        Some(format!("{}.{}.{}", version.major, version.minor, version.build))
     }
 
     #[cfg(not(windows))]
