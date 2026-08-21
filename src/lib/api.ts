@@ -87,6 +87,7 @@ export const commands = {
 	modifyProfile: (oldProfile: KableProfile, newProfile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("modify_profile", { oldProfile, newProfile })),
 	deleteProfile: (id: string) => typedError<null, string>(__TAURI_INVOKE("delete_profile", { id })),
 	getVersions: () => typedError<Versions, string>(__TAURI_INVOKE("get_versions")),
+	refreshVersions: () => typedError<Versions, string>(__TAURI_INVOKE("refresh_versions")),
 	toggleProject: (profile: KableProfile, kableProject: KableProject) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_project", { profile, kableProject })),
 	toggleFavorite: (profile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_favorite", { profile })),
 	isProjectEnabled: (profile: KableProfile, kableProject: KableProject) => typedError<boolean, string>(__TAURI_INVOKE("is_project_enabled", { profile, kableProject })),

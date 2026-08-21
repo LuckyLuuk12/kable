@@ -54,6 +54,12 @@ pub async fn get_versions() -> Result<Versions, String> {
 
 #[tauri::command]
 #[specta::specta]
+pub async fn refresh_versions() -> Result<Versions, String> {
+    loaders::refresh_versions().await
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn toggle_project(profile: KableProfile, kable_project: KableProject) -> Result<KableProfile, String> {
     management::toggle_project(profile, kable_project).await
 }

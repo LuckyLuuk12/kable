@@ -141,6 +141,7 @@ pub fn run() {
             api::modify_profile,
             api::delete_profile,
             api::get_versions,
+            api::refresh_versions,
             api::toggle_project,
             api::toggle_favorite,
             api::is_project_enabled,

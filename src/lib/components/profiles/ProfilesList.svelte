@@ -1,13 +1,13 @@
 <!-- @component
-InstallationsList - Displays list or grid of Minecraft installations
+ProfilesList - Displays list or grid of Minecraft profiles
 
-Shows all available installations with options to launch, edit, duplicate,
+Shows all available profiles with options to launch, edit, duplicate,
 delete, export, create shortcuts, and favorite.
 
-@prop {boolean} [isGrid=false] - Display installations in grid layout
+@prop {boolean} [isGrid=false] - Display profiles in grid layout
 @prop {boolean} [isSmall=false] - Use compact display mode
 @prop {string | null} [error=null] - Error message to display
-@prop {number | null} [limit=null] - Maximum number of installations to display
+@prop {number | null} [limit=null] - Maximum number of profiles to display
 -->
 <script lang="ts">
 import { app, clickSound, errorSound, Icon, Image, launchSound, type KableProfile } from "$lib";
@@ -27,7 +27,7 @@ let {
 
 let isLoading = $derived(app.profilesService.loading || app.launcherService.loadingVersions);
 
-let installations = $derived.by(() => {
+let profiles = $derived.by(() => {
   const profiles = app.profilesService.profiles;
 
   if (limit == null) {
@@ -37,17 +37,17 @@ let installations = $derived.by(() => {
   return profiles.slice(0, limit);
 });
 
-function editInstallation(profile: KableProfile) {
+function editProfile(profile: KableProfile) {
   app.show(EditProfileModal, {
     profile,
   });
 }
 
-async function duplicateInstallation(profile: KableProfile) {
+async function duplicateProfile(profile: KableProfile) {
   await app.profilesService.createProfile(profile.version.id, profile);
 }
 
-async function exportInstallation(profile: KableProfile) {
+async function exportProfile(profile: KableProfile) {
   await app.profilesService.exportProfile(profile);
 }
 
@@ -60,7 +60,7 @@ async function createShortcut(profile: KableProfile) {
   }
 }
 
-async function deleteInstallation(profile: KableProfile) {
+async function deleteProfile(profile: KableProfile) {
   await app.profilesService.remove(profile.id);
 }
 
@@ -69,7 +69,7 @@ async function toggleFavorite(event: MouseEvent, profile: KableProfile) {
   await app.profilesService.toggleFavorite(profile);
 }
 
-function getInstallationIcon(profile: KableProfile) {
+function getProfileIcon(profile: KableProfile) {
   const icon = profile.metadata.icon;
 
   if (typeof icon === "string" && (icon.startsWith("data:") || icon.startsWith("http") || icon.startsWith("file:") || icon.startsWith("/"))) {
@@ -99,7 +99,7 @@ function formatLastUsed(date: string | null | undefined) {
 }
 </script>
 
-<div class="installations-list" class:compact={isSmall && !isGrid}>
+<div class="profiles-list" class:compact={isSmall && !isGrid}>
   {#if error}
     <div class="error-message">
       <Icon name="alert" size="sm" />
@@ -107,34 +107,34 @@ function formatLastUsed(date: string | null | undefined) {
     </div>
   {/if}
 
-  {#if isLoading && installations.length === 0}
+  {#if isLoading && profiles.length === 0}
     <div class="loading-state">
       <Icon name="refresh" size="md" forceType="svg" />
 
-      <span>Loading installations...</span>
+      <span>Loading profiles...</span>
     </div>
-  {:else if installations.length === 0}
+  {:else if profiles.length === 0}
     <div class="empty-state">
       <div class="empty-icon">
         <Icon name="cube" size="xl" />
       </div>
 
-      <h3>No installations found</h3>
-      <p>Create your first Minecraft installation to get started</p>
+      <h3>No profiles found</h3>
+      <p>Create your first Minecraft profile to get started</p>
     </div>
   {:else}
-    <div class={isGrid ? "installations-grid" : "installations-flex"}>
-      {#each installations as installation, i (installation.id)}
-        {@const loaderColor = app.profilesService.getLoaderColor(installation.version.loader)}
+    <div class={isGrid ? "profiles-grid" : "profiles-flex"}>
+      {#each profiles as profile, i (profile.id)}
+        {@const loaderColor = app.profilesService.getLoaderColor(profile.version.loader)}
 
-        {@const loaderImage = app.profilesService.getLoaderImage(installation.version.loader)}
+        {@const loaderImage = app.profilesService.getLoaderImage(profile.version.loader)}
 
-        {@const customIcon = getInstallationIcon(installation)}
+        {@const customIcon = getProfileIcon(profile)}
 
         {#if isGrid}
           <div
             class:small={isSmall}
-            class="installation-card"
+            class="profile-card"
             style="
               background:
                 linear-gradient(
@@ -143,56 +143,56 @@ function formatLastUsed(date: string | null | undefined) {
                   {loaderColor}08 40%
                 );
               --loader-color: {loaderColor}55;
-              z-index: {installations.length - i};
+              z-index: {profiles.length - i};
             ">
             <div class="card-top-actions">
-              <button class="star-btn" title={installation.metadata.favorite ? "Unfavorite" : "Favorite"} onclick={(event) => toggleFavorite(event, installation)}>
-                {#key installation.metadata.favorite}
-                  <Icon name="star" forceType={installation.metadata.favorite ? "emoji" : "svg"} size="md" />
+              <button class="star-btn" title={profile.metadata.favorite ? "Unfavorite" : "Favorite"} onclick={(event) => toggleFavorite(event, profile)}>
+                {#key profile.metadata.favorite}
+                  <Icon name="star" forceType={profile.metadata.favorite ? "emoji" : "svg"} size="md" />
                 {/key}
               </button>
 
               {#if isSmall}
                 <div class="small-card-actions">
-                  <button use:clickSound class="small-action-btn" onclick={() => editInstallation(installation)} title="Edit Installation">
+                  <button use:clickSound class="small-action-btn" onclick={() => editProfile(profile)} title="Edit Profile">
                     <Icon name="edit" size="sm" />
                   </button>
 
-                  <button use:clickSound class="small-action-btn" onclick={() => duplicateInstallation(installation)} title="Duplicate Installation">
+                  <button use:clickSound class="small-action-btn" onclick={() => duplicateProfile(profile)} title="Duplicate Profile">
                     <Icon name="duplicate" size="sm" />
                   </button>
 
-                  <button use:clickSound class="small-action-btn" onclick={() => exportInstallation(installation)} title="Export Installation">
+                  <button use:clickSound class="small-action-btn" onclick={() => exportProfile(profile)} title="Export Profile">
                     <Icon name="download" size="sm" />
                   </button>
 
-                  <button use:clickSound class="small-action-btn" onclick={() => createShortcut(installation)} title="Create Shortcut">
+                  <button use:clickSound class="small-action-btn" onclick={() => createShortcut(profile)} title="Create Shortcut">
                     <Icon name="link" size="sm" />
                   </button>
 
-                  <button use:errorSound class="small-action-btn danger" onclick={() => deleteInstallation(installation)} title="Delete Installation">
+                  <button use:errorSound class="small-action-btn danger" onclick={() => deleteProfile(profile)} title="Delete Profile">
                     <Icon name="trash" size="sm" />
                   </button>
                 </div>
               {/if}
             </div>
 
-            <div class="installation-main">
-              <div class="installation-icon-column">
+            <div class="profile-main">
+              <div class="profile-icon-column">
                 <div
-                  class="installation-icon icon-tooltip-wrapper"
+                  class="profile-icon icon-tooltip-wrapper"
                   style="
                     color: {loaderColor};
                     background: transparent;
                   ">
                   {#if customIcon}
-                    <img src={customIcon} alt="installation icon" class="installation-img" />
+                    <img src={customIcon} alt="profile icon" class="profile-img" />
                   {:else}
                     <Image key={loaderImage ?? "vanilla"} />
                   {/if}
 
                   <span class="icon-tooltip">
-                    {installation.version.loader}
+                    {profile.version.loader}
                   </span>
                 </div>
 
@@ -209,10 +209,10 @@ function formatLastUsed(date: string | null | undefined) {
                     color: $color-text !important;
                   "
                   onclick={async () => {
-                    await app.launcherService.launch(installation);
+                    await app.launcherService.launch(profile);
                   }}
                   disabled={app.launcherService.launching}>
-                  {#if app.launcherService.launchingProfileId === installation.id}
+                  {#if app.launcherService.launchingProfileId === profile.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
 
                     <span>Launching...</span>
@@ -222,42 +222,42 @@ function formatLastUsed(date: string | null | undefined) {
                 </button>
               </div>
 
-              <div class="installation-meta">
-                <div class="installation-title-row">
+              <div class="profile-meta">
+                <div class="profile-title-row">
                   <h3>
-                    {installation.metadata.name || installation.version.id}
+                    {profile.metadata.name || profile.version.id}
                   </h3>
                 </div>
 
-                {#if installation.version.id}
+                {#if profile.version.id}
                   <div class="loader-version-row">
                     <span class="loader-version" style="color: {loaderColor};">
-                      {installation.version.id}
+                      {profile.version.id}
                     </span>
                   </div>
                 {/if}
 
                 {#if isSmall}
-                  <div class="installation-meta-grid small-meta-grid">
+                  <div class="profile-meta-grid small-meta-grid">
                     <div class="meta-cell small-meta-cell">
                       <span class="meta-key"> Total time: </span>
 
                       <span class="meta-value last-played small-meta-value">
                         <Icon name="clock" size="sm" />
 
-                        {formatPlayedTime(installation.metadata.total_time_played_ms)}
+                        {formatPlayedTime(profile.metadata.total_time_played_ms)}
                       </span>
                     </div>
                   </div>
                 {:else}
-                  <div class="installation-meta-grid">
+                  <div class="profile-meta-grid">
                     <div class="meta-cell">
                       <span class="meta-key">Created:</span>
 
                       <span class="meta-value">
                         <Icon name="calendar" size="sm" />
 
-                        {formatDate(installation.metadata.created)}
+                        {formatDate(profile.metadata.created)}
                       </span>
                     </div>
 
@@ -267,7 +267,7 @@ function formatLastUsed(date: string | null | undefined) {
                       <span class="meta-value">
                         <Icon name="clock" size="sm" />
 
-                        {formatLastUsed(installation.metadata.last_used)}
+                        {formatLastUsed(profile.metadata.last_used)}
                       </span>
                     </div>
 
@@ -277,7 +277,7 @@ function formatLastUsed(date: string | null | undefined) {
                       <span class="meta-value">
                         <Icon name="clock" size="sm" />
 
-                        {formatPlayedTime(installation.metadata.total_time_played_ms)}
+                        {formatPlayedTime(profile.metadata.total_time_played_ms)}
                       </span>
                     </div>
                   </div>
@@ -286,28 +286,28 @@ function formatLastUsed(date: string | null | undefined) {
             </div>
 
             {#if !isSmall}
-              <div class="installation-actions">
-                <button use:clickSound class="btn btn-secondary" onclick={() => editInstallation(installation)} title="Edit Installation">
+              <div class="profile-actions">
+                <button use:clickSound class="btn btn-secondary" onclick={() => editProfile(profile)} title="Edit Profile">
                   <Icon name="edit" size="sm" />
                   Edit
                 </button>
 
-                <button use:clickSound class="btn btn-secondary" onclick={() => duplicateInstallation(installation)} title="Duplicate Installation">
+                <button use:clickSound class="btn btn-secondary" onclick={() => duplicateProfile(profile)} title="Duplicate Profile">
                   <Icon name="duplicate" size="sm" />
                   Duplicate
                 </button>
 
-                <button use:clickSound class="btn btn-secondary" onclick={() => exportInstallation(installation)} title="Export Installation">
+                <button use:clickSound class="btn btn-secondary" onclick={() => exportProfile(profile)} title="Export Profile">
                   <Icon name="download" size="sm" />
                   Export
                 </button>
 
-                <button use:clickSound class="btn btn-secondary" onclick={() => createShortcut(installation)} title="Create Shortcut">
+                <button use:clickSound class="btn btn-secondary" onclick={() => createShortcut(profile)} title="Create Shortcut">
                   <Icon name="link" size="sm" />
                   Shortcut
                 </button>
 
-                <button use:errorSound class="btn btn-danger" onclick={() => deleteInstallation(installation)} title="Delete Installation">
+                <button use:errorSound class="btn btn-danger" onclick={() => deleteProfile(profile)} title="Delete Profile">
                   <Icon name="trash" size="sm" />
                   Delete
                 </button>
@@ -316,7 +316,7 @@ function formatLastUsed(date: string | null | undefined) {
           </div>
         {:else}
           <div
-            class="installation-list-item"
+            class="profile-list-item"
             style="
               background:
                 linear-gradient(
@@ -328,15 +328,15 @@ function formatLastUsed(date: string | null | undefined) {
             ">
             <div class="list-item-main">
               <div class="list-item-icon-section">
-                <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColor};">
+                <div class="profile-icon icon-tooltip-wrapper" style="color: {loaderColor};">
                   {#if customIcon}
-                    <img src={customIcon} alt="installation icon" class="installation-img list-img" />
+                    <img src={customIcon} alt="profile icon" class="profile-img list-img" />
                   {:else}
                     <Image key={loaderImage ?? "vanilla"} />
                   {/if}
 
                   <span class="icon-tooltip">
-                    {installation.version.loader}
+                    {profile.version.loader}
                   </span>
                 </div>
 
@@ -353,10 +353,10 @@ function formatLastUsed(date: string | null | undefined) {
                     color: $color-text !important;
                   "
                   onclick={async () => {
-                    await app.launcherService.launch(installation);
+                    await app.launcherService.launch(profile);
                   }}
                   disabled={app.launcherService.launching}>
-                  {#if app.launcherService.launchingProfileId === installation.id}
+                  {#if app.launcherService.launchingProfileId === profile.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
 
                     <span>Launching...</span>
@@ -370,45 +370,45 @@ function formatLastUsed(date: string | null | undefined) {
                 <div class="list-title-actions-row">
                   <div class="list-title">
                     <h3>
-                      {installation.metadata.name || installation.version.id}
+                      {profile.metadata.name || profile.version.id}
                     </h3>
 
-                    {#if installation.version.id && installation.metadata.name}
+                    {#if profile.version.id && profile.metadata.name}
                       <span class="list-version" style="color: {loaderColor};">
-                        {installation.version.id}
+                        {profile.version.id}
                       </span>
                     {/if}
                   </div>
 
                   <div class="list-actions-section">
-                    <button class="star-btn" title={installation.metadata.favorite ? "Unfavorite" : "Favorite"} onclick={(event) => toggleFavorite(event, installation)}>
-                      {#key installation.metadata.favorite}
-                        <Icon name="star" forceType={installation.metadata.favorite ? "emoji" : "svg"} size="sm" />
+                    <button class="star-btn" title={profile.metadata.favorite ? "Unfavorite" : "Favorite"} onclick={(event) => toggleFavorite(event, profile)}>
+                      {#key profile.metadata.favorite}
+                        <Icon name="star" forceType={profile.metadata.favorite ? "emoji" : "svg"} size="sm" />
                       {/key}
                     </button>
 
                     <div class="list-inline-actions">
-                      <button use:clickSound class="list-action-btn" onclick={() => editInstallation(installation)} title="Edit Installation">
+                      <button use:clickSound class="list-action-btn" onclick={() => editProfile(profile)} title="Edit Profile">
                         <Icon name="edit" size="sm" />
                         <span>Edit</span>
                       </button>
 
-                      <button use:clickSound class="list-action-btn" onclick={() => duplicateInstallation(installation)} title="Duplicate Installation">
+                      <button use:clickSound class="list-action-btn" onclick={() => duplicateProfile(profile)} title="Duplicate Profile">
                         <Icon name="duplicate" size="sm" />
                         <span>Duplicate</span>
                       </button>
 
-                      <button use:clickSound class="list-action-btn" onclick={() => exportInstallation(installation)} title="Export Installation">
+                      <button use:clickSound class="list-action-btn" onclick={() => exportProfile(profile)} title="Export Profile">
                         <Icon name="download" size="sm" />
                         <span>Export</span>
                       </button>
 
-                      <button use:clickSound class="list-action-btn" onclick={() => createShortcut(installation)} title="Create Shortcut">
+                      <button use:clickSound class="list-action-btn" onclick={() => createShortcut(profile)} title="Create Shortcut">
                         <Icon name="link" size="sm" />
                         <span>Shortcut</span>
                       </button>
 
-                      <button use:errorSound class="list-action-btn danger" onclick={() => deleteInstallation(installation)} title="Delete Installation">
+                      <button use:errorSound class="list-action-btn danger" onclick={() => deleteProfile(profile)} title="Delete Profile">
                         <Icon name="trash" size="sm" />
                         <span>Delete</span>
                       </button>
@@ -422,7 +422,7 @@ function formatLastUsed(date: string | null | undefined) {
                       <Icon name="calendar" size="sm" />
 
                       <span>
-                        {formatDate(installation.metadata.created)}
+                        {formatDate(profile.metadata.created)}
                       </span>
                     </div>
 
@@ -430,7 +430,7 @@ function formatLastUsed(date: string | null | undefined) {
                       <Icon name="clock" size="sm" />
 
                       <span>
-                        {formatLastUsed(installation.metadata.last_used)}
+                        {formatLastUsed(profile.metadata.last_used)}
                       </span>
                     </div>
 
@@ -438,7 +438,7 @@ function formatLastUsed(date: string | null | undefined) {
                       <Icon name="clock" size="sm" />
 
                       <span>
-                        {formatPlayedTime(installation.metadata.total_time_played_ms)}
+                        {formatPlayedTime(profile.metadata.total_time_played_ms)}
                       </span>
                     </div>
                   </div>
@@ -453,7 +453,8 @@ function formatLastUsed(date: string | null | undefined) {
 </div>
 
 <style lang="scss">
-.installations-list {
+.profiles-list {
+  min-height: 100%;
   padding: 2rem;
   border-radius: $radius-md;
   border: 1px solid $color-surface-3;
@@ -462,10 +463,10 @@ function formatLastUsed(date: string | null | undefined) {
   overflow: visible;
 }
 
-.installations-list.compact {
+.profiles-list.compact {
   padding: 1rem;
 
-  .installation-list-item {
+  .profile-list-item {
     margin-bottom: 0.5rem;
 
     .list-item-main {
@@ -490,20 +491,21 @@ function formatLastUsed(date: string | null | undefined) {
   }
 }
 
-.installations-grid {
+.profiles-grid {
+  min-height: 100%;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(20.5rem, 1fr));
   gap: 1.25rem;
   align-items: stretch;
 }
 
-.installations-flex {
+.profiles-flex {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.installation-img {
+.profile-img {
   display: block;
   width: 48px;
   height: 48px;
@@ -513,14 +515,14 @@ function formatLastUsed(date: string | null | undefined) {
   border-radius: $radius-md;
 }
 
-.installation-img.list-img {
+.profile-img.list-img {
   width: 32px;
   height: 32px;
   max-width: 32px;
   max-height: 32px;
 }
 
-.installation-icon {
+.profile-icon {
   position: relative;
 
   display: flex;
@@ -543,7 +545,7 @@ function formatLastUsed(date: string | null | undefined) {
    GRID CARD
    ============================================================ */
 
-.installation-card {
+.profile-card {
   position: relative;
 
   min-width: 0;
@@ -582,10 +584,6 @@ function formatLastUsed(date: string | null | undefined) {
     padding: 0.8rem;
   }
 
-  /*
-   * The favorite button is the only absolutely positioned element
-   * in the grid card. It does not consume layout space.
-   */
   > .card-top-actions {
     position: absolute;
     top: 0.55rem;
@@ -601,10 +599,6 @@ function formatLastUsed(date: string | null | undefined) {
       pointer-events: auto;
     }
 
-    /*
-     * Small mode should only have the favorite button.
-     * The edit/duplicate/export/etc. buttons are intentionally hidden.
-     */
     .small-card-actions {
       display: none !important;
     }
@@ -638,11 +632,7 @@ function formatLastUsed(date: string | null | undefined) {
     }
   }
 
-  /*
-   * There should be no dropdown in the grid card either.
-   * The normal card uses the explicit action buttons below.
-   */
-  .installation-dropdown,
+  .profile-dropdown,
   .actions-dropdown,
   .dropdown {
     display: none !important;
@@ -653,7 +643,7 @@ function formatLastUsed(date: string | null | undefined) {
    GRID CARD CONTENT
    ============================================================ */
 
-.installation-main {
+.profile-main {
   display: grid;
   border-radius: $radius-lg;
   grid-template-columns: 5rem minmax(0, 1fr);
@@ -666,7 +656,7 @@ function formatLastUsed(date: string | null | undefined) {
   padding: 0.05rem 0 0;
 }
 
-.installation-icon-column {
+.profile-icon-column {
   min-width: 0;
 
   display: flex;
@@ -675,7 +665,7 @@ function formatLastUsed(date: string | null | undefined) {
   gap: 0.55rem;
 }
 
-.installation-icon-column > .installation-icon {
+.profile-icon-column > .profile-icon {
   width: 2.75rem;
   height: 2.75rem;
 }
@@ -712,7 +702,7 @@ function formatLastUsed(date: string | null | undefined) {
   }
 }
 
-.installation-meta {
+.profile-meta {
   min-width: 0;
 
   display: flex;
@@ -722,7 +712,7 @@ function formatLastUsed(date: string | null | undefined) {
   overflow: hidden;
 }
 
-.installation-title-row {
+.profile-title-row {
   min-width: 0;
 
   display: flex;
@@ -774,7 +764,7 @@ function formatLastUsed(date: string | null | undefined) {
   line-height: 1.2;
 }
 
-.installation-meta-grid {
+.profile-meta-grid {
   min-width: 0;
 
   display: flex;
@@ -856,7 +846,7 @@ function formatLastUsed(date: string | null | undefined) {
    GRID ACTIONS
    ============================================================ */
 
-.installation-actions {
+.profile-actions {
   min-width: 0;
 
   display: grid;
@@ -921,11 +911,8 @@ function formatLastUsed(date: string | null | undefined) {
   }
 }
 
-/*
- * Small cards have no action row at all.
- */
-.installation-card.small {
-  .installation-actions {
+.profile-card.small {
+  .profile-actions {
     display: none !important;
   }
 }
@@ -934,7 +921,7 @@ function formatLastUsed(date: string | null | undefined) {
    LIST CARD
    ============================================================ */
 
-.installation-list-item {
+.profile-list-item {
   position: relative;
   z-index: 1;
 
@@ -963,12 +950,7 @@ function formatLastUsed(date: string | null | undefined) {
       0 0.125rem 0.25rem rgba(0, 0, 0, 0.06);
   }
 
-  /*
-   * Explicitly eliminate every possible dropdown in list mode.
-   * This also catches dropdown menus and their children if they
-   * remain mounted in the DOM.
-   */
-  .installation-dropdown,
+  .profile-dropdown,
   .actions-dropdown,
   .dropdown,
   .dropdown-toggle,
@@ -1000,7 +982,7 @@ function formatLastUsed(date: string | null | undefined) {
   align-items: center;
   gap: 0.75rem;
 
-  .installation-icon {
+  .profile-icon {
     width: 2.5rem;
     height: 2.5rem;
 
@@ -1110,9 +1092,6 @@ function formatLastUsed(date: string | null | undefined) {
 
   gap: 0.5rem;
 
-  /*
-   * This star is deliberately NOT absolute in list mode.
-   */
   .star-btn {
     position: static;
 
@@ -1365,28 +1344,28 @@ function formatLastUsed(date: string | null | undefined) {
 }
 
 @media (max-width: 48rem) {
-  .installations-list {
+  .profiles-list {
     padding: 1rem;
   }
 
-  .installations-grid {
+  .profiles-grid {
     grid-template-columns: 1fr;
   }
 
-  .installation-card {
+  .profile-card {
     padding: 1rem 0.8rem;
   }
 
-  .installation-card.small {
+  .profile-card.small {
     padding: 0.8rem;
   }
 
-  .installation-main {
+  .profile-main {
     grid-template-columns: 4.5rem minmax(0, 1fr);
     gap: 0.7rem;
   }
 
-  .installation-actions {
+  .profile-actions {
     grid-template-columns: repeat(5, minmax(0, 1fr));
 
     button {
@@ -1443,16 +1422,16 @@ function formatLastUsed(date: string | null | undefined) {
 }
 
 @media (max-width: 32rem) {
-  .installation-main {
+  .profile-main {
     grid-template-columns: 1fr;
   }
 
-  .installation-icon-column {
+  .profile-icon-column {
     flex-direction: row;
     justify-content: center;
   }
 
-  .installation-icon-column > .installation-icon {
+  .profile-icon-column > .profile-icon {
     width: 2.5rem;
     height: 2.5rem;
   }
@@ -1462,7 +1441,7 @@ function formatLastUsed(date: string | null | undefined) {
     min-width: 4.5rem;
   }
 
-  .installation-meta-grid {
+  .profile-meta-grid {
     flex-direction: column;
     align-items: flex-start;
     gap: 0.18rem;
@@ -1478,7 +1457,7 @@ function formatLastUsed(date: string | null | undefined) {
     text-align: left !important;
   }
 
-  .installation-actions {
+  .profile-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 
     button {

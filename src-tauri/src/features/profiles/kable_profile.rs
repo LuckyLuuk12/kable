@@ -10,9 +10,8 @@ use kable_macros::persistent_cache;
 use std::collections::{HashMap, HashSet};
 
 /// A way to convert a official launcher profile into a KableProfile, which is the internal representation of a profile in Kable
-async fn into(launcher_profiles: LauncherProfiles) -> Result<Vec<KableProfile>, String> {
+fn into(launcher_profiles: LauncherProfiles, all_versions: &[api_types::profiles::ProfileVersion]) -> Result<Vec<KableProfile>, String> {
     let mut kable_profiles = Vec::new();
-    let all_versions = get_versions().await?.0;
 
     let latest_release = all_versions
         .iter()
@@ -45,7 +44,11 @@ async fn into(launcher_profiles: LauncherProfiles) -> Result<Vec<KableProfile>, 
             id,
             version: version_data,
             metadata: api_types::profiles::KableProfileMetadata {
-                name: profile.name.unwrap_or_default(),
+                name: profile.name.filter(|name| !name.is_empty()).unwrap_or_else(|| match version_id {
+                    Some("latest-release") => "latest-release".to_string(),
+                    Some("latest-snapshot") => "latest-snapshot".to_string(),
+                    _ => String::new(),
+                }),
                 icon: profile.icon,
                 created: profile.created.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
                 last_used: profile.last_used.unwrap_or_else(|| chrono::Utc::now().to_rfc3339()),
@@ -85,8 +88,12 @@ async fn parse_kable_profiles() -> Result<Vec<KableProfile>, String> {
 
 /// This will take the official launcher profiles and the, if existing, kable profiles and merge them into a single list of KableProfiles
 /// with the kable profiles taking precedence over the official launcher profiles in case of duplicate profile IDs
-async fn merge_profiles(launcher_profiles: LauncherProfiles, kable_profiles: Vec<KableProfile>) -> Result<Vec<KableProfile>, String> {
-    let mut merged_profiles = into(launcher_profiles).await?;
+async fn merge_profiles(
+    launcher_profiles: LauncherProfiles,
+    kable_profiles: Vec<KableProfile>,
+    all_versions: &[api_types::profiles::ProfileVersion],
+) -> Result<Vec<KableProfile>, String> {
+    let mut merged_profiles = into(launcher_profiles, all_versions)?;
 
     let mut kable_profiles_map: HashMap<String, KableProfile> = HashMap::new();
 
@@ -108,13 +115,19 @@ async fn merge_profiles(launcher_profiles: LauncherProfiles, kable_profiles: Vec
 pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
     let launcher_profiles_future = parse_launcher_profiles();
     let kable_profiles_future = parse_kable_profiles();
+    let versions_future = get_versions();
 
-    let (launcher_profiles_result, kable_profiles_result) = tokio::join!(launcher_profiles_future, kable_profiles_future);
+    let (launcher_profiles_result, kable_profiles_result, versions_result) =
+        tokio::join!(launcher_profiles_future, kable_profiles_future, versions_future);
 
     let launcher_profiles = launcher_profiles_result?;
     let kable_profiles = kable_profiles_result?;
+    let all_versions = versions_result?.0;
 
-    let mut profiles = merge_profiles(launcher_profiles, kable_profiles).await?;
+    let mut profiles = merge_profiles(launcher_profiles, kable_profiles, &all_versions).await?;
+
+    update_latest_version_profiles(&mut profiles, &all_versions);
+
     profiles.sort_by(|a, b| b.metadata.last_used.cmp(&a.metadata.last_used));
 
     save_profiles(&profiles).await?;
@@ -133,4 +146,37 @@ pub async fn save_profiles(profiles: &[KableProfile]) -> Result<(), String> {
     write_str(&profiles_file, &content, false).await?;
     Logger::debug_global(format!("Saved profiles to {}", profiles_file.display()).as_str(), None);
     invalidate_no_args("profiles", "load_profiles").await
+}
+
+fn update_latest_version_profiles(profiles: &mut [KableProfile], all_versions: &[api_types::profiles::ProfileVersion]) {
+    let latest_release = all_versions
+        .iter()
+        .filter(|v| v.loader == api_types::profiles::LoaderKind::Vanilla && v.stable == Some(true))
+        .max_by(|a, b| a.release_time.cmp(&b.release_time));
+
+    let latest_snapshot = all_versions
+        .iter()
+        .filter(|v| {
+            v.loader == api_types::profiles::LoaderKind::Vanilla
+                && v.version_type == Some(api_types::profiles::ProfileVersionType::Snapshot)
+        })
+        .max_by(|a, b| a.release_time.cmp(&b.release_time));
+
+    for profile in profiles {
+        match profile.version.id.as_str() {
+            "latest-release" => {
+                if let Some(version) = latest_release {
+                    profile.version = version.clone();
+                    profile.version.id = "latest-release".to_string();
+                }
+            }
+            "latest-snapshot" => {
+                if let Some(version) = latest_snapshot {
+                    profile.version = version.clone();
+                    profile.version.id = "latest-snapshot".to_string();
+                }
+            }
+            _ => {}
+        }
+    }
 }

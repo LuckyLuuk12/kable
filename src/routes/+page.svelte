@@ -778,7 +778,7 @@ import { AdvertisementBanner, PlayButton, ProfilesList, RamAllocation } from "$l
 
 <div class="home-page">
   <AdvertisementBanner />
-  <ProfilesList />
+  <ProfilesList isGrid isSmall />
   <PlayButton />
   <RamAllocation />
 </div>

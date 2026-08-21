@@ -1,21 +1,16 @@
 <script lang="ts">
-import { app, CreateProfileModal, EditProfileModal, Icon, ProfilesList, type KableProfile } from "$lib";
+import { app, CreateProfileModal, Icon, ProfilesList } from "$lib";
 
 let isSmall = false;
 let isGrid = true;
 let isRefreshing = false;
 let isRefreshingVersions = false;
-let isImporting = false;
-
-function editProfile(profile: KableProfile) {
-  app.show(EditProfileModal, { profile });
-}
 
 function openCreateModal() {
   app.show(CreateProfileModal);
 }
 
-async function refreshInstallations() {
+async function refreshProfiles() {
   isRefreshing = true;
 
   try {
@@ -29,97 +24,60 @@ async function refreshVersionManifests() {
   isRefreshingVersions = true;
 
   try {
-    await app.launcherService.loadVersions();
+    await app.launcherService.refreshVersions();
   } finally {
     isRefreshingVersions = false;
   }
 }
-
-async function importKableInstallation() {
-  try {
-    isImporting = true;
-
-    // const path = await app.profilesService.selectInstallationZip();
-
-    // if (path) {
-    //   await app.profilesService.importInstallation(path);
-    // }
-  } catch (error) {
-    console.error("Failed to import installation:", error);
-  } finally {
-    isImporting = false;
-  }
-}
-
-async function importFromMinecraftFolder() {
-  try {
-    isImporting = true;
-
-    // const path = await app.profilesService.selectMinecraftFolder();
-
-    // if (path) {
-    //   await app.profilesService.importFromMinecraftFolder(path);
-    // }
-  } catch (error) {
-    console.error("Failed to import from Minecraft folder:", error);
-  } finally {
-    isImporting = false;
-  }
-}
 </script>
 
-<div class="installations-page">
+<div class="profiles-page">
   <div class="page-header">
     <div class="header-content">
-      <h1>Installations</h1>
-      <p>Manage your Minecraft installations, versions, and mod loaders</p>
+      <h1>Profiles</h1>
+      <p>Manage your Minecraft profiles, versions, and mod loaders</p>
     </div>
   </div>
 
   <div class="controls-container">
     <div class="left-controls">
-      <button class="btn btn-primary new-installation-btn" on:click={openCreateModal}>
+      <button
+        class="btn new-profiles-btn"
+        onclick={openCreateModal}
+        title="Create from version, existing, imported or modpack a new profile"
+        disabled={isRefreshing || isRefreshingVersions}>
         <Icon name="plus" size="md" forceType="svg" />
-        New Installation
-      </button>
-      <button class="btn btn-secondary import-btn" on:click={importKableInstallation} disabled={isImporting} title="Import Kable Installation from ZIP file">
-        <Icon name="download" size="md" forceType="svg" />
-        Import Kable Installation
-      </button>
-      <button class="btn btn-secondary import-btn" on:click={importFromMinecraftFolder} disabled={isImporting} title="Import from existing .minecraft folder">
-        <Icon name="folder" size="md" forceType="svg" />
-        Import from .minecraft
+        New Profile
       </button>
     </div>
     <div class="view-controls">
-      <button class="btn btn-secondary {isRefreshing ? 'spinning' : ''}" on:click={refreshInstallations} disabled={isRefreshing} title="Refresh installations list">
+      <button class="btn" class:spinning={isRefreshing} onclick={refreshProfiles} disabled={isRefreshing || isRefreshingVersions} title="Refresh profiles list">
         <Icon name="refresh" size="md" forceType="svg" />
+        Refresh Profiles
       </button>
       <button
-        class="btn btn-secondary {isRefreshingVersions ? 'spinning' : ''}"
-        on:click={refreshVersionManifests}
-        disabled={isRefreshingVersions}
-        title="Force refresh version manifests from network (useful for new snapshots)">
+        class="btn"
+        class:spinning={isRefreshingVersions}
+        onclick={refreshVersionManifests}
+        disabled={isRefreshingVersions || isRefreshing}
+        title="WARNING: This will clear cache and is very slow, use only if necessary!">
         <Icon name="sync" size="md" forceType="svg" />
         Refresh Versions
       </button>
-      <button class="btn btn-secondary" on:click={() => (isGrid = !isGrid)} class:is-active={isGrid} title={isGrid ? "Switch to list view" : "Switch to grid view"}>
+      <button class="btn" onclick={() => (isGrid = !isGrid)} class:is-active={isGrid} title={isGrid ? "Switch to list view" : "Switch to grid view"}>
         <Icon name={isGrid ? "list" : "grid"} size="md" />
       </button>
-      <button class="btn btn-secondary" on:click={() => (isSmall = !isSmall)} class:is-active={isSmall} title={"Turn compact mode " + (isSmall ? "off" : "on")}>
+      <button class="btn" onclick={() => (isSmall = !isSmall)} class:is-active={isSmall} title={"Turn compact mode " + (isSmall ? "off" : "on")}>
         <Icon name="minimize" size="md" />
       </button>
     </div>
   </div>
 
   <ProfilesList {isGrid} {isSmall} />
-
-  <!-- <CreateProfileModal bind:this={createModalRef} />
-  <EditProfileModal bind:this={editModalRef} /> -->
 </div>
 
 <style lang="scss">
-.installations-page {
+.profiles-page {
   width: 100%;
   max-width: none;
   margin: 0;
@@ -157,7 +115,7 @@ async function importFromMinecraftFolder() {
   gap: 1rem;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
-  .new-installation-btn {
+  .new-profiles-btn {
     display: flex;
     align-items: center;
     font-size: 1.1rem;
@@ -177,31 +135,6 @@ async function importFromMinecraftFolder() {
       background: color-mix(in srgb, $color-accent, 10%, transparent);
       color: var(--primary-900);
       border-color: var(--primary-700);
-    }
-  }
-  .import-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.65rem 1.25rem;
-    font-size: 1rem;
-    background: var(--card);
-    color: var(--text);
-    border: 1px solid var(--dark-500);
-    border-radius: var(--border-radius);
-    font-weight: 500;
-    transition:
-      background 0.13s,
-      color 0.13s,
-      border-color 0.13s;
-    &:hover:not(:disabled) {
-      background: color-mix(in srgb, $color-accent, 10%, transparent);
-      color: var(--primary-900);
-      border-color: var(--primary-800);
-    }
-    &:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
     }
   }
   .left-controls {

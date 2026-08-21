@@ -1,4 +1,5 @@
 use crate::constants::{FABRIC_META_URL, FORGE_MAVEN_METADATA_URL, MINECRAFT_VERSION_MANIFEST_URL, NEOFORGE_VERSION_URL, QUILT_META_URL};
+use crate::system::cache::invalidate_group;
 use crate::Logger;
 use api_types::profiles::{LoaderKind, ProfileVersion, Versions};
 use futures::stream::FuturesUnordered;
@@ -326,4 +327,9 @@ async fn get_neoforge_versions() -> Result<Versions, String> {
     }
 
     Ok(Versions(versions))
+}
+
+pub async fn refresh_versions() -> Result<Versions, String> {
+    invalidate_group("loader-versions").await?;
+    get_versions().await
 }

@@ -87,8 +87,8 @@ export class LauncherService implements Service {
    * Refresh versions explicitly
    */
   async refreshVersions() {
-    this.versions = null;
-    return await this.loadVersions(true);
+    this.versions = await api.refreshVersions();
+    return this.versions;
   }
 
   /**
