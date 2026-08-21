@@ -1,4 +1,4 @@
-import { type KableAccount, type KableProfile, type LoaderKind, api } from "$lib";
+import { type KableProfile, type LoaderKind, api } from "$lib";
 import { SvelteDate } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
 
@@ -60,31 +60,37 @@ export class ProfilesService implements Service {
     return JSON.parse(JSON.stringify(profile));
   }
 
-  async add(profile: KableProfile) {
-    try {
-      await api.addAccount(profile as unknown as KableAccount);
-
-      this.profiles = [...this.profiles, profile];
-    } catch (e) {
-      console.error("Failed to add profile", e);
-    }
-  }
-
   async modify(oldProfile: KableProfile, newProfile: KableProfile) {
     try {
       const updated = await api.modifyProfile(oldProfile, newProfile);
 
-      this.profiles = this.profiles.map((p) => (p.id === updated.id ? updated : p));
+      this.profiles = this.profiles.map((p) =>
+        p.id === oldProfile.id ? updated : p
+      );
     } catch (e) {
       console.error("Failed to modify profile", e);
     }
   }
 
-  /// Modifies a profile's favorite status, and then updates with the this.modify method to ensure the change is persisted and reflected in the profiles list.
   async toggleFavorite(profile: KableProfile) {
+    const previousProfiles = this.profiles;
+
+    this.profiles = this.profiles.map((p) =>
+      p.id === profile.id
+        ? {
+          ...p,
+          metadata: {
+            ...p.metadata,
+            favorite: !p.metadata.favorite,
+          },
+        }
+        : p
+    );
+
     try {
       await api.toggleFavorite(profile);
     } catch (e) {
+      this.profiles = previousProfiles;
       console.error("Failed to toggle favorite status for profile", e);
     }
   }
@@ -146,21 +152,33 @@ export class ProfilesService implements Service {
     }
   }
 
+
   async remove(id: string) {
     try {
       await api.deleteProfile(id);
+
+      this.profiles = this.profiles.filter((p) => p.id !== id);
     } catch (e) {
       console.error("Failed to delete profile", e);
     }
-
-    this.profiles = this.profiles.filter((p) => p.id !== id);
   }
 
-  async createProfile(versionId: string, baseProfile: KableProfile | null = null, exportedZip: string | null = null, mrpack: string | null = null) {
+  async createProfile(
+    versionId: string,
+    baseProfile: KableProfile | null = null,
+    exportedZip: string | null = null,
+    mrpack: string | null = null
+  ) {
     try {
-      // TODO: change to versionId, baseProfile, exportedZip, mrpack, instead of 3 nulls
-      const newProfile = await api.createProfile(versionId, baseProfile, exportedZip, mrpack);
+      const newProfile = await api.createProfile(
+        versionId,
+        baseProfile,
+        exportedZip,
+        mrpack
+      );
+
       console.log("[Profiles] Created new profile:", newProfile?.metadata.name);
+
       this.profiles = [...this.profiles, newProfile];
     } catch (e) {
       console.error("Failed to create profile", e);

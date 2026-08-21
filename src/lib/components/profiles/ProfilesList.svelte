@@ -1,25 +1,24 @@
 <!-- @component
 InstallationsList - Displays list or grid of Minecraft installations
 
-Shows all available installations with options to launch, edit, duplicate, delete, and favorite.
-Supports both grid and list view modes with sorting and filtering.
+Shows all available installations with options to launch, edit, duplicate,
+delete, export, create shortcuts, and favorite.
 
 @prop {boolean} [isGrid=false] - Display installations in grid layout
 @prop {boolean} [isSmall=false] - Use compact display mode
 @prop {string | null} [error=null] - Error message to display
 @prop {number | null} [limit=null] - Maximum number of installations to display
-
-@example
-```svelte
-◄InstallationsList isGrid={true} limit={10} /►
-```
 -->
 <script lang="ts">
 import { app, clickSound, errorSound, Icon, Image, launchSound, type KableProfile } from "$lib";
-import { onDestroy, onMount } from "svelte";
 import EditProfileModal from "./EditProfileModal.svelte";
 
-let { isGrid, isSmall, error, limit } = $props<{
+let {
+  isGrid = false,
+  isSmall = false,
+  error = null,
+  limit = null,
+} = $props<{
   isGrid?: boolean;
   isSmall?: boolean;
   error?: string | null;
@@ -28,282 +27,195 @@ let { isGrid, isSmall, error, limit } = $props<{
 
 let isLoading = $derived(app.profilesService.loading || app.launcherService.loadingVersions);
 
-let limitedInstallations = $state([] as KableProfile[]);
+let installations = $derived.by(() => {
+  const profiles = app.profilesService.profiles;
 
-let loaderIcons = $state({} as { [key: string]: string });
-let loaderImages = $state({} as { [key: string]: string });
-let loaderColors = $state({} as { [key: string]: string });
+  if (limit == null) {
+    return profiles;
+  }
 
-let useDropdownForActions: { [key: string]: boolean } = $state({});
-let resizeObserver: ResizeObserver | null = null;
+  return profiles.slice(0, limit);
+});
 
 function editInstallation(profile: KableProfile) {
-  console.log("[ProfilesList] Editing installation:", profile.id);
   app.show(EditProfileModal, {
     profile,
   });
 }
 
-onMount(() => {
-  setTimeout(checkActionsFit, 100);
-
-  if (typeof ResizeObserver !== "undefined") {
-    resizeObserver = new ResizeObserver(() => {
-      checkActionsFit();
-    });
-
-    const container = document.querySelector(".installations-list");
-
-    if (container) {
-      resizeObserver.observe(container);
-    }
-  }
-
-  window.addEventListener("resize", handleResize);
-});
-
-onDestroy(() => {
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-  }
-
-  window.removeEventListener("resize", handleResize);
-});
-
-$effect(() => {
-  const sorted = app.profilesService.profiles
-    .map((profile) => ({ ...profile }))
-    .sort((a, b) => {
-      if ((a.metadata.favorite ? 1 : 0) !== (b.metadata.favorite ? 1 : 0)) {
-        return (b.metadata.favorite ? 1 : 0) - (a.metadata.favorite ? 1 : 0);
-      }
-
-      const aTime = a.metadata.last_used ? new Date(a.metadata.last_used).getTime() : 0;
-      const bTime = b.metadata.last_used ? new Date(b.metadata.last_used).getTime() : 0;
-
-      return bTime - aTime;
-    });
-
-  limitedInstallations = sorted.slice(0, limit || sorted.length);
-});
-
-$effect(() => {
-  loaderIcons = Object.fromEntries(app.profilesService.profiles.map((profile) => [profile.id, app.profilesService.getLoaderIcon(profile.version.loader)]));
-});
-
-$effect(() => {
-  loaderImages = Object.fromEntries(app.profilesService.profiles.map((profile) => [profile.id, app.profilesService.getLoaderImage(profile.version.loader)]));
-});
-
-$effect(() => {
-  loaderColors = Object.fromEntries(app.profilesService.profiles.map((profile) => [profile.id, app.profilesService.getLoaderColor(profile.version.loader)]));
-});
-
-function checkActionsFit() {
-  if (isGrid) {
-    return;
-  }
-
-  const newUseDropdown: { [key: string]: boolean } = {};
-
-  if (isSmall) {
-    limitedInstallations.forEach((installation) => {
-      newUseDropdown[installation.id] = true;
-    });
-
-    useDropdownForActions = newUseDropdown;
-    return;
-  }
-
-  limitedInstallations.forEach((installation) => {
-    newUseDropdown[installation.id] = false;
-  });
-
-  const listItems = document.querySelectorAll(".list-title-actions-row");
-
-  listItems.forEach((item, index) => {
-    const installation = limitedInstallations[index];
-
-    if (!installation) {
-      return;
-    }
-
-    const titleElement = item.querySelector("h3") as HTMLElement;
-    const actionsSection = item.querySelector(".list-actions-section") as HTMLElement;
-    const inlineActions = item.querySelector(".list-inline-actions") as HTMLElement;
-
-    if (!titleElement || !actionsSection || !inlineActions) {
-      return;
-    }
-
-    const containerWidth = (item as HTMLElement).offsetWidth;
-    const titleWidth = titleElement.offsetWidth;
-    const actionsSectionWidth = actionsSection.offsetWidth;
-
-    const availableSpace = containerWidth - titleWidth - 32;
-    const neededSpace = actionsSectionWidth;
-
-    newUseDropdown[installation.id] = neededSpace > availableSpace || containerWidth < 800;
-  });
-
-  useDropdownForActions = newUseDropdown;
+async function duplicateInstallation(profile: KableProfile) {
+  await app.profilesService.createProfile(profile.version.id, profile);
 }
 
-function handleResize() {
-  checkActionsFit();
+async function exportInstallation(profile: KableProfile) {
+  await app.profilesService.exportProfile(profile);
 }
 
-$effect(() => {
-  if (limitedInstallations.length >= 0) {
-    setTimeout(checkActionsFit, 100);
+async function createShortcut(profile: KableProfile) {
+  try {
+    const path = await app.profilesService.createShortcut(profile);
+    console.log("Shortcut created at:", path);
+  } catch (err) {
+    console.error("Failed to create shortcut:", err);
   }
-});
+}
 
-$effect(() => {
-  if (typeof isSmall === "boolean") {
-    if (isSmall) {
-      const newUseDropdown: { [key: string]: boolean } = {};
+async function deleteInstallation(profile: KableProfile) {
+  await app.profilesService.remove(profile.id);
+}
 
-      limitedInstallations.forEach((installation) => {
-        newUseDropdown[installation.id] = true;
-      });
+async function toggleFavorite(event: MouseEvent, profile: KableProfile) {
+  event.stopPropagation();
+  await app.profilesService.toggleFavorite(profile);
+}
 
-      useDropdownForActions = newUseDropdown;
-    } else {
-      setTimeout(checkActionsFit, 10);
-    }
+function getInstallationIcon(profile: KableProfile) {
+  const icon = profile.metadata.icon;
+
+  if (typeof icon === "string" && (icon.startsWith("data:") || icon.startsWith("http") || icon.startsWith("file:") || icon.startsWith("/"))) {
+    return icon;
   }
-});
+
+  return null;
+}
+
+function formatPlayedTime(milliseconds: number | null | undefined) {
+  if (!milliseconds) {
+    return "0h 0m";
+  }
+
+  const hours = Math.floor(milliseconds / 3_600_000);
+  const minutes = Math.floor((milliseconds % 3_600_000) / 60_000);
+
+  return `${hours}h ${minutes}m`;
+}
+
+function formatDate(date: string | null | undefined) {
+  return date ? new Date(date).toLocaleDateString() : "Unknown";
+}
+
+function formatLastUsed(date: string | null | undefined) {
+  return date ? new Date(date).toLocaleDateString() : "Never";
+}
 </script>
 
 <div class="installations-list" class:compact={isSmall && !isGrid}>
   {#if error}
     <div class="error-message">
       <Icon name="alert" size="sm" />
-      {error}
+      <span>{error}</span>
     </div>
   {/if}
 
-  {#if isLoading && limitedInstallations.length === 0}
+  {#if isLoading && installations.length === 0}
     <div class="loading-state">
       <Icon name="refresh" size="md" forceType="svg" />
+
       <span>Loading installations...</span>
     </div>
-  {:else if limitedInstallations.length === 0}
+  {:else if installations.length === 0}
     <div class="empty-state">
       <div class="empty-icon">
         <Icon name="cube" size="xl" />
       </div>
+
       <h3>No installations found</h3>
       <p>Create your first Minecraft installation to get started</p>
     </div>
   {:else}
     <div class={isGrid ? "installations-grid" : "installations-flex"}>
-      {#each limitedInstallations as installation, i (installation.id)}
+      {#each installations as installation, i (installation.id)}
+        {@const loaderColor = app.profilesService.getLoaderColor(installation.version.loader)}
+
+        {@const loaderImage = app.profilesService.getLoaderImage(installation.version.loader)}
+
+        {@const customIcon = getInstallationIcon(installation)}
+
         {#if isGrid}
           <div
-            class={isSmall ? "installation-card small" : "installation-card"}
-            style="background: linear-gradient(135deg, {loaderColors[installation.id]}22 0%, {loaderColors[installation.id]}08 40%); --loader-color: {loaderColors[
-              installation.id
-            ]}55; z-index: {(limitedInstallations.length - i) * 2}; position: relative;">
+            class:small={isSmall}
+            class="installation-card"
+            style="
+              background:
+                linear-gradient(
+                  135deg,
+                  {loaderColor}22 0%,
+                  {loaderColor}08 40%
+                );
+              --loader-color: {loaderColor}55;
+              z-index: {installations.length - i};
+            ">
             <div class="card-top-actions">
-              <button
-                class="star-btn"
-                title={installation.metadata.favorite ? "Unfavorite" : "Favorite"}
-                onclick={async (e) => {
-                  e.stopPropagation();
-                  await app.profilesService.toggleFavorite(installation);
-                }}>
+              <button class="star-btn" title={installation.metadata.favorite ? "Unfavorite" : "Favorite"} onclick={(event) => toggleFavorite(event, installation)}>
                 {#key installation.metadata.favorite}
                   <Icon name="star" forceType={installation.metadata.favorite ? "emoji" : "svg"} size="md" />
                 {/key}
               </button>
 
               {#if isSmall}
-                <div class="dropdown installation-dropdown actions-dropdown small-actions-dropdown">
-                  <button class="btn btn-secondary dropdown-toggle">
-                    <Icon name="more-horizontal" size="sm" />
+                <div class="small-card-actions">
+                  <button use:clickSound class="small-action-btn" onclick={() => editInstallation(installation)} title="Edit Installation">
+                    <Icon name="edit" size="sm" />
                   </button>
 
-                  <div class="dropdown-menu" style="z-index: {(limitedInstallations.length - i) * 2 - 1};">
-                    <button use:clickSound onclick={() => editInstallation(installation)} title="Edit Installation">
-                      <Icon name="edit" size="sm" />
-                      Edit
-                    </button>
+                  <button use:clickSound class="small-action-btn" onclick={() => duplicateInstallation(installation)} title="Duplicate Installation">
+                    <Icon name="duplicate" size="sm" />
+                  </button>
 
-                    <button
-                      use:clickSound
-                      onclick={async () => await app.profilesService.createProfile(installation.version.id, installation)}
-                      title="Duplicate Installation">
-                      <Icon name="duplicate" size="sm" />
-                      Duplicate
-                    </button>
+                  <button use:clickSound class="small-action-btn" onclick={() => exportInstallation(installation)} title="Export Installation">
+                    <Icon name="download" size="sm" />
+                  </button>
 
-                    <button
-                      use:clickSound
-                      onclick={async () => {
-                        await app.profilesService.exportProfile(installation);
-                      }}
-                      title="Export Installation">
-                      <Icon name="download" size="sm" />
-                      Export
-                    </button>
+                  <button use:clickSound class="small-action-btn" onclick={() => createShortcut(installation)} title="Create Shortcut">
+                    <Icon name="link" size="sm" />
+                  </button>
 
-                    <button
-                      use:clickSound
-                      onclick={async () => {
-                        try {
-                          const path = await app.profilesService.createShortcut(installation);
-                          console.log("Shortcut created at:", path);
-                        } catch (err) {
-                          console.error("Failed to create shortcut:", err);
-                        }
-                      }}
-                      title="Create Shortcut">
-                      <Icon name="link" size="sm" />
-                      Create Shortcut
-                    </button>
-
-                    <div class="dropdown-separator"></div>
-
-                    <button use:errorSound class="danger" onclick={async () => await app.profilesService.remove(installation.id)} title="Delete Installation">
-                      <Icon name="trash" size="sm" />
-                      Delete
-                    </button>
-                  </div>
+                  <button use:errorSound class="small-action-btn danger" onclick={() => deleteInstallation(installation)} title="Delete Installation">
+                    <Icon name="trash" size="sm" />
+                  </button>
                 </div>
               {/if}
             </div>
 
             <div class="installation-main">
               <div class="installation-icon-column">
-                <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColors[installation.id]}; background: rgba(0,0,0,0.0);">
-                  {#if installation.metadata.icon}
-                    {#if typeof installation.metadata.icon === "string" && (installation.metadata.icon.startsWith("data:") || installation.metadata.icon.startsWith("http") || installation.metadata.icon.startsWith("file:") || installation.metadata.icon.startsWith("/"))}
-                      <img src={installation.metadata.icon} alt="installation icon" class="installation-img" />
-                    {:else}
-                      <Image key={loaderImages[installation.id]} />
-                    {/if}
+                <div
+                  class="installation-icon icon-tooltip-wrapper"
+                  style="
+                    color: {loaderColor};
+                    background: transparent;
+                  ">
+                  {#if customIcon}
+                    <img src={customIcon} alt="installation icon" class="installation-img" />
                   {:else}
-                    <Image key={loaderImages[installation.id]} />
+                    <Image key={loaderImage ?? "vanilla"} />
                   {/if}
 
-                  <span class="icon-tooltip">{installation.version.loader}</span>
+                  <span class="icon-tooltip">
+                    {installation.version.loader}
+                  </span>
                 </div>
 
                 <button
                   use:launchSound
                   class="btn btn-primary play-below-icon"
-                  style="background: linear-gradient(90deg, {loaderColors[installation.id] || 'var(--loader-primary)'} 60%, {loaderColors[installation.id]
-                    ? `${loaderColors[installation.id]}cc`
-                    : 'var(--loader-secondary)'} 100%); color: var(--text-white) !important;"
+                  style="
+                    background:
+                      linear-gradient(
+                        90deg,
+                        {loaderColor} 60%,
+                        {loaderColor}cc 100%
+                      );
+                    color: $color-text !important;
+                  "
                   onclick={async () => {
                     await app.launcherService.launch(installation);
                   }}
                   disabled={app.launcherService.launching}>
                   {#if app.launcherService.launchingProfileId === installation.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
-                    <span style="margin-left: 0.5rem">Launching...</span>
+
+                    <span>Launching...</span>
                   {:else}
                     Play
                   {/if}
@@ -312,12 +224,14 @@ $effect(() => {
 
               <div class="installation-meta">
                 <div class="installation-title-row">
-                  <h3>{installation.metadata.name || installation.version.id}</h3>
+                  <h3>
+                    {installation.metadata.name || installation.version.id}
+                  </h3>
                 </div>
 
                 {#if installation.version.id}
                   <div class="loader-version-row">
-                    <span class="loader-version" style="color: {loaderColors[installation.id]};">
+                    <span class="loader-version" style="color: {loaderColor};">
                       {installation.version.id}
                     </span>
                   </div>
@@ -326,14 +240,12 @@ $effect(() => {
                 {#if isSmall}
                   <div class="installation-meta-grid small-meta-grid">
                     <div class="meta-cell small-meta-cell">
-                      <span class="meta-key">Total time:</span>
+                      <span class="meta-key"> Total time: </span>
+
                       <span class="meta-value last-played small-meta-value">
                         <Icon name="clock" size="sm" />
-                        {installation.metadata.total_time_played_ms
-                          ? `${Math.floor(installation.metadata.total_time_played_ms / 3600000)}h ${Math.floor(
-                              (installation.metadata.total_time_played_ms % 3600000) / 60000,
-                            )}m`
-                          : "0h 0m"}
+
+                        {formatPlayedTime(installation.metadata.total_time_played_ms)}
                       </span>
                     </div>
                   </div>
@@ -341,29 +253,31 @@ $effect(() => {
                   <div class="installation-meta-grid">
                     <div class="meta-cell">
                       <span class="meta-key">Created:</span>
-                      <span class="meta-value created-date">
+
+                      <span class="meta-value">
                         <Icon name="calendar" size="sm" />
-                        {installation.metadata.created ? new Date(installation.metadata.created).toLocaleDateString() : "Unknown"}
+
+                        {formatDate(installation.metadata.created)}
                       </span>
                     </div>
 
                     <div class="meta-cell">
                       <span class="meta-key">Last played:</span>
-                      <span class="meta-value last-played">
+
+                      <span class="meta-value">
                         <Icon name="clock" size="sm" />
-                        {installation.metadata.last_used ? new Date(installation.metadata.last_used).toLocaleDateString() : "Never"}
+
+                        {formatLastUsed(installation.metadata.last_used)}
                       </span>
                     </div>
 
                     <div class="meta-cell">
                       <span class="meta-key">Total time:</span>
-                      <span class="meta-value total-time">
+
+                      <span class="meta-value">
                         <Icon name="clock" size="sm" />
-                        {installation.metadata.total_time_played_ms
-                          ? `${Math.floor(installation.metadata.total_time_played_ms / 3600000)}h ${Math.floor(
-                              (installation.metadata.total_time_played_ms % 3600000) / 60000,
-                            )}m`
-                          : "0h 0m"}
+
+                        {formatPlayedTime(installation.metadata.total_time_played_ms)}
                       </span>
                     </div>
                   </div>
@@ -378,43 +292,22 @@ $effect(() => {
                   Edit
                 </button>
 
-                <button
-                  use:clickSound
-                  class="btn btn-secondary"
-                  onclick={async () => await app.profilesService.createProfile(installation.version.id)}
-                  title="Duplicate Installation">
+                <button use:clickSound class="btn btn-secondary" onclick={() => duplicateInstallation(installation)} title="Duplicate Installation">
                   <Icon name="duplicate" size="sm" />
                   Duplicate
                 </button>
 
-                <button
-                  use:clickSound
-                  class="btn btn-secondary"
-                  onclick={async () => {
-                    await app.profilesService.exportProfile(installation);
-                  }}
-                  title="Export Installation">
+                <button use:clickSound class="btn btn-secondary" onclick={() => exportInstallation(installation)} title="Export Installation">
                   <Icon name="download" size="sm" />
                   Export
                 </button>
 
-                <button
-                  use:clickSound
-                  class="btn btn-secondary"
-                  onclick={async () => {
-                    try {
-                      const path = await app.profilesService.createShortcut(installation);
-                      console.log("Shortcut created at:", path);
-                    } catch (err) {
-                      console.error("Failed to create shortcut:", err);
-                    }
-                  }}
-                  title="Create Shortcut">
+                <button use:clickSound class="btn btn-secondary" onclick={() => createShortcut(installation)} title="Create Shortcut">
                   <Icon name="link" size="sm" />
-                  Create Shortcut
+                  Shortcut
                 </button>
 
-                <button use:errorSound class="btn btn-danger" onclick={async () => await app.profilesService.remove(installation.id)} title="Delete Installation">
+                <button use:errorSound class="btn btn-danger" onclick={() => deleteInstallation(installation)} title="Delete Installation">
                   <Icon name="trash" size="sm" />
                   Delete
                 </button>
@@ -424,39 +317,49 @@ $effect(() => {
         {:else}
           <div
             class="installation-list-item"
-            class:dropdown-active={useDropdownForActions[installation.id]}
-            style="background: linear-gradient(135deg, {loaderColors[installation.id]}15 0%, {loaderColors[installation.id]}05 40%); --loader-color: {loaderColors[
-              installation.id
-            ]}55;">
+            style="
+              background:
+                linear-gradient(
+                  135deg,
+                  {loaderColor}15 0%,
+                  {loaderColor}05 40%
+                );
+              --loader-color: {loaderColor}55;
+            ">
             <div class="list-item-main">
               <div class="list-item-icon-section">
-                <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColors[installation.id]};">
-                  {#if installation.metadata.icon}
-                    {#if typeof installation.metadata.icon === "string" && (installation.metadata.icon.startsWith("data:") || installation.metadata.icon.startsWith("http") || installation.metadata.icon.startsWith("file:") || installation.metadata.icon.startsWith("/"))}
-                      <img src={installation.metadata.icon} alt="installation icon" class="installation-img list-img" />
-                    {:else}
-                      <Icon name={installation.metadata.icon} size="md" />
-                    {/if}
+                <div class="installation-icon icon-tooltip-wrapper" style="color: {loaderColor};">
+                  {#if customIcon}
+                    <img src={customIcon} alt="installation icon" class="installation-img list-img" />
                   {:else}
-                    <Image key={loaderImages[installation.id] ?? "vanilla"} />
+                    <Image key={loaderImage ?? "vanilla"} />
                   {/if}
 
-                  <span class="icon-tooltip">{installation.version.loader}</span>
+                  <span class="icon-tooltip">
+                    {installation.version.loader}
+                  </span>
                 </div>
 
                 <button
                   use:launchSound
                   class="btn btn-primary list-play-btn"
-                  style="background: linear-gradient(90deg, {loaderColors[installation.id] || 'var(--loader-primary)'} 60%, {loaderColors[installation.id]
-                    ? `${loaderColors[installation.id]}cc`
-                    : 'var(--loader-secondary)'} 100%); color: var(--text-white) !important;"
+                  style="
+                    background:
+                      linear-gradient(
+                        90deg,
+                        {loaderColor} 60%,
+                        {loaderColor}cc 100%
+                      );
+                    color: $color-text !important;
+                  "
                   onclick={async () => {
                     await app.launcherService.launch(installation);
                   }}
                   disabled={app.launcherService.launching}>
                   {#if app.launcherService.launchingProfileId === installation.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
-                    <span style="margin-left: 0.5rem">Launching...</span>
+
+                    <span>Launching...</span>
                   {:else}
                     Play
                   {/if}
@@ -465,137 +368,77 @@ $effect(() => {
 
               <div class="list-item-content">
                 <div class="list-title-actions-row">
-                  <h3>{installation.metadata.name || installation.version.id}</h3>
+                  <div class="list-title">
+                    <h3>
+                      {installation.metadata.name || installation.version.id}
+                    </h3>
+
+                    {#if installation.version.id && installation.metadata.name}
+                      <span class="list-version" style="color: {loaderColor};">
+                        {installation.version.id}
+                      </span>
+                    {/if}
+                  </div>
 
                   <div class="list-actions-section">
-                    <button
-                      class="star-btn"
-                      title={installation.metadata.favorite ? "Unfavorite" : "Favorite"}
-                      onclick={async (e) => {
-                        e.stopPropagation();
-                        await app.profilesService.toggleFavorite(installation);
-                      }}>
+                    <button class="star-btn" title={installation.metadata.favorite ? "Unfavorite" : "Favorite"} onclick={(event) => toggleFavorite(event, installation)}>
                       {#key installation.metadata.favorite}
                         <Icon name="star" forceType={installation.metadata.favorite ? "emoji" : "svg"} size="sm" />
                       {/key}
                     </button>
 
-                    <div class="list-inline-actions" class:hidden={useDropdownForActions[installation.id]}>
+                    <div class="list-inline-actions">
                       <button use:clickSound class="list-action-btn" onclick={() => editInstallation(installation)} title="Edit Installation">
                         <Icon name="edit" size="sm" />
-                        Edit
+                        <span>Edit</span>
                       </button>
 
-                      <button
-                        use:clickSound
-                        class="list-action-btn"
-                        onclick={async () => await app.profilesService.createProfile(installation.version.id)}
-                        title="Duplicate Installation">
+                      <button use:clickSound class="list-action-btn" onclick={() => duplicateInstallation(installation)} title="Duplicate Installation">
                         <Icon name="duplicate" size="sm" />
-                        Duplicate
+                        <span>Duplicate</span>
                       </button>
 
-                      <button
-                        use:clickSound
-                        class="list-action-btn"
-                        onclick={async () => await app.profilesService.exportProfile(installation)}
-                        title="Export Installation">
+                      <button use:clickSound class="list-action-btn" onclick={() => exportInstallation(installation)} title="Export Installation">
                         <Icon name="download" size="sm" />
-                        Export
+                        <span>Export</span>
                       </button>
 
-                      <button
-                        use:clickSound
-                        class="list-action-btn"
-                        onclick={async () => {
-                          try {
-                            const path = await app.profilesService.createShortcut(installation);
-                            console.log("Shortcut created at:", path);
-                          } catch (err) {
-                            console.error("Failed to create shortcut:", err);
-                          }
-                        }}
-                        title="Create Shortcut">
+                      <button use:clickSound class="list-action-btn" onclick={() => createShortcut(installation)} title="Create Shortcut">
                         <Icon name="link" size="sm" />
-                        Create Shortcut
+                        <span>Shortcut</span>
                       </button>
 
-                      <button
-                        use:errorSound
-                        class="list-action-btn danger"
-                        onclick={async () => await app.profilesService.remove(installation.id)}
-                        title="Delete Installation">
+                      <button use:errorSound class="list-action-btn danger" onclick={() => deleteInstallation(installation)} title="Delete Installation">
                         <Icon name="trash" size="sm" />
-                        Delete
+                        <span>Delete</span>
                       </button>
-                    </div>
-
-                    <div class="dropdown list-dropdown" class:visible={useDropdownForActions[installation.id]}>
-                      <button class="btn btn-secondary dropdown-toggle">
-                        <Icon name="more-horizontal" size="sm" />
-                      </button>
-
-                      <div class="dropdown-menu">
-                        <button use:clickSound onclick={() => editInstallation(installation)} title="Edit Installation">
-                          <Icon name="edit" size="sm" />
-                          Edit
-                        </button>
-
-                        <button use:clickSound onclick={async () => await app.profilesService.createProfile(installation.version.id)} title="Duplicate Installation">
-                          <Icon name="duplicate" size="sm" />
-                          Duplicate
-                        </button>
-
-                        <button use:clickSound onclick={async () => await app.profilesService.exportProfile(installation)} title="Export Installation">
-                          <Icon name="download" size="sm" />
-                          Export
-                        </button>
-
-                        <button
-                          use:clickSound
-                          onclick={async () => {
-                            try {
-                              const path = await app.profilesService.createShortcut(installation);
-                              console.log("Shortcut created at:", path);
-                            } catch (err) {
-                              console.error("Failed to create shortcut:", err);
-                            }
-                          }}
-                          title="Create Shortcut">
-                          <Icon name="link" size="sm" />
-                          Create Shortcut
-                        </button>
-
-                        <div class="dropdown-separator"></div>
-
-                        <button use:errorSound class="danger" onclick={async () => await app.profilesService.remove(installation.id)} title="Delete Installation">
-                          <Icon name="trash" size="sm" />
-                          Delete
-                        </button>
-                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div class="list-version-stats-row">
-                  {#if installation.version.id && installation.metadata.name}
-                    <span class="list-version" style="color: {loaderColors[installation.id]};">
-                      {installation.version.id}
-                    </span>
-                  {/if}
-
                   <div class="list-stats-section">
                     <div class="list-meta-item">
                       <Icon name="calendar" size="sm" />
+
                       <span>
-                        {installation.metadata.created ? new Date(installation.metadata.created).toLocaleDateString() : "Unknown"}
+                        {formatDate(installation.metadata.created)}
                       </span>
                     </div>
 
                     <div class="list-meta-item">
                       <Icon name="clock" size="sm" />
+
                       <span>
-                        {installation.metadata.last_used ? new Date(installation.metadata.last_used).toLocaleDateString() : "Never"}
+                        {formatLastUsed(installation.metadata.last_used)}
+                      </span>
+                    </div>
+
+                    <div class="list-meta-item">
+                      <Icon name="clock" size="sm" />
+
+                      <span>
+                        {formatPlayedTime(installation.metadata.total_time_played_ms)}
                       </span>
                     </div>
                   </div>
@@ -610,43 +453,13 @@ $effect(() => {
 </div>
 
 <style lang="scss">
-.installation-img {
-  width: 48px;
-  height: 48px;
-  max-width: 48px;
-  max-height: 48px;
-  object-fit: contain;
-  border-radius: 8px;
-  display: block;
-}
-
-.installation-img.list-img {
-  width: 32px;
-  height: 32px;
-  max-width: 32px;
-  max-height: 32px;
-  border-radius: 6px;
-}
-
-.installation-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
 .installations-list {
   padding: 2rem;
   border-radius: $radius-md;
-  border: 1px solid color-mix(in srgb, var(--dark-400), 3%, transparent);
-  background:
-    radial-gradient(circle at var(--dot1-x, 30%) var(--dot1-y, 40%), #{"color-mix(in srgb, var(--primary-900), 4.5%, transparent)"} 0%, transparent 18%),
-    radial-gradient(circle at var(--dot2-x, 70%) var(--dot2-y, 60%), #{"color-mix(in srgb, $color-accent-secondary, 3.5%, transparent)"} 0%, transparent 15%),
-    radial-gradient(circle at var(--dot3-x, 60%) var(--dot3-y, 20%), #{"color-mix(in srgb, $color-accent-tertiary, 3%, transparent)"} 0%, transparent 13%),
-    radial-gradient(circle at var(--dot4-x, 80%) var(--dot4-y, 80%), #{"color-mix(in srgb, var(--quaternary), 3.5%, transparent)"} 0%, transparent 16%),
-    linear-gradient(120deg, #{"color-mix(in srgb, var(--container), 98%, transparent)"} 60%, #{"color-mix(in srgb, $color-accent, 4%, transparent)"} 100%);
+  border: 1px solid $color-surface-3;
+  background: $color-surface-1;
   box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08);
   overflow: visible;
-  animation: move-dots 32s ease infinite alternate;
 }
 
 .installations-list.compact {
@@ -657,7 +470,7 @@ $effect(() => {
 
     .list-item-main {
       padding: 0.75rem;
-      gap: 0.5rem;
+      gap: 0.75rem;
     }
 
     .list-item-content {
@@ -668,331 +481,561 @@ $effect(() => {
 
       .list-version-stats-row {
         font-size: 0.8rem;
-        opacity: 0.8;
+      }
 
-        .list-meta-item {
-          font-size: 0.8rem;
-        }
+      .list-meta-item {
+        font-size: 0.8rem;
       }
     }
   }
 }
 
-@keyframes move-dots {
-  0% {
-    --dot1-x: 18%;
-    --dot1-y: 18%;
-    --dot2-x: 68%;
-    --dot2-y: 58%;
-    --dot3-x: 12%;
-    --dot3-y: 8%;
-    --dot4-x: 78%;
-    --dot4-y: 78%;
-    --dot5-x: 22%;
-    --dot5-y: 68%;
-    --dot6-x: 28%;
-    --dot6-y: 12%;
-    --dot7-x: 10%;
-    --dot7-y: 80%;
-    --dot8-x: 85%;
-    --dot8-y: 30%;
-    --dot9-x: 40%;
-    --dot9-y: 85%;
-    --dot10-x: 75%;
-    --dot10-y: 15%;
-  }
-
-  10% {
-    --dot1-x: 20%;
-    --dot1-y: 20%;
-    --dot2-x: 66%;
-    --dot2-y: 60%;
-    --dot3-x: 14%;
-    --dot3-y: 10%;
-    --dot4-x: 76%;
-    --dot4-y: 76%;
-    --dot5-x: 24%;
-    --dot5-y: 70%;
-    --dot6-x: 30%;
-    --dot6-y: 14%;
-    --dot7-x: 12%;
-    --dot7-y: 82%;
-    --dot8-x: 87%;
-    --dot8-y: 32%;
-    --dot9-x: 42%;
-    --dot9-y: 87%;
-    --dot10-x: 77%;
-    --dot10-y: 17%;
-  }
-
-  20% {
-    --dot1-x: 22%;
-    --dot1-y: 22%;
-    --dot2-x: 64%;
-    --dot2-y: 62%;
-    --dot3-x: 16%;
-    --dot3-y: 12%;
-    --dot4-x: 74%;
-    --dot4-y: 74%;
-    --dot5-x: 26%;
-    --dot5-y: 72%;
-    --dot6-x: 32%;
-    --dot6-y: 16%;
-    --dot7-x: 14%;
-    --dot7-y: 84%;
-    --dot8-x: 89%;
-    --dot8-y: 34%;
-    --dot9-x: 44%;
-    --dot9-y: 89%;
-    --dot10-x: 79%;
-    --dot10-y: 19%;
-  }
-
-  30% {
-    --dot1-x: 24%;
-    --dot1-y: 24%;
-    --dot2-x: 62%;
-    --dot2-y: 64%;
-    --dot3-x: 18%;
-    --dot3-y: 14%;
-    --dot4-x: 72%;
-    --dot4-y: 72%;
-    --dot5-x: 28%;
-    --dot5-y: 74%;
-    --dot6-x: 34%;
-    --dot6-y: 18%;
-    --dot7-x: 16%;
-    --dot7-y: 86%;
-    --dot8-x: 91%;
-    --dot8-y: 36%;
-    --dot9-x: 46%;
-    --dot9-y: 91%;
-    --dot10-x: 81%;
-    --dot10-y: 21%;
-  }
-
-  40% {
-    --dot1-x: 26%;
-    --dot1-y: 26%;
-    --dot2-x: 60%;
-    --dot2-y: 66%;
-    --dot3-x: 20%;
-    --dot3-y: 16%;
-    --dot4-x: 70%;
-    --dot4-y: 70%;
-    --dot5-x: 30%;
-    --dot5-y: 76%;
-    --dot6-x: 36%;
-    --dot6-y: 20%;
-    --dot7-x: 18%;
-    --dot7-y: 88%;
-    --dot8-x: 93%;
-    --dot8-y: 38%;
-    --dot9-x: 48%;
-    --dot9-y: 93%;
-    --dot10-x: 83%;
-    --dot10-y: 23%;
-  }
-
-  50% {
-    --dot1-x: 24%;
-    --dot1-y: 24%;
-    --dot2-x: 62%;
-    --dot2-y: 64%;
-    --dot3-x: 18%;
-    --dot3-y: 14%;
-    --dot4-x: 72%;
-    --dot4-y: 72%;
-    --dot5-x: 28%;
-    --dot5-y: 74%;
-    --dot6-x: 34%;
-    --dot6-y: 18%;
-    --dot7-x: 16%;
-    --dot7-y: 86%;
-    --dot8-x: 91%;
-    --dot8-y: 36%;
-    --dot9-x: 46%;
-    --dot9-y: 91%;
-    --dot10-x: 81%;
-    --dot10-y: 21%;
-  }
-
-  60% {
-    --dot1-x: 22%;
-    --dot1-y: 22%;
-    --dot2-x: 64%;
-    --dot2-y: 62%;
-    --dot3-x: 16%;
-    --dot3-y: 12%;
-    --dot4-x: 74%;
-    --dot4-y: 74%;
-    --dot5-x: 26%;
-    --dot5-y: 72%;
-    --dot6-x: 32%;
-    --dot6-y: 16%;
-    --dot7-x: 14%;
-    --dot7-y: 84%;
-    --dot8-x: 89%;
-    --dot8-y: 34%;
-    --dot9-x: 44%;
-    --dot9-y: 89%;
-    --dot10-x: 79%;
-    --dot10-y: 19%;
-  }
-
-  70% {
-    --dot1-x: 20%;
-    --dot1-y: 20%;
-    --dot2-x: 66%;
-    --dot2-y: 60%;
-    --dot3-x: 14%;
-    --dot3-y: 10%;
-    --dot4-x: 76%;
-    --dot4-y: 76%;
-    --dot5-x: 24%;
-    --dot5-y: 70%;
-    --dot6-x: 30%;
-    --dot6-y: 14%;
-    --dot7-x: 12%;
-    --dot7-y: 82%;
-    --dot8-x: 87%;
-    --dot8-y: 32%;
-    --dot9-x: 42%;
-    --dot9-y: 87%;
-    --dot10-x: 77%;
-    --dot10-y: 17%;
-  }
-
-  80% {
-    --dot1-x: 18%;
-    --dot1-y: 18%;
-    --dot2-x: 68%;
-    --dot2-y: 58%;
-    --dot3-x: 12%;
-    --dot3-y: 8%;
-    --dot4-x: 78%;
-    --dot4-y: 78%;
-    --dot5-x: 22%;
-    --dot5-y: 68%;
-    --dot6-x: 28%;
-    --dot6-y: 12%;
-    --dot7-x: 10%;
-    --dot7-y: 80%;
-    --dot8-x: 85%;
-    --dot8-y: 30%;
-    --dot9-x: 40%;
-    --dot9-y: 85%;
-    --dot10-x: 75%;
-    --dot10-y: 15%;
-  }
-
-  100% {
-    --dot1-x: 32%;
-    --dot1-y: 42%;
-    --dot2-x: 68%;
-    --dot2-y: 58%;
-    --dot3-x: 58%;
-    --dot3-y: 22%;
-    --dot4-x: 78%;
-    --dot4-y: 78%;
-    --dot5-x: 22%;
-    --dot5-y: 68%;
-    --dot6-x: 50%;
-    --dot6-y: 10%;
-    --dot7-x: 10%;
-    --dot7-y: 80%;
-    --dot8-x: 85%;
-    --dot8-y: 30%;
-    --dot9-x: 40%;
-    --dot9-y: 85%;
-    --dot10-x: 75%;
-    --dot10-y: 15%;
-  }
-}
-
 .installations-grid {
   display: grid;
-  gap: 1.25rem;
   grid-template-columns: repeat(auto-fill, minmax(20.5rem, 1fr));
+  gap: 1.25rem;
+  align-items: stretch;
 }
 
 .installations-flex {
   display: flex;
-  gap: 0.75rem;
   flex-direction: column;
+  gap: 0.75rem;
 }
 
-.installation-list-item {
-  background: var(--card);
-  border-radius: var(--border-radius);
-  box-shadow:
-    0 0.125rem 0.5rem rgba(80, 80, 90, 0.06),
-    0 0.0625rem 0.125rem rgba(80, 80, 90, 0.04);
-  border: 0.0625rem solid transparent;
-  transition:
-    all 0.15s,
-    border 0.15s;
+.installation-img {
+  display: block;
+  width: 48px;
+  height: 48px;
+  max-width: 48px;
+  max-height: 48px;
+  object-fit: contain;
+  border-radius: $radius-md;
+}
+
+.installation-img.list-img {
+  width: 32px;
+  height: 32px;
+  max-width: 32px;
+  max-height: 32px;
+}
+
+.installation-icon {
   position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  width: 2.5rem;
+  height: 2.5rem;
+
+  border-radius: $radius-md;
+  background: $color-surface-1;
+
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+/* ============================================================
+   GRID CARD
+   ============================================================ */
+
+.installation-card {
+  position: relative;
+
+  min-width: 0;
+  min-height: 0;
+
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+
+  padding: 1rem;
+  border-radius: $radius-md;
+  border: 1px solid transparent;
+
+  background: $color-surface-2;
+
+  box-shadow:
+    0 0.125rem 0.75rem rgba(0, 0, 0, 0.07),
+    0 0.09375rem 0.25rem rgba(0, 0, 0, 0.04);
+
   backdrop-filter: blur(0.5rem);
   -webkit-backdrop-filter: blur(0.5rem);
-  cursor: pointer;
-  z-index: 1;
 
-  &.dropdown-active {
-    z-index: 3001;
-  }
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 
   &:hover {
+    border-color: $color-surface-3;
+
     box-shadow:
-      0 0.25rem 1rem rgba(80, 80, 90, 0.1),
-      0 0.125rem 0.25rem rgba(80, 80, 90, 0.06);
-    border-color: var(--loader-color, $color-accent);
+      0 0.375rem 1.5rem rgba(0, 0, 0, 0.13),
+      0 0.125rem 0.5rem rgba(0, 0, 0, 0.07);
+  }
+
+  &.small {
+    padding: 0.8rem;
+  }
+
+  /*
+   * The favorite button is the only absolutely positioned element
+   * in the grid card. It does not consume layout space.
+   */
+  > .card-top-actions {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.55rem;
+    z-index: 10;
+
+    display: flex;
+    align-items: center;
+
+    pointer-events: none;
+
+    .star-btn {
+      pointer-events: auto;
+    }
+
+    /*
+     * Small mode should only have the favorite button.
+     * The edit/duplicate/export/etc. buttons are intentionally hidden.
+     */
+    .small-card-actions {
+      display: none !important;
+    }
+  }
+
+  .star-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+
+    box-shadow: none;
+    cursor: pointer;
+
+    transition:
+      transform 0.15s ease,
+      background 0.15s ease;
+
+    &:hover,
+    &:focus-visible {
+      background: $color-surface-3;
+      transform: scale(1.1);
+      outline: none;
+    }
+  }
+
+  /*
+   * There should be no dropdown in the grid card either.
+   * The normal card uses the explicit action buttons below.
+   */
+  .installation-dropdown,
+  .actions-dropdown,
+  .dropdown {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+   GRID CARD CONTENT
+   ============================================================ */
+
+.installation-main {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr);
+  align-items: start;
+
+  min-width: 0;
+  gap: 0.85rem;
+
+  margin: 0;
+  padding: 0.25rem 0 0;
+}
+
+.installation-icon-column {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.installation-icon-column > .installation-icon {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.play-below-icon {
+  width: 100%;
+  min-width: 0;
+  max-width: 5rem;
+
+  padding: 0.45rem 0.55rem;
+
+  align-self: center;
+
+  border: none;
+  border-radius: $radius-md;
+
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: $color-text !important;
+
+  box-shadow: 0 0.125rem 0.75rem rgba(0, 0, 0, 0.1);
+
+  transition:
+    filter 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    filter: brightness(1.1) saturate(1.1);
+    box-shadow: 0 0.375rem 1rem rgba(0, 0, 0, 0.18);
+    transform: translateY(-1px);
+    outline: none;
+  }
+}
+
+.installation-meta {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+
+  overflow: hidden;
+}
+
+.installation-title-row {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+
+  h3 {
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: $color-text;
+    font-size: 1.1rem;
+    font-weight: 800;
+    line-height: 1.25;
+  }
+}
+
+.loader-version-row {
+  min-width: 0;
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+
+  margin: 0.05rem 0 0.15rem;
+}
+
+.loader-version {
+  display: inline-block;
+
+  min-width: 0;
+  max-width: 100%;
+
+  padding: 0.08em 0.4em;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  border-radius: $radius-md;
+  background: $color-surface-1;
+
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.installation-meta-grid {
+  min-width: 0;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  gap: 0.3rem 0.6rem;
+
+  margin-top: 0.25rem;
+
+  font-size: 0.65rem;
+
+  .meta-cell {
+    min-width: 0;
+
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+}
+
+.meta-key {
+  min-width: fit-content;
+
+  color: $color-text;
+  font-weight: 500;
+  opacity: 0.8;
+  white-space: nowrap;
+}
+
+.meta-value {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 0.25em;
+
+  padding: 0.05em 0.4em;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  border-radius: $radius-md;
+  background: $color-surface-3;
+
+  color: $color-text-muted;
+  font-weight: 400;
+}
+
+.small-meta-grid {
+  display: flex !important;
+  flex-direction: row !important;
+
+  font-size: 0.82rem !important;
+}
+
+.small-meta-cell {
+  width: auto;
+
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.small-meta-value {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  font-size: 0.82rem;
+}
+
+/* ============================================================
+   GRID ACTIONS
+   ============================================================ */
+
+.installation-actions {
+  min-width: 0;
+
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  align-items: stretch;
+
+  gap: 0.3rem;
+
+  margin-top: 0.75rem;
+  padding-top: 0.55rem;
+
+  border-top: 1px solid $color-surface-3;
+
+  button {
+    min-width: 0;
+    width: 100%;
+
+    padding: 0.45rem 0.3rem;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+
+    background: transparent !important;
+    border: none;
+    border-radius: $radius-md;
+    box-shadow: none;
+
+    color: $color-text-muted;
+    font-size: 0.7rem;
+    font-weight: 600;
+
+    white-space: nowrap;
+    overflow: hidden;
+
+    cursor: pointer;
+
+    transition:
+      color 0.13s ease,
+      background 0.13s ease;
+
+    :global(.icon) {
+      flex-shrink: 0;
+    }
+
+    &:hover,
+    &:focus-visible {
+      color: $color-text;
+      background: $color-surface-3 !important;
+      outline: none;
+    }
+
+    &.btn-danger,
+    &.btn.btn-danger {
+      color: $color-error;
+
+      &:hover,
+      &:focus-visible {
+        color: $color-error;
+        background: color-mix(in srgb, $color-error, transparent 90%) !important;
+      }
+    }
+  }
+}
+
+/*
+ * Small cards have no action row at all.
+ */
+.installation-card.small {
+  .installation-actions {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+   LIST CARD
+   ============================================================ */
+
+.installation-list-item {
+  position: relative;
+  z-index: 1;
+
+  min-width: 0;
+
+  background: $color-surface-2;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+
+  box-shadow:
+    0 0.125rem 0.5rem rgba(0, 0, 0, 0.06),
+    0 0.0625rem 0.125rem rgba(0, 0, 0, 0.04);
+
+  backdrop-filter: blur(0.5rem);
+  -webkit-backdrop-filter: blur(0.5rem);
+
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: $color-surface-3;
+
+    box-shadow:
+      0 0.25rem 1rem rgba(0, 0, 0, 0.1),
+      0 0.125rem 0.25rem rgba(0, 0, 0, 0.06);
+  }
+
+  /*
+   * Explicitly eliminate every possible dropdown in list mode.
+   * This also catches dropdown menus and their children if they
+   * remain mounted in the DOM.
+   */
+  .installation-dropdown,
+  .actions-dropdown,
+  .dropdown,
+  .dropdown-toggle,
+  .dropdown-menu,
+  .dropdown-content,
+  .dropdown-options,
+  .dropdown-separator {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 }
 
 .list-item-main {
+  min-width: 0;
+
   display: flex;
   align-items: center;
+
   gap: 1rem;
-  padding: 0.75rem 1rem;
-  background: color-mix(in srgb, var(--red), 10%, transparent);
+
+  padding: 0.9rem 1.1rem;
 }
 
 .list-item-icon-section {
+  flex: 0 0 auto;
+
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  flex-shrink: 0;
 
   .installation-icon {
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 0.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+
+    border-radius: $radius-md;
+    background: $color-surface-1;
+
     font-size: 1.25rem;
-    background: var(--container);
-    box-shadow: 0 0.0625rem 0.25rem rgba(0, 0, 0, 0.04);
-    position: relative;
   }
 }
 
 .list-play-btn {
+  min-width: 4.25rem;
+
+  padding: 0.5rem 0.8rem;
+
+  border: none;
+  border-radius: $radius-md;
+
   font-size: 0.875rem;
   font-weight: 600;
-  border: none;
-  border-radius: 0.5rem;
-  box-shadow: 0 0.125rem 0.5rem rgba(80, 80, 90, 0.08);
-  transition: all 0.15s;
   letter-spacing: 0.02em;
-  color: var(--text-white) !important;
-  padding: 0.5rem 1rem;
+  color: $color-text !important;
+
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
+
+  transition:
+    filter 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 
   &:hover,
-  &:focus {
-    filter: brightness(1.1) saturate(1.15);
-    box-shadow: 0 0.25rem 1rem rgba(80, 80, 90, 0.15);
+  &:focus-visible {
+    filter: brightness(1.08) saturate(1.1);
+    box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.15);
     transform: translateY(-1px);
     outline: none;
   }
@@ -1001,130 +1044,195 @@ $effect(() => {
 .list-item-content {
   flex: 1 1 0%;
   min-width: 0;
+
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
 .list-title-actions-row {
+  min-width: 0;
+
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+
+  gap: 1.5rem;
+}
+
+.list-title {
+  min-width: 0;
+  flex: 1 1 auto;
+
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 
   h3 {
+    min-width: 0;
+    flex: 0 1 auto;
+
     margin: 0;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    color: $color-text;
     font-size: 1rem;
     font-weight: 700;
-    color: var(--text);
-    text-overflow: ellipsis;
-    overflow: hidden;
-    white-space: nowrap;
-    flex: 1 1 0%;
-    min-width: 0;
   }
 }
 
+.list-version {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 18rem;
+
+  padding: 0.15rem 0.55rem;
+
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  border-radius: $radius-md;
+  background: $color-surface-1;
+
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
 .list-actions-section {
+  flex: 0 0 auto;
+  min-width: 0;
+
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  flex-shrink: 0;
+  justify-content: flex-end;
 
+  gap: 0.5rem;
+
+  /*
+   * This star is deliberately NOT absolute in list mode.
+   */
   .star-btn {
-    background: none;
-    border: none;
-    border-radius: 50%;
+    position: static;
+
+    flex: 0 0 auto;
+
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+
     display: flex;
     align-items: center;
     justify-content: center;
+
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+
     cursor: pointer;
 
-    &:hover {
-      transform: scale(1.3);
+    transition:
+      transform 0.15s ease,
+      background 0.15s ease;
+
+    &:hover,
+    &:focus-visible {
+      background: $color-surface-3;
+      transform: scale(1.1);
+      outline: none;
     }
   }
 }
 
 .list-inline-actions {
+  flex: 0 0 auto;
+
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  transition: opacity 0.2s ease;
+  justify-content: flex-end;
+
+  gap: 0.3rem;
 
   &.hidden {
-    display: none;
+    display: none !important;
   }
 
   .list-action-btn {
-    background: none;
-    border: none;
-    padding: 0.375rem 0.75rem;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    color: var(--placeholder);
-    font-size: 0.8rem;
-    font-weight: 500;
-    transition: all 0.15s;
-    display: flex;
+    flex: 0 0 auto;
+
+    min-height: 2rem;
+    padding: 0.4rem 0.65rem;
+
+    display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    justify-content: center;
+
+    gap: 0.35rem;
+
+    background: transparent;
+    border: none;
+    border-radius: $radius-md;
+
+    color: $color-text-muted;
+    font-size: 0.78rem;
+    font-weight: 500;
+
     white-space: nowrap;
 
+    cursor: pointer;
+
+    transition:
+      color 0.13s ease,
+      background 0.13s ease;
+
     &:hover,
-    &:focus {
-      color: var(--text);
-      background: color-mix(in srgb, var(--dark-200), 8%, transparent);
+    &:focus-visible {
+      color: $color-text;
+      background: $color-surface-3;
       outline: none;
     }
 
     &.danger {
-      color: var(--red-700);
+      color: $color-error;
 
       &:hover,
-      &:focus {
-        background: color-mix(in srgb, var(--red-700), 8%, transparent);
+      &:focus-visible {
+        color: $color-error;
+        background: color-mix(in srgb, $color-error, transparent 90%);
       }
     }
   }
 }
 
-.list-dropdown {
-  display: none;
-
-  &.visible {
-    display: block;
-  }
-}
-
 .list-version-stats-row {
+  min-width: 0;
+
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
 
-  .list-version {
-    font-size: 0.75rem;
-    font-weight: 500;
-    background: var(--container);
-    border-radius: 0.375rem;
-    padding: 0.125rem 0.5rem;
-    opacity: 0.8;
-    flex-shrink: 0;
-  }
+  margin-top: 0.1rem;
 }
 
 .list-stats-section {
+  min-width: 0;
+
   display: flex;
-  gap: 1.5rem;
   align-items: center;
 
+  gap: 2rem;
+
   .list-meta-item {
+    flex: 0 0 auto;
+
     display: flex;
     align-items: center;
-    gap: 0.375rem;
+
+    gap: 0.4rem;
+
+    color: $color-text-muted;
     font-size: 0.8rem;
-    color: var(--placeholder);
     white-space: nowrap;
 
     span {
@@ -1133,180 +1241,9 @@ $effect(() => {
   }
 }
 
-.installation-card {
-  position: relative;
-
-  .card-top-actions {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    display: flex;
-    flex-direction: row;
-    gap: 0.25rem;
-    z-index: 10;
-    align-items: center;
-    height: 2rem;
-  }
-
-  .star-btn {
-    background: none;
-    border: none;
-    border-radius: 50%;
-    width: 2rem;
-    height: 2rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: none;
-    cursor: pointer;
-    transition: background 0.15s;
-    padding: 0;
-
-    &:hover,
-    &:focus {
-      background: none;
-      outline: none;
-    }
-  }
-
-  background: var(--card);
-  border-radius: var(--border-radius);
-  box-shadow:
-    0 0.125rem 0.75rem rgba(80, 80, 90, 0.07),
-    0 0.09375rem 0.25rem rgba(80, 80, 90, 0.04);
-  border: 0.0625rem solid transparent;
-  display: flex;
-  flex-direction: column;
-  padding: 1rem 0.75rem 0.5rem 0.75rem;
-  transition:
-    all 0.15s,
-    border 0.15s;
-  min-width: 0;
-  backdrop-filter: blur(0.5rem);
-  -webkit-backdrop-filter: blur(0.5rem);
-  z-index: 1;
-
-  &:hover {
-    box-shadow:
-      0 0.375rem 1.5rem rgba(80, 80, 90, 0.13),
-      0 0.125rem 0.5rem rgba(80, 80, 90, 0.07);
-    border-color: var(--loader-color, $color-accent);
-  }
-
-  &.small {
-    padding: 0.6rem;
-    min-height: 0.625rem;
-  }
-
-  .installation-dropdown.actions-dropdown {
-    position: absolute;
-    bottom: 1.25rem;
-    right: 1.25rem;
-    z-index: 2;
-  }
-
-  &.small .installation-dropdown.actions-dropdown {
-    margin-right: 0.5rem;
-    bottom: auto;
-    left: auto;
-  }
-
-  .small-actions-dropdown {
-    left: auto;
-    bottom: auto;
-    position: absolute;
-    z-index: 3;
-  }
-}
-
-.installation-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 1rem;
-  min-height: 2.5rem;
-  gap: 0.5rem;
-
-  button {
-    background: none !important;
-    border: none;
-    box-shadow: none;
-    font-weight: 600;
-    transition: color 0.13s;
-    padding: 0;
-    color: var(--placeholder);
-
-    &:hover,
-    &:focus {
-      color: var(--text);
-    }
-
-    &.btn-danger,
-    &.btn.btn-danger {
-      color: var(--red-700);
-    }
-  }
-}
-
-.installation-main {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.installation-icon-column {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 40px;
-}
-
-.installation-icon {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 0.625rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  background: var(--container);
-  box-shadow: 0 0.0625rem 0.25rem rgba(0, 0, 0, 0.04);
-  flex-shrink: 0;
-  position: relative;
-  cursor: pointer;
-}
-
-.play-below-icon {
-  margin-top: 0.5rem;
-  width: 100%;
-  min-width: 2.5rem;
-  max-width: 5rem;
-  align-self: center;
-  font-weight: 700;
-  border: none;
-  border-radius: 0.7em;
-  box-shadow: 0 0.125rem 0.75rem rgba(80, 80, 90, 0.1);
-  transition:
-    background 0.15s,
-    box-shadow 0.15s,
-    filter 0.15s;
-  letter-spacing: 0.02em;
-  color: var(--text-white) !important;
-
-  &:hover,
-  &:focus {
-    filter: brightness(1.13) saturate(1.18);
-    box-shadow:
-      0 0.375rem 2rem 0 rgba(80, 80, 90, 0.18),
-      0 0 0 0.125rem rgba(0, 0, 0, 0.08);
-    opacity: 1;
-    transform: scale(1.045);
-    outline: none;
-    z-index: 2;
-  }
-}
+/* ============================================================
+   TOOLTIP
+   ============================================================ */
 
 .icon-tooltip-wrapper:hover .icon-tooltip,
 .icon-tooltip-wrapper:focus-within .icon-tooltip {
@@ -1316,119 +1253,220 @@ $effect(() => {
 }
 
 .icon-tooltip {
-  opacity: 0;
-  pointer-events: none;
   position: absolute;
   left: -0.75rem;
   top: -1rem;
-  background: var(--container);
-  color: var(--text);
-  border: 0.0625rem solid var(--dark-200);
-  border-radius: 0.22em;
+  z-index: 10;
+
+  margin: 0;
   padding: 0.03em 0.28em;
+
+  opacity: 0;
+  pointer-events: none;
+
+  border: 1px solid $color-surface-3;
+  border-radius: $radius-md;
+  background: $color-surface-1;
+
+  color: $color-text;
   font-size: 0.7em;
   font-weight: 500;
   white-space: nowrap;
+
   box-shadow: 0 0.0625rem 0.125rem rgba(0, 0, 0, 0.06);
-  z-index: 10;
-  transition: opacity 0.13s;
-  margin: 0;
+
+  transition: opacity 0.13s ease;
 }
 
-.installation-meta {
-  flex: 1 1 0%;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
+/* ============================================================
+   STATES
+   ============================================================ */
 
-.installation-title-row {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
+.empty-state {
+  padding: 4rem 2rem;
+  text-align: center;
+
+  .empty-icon {
+    margin-bottom: 1.5rem;
+    color: $color-text-muted;
+  }
 
   h3 {
-    margin: 0;
-    font-size: 1.18rem;
-    font-weight: 800;
-    color: var(--text);
-    text-overflow: ellipsis;
-    overflow: hidden;
-    white-space: nowrap;
-    max-width: 80%;
-    display: block;
+    margin: 0 0 1rem;
+
+    color: $color-text;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0 0 2rem;
+
+    color: $color-text-muted;
+    font-size: 1rem;
   }
 }
 
-.loader-version-row {
-  width: 100%;
+.loading-state {
   display: flex;
   align-items: center;
-  margin: 0.1rem 0 0.2rem 0;
-  justify-content: flex-start;
-}
+  justify-content: center;
 
-.installation-meta-grid {
-  display: flex;
-  flex-wrap: wrap;
-  grid-template-columns: 1fr 1fr;
-  font-size: 0.65rem;
-  margin-top: 0.35rem;
+  gap: 0.5rem;
+  padding: 4rem 2rem;
 
-  .meta-cell {
-    display: flex;
-    align-items: center;
-    min-width: 0;
-    flex-wrap: nowrap;
-    overflow: hidden;
-    justify-content: space-between;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  color: $color-text-muted;
+
+  :global(.icon) {
+    animation: spin 1s linear infinite;
   }
 }
 
-.meta-key {
-  color: var(--text);
-  font-weight: 500;
-  opacity: 0.8;
-  text-align: left;
-  display: inline-block;
-  min-width: fit-content;
-  white-space: nowrap;
-  overflow: visible;
-}
-
-.meta-cell:nth-child(2n) .meta-key {
-  text-align: right;
-}
-
-.meta-value {
-  color: var(--placeholder);
-  font-weight: 400;
-  background: color-mix(in srgb, var(--dark-200), 8%, transparent);
-  border-radius: 0.4em;
-  padding: 0.05em 0.45em;
+.error-message {
   display: flex;
   align-items: center;
-  gap: 0.3em;
-  min-width: fit-content;
-  flex-wrap: nowrap;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+
+  gap: 0.5rem;
+
+  margin-bottom: 1rem;
+  padding: 1rem;
+
+  background: color-mix(in srgb, $color-error, transparent 90%);
+
+  border: 1px solid $color-error;
+  border-radius: $radius-md;
+
+  color: $color-error;
 }
 
-.meta-cell:nth-child(2n) .meta-value {
-  justify-content: flex-end;
-  text-align: right;
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 64rem) {
+  .list-title-actions-row {
+    gap: 1rem;
+  }
+
+  .list-inline-actions {
+    gap: 0.1rem;
+
+    .list-action-btn {
+      padding-inline: 0.5rem;
+    }
+  }
+
+  .list-stats-section {
+    gap: 1.25rem;
+
+    .list-meta-item {
+      font-size: 0.75rem;
+    }
+  }
+}
+
+@media (max-width: 48rem) {
+  .installations-list {
+    padding: 1rem;
+  }
+
+  .installations-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .installation-card {
+    padding: 1rem 0.8rem;
+  }
+
+  .installation-card.small {
+    padding: 0.8rem;
+  }
+
+  .installation-main {
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    gap: 0.7rem;
+  }
+
+  .installation-actions {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+
+    button {
+      font-size: 0.68rem;
+    }
+  }
+
+  .list-item-main {
+    flex-direction: column;
+    align-items: stretch;
+
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .list-item-icon-section {
+    justify-content: center;
+
+    .list-play-btn {
+      flex: 1;
+    }
+  }
+
+  .list-title-actions-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .list-title {
+    width: 100%;
+  }
+
+  .list-actions-section {
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .list-inline-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .list-version-stats-row {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .list-stats-section {
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
+  }
 }
 
 @media (max-width: 32rem) {
+  .installation-main {
+    grid-template-columns: 1fr;
+  }
+
+  .installation-icon-column {
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .installation-icon-column > .installation-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .play-below-icon {
+    width: auto;
+    min-width: 4.5rem;
+  }
+
   .installation-meta-grid {
-    display: flex;
     flex-direction: column;
-    gap: 0.18rem 0;
+    align-items: flex-start;
+    gap: 0.18rem;
   }
 
   .meta-cell {
@@ -1440,183 +1478,33 @@ $effect(() => {
   .meta-value {
     text-align: left !important;
   }
-}
 
-.loader-version {
-  font-size: 0.82rem;
-  color: var(--placeholder);
-  font-weight: 500;
-  background: var(--container);
-  border-radius: 0.5em;
-  padding: 0.08em 0.4em;
-  text-align: left;
-  margin-left: 0;
-  line-height: 1.2;
-  word-break: break-all;
-  max-width: 100%;
-  display: inline-block;
-}
-
-.small-meta-grid {
-  grid-template-columns: 1fr !important;
-  font-size: 0.82rem !important;
-}
-
-.small-meta-cell {
-  width: auto;
-  display: flex;
-  align-items: baseline;
-  gap: 0.25rem;
-}
-
-.small-meta-value {
-  font-size: 0.82rem;
-  flex: 0 0 auto;
-  min-width: 0;
-  max-width: 100%;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
-}
-
-.dropdown {
-  position: relative;
-
-  .dropdown-toggle {
-    background: none;
-    border: none;
-    padding: 0.5rem 0.75rem;
-    border-radius: var(--border-radius);
-    cursor: pointer;
-    color: var(--text);
-    transition: background 0.12s;
-    height: 2.25rem;
-    min-height: 2.25rem;
-    max-height: 2.25rem;
-    display: flex;
-    align-items: center;
-  }
-
-  .dropdown-menu {
-    opacity: 0;
-    pointer-events: none;
-    transition:
-      opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-      z-index 0s linear 0.15s;
-    position: absolute;
-    right: 0;
-    top: 100%;
-    min-width: 10rem;
-    background: var(--card);
-    border: 1px solid var(--dark-200);
-    border-radius: var(--border-radius);
-    box-shadow:
-      0 0.25rem 1rem rgba(0, 0, 0, 0.15),
-      0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
-    z-index: 1;
-    flex-direction: column;
-    padding: 0.5rem 0;
-    backdrop-filter: blur(0.7rem) saturate(1.2);
-    -webkit-backdrop-filter: blur(0.7rem) saturate(1.2);
-
-    .dropdown-separator {
-      height: 1px;
-      background: var(--dark-200);
-      margin: 0.3rem 0;
-    }
+  .installation-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 
     button {
-      width: 100%;
-      background: none;
-      border: none;
-      padding: 0.5rem 1rem;
-      text-align: left;
-      color: var(--text);
-      font-size: 0.875rem;
-      border-radius: 0;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      transition: background 0.12s;
-
-      &:hover {
-        background: color-mix(in srgb, var(--dark-200), 10%, transparent);
-      }
-    }
-
-    .danger {
-      color: var(--red-700);
+      font-size: 0.72rem;
     }
   }
 
-  &:hover .dropdown-menu,
-  &:focus-within .dropdown-menu,
-  .dropdown-menu:hover,
-  .dropdown-menu:focus-within {
-    opacity: 1;
-    pointer-events: auto;
-    z-index: 3000;
-    transition:
-      opacity 0.12s cubic-bezier(0.4, 0, 0.2, 1),
-      z-index 0s;
-    display: flex;
+  .list-title {
+    flex-wrap: wrap;
   }
 
-  .dropdown-menu {
-    display: flex;
-    transition:
-      opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-      z-index 0s linear 0.4s;
-  }
-}
-
-.empty-state {
-  text-align: center;
-  padding: 4rem 2rem;
-
-  .empty-icon {
-    margin-bottom: 1.5rem;
-    color: var(--placeholder);
+  .list-version {
+    max-width: 100%;
   }
 
-  h3 {
-    margin: 0 0 1rem;
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--text);
+  .list-stats-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
   }
 
-  p {
-    margin: 0 0 2rem;
-    color: var(--placeholder);
-    font-size: 1rem;
+  .list-version-stats-row {
+    align-items: flex-start;
+    flex-direction: column;
   }
-}
-
-.loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  padding: 4rem 2rem;
-  color: var(--placeholder);
-
-  :global(.icon) {
-    animation: spin 1s linear infinite;
-  }
-}
-
-.error-message {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 1rem;
-  background: color-mix(in srgb, var(--red), 10%, transparent);
-  border: 1px solid var(--red);
-  border-radius: var(--border-radius);
-  color: var(--red);
-  margin-bottom: 1rem;
 }
 
 @keyframes spin {
@@ -1626,62 +1514,6 @@ $effect(() => {
 
   to {
     transform: rotate(360deg);
-  }
-}
-
-@media (max-width: 48rem) {
-  .installations-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .installation-card {
-    padding: 1rem 0.5rem 1rem 0.5rem;
-  }
-
-  .installation-icon {
-    width: 2.5rem;
-    height: 2.5rem;
-    font-size: 1.5rem;
-  }
-
-  .list-item-main {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.75rem;
-    padding: 0.75rem;
-  }
-
-  .list-item-icon-section {
-    justify-content: center;
-
-    .list-play-btn {
-      flex: 1;
-      justify-content: center;
-    }
-  }
-
-  .list-title-actions-row {
-    justify-content: center;
-    text-align: center;
-  }
-
-  .list-version-stats-row {
-    justify-content: center;
-    gap: 1rem;
-  }
-
-  .list-stats-section {
-    gap: 1rem;
-  }
-}
-
-@media (max-width: 64rem) {
-  .list-stats-section {
-    gap: 1rem;
-
-    .list-meta-item {
-      font-size: 0.75rem;
-    }
   }
 }
 </style>

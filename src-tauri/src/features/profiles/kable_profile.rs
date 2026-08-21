@@ -3,6 +3,7 @@ use crate::integrations::loaders::get_versions;
 use crate::integrations::minecraft::profiles::parse_launcher_profiles;
 use crate::system::cache::invalidate_no_args;
 use crate::system::fs::{launcher_dir, read_str, write_str};
+use crate::Logger;
 use api_types::profiles::LauncherProfiles;
 use api_types::profiles::{KableProfile, Projects};
 use kable_macros::persistent_cache;
@@ -130,6 +131,6 @@ pub async fn save_profiles(profiles: &[KableProfile]) -> Result<(), String> {
     let content = serde_json::to_string_pretty(&profiles).map_err(|e| format!("Failed to serialize profiles: {e}"))?;
 
     write_str(&profiles_file, &content, false).await?;
-
+    Logger::debug_global(format!("Saved profiles to {}", profiles_file.display()).as_str(), None);
     invalidate_no_args("profiles", "load_profiles").await
 }
