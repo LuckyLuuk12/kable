@@ -49,6 +49,7 @@ modrinth-api = "2.7.1"
 oauth2 = { version = "5.0.0", features = ["reqwest"] }
 once_cell = "1.17"
 percent-encoding = "2.2"
+quick-xml = "0.41.0"
 rand = "0.8.5" # Keep this at 0.8.5 to avoid: unresolved import `rand::rngs::OsRng` --> src\auth\secure_token.rs:9:5
 rayon = "1.10"
 regex = "1.12.3"

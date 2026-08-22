@@ -17,7 +17,6 @@ onMount(async () => {
     console.log("Layout initialization complete");
   } catch (error: any) {
     console.error("Tauri initialization error:", error);
-    app.logsService.emitLauncherEvent(`Initialization error: ${error}`, "error");
   }
   // Load the custom CSS theme if one is selected
   const theme = app.customizationService.settings?.appearance?.selected_css_theme || "system";

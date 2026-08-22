@@ -1,3 +1,4 @@
+use crate::features::logging::process::{LogEvent, ProcessLogParser};
 use crate::Logger;
 use api_types::profiles::KableProfile;
 use serde_json::Value;
@@ -12,8 +13,7 @@ pub type RuntimeId = uuid::Uuid;
 #[allow(clippy::large_enum_variant)]
 pub enum ProcessEvent {
     GameLaunched(KableProfile),
-    Stdout(String),
-    Stderr(String),
+    Log(LogEvent),
     Exit(i32),
 
     Custom { key: &'static str, data: Value },
@@ -64,14 +64,22 @@ pub struct ProcessRuntime {
 impl ProcessRuntime {
     pub async fn run(self, pipeline: ProcessPipeline) -> Result<(), String> {
         let mut child = self.child;
+        let id = self.id;
+
+        pipeline.emit(id, ProcessEvent::GameLaunched(self.profile.clone()));
+
+        Logger::debug(
+            format!("ProcessRuntime started for profile: {}, PID: {}", self.profile.id, child.id().unwrap_or(0)).as_str(),
+            Some(self.profile.id.as_str()),
+        );
 
         let stdout = child.stdout.take().ok_or("missing stdout")?;
         let stderr = child.stderr.take().ok_or("missing stderr")?;
 
-        let id = self.id;
-
         tokio::spawn(Self::pipe_stdout(stdout, id, pipeline.clone()));
+
         tokio::spawn(Self::pipe_stderr(stderr, id, pipeline.clone()));
+
         tokio::spawn(Self::wait_exit(child, id, pipeline.clone()));
 
         Ok(())
@@ -79,24 +87,32 @@ impl ProcessRuntime {
 
     async fn pipe_stdout(stdout: impl tokio::io::AsyncRead + Unpin, id: RuntimeId, pipeline: ProcessPipeline) {
         let mut lines = BufReader::new(stdout).lines();
+        let mut parser = ProcessLogParser::new();
 
         while let Ok(Some(line)) = lines.next_line().await {
-            pipeline.emit(id, ProcessEvent::Stdout(line));
+            let mut log = parser.parse_line(&line);
+            log.instance_id = Some(id.to_string());
+
+            pipeline.emit(id, ProcessEvent::Log(log));
         }
     }
 
     async fn pipe_stderr(stderr: impl tokio::io::AsyncRead + Unpin, id: RuntimeId, pipeline: ProcessPipeline) {
         let mut lines = BufReader::new(stderr).lines();
+        let mut parser = ProcessLogParser::new();
 
         while let Ok(Some(line)) = lines.next_line().await {
-            pipeline.emit(id, ProcessEvent::Stderr(line));
+            let mut log = parser.parse_line(&line);
+            log.instance_id = Some(id.to_string());
+
+            pipeline.emit(id, ProcessEvent::Log(log));
         }
     }
 
     async fn wait_exit(mut child: Child, id: RuntimeId, pipeline: ProcessPipeline) {
         let status = child.wait().await;
 
-        let code = status.map(|s| s.code().unwrap_or(-1)).unwrap_or(-1);
+        let code = status.map(|status| status.code().unwrap_or(-1)).unwrap_or(-1);
 
         pipeline.emit(id, ProcessEvent::Exit(code));
     }
@@ -121,30 +137,15 @@ impl ProcessSink for TauriSink {
                 );
             }
 
-            ProcessEvent::Stdout(line) => {
+            ProcessEvent::Log(log_event) => {
                 let _ = app.emit(
                     "game-process-event",
                     serde_json::json!({
                         "runtimeId": runtime_id,
-                        "type": "output",
-                        "data": line
+                        "type": "log",
+                        "data": log_event.to_frontend()
                     }),
                 );
-
-                Logger::info(&line, Some(&runtime_id.to_string()));
-            }
-
-            ProcessEvent::Stderr(line) => {
-                let _ = app.emit(
-                    "game-process-event",
-                    serde_json::json!({
-                        "runtimeId": runtime_id,
-                        "type": "error",
-                        "data": line
-                    }),
-                );
-
-                Logger::error(&line, Some(&runtime_id.to_string()));
             }
 
             ProcessEvent::Exit(code) => {
@@ -153,7 +154,9 @@ impl ProcessSink for TauriSink {
                     serde_json::json!({
                         "runtimeId": runtime_id,
                         "type": "exit",
-                        "data": { "exitCode": code }
+                        "data": {
+                            "exitCode": code
+                        }
                     }),
                 );
             }

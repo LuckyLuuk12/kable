@@ -9,11 +9,18 @@ let {
   searchTerm = "",
   searchMode = "fuzzy",
   autoScroll = $bindable(true),
+  logLevelFilters = $bindable({
+    error: true,
+    warn: true,
+    info: true,
+    debug: true,
+  }),
 }: {
   logs: LogEvent[];
   searchTerm?: string;
   searchMode?: "normal" | "regex" | "fuzzy";
   autoScroll?: boolean;
+  logLevelFilters?: Record<LogEvent["level"], boolean>;
 } = $props();
 
 const MIN_ITEM_HEIGHT = 28;
@@ -32,13 +39,7 @@ let elements = new SvelteMap<string, HTMLElement>();
 let copyNotification = $state(false);
 let previousLogCount = 0;
 let isAutoScrolling = false;
-
-let logLevelFilters = $state({
-  error: true,
-  warn: true,
-  info: true,
-  debug: true,
-});
+let updateVersion = 0;
 
 function getLogKey(log: LogEvent, index: number): string {
   return `${log.timestamp}-${index}`;
@@ -83,36 +84,44 @@ function matchesSearch(message: string, search: string, mode: "normal" | "regex"
     case "fuzzy":
       return fuzzyMatch(search, message);
 
-    default:
+    case "normal":
       return message.toLowerCase().includes(search.toLowerCase());
   }
 }
 
-function getFilteredLogs(): LogEvent[] {
-  return logs.filter((log) => {
+const filteredLogs = $derived(
+  logs.filter((log) => {
     if (!logLevelFilters[log.level]) {
       return false;
     }
 
     return matchesSearch(log.message, searchTerm, searchMode);
-  });
-}
+  }),
+);
 
-const filteredLogs = $derived(getFilteredLogs());
+const visibleLogs = $derived(filteredLogs.slice(visibleStartIndex, visibleEndIndex));
 
 const totalHeight = $derived.by(() => {
-  return filteredLogs.reduce((height, log, index) => {
-    return height + (heights.get(getLogKey(log, index)) ?? MIN_ITEM_HEIGHT);
-  }, 0);
+  let height = 0;
+
+  for (let index = 0; index < filteredLogs.length; index++) {
+    const log = filteredLogs[index];
+    height += heights.get(getLogKey(log, index)) ?? MIN_ITEM_HEIGHT;
+  }
+
+  return height;
 });
 
 const offsetY = $derived.by(() => {
-  return filteredLogs.slice(0, visibleStartIndex).reduce((height, log, index) => {
-    return height + (heights.get(getLogKey(log, index)) ?? MIN_ITEM_HEIGHT);
-  }, 0);
-});
+  let height = 0;
 
-const visibleLogs = $derived(filteredLogs.slice(visibleStartIndex, visibleEndIndex));
+  for (let index = 0; index < visibleStartIndex; index++) {
+    const log = filteredLogs[index];
+    height += heights.get(getLogKey(log, index)) ?? MIN_ITEM_HEIGHT;
+  }
+
+  return height;
+});
 
 const hasActiveFilters = $derived(Boolean(searchTerm) || Object.values(logLevelFilters).some((enabled) => !enabled));
 
@@ -124,14 +133,17 @@ function updateVisibleRange(): void {
   scrollTop = container.scrollTop;
   containerHeight = container.clientHeight;
 
+  const bufferHeight = BUFFER_SIZE * MIN_ITEM_HEIGHT;
+
   let accumulated = 0;
   let start = 0;
 
-  for (let i = 0; i < filteredLogs.length; i++) {
-    const height = heights.get(getLogKey(filteredLogs[i], i)) ?? MIN_ITEM_HEIGHT;
+  for (let index = 0; index < filteredLogs.length; index++) {
+    const log = filteredLogs[index];
+    const height = heights.get(getLogKey(log, index)) ?? MIN_ITEM_HEIGHT;
 
-    if (accumulated + height > scrollTop - BUFFER_SIZE * MIN_ITEM_HEIGHT) {
-      start = i;
+    if (accumulated + height > scrollTop - bufferHeight) {
+      start = index;
       break;
     }
 
@@ -142,13 +154,14 @@ function updateVisibleRange(): void {
 
   let end = filteredLogs.length;
 
-  for (let i = 0; i < filteredLogs.length; i++) {
-    const height = heights.get(getLogKey(filteredLogs[i], i)) ?? MIN_ITEM_HEIGHT;
+  for (let index = 0; index < filteredLogs.length; index++) {
+    const log = filteredLogs[index];
+    const height = heights.get(getLogKey(log, index)) ?? MIN_ITEM_HEIGHT;
 
     accumulated += height;
 
-    if (accumulated > scrollTop + containerHeight + BUFFER_SIZE * MIN_ITEM_HEIGHT) {
-      end = i + 1;
+    if (accumulated > scrollTop + containerHeight + bufferHeight) {
+      end = index + 1;
       break;
     }
   }
@@ -159,18 +172,19 @@ function updateVisibleRange(): void {
 
 function measureVisibleLogs(): void {
   let changed = false;
+  const measured = new SvelteMap(heights);
 
   for (const [key, element] of elements) {
     const height = element.offsetHeight;
 
-    if (height > 0 && heights.get(key) !== height) {
-      heights.set(key, height);
+    if (height > 0 && measured.get(key) !== height) {
+      measured.set(key, height);
       changed = true;
     }
   }
 
   if (changed) {
-    heights = new SvelteMap(heights);
+    heights = measured;
   }
 }
 
@@ -198,23 +212,28 @@ function handleScroll(): void {
 
   updateVisibleRange();
 
-  const maxScroll = Math.max(0, totalHeight - container.clientHeight);
+  const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
 
   autoScroll = scrollTop >= maxScroll - 50;
 }
 
 function formatTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString("en-US", { hour12: false });
+  return new Date(timestamp).toLocaleTimeString("en-US", {
+    hour12: false,
+  });
 }
 
 function getLevelIcon(level: LogEvent["level"]): string {
   switch (level) {
     case "error":
       return "alert";
+
     case "warn":
       return "warning";
+
     case "info":
       return "info";
+
     case "debug":
       return "bug";
   }
@@ -224,10 +243,13 @@ function getLevelClass(level: LogEvent["level"]): string {
   switch (level) {
     case "error":
       return "danger";
+
     case "warn":
       return "warning";
+
     case "info":
       return "info";
+
     case "debug":
       return "muted";
   }
@@ -243,14 +265,20 @@ function registerElement(node: HTMLElement, key: string) {
   };
 }
 
-async function copyLog(log: LogEvent): Promise<void> {
-  const text = `[${formatTime(log.timestamp)}] ` + `${log.level.toUpperCase()} ${log.message}`;
+function formatLogText(log: LogEvent): string {
+  return `[${formatTime(log.timestamp)}] ${log.level.toUpperCase()} ${log.message}`;
+}
 
-  await navigator.clipboard.writeText(text);
+async function copyLog(log: LogEvent): Promise<void> {
+  await navigator.clipboard.writeText(formatLogText(log));
 }
 
 async function copyAllLogs(): Promise<void> {
-  const text = filteredLogs.map((log) => `[${formatTime(log.timestamp)}] ` + `${log.level.toUpperCase()} ${log.message}`).join("\n");
+  const text = filteredLogs.map(formatLogText).join("\n");
+
+  if (!text) {
+    return;
+  }
 
   await navigator.clipboard.writeText(text);
 
@@ -261,6 +289,51 @@ async function copyAllLogs(): Promise<void> {
   }, 2000);
 }
 
+async function copyAllCurrentLogs(): Promise<void> {
+  const text = logs.map(formatLogText).join("\n");
+
+  if (!text) {
+    return;
+  }
+
+  await navigator.clipboard.writeText(text);
+
+  copyNotification = true;
+
+  window.setTimeout(() => {
+    copyNotification = false;
+  }, 2000);
+}
+
+function handleKeyDown(event: KeyboardEvent): void {
+  if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== "a") {
+    return;
+  }
+
+  const target = event.target;
+
+  if (target instanceof HTMLElement) {
+    const tagName = target.tagName.toLowerCase();
+
+    if (tagName === "input" || tagName === "textarea" || tagName === "select" || target.isContentEditable) {
+      return;
+    }
+  }
+
+  event.preventDefault();
+  event.stopPropagation();
+
+  void copyAllCurrentLogs();
+}
+
+$effect(() => {
+  window.addEventListener("keydown", handleKeyDown);
+
+  return () => {
+    window.removeEventListener("keydown", handleKeyDown);
+  };
+});
+
 $effect(() => {
   const count = filteredLogs.length;
 
@@ -269,16 +342,21 @@ $effect(() => {
     return;
   }
 
+  const version = ++updateVersion;
+
   tick().then(async () => {
-    if (!autoScroll || filteredLogs.length !== count || !container) {
+    if (version !== updateVersion || !autoScroll || filteredLogs.length !== count || !container) {
       return;
     }
 
     await tick();
 
+    if (version !== updateVersion || !container) {
+      return;
+    }
+
     measureVisibleLogs();
     updateVisibleRange();
-
     scrollToBottom();
   });
 
@@ -291,23 +369,33 @@ $effect(() => {
   searchMode;
   logLevelFilters;
 
-  tick().then(() => {
-    if (!container) {
+  const version = ++updateVersion;
+
+  heights = new SvelteMap();
+  elements.clear();
+
+  visibleStartIndex = 0;
+  visibleEndIndex = Math.min(50, filteredLogs.length);
+
+  tick().then(async () => {
+    if (version !== updateVersion || !container) {
       return;
     }
 
-    heights = new SvelteMap();
-    elements.clear();
-
-    visibleStartIndex = 0;
-    visibleEndIndex = Math.min(50, filteredLogs.length);
-
     updateVisibleRange();
 
-    tick().then(() => {
-      measureVisibleLogs();
-      updateVisibleRange();
-    });
+    await tick();
+
+    if (version !== updateVersion || !container) {
+      return;
+    }
+
+    measureVisibleLogs();
+    updateVisibleRange();
+
+    if (autoScroll) {
+      scrollToBottom();
+    }
   });
 });
 </script>
@@ -363,8 +451,10 @@ $effect(() => {
     <div class="overlay-copy-notification" role="status" aria-live="polite">
       <div class="overlay-copy-content">
         <Icon name="clipboard" size="md" />
+
         <span>
-          Copied {filteredLogs.length} log entr{filteredLogs.length === 1 ? "y" : "ies"}
+          Copied {filteredLogs.length}
+          {filteredLogs.length === 1 ? "log entry" : "log entries"}
         </span>
       </div>
     </div>
@@ -467,87 +557,87 @@ $effect(() => {
     right: 0;
     padding: 0.25rem;
     will-change: transform;
+  }
 
-    .log-entry {
-      display: flex;
-      align-items: flex-start;
-      gap: 0.5rem;
-      min-height: 28px;
-      padding: 0.25rem 0.5rem;
-      box-sizing: border-box;
-      border-radius: $radius-md;
-      transition: background-color 0.2s ease;
+  .log-entry {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    min-height: 28px;
+    padding: 0.25rem 0.5rem;
+    box-sizing: border-box;
+    border-radius: $radius-md;
+    transition: background-color 0.2s ease;
 
-      &:hover {
-        background: $color-surface-2;
-
-        .log-copy-icon {
-          opacity: 1;
-        }
-      }
+    &:hover {
+      background: $color-surface-2;
 
       .log-copy-icon {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 1.5rem;
-        height: 1.5rem;
+        opacity: 1;
+      }
+    }
+
+    .log-copy-icon {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      padding: 0;
+      border: none;
+      background: transparent;
+      color: $color-placeholder;
+      cursor: pointer;
+      opacity: 0.3;
+      border-radius: calc($radius-md * 0.5);
+
+      &:hover {
+        opacity: 1;
+        color: $color-accent;
+      }
+    }
+
+    .log-timestamp {
+      flex-shrink: 0;
+      min-width: 3rem;
+      padding-top: 0.15rem;
+      color: $color-placeholder;
+      font-size: 0.75rem;
+    }
+
+    .log-level {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+      min-width: 5.5rem;
+      max-width: 5.5rem;
+      margin-top: 0.05rem;
+      font-size: 0.75rem;
+      font-weight: 1000;
+      border-radius: $radius-sm;
+    }
+
+    .log-message {
+      flex: 1;
+      min-width: 0;
+      font-size: 0.9rem;
+      line-height: 1.3;
+      user-select: text;
+      word-break: break-all;
+
+      .log-message-content {
+        margin: 0;
         padding: 0;
-        border: none;
+        font-family: "JetBrains Mono", "Fira Code", "Consolas", "Monaco", monospace;
+        font-size: inherit;
+        line-height: inherit;
+        color: inherit;
         background: transparent;
-        color: $color-placeholder;
-        cursor: pointer;
-        opacity: 0.3;
-        border-radius: calc($radius-md * 0.5);
-
-        &:hover {
-          opacity: 1;
-          color: $color-accent;
-        }
-      }
-
-      .log-timestamp {
-        flex-shrink: 0;
-        min-width: 3rem;
-        padding-top: 0.15rem;
-        color: $color-placeholder;
-        font-size: 0.75rem;
-      }
-
-      .log-level {
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.25rem;
-        min-width: 5.5rem;
-        max-width: 5.5rem;
-        margin-top: 0.05rem;
-        font-size: 0.75rem;
-        font-weight: 1000;
-        border-radius: $radius-sm;
-      }
-
-      .log-message {
-        flex: 1;
-        min-width: 0;
-        font-size: 0.9rem;
-        line-height: 1.3;
-        user-select: text;
-        word-break: break-all;
-
-        .log-message-content {
-          margin: 0;
-          padding: 0;
-          font-family: "JetBrains Mono", "Fira Code", "Consolas", "Monaco", monospace;
-          font-size: inherit;
-          line-height: inherit;
-          color: inherit;
-          background: transparent;
-          white-space: pre-wrap;
-          overflow-wrap: break-word;
-        }
+        white-space: pre-wrap;
+        overflow-wrap: break-word;
       }
     }
   }

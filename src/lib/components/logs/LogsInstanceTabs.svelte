@@ -1,6 +1,5 @@
 <script lang="ts">
-import { Icon } from "$lib";
-import type { GameInstance, GameInstanceStatus } from "$lib/services/logs.svelte";
+import { Icon, type GameInstance, type GameInstanceStatus } from "$lib";
 
 let {
   instances,
@@ -9,6 +8,18 @@ let {
   instances: GameInstance[];
   selectedInstanceId?: string | null;
 } = $props();
+
+let now = $state(Date.now());
+
+$effect(() => {
+  const interval = window.setInterval(() => {
+    now = Date.now();
+  }, 1000);
+
+  return () => {
+    window.clearInterval(interval);
+  };
+});
 
 function getStatusIcon(status: GameInstanceStatus): string {
   switch (status) {
@@ -41,9 +52,10 @@ function getStatusColor(status: GameInstanceStatus): string {
 }
 
 function getInstanceDisplayName(instance: GameInstance): string {
-  const duration = Math.max(0, Math.floor((Date.now() - instance.launchedAt) / 1000));
+  const duration = Math.max(0, Math.floor((now - instance.launchedAt) / 1000));
 
-  const durationText = duration < 60 ? `${duration}s` : `${Math.floor(duration / 60)}m`;
+  const durationText =
+    duration < 60 ? `${duration}s` : duration < 3600 ? `${Math.floor(duration / 60)}m` : `${Math.floor(duration / 3600)}h ${Math.floor((duration % 3600) / 60)}m`;
 
   return `${instance.profileName} (${durationText})`;
 }

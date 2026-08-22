@@ -2,31 +2,37 @@
 import { app, Icon } from "$lib";
 import type { LogEvent } from "$lib/services/logs.svelte";
 
+type LogLevel = LogEvent["level"];
+
+const LOG_LEVELS: LogLevel[] = ["error", "warn", "info", "debug"];
+
 let {
   logs,
+  selectedInstanceId = null,
   searchTerm = $bindable(""),
   searchMode = $bindable<"normal" | "regex" | "fuzzy">("fuzzy"),
   autoScroll = $bindable(true),
+  logLevelFilters = $bindable({
+    error: true,
+    warn: true,
+    info: true,
+    debug: true,
+  }),
 }: {
   logs: LogEvent[];
+  selectedInstanceId?: string | null;
   searchTerm?: string;
   searchMode?: "normal" | "regex" | "fuzzy";
   autoScroll?: boolean;
+  logLevelFilters?: Record<LogLevel, boolean>;
 } = $props();
 
 let showLogLevelDropdown = $state(false);
 
-let logLevelFilters = $state({
-  error: true,
-  warn: true,
-  info: true,
-  debug: true,
-});
-
-const enabledLogLevelsCount = $derived(Object.values(logLevelFilters).filter(Boolean).length);
+const enabledLogLevelsCount = $derived(LOG_LEVELS.filter((level) => logLevelFilters[level]).length);
 
 const logCounts = $derived.by(() => {
-  const counts = {
+  const counts: Record<LogLevel, number> = {
     error: 0,
     warn: 0,
     info: 0,
@@ -34,15 +40,13 @@ const logCounts = $derived.by(() => {
   };
 
   for (const log of logs) {
-    if (log.level in counts) {
-      counts[log.level]++;
-    }
+    counts[log.level]++;
   }
 
   return counts;
 });
 
-function getLogLevelDisplayName(level: string): string {
+function getLogLevelDisplayName(level: LogLevel): string {
   switch (level) {
     case "error":
       return "Errors";
@@ -52,12 +56,10 @@ function getLogLevelDisplayName(level: string): string {
       return "Info";
     case "debug":
       return "Debug";
-    default:
-      return level;
   }
 }
 
-function getLogLevelIcon(level: string): string {
+function getLogLevelIcon(level: LogLevel): string {
   switch (level) {
     case "error":
       return "alert";
@@ -67,21 +69,23 @@ function getLogLevelIcon(level: string): string {
       return "info";
     case "debug":
       return "bug";
-    default:
-      return "message";
   }
 }
 
-function toggleLogLevel(level: keyof typeof logLevelFilters): void {
+function toggleLogLevel(level: LogLevel): void {
   logLevelFilters[level] = !logLevelFilters[level];
 }
 
 async function clearLogs(): Promise<void> {
-  await app.logsService.clearLogs();
+  await app.logsService.clearLogs(selectedInstanceId ?? undefined);
 }
 
 function handleDocumentClick(event: MouseEvent): void {
-  const target = event.target as HTMLElement;
+  const target = event.target;
+
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
 
   if (!target.closest(".log-level-dropdown")) {
     showLogLevelDropdown = false;
@@ -135,18 +139,16 @@ $effect(() => {
             <span>Select log levels to display</span>
           </div>
 
-          {#each Object.keys(logLevelFilters) as level (level)}
-            {@const typedLevel = level as keyof typeof logLevelFilters}
-
+          {#each LOG_LEVELS as level (level)}
             <label class="dropdown-item">
-              <input type="checkbox" checked={logLevelFilters[typedLevel]} onchange={() => toggleLogLevel(typedLevel)} />
+              <input type="checkbox" checked={logLevelFilters[level]} onchange={() => toggleLogLevel(level)} />
 
               <Icon name={getLogLevelIcon(level)} size="sm" />
 
               <span>{getLogLevelDisplayName(level)}</span>
 
               <span class="log-level-count">
-                ({logCounts[typedLevel]})
+                ({logCounts[level]})
               </span>
             </label>
           {/each}
