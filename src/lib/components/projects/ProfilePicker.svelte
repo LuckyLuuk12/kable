@@ -1,19 +1,24 @@
 <!--
-@component 
-This component binds to a profile variable/state and allows users to select a profile in various ways as specified by optional props.
-The default and only/most used one is a kind of 3d-looking vertical carousel of profile cards/badges that the user can scroll through and click in 
-to select a profile (similar to how modern "24h clock inputs" work).
+@component
+This component binds to a profile ID and allows users to select a profile in
+various ways as specified by optional props.
 
-Additionally a simple dropdown select and fuzzy search input can be selected instead of the carousel, but these are not the default and are not used in most places.
+The default and only/most used one is a 3D-looking vertical carousel of
+profile cards/badges that the user can scroll through and click to select.
+
+The selected profile is represented by its stable ID rather than the full
+KableProfile object. This keeps profile selection stable when ProfilesService
+refreshes its profile objects.
 -->
 <script lang="ts">
-import { type KableProfile, Image, app } from "$lib";
+import { Image, app } from "$lib";
 
-// TODO: CHANGE THIS COMPONENT TO BIND TO A PROFILE ID instead of the full profile object,
-// TODO: if we do this then all other Projects related components don't trigger reactive re-renders
-// TODO: when the profile object changes (which happens when you download a mod for example...)
+let {
+  profileId = $bindable<string | null>(null),
+}: {
+  profileId?: string | null;
+} = $props();
 
-let { profile = $bindable<KableProfile | null>(null) }: { profile?: KableProfile | null } = $props();
 let profiles = $derived(app.profilesService.profiles);
 
 let carouselContainer: HTMLElement;
@@ -36,21 +41,27 @@ const sortedProfiles = $derived(
     .filter((profile) => profile.version.loader !== "vanilla"),
 );
 
-const selectedIndex = $derived(sortedProfiles.findIndex((item) => item.id === profile?.id));
+const selectedIndex = $derived(sortedProfiles.findIndex((profile) => profile.id === profileId));
 
 const loaderImage = $derived(Object.fromEntries(sortedProfiles.map((profile) => [profile.id, app.profilesService.getLoaderImage(profile.version.loader)])));
 
 const loaderColors = $derived(Object.fromEntries(sortedProfiles.map((profile) => [profile.id, app.profilesService.getLoaderColor(profile.version.loader)])));
 
-function selectProfile(nextProfile: KableProfile) {
-  if (profile?.id === nextProfile.id) {
+function selectProfile(nextProfileId: string) {
+  if (profileId === nextProfileId) {
     return;
   }
 
-  profile = nextProfile;
-  (async () => {
-    await app.projectsService.select(nextProfile);
-  })();
+  const nextProfile = profiles.find((profile) => profile.id === nextProfileId);
+
+  if (!nextProfile) {
+    console.warn("[ProfilePicker] Cannot select unknown profile:", nextProfileId);
+    return;
+  }
+
+  profileId = nextProfileId;
+
+  void app.projectsService.select(nextProfile);
 }
 
 function selectRelative(offset: number) {
@@ -61,7 +72,7 @@ function selectRelative(offset: number) {
   const currentIndex = selectedIndex >= 0 ? selectedIndex : 0;
   const nextIndex = (currentIndex + offset + sortedProfiles.length) % sortedProfiles.length;
 
-  selectProfile(sortedProfiles[nextIndex]);
+  selectProfile(sortedProfiles[nextIndex].id);
 }
 
 function handleWheel(event: WheelEvent) {
@@ -168,11 +179,11 @@ function getCarouselScale(currentIndex: number, selectedIndex: number, totalItem
 }
 
 $effect(() => {
-  if (profile || sortedProfiles.length === 0) {
+  if (profileId || sortedProfiles.length === 0) {
     return;
   }
 
-  profile = sortedProfiles[0];
+  profileId = sortedProfiles[0].id;
 });
 </script>
 
@@ -184,35 +195,35 @@ $effect(() => {
       {#if effects.visible}
         <div
           class="profile-item"
-          class:selected={item.id === profile?.id}
+          class:selected={item.id === profileId}
           data-profile-id={item.id}
           style="
-                        --loader-color: {loaderColors[item.id]};
-                        --carousel-scale: {effects.scale};
-                        --carousel-opacity: {effects.opacity};
-                        --carousel-font-size: {effects.fontSize};
-                        background: linear-gradient(
-                            135deg,
-                            {loaderColors[item.id]}22 0%,
-                            {loaderColors[item.id]}08 40%
-                        );
-                        transform:
-                            scale({effects.scale})
-                            translateY({effects.translateY}px)
-                            translateX(-50%);
-                        opacity: {effects.opacity};
-                        font-size: calc({effects.fontSize} * 0.9em);
-                        z-index: {effects.zIndex};
-                    "
-          onclick={() => selectProfile(item)}
+            --loader-color: {loaderColors[item.id]};
+            --carousel-scale: {effects.scale};
+            --carousel-opacity: {effects.opacity};
+            --carousel-font-size: {effects.fontSize};
+            background: linear-gradient(
+              135deg,
+              {loaderColors[item.id]}22 0%,
+              {loaderColors[item.id]}08 40%
+            );
+            transform:
+              scale({effects.scale})
+              translateY({effects.translateY}px)
+              translateX(-50%);
+            opacity: {effects.opacity};
+            font-size: calc({effects.fontSize} * 0.9em);
+            z-index: {effects.zIndex};
+          "
+          onclick={() => selectProfile(item.id)}
           onkeydown={(event) => {
             if (event.key === "Enter") {
-              selectProfile(item);
+              selectProfile(item.id);
             }
           }}
           tabindex="0"
           role="option"
-          aria-selected={item.id === profile?.id}>
+          aria-selected={item.id === profileId}>
           <div class="profile-icon">
             <Image key={loaderImage[item.id]} />
           </div>

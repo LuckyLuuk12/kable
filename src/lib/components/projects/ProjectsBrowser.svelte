@@ -13,17 +13,20 @@ Provides:
 -->
 <script lang="ts">
 import { app, type KableProfile, type ProjectType } from "$lib";
+import { untrack } from "svelte";
 import Icon from "../Icon.svelte";
 import ProjectsPaginatedBrowser from "./ProjectsPaginatedBrowser.svelte";
 import ProjectsScrollBrowser from "./ProjectsScrollBrowser.svelte";
 
 let {
   profile,
+  profileId,
   projectType,
   search = "",
   smartFilter = true,
 }: {
   profile: KableProfile | null;
+  profileId: string | null;
   projectType: ProjectType;
   search?: string;
   smartFilter?: boolean;
@@ -32,9 +35,16 @@ let {
 let showPaginated = $state(false);
 
 $effect(() => {
-  const profileId = profile?.id;
-  if (!profileId) return;
-  app.projectsService.load(profile, projectType);
+  const currentProfileId = profileId;
+  const currentProjectType = projectType;
+
+  if (!currentProfileId) return;
+
+  untrack(() => {
+    if (!profile) return;
+
+    void app.projectsService.load(profile, currentProjectType);
+  });
 });
 </script>
 
@@ -51,9 +61,9 @@ $effect(() => {
 </div>
 
 {#if showPaginated}
-  <ProjectsPaginatedBrowser {profile} {projectType} {search} {smartFilter} />
+  <ProjectsPaginatedBrowser {profile} {profileId} {projectType} {search} {smartFilter} />
 {:else}
-  <ProjectsScrollBrowser {profile} {projectType} {search} {smartFilter} />
+  <ProjectsScrollBrowser {profile} {profileId} {projectType} {search} {smartFilter} />
 {/if}
 
 <style lang="scss">

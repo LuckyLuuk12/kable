@@ -24,18 +24,33 @@ let {
 } = $props();
 
 let currentTab: "installed" | "browse" = $state("installed");
-let profile = $derived(app.profilesService.profiles.find((p) => p.id === app.projectsService.loadedForProfileId) ?? null);
+
+let profileId = $state<string | null>(app.projectsService.loadedForProfileId);
+
+let profile = $derived(app.profilesService.profiles.find((p) => p.id === profileId) ?? null);
+
 let pickerCollapsed = $state(false);
 
 let projectLabel = $derived(projectType === "mod" ? "Mods" : projectType === "resourcepack" ? "Resource Packs" : projectType === "shader" ? "Shaders" : "Modpacks");
 
 let refreshing = $state(false);
 
+$effect(() => {
+  const selectedProfileId = profileId;
+  if (selectedProfileId === null) return;
+  const selectedProfile = app.profilesService.profiles.find((p) => p.id === selectedProfileId) ?? null;
+  if (!selectedProfile) return;
+  if (app.projectsService.loadedForProfileId !== selectedProfileId) {
+    void app.projectsService.select(selectedProfile);
+  }
+});
+
 async function refresh(): Promise<void> {
   if (!profile) {
     console.warn("[ProjectsPage] No profile selected, cannot refresh");
     return;
   }
+
   refreshing = true;
 
   try {
@@ -49,10 +64,20 @@ async function refresh(): Promise<void> {
 }
 
 function launch() {
-  if (!profile) return;
+  if (!profile) {
+    return;
+  }
 
   app.launcherService.launch(profile);
 }
+
+$effect(() => {
+  const selectedProfileId = app.projectsService.loadedForProfileId;
+
+  if (selectedProfileId !== null && selectedProfileId !== profileId) {
+    profileId = selectedProfileId;
+  }
+});
 </script>
 
 <div class={`${projectType}-page page`}>
@@ -79,9 +104,10 @@ function launch() {
         <Icon name={pickerCollapsed ? "chevron-right" : "chevron-left"} forceType="svg" />
       </button>
     </header>
+
     {#if !pickerCollapsed}
       <div class="profile-picker">
-        <ProfilePicker bind:profile />
+        <ProfilePicker bind:profileId />
       </div>
     {/if}
   </aside>
@@ -117,11 +143,13 @@ function launch() {
     </header>
 
     <div class="tab-content">
-      {#if currentTab === "installed"}
-        <InstalledProjects {profile} {projectType} />
-      {:else}
-        <ProjectsBrowser {profile} {projectType} />
-      {/if}
+      <div class="tab-panel" class:active={currentTab === "installed"}>
+        <InstalledProjects {profile} {profileId} {projectType} />
+      </div>
+
+      <div class="tab-panel" class:active={currentTab === "browse"}>
+        <ProjectsBrowser {profile} {profileId} {projectType} />
+      </div>
     </div>
   </main>
 </div>
@@ -319,14 +347,14 @@ function launch() {
     outline-offset: 2px;
   }
 
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
   &.loading {
     color: $color-accent;
     animation: spin 1s linear infinite;
-  }
-
-  disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
   }
 }
 
@@ -334,6 +362,7 @@ function launch() {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -370,6 +399,49 @@ function launch() {
   min-height: 0;
   overflow: auto;
   padding: $space-lg;
+
+  .tab-panel {
+    display: none;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+
+    &.active {
+      display: flex;
+    }
+  }
+}
+
+@media (max-width: 720px) {
+  .profile-panel {
+    flex-basis: 200px;
+    width: 200px;
+    min-width: 200px;
+
+    &.collapsed {
+      flex-basis: 60px;
+      width: 60px;
+      min-width: 60px;
+    }
+  }
+
+  .page-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .navigation {
+    width: 100%;
+  }
+
+  .tab-btn {
+    flex: 1;
+  }
+
+  .profile-actions {
+    justify-content: space-between;
+  }
 }
 
 @media (max-width: 720px) {

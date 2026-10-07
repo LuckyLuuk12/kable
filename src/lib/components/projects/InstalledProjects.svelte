@@ -10,9 +10,11 @@ import InstalledProjectCard from "./InstalledProjectCard.svelte";
 
 let {
   profile,
+  profileId,
   projectType,
 }: {
   profile: KableProfile | null;
+  profileId: string | null;
   projectType: ProjectType;
 } = $props();
 

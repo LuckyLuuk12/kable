@@ -17,11 +17,13 @@ import ProjectCard from "./ProjectCard.svelte";
 
 let {
   profile,
+  profileId,
   projectType,
   search = "",
   smartFilter = true,
 }: {
   profile: KableProfile | null;
+  profileId: string | null;
   projectType: ProjectType;
   search?: string;
   smartFilter?: boolean;
@@ -202,8 +204,6 @@ function handleScroll() {
 }
 
 $effect(() => {
-  const profileId = profile?.id;
-
   if (!profileId) {
     results = null;
     error = null;
