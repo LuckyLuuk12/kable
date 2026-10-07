@@ -1,10 +1,24 @@
-use crate::constants::{CACHE_DIR, KABLE_DIR_NAME, LAUNCHER_DIR, PROFILES_DIR_NAME, PROJECTS_DIR_NAME};
+use crate::constants::{CACHE_DIR, KABLE_DIR_NAME, LAUNCHER_DIR, PROFILES_DIR_NAME, PROJECTS_DIR_NAME, RUNTIME_DIR_NAME};
 
 use dirs::home_dir;
-use std::path::{Path, PathBuf};
+use once_cell::sync::Lazy;
+use std::{
+    collections::HashMap,
+    future::Future,
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
 use tokio::fs as async_fs;
 
 type FsResult<T> = Result<T, String>;
+
+static FILE_LOCKS: Lazy<Mutex<HashMap<PathBuf, Arc<tokio::sync::Mutex<()>>>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn get_file_lock(path: &Path) -> Arc<tokio::sync::Mutex<()>> {
+    let mut locks = FILE_LOCKS.lock().expect("filesystem lock registry poisoned");
+
+    locks.entry(path.to_path_buf()).or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))).clone()
+}
 
 /// Windows: C:\Users\<User>\AppData\Roaming\.minecraft
 /// MacOS: /Users/<User>/Library/Application Support/minecraft
@@ -35,12 +49,20 @@ pub fn launcher_dir() -> FsResult<PathBuf> {
 pub fn cache_dir() -> FsResult<PathBuf> {
     Ok(kable_dir()?.join(CACHE_DIR))
 }
-/// Returns the <kable_dir>/<projects> directory in which shared "projects" are stored, e.g. mods, resourcepacks, shaders, etc. that can be enabled/disabled per profile.
+
+/// Returns the <kable_dir>/<projects> directory in which shared "projects" are stored,
+/// e.g. mods, resourcepacks, shaders, etc. that can be enabled/disabled per profile.
 pub fn projects_dir() -> FsResult<PathBuf> {
     Ok(kable_dir()?.join(PROJECTS_DIR_NAME))
 }
 
-/// Returns the <kable_dir>/<profiles> directory in which profile-specific info is stored like a config folder, options.txt, and other things that are usually in the .minecraft folder.
+/// Returns the <kable_dir>/<runtime> directory in which runtime data is stored.
+pub fn runtime_dir(profile_id: &str) -> FsResult<PathBuf> {
+    Ok(kable_dir()?.join(RUNTIME_DIR_NAME).join(profile_id))
+}
+
+/// Returns the <kable_dir>/<profiles> directory in which profile-specific info is stored
+/// like a config folder, options.txt, and other things that are usually in the .minecraft folder.
 pub fn profiles_dir() -> FsResult<PathBuf> {
     Ok(kable_dir()?.join(PROFILES_DIR_NAME))
 }
@@ -48,17 +70,49 @@ pub fn profiles_dir() -> FsResult<PathBuf> {
 /// Resolve a path to an absolute path, relative to the kable_dir if not already absolute.
 fn resolve(path: impl AsRef<Path>) -> FsResult<PathBuf> {
     let p = path.as_ref();
-    // This should cover cases where mc_dir is used as mc_dir is returned as absolute path.
+
     if p.is_absolute() {
         Ok(p.to_path_buf())
     } else {
-        // in all other cases we usually assume the path is relative to the kable_dir, so we resolve it against that.
         Ok(kable_dir()?.join(p))
     }
 }
 
+/// Execute an asynchronous operation while holding the lock associated with a file path.
+///
+/// This is intended for read-modify-write operations:
+///
+/// ```ignore
+/// fs::with_file_lock("kable_profiles.json", || async {
+///     let data = fs::read_str("kable_profiles.json").await?;
+///
+///     // modify data...
+///
+///     fs::write_str("kable_profiles.json", &data, false).await?;
+///
+///     Ok(())
+/// }).await?;
+/// ```
+///
+/// The lock is held for the entire lifetime of the future returned by `operation`.
+/// Therefore, concurrent operations using the same path are serialized.
+pub async fn with_file_lock<F, Fut, T>(path: impl AsRef<Path>, operation: F) -> FsResult<T>
+where
+    F: FnOnce() -> Fut,
+    Fut: Future<Output = FsResult<T>>,
+{
+    let p = resolve(path)?;
+    let lock = get_file_lock(&p);
+
+    let _guard = lock.lock().await;
+
+    operation().await
+}
+
 pub async fn exists(path: impl AsRef<Path>) -> FsResult<bool> {
-    match async_fs::metadata(path.as_ref()).await {
+    let p = resolve(path)?;
+
+    match async_fs::metadata(&p).await {
         Ok(_) => Ok(true),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
         Err(e) => Err(e.to_string()),
@@ -66,7 +120,9 @@ pub async fn exists(path: impl AsRef<Path>) -> FsResult<bool> {
 }
 
 pub async fn is_file(path: impl AsRef<Path>) -> FsResult<bool> {
-    match async_fs::metadata(path.as_ref()).await {
+    let p = resolve(path)?;
+
+    match async_fs::metadata(&p).await {
         Ok(md) => Ok(md.is_file()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
         Err(e) => Err(e.to_string()),
@@ -74,7 +130,9 @@ pub async fn is_file(path: impl AsRef<Path>) -> FsResult<bool> {
 }
 
 pub async fn is_dir(path: impl AsRef<Path>) -> FsResult<bool> {
-    match async_fs::metadata(path.as_ref()).await {
+    let p = resolve(path)?;
+
+    match async_fs::metadata(&p).await {
         Ok(md) => Ok(md.is_dir()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(false),
         Err(e) => Err(e.to_string()),
@@ -83,6 +141,10 @@ pub async fn is_dir(path: impl AsRef<Path>) -> FsResult<bool> {
 
 pub async fn create_dir(path: impl AsRef<Path>) -> FsResult<PathBuf> {
     let p = resolve(path)?;
+
+    if is_dir(&p).await? {
+        return Ok(p);
+    }
 
     async_fs::create_dir_all(&p).await.map_err(|e| format!("create_dir failed {}: {}", p.display(), e))?;
 
@@ -170,6 +232,7 @@ pub async fn write_str(path: impl AsRef<Path>, data: &str, staged: bool) -> FsRe
 
 pub async fn create_file(path: impl AsRef<Path>) -> FsResult<PathBuf> {
     let p = resolve(path)?;
+
     ensure_parent(&p).await?;
 
     async_fs::OpenOptions::new()
@@ -230,7 +293,6 @@ pub fn tmp_dir(instance: &str, pack: &str) -> FsResult<PathBuf> {
 pub async fn open_path(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
-        // Use start with empty title to allow paths with spaces
         std::process::Command::new("cmd")
             .args(["/C", "start", "", &path])
             .spawn()

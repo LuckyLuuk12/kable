@@ -10,7 +10,7 @@ pub async fn get_symlinks() -> Result<Vec<Symlink>, String> {
 
 #[tauri::command]
 #[specta::specta]
-pub async fn temporary_symlinks() -> Result<HashMap<String, Symlink>, String> {
+pub async fn temporary_symlinks() -> Result<HashMap<String, Vec<Symlink>>, String> {
     symlink::temporary_symlinks().await
 }
 

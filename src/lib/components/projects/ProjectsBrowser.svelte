@@ -12,7 +12,7 @@ Provides:
 - Project details navigation
 -->
 <script lang="ts">
-import { type KableProfile, type ProjectType } from "$lib";
+import { app, type KableProfile, type ProjectType } from "$lib";
 import Icon from "../Icon.svelte";
 import ProjectsPaginatedBrowser from "./ProjectsPaginatedBrowser.svelte";
 import ProjectsScrollBrowser from "./ProjectsScrollBrowser.svelte";
@@ -30,6 +30,12 @@ let {
 } = $props();
 
 let showPaginated = $state(false);
+
+$effect(() => {
+  const profileId = profile?.id;
+  if (!profileId) return;
+  app.projectsService.load(profile, projectType);
+});
 </script>
 
 <!-- Absolute positioned toggle at right bottom of page to switch between the {@link ProjectsScrollBrowser} and {@link ProjectsPaginatedBrowser} -->

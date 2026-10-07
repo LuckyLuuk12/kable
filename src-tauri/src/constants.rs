@@ -21,6 +21,7 @@ pub const KABLE_DIR_NAME: &str = if cfg!(debug_assertions) { ".kable-dev" } else
 pub const PROJECTS_DIR_NAME: &str = "projects";
 /// subfolder of KABLE_DIR_NAME for storing profile-specific data like config folder, options.txt, and other things that are usually in .minecraft folder
 pub const PROFILES_DIR_NAME: &str = "profiles";
+pub const RUNTIME_DIR_NAME: &str = "runtime";
 /// folder in .kable for storing mods per profile like mods/<profile_id>/*.jar.
 pub const EXPORTS_DIR: &str = "exports";
 pub const LOGS_DIR: &str = "logs";

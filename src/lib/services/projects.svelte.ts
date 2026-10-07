@@ -5,7 +5,8 @@ import {
   type ProjectSearch,
   type ProjectType,
   type ProjectVersion,
-  api
+  api,
+  app
 } from "$lib";
 import { SvelteSet } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
@@ -20,17 +21,40 @@ export class ProjectsService implements Service {
     //
   }
 
-  private updateStoredProject(project: KableProject) {
-    this.projects = this.projects.map((current) =>
-      current.project.project_id === project.project.project_id
-        ? project
-        : current
+  private async refreshProfiles(): Promise<void> {
+    await app.profilesService.refreshProfiles();
+  }
+
+  private async refreshProfile(profile: KableProfile): Promise<KableProfile> {
+    await app.profilesService.refreshProfiles();
+
+    return (
+      app.profilesService.profiles.find((p) => p.id === profile.id) ??
+      profile
     );
+  }
+
+  private updateStoredProject(project: KableProject) {
+    const exists = this.projects.some(
+      (current) =>
+        current.project.project_id === project.project.project_id
+    );
+
+    if (exists) {
+      this.projects = this.projects.map((current) =>
+        current.project.project_id === project.project.project_id
+          ? project
+          : current
+      );
+    } else {
+      this.projects = [...this.projects, project];
+    }
   }
 
   async load(
     profile: KableProfile,
-    projectType: ProjectType
+    projectType: ProjectType,
+    force = false
   ) {
     if (this.loadedForProfileId !== profile.id) {
       this.projects = [];
@@ -38,7 +62,7 @@ export class ProjectsService implements Service {
       this.loadedTypes = new SvelteSet();
     }
 
-    if (this.loadedTypes.has(projectType)) {
+    if (!force && this.loadedTypes.has(projectType)) {
       return;
     }
 
@@ -102,10 +126,7 @@ export class ProjectsService implements Service {
   }
 
   getByType(type: ProjectType): KableProject[] {
-    return this.projects.filter(
-      (project) =>
-        project.project.project_type === type
-    );
+    return this.projects.filter((project) => project.project.project_type === type);
   }
 
   async browse(
@@ -182,6 +203,7 @@ export class ProjectsService implements Service {
       );
 
       this.updateStoredProject(result);
+      await this.refreshProfiles();
 
       return result;
     } catch (e) {
@@ -205,6 +227,8 @@ export class ProjectsService implements Service {
           current.project.project_id !==
           result.project.project_id
       );
+
+      await this.refreshProfiles();
 
       return result;
     } catch (e) {
@@ -239,8 +263,10 @@ export class ProjectsService implements Service {
 
       await api.toggleProject(profile, project);
 
+      const updatedProfile = await this.refreshProfile(profile);
+
       await this.load(
-        profile,
+        updatedProfile,
         project.project.project_type
       );
 
@@ -262,8 +288,10 @@ export class ProjectsService implements Service {
 
       await api.toggleProject(profile, project);
 
+      const updatedProfile = await this.refreshProfile(profile);
+
       await this.load(
-        profile,
+        updatedProfile,
         project.project.project_type
       );
 
@@ -281,8 +309,10 @@ export class ProjectsService implements Service {
     try {
       await api.toggleProject(profile, project);
 
+      const updatedProfile = await this.refreshProfile(profile);
+
       await this.load(
-        profile,
+        updatedProfile,
         project.project.project_type
       );
 
@@ -323,6 +353,8 @@ export class ProjectsService implements Service {
 
       this.updateStoredProject(updated);
 
+      await this.refreshProfiles();
+
       return updated;
     } catch (e) {
       console.error("Failed to update project", e);
@@ -341,6 +373,7 @@ export class ProjectsService implements Service {
       );
 
       this.projects = updated;
+      await this.refreshProfiles();
 
       return updated;
     } catch (e) {

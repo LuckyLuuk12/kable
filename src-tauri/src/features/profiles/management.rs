@@ -1,6 +1,7 @@
 // The simple profile management (rename/delete/list)
 
 use crate::features::profiles::kable_profile::{load_profiles, save_profiles};
+use crate::system::fs;
 use api_types::profiles::KableProfile;
 use api_types::projects::KableProject;
 
@@ -19,9 +20,9 @@ pub async fn get_profile(profile_id: &str) -> Result<KableProfile, String> {
     profiles.into_iter().find(|p| p.id == profile_id).ok_or_else(|| format!("Profile with id {} not found", profile_id))
 }
 
-pub async fn modify_profile(old: KableProfile, new: KableProfile) -> Result<KableProfile, String> {
+async fn modify_profile_unlocked(old: KableProfile, new: KableProfile) -> Result<KableProfile, String> {
     let mut profiles = load_profiles().await?;
-    // check if both have same id, otherwise error:
+
     if old.id != new.id {
         return Err(format!("Cannot update profile: old id {} does not match new id {}", old.id, new.id));
     }
@@ -33,6 +34,10 @@ pub async fn modify_profile(old: KableProfile, new: KableProfile) -> Result<Kabl
     } else {
         Err(format!("Profile with id {} not found", old.id))
     }
+}
+
+pub async fn modify_profile(old: KableProfile, new: KableProfile) -> Result<KableProfile, String> {
+    fs::with_file_lock(crate::constants::KABLE_PROFILES_FILE, || async move { modify_profile_unlocked(old, new).await }).await
 }
 
 pub async fn delete_profile(profile_id: &str) -> Result<(), String> {

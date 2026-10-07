@@ -24,10 +24,29 @@ let {
 } = $props();
 
 let currentTab: "installed" | "browse" = $state("installed");
-let profile = $state(app.profilesService.profiles.find((p) => p.id === app.projectsService.loadedForProfileId) ?? null);
+let profile = $derived(app.profilesService.profiles.find((p) => p.id === app.projectsService.loadedForProfileId) ?? null);
 let pickerCollapsed = $state(false);
 
 let projectLabel = $derived(projectType === "mod" ? "Mods" : projectType === "resourcepack" ? "Resource Packs" : projectType === "shader" ? "Shaders" : "Modpacks");
+
+let refreshing = $state(false);
+
+async function refresh(): Promise<void> {
+  if (!profile) {
+    console.warn("[ProjectsPage] No profile selected, cannot refresh");
+    return;
+  }
+  refreshing = true;
+
+  try {
+    await app.projectsService.load(profile, projectType, true);
+    console.debug("[ProjectsPage] Refreshed projects for profile:", profile.id);
+  } catch (error) {
+    console.error("[ProjectsPage] Failed to refresh projects for profile:", profile.id, error);
+  } finally {
+    refreshing = false;
+  }
+}
 
 function launch() {
   if (!profile) return;
@@ -84,6 +103,10 @@ function launch() {
           <span class="selected-profile">
             {profile.metadata.name}
           </span>
+
+          <button class="refresh-btn" type="button" onclick={refresh} disabled={refreshing} class:loading={refreshing} aria-label="Refresh" title="Refresh">
+            <Icon name="refresh" forceType="svg" size="sm" />
+          </button>
 
           <button class="launch-btn" type="button" onclick={launch}>
             <Icon name="play" forceType="svg" size="sm" />
@@ -270,6 +293,50 @@ function launch() {
   font-size: 0.8rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: $space-sm;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $color-text-muted;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:hover {
+    border-color: $color-border;
+    background: $color-hover;
+    color: $color-text;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-focus;
+    outline-offset: 2px;
+  }
+
+  &.loading {
+    color: $color-accent;
+    animation: spin 1s linear infinite;
+  }
+
+  disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .launch-btn {

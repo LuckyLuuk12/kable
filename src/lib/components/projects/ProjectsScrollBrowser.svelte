@@ -492,14 +492,14 @@ function destroyIntersectionObserver(): void {
 }
 
 $effect(() => {
-  const currentProfile = profile;
+  const profileId = profile?.id;
 
   projectType;
   smartFilter;
   index;
   query;
 
-  if (!currentProfile) {
+  if (!profileId) {
     resetState();
     return;
   }

@@ -41,11 +41,13 @@ export class ProfilesService implements Service {
 
   async refreshProfiles() {
     this.loading = true;
+
     try {
-      const profiles = await api.getProfiles();
-      this.profiles = profiles;
-    } catch (e) {
-      console.error("Failed to refresh profiles", e);
+      const tmp_profiles = await api.getProfiles();
+      // only update the profiles if they have changed to avoid unnecessary reactivity updates
+      if (JSON.stringify(tmp_profiles) !== JSON.stringify(this.profiles)) {
+        this.profiles = tmp_profiles;
+      }
     } finally {
       this.loading = false;
     }
@@ -62,13 +64,10 @@ export class ProfilesService implements Service {
 
   async modify(oldProfile: KableProfile, newProfile: KableProfile) {
     try {
-      const updated = await api.modifyProfile(oldProfile, newProfile);
-
-      this.profiles = this.profiles.map((p) =>
-        p.id === oldProfile.id ? updated : p
-      );
+      await api.modifyProfile(oldProfile, newProfile);
+      await this.refreshProfiles();
     } catch (e) {
-      console.error("Failed to modify profile", e);
+      console.error("[ProfilesService] Failed to modify profile", e);
     }
   }
 
@@ -89,9 +88,10 @@ export class ProfilesService implements Service {
 
     try {
       await api.toggleFavorite(profile);
+      await this.refreshProfiles();
     } catch (e) {
       this.profiles = previousProfiles;
-      console.error("Failed to toggle favorite status for profile", e);
+      console.error("[ProfilesService] Failed to toggle favorite status for profile", e);
     }
   }
 
@@ -156,10 +156,9 @@ export class ProfilesService implements Service {
   async remove(id: string) {
     try {
       await api.deleteProfile(id);
-
-      this.profiles = this.profiles.filter((p) => p.id !== id);
+      await this.refreshProfiles();
     } catch (e) {
-      console.error("Failed to delete profile", e);
+      console.error("[ProfilesService] Failed to delete profile", e);
     }
   }
 
@@ -170,18 +169,16 @@ export class ProfilesService implements Service {
     mrpack: string | null = null
   ) {
     try {
-      const newProfile = await api.createProfile(
+      await api.createProfile(
         versionId,
         baseProfile,
         exportedZip,
         mrpack
       );
 
-      console.log("[Profiles] Created new profile:", newProfile?.metadata.name);
-
-      this.profiles = [...this.profiles, newProfile];
+      await this.refreshProfiles();
     } catch (e) {
-      console.error("Failed to create profile", e);
+      console.error("[ProfilesService] Failed to create profile", e);
     }
   }
 
@@ -189,7 +186,7 @@ export class ProfilesService implements Service {
     try {
       // await api.createShortcut(profile);
     } catch (e) {
-      console.error("Failed to create shortcut for profile", e);
+      console.error("[ProfilesService] Failed to create shortcut for profile", e);
     }
   }
 
@@ -197,7 +194,7 @@ export class ProfilesService implements Service {
     try {
       // await api.exportProfile(profile);
     } catch (e) {
-      console.error("Failed to export profile", e);
+      console.error("[ProfilesService] Failed to export profile", e);
     }
   }
 

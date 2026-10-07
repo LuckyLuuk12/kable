@@ -22,6 +22,7 @@ let loading = $derived(app.projectsService.loading);
 $effect(() => {
   if (profile) {
     app.projectsService.load(profile, projectType);
+    console.debug("[InstalledProjects] Loading installed projects for profile", profile.id);
   }
 });
 

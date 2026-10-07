@@ -103,7 +103,7 @@ function showGallery() {
 }
 </script>
 
-<article class:disabled={!isEnabled} class="installed-project-card">
+<article class="installed-project-card" class:loading>
   <div class="project-icon">
     {#if project.project.icon_url}
       <img src={project.project.icon_url} alt="" loading="lazy" />
@@ -198,8 +198,24 @@ function showGallery() {
     border-color: $color-border;
   }
 
-  &.disabled {
-    opacity: 0.65;
+  // Animated border effect when loading
+  &.loading {
+    border-color: $color-highlight;
+    background: $color-surface-2;
+
+    animation: pulse-border 1.5s infinite;
+
+    @keyframes pulse-border {
+      0% {
+        border-color: $color-highlight;
+      }
+      50% {
+        border-color: $color-focus;
+      }
+      100% {
+        border-color: $color-highlight;
+      }
+    }
   }
 }
 

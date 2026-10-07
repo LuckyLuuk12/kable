@@ -9,6 +9,10 @@ Additionally a simple dropdown select and fuzzy search input can be selected ins
 <script lang="ts">
 import { type KableProfile, Image, app } from "$lib";
 
+// TODO: CHANGE THIS COMPONENT TO BIND TO A PROFILE ID instead of the full profile object,
+// TODO: if we do this then all other Projects related components don't trigger reactive re-renders
+// TODO: when the profile object changes (which happens when you download a mod for example...)
+
 let { profile = $bindable<KableProfile | null>(null) }: { profile?: KableProfile | null } = $props();
 let profiles = $derived(app.profilesService.profiles);
 

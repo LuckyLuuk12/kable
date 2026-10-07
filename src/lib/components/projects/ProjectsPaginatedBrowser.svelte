@@ -202,7 +202,9 @@ function handleScroll() {
 }
 
 $effect(() => {
-  if (!profile) {
+  const profileId = profile?.id;
+
+  if (!profileId) {
     results = null;
     error = null;
     resetPages();

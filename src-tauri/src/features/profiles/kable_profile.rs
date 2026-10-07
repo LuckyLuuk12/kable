@@ -130,7 +130,7 @@ pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
 
     profiles.sort_by(|a, b| b.metadata.last_used.cmp(&a.metadata.last_used));
 
-    save_profiles(&profiles).await?;
+    // save_profiles(&profiles).await?; // TODO: check if this is necessary or only causes async saving/caching issues
     Ok(profiles)
 }
 

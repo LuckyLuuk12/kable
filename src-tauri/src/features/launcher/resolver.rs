@@ -1,4 +1,5 @@
 use crate::{
+    features::launcher::runtime::MinecraftRuntime,
     integrations::minecraft::{
         assets::AssetResolver,
         libraries::LibraryResolver,
@@ -227,6 +228,7 @@ async fn replace_variables(
     manifest: &McVersionManifest,
     classpath: &str,
     log_config_path: Option<&Path>,
+    game_dir: &Path,
 ) -> Result<String, String> {
     let mc_root = crate::system::fs::mc_dir()?;
 
@@ -258,7 +260,9 @@ async fn replace_variables(
 
     result = result.replace("${assets_root}", &assets_root.to_string_lossy());
 
-    result = result.replace("${game_directory}", &mc_root.to_string_lossy());
+    // The game directory is the isolated Kable runtime, not the user's
+    // original .minecraft directory.
+    result = result.replace("${game_directory}", &game_dir.to_string_lossy());
 
     result = result.replace("${version_name}", &profile.version.id);
 
@@ -335,9 +339,10 @@ async fn resolve_arg(
     classpath: &str,
     context: &RuleContext,
     log_config_path: Option<&Path>,
+    game_dir: &Path,
 ) -> Result<Vec<String>, String> {
     match arg {
-        Arg::String(value) => Ok(vec![replace_variables(value, profile, manifest, classpath, log_config_path).await?]),
+        Arg::String(value) => Ok(vec![replace_variables(value, profile, manifest, classpath, log_config_path, game_dir).await?]),
 
         Arg::Rule(RuleArg { rules, value }) => {
             if !rules_allow(rules.as_ref(), context) {
@@ -349,13 +354,15 @@ async fn resolve_arg(
             };
 
             match value {
-                StringOrList::Single(value) => Ok(vec![replace_variables(value, profile, manifest, classpath, log_config_path).await?]),
+                StringOrList::Single(value) => {
+                    Ok(vec![replace_variables(value, profile, manifest, classpath, log_config_path, game_dir).await?])
+                }
 
                 StringOrList::List(values) => {
                     let mut resolved = Vec::with_capacity(values.len());
 
                     for value in values {
-                        resolved.push(replace_variables(value, profile, manifest, classpath, log_config_path).await?);
+                        resolved.push(replace_variables(value, profile, manifest, classpath, log_config_path, game_dir).await?);
                     }
 
                     Ok(resolved)
@@ -372,11 +379,12 @@ async fn resolve_arguments(
     classpath: &str,
     context: &RuleContext,
     log_config_path: Option<&Path>,
+    game_dir: &Path,
 ) -> Result<Vec<String>, String> {
     let mut resolved = Vec::new();
 
     for arg in args {
-        resolved.extend(resolve_arg(arg, profile, manifest, classpath, context, log_config_path).await?);
+        resolved.extend(resolve_arg(arg, profile, manifest, classpath, context, log_config_path, game_dir).await?);
     }
 
     Ok(resolved)
@@ -388,6 +396,7 @@ async fn resolve_jvm_arguments(
     classpath: &str,
     context: &RuleContext,
     log_config_path: Option<&Path>,
+    game_dir: &Path,
 ) -> Result<Vec<String>, String> {
     let Some(arguments) = &manifest.arguments else {
         return Ok(Vec::new());
@@ -398,23 +407,23 @@ async fn resolve_jvm_arguments(
             let mut args = Vec::new();
 
             if let Some(jvm) = &arguments.jvm {
-                args.extend(resolve_arguments(jvm, profile, manifest, classpath, context, log_config_path).await?);
+                args.extend(resolve_arguments(jvm, profile, manifest, classpath, context, log_config_path, game_dir).await?);
             }
 
             if let Some(default_user_jvm) = &arguments.default_user_jvm {
-                args.extend(resolve_arguments(default_user_jvm, profile, manifest, classpath, context, log_config_path).await?);
+                args.extend(resolve_arguments(default_user_jvm, profile, manifest, classpath, context, log_config_path, game_dir).await?);
             }
 
             Ok(args)
         }
 
-        Arguments::Mixed(arguments) => resolve_arguments(arguments, profile, manifest, classpath, context, log_config_path).await,
+        Arguments::Mixed(arguments) => resolve_arguments(arguments, profile, manifest, classpath, context, log_config_path, game_dir).await,
 
         Arguments::Flat(arguments) => {
             let mut args = Vec::with_capacity(arguments.len());
 
             for argument in arguments {
-                args.push(replace_variables(argument, profile, manifest, classpath, log_config_path).await?);
+                args.push(replace_variables(argument, profile, manifest, classpath, log_config_path, game_dir).await?);
             }
 
             Ok(args)
@@ -428,6 +437,7 @@ async fn resolve_game_arguments(
     classpath: &str,
     context: &RuleContext,
     log_config_path: Option<&Path>,
+    game_dir: &Path,
 ) -> Result<Vec<String>, String> {
     let Some(arguments) = &manifest.arguments else {
         return Ok(Vec::new());
@@ -438,19 +448,19 @@ async fn resolve_game_arguments(
             let mut args = Vec::new();
 
             if let Some(game) = &arguments.game {
-                args.extend(resolve_arguments(game, profile, manifest, classpath, context, log_config_path).await?);
+                args.extend(resolve_arguments(game, profile, manifest, classpath, context, log_config_path, game_dir).await?);
             }
 
             Ok(args)
         }
 
-        Arguments::Mixed(arguments) => resolve_arguments(arguments, profile, manifest, classpath, context, log_config_path).await,
+        Arguments::Mixed(arguments) => resolve_arguments(arguments, profile, manifest, classpath, context, log_config_path, game_dir).await,
 
         Arguments::Flat(arguments) => {
             let mut args = Vec::with_capacity(arguments.len());
 
             for argument in arguments {
-                args.push(replace_variables(argument, profile, manifest, classpath, log_config_path).await?);
+                args.push(replace_variables(argument, profile, manifest, classpath, log_config_path, game_dir).await?);
             }
 
             Ok(args)
@@ -498,7 +508,7 @@ fn add_client_jar_to_classpath(library_classpath: String, client_jar: &Path) -> 
     format!("{}{}{}", library_classpath, classpath_separator(), client_jar.to_string_lossy())
 }
 
-async fn build_command(manifest: &McVersionManifest, profile: &KableProfile) -> Result<Command, String> {
+async fn build_command(manifest: &McVersionManifest, profile: &KableProfile, game_dir: &Path) -> Result<Command, String> {
     let asset_resolver = AssetResolver::new()?;
     let library_resolver = LibraryResolver::new()?;
     let native_resolver = NativeResolver::new()?;
@@ -544,9 +554,9 @@ async fn build_command(manifest: &McVersionManifest, profile: &KableProfile) -> 
         is_quick_play_realms: false,
     };
 
-    let mut jvm_args = resolve_jvm_arguments(manifest, profile, &classpath, &context, log_config_path.as_deref()).await?;
+    let mut jvm_args = resolve_jvm_arguments(manifest, profile, &classpath, &context, log_config_path.as_deref(), game_dir).await?;
 
-    let game_args = resolve_game_arguments(manifest, profile, &classpath, &context, log_config_path.as_deref()).await?;
+    let game_args = resolve_game_arguments(manifest, profile, &classpath, &context, log_config_path.as_deref(), game_dir).await?;
 
     /*
      * The classpath is normally supplied by the manifest.
@@ -567,23 +577,22 @@ async fn build_command(manifest: &McVersionManifest, profile: &KableProfile) -> 
     if let Some(logging) = &manifest.logging {
         if let Some(client) = &logging.client {
             if let Some(argument) = &client.argument {
-                jvm_args.push(replace_variables(argument, profile, manifest, &classpath, log_config_path.as_deref()).await?);
+                jvm_args.push(replace_variables(argument, profile, manifest, &classpath, log_config_path.as_deref(), game_dir).await?);
             }
         }
     }
 
     let main_class = manifest.main_class.as_deref().ok_or_else(|| format!("Minecraft manifest {} has no main class", manifest.id))?;
 
-    let mc_root = crate::system::fs::mc_dir()?;
-
     let mut cmd = Command::new(&java_path);
 
-    cmd.current_dir(mc_root);
     cmd.args(&jvm_args);
     cmd.arg(main_class);
     cmd.args(&game_args);
 
     Logger::debug_global(format!("Java executable: {}", java_path).as_str(), Some(profile.id.as_str()));
+
+    Logger::debug_global(format!("Game directory: {}", game_dir.display()).as_str(), Some(profile.id.as_str()));
 
     Logger::debug_global(format!("Natives directory: {}", natives_dir.display()).as_str(), Some(profile.id.as_str()));
 
@@ -605,7 +614,7 @@ async fn build_command(manifest: &McVersionManifest, profile: &KableProfile) -> 
     Ok(cmd)
 }
 
-pub async fn resolve(profile: KableProfile) -> Result<Command, String> {
+pub async fn resolve(profile: KableProfile, game_dir: &Path) -> Result<Command, String> {
     let manifest_path = crate::system::fs::mc_dir()?
         .join(crate::constants::VERSIONS_DIR)
         .join(&profile.version.id)
@@ -617,5 +626,5 @@ pub async fn resolve(profile: KableProfile) -> Result<Command, String> {
 
     let resolved = crate::integrations::minecraft::manifest::resolve_manifest_chain(manifest).await?;
 
-    build_command(&resolved, &profile).await
+    build_command(&resolved, &profile, game_dir).await
 }

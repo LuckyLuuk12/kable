@@ -3,32 +3,64 @@ use api_types::profiles::KableProfile;
 use api_types::symlinks::{Symlink, SymlinkCreateRequest};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-use tokio::sync::Mutex;
+use std::path::{Path, PathBuf};
+use tokio::sync::{Mutex, MutexGuard};
 
 static SYMLINKS: Lazy<Mutex<SymlinkManager>> = Lazy::new(|| Mutex::new(SymlinkManager::new()));
 
 /*
-"on disk": The actual symlink that exists in the filesystem,
-"in memory": The representation of the symlink in the SymlinkManager's data structures (temporary_symlinks and symlinks),
-"in config": The representation of the symlink in the custom_symlinks.json file in the launcher directory.
+"on disk": The actual symlink that exists in the filesystem.
+"in memory": The representation of the symlink in the SymlinkManager's data
+             structures (temporary_symlinks and symlinks).
+"in config": The representation of a persistent custom symlink in
+             custom_symlinks.json.
 
+There are two kinds of symlinks managed by Kable:
 
-pub struct Symlink {
-    pub id: String, // unique identifier being hash of source+destination.
-    pub source: PathBuf,
-    pub destination: PathBuf,
-    pub is_temporary: bool,  // if true, this symlink is temporary and should be removed on launcher exit/ once a profile is "exited"
-    pub enabled: bool,       // if false, this symlink is disabled and should not be created on startup
-    pub from_launcher: bool, // if true, this symlink was created by the launcher (either temporary or custom), if false, it was imported from existing symlinks
-}
+1. Persistent custom symlinks
+
+   These are created by the user through the launcher frontend.
+
+   They:
+   - are stored in `symlinks`
+   - are persisted to `custom_symlinks.json`
+   - can be enabled/disabled/updated/removed by the user
+   - survive launcher restarts
+
+2. Temporary runtime symlinks
+
+   These are created internally by the runtime system.
+
+   They:
+   - are stored in `temporary_symlinks`, grouped by profile ID
+   - are never persisted to `custom_symlinks.json`
+   - exist only while their corresponding runtime is active
+   - are removed when the profile runtime is cleaned up or when the launcher exits
+
+The symlink manager owns the low-level filesystem operations. Higher-level
+systems such as the Minecraft runtime decide which paths should be linked.
 */
+
 pub struct SymlinkManager {
-    // if inside .minecraft folder we have allowed_symlinks.txt with "[regex].*". AND the user has enabled this feature. basically when the manager has been initialized properly.
+    /// True once the manager has initialized the symlink support files and
+    /// loaded the persistent custom symlink configuration.
     enabled: bool,
-    // The temporary symlinks of which the destination part should be removed on exit. key=profile.id
-    temporary_symlinks: HashMap<String, Symlink>,
-    // The custom symlinks that the user has created via the launcher, or were found within .minecraft folder by scanning for existing symlinks.
-    // once found by scanning they are included in the launcher_dir().join(constants::CUSTOM_SYMLINKS_FILE) file, and can be enabled/disabled via the launcher.
+
+    /// Temporary runtime symlinks grouped by profile ID.
+    ///
+    /// A single profile can have many temporary symlinks, for example:
+    ///
+    ///     profile-id -> [
+    ///         mods/foo.jar,
+    ///         mods/bar.jar,
+    ///         assets -> ...
+    ///     ]
+    temporary_symlinks: HashMap<String, Vec<Symlink>>,
+
+    /// Persistent custom symlinks created by the user or imported from the
+    /// existing `.minecraft` directory.
+    ///
+    /// These are persisted to `custom_symlinks.json`.
     symlinks: Vec<Symlink>,
 }
 
@@ -37,35 +69,104 @@ impl SymlinkManager {
         Self { enabled: false, temporary_symlinks: HashMap::new(), symlinks: Vec::new() }
     }
 
-    // Load and Save the self.symlinks from/to disk using launcher_dir().join(constants::CUSTOM_SYMLINKS_FILE)
-    async fn load(&mut self) -> Result<Vec<Symlink>, String> {
+    /// Load persistent custom symlinks from disk.
+    async fn load(&mut self) -> Result<(), String> {
         let custom_symlinks_path = fs::launcher_dir()?.join(crate::constants::CUSTOM_SYMLINKS_FILE);
-        let contents = fs::read_str(custom_symlinks_path).await?;
-        let symlinks: Vec<Symlink> = serde_json::from_str(&contents).map_err(|e| e.to_string())?;
-        self.symlinks = symlinks.clone();
-        Ok(symlinks)
-    }
-    /// Save the self.symlinks to config using launcher_dir().join(constants::CUSTOM_SYMLINKS_FILE)
-    async fn save(&mut self) -> Result<(), String> {
-        let custom_symlinks_path = fs::launcher_dir()?.join(crate::constants::CUSTOM_SYMLINKS_FILE);
-        let contents = serde_json::to_string_pretty(&self.symlinks).map_err(|e| e.to_string())?;
-        fs::write_str(custom_symlinks_path, &contents, false).await?;
+
+        let contents = match fs::read_str(&custom_symlinks_path).await {
+            Ok(contents) => contents,
+            Err(_) => {
+                self.symlinks.clear();
+                return Ok(());
+            }
+        };
+
+        if contents.trim().is_empty() {
+            self.symlinks.clear();
+            return Ok(());
+        }
+
+        let symlinks: Vec<Symlink> = serde_json::from_str(&contents)
+            .map_err(|e| format!("Failed to parse custom symlinks {}: {}", custom_symlinks_path.display(), e))?;
+
+        self.symlinks = symlinks;
+
         Ok(())
     }
 
-    /// Make the .minecraft/allowed_symlinks.txt file with "[regex].*" if it doesn't exist, or append the line if it doesn't contain it yet. This is required for symlinks to work in Minecraft.
-    /// Then load self.symlinks from disk
-    /// Then scan/walk .minecraft and find all existing symlinks and add them to self.symlinks if they are not already present.
-    /// Then make sure all loaded symlinks are enabled if they are supposed to be enabled, and disabled if they are supposed to be disabled.
-    /// This is done by checking if the source file/dir exists and if the destination file/dir exists and is a symlink to the source.
-    /// Then set self.enabled = true if the file is now correct, or false if it failed.
+    /// Save persistent custom symlinks to disk.
+    async fn save(&self) -> Result<(), String> {
+        let custom_symlinks_path = fs::launcher_dir()?.join(crate::constants::CUSTOM_SYMLINKS_FILE);
+
+        let contents = serde_json::to_string_pretty(&self.symlinks).map_err(|e| e.to_string())?;
+
+        fs::write_str(custom_symlinks_path, &contents, false).await?;
+
+        Ok(())
+    }
+
+    /// Initialize the symlink manager.
+    ///
+    /// This:
+    ///
+    /// 1. Ensures Minecraft allows the symlinks Kable creates.
+    /// 2. Loads persistent custom symlinks.
+    /// 3. Scans `.minecraft` for existing symlinks and imports unknown ones.
+    /// 4. Recreates enabled persistent custom symlinks.
+    /// 5. Removes disabled persistent custom symlinks from disk.
     async fn initialize(&mut self) -> Result<(), String> {
         if self.enabled {
             return Ok(());
         }
+
         let minecraft_path = fs::mc_dir()?;
+
+        self.ensure_allowed_symlinks_file(&minecraft_path).await?;
+
+        // Load the persistent configuration first.
+        self.load().await?;
+
+        // Import existing symlinks from the Minecraft directory.
+        let existing_symlinks = self.scan().await?;
+
+        for symlink in existing_symlinks {
+            if !self.symlinks.iter().any(|existing| existing.id == symlink.id) {
+                self.symlinks.push(symlink);
+            }
+        }
+
+        // Reconcile all persistent symlinks with their configured state.
+        //
+        // At this point `self.symlinks` contains both persisted and imported
+        // symlinks.
+        let symlinks = self.symlinks.clone();
+
+        for symlink in symlinks {
+            if symlink.enabled {
+                if !Self::is_correct_symlink(&symlink).await? {
+                    Self::delete_if_exists(&symlink).await?;
+                    Self::create(&symlink).await?;
+                }
+            } else {
+                Self::delete_if_exists(&symlink).await?;
+            }
+        }
+
+        // Persist imported symlinks as well.
+        self.save().await?;
+
+        self.enabled = true;
+
+        Ok(())
+    }
+
+    /// Ensure `.minecraft/allowed_symlinks.txt` contains the required
+    /// Minecraft symlink permission rule.
+    async fn ensure_allowed_symlinks_file(&self, minecraft_path: &Path) -> Result<(), String> {
         let allowed_symlinks_file = minecraft_path.join(crate::constants::ALLOWED_SYMLINKS_FILE);
+
         let required_line = crate::constants::ALLOW_SYMLINKS_REGEX;
+
         let mut contents = fs::read_str(&allowed_symlinks_file).await.unwrap_or_default();
 
         if !contents.lines().any(|line| line == required_line) {
@@ -78,176 +179,360 @@ impl SymlinkManager {
 
             fs::write_str(&allowed_symlinks_file, &contents, false).await?;
         }
-        // Now scan the .minecraft folder for existing symlinks and add them to self.symlinks if they are not already present.
-        let existing_symlinks = self.scan().await?;
-        // Merge existing symlinks with self.symlinks, ensuring no duplicates based on id
-        for symlink in existing_symlinks {
-            if !self.symlinks.iter().any(|x| x.id == symlink.id) {
-                self.symlinks.push(symlink);
-            }
-        }
-        // load self.symlinks from disk (custom_symlinks.json) and merge with existing symlinks, ensuring no duplicates based on id
-        let loaded_symlinks = self.load().await?;
-        // Now make sure all loaded symlinks are enabled if they are supposed to be enabled, and disabled if they are supposed to be disabled.
-        for symlink in loaded_symlinks.iter() {
-            if symlink.enabled {
-                Self::create(symlink.clone()).await?;
-            } else {
-                Self::delete(symlink).await?;
-            }
-        }
-        self.enabled = true;
+
         Ok(())
     }
-    /// Remove all temporary symlinks from disk and memory (and "destroy" them), also disable all custom symlinks (but don't remove them from memory or disk, just disable them). This is called on exit of the launcher.
+
+    /// Remove all temporary runtime symlinks and disable all persistent
+    /// custom symlinks.
+    ///
+    /// This is intended to be called when the launcher exits.
     async fn cleanup(&mut self) -> Result<(), String> {
-        // Remove all temporary symlinks from disk and memory
-        for (_, symlink) in self.temporary_symlinks.iter() {
-            if symlink.enabled {
-                Self::delete(symlink).await?;
+        let temporary = std::mem::take(&mut self.temporary_symlinks);
+
+        for (_, symlinks) in temporary {
+            for symlink in symlinks {
+                Self::delete_if_exists(&symlink).await?;
             }
         }
-        self.temporary_symlinks.clear();
-        // Disable all custom symlinks (but don't remove them from memory or disk, just disable them)
-        for symlink in self.symlinks.iter_mut() {
+
+        for symlink in &mut self.symlinks {
             if symlink.enabled {
+                Self::delete_if_exists(symlink).await?;
                 symlink.enabled = false;
-                Self::delete(symlink).await?;
             }
         }
+
+        self.save().await?;
+
         Ok(())
     }
 
-    // Add, remove, update, toggle symlinks in memory and on disk. These are for custom symlinks only, not temporary symlinks.
+    /// Remove all temporary symlinks belonging to one profile.
+    async fn cleanup_profile(&mut self, profile_id: &str) -> Result<(), String> {
+        let Some(symlinks) = self.temporary_symlinks.remove(profile_id) else {
+            return Ok(());
+        };
 
-    /// Update a symlink in memory and on disk. This is for custom symlinks only, not temporary symlinks. If the old symlink is enabled, it will be deleted from disk. If the new symlink is enabled, it will be created on disk. If the new symlink is disabled, it will not be created on disk.
-    async fn update(&mut self, old: Symlink, new: Symlink) -> Result<Symlink, String> {
-        // Find old symlink in self.symlinks, replace it with new. Then save to disk. Return the new symlink.
-        if let Some(pos) = self.symlinks.iter().position(|x| x.id == old.id) {
-            self.symlinks[pos] = new.clone();
-            // remove the old symlink on disk if it exists, and create the new symlink on disk if it is enabled. If the new symlink is disabled, don't create it on disk.
-            if let Some(old_link) = self.symlinks.get(pos) {
-                if old_link.enabled {
-                    Self::delete(old_link).await?;
-                }
-            }
-            if new.enabled {
-                Self::create(new.clone()).await?;
-            }
-            self.save().await?;
-            Ok(new)
-        } else {
-            Err("Symlink not found".to_string())
+        for symlink in symlinks {
+            Self::delete_if_exists(&symlink).await?;
         }
+
+        Ok(())
     }
-    async fn add(&mut self, link: Symlink) -> Result<Symlink, String> {
+
+    /// Create a persistent custom symlink in memory and on disk.
+    async fn add(&mut self, mut link: Symlink) -> Result<Symlink, String> {
+        link.is_temporary = false;
+        link.from_launcher = true;
+
+        if self.symlinks.iter().any(|existing| existing.id == link.id) {
+            return Err("Symlink already exists".to_string());
+        }
+
+        if link.enabled {
+            Self::create(&link).await?;
+        }
+
         self.symlinks.push(link.clone());
         self.save().await?;
+
         Ok(link)
     }
-    /// Remove a symlink from memory and disk. This is for custom symlinks only, not temporary symlinks. If the symlink is enabled, it will be deleted from disk. If it is disabled, it will just be removed from memory and disk.
+
+    /// Remove a persistent custom symlink.
     async fn remove(&mut self, link: &Symlink) -> Result<(), String> {
-        if let Some(pos) = self.symlinks.iter().position(|x| x.id == link.id) {
-            self.symlinks.remove(pos);
-            if link.enabled {
-                Self::delete(link).await?;
-            }
-            self.save().await?;
-            Ok(())
-        } else {
-            Err("Symlink not found".to_string())
-        }
+        let Some(pos) = self.symlinks.iter().position(|x| x.id == link.id) else {
+            return Err("Symlink not found".to_string());
+        };
+
+        let existing = self.symlinks.remove(pos);
+
+        Self::delete_if_exists(&existing).await?;
+
+        self.save().await?;
+
+        Ok(())
     }
-    /// Toggle a symlink in memory and on disk. If it is enabled, disable it. If it is disabled, enable it. Return the new symlink.
+
+    /// Update a persistent custom symlink.
+    ///
+    /// The old filesystem symlink is removed before the new one is created.
+    async fn update(&mut self, old: Symlink, mut new: Symlink) -> Result<Symlink, String> {
+        let Some(pos) = self.symlinks.iter().position(|x| x.id == old.id) else {
+            return Err("Symlink not found".to_string());
+        };
+
+        new.is_temporary = false;
+        new.from_launcher = true;
+
+        let old_link = self.symlinks[pos].clone();
+
+        // Remove the old filesystem entry first.
+        Self::delete_if_exists(&old_link).await?;
+
+        // If the new link is enabled, create it before modifying the in-memory
+        // configuration. This prevents the manager from claiming a link exists
+        // when creation failed.
+        if new.enabled {
+            if let Err(error) = Self::create(&new).await {
+                // Attempt to restore the previous link if it was enabled.
+                if old_link.enabled {
+                    let _ = Self::create(&old_link).await;
+                }
+
+                return Err(error);
+            }
+        }
+
+        self.symlinks[pos] = new.clone();
+
+        if let Err(error) = self.save().await {
+            // Best-effort filesystem rollback.
+            let _ = Self::delete_if_exists(&new).await;
+
+            if old_link.enabled {
+                let _ = Self::create(&old_link).await;
+            }
+
+            self.symlinks[pos] = old_link;
+
+            return Err(error);
+        }
+
+        Ok(new)
+    }
+
+    /// Toggle a persistent custom symlink.
     async fn toggle(&mut self, link: &Symlink) -> Result<Symlink, String> {
         let mut new_link = link.clone();
         new_link.enabled = !link.enabled;
-        self.update(link.clone(), new_link.clone()).await?;
-        Ok(new_link)
+
+        self.update(link.clone(), new_link).await
     }
 
-    /// Make sure a KableProfile gets it dedicated_resource_packs_folder and/or dedicated_shaders_folder symlinked to .minecraft/resourcepacks and .minecraft/shaderpacks respectively.
-    /// Checks if these are not already existing, source is not already .minecraft/resourcepacks or .minecraft/shaderpacks and if source exists.
-    /// Symlinks created with this function are temporary and will be removed on exit of the launcher. If the profile has no dedicated folders, do nothing.
-    async fn setup_profile_symlinks(&mut self, _profile: &KableProfile) -> Result<(), String> {
-        // TODO: We will have "projects" in global folders which we should symlink to temp/session ones and also implement cleanup
-        // if let Some(dedicated_resourcepacks_folder) = &profile.dedicated_resource_pack_folder {
-        //     let source = std::path::PathBuf::from(dedicated_resourcepacks_folder);
-        //     let destination = fs::mc_dir()?.join(crate::constants::RESOURCEPACKS_DIR);
-        //     let symlink = Symlink::new(source, destination, true, true, true);
-        //     Self::create(symlink).await?;
-        // }
-        // if let Some(dedicated_shaderpacks_folder) = &profile.dedicated_shaders_folder {
-        //     let source = std::path::PathBuf::from(dedicated_shaderpacks_folder);
-        //     let destination = fs::mc_dir()?.join(crate::constants::SHADERPACKS_DIR);
-        //     let symlink = Symlink::new(source, destination, true, true, true);
-        //     Self::create(symlink).await?;
-        // }
-        Ok(())
+    /// Create a temporary symlink belonging to a profile runtime.
+    ///
+    /// Temporary symlinks are not persisted to `custom_symlinks.json`.
+    async fn create_temporary(&mut self, profile_id: &str, source: PathBuf, destination: PathBuf) -> Result<Symlink, String> {
+        let link = Symlink::new(source, destination, true, true, true);
+
+        // Do not silently create duplicate runtime links.
+        if let Some(existing) =
+            self.temporary_symlinks.get(profile_id).and_then(|links| links.iter().find(|existing| existing.id == link.id))
+        {
+            return Ok(existing.clone());
+        }
+
+        Self::create(&link).await?;
+
+        self.temporary_symlinks.entry(profile_id.to_string()).or_default().push(link.clone());
+
+        Ok(link)
     }
 
-    /// Create or delete the actual symlink on disk using the source and destination paths.
-    /// This is done by checking if the source file/dir exists and then create the symlink at the destination path
-    async fn create(link: Symlink) -> Result<(), String> {
+    /// Create or delete the actual symlink on disk.
+    async fn create(link: &Symlink) -> Result<(), String> {
         if !link.enabled {
             return Err("Symlink is not enabled".to_string());
         }
+
         if link.source == link.destination {
             return Err("Source and destination are the same, cannot create symlink".to_string());
         }
+
         if !link.source.exists() {
             return Err(format!("Source path does not exist: {}", link.source.display()));
         }
-        if link.destination.exists() {
+
+        if Self::path_exists_without_following_symlinks(&link.destination).await? {
             return Err(format!("Destination path already exists: {}", link.destination.display()));
         }
-        // Create the symlink using std::os::unix::fs::symlink or std::os::windows::fs::symlink_file/symlink_dir depending on the platform
+
+        if let Some(parent) = link.destination.parent() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .map_err(|e| format!("Failed to create symlink parent directory {}: {}", parent.display(), e))?;
+        }
+
         #[cfg(unix)]
         {
-            std::os::unix::fs::symlink(&link.source, &link.destination).map_err(|e| e.to_string())?;
+            std::os::unix::fs::symlink(&link.source, &link.destination)
+                .map_err(|e| format!("Failed to create symlink {} -> {}: {}", link.destination.display(), link.source.display(), e))?;
         }
+
         #[cfg(windows)]
         {
             if link.source.is_dir() {
-                std::os::windows::fs::symlink_dir(&link.source, &link.destination).map_err(|e| e.to_string())?;
+                std::os::windows::fs::symlink_dir(&link.source, &link.destination).map_err(|e| {
+                    format!("Failed to create directory symlink {} -> {}: {}", link.destination.display(), link.source.display(), e)
+                })?;
             } else {
-                std::os::windows::fs::symlink_file(&link.source, &link.destination).map_err(|e| e.to_string())?;
+                std::os::windows::fs::symlink_file(&link.source, &link.destination).map_err(|e| {
+                    format!("Failed to create file symlink {} -> {}: {}", link.destination.display(), link.source.display(), e)
+                })?;
             }
         }
+
         Ok(())
     }
-    /// Delete the symlink on disk using the destination path. This is done by checking if the destination path exists and is a symlink, and then remove it.
+
+    /// Delete a symlink from disk.
+    ///
+    /// Unlike `Path::exists()`, symlink metadata is used so dangling symlinks
+    /// are also detected and removed.
     async fn delete(link: &Symlink) -> Result<(), String> {
-        if !link.destination.exists() {
-            return Err(format!("Destination path does not exist: {}", link.destination.display()));
-        }
-        if !link.destination.is_symlink() {
+        let metadata = match tokio::fs::symlink_metadata(&link.destination).await {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(());
+            }
+            Err(error) => {
+                return Err(format!("Failed to inspect symlink destination {}: {}", link.destination.display(), error));
+            }
+        };
+
+        if !metadata.file_type().is_symlink() {
             return Err(format!("Destination path is not a symlink: {}", link.destination.display()));
         }
-        std::fs::remove_file(&link.destination).map_err(|e| e.to_string())
+
+        tokio::fs::remove_file(&link.destination)
+            .await
+            .map_err(|e| format!("Failed to remove symlink {}: {}", link.destination.display(), e))
     }
 
-    // scans/walksdir .minecraft recursively to find existing symlinks (likely not managed by the launcher) and basically "imports" them
-    async fn scan(&mut self) -> Result<Vec<Symlink>, String> {
-        // Use walkdir to recursively scan .minecraft for symlinks, and return a Vec<Symlink> of them. If they are not already in self.symlinks, add them to self.symlinks and save to disk.
-        let minecraft_path = fs::mc_dir()?;
-        let mut symlinks = Vec::new();
-        for entry in walkdir::WalkDir::new(&minecraft_path).into_iter().filter_map(|e| e.ok()) {
-            if entry.metadata().is_ok_and(|m| m.is_symlink()) {
-                // Check if the symlink id ("source.display()-destination.display()") is already in self.symlinks, if not, add it to symlinks and self.symlinks and save to disk.
-                let source = std::fs::read_link(entry.path()).map_err(|e| format!("read_link failed: {}", e))?;
-                let id = format!("{}-{}", source.display(), entry.path().display());
-                if !self.symlinks.iter().any(|l| l.id == id) {
-                    symlinks.push(Symlink::new(source, entry.path().to_path_buf(), false, true, false));
+    /// Delete a symlink if it exists.
+    async fn delete_if_exists(link: &Symlink) -> Result<(), String> {
+        match tokio::fs::symlink_metadata(&link.destination).await {
+            Ok(metadata) => {
+                if !metadata.file_type().is_symlink() {
+                    return Err(format!("Destination path is not a symlink: {}", link.destination.display()));
                 }
+
+                tokio::fs::remove_file(&link.destination)
+                    .await
+                    .map_err(|e| format!("Failed to remove symlink {}: {}", link.destination.display(), e))?;
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                // Already removed.
+            }
+            Err(error) => {
+                return Err(format!("Failed to inspect symlink destination {}: {}", link.destination.display(), error));
             }
         }
+
+        Ok(())
+    }
+
+    /// Check whether a filesystem path exists without following symlinks.
+    async fn path_exists_without_following_symlinks(path: &Path) -> Result<bool, String> {
+        match tokio::fs::symlink_metadata(path).await {
+            Ok(_) => Ok(true),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(error) => Err(format!("Failed to inspect path {}: {}", path.display(), error)),
+        }
+    }
+
+    /// Check whether the destination is a symlink pointing to the expected
+    /// source.
+    async fn is_correct_symlink(link: &Symlink) -> Result<bool, String> {
+        let metadata = match tokio::fs::symlink_metadata(&link.destination).await {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return Ok(false);
+            }
+            Err(error) => {
+                return Err(format!("Failed to inspect symlink destination {}: {}", link.destination.display(), error));
+            }
+        };
+
+        if !metadata.file_type().is_symlink() {
+            return Ok(false);
+        }
+
+        let target = tokio::fs::read_link(&link.destination)
+            .await
+            .map_err(|e| format!("Failed to read symlink {}: {}", link.destination.display(), e))?;
+
+        Ok(Self::normalize_symlink_target(&link.destination, &target) == Self::normalize_path(&link.source))
+    }
+
+    /// Normalize a symlink target relative to its destination.
+    ///
+    /// `read_link()` returns a relative target as-is, so it needs to be
+    /// resolved relative to the directory containing the symlink before it
+    /// can be compared to the configured source.
+    fn normalize_symlink_target(destination: &Path, target: &Path) -> PathBuf {
+        if target.is_absolute() {
+            Self::normalize_path(target)
+        } else {
+            let base = destination.parent().unwrap_or_else(|| Path::new(""));
+            Self::normalize_path(&base.join(target))
+        }
+    }
+
+    /// Normalize a path lexically without requiring it to exist.
+    fn normalize_path(path: &Path) -> PathBuf {
+        let mut result = PathBuf::new();
+
+        for component in path.components() {
+            match component {
+                std::path::Component::CurDir => {}
+                std::path::Component::ParentDir => {
+                    result.pop();
+                }
+                component => result.push(component),
+            }
+        }
+
+        result
+    }
+
+    /// Scan `.minecraft` recursively for existing symlinks.
+    ///
+    /// Existing symlinks are imported as persistent custom symlinks with
+    /// `from_launcher = false`.
+    async fn scan(&self) -> Result<Vec<Symlink>, String> {
+        let minecraft_path = fs::mc_dir()?;
+        let mut symlinks = Vec::new();
+
+        for entry in walkdir::WalkDir::new(&minecraft_path).into_iter().filter_map(Result::ok) {
+            let metadata = match entry.path().symlink_metadata() {
+                Ok(metadata) => metadata,
+                Err(_) => continue,
+            };
+
+            if !metadata.file_type().is_symlink() {
+                continue;
+            }
+
+            let destination = entry.path().to_path_buf();
+
+            let source =
+                std::fs::read_link(&destination).map_err(|e| format!("Failed to read symlink {}: {}", destination.display(), e))?;
+
+            let id = Self::symlink_id(&source, &destination);
+
+            if self.symlinks.iter().any(|link| link.id == id) {
+                continue;
+            }
+
+            symlinks.push(Symlink::new(source, destination, false, true, false));
+        }
+
         Ok(symlinks)
+    }
+
+    fn symlink_id(source: &Path, destination: &Path) -> String {
+        format!("{}-{}", source.display(), destination.display())
     }
 }
 
-// ? Public functions which should be used in lib.rs and in tauri command wrappers to get the manager and access to the above functions.
-async fn manager() -> Result<tokio::sync::MutexGuard<'static, SymlinkManager>, String> {
+// -----------------------------------------------------------------------------
+// Manager access
+// -----------------------------------------------------------------------------
+
+async fn manager() -> Result<MutexGuard<'static, SymlinkManager>, String> {
     let mut manager = SYMLINKS.lock().await;
 
     if !manager.enabled {
@@ -257,34 +542,63 @@ async fn manager() -> Result<tokio::sync::MutexGuard<'static, SymlinkManager>, S
     Ok(manager)
 }
 
+// -----------------------------------------------------------------------------
+// Persistent custom symlinks
+// -----------------------------------------------------------------------------
+
+/// Return all persistent custom symlinks.
 pub async fn symlinks() -> Result<Vec<Symlink>, String> {
     Ok(manager().await?.symlinks.clone())
 }
 
-pub async fn temporary_symlinks() -> Result<HashMap<String, Symlink>, String> {
-    Ok(manager().await?.temporary_symlinks.clone())
-}
-
+/// Create a persistent custom symlink.
 pub async fn create(link: SymlinkCreateRequest) -> Result<Symlink, String> {
     manager().await?.add(link.into()).await
 }
 
+/// Remove a persistent custom symlink.
 pub async fn remove(link: &Symlink) -> Result<(), String> {
     manager().await?.remove(link).await
 }
 
+/// Toggle a persistent custom symlink.
 pub async fn toggle(link: &Symlink) -> Result<Symlink, String> {
     manager().await?.toggle(link).await
 }
 
+/// Update a persistent custom symlink.
 pub async fn update(old: Symlink, new: Symlink) -> Result<Symlink, String> {
     manager().await?.update(old, new).await
 }
 
-pub async fn setup_profile(profile: &KableProfile) -> Result<(), String> {
-    manager().await?.setup_profile_symlinks(profile).await
+// -----------------------------------------------------------------------------
+// Temporary runtime symlinks
+// -----------------------------------------------------------------------------
+
+/// Return all temporary runtime symlinks grouped by profile ID.
+pub async fn temporary_symlinks() -> Result<HashMap<String, Vec<Symlink>>, String> {
+    Ok(manager().await?.temporary_symlinks.clone())
 }
 
+/// Create a temporary symlink belonging to a profile runtime.
+///
+/// Temporary symlinks are not persisted and cannot be manipulated through
+/// the custom symlink API.
+pub async fn create_temporary(profile_id: &str, source: PathBuf, destination: PathBuf) -> Result<Symlink, String> {
+    manager().await?.create_temporary(profile_id, source, destination).await
+}
+
+/// Remove all temporary symlinks belonging to one profile runtime.
+pub async fn cleanup_profile(profile_id: &str) -> Result<(), String> {
+    manager().await?.cleanup_profile(profile_id).await
+}
+
+// -----------------------------------------------------------------------------
+// Launcher lifecycle
+// -----------------------------------------------------------------------------
+
+/// Remove all temporary runtime symlinks and disable all persistent custom
+/// symlinks.
 pub async fn cleanup() -> Result<(), String> {
     manager().await?.cleanup().await
 }
