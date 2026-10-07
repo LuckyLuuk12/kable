@@ -10,8 +10,10 @@ Provides:
 - Installed project management
 - Profile launching
 -->
+
 <script lang="ts">
 import { type ProjectType, app, Icon } from "$lib";
+import { untrack } from "svelte";
 
 import InstalledProjects from "./InstalledProjects.svelte";
 import ProfilePicker from "./ProfilePicker.svelte";
@@ -34,16 +36,44 @@ let pickerCollapsed = $state(false);
 let projectLabel = $derived(projectType === "mod" ? "Mods" : projectType === "resourcepack" ? "Resource Packs" : projectType === "shader" ? "Shaders" : "Modpacks");
 
 let refreshing = $state(false);
+let updatingAll = $state(false);
+let checkingUpdates = $state(false);
+let availableUpdates = $state(0);
 
-$effect(() => {
-  const selectedProfileId = profileId;
-  if (selectedProfileId === null) return;
-  const selectedProfile = app.profilesService.profiles.find((p) => p.id === selectedProfileId) ?? null;
-  if (!selectedProfile) return;
-  if (app.projectsService.loadedForProfileId !== selectedProfileId) {
-    void app.projectsService.select(selectedProfile);
+async function refreshUpdateCount(): Promise<void> {
+  if (!profile) {
+    availableUpdates = 0;
+    return;
   }
-});
+
+  try {
+    const updates = await app.projectsService.checkUpdates(profile, projectType);
+
+    availableUpdates = updates.length;
+  } catch (error) {
+    console.error("[ProjectsPage] Failed to check for updates:", profile.id, error);
+
+    availableUpdates = 0;
+  }
+}
+
+async function checkForUpdates(): Promise<void> {
+  if (!profile || checkingUpdates || updatingAll || refreshing) {
+    return;
+  }
+
+  checkingUpdates = true;
+
+  try {
+    await refreshUpdateCount();
+
+    console.debug("[ProjectsPage] Checked for updates for profile:", profile.id);
+  } catch (error) {
+    console.error("[ProjectsPage] Failed to check for updates for profile:", profile.id, error);
+  } finally {
+    checkingUpdates = false;
+  }
+}
 
 async function refresh(): Promise<void> {
   if (!profile) {
@@ -55,11 +85,39 @@ async function refresh(): Promise<void> {
 
   try {
     await app.projectsService.load(profile, projectType, true);
+    await refreshUpdateCount();
+
     console.debug("[ProjectsPage] Refreshed projects for profile:", profile.id);
   } catch (error) {
     console.error("[ProjectsPage] Failed to refresh projects for profile:", profile.id, error);
   } finally {
     refreshing = false;
+  }
+}
+
+async function updateAll(): Promise<void> {
+  if (!profile || updatingAll || checkingUpdates || refreshing) {
+    return;
+  }
+
+  if (availableUpdates === 0) {
+    await checkForUpdates();
+    return;
+  }
+
+  updatingAll = true;
+
+  try {
+    await app.projectsService.updateAll(profile, projectType);
+
+    await app.projectsService.load(profile, projectType, true);
+    await refreshUpdateCount();
+
+    console.debug("[ProjectsPage] Updated all projects for profile:", profile.id);
+  } catch (error) {
+    console.error("[ProjectsPage] Failed to update all projects for profile:", profile.id, error);
+  } finally {
+    updatingAll = false;
   }
 }
 
@@ -72,11 +130,51 @@ function launch() {
 }
 
 $effect(() => {
+  const selectedProfileId = profileId;
+
+  if (selectedProfileId === null) {
+    availableUpdates = 0;
+    return;
+  }
+
+  untrack(() => {
+    const selectedProfile = app.profilesService.profiles.find((p) => p.id === selectedProfileId) ?? null;
+
+    if (!selectedProfile) {
+      return;
+    }
+
+    if (app.projectsService.loadedForProfileId !== selectedProfileId) {
+      void app.projectsService.select(selectedProfile);
+    }
+  });
+});
+
+$effect(() => {
   const selectedProfileId = app.projectsService.loadedForProfileId;
 
   if (selectedProfileId !== null && selectedProfileId !== profileId) {
     profileId = selectedProfileId;
   }
+});
+
+$effect(() => {
+  const currentProfileId = profileId;
+  const currentProjectType = projectType;
+
+  if (!currentProfileId) {
+    availableUpdates = 0;
+    return;
+  }
+
+  untrack(() => {
+    if (!profile) {
+      availableUpdates = 0;
+      return;
+    }
+
+    void refreshUpdateCount();
+  });
 });
 </script>
 
@@ -126,11 +224,54 @@ $effect(() => {
 
       {#if profile}
         <div class="profile-actions">
+          <button
+            class="update-all-btn"
+            class:updating={updatingAll || checkingUpdates}
+            type="button"
+            onclick={updateAll}
+            disabled={updatingAll || checkingUpdates || refreshing}
+            aria-label={availableUpdates > 0 ? `Update all ${projectLabel.toLowerCase()} (${availableUpdates})` : `Check for ${projectLabel.toLowerCase()} updates`}
+            title={availableUpdates > 0 ? `Update all ${availableUpdates} ${projectLabel.toLowerCase()}` : `Check for ${projectLabel.toLowerCase()} updates`}>
+            <span class="update-all-icon">
+              <Icon name="refresh" forceType="svg" size="sm" />
+            </span>
+
+            {#if availableUpdates > 0}
+              <span>Update all</span>
+
+              <span class="update-count">
+                ({availableUpdates})
+              </span>
+            {:else}
+              <span>Check for updates</span>
+            {/if}
+
+            {#if updatingAll || checkingUpdates}
+              <span class="update-progress" aria-hidden="true"></span>
+            {/if}
+          </button>
+
+          <span class="projects-count">
+            {#if app.projectsService.projects.length > 0}
+              {app.projectsService.projects.length}
+              {projectLabel.toLowerCase()} installed
+            {:else}
+              No {projectLabel.toLowerCase()} installed
+            {/if}
+          </span>
+
           <span class="selected-profile">
             {profile.metadata.name}
           </span>
 
-          <button class="refresh-btn" type="button" onclick={refresh} disabled={refreshing} class:loading={refreshing} aria-label="Refresh" title="Refresh">
+          <button
+            class="refresh-btn"
+            type="button"
+            onclick={refresh}
+            disabled={refreshing || updatingAll || checkingUpdates}
+            class:loading={refreshing}
+            aria-label="Refresh"
+            title="Refresh">
             <Icon name="refresh" forceType="svg" size="sm" />
           </button>
 
@@ -314,13 +455,95 @@ $effect(() => {
   gap: $space-md;
 }
 
-.selected-profile {
+.selected-profile,
+.projects-count {
   max-width: 220px;
   overflow: hidden;
   color: $color-text-muted;
   font-size: 0.8rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.projects-count {
+  padding-right: $space-md;
+  border-right: 1px solid $color-border-muted;
+}
+
+.update-all-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $space-sm;
+  overflow: hidden;
+  padding: $space-sm $space-md;
+  border: 1px solid transparent;
+  border-radius: $radius-md;
+  background: transparent;
+  color: $color-text-muted;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: $color-border;
+    background: $color-hover;
+    color: $color-text;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-focus;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+
+  &.updating {
+    border-color: $color-success;
+    color: $color-success;
+    cursor: wait;
+  }
+}
+
+.update-all-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  .updating & {
+    animation: update-icon-spin 1s linear infinite;
+  }
+}
+
+.update-count {
+  color: $color-warning;
+  font-weight: 600;
+}
+
+.update-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  background: transparent;
+
+  &::before {
+    position: absolute;
+    top: 0;
+    left: -40%;
+    width: 40%;
+    height: 100%;
+    background: $color-success;
+    content: "";
+    animation: update-progress 1.4s ease-in-out infinite;
+  }
 }
 
 .refresh-btn {
@@ -339,7 +562,6 @@ $effect(() => {
   &:hover {
     border-color: $color-border;
     background: $color-hover;
-    color: $color-text;
   }
 
   &:focus-visible {
@@ -365,6 +587,30 @@ $effect(() => {
 
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes update-icon-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes update-progress {
+  0% {
+    left: -40%;
+  }
+
+  50% {
+    left: 60%;
+  }
+
+  100% {
+    left: 100%;
   }
 }
 
@@ -410,37 +656,6 @@ $effect(() => {
     &.active {
       display: flex;
     }
-  }
-}
-
-@media (max-width: 720px) {
-  .profile-panel {
-    flex-basis: 200px;
-    width: 200px;
-    min-width: 200px;
-
-    &.collapsed {
-      flex-basis: 60px;
-      width: 60px;
-      min-width: 60px;
-    }
-  }
-
-  .page-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .navigation {
-    width: 100%;
-  }
-
-  .tab-btn {
-    flex: 1;
-  }
-
-  .profile-actions {
-    justify-content: space-between;
   }
 }
 

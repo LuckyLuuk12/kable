@@ -46,7 +46,7 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
     </div>
   {:else}
     <div class="grid">
-      {#each projects as project (project.project.project_id)}
+      {#each projects as project, i (project.project.project_id + "+" + i)}
         <InstalledProjectCard {profile} {project} />
       {/each}
     </div>

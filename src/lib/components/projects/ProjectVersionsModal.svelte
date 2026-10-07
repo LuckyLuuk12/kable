@@ -7,14 +7,10 @@ Supports both:
 - Project: a Modrinth project that can be installed into a profile.
 - KableProject: an already-installed project that can be updated.
 
-Filtering:
-- Loader: enabled by default.
-- Minecraft version: optional.
-- Loader version: optional.
-
-Search:
-- Fuzzy matching against version name, version number and changelog.
+The modal always treats the selected version ID as authoritative and refreshes
+the profile/project state after an install or update.
 -->
+
 <script lang="ts">
 import { app, type KableProfile, type KableProject, type Project, type ProjectVersion } from "$lib";
 
@@ -30,8 +26,8 @@ let loading = $state(false);
 let search = $state("");
 let showFilters = $state(false);
 let filterCompatibility = $state(true);
-
 let expandedChangelog = $state<string | null>(null);
+let selectedVersionId = $state<string | null>(null);
 
 function isKableProject(value: KableProject | Project): value is KableProject {
   return "version_id" in value;
@@ -41,7 +37,7 @@ let projectData = $derived(isKableProject(project) ? project.project : project);
 
 let installedVersionId = $derived(isKableProject(project) ? project.version_id : null);
 
-let selectedVersionId = $state<string | null>(null);
+let installedVersion = $derived(installedVersionId ? (projectData.versions.find((version) => version.id === installedVersionId) ?? null) : null);
 
 let selectedVersion = $derived(selectedVersionId ? (projectData.versions.find((version) => version.id === selectedVersionId) ?? null) : null);
 
@@ -116,15 +112,15 @@ let filterDescription = $derived.by(() => {
   return "Compatible with profile";
 });
 
-function formatDate(date: string) {
+function formatDate(date: string): string {
   return new Date(date).toLocaleDateString();
 }
 
-function formatDownloads(downloads: number) {
+function formatDownloads(downloads: number): string {
   return downloads.toLocaleString();
 }
 
-function selectVersion(version: ProjectVersion) {
+function selectVersion(version: ProjectVersion): void {
   selectedVersionId = version.id;
 
   if (expandedChangelog !== version.id) {
@@ -132,47 +128,139 @@ function selectVersion(version: ProjectVersion) {
   }
 }
 
-function toggleChangelog(version: ProjectVersion) {
+function toggleChangelog(version: ProjectVersion): void {
   expandedChangelog = expandedChangelog === version.id ? null : version.id;
 }
 
-function clearSearch() {
+function clearSearch(): void {
   search = "";
 }
 
-async function installVersion(version: ProjectVersion) {
+function isVersionCompatible(version: ProjectVersion): boolean {
+  if (!profile) {
+    return false;
+  }
+
+  return app.projectsService.isVersionCompatible(profile, version, projectData.project_type);
+}
+
+/**
+ * Returns the relationship between the installed version and the selected
+ * version based on publication date.
+ *
+ * This is only used for UI wording. The backend receives the exact version
+ * ID and decides whether the requested version is valid for the profile.
+ */
+function getVersionChangeType(installed: ProjectVersion | null, selected: ProjectVersion | null): "same" | "update" | "downgrade" | "change" {
+  if (!installed || !selected) {
+    return "change";
+  }
+
+  if (installed.id === selected.id) {
+    return "same";
+  }
+
+  const installedDate = new Date(installed.date_published).getTime();
+  const selectedDate = new Date(selected.date_published).getTime();
+
+  if (Number.isFinite(installedDate) && Number.isFinite(selectedDate)) {
+    if (selectedDate > installedDate) {
+      return "update";
+    }
+
+    if (selectedDate < installedDate) {
+      return "downgrade";
+    }
+  }
+
+  return "change";
+}
+
+let selectedVersionChange = $derived(isKableProject(project) ? getVersionChangeType(installedVersion, selectedVersion) : null);
+
+let selectedVersionActionLabel = $derived.by(() => {
+  if (!isKableProject(project)) {
+    return "Install this version";
+  }
+
+  switch (selectedVersionChange) {
+    case "same":
+      return "Installed";
+
+    case "update":
+      return "Update to this version";
+
+    case "downgrade":
+      return "Downgrade to this version";
+
+    default:
+      return "Switch to this version";
+  }
+});
+
+async function installVersion(version: ProjectVersion): Promise<void> {
   if (!profile || loading) {
+    return;
+  }
+
+  if (!isVersionCompatible(version)) {
+    console.warn("[ProjectVersionsModal] Refusing to install incompatible version", {
+      project: projectData.project_id,
+      version: version.id,
+      profile: profile.id,
+    });
+
+    return;
+  }
+
+  if (isKableProject(project) && version.id === project.version_id) {
     return;
   }
 
   loading = true;
 
   try {
+    /*
+     * A KableProject already exists in the profile, so changing its version
+     * must always go through update_project.
+     *
+     * Passing Some(version.id) makes this an explicit version change.
+     * The backend can therefore perform both upgrades and downgrades.
+     */
     if (isKableProject(project)) {
-      if (version.id === project.version_id) {
-        return;
-      }
-
-      await app.projectsService.update(profile, {
-        ...project,
-        version_id: version.id,
-      });
-
-      selectedVersionId = version.id;
+      await app.projectsService.update(profile, project, version.id);
     } else {
       await app.projectsService.download(profile, project, version.id);
-
-      selectedVersionId = version.id;
     }
+
+    selectedVersionId = version.id;
   } finally {
     loading = false;
   }
 }
 
+/*
+ * Keep the selected version valid when the project/profile/filter state
+ * changes.
+ *
+ * Priority:
+ * 1. Keep the explicit user selection if it is visible.
+ * 2. Keep the installed version if it is visible.
+ * 3. Select the newest visible version.
+ */
 $effect(() => {
-  if (selectedVersionId === null || !projectData.versions.some((version) => version.id === selectedVersionId)) {
-    selectedVersionId = installedVersionId ?? sortedVersions[0]?.id ?? null;
+  const visibleVersionIds = new Set(sortedVersions.map((version) => version.id));
+
+  if (selectedVersionId !== null && visibleVersionIds.has(selectedVersionId)) {
+    return;
   }
+
+  if (installedVersionId !== null && visibleVersionIds.has(installedVersionId)) {
+    selectedVersionId = installedVersionId;
+    return;
+  }
+
+  selectedVersionId = sortedVersions[0]?.id ?? null;
 });
 </script>
 
@@ -212,10 +300,7 @@ $effect(() => {
   {#if showFilters}
     <section class="filters">
       <div class="filter-header">
-        <div>
-          <strong>Version filters</strong>
-          <span>{filterDescription}</span>
-        </div>
+        <div><strong>Version filters</strong> <span>{filterDescription}</span></div>
 
         <span class="filter-count">
           {sortedVersions.length} / {projectData.versions.length}
@@ -266,6 +351,8 @@ $effect(() => {
 
         {@const changelogOpen = expandedChangelog === version.id}
 
+        {@const isCompatible = !profile || isVersionCompatible(version)}
+
         <article class:installed={isInstalled} class:selected={isSelected} class="version-card">
           <button class="version" type="button" onclick={() => selectVersion(version)}>
             <div class="version-main">
@@ -279,6 +366,10 @@ $effect(() => {
                 {#if isInstalled}
                   <span class="current">Installed</span>
                 {/if}
+
+                {#if profile && !isCompatible}
+                  <span class="incompatible">Incompatible</span>
+                {/if}
               </div>
 
               <span class="version-number">
@@ -289,7 +380,9 @@ $effect(() => {
             <div class="version-meta">
               <span>{formatDate(version.date_published)}</span>
               <span>•</span>
-              <span>{formatDownloads(version.downloads)} downloads</span>
+              <span>
+                {formatDownloads(version.downloads)} downloads
+              </span>
 
               {#if version.loaders.length}
                 <span>•</span>
@@ -308,7 +401,9 @@ $effect(() => {
           {#if version.changelog}
             <button class:open={changelogOpen} class="changelog-toggle" type="button" onclick={() => toggleChangelog(version)}>
               <span>Changelog</span>
-              <span class="chevron">{changelogOpen ? "▴" : "▾"}</span>
+              <span class="chevron">
+                {changelogOpen ? "▴" : "▾"}
+              </span>
             </button>
 
             {#if changelogOpen}
@@ -336,7 +431,11 @@ $effect(() => {
           </span>
 
           {#if isKableProject(project) && selectedVersion.id === project.version_id}
-            <span class="current-badge">Current version</span>
+            <span class="current-badge"> Current version </span>
+          {/if}
+
+          {#if profile && !isVersionCompatible(selectedVersion)}
+            <span class="incompatible-badge"> Incompatible </span>
           {/if}
         </div>
       </div>
@@ -389,16 +488,16 @@ $effect(() => {
           <button
             class="install"
             type="button"
-            disabled={loading || (isKableProject(project) && selectedVersion.id === project.version_id)}
+            disabled={loading || !isVersionCompatible(selectedVersion) || (isKableProject(project) && selectedVersion.id === project.version_id)}
             onclick={() => installVersion(selectedVersion)}>
             {#if loading}
               {isKableProject(project) ? "Updating..." : "Installing..."}
             {:else if isKableProject(project) && selectedVersion.id === project.version_id}
               Installed
-            {:else if isKableProject(project)}
-              Update to this version
+            {:else if !isVersionCompatible(selectedVersion)}
+              Incompatible with profile
             {:else}
-              Install this version
+              {selectedVersionActionLabel}
             {/if}
           </button>
         </footer>
@@ -444,6 +543,7 @@ $effect(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   gap: $space-lg;
 }
 
@@ -506,7 +606,6 @@ $effect(() => {
   width: 100%;
 
   padding: $space-sm $space-md;
-
   padding-right: 2.25rem;
 
   border: 1px solid $color-border;
@@ -722,15 +821,6 @@ $effect(() => {
   }
 }
 
-.filter-note {
-  margin: 0;
-
-  color: $color-text-muted;
-
-  font-size: 0.62rem;
-  line-height: 1.3;
-}
-
 /* Version list */
 
 .versions {
@@ -751,10 +841,6 @@ $effect(() => {
   background: $color-surface-0;
 }
 
-/*
- * Important:
- * Prevent the cards from shrinking inside the scroll container.
- */
 .version-card {
   flex: 0 0 auto;
 
@@ -856,7 +942,9 @@ $effect(() => {
 
 .featured,
 .current,
+.incompatible,
 .current-badge,
+.incompatible-badge,
 .release-badge {
   display: inline-flex;
   align-items: center;
@@ -878,6 +966,12 @@ $effect(() => {
 .current {
   background: rgba(34, 197, 94, 0.12);
   color: $color-success;
+}
+
+.incompatible,
+.incompatible-badge {
+  background: rgba(239, 68, 68, 0.12);
+  color: $color-error;
 }
 
 .release-badge {
@@ -1201,6 +1295,7 @@ $effect(() => {
   .version-main {
     align-items: flex-start;
     flex-direction: column;
+
     gap: $space-xs;
   }
 

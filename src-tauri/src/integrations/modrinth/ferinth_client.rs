@@ -467,7 +467,7 @@ fn convert_version_file(value: FerinthVersionFile) -> VersionFile {
 pub async fn download_project(project: &Project, version_id: Option<&str>, parent_folder: PathBuf) -> Result<Vec<String>, String> {
     let client = reqwest::Client::new();
 
-    let version_id = version_id.or(project.latest_version.as_deref()).unwrap_or_default();
+    let version_id = version_id.ok_or_else(|| format!("No version ID supplied for project {}", project.project_id))?;
 
     let version = project
         .versions
@@ -488,6 +488,8 @@ pub async fn download_project(project: &Project, version_id: Option<&str>, paren
 
         filenames.push(file.filename.clone());
     }
+
+    Logger::debug_global(&format!("Downloaded {} files for project {} version {}", filenames.len(), project.project_id, version_id), None);
 
     Ok(filenames)
 }

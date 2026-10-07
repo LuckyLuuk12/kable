@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, ProjectGalleryModal, ProjectModal, ProjectVersionsModal, type KableProfile, type Project } from "$lib";
+import { app, ProjectGalleryModal, ProjectModal, ProjectVersionsModal, type KableProfile, type Project, type ProjectVersion } from "$lib";
 
 let {
   profile = null,
@@ -12,37 +12,118 @@ let {
 let installing = $state(false);
 let liking = $state(false);
 
+/*
+ * The installed project comes from ProjectsService, which is the
+ * authoritative frontend representation of what is installed for
+ * the selected profile.
+ */
 let installed = $derived(profile ? (app.projectsService.all.find((p) => p.project.project_id === project.project_id) ?? null) : null);
-
-let installedVersion = $derived(installed?.project.versions.find((version) => version.id === installed.version_id) ?? null);
 
 let isInstalled = $derived(installed !== null);
 
-let latestVersion = $derived([...project.versions].sort((a, b) => new Date(b.date_published).getTime() - new Date(a.date_published).getTime())[0] ?? null);
+/*
+ * Find the installed version from the currently browsed project first.
+ *
+ * The project returned by the browser contains the current Modrinth
+ * version data. Fall back to the installed project's embedded version
+ * data if necessary.
+ */
+let installedVersion = $derived.by(() => {
+  if (!installed) return null;
 
-let isUpdateAvailable = $derived(!!installed && !!latestVersion && installed.version_id !== latestVersion.id);
+  return (
+    project.versions.find((version) => version.id === installed.version_id) ?? installed.project.versions.find((version) => version.id === installed.version_id) ?? null
+  );
+});
+
+/*
+ * IMPORTANT:
+ *
+ * Do not use project.latest_version here.
+ *
+ * That field represents Modrinth's globally latest version and can be
+ * for another loader, such as NeoForge, while this profile uses Fabric.
+ *
+ * ProjectsService.isVersionCompatible() mirrors the backend's
+ * compatibility rules:
+ *   - Minecraft version must match
+ *   - mods/modpacks must use the profile's loader
+ *   - resourcepacks/shaders do not require loader matching
+ */
+let compatibleVersions = $derived.by(() => {
+  if (!profile) return [];
+
+  return project.versions.filter((version) => app.projectsService.isVersionCompatible(profile, version, project.project_type));
+});
+
+/*
+ * Match the backend's latest_compatible_version() behavior:
+ * newest compatible version by publication date.
+ */
+let latestCompatibleVersion = $derived.by<ProjectVersion | null>(() => {
+  return [...compatibleVersions].sort((a, b) => new Date(b.date_published).getTime() - new Date(a.date_published).getTime())[0] ?? null;
+});
+
+/*
+ * The backend considers a project updated when the newest compatible
+ * version has a different ID from the installed version.
+ *
+ * We deliberately do not compare against project.latest_version,
+ * because that can be a version for another loader.
+ */
+let isUpdateAvailable = $derived.by(() => {
+  if (!installed || !latestCompatibleVersion) return false;
+
+  return installed.version_id !== latestCompatibleVersion.id;
+});
 
 let hasGallery = $derived((project.gallery?.length ?? 0) > 0);
 
+/*
+ * There is something installable only when we have a compatible
+ * version for the current profile.
+ */
+let canInstall = $derived(!isInstalled && latestCompatibleVersion !== null);
+
+/*
+ * Only show the update action when the backend-equivalent logic says
+ * there is an actual compatible update.
+ */
+let canUpdate = $derived(isInstalled && isUpdateAvailable && latestCompatibleVersion !== null);
+
 async function install() {
-  if (!profile || installing || !latestVersion) return;
+  if (!profile || installing) return;
+
+  /*
+   * Always resolve the version from the same compatible-version
+   * calculation used by the UI.
+   *
+   * Never use project.latest_version here.
+   */
+  const version = latestCompatibleVersion;
+
+  if (!version) return;
+
+  if (installed && !isUpdateAvailable) return;
 
   installing = true;
 
   try {
     if (installed) {
-      if (!isUpdateAvailable) return;
-
-      await app.projectsService.update(profile, {
-        ...installed,
-        project: {
-          ...installed.project,
-          versions: project.versions,
-        },
-        version_id: latestVersion.id,
-      });
+      /*
+       * Pass the selected Modrinth version ID explicitly.
+       *
+       * The backend then validates the ID against the profile and
+       * downloads exactly that version.
+       */
+      await app.projectsService.update(profile, installed, version.id);
     } else {
-      await app.projectsService.download(profile, project, latestVersion.id);
+      /*
+       * Explicitly install the newest compatible version rather than
+       * allowing the backend/download layer to fall back to
+       * project.latest_version.
+       */
+      await app.projectsService.download(profile, project, version.id);
     }
   } finally {
     installing = false;
@@ -151,14 +232,12 @@ function showGallery() {
 
     <button class="action-button" type="button" onclick={showDetails}> Details </button>
 
-    {#if profile}
-      <button class="action-button primary" type="button" disabled={!latestVersion || installing} onclick={install}>
+    {#if profile && (canInstall || canUpdate)}
+      <button class="action-button primary" type="button" disabled={installing} onclick={install}>
         {#if installing}
-          {isInstalled ? "Updating..." : "Installing..."}
-        {:else if isUpdateAvailable}
+          {canUpdate ? "Updating..." : "Installing..."}
+        {:else if canUpdate}
           Update
-        {:else if isInstalled}
-          Installed
         {:else}
           Install
         {/if}
@@ -184,7 +263,8 @@ function showGallery() {
   transition:
     border-color 0.15s ease,
     background 0.15s ease,
-    box-shadow 0.15s ease;
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
 
   &:hover {
     border-color: $color-border;
@@ -192,7 +272,14 @@ function showGallery() {
   }
 
   &.installed {
-    border-color: $color-accent-active;
+    border-color: $color-accent-muted;
+    opacity: 0.475;
+
+    &:hover {
+      border-color: $color-accent;
+      background: $color-surface-2;
+      opacity: 0.88;
+    }
   }
 }
 

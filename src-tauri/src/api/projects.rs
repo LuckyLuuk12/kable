@@ -50,8 +50,8 @@ pub async fn check_for_updates(profile: KableProfile, project_type: ProjectType)
 
 #[tauri::command]
 #[specta::specta]
-pub async fn update_project(profile: KableProfile, kable_project: KableProject) -> Result<KableProject, String> {
-    management::update_project(profile, kable_project).await
+pub async fn update_project(profile: KableProfile, kable_project: KableProject, version_id: Option<&str>) -> Result<KableProject, String> {
+    management::update_project(profile, kable_project, version_id).await
 }
 
 #[tauri::command]

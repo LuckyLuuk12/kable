@@ -39,6 +39,8 @@ let query = $state(search.trim());
 let index = $state<SearchIndex>("relevance");
 let offset = $state(0);
 
+let browserRoot: HTMLDivElement | null = null;
+
 let projectResults = $derived(results?.hits ?? []);
 
 let hasNextPage = $derived(results !== null && results.offset + results.limit < results.total_hits);
@@ -49,6 +51,10 @@ let requestId = 0;
 let loadingTimer: ReturnType<typeof setTimeout> | null = null;
 let prefetching = new Set<number>();
 let pageCache = new Map<number, ModrinthResults>();
+
+let visibilityObserver: ResizeObserver | null = null;
+let isVisible = $state(false);
+let hasInitialized = false;
 
 function clearLoadingTimer() {
   if (loadingTimer !== null) {
@@ -67,15 +73,61 @@ function createRequest(targetOffset: number): ProjectSearch {
   };
 }
 
+function checkVisibility(): boolean {
+  if (!browserRoot) {
+    return false;
+  }
+
+  const rect = browserRoot.getBoundingClientRect();
+
+  return rect.width > 0 && rect.height > 0 && browserRoot.getClientRects().length > 0;
+}
+
+function updateVisibility(): void {
+  const visible = checkVisibility();
+
+  if (visible === isVisible) {
+    return;
+  }
+
+  isVisible = visible;
+
+  console.debug("[ProjectsBrowser] Visibility changed:", visible);
+
+  if (!visible) {
+    return;
+  }
+
+  /*
+   * The component can be mounted while its parent is display:none.
+   * Only perform the initial Modrinth request after it becomes visible.
+   */
+  if (!hasInitialized && profile) {
+    hasInitialized = true;
+    void browse(0);
+  }
+}
+
 async function fetchPage(targetOffset: number): Promise<ModrinthResults | null> {
-  if (!profile) return null;
+  if (!profile || !isVisible) {
+    return null;
+  }
 
   const cached = pageCache.get(targetOffset);
+
   if (cached) {
     return cached;
   }
 
   try {
+    /*
+     * Visibility can change while awaiting another operation, so check
+     * again immediately before making the actual Modrinth request.
+     */
+    if (!isVisible || !profile) {
+      return null;
+    }
+
     const result = await app.projectsService.browse(profile, createRequest(targetOffset), smartFilter, projectType);
 
     pageCache.set(targetOffset, result);
@@ -87,7 +139,7 @@ async function fetchPage(targetOffset: number): Promise<ModrinthResults | null> 
 }
 
 async function prefetchPage(targetOffset: number) {
-  if (!profile || prefetching.has(targetOffset) || pageCache.has(targetOffset)) {
+  if (!profile || !isVisible || prefetching.has(targetOffset) || pageCache.has(targetOffset)) {
     return;
   }
 
@@ -101,14 +153,19 @@ async function prefetchPage(targetOffset: number) {
 }
 
 function prefetchNextPage() {
-  if (!results || !hasNextPage) return;
+  if (!isVisible || !results || !hasNextPage) {
+    return;
+  }
 
   const nextOffset = results.offset + limit;
+
   void prefetchPage(nextOffset);
 }
 
 async function browse(targetOffset: number) {
-  if (!profile) return;
+  if (!profile || !isVisible) {
+    return;
+  }
 
   const cached = pageCache.get(targetOffset);
 
@@ -127,7 +184,7 @@ async function browse(targetOffset: number) {
 
   loading = false;
   loadingTimer = setTimeout(() => {
-    if (id === requestId) {
+    if (id === requestId && isVisible) {
       loading = true;
     }
   }, loadingDelay);
@@ -137,7 +194,9 @@ async function browse(targetOffset: number) {
   try {
     const nextResults = await fetchPage(targetOffset);
 
-    if (id !== requestId) return;
+    if (id !== requestId || !isVisible) {
+      return;
+    }
 
     if (!nextResults) {
       throw new Error("Failed to load projects.");
@@ -148,7 +207,9 @@ async function browse(targetOffset: number) {
 
     prefetchNextPage();
   } catch (e) {
-    if (id !== requestId) return;
+    if (id !== requestId || !isVisible) {
+      return;
+    }
 
     error = e instanceof Error ? e.message : String(e);
   } finally {
@@ -160,38 +221,65 @@ async function browse(targetOffset: number) {
 }
 
 function resetPages() {
+  requestId++;
+
+  clearLoadingTimer();
+
   pageCache.clear();
   prefetching.clear();
   offset = 0;
+  results = null;
+  loading = false;
+  error = null;
 }
 
 function submitSearch() {
+  if (!isVisible || !profile) {
+    return;
+  }
+
   resetPages();
   void browse(0);
 }
 
 function setIndex(value: SearchIndex) {
+  if (value === index) {
+    return;
+  }
+
   index = value;
+
+  if (!isVisible || !profile) {
+    return;
+  }
+
   resetPages();
   void browse(0);
 }
 
 function nextPage() {
-  if (!results || !hasNextPage) return;
+  if (!isVisible || !results || !hasNextPage) {
+    return;
+  }
 
   void browse(results.offset + limit);
 }
 
 function previousPage() {
-  if (!results || !hasPreviousPage) return;
+  if (!isVisible || !results || !hasPreviousPage) {
+    return;
+  }
 
   void browse(Math.max(0, results.offset - limit));
 }
 
 function handleScroll() {
-  if (!results || !hasNextPage) return;
+  if (!isVisible || !results || !hasNextPage) {
+    return;
+  }
 
   const scrollPosition = window.scrollY + window.innerHeight;
+
   const threshold = document.documentElement.scrollHeight - 600;
 
   if (scrollPosition >= threshold) {
@@ -203,11 +291,17 @@ function handleScroll() {
   }
 }
 
+/*
+ * Search state can change while this browser is hidden, but changing it
+ * must not cause a Modrinth request. When the browser becomes visible,
+ * the current state is used for the initial request.
+ */
 $effect(() => {
   if (!profileId) {
     results = null;
     error = null;
     resetPages();
+    hasInitialized = false;
     return;
   }
 
@@ -216,21 +310,87 @@ $effect(() => {
   projectType;
   smartFilter;
 
+  if (!isVisible) {
+    return;
+  }
+
+  /*
+   * updateVisibility() handles the first initialization. This branch is
+   * mainly for changes to projectType/smartFilter/query/index while visible.
+   */
+  if (!hasInitialized) {
+    hasInitialized = true;
+    void browse(0);
+    return;
+  }
+
   resetPages();
   void browse(0);
 });
 
+/*
+ * Observe the actual rendered size of this browser.
+ *
+ * When its parent is `display:none`, this element has zero dimensions.
+ * When the parent becomes visible again, ResizeObserver fires and we
+ * initialize the browser.
+ */
 $effect(() => {
+  const root = browserRoot;
+
+  if (!root) {
+    return;
+  }
+
+  visibilityObserver?.disconnect();
+
+  const observer = new ResizeObserver(() => {
+    updateVisibility();
+  });
+
+  visibilityObserver = observer;
+  observer.observe(root);
+
+  /*
+   * ResizeObserver callbacks are asynchronous, so also check immediately.
+   */
+  updateVisibility();
+
+  return () => {
+    observer.disconnect();
+
+    if (visibilityObserver === observer) {
+      visibilityObserver = null;
+    }
+  };
+});
+
+$effect(() => {
+  if (!isVisible) {
+    return;
+  }
+
   window.addEventListener("scroll", handleScroll, { passive: true });
 
   return () => {
     window.removeEventListener("scroll", handleScroll);
+  };
+});
+
+$effect(() => {
+  return () => {
     clearLoadingTimer();
+
+    requestId++;
+
+    visibilityObserver?.disconnect();
+
+    prefetching.clear();
   };
 });
 </script>
 
-<div class="projects-browser">
+<div bind:this={browserRoot} class="projects-browser">
   <form
     class="toolbar"
     onsubmit={(event) => {
@@ -240,7 +400,7 @@ $effect(() => {
     <div class="search">
       <input type="search" bind:value={query} placeholder="Search projects..." aria-label="Search projects" />
 
-      <button type="submit" disabled={loading || !profile}> Search </button>
+      <button type="submit" disabled={loading || !profile || !isVisible}> Search </button>
     </div>
 
     <select
@@ -249,7 +409,7 @@ $effect(() => {
         setIndex(event.currentTarget.value as SearchIndex);
       }}
       aria-label="Sort projects"
-      disabled={loading || !profile}>
+      disabled={loading || !profile || !isVisible}>
       <option value="relevance">Relevance</option>
       <option value="downloads">Downloads</option>
       <option value="follows">Follows</option>
@@ -262,7 +422,7 @@ $effect(() => {
     <div class="error">
       <span>{error}</span>
 
-      <button type="button" onclick={() => browse(offset)} disabled={loading || !profile}> Retry </button>
+      <button type="button" onclick={() => browse(offset)} disabled={loading || !profile || !isVisible}> Retry </button>
     </div>
   {:else if loading && !results}
     <div class="state">

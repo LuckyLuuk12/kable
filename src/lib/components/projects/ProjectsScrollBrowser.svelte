@@ -47,6 +47,7 @@ let error = $state<string | null>(null);
 let query = $state(search.trim());
 let index = $state<SearchIndex>("relevance");
 
+let browserRoot: HTMLDivElement | null = null;
 let scrollContainer: HTMLDivElement | null = null;
 let bottomSentinel: HTMLDivElement | null = null;
 
@@ -60,8 +61,34 @@ let loadMorePromise: Promise<void> | null = null;
 
 let intersectionObserver: IntersectionObserver | null = null;
 let resizeObserver: ResizeObserver | null = null;
+let visibilityObserver: ResizeObserver | null = null;
 
-let projectResults = $derived(pages.flatMap((page) => page.hits));
+let isVisible = $state(false);
+let hasInitialized = false;
+
+/**
+ * Flatten loaded pages while guaranteeing unique project IDs.
+ *
+ * Modrinth pagination can occasionally return the same project on
+ * adjacent pages. The project ID is the correct identity key, so
+ * duplicate projects must be removed before rendering.
+ */
+let projectResults = $derived.by(() => {
+  const uniqueProjects = new Map<string, (typeof pages)[number]["hits"][number]>();
+
+  for (const page of pages) {
+    for (const project of page.hits) {
+      if (uniqueProjects.has(project.project_id)) {
+        console.debug("[ProjectsScrollBrowser] Duplicate project across pages:", project.project_id);
+        continue;
+      }
+
+      uniqueProjects.set(project.project_id, project);
+    }
+  }
+
+  return [...uniqueProjects.values()];
+});
 
 let totalHits = $derived(pages.length > 0 ? pages[0].total_hits : 0);
 
@@ -114,11 +141,47 @@ function isNearBottom(): boolean {
 }
 
 function canLoadNextPage(): boolean {
-  return profile !== null && pages.length > 0 && hasNextPage;
+  return isVisible && profile !== null && pages.length > 0 && hasNextPage;
+}
+
+function checkVisibility(): boolean {
+  if (!browserRoot) {
+    return false;
+  }
+
+  const rect = browserRoot.getBoundingClientRect();
+
+  return rect.width > 0 && rect.height > 0 && browserRoot.getClientRects().length > 0;
+}
+
+function updateVisibility(): void {
+  const visible = checkVisibility();
+
+  if (visible === isVisible) {
+    return;
+  }
+
+  isVisible = visible;
+
+  console.debug("[ProjectsScrollBrowser] Visibility changed:", visible);
+
+  if (!visible) {
+    return;
+  }
+
+  /*
+   * The browser may have been mounted while its parent was display:none.
+   * Only initialize it once it actually becomes visible.
+   */
+  if (!hasInitialized && profile) {
+    hasInitialized = true;
+
+    void loadInitialPage();
+  }
 }
 
 async function fetchPage(targetOffset: number, requestGeneration: number): Promise<ModrinthResults | null> {
-  if (!profile) {
+  if (!profile || !isVisible) {
     return null;
   }
 
@@ -177,7 +240,7 @@ async function fetchPage(targetOffset: number, requestGeneration: number): Promi
 }
 
 async function prefetchPage(targetOffset: number, requestGeneration: number = generation): Promise<void> {
-  if (!profile) {
+  if (!profile || !isVisible) {
     return;
   }
 
@@ -199,7 +262,7 @@ async function prefetchPage(targetOffset: number, requestGeneration: number = ge
 }
 
 function prefetchAdjacentPages(): void {
-  if (!profile || pages.length === 0) {
+  if (!profile || !isVisible || pages.length === 0) {
     return;
   }
 
@@ -243,7 +306,7 @@ async function appendNextPage(): Promise<void> {
   const cachedPage = pageCache.get(targetOffset);
 
   loadMorePromise = (async () => {
-    if (currentGeneration !== generation) {
+    if (currentGeneration !== generation || !isVisible) {
       return;
     }
 
@@ -253,7 +316,7 @@ async function appendNextPage(): Promise<void> {
     try {
       const nextPage = cachedPage ?? (await fetchPage(targetOffset, currentGeneration));
 
-      if (currentGeneration !== generation) {
+      if (currentGeneration !== generation || !isVisible) {
         return;
       }
 
@@ -297,7 +360,7 @@ async function appendNextPage(): Promise<void> {
 }
 
 async function ensureScrollable(): Promise<void> {
-  if (!profile || pages.length === 0) {
+  if (!profile || !isVisible || pages.length === 0) {
     return;
   }
 
@@ -305,7 +368,7 @@ async function ensureScrollable(): Promise<void> {
 
   await tick();
 
-  while (currentGeneration === generation && canLoadNextPage() && scrollContainer && scrollContainer.scrollHeight <= scrollContainer.clientHeight) {
+  while (currentGeneration === generation && isVisible && canLoadNextPage() && scrollContainer && scrollContainer.scrollHeight <= scrollContainer.clientHeight) {
     console.debug("[ProjectsScrollBrowser] Content does not fill container, loading next page");
 
     await appendNextPage();
@@ -314,7 +377,7 @@ async function ensureScrollable(): Promise<void> {
 }
 
 async function loadInitialPage(): Promise<void> {
-  if (!profile) {
+  if (!profile || !isVisible) {
     return;
   }
 
@@ -329,7 +392,7 @@ async function loadInitialPage(): Promise<void> {
   try {
     const firstPage = await fetchPage(0, currentGeneration);
 
-    if (currentGeneration !== generation) {
+    if (currentGeneration !== generation || !isVisible) {
       return;
     }
 
@@ -379,6 +442,10 @@ function resetState(): void {
 }
 
 function scheduleReload(): void {
+  if (!isVisible || !profile) {
+    return;
+  }
+
   if (searchTimer !== null) {
     clearTimeout(searchTimer);
     searchTimer = null;
@@ -386,6 +453,10 @@ function scheduleReload(): void {
 
   searchTimer = setTimeout(() => {
     searchTimer = null;
+
+    if (!isVisible || !profile) {
+      return;
+    }
 
     resetState();
     void loadInitialPage();
@@ -396,6 +467,10 @@ function submitSearch(): void {
   if (searchTimer !== null) {
     clearTimeout(searchTimer);
     searchTimer = null;
+  }
+
+  if (!isVisible || !profile) {
+    return;
   }
 
   resetState();
@@ -414,12 +489,16 @@ function setIndex(value: SearchIndex): void {
     searchTimer = null;
   }
 
+  if (!isVisible || !profile) {
+    return;
+  }
+
   resetState();
   void loadInitialPage();
 }
 
 function retry(): void {
-  if (!profile) {
+  if (!profile || !isVisible) {
     return;
   }
 
@@ -439,7 +518,7 @@ function handleScroll(event: Event): void {
     return;
   }
 
-  if (loading || loadingMore || !hasNextPage) {
+  if (!isVisible || loading || loadingMore || !hasNextPage) {
     return;
   }
 
@@ -474,7 +553,7 @@ function setupIntersectionObserver(node: HTMLDivElement): void {
 
       console.debug("[ProjectsScrollBrowser] Bottom sentinel intersected");
 
-      if (!loading && !loadingMore && hasNextPage) {
+      if (isVisible && !loading && !loadingMore && hasNextPage) {
         void appendNextPage();
       }
     },
@@ -493,6 +572,10 @@ function destroyIntersectionObserver(): void {
   intersectionObserver = null;
 }
 
+/*
+ * Search/filter changes are allowed to update while hidden, but they must
+ * not trigger a Modrinth request until this browser is actually visible.
+ */
 $effect(() => {
   projectType;
   smartFilter;
@@ -501,10 +584,63 @@ $effect(() => {
 
   if (!profileId) {
     resetState();
+    hasInitialized = false;
+    return;
+  }
+
+  if (!isVisible) {
+    return;
+  }
+
+  /*
+   * If visibility caused initialization, loadInitialPage() has already been
+   * started by updateVisibility(). Avoid scheduling a second initial request.
+   */
+  if (!hasInitialized) {
+    hasInitialized = true;
+    void loadInitialPage();
     return;
   }
 
   scheduleReload();
+});
+
+/*
+ * Observe the browser itself rather than relying on the parent to tell us
+ * whether this tab is active.
+ *
+ * When the parent has `display: none`, this element has zero dimensions and
+ * ResizeObserver reports that state. When the tab becomes visible again,
+ * the observer fires and initialization starts.
+ */
+$effect(() => {
+  const root = browserRoot;
+
+  if (!root) {
+    return;
+  }
+
+  visibilityObserver?.disconnect();
+
+  const observer = new ResizeObserver(() => {
+    updateVisibility();
+  });
+
+  visibilityObserver = observer;
+  observer.observe(root);
+
+  /*
+   * Check immediately as well because the observer callback is asynchronous.
+   */
+  updateVisibility();
+
+  return () => {
+    observer.disconnect();
+
+    if (visibilityObserver === observer) {
+      visibilityObserver = null;
+    }
+  };
 });
 
 $effect(() => {
@@ -517,7 +653,7 @@ $effect(() => {
   resizeObserver?.disconnect();
 
   resizeObserver = new ResizeObserver(() => {
-    if (!loading && !loadingMore && hasNextPage && container.scrollHeight <= container.clientHeight) {
+    if (isVisible && !loading && !loadingMore && hasNextPage && container.scrollHeight <= container.clientHeight) {
       console.debug("[ProjectsScrollBrowser] Resize observer detected non-scrollable content");
 
       void appendNextPage();
@@ -555,6 +691,7 @@ $effect(() => {
 
     intersectionObserver?.disconnect();
     resizeObserver?.disconnect();
+    visibilityObserver?.disconnect();
 
     generation++;
 
@@ -563,7 +700,7 @@ $effect(() => {
 });
 </script>
 
-<div class="projects-browser">
+<div bind:this={browserRoot} class="projects-browser">
   <form
     class="toolbar"
     onsubmit={(event) => {
@@ -573,7 +710,7 @@ $effect(() => {
     <div class="search">
       <input type="search" bind:value={query} placeholder="Search projects..." aria-label="Search projects" />
 
-      <button type="submit" disabled={loading || !profile}> Search </button>
+      <button type="submit" disabled={loading || !profile || !isVisible}> Search </button>
     </div>
 
     <select
@@ -582,7 +719,7 @@ $effect(() => {
         setIndex(event.currentTarget.value as SearchIndex);
       }}
       aria-label="Sort projects"
-      disabled={loading || !profile}>
+      disabled={loading || !profile || !isVisible}>
       <option value="relevance">Relevance</option>
       <option value="downloads">Downloads</option>
       <option value="follows">Follows</option>
@@ -595,7 +732,7 @@ $effect(() => {
     <div class="error">
       <span>{error}</span>
 
-      <button type="button" onclick={retry} disabled={loading || !profile}> Retry </button>
+      <button type="button" onclick={retry} disabled={loading || !profile || !isVisible}> Retry </button>
     </div>
   {:else if loading && pages.length === 0}
     <div class="state">
@@ -622,17 +759,17 @@ $effect(() => {
           <div class="error">
             <span>{error}</span>
 
-            <button type="button" onclick={retry} disabled={loadingMore || !profile}> Retry </button>
+            <button type="button" onclick={retry} disabled={loadingMore || !profile || !isVisible}> Retry </button>
           </div>
         {:else if loadingMore}
           <div class="loading-indicator">
             <div class="spinner small" aria-hidden="true"></div>
 
-            <span> Loading more projects... </span>
+            <span>Loading more projects...</span>
           </div>
         {:else if !hasNextPage}
           <span>
-            Showing all
+            Showing
             {totalHits.toLocaleString()}
             projects
           </span>

@@ -18,6 +18,7 @@ let {
 
 let isEnabled = $state(false);
 let loading = $state(false);
+let hasUpdate = $state(false);
 
 let installedVersion = $derived(project.project.versions.find((version) => version.id === project.version_id) ?? null);
 
@@ -36,19 +37,44 @@ async function refreshEnabledState() {
   isEnabled = await app.projectsService.isEnabled(profile, project);
 }
 
-$effect(() => {
+async function checkForUpdate() {
   if (!profile) {
+    hasUpdate = false;
+    return;
+  }
+
+  try {
+    await app.projectsService.checkUpdate(profile, project);
+    hasUpdate = true;
+  } catch {
+    hasUpdate = false;
+  }
+}
+
+$effect(() => {
+  const currentProfile = profile;
+  const currentProject = project;
+
+  if (!currentProfile) {
     isEnabled = false;
+    hasUpdate = false;
     return;
   }
 
   let cancelled = false;
 
-  app.projectsService.isEnabled(profile, project).then((value) => {
-    if (!cancelled) {
-      isEnabled = value;
-    }
-  });
+  Promise.all([app.projectsService.isEnabled(currentProfile, currentProject), app.projectsService.checkUpdate(currentProfile, currentProject)])
+    .then(([enabled]) => {
+      if (cancelled) return;
+
+      isEnabled = enabled;
+      hasUpdate = true;
+    })
+    .catch(() => {
+      if (cancelled) return;
+
+      hasUpdate = false;
+    });
 
   return () => {
     cancelled = true;
@@ -103,7 +129,7 @@ function showGallery() {
 }
 </script>
 
-<article class="installed-project-card" class:loading>
+<article class="installed-project-card" class:loading class:has-update={hasUpdate}>
   <div class="project-icon">
     {#if project.project.icon_url}
       <img src={project.project.icon_url} alt="" loading="lazy" />
@@ -125,6 +151,11 @@ function showGallery() {
 
     <div class="project-meta">
       <span>{versionLabel}</span>
+
+      {#if hasUpdate}
+        <span class="separator">•</span>
+        <span class="update-label">Update available</span>
+      {/if}
 
       {#if releaseDate}
         <span class="separator">•</span>
@@ -198,7 +229,14 @@ function showGallery() {
     border-color: $color-border;
   }
 
-  // Animated border effect when loading
+  &.has-update {
+    border-color: $color-warning;
+
+    &:hover {
+      border-color: $color-warning;
+    }
+  }
+
   &.loading {
     border-color: $color-highlight;
     background: $color-surface-2;
@@ -320,6 +358,12 @@ function showGallery() {
 .separator {
   flex: 0 0 auto;
   color: $color-placeholder;
+}
+
+.update-label {
+  flex: 0 0 auto;
+  color: $color-warning;
+  font-weight: 600;
 }
 
 .project-actions {
