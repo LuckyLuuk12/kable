@@ -24,6 +24,11 @@ let profiles = $derived(app.profilesService.profiles);
 let carouselContainer: HTMLElement;
 let scrollOffset = 0;
 let scrollTimeout: number | undefined;
+let selectionTimeout: number | undefined;
+
+const PROFILE_SELECTION_DEBOUNCE_MS = 250;
+
+let pendingProfileId = $state<string | null>(null);
 
 const sortedProfiles = $derived(
   profiles
@@ -41,13 +46,22 @@ const sortedProfiles = $derived(
     .filter((profile) => profile.version.loader !== "vanilla"),
 );
 
-const selectedIndex = $derived(sortedProfiles.findIndex((profile) => profile.id === profileId));
+const selectedProfileId = $derived(pendingProfileId ?? profileId);
+
+const selectedIndex = $derived(sortedProfiles.findIndex((profile) => profile.id === selectedProfileId));
 
 const loaderImage = $derived(Object.fromEntries(sortedProfiles.map((profile) => [profile.id, app.profilesService.getLoaderImage(profile.version.loader)])));
 
 const loaderColors = $derived(Object.fromEntries(sortedProfiles.map((profile) => [profile.id, app.profilesService.getLoaderColor(profile.version.loader)])));
 
-function selectProfile(nextProfileId: string) {
+function commitProfileSelection() {
+  if (!pendingProfileId) {
+    return;
+  }
+
+  const nextProfileId = pendingProfileId;
+  pendingProfileId = null;
+
   if (profileId === nextProfileId) {
     return;
   }
@@ -58,6 +72,34 @@ function selectProfile(nextProfileId: string) {
   }
 
   profileId = nextProfileId;
+}
+
+function selectProfile(nextProfileId: string, immediate = false) {
+  if (profileId === nextProfileId && pendingProfileId === null) {
+    return;
+  }
+
+  if (!profiles.some((profile) => profile.id === nextProfileId)) {
+    console.warn("[ProfilePicker] Cannot select unknown profile:", nextProfileId);
+    return;
+  }
+
+  pendingProfileId = nextProfileId;
+
+  if (selectionTimeout !== undefined) {
+    clearTimeout(selectionTimeout);
+    selectionTimeout = undefined;
+  }
+
+  if (immediate) {
+    commitProfileSelection();
+    return;
+  }
+
+  selectionTimeout = window.setTimeout(() => {
+    selectionTimeout = undefined;
+    commitProfileSelection();
+  }, PROFILE_SELECTION_DEBOUNCE_MS);
 }
 
 function selectRelative(offset: number) {
@@ -175,11 +217,24 @@ function getCarouselScale(currentIndex: number, selectedIndex: number, totalItem
 }
 
 $effect(() => {
-  if (profileId || sortedProfiles.length === 0) {
+  if (profileId || pendingProfileId || sortedProfiles.length === 0) {
     return;
   }
 
-  profileId = sortedProfiles[0].id;
+  pendingProfileId = sortedProfiles[0].id;
+  commitProfileSelection();
+});
+
+$effect(() => {
+  return () => {
+    if (scrollTimeout !== undefined) {
+      clearTimeout(scrollTimeout);
+    }
+
+    if (selectionTimeout !== undefined) {
+      clearTimeout(selectionTimeout);
+    }
+  };
 });
 </script>
 

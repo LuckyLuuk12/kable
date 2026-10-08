@@ -138,16 +138,6 @@ fn latest_compatible_version<'a>(profile: &KableProfile, project: &'a Project) -
 
     sorted.sort_by_key(|b| std::cmp::Reverse(version_timestamp(&b.date_published)));
 
-    for version in sorted.iter().take(10) {
-        Logger::debug_global(
-            &format!(
-                "Compatible candidate: {} {} published {} MC={:?} loaders={:?}",
-                version.id, version.version_number, version.date_published, version.game_versions, version.loaders,
-            ),
-            Some(profile.id.as_str()),
-        );
-    }
-
     sorted.into_iter().next()
 }
 

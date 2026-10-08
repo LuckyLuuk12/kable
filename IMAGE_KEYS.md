@@ -123,7 +123,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | minimize | [Profiles Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profiles/+page.svelte#L71) | <pre><code class="language-html">&lt;Icon name="minimize" size="md" /&gt;</code></pre> |
 | package | [CreateProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/CreateProfileModal.svelte#L376) | <pre><code class="language-html">&lt;Icon name="package" size="sm" /&gt;</code></pre> |
 | play | [PlayButton](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/PlayButton.svelte#L32) | <pre><code class="language-html">&lt;Icon name="play" size="md" forceType="svg" /&gt;</code></pre> |
-| play | [ProjectsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/ProjectsPage.svelte#L289) | <pre><code class="language-html">&lt;Icon name="play" forceType="svg" size="sm" /&gt;</code></pre> |
+| play | [ProjectsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/ProjectsPage.svelte#L290) | <pre><code class="language-html">&lt;Icon name="play" forceType="svg" size="sm" /&gt;</code></pre> |
 | play | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L268) | <pre><code class="language-html">&lt;Icon name="play" size="md" forceType="svg" /&gt;</code></pre> |
 | play | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L183) | <pre><code class="language-html">&lt;Icon name="play" size="md" /&gt;</code></pre> |
 | play | [Mods Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/mods/+page.svelte#L23) | <pre><code class="language-html">&lt;Icon name="play" size="sm" forceType="svg" /&gt;</code></pre> |
@@ -138,8 +138,8 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | refresh | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L112) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" /&gt;</code></pre> |
 | refresh | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L216) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" className="spin" forceType="svg" /&gt;</code></pre> |
 | refresh | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L360) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" className="spin" forceType="svg" /&gt;</code></pre> |
-| refresh | [ProjectsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/ProjectsPage.svelte#L246) | <pre><code class="language-html">&lt;Icon name="refresh" forceType="svg" size="sm" /&gt;</code></pre> |
-| refresh | [ProjectsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/ProjectsPage.svelte#L285) | <pre><code class="language-html">&lt;Icon name="refresh" forceType="svg" size="sm" /&gt;</code></pre> |
+| refresh | [ProjectsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/ProjectsPage.svelte#L247) | <pre><code class="language-html">&lt;Icon name="refresh" forceType="svg" size="sm" /&gt;</code></pre> |
+| refresh | [ProjectsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/ProjectsPage.svelte#L286) | <pre><code class="language-html">&lt;Icon name="refresh" forceType="svg" size="sm" /&gt;</code></pre> |
 | refresh | [SkinSelectionMenu](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelectionMenu.svelte#L276) | <pre><code class="language-html">&lt;Icon name="refresh" size="lg" /&gt;</code></pre> |
 | refresh | [Home Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/+page.svelte#L265) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" className="spin" /&gt;</code></pre> |
 | refresh | [Mods Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/mods/+page.svelte#L20) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" forceType="svg" className="spin" /&gt;</code></pre> |
@@ -180,4 +180,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L432) | <pre><code class="language-html">&lt;Icon name="x" /&gt;</code></pre> |
 | zap | [LogsToolbar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsToolbar.svelte#L120) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2026-10-08T00:40:11.224Z_
+_Generated: 2026-10-08T11:50:10.593Z_

@@ -77,7 +77,7 @@ async function checkForUpdates(): Promise<void> {
 }
 
 async function refresh(): Promise<void> {
-  const currentProfile = profile;
+  let currentProfile = profile;
 
   if (!currentProfile) {
     console.warn("[ProjectsPage] No profile selected, cannot refresh");
@@ -88,12 +88,13 @@ async function refresh(): Promise<void> {
 
   try {
     await app.profilesService.refreshProfiles(true);
-    await app.projectsService.load(currentProfile, projectType, true);
+    currentProfile = app.profilesService.profiles.find((p) => p.id === currentProfile!.id) ?? null;
+    await app.projectsService.load(currentProfile!, projectType, true);
     await refreshUpdateCount(currentProfile);
 
-    console.debug("[ProjectsPage] Refreshed projects for profile:", currentProfile.id);
+    console.debug("[ProjectsPage] Refreshed projects for profile:", currentProfile!.id);
   } catch (error) {
-    console.error("[ProjectsPage] Failed to refresh projects for profile:", currentProfile.id, error);
+    console.error("[ProjectsPage] Failed to refresh projects for profile:", currentProfile!.id, error);
   } finally {
     refreshing = false;
   }
