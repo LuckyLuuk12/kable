@@ -13,7 +13,6 @@ Provides:
 
 <script lang="ts">
 import { type ProjectType, app, Icon } from "$lib";
-import { untrack } from "svelte";
 
 import InstalledProjects from "./InstalledProjects.svelte";
 import ProfilePicker from "./ProfilePicker.svelte";
@@ -40,43 +39,47 @@ let updatingAll = $state(false);
 let checkingUpdates = $state(false);
 let availableUpdates = $state(0);
 
-async function refreshUpdateCount(): Promise<void> {
-  if (!profile) {
+async function refreshUpdateCount(currentProfile: typeof profile): Promise<void> {
+  if (!currentProfile) {
     availableUpdates = 0;
     return;
   }
 
   try {
-    const updates = await app.projectsService.checkUpdates(profile, projectType);
+    const updates = await app.projectsService.checkUpdates(currentProfile, projectType);
 
     availableUpdates = updates.length;
   } catch (error) {
-    console.error("[ProjectsPage] Failed to check for updates:", profile.id, error);
+    console.error("[ProjectsPage] Failed to check for updates:", currentProfile.id, error);
 
     availableUpdates = 0;
   }
 }
 
 async function checkForUpdates(): Promise<void> {
-  if (!profile || checkingUpdates || updatingAll || refreshing) {
+  const currentProfile = profile;
+
+  if (!currentProfile || checkingUpdates || updatingAll || refreshing) {
     return;
   }
 
   checkingUpdates = true;
 
   try {
-    await refreshUpdateCount();
+    await refreshUpdateCount(currentProfile);
 
-    console.debug("[ProjectsPage] Checked for updates for profile:", profile.id);
+    console.debug("[ProjectsPage] Checked for updates for profile:", currentProfile.id);
   } catch (error) {
-    console.error("[ProjectsPage] Failed to check for updates for profile:", profile.id, error);
+    console.error("[ProjectsPage] Failed to check for updates for profile:", currentProfile.id, error);
   } finally {
     checkingUpdates = false;
   }
 }
 
 async function refresh(): Promise<void> {
-  if (!profile) {
+  const currentProfile = profile;
+
+  if (!currentProfile) {
     console.warn("[ProjectsPage] No profile selected, cannot refresh");
     return;
   }
@@ -84,19 +87,21 @@ async function refresh(): Promise<void> {
   refreshing = true;
 
   try {
-    await app.projectsService.load(profile, projectType, true);
-    await refreshUpdateCount();
+    await app.projectsService.load(currentProfile, projectType, true);
+    await refreshUpdateCount(currentProfile);
 
-    console.debug("[ProjectsPage] Refreshed projects for profile:", profile.id);
+    console.debug("[ProjectsPage] Refreshed projects for profile:", currentProfile.id);
   } catch (error) {
-    console.error("[ProjectsPage] Failed to refresh projects for profile:", profile.id, error);
+    console.error("[ProjectsPage] Failed to refresh projects for profile:", currentProfile.id, error);
   } finally {
     refreshing = false;
   }
 }
 
 async function updateAll(): Promise<void> {
-  if (!profile || updatingAll || checkingUpdates || refreshing) {
+  const currentProfile = profile;
+
+  if (!currentProfile || updatingAll || checkingUpdates || refreshing) {
     return;
   }
 
@@ -108,73 +113,77 @@ async function updateAll(): Promise<void> {
   updatingAll = true;
 
   try {
-    await app.projectsService.updateAll(profile, projectType);
+    await app.projectsService.updateAll(currentProfile, projectType);
 
-    await app.projectsService.load(profile, projectType, true);
-    await refreshUpdateCount();
+    await app.projectsService.load(currentProfile, projectType, true);
+    await refreshUpdateCount(currentProfile);
 
-    console.debug("[ProjectsPage] Updated all projects for profile:", profile.id);
+    console.debug("[ProjectsPage] Updated all projects for profile:", currentProfile.id);
   } catch (error) {
-    console.error("[ProjectsPage] Failed to update all projects for profile:", profile.id, error);
+    console.error("[ProjectsPage] Failed to update all projects for profile:", currentProfile.id, error);
   } finally {
     updatingAll = false;
   }
 }
 
 function launch() {
-  if (!profile) {
+  const currentProfile = profile;
+
+  if (!currentProfile) {
     return;
   }
 
-  app.launcherService.launch(profile);
+  app.launcherService.launch(currentProfile);
 }
 
 $effect(() => {
   const selectedProfileId = profileId;
-
-  if (selectedProfileId === null) {
-    availableUpdates = 0;
-    return;
-  }
-
-  untrack(() => {
-    const selectedProfile = app.profilesService.profiles.find((p) => p.id === selectedProfileId) ?? null;
-
-    if (!selectedProfile) {
-      return;
-    }
-
-    if (app.projectsService.loadedForProfileId !== selectedProfileId) {
-      void app.projectsService.select(selectedProfile);
-    }
-  });
-});
-
-$effect(() => {
-  const selectedProfileId = app.projectsService.loadedForProfileId;
-
-  if (selectedProfileId !== null && selectedProfileId !== profileId) {
-    profileId = selectedProfileId;
-  }
-});
-
-$effect(() => {
-  const currentProfileId = profileId;
   const currentProjectType = projectType;
 
-  if (!currentProfileId) {
+  if (!selectedProfileId) {
     availableUpdates = 0;
     return;
   }
 
-  untrack(() => {
-    if (!profile) {
-      availableUpdates = 0;
-      return;
-    }
+  const selectedProfile = app.profilesService.profiles.find((candidate) => candidate.id === selectedProfileId) ?? null;
 
-    void refreshUpdateCount();
-  });
+  if (!selectedProfile) {
+    availableUpdates = 0;
+    return;
+  }
+
+  if (app.projectsService.loadedForProfileId !== selectedProfileId) {
+    availableUpdates = 0;
+
+    void app.projectsService.select(selectedProfile);
+
+    return;
+  }
+
+  let cancelled = false;
+
+  void app.projectsService
+    .checkUpdates(selectedProfile, currentProjectType)
+    .then((updates) => {
+      if (cancelled) {
+        return;
+      }
+
+      availableUpdates = updates.length;
+    })
+    .catch((error) => {
+      if (cancelled) {
+        return;
+      }
+
+      console.error("[ProjectsPage] Failed to check for updates:", selectedProfile.id, error);
+
+      availableUpdates = 0;
+    });
+
+  return () => {
+    cancelled = true;
+  };
 });
 </script>
 

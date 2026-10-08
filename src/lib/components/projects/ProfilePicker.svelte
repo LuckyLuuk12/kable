@@ -52,16 +52,12 @@ function selectProfile(nextProfileId: string) {
     return;
   }
 
-  const nextProfile = profiles.find((profile) => profile.id === nextProfileId);
-
-  if (!nextProfile) {
+  if (!profiles.some((profile) => profile.id === nextProfileId)) {
     console.warn("[ProfilePicker] Cannot select unknown profile:", nextProfileId);
     return;
   }
 
   profileId = nextProfileId;
-
-  void app.projectsService.select(nextProfile);
 }
 
 function selectRelative(offset: number) {

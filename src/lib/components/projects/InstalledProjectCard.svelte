@@ -28,50 +28,71 @@ let releaseDate = $derived(installedVersion?.date_published ? new Date(installed
 
 let hasGallery = $derived((project.project.gallery?.length ?? 0) > 0);
 
-async function refreshEnabledState() {
-  if (!profile) {
-    isEnabled = false;
-    return;
-  }
-
-  isEnabled = await app.projectsService.isEnabled(profile, project);
-}
-
-async function checkForUpdate() {
-  if (!profile) {
-    hasUpdate = false;
-    return;
-  }
-
-  try {
-    await app.projectsService.checkUpdate(profile, project);
-    hasUpdate = true;
-  } catch {
-    hasUpdate = false;
-  }
-}
-
+/*
+ * Enabled state and update state are intentionally checked independently.
+ *
+ * They represent different pieces of state and failure of the update check
+ * must never prevent the enabled state from being updated.
+ */
 $effect(() => {
   const currentProfile = profile;
   const currentProject = project;
 
   if (!currentProfile) {
     isEnabled = false;
+    return;
+  }
+
+  let cancelled = false;
+
+  void app.projectsService
+    .isEnabled(currentProfile, currentProject)
+    .then((enabled) => {
+      if (cancelled) {
+        return;
+      }
+
+      isEnabled = enabled;
+    })
+    .catch((error) => {
+      if (cancelled) {
+        return;
+      }
+
+      console.error("[InstalledProjectCard] Failed to determine enabled state:", currentProject.filename, error);
+
+      isEnabled = false;
+    });
+
+  return () => {
+    cancelled = true;
+  };
+});
+
+$effect(() => {
+  const currentProfile = profile;
+  const currentProject = project;
+
+  if (!currentProfile) {
     hasUpdate = false;
     return;
   }
 
   let cancelled = false;
 
-  Promise.all([app.projectsService.isEnabled(currentProfile, currentProject), app.projectsService.checkUpdate(currentProfile, currentProject)])
-    .then(([enabled]) => {
-      if (cancelled) return;
+  void app.projectsService
+    .checkUpdate(currentProfile, currentProject)
+    .then(() => {
+      if (cancelled) {
+        return;
+      }
 
-      isEnabled = enabled;
       hasUpdate = true;
     })
     .catch(() => {
-      if (cancelled) return;
+      if (cancelled) {
+        return;
+      }
 
       hasUpdate = false;
     });
@@ -82,20 +103,32 @@ $effect(() => {
 });
 
 async function toggle() {
-  if (!profile || loading) return;
+  if (!profile || loading) {
+    return;
+  }
 
   loading = true;
 
   try {
     await app.projectsService.toggle(profile, project);
-    await refreshEnabledState();
+
+    /*
+     * The profile object may have been replaced by the profile service after
+     * the backend mutation. The reactive effect above will then reevaluate
+     * the enabled state from the current profile/project state.
+     *
+     * We intentionally do not perform another explicit isEnabled() request
+     * here.
+     */
   } finally {
     loading = false;
   }
 }
 
 async function remove() {
-  if (!profile || loading) return;
+  if (!profile || loading) {
+    return;
+  }
 
   loading = true;
 
@@ -121,7 +154,9 @@ function showVersions() {
 }
 
 function showGallery() {
-  if (!hasGallery) return;
+  if (!hasGallery) {
+    return;
+  }
 
   app.show(ProjectGalleryModal, {
     project: project.project,
@@ -247,9 +282,11 @@ function showGallery() {
       0% {
         border-color: $color-highlight;
       }
+
       50% {
         border-color: $color-focus;
       }
+
       100% {
         border-color: $color-highlight;
       }

@@ -20,17 +20,9 @@ use api_types::projects::{
 };
 use futures::future::join_all;
 
-// ============================================================================
-// CLIENT
-// ============================================================================
-
 fn client() -> Ferinth<()> {
     Ferinth::<()>::new("Kable", Some(env!("CARGO_PKG_VERSION")), Some("https://kable.kablan.nl"))
 }
-
-// ============================================================================
-// FACETS
-// ============================================================================
 
 fn convert_facet(facet: &Facet) -> Option<FerinthFacet> {
     let operation = match facet.operator {
@@ -73,10 +65,6 @@ fn convert_facets(groups: &[FacetGroup]) -> Vec<Vec<FerinthFacet>> {
         .collect()
 }
 
-// ============================================================================
-// SORT
-// ============================================================================
-
 fn convert_sort(index: SearchIndex) -> FerinthSort {
     match index {
         SearchIndex::Relevance => FerinthSort::Relevance,
@@ -86,10 +74,6 @@ fn convert_sort(index: SearchIndex) -> FerinthSort {
         SearchIndex::Updated => FerinthSort::Updated,
     }
 }
-
-// ============================================================================
-// SEARCH
-// ============================================================================
 
 async fn search(project_type: Option<String>, project_search: ProjectSearch) -> Result<ModrinthResults, String> {
     let mut facet_groups = project_search.facets.clone();
@@ -108,13 +92,9 @@ async fn search(project_type: Option<String>, project_search: ProjectSearch) -> 
     }
 
     let facets = convert_facets(&facet_groups);
-
     let query = project_search.query.clone().unwrap_or_default();
-
     let sort = convert_sort(project_search.index.unwrap_or_default());
-
     let offset = project_search.offset.unwrap_or(0);
-
     let limit = project_search.limit.unwrap_or(20);
 
     Logger::debug_global(&format!("Searching on Modrinth for {project_type:?} with sort {sort:?}, limit {limit}, offset {offset}"), None);
@@ -126,13 +106,23 @@ async fn search(project_type: Option<String>, project_search: ProjectSearch) -> 
 
     Ok(ModrinthResults {
         hits: join_all(response.hits.into_iter().map(convert_search_hit)).await,
-
         offset: i32::try_from(response.offset).unwrap_or(0),
-
         limit: i32::try_from(response.limit).unwrap_or(20),
-
         total_hits: i32::try_from(response.total_hits).unwrap_or(0),
     })
+}
+
+pub async fn get_project(project_id: &str) -> Result<Project, String> {
+    let project = client().project_get(project_id).await.map_err(|e| format!("Failed to get Modrinth project {}: {}", project_id, e))?;
+
+    let versions = client()
+        .version_list(project_id)
+        .await
+        .map_err(|e| format!("Failed to get versions for Modrinth project {}: {}", project_id, e))?;
+
+    Logger::debug_global(&format!("Fetched Modrinth project {} directly with {} versions", project_id, versions.len()), None);
+
+    Ok(convert_project(project, versions.into_iter().map(convert_version).collect()))
 }
 
 pub async fn get_version_data(version_ids: Vec<String>) -> Result<Vec<ProjectVersion>, String> {
@@ -147,63 +137,33 @@ pub async fn get_version_data(version_ids: Vec<String>) -> Result<Vec<ProjectVer
     Ok(versions.into_iter().map(convert_version).collect())
 }
 
-// ============================================================================
-// SEARCH HIT CONVERSION
-// ============================================================================
-
 async fn convert_search_hit(value: ferinth::structures::search::SearchHit) -> Project {
     Project {
         slug: value.slug.unwrap_or_default(),
-
         title: value.title,
-
         description: value.description,
-
         categories: Some(value.categories),
-
         client_side: convert_client_side(value.client_side),
-
         server_side: convert_server_side(value.server_side),
-
         project_type: convert_project_type(value.project_type),
-
         downloads: i32::try_from(value.downloads).unwrap_or(0),
-
         icon_url: Some(value.icon_url.map(|c| c.to_string())),
-
         color: Some(value.color.map(|c| i32::try_from(c).unwrap_or(0))),
-
         thread_id: None,
-
         monetization_status: None,
-
         project_id: value.project_id,
-
         author: value.author,
-
         display_categories: Some(value.display_categories),
-
-        versions: get_version_data(value.game_versions).await.unwrap_or_default(),
-
+        versions: Vec::new(),
         follows: i32::try_from(value.follows).unwrap_or(0),
-
         date_created: value.date_created.to_string(),
-
         date_modified: value.date_modified.to_string(),
-
         latest_version: Some(value.latest_version),
-
         license: value.license,
-
         gallery: None,
-
         featured_gallery: None,
     }
 }
-
-// ============================================================================
-// VERSION DATA
-// ============================================================================
 
 fn extract_facet_values(search: &ProjectSearch, field: FacetField) -> Vec<String> {
     search
@@ -217,11 +177,9 @@ fn extract_facet_values(search: &ProjectSearch, field: FacetField) -> Vec<String
 
 async fn add_version_data(projects: Vec<Project>, project_search: ProjectSearch) -> Result<Vec<Project>, String> {
     let loaders = extract_facet_values(&project_search, FacetField::Categories);
-
     let game_versions = extract_facet_values(&project_search, FacetField::Version);
 
     let loader_refs: Vec<&str> = loaders.iter().map(String::as_str).collect();
-
     let game_version_refs: Vec<&str> = game_versions.iter().map(String::as_str).collect();
 
     let loaders = if loader_refs.is_empty() { None } else { Some(loader_refs.as_slice()) };
@@ -229,7 +187,6 @@ async fn add_version_data(projects: Vec<Project>, project_search: ProjectSearch)
     let game_versions = if game_version_refs.is_empty() { None } else { Some(game_version_refs.as_slice()) };
 
     let client = client();
-
     let mut results = Vec::with_capacity(projects.len());
 
     for mut project in projects {
@@ -239,7 +196,9 @@ async fn add_version_data(projects: Vec<Project>, project_search: ProjectSearch)
             .map_err(|e| format!("Failed to get versions for project {}: {}", project.project_id, e))?;
 
         project.versions = versions.into_iter().map(convert_version).collect();
+
         Logger::debug_global(&format!("Added version data for project {}: {} versions", project.project_id, project.versions.len()), None);
+
         results.push(project);
     }
 
@@ -247,10 +206,6 @@ async fn add_version_data(projects: Vec<Project>, project_search: ProjectSearch)
 
     Ok(results)
 }
-
-// ============================================================================
-// PUBLIC SEARCH API
-// ============================================================================
 
 pub async fn search_mods(project_search: ProjectSearch, with_version_data: bool) -> Result<ModrinthResults, String> {
     search_typed("mod", project_search, with_version_data).await
@@ -280,9 +235,33 @@ async fn search_typed(project_type: &str, project_search: ProjectSearch, with_ve
     Ok(ModrinthResults { hits, ..results })
 }
 
-// ============================================================================
-// CONVERSIONS
-// ============================================================================
+fn convert_project(value: ferinth::structures::project::Project, versions: Vec<ProjectVersion>) -> Project {
+    Project {
+        slug: value.slug,
+        title: value.title,
+        description: value.description,
+        categories: Some(value.categories),
+        client_side: convert_client_side(value.client_side),
+        server_side: convert_server_side(value.server_side),
+        project_type: convert_project_type(value.project_type),
+        downloads: i32::try_from(value.downloads).unwrap_or(0),
+        icon_url: Some(value.icon_url.map(|url| url.to_string())),
+        color: Some(value.color.map(|color| i32::try_from(color).unwrap_or(0))),
+        thread_id: Some(value.thread_id.to_string()),
+        monetization_status: None,
+        project_id: value.id.to_string(),
+        author: value.team.to_string(),
+        display_categories: Some(value.additional_categories),
+        versions,
+        follows: i32::try_from(value.followers).unwrap_or(0),
+        date_created: value.published.to_string(),
+        date_modified: value.updated.to_string(),
+        latest_version: None,
+        license: value.license.id,
+        gallery: None,
+        featured_gallery: None,
+    }
+}
 
 fn convert_project_type(value: FerinthProjectType) -> ProjectType {
     match value {
@@ -304,7 +283,6 @@ pub fn convert_client_side(value: ferinth::structures::project::ProjectSupportRa
         ferinth::structures::project::ProjectSupportRange::Unsupported => ClientSide::Unsupported,
         ferinth::structures::project::SideType::Unknown => ClientSide::Optional,
     }
-    // TODO: check if we should modify our types...
 }
 
 pub fn convert_server_side(value: ferinth::structures::project::ProjectSupportRange) -> ServerSide {
@@ -314,26 +292,12 @@ pub fn convert_server_side(value: ferinth::structures::project::ProjectSupportRa
         ferinth::structures::project::ProjectSupportRange::Unsupported => ServerSide::Unsupported,
         ferinth::structures::project::SideType::Unknown => ServerSide::Optional,
     }
-    // TODO: check if we should modify our types...
 }
-
-// fn convert_monetization_status(value: FerinthMonetizationStatus) -> api_types::projects::MonetizationStatus {
-//     match value {
-//         FerinthMonetizationStatus::Monetized => api_types::projects::MonetizationStatus::Monetized,
-
-//         FerinthMonetizationStatus::Demonetized => api_types::projects::MonetizationStatus::Demonetized,
-
-//         FerinthMonetizationStatus::ForceDemonetized => api_types::projects::MonetizationStatus::ForceDemonetized,
-//         FerinthMonetizationStatus::Other => api_types::projects::MonetizationStatus::Other,
-//     }
-// }
 
 fn convert_version_type(value: FerinthVersionType) -> VersionType {
     match value {
         FerinthVersionType::Release => VersionType::Release,
-
         FerinthVersionType::Beta => VersionType::Beta,
-
         FerinthVersionType::Alpha => VersionType::Alpha,
     }
 }
@@ -341,11 +305,8 @@ fn convert_version_type(value: FerinthVersionType) -> VersionType {
 fn convert_dependency_type(value: FerinthDependencyType) -> DependencyType {
     match value {
         FerinthDependencyType::Required => DependencyType::Required,
-
         FerinthDependencyType::Optional => DependencyType::Optional,
-
         FerinthDependencyType::Incompatible => DependencyType::Incompatible,
-
         FerinthDependencyType::Embedded => DependencyType::Embedded,
         FerinthDependencyType::Other => DependencyType::Other,
     }
@@ -354,15 +315,10 @@ fn convert_dependency_type(value: FerinthDependencyType) -> DependencyType {
 fn convert_status(value: FerinthStatus) -> Status {
     match value {
         FerinthStatus::Listed => Status::Listed,
-
         FerinthStatus::Archived => Status::Archived,
-
         FerinthStatus::Draft => Status::Draft,
-
         FerinthStatus::Unlisted => Status::Unlisted,
-
         FerinthStatus::Scheduled => Status::Scheduled,
-
         FerinthStatus::Unknown => Status::Unknown,
     }
 }
@@ -370,11 +326,8 @@ fn convert_status(value: FerinthStatus) -> Status {
 fn convert_requested_status(value: FerinthRequestedStatus) -> api_types::projects::RequestedStatus {
     match value {
         FerinthRequestedStatus::Listed => api_types::projects::RequestedStatus::Listed,
-
         FerinthRequestedStatus::Archived => api_types::projects::RequestedStatus::Archived,
-
         FerinthRequestedStatus::Draft => api_types::projects::RequestedStatus::Draft,
-
         FerinthRequestedStatus::Unlisted => api_types::projects::RequestedStatus::Unlisted,
         FerinthRequestedStatus::Other => api_types::projects::RequestedStatus::Other,
     }
@@ -383,9 +336,7 @@ fn convert_requested_status(value: FerinthRequestedStatus) -> api_types::project
 fn convert_file_type(value: FerinthFileType) -> FileType {
     match value {
         FerinthFileType::RequiredResourcePack => FileType::RequiredResourcePack,
-
         FerinthFileType::OptionalResourcePack => FileType::OptionalResourcePack,
-
         FerinthFileType::SourcesJar => FileType::SourcesJar,
         FerinthFileType::DevJar => FileType::DevJar,
         FerinthFileType::JavadocJar => FileType::JavadocJar,
@@ -397,37 +348,21 @@ fn convert_file_type(value: FerinthFileType) -> FileType {
 fn convert_version(value: FerinthVersion) -> ProjectVersion {
     ProjectVersion {
         name: value.name,
-
         version_number: value.version_number,
-
         changelog: value.changelog.map(Some),
-
         dependencies: Some(value.dependencies.into_iter().map(convert_dependency).collect()),
-
         game_versions: value.game_versions,
-
         version_type: convert_version_type(value.version_type),
-
         loaders: value.loaders,
-
         featured: value.featured,
-
         status: value.status.map(convert_status),
-
         requested_status: Some(value.requested_status.map(convert_requested_status)),
-
         id: value.id,
-
         project_id: value.project_id,
-
         author_id: value.author_id,
-
         date_published: value.date_published.to_string(),
-
         downloads: i32::try_from(value.downloads).unwrap_or(-1),
-
         changelog_url: None,
-
         files: value.files.into_iter().map(convert_version_file).collect(),
     }
 }
@@ -435,11 +370,8 @@ fn convert_version(value: FerinthVersion) -> ProjectVersion {
 fn convert_dependency(value: FerinthDependency) -> VersionDependency {
     VersionDependency {
         version_id: Some(value.version_id),
-
         project_id: Some(value.project_id),
-
         file_name: Some(value.file_name),
-
         dependency_type: convert_dependency_type(value.dependency_type),
     }
 }
@@ -447,22 +379,13 @@ fn convert_dependency(value: FerinthDependency) -> VersionDependency {
 fn convert_version_file(value: FerinthVersionFile) -> VersionFile {
     VersionFile {
         hashes: VersionFileHashes { sha512: Some(value.hashes.sha512), sha1: Some(value.hashes.sha1) },
-
         url: value.url.to_string(),
-
         filename: value.filename,
-
         primary: value.primary,
-
         size: i32::try_from(value.size).unwrap_or(-1),
-
         file_type: Some(value.file_type.map(convert_file_type)),
     }
 }
-
-// ============================================================================
-// DOWNLOAD
-// ============================================================================
 
 pub async fn download_project(project: &Project, version_id: Option<&str>, parent_folder: PathBuf) -> Result<Vec<String>, String> {
     let client = reqwest::Client::new();
