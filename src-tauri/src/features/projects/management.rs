@@ -136,7 +136,7 @@ fn latest_compatible_version<'a>(profile: &KableProfile, project: &'a Project) -
 
     let mut sorted = compatible_versions;
 
-    sorted.sort_by(|a, b| version_timestamp(&b.date_published).cmp(&version_timestamp(&a.date_published)));
+    sorted.sort_by_key(|b| std::cmp::Reverse(version_timestamp(&b.date_published)));
 
     for version in sorted.iter().take(10) {
         Logger::debug_global(
@@ -230,7 +230,7 @@ async fn cleanup_unreferenced_project_files(project_type: ProjectType, filenames
         return Ok(());
     }
 
-    let all_profiles = crate::features::profiles::management::list_profiles().await?;
+    let all_profiles = crate::features::profiles::management::list_profiles(false).await?;
 
     let folder = folder_for_project_type(project_type).await?;
 
@@ -379,11 +379,10 @@ pub async fn add_project_to_profile(profile: KableProfile, project: Project, ver
 
     let kable_project = add_project(project.clone(), Some(resolved_version_id)).await?;
 
-    let mut updated_profile = profile.clone();
-
-    enable_project_in_settings(&mut updated_profile.settings, kable_project.project.project_type, &kable_project.filename);
-
-    crate::features::profiles::management::modify_profile(profile, updated_profile).await?;
+    crate::features::profiles::management::modify_current_profile(&profile.id, |current_profile| {
+        enable_project_in_settings(&mut current_profile.settings, kable_project.project.project_type, &kable_project.filename);
+    })
+    .await?;
 
     Ok(kable_project)
 }
@@ -627,7 +626,7 @@ pub async fn update_all_projects(profile: KableProfile, project_type: ProjectTyp
 
         updated_projects.push(updated_project);
 
-        current_profile = crate::features::profiles::management::list_profiles()
+        current_profile = crate::features::profiles::management::list_profiles(false)
             .await?
             .into_iter()
             .find(|profile| profile.id == current_profile.id)

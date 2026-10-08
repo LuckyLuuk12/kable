@@ -87,6 +87,7 @@ async function refresh(): Promise<void> {
   refreshing = true;
 
   try {
+    await app.profilesService.refreshProfiles(true);
     await app.projectsService.load(currentProfile, projectType, true);
     await refreshUpdateCount(currentProfile);
 

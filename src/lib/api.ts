@@ -76,7 +76,7 @@ export const commands = {
 	checkForUpdates: (profile: KableProfile, projectType: ProjectType) => typedError<UpdateMap[], string>(__TAURI_INVOKE("check_for_updates", { profile, projectType })),
 	updateProject: (profile: KableProfile, kableProject: KableProject, versionId: string | null) => typedError<KableProject, string>(__TAURI_INVOKE("update_project", { profile, kableProject, versionId })),
 	updateAllProjects: (profile: KableProfile, projectType: ProjectType) => typedError<KableProject[], string>(__TAURI_INVOKE("update_all_projects", { profile, projectType })),
-	getProfiles: () => typedError<KableProfile[], string>(__TAURI_INVOKE("get_profiles")),
+	getProfiles: (force: boolean) => typedError<KableProfile[], string>(__TAURI_INVOKE("get_profiles", { force })),
 	getProfile: (id: string) => typedError<KableProfile, string>(__TAURI_INVOKE("get_profile", { id })),
 	createProfile: (versionId: string | null, baseProfile: {
 	id: string,

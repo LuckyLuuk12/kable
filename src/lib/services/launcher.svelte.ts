@@ -36,7 +36,7 @@ export class LauncherService implements Service {
   }
 
   async launchLatest() {
-    const profiles = await api.getProfiles();
+    const profiles = await api.getProfiles(true);
     if (!profiles || profiles.length === 0) {
       throw new Error("No profiles found to launch");
     }

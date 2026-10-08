@@ -7,8 +7,8 @@ use api_types::{
 
 #[tauri::command]
 #[specta::specta]
-pub async fn get_profiles() -> Result<Vec<KableProfile>, String> {
-    management::list_profiles().await
+pub async fn get_profiles(force: bool) -> Result<Vec<KableProfile>, String> {
+    management::list_profiles(force).await
 }
 
 #[tauri::command]

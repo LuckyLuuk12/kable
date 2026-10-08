@@ -1,6 +1,7 @@
 // The simple profile management (rename/delete/list)
 
 use crate::features::profiles::kable_profile::{load_profiles, save_profiles};
+use crate::system::cache::invalidate_no_args;
 use crate::system::fs;
 use api_types::profiles::KableProfile;
 use api_types::projects::KableProject;
@@ -38,6 +39,29 @@ async fn modify_profile_unlocked(old: KableProfile, new: KableProfile) -> Result
 
 pub async fn modify_profile(old: KableProfile, new: KableProfile) -> Result<KableProfile, String> {
     fs::with_file_lock(crate::constants::KABLE_PROFILES_FILE, || async move { modify_profile_unlocked(old, new).await }).await
+}
+
+pub async fn modify_current_profile<F>(profile_id: &str, modify: F) -> Result<KableProfile, String>
+where
+    F: FnOnce(&mut KableProfile),
+{
+    fs::with_file_lock(crate::constants::KABLE_PROFILES_FILE, || async move {
+        let mut profiles = load_profiles().await?;
+
+        let profile = profiles
+            .iter_mut()
+            .find(|profile| profile.id == profile_id)
+            .ok_or_else(|| format!("Profile with id {} not found", profile_id))?;
+
+        modify(profile);
+
+        let updated_profile = profile.clone();
+
+        save_profiles(&profiles).await?;
+
+        Ok(updated_profile)
+    })
+    .await
 }
 
 pub async fn delete_profile(profile_id: &str) -> Result<(), String> {
@@ -78,7 +102,10 @@ pub async fn update_last_used(profile: KableProfile) -> Result<KableProfile, Str
     }
 }
 
-pub async fn list_profiles() -> Result<Vec<KableProfile>, String> {
+pub async fn list_profiles(force: bool) -> Result<Vec<KableProfile>, String> {
+    if force {
+        invalidate_no_args("profiles", "load_profiles").await?;
+    }
     load_profiles().await
 }
 

@@ -29,7 +29,7 @@ export class ProfilesService implements Service {
 
     this.loading = true;
     try {
-      const [profiles] = await Promise.all([api.getProfiles()]);
+      const [profiles] = await Promise.all([api.getProfiles(false)]);
 
       this.profiles = profiles;
 
@@ -39,11 +39,11 @@ export class ProfilesService implements Service {
     }
   }
 
-  async refreshProfiles() {
+  async refreshProfiles(force: boolean = false) {
     this.loading = true;
 
     try {
-      const tmp_profiles = await api.getProfiles();
+      const tmp_profiles = await api.getProfiles(force);
       // only update the profiles if they have changed to avoid unnecessary reactivity updates
       if (JSON.stringify(tmp_profiles) !== JSON.stringify(this.profiles)) {
         this.profiles = tmp_profiles;

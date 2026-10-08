@@ -16,7 +16,7 @@ let {
   project: KableProject;
 } = $props();
 
-let isEnabled = $state(false);
+let isEnabled = $state(true);
 let loading = $state(false);
 let hasUpdate = $state(false);
 
