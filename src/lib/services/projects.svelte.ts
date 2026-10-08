@@ -522,4 +522,49 @@ export class ProjectsService implements Service {
       "projects loaded",
     );
   }
+
+  async getModrinthCategories(): Promise<string[]> {
+    try {
+      return await api.getModrinthCategories();
+    } catch (e) {
+      console.error("Failed to get Modrinth categories", e);
+      throw e;
+    }
+  }
+
+  async getModrinthLoaders(): Promise<string[]> {
+    try {
+      return await api.getModrinthLoaders();
+    } catch (e) {
+      console.error("Failed to get Modrinth loaders", e);
+      throw e;
+    }
+  }
+
+  async getModrinthGameVersions(): Promise<string[]> {
+    try {
+      return await api.getModrinthGameVersions();
+    } catch (e) {
+      console.error("Failed to get Modrinth game versions", e);
+      throw e;
+    }
+  }
+
+  async getModrinthProjectTypes(): Promise<string[]> {
+    try {
+      return await api.getModrinthProjectTypes();
+    } catch (e) {
+      console.error("Failed to get Modrinth project types", e);
+      throw e;
+    }
+  }
+
+  async getModrinthSideTypes(): Promise<string[]> {
+    try {
+      return await api.getModrinthSideTypes();
+    } catch (e) {
+      console.error("Failed to get Modrinth side types", e);
+      throw e;
+    }
+  }
 }

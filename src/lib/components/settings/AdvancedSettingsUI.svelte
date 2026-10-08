@@ -119,8 +119,7 @@ function scheduleSave() {
               type="checkbox"
               id="check-nightly-updates"
               bind:checked={app.customizationService.settings!.advanced!.enable_nightly_updates}
-              onchange={scheduleSave}
-            />
+              onchange={scheduleSave} />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -171,8 +170,7 @@ function scheduleSave() {
                     value={entry.key}
                     oninput={(event) => handleKeyChange(i, (event.currentTarget as HTMLInputElement).value)}
                     placeholder="Key"
-                    autocomplete="off"
-                  />
+                    autocomplete="off" />
 
                   <textarea
                     class="extra-value"
@@ -181,8 +179,7 @@ function scheduleSave() {
                     oninput={(event) => handleValueChange(i, (event.currentTarget as HTMLTextAreaElement).value)}
                     placeholder="Value"
                     autocomplete="off"
-                    rows="1"
-                  ></textarea>
+                    rows="1"></textarea>
 
                   <button type="button" class="remove-btn" onclick={() => removeExtra(i)} title="Remove">
                     <Icon name="delete" forceType="svg" />

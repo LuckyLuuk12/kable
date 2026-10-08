@@ -59,3 +59,33 @@ pub async fn update_project(profile: KableProfile, kable_project: KableProject, 
 pub async fn update_all_projects(profile: KableProfile, project_type: ProjectType) -> Result<Vec<KableProject>, String> {
     management::update_all_projects(profile, project_type).await
 }
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_modrinth_categories() -> Result<Vec<String>, String> {
+    crate::integrations::modrinth::ferinth_client::get_categories().await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_modrinth_loaders() -> Result<Vec<String>, String> {
+    crate::integrations::modrinth::ferinth_client::get_loaders().await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_modrinth_game_versions() -> Result<Vec<String>, String> {
+    crate::integrations::modrinth::ferinth_client::get_game_versions().await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_modrinth_project_types() -> Result<Vec<String>, String> {
+    crate::integrations::modrinth::ferinth_client::get_project_types().await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn get_modrinth_side_types() -> Result<Vec<String>, String> {
+    crate::integrations::modrinth::ferinth_client::get_side_types().await
+}

@@ -111,15 +111,6 @@ async function toggle() {
 
   try {
     await app.projectsService.toggle(profile, project);
-
-    /*
-     * The profile object may have been replaced by the profile service after
-     * the backend mutation. The reactive effect above will then reevaluate
-     * the enabled state from the current profile/project state.
-     *
-     * We intentionally do not perform another explicit isEnabled() request
-     * here.
-     */
   } finally {
     loading = false;
   }
@@ -164,7 +155,22 @@ function showGallery() {
 }
 </script>
 
-<article class="installed-project-card" class:loading class:has-update={hasUpdate}>
+<!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
+<article
+  class="installed-project-card"
+  class:enabled={isEnabled}
+  class:has-update={hasUpdate && !isEnabled}
+  class:loading
+  role="button"
+  tabindex="0"
+  aria-label={`Open details for ${project.project.title}`}
+  onclick={showDetails}
+  onkeydown={(event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      showDetails();
+    }
+  }}>
   <div class="project-icon">
     {#if project.project.icon_url}
       <img src={project.project.icon_url} alt="" loading="lazy" />
@@ -178,28 +184,24 @@ function showGallery() {
   <div class="project-content">
     <div class="project-header">
       <h3>{project.project.title}</h3>
-
-      <span class:enabled={isEnabled} class="status">
-        {isEnabled ? "Enabled" : "Disabled"}
-      </span>
     </div>
 
     <div class="project-meta">
       <span>{versionLabel}</span>
 
-      {#if hasUpdate}
-        <span class="separator">•</span>
-        <span class="update-label">Update available</span>
-      {/if}
-
       {#if releaseDate}
-        <span class="separator">•</span>
         <span>{releaseDate}</span>
       {/if}
     </div>
   </div>
 
-  <div class="project-actions">
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <div
+    class="project-actions"
+    onclick={(event) => event.stopPropagation()}
+    onkeydown={(event) => event.stopPropagation()}
+    role="group"
+    aria-label={`Actions for ${project.project.title}`}>
     <button
       class:active={isEnabled}
       class="action-button toggle"
@@ -213,10 +215,6 @@ function showGallery() {
 
     <button class="action-button" type="button" disabled={loading} title="Versions" aria-label={`Versions for ${project.project.title}`} onclick={showVersions}>
       <Icon name="list" forceType="svg" />
-    </button>
-
-    <button class="action-button" type="button" disabled={loading} title="Details" aria-label={`Details for ${project.project.title}`} onclick={showDetails}>
-      <Icon name="info" forceType="svg" />
     </button>
 
     {#if hasGallery}
@@ -254,6 +252,8 @@ function showGallery() {
   border: 1px solid $color-border-muted;
   border-radius: $radius-lg;
 
+  cursor: pointer;
+
   transition:
     background-color 120ms ease,
     border-color 120ms ease,
@@ -262,6 +262,19 @@ function showGallery() {
   &:hover {
     background: $color-surface-2;
     border-color: $color-border;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-focus;
+    outline-offset: 2px;
+  }
+
+  &.enabled {
+    border-color: $color-success-muted;
+
+    &:hover {
+      border-color: $color-success;
+    }
   }
 
   &.has-update {
@@ -333,7 +346,6 @@ function showGallery() {
 .project-header {
   display: flex;
   align-items: center;
-  gap: $space-sm;
   min-width: 0;
 
   h3 {
@@ -352,32 +364,11 @@ function showGallery() {
   }
 }
 
-.status {
-  flex: 0 0 auto;
-
-  padding: 2px $space-sm;
-
-  border: 1px solid $color-border-muted;
-  border-radius: $radius-round;
-
-  background: $color-surface-3;
-  color: $color-text-muted;
-
-  font-size: 0.65rem;
-  font-weight: 600;
-  line-height: 1.4;
-
-  &.enabled {
-    border-color: rgba(34, 197, 94, 0.2);
-    background: rgba(34, 197, 94, 0.08);
-    color: $color-success;
-  }
-}
-
 .project-meta {
   display: flex;
-  align-items: center;
-  gap: $space-xs;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
 
   margin-top: 3px;
 
@@ -389,18 +380,10 @@ function showGallery() {
 
   span {
     min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-}
-
-.separator {
-  flex: 0 0 auto;
-  color: $color-placeholder;
-}
-
-.update-label {
-  flex: 0 0 auto;
-  color: $color-warning;
-  font-weight: 600;
 }
 
 .project-actions {

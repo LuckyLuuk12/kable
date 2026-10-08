@@ -12,6 +12,7 @@ use ferinth::{
     },
     Ferinth,
 };
+use kable_macros::persistent_cache;
 
 use crate::Logger;
 use api_types::projects::{
@@ -415,4 +416,36 @@ pub async fn download_project(project: &Project, version_id: Option<&str>, paren
     Logger::debug_global(&format!("Downloaded {} files for project {} version {}", filenames.len(), project.project_id, version_id), None);
 
     Ok(filenames)
+}
+#[persistent_cache(parent = "modrinth", ttl_secs = 1209600)]
+pub async fn get_categories() -> Result<Vec<String>, String> {
+    client()
+        .tag_list_categories()
+        .await
+        .map(|categories| categories.into_iter().map(|category| category.name).collect())
+        .map_err(|e| format!("Failed to get Modrinth categories: {e}"))
+}
+#[persistent_cache(parent = "modrinth", ttl_secs = 1209600)]
+pub async fn get_loaders() -> Result<Vec<String>, String> {
+    client()
+        .tag_list_loaders()
+        .await
+        .map(|loaders| loaders.into_iter().map(|loader| loader.name).collect())
+        .map_err(|e| format!("Failed to get Modrinth loaders: {e}"))
+}
+#[persistent_cache(parent = "modrinth", ttl_secs = 1209600)]
+pub async fn get_game_versions() -> Result<Vec<String>, String> {
+    client()
+        .tag_list_game_versions()
+        .await
+        .map(|versions| versions.into_iter().map(|version| version.version).collect())
+        .map_err(|e| format!("Failed to get Modrinth game versions: {e}"))
+}
+#[persistent_cache(parent = "modrinth", ttl_secs = 1209600)]
+pub async fn get_project_types() -> Result<Vec<String>, String> {
+    client().tag_list_project_types().await.map_err(|e| format!("Failed to get Modrinth project types: {e}"))
+}
+#[persistent_cache(parent = "modrinth", ttl_secs = 1209600)]
+pub async fn get_side_types() -> Result<Vec<String>, String> {
+    client().tag_list_side_types().await.map_err(|e| format!("Failed to get Modrinth side types: {e}"))
 }

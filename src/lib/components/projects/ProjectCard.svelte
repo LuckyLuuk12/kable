@@ -224,13 +224,11 @@ function showGallery() {
 
     <button class="action-button" type="button" disabled={!profile || liking} onclick={toggleLike} title="Like project"> Like </button>
 
-    <button class="action-button" type="button" onclick={showVersions}> Versions </button>
-
     {#if hasGallery}
       <button class="action-button" type="button" onclick={showGallery}> Gallery </button>
     {/if}
 
-    <button class="action-button" type="button" onclick={showDetails}> Details </button>
+    <button class="action-button" type="button" onclick={showVersions}> Versions </button>
 
     {#if profile && (canInstall || canUpdate)}
       <button class="action-button primary" type="button" disabled={installing} onclick={install}>
@@ -250,6 +248,7 @@ function showGallery() {
 .project-card {
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 12px;
 
   padding: 14px;
@@ -451,11 +450,10 @@ function showGallery() {
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-
-  min-height: 30px;
-  padding-top: 2px;
 }
 
 .installed-version {

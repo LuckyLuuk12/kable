@@ -12,6 +12,7 @@ let {
   profile: KableProfile;
 } = $props();
 
+// svelte-ignore state_referenced_locally
 let installation = $state(app.profilesService.memoryClone(profile));
 let javaArgsString = $state(installation.settings.java_args?.join(" ") ?? "");
 let parametersJson = $state(JSON.stringify(installation.settings.parameters_map ?? {}, null, 2));
@@ -286,6 +287,7 @@ function cancelEdit() {
 
       <div class="section-divider"></div>
 
+      <!-- eslint-disable-next-line svelte/no-at-html-tags -->
       <pre class="json-preview"><code>{@html highlightedJson}</code></pre>
     </section>
 

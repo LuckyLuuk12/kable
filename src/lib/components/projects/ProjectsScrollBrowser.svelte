@@ -4,11 +4,7 @@
 Projects browser with infinite scrolling for discovering and installing projects.
 
 Provides:
-- Project search
-- Project type filtering
-- Result sorting
 - Infinite scrolling
-- Debounced search
 - Background prefetching
 - Local page caching
 - Previous/next page prefetching
@@ -16,7 +12,7 @@ Provides:
 - Project details navigation
 -->
 <script lang="ts">
-import { app, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "$lib";
+import { app, type FacetGroup, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "$lib";
 import { tick, untrack } from "svelte";
 import ProjectCard from "./ProjectCard.svelte";
 
@@ -26,16 +22,19 @@ let {
   projectType,
   search = "",
   smartFilter = true,
+  facets = [],
+  index = "relevance",
 }: {
   profile: KableProfile | null;
   profileId: string | null;
   projectType: ProjectType;
   search?: string;
   smartFilter?: boolean;
+  facets?: FacetGroup[];
+  index?: SearchIndex;
 } = $props();
 
 const limit = 20;
-const searchDebounce = 450;
 const scrollThreshold = 800;
 const prefetchPages = 2;
 
@@ -44,19 +43,19 @@ let loading = $state(false);
 let loadingMore = $state(false);
 let error = $state<string | null>(null);
 
-let query = $state(search.trim());
-let index = $state<SearchIndex>("relevance");
-
 let browserRoot: HTMLDivElement | null = null;
+// svelte-ignore non_reactive_update
 let scrollContainer: HTMLDivElement | null = null;
+// svelte-ignore non_reactive_update
 let bottomSentinel: HTMLDivElement | null = null;
 
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
 let pageCache = new Map<number, ModrinthResults>();
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
 let inFlight = new Map<number, Promise<ModrinthResults | null>>();
 
 let generation = 0;
 
-let searchTimer: ReturnType<typeof setTimeout> | null = null;
 let loadMorePromise: Promise<void> | null = null;
 
 let intersectionObserver: IntersectionObserver | null = null;
@@ -74,12 +73,14 @@ let hasInitialized = false;
  * duplicate projects must be removed before rendering.
  */
 let projectResults = $derived.by(() => {
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const uniqueProjects = new Map<string, (typeof pages)[number]["hits"][number]>();
 
   for (const page of pages) {
     for (const project of page.hits) {
       if (uniqueProjects.has(project.project_id)) {
         console.debug("[ProjectsScrollBrowser] Duplicate project across pages:", project.project_id);
+
         continue;
       }
 
@@ -98,8 +99,8 @@ let hasNextPage = $derived(pages.length > 0 && pages[pages.length - 1].offset + 
 
 function createRequest(offset: number): ProjectSearch {
   return {
-    query: query.trim() || null,
-    facets: [],
+    query: search.trim() || null,
+    facets,
     index,
     offset,
     limit,
@@ -441,62 +442,6 @@ function resetState(): void {
   console.debug("[ProjectsScrollBrowser] State reset. Generation:", generation);
 }
 
-function scheduleReload(): void {
-  if (!isVisible || !profile) {
-    return;
-  }
-
-  if (searchTimer !== null) {
-    clearTimeout(searchTimer);
-    searchTimer = null;
-  }
-
-  searchTimer = setTimeout(() => {
-    searchTimer = null;
-
-    if (!isVisible || !profile) {
-      return;
-    }
-
-    resetState();
-    void loadInitialPage();
-  }, searchDebounce);
-}
-
-function submitSearch(): void {
-  if (searchTimer !== null) {
-    clearTimeout(searchTimer);
-    searchTimer = null;
-  }
-
-  if (!isVisible || !profile) {
-    return;
-  }
-
-  resetState();
-  void loadInitialPage();
-}
-
-function setIndex(value: SearchIndex): void {
-  if (value === index) {
-    return;
-  }
-
-  index = value;
-
-  if (searchTimer !== null) {
-    clearTimeout(searchTimer);
-    searchTimer = null;
-  }
-
-  if (!isVisible || !profile) {
-    return;
-  }
-
-  resetState();
-  void loadInitialPage();
-}
-
 function retry(): void {
   if (!profile || !isVisible) {
     return;
@@ -575,12 +520,16 @@ function destroyIntersectionObserver(): void {
 /*
  * Search/filter changes are allowed to update while hidden, but they must
  * not trigger a Modrinth request until this browser is actually visible.
+ *
+ * Once visible, any change to the browser state starts a fresh search
+ * from the first page.
  */
 $effect(() => {
+  search;
+  index;
+  facets;
   projectType;
   smartFilter;
-  index;
-  query;
 
   if (!profileId) {
     resetState();
@@ -593,30 +542,21 @@ $effect(() => {
     initialized: hasInitialized,
   }));
 
-  if (!visible) {
+  if (!visible || !initialized) {
     return;
   }
 
-  /*
-   * If visibility caused initialization, loadInitialPage() has already been
-   * started by updateVisibility(). Avoid scheduling a second initial request.
-   */
-  if (!initialized) {
-    hasInitialized = true;
-    void loadInitialPage();
-    return;
-  }
-
-  scheduleReload();
+  resetState();
+  void loadInitialPage();
 });
 
 /*
  * Observe the browser itself rather than relying on the parent to tell us
  * whether this tab is active.
  *
- * When the parent has `display: none`, this element has zero dimensions and
- * ResizeObserver reports that state. When the tab becomes visible again,
- * the observer fires and initialization starts.
+ * When the parent has `display: none`, this element has zero dimensions.
+ * When the tab becomes visible again, the observer fires and initialization
+ * starts.
  */
 $effect(() => {
   const root = browserRoot;
@@ -689,11 +629,6 @@ $effect(() => {
 
 $effect(() => {
   return () => {
-    if (searchTimer !== null) {
-      clearTimeout(searchTimer);
-      searchTimer = null;
-    }
-
     intersectionObserver?.disconnect();
     resizeObserver?.disconnect();
     visibilityObserver?.disconnect();
@@ -706,33 +641,6 @@ $effect(() => {
 </script>
 
 <div bind:this={browserRoot} class="projects-browser">
-  <form
-    class="toolbar"
-    onsubmit={(event) => {
-      event.preventDefault();
-      submitSearch();
-    }}>
-    <div class="search">
-      <input type="search" bind:value={query} placeholder="Search projects..." aria-label="Search projects" />
-
-      <button type="submit" disabled={loading || !profile || !isVisible}> Search </button>
-    </div>
-
-    <select
-      value={index}
-      onchange={(event) => {
-        setIndex(event.currentTarget.value as SearchIndex);
-      }}
-      aria-label="Sort projects"
-      disabled={loading || !profile || !isVisible}>
-      <option value="relevance">Relevance</option>
-      <option value="downloads">Downloads</option>
-      <option value="follows">Follows</option>
-      <option value="newest">Newest</option>
-      <option value="updated">Updated</option>
-    </select>
-  </form>
-
   {#if error && pages.length === 0}
     <div class="error">
       <span>{error}</span>
@@ -801,82 +709,6 @@ $effect(() => {
   min-height: 0;
 }
 
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: $space-md;
-  flex-shrink: 0;
-}
-
-.search {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  gap: $space-sm;
-
-  input {
-    flex: 1;
-    min-width: 0;
-    padding: $space-sm $space-md;
-    border: 1px solid $color-border;
-    border-radius: $radius-md;
-    background: $color-surface-2;
-    color: $color-text;
-    font: inherit;
-    font-size: 0.85rem;
-
-    &::placeholder {
-      color: $color-placeholder;
-    }
-
-    &:focus {
-      border-color: $color-focus;
-      outline: none;
-    }
-  }
-}
-
-select {
-  padding: $space-sm $space-md;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
-  background: $color-surface-2;
-  color: $color-text;
-  font: inherit;
-  font-size: 0.8rem;
-
-  &:focus {
-    border-color: $color-focus;
-    outline: none;
-  }
-}
-
-.toolbar button,
-.error button {
-  padding: $space-sm $space-md;
-  border: 1px solid $color-border;
-  border-radius: $radius-md;
-  background: $color-surface-2;
-  color: $color-text;
-  font: inherit;
-  font-size: 0.8rem;
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: $color-surface-3;
-  }
-
-  &:focus-visible {
-    outline: 2px solid $color-focus;
-    outline-offset: 2px;
-  }
-
-  &:disabled {
-    cursor: default;
-    opacity: 0.5;
-  }
-}
-
 .results-container {
   min-height: 0;
   height: calc(100vh - 220px);
@@ -922,6 +754,31 @@ select {
   font-size: 0.8rem;
 }
 
+.error button {
+  padding: $space-sm $space-md;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface-2;
+  color: $color-text;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: $color-surface-3;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-focus;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.5;
+  }
+}
+
 .scroll-status {
   display: flex;
   align-items: center;
@@ -960,19 +817,6 @@ select {
 }
 
 @media (max-width: 640px) {
-  .toolbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .search {
-    flex-direction: column;
-  }
-
-  select {
-    width: 100%;
-  }
-
   .results-container {
     height: calc(100vh - 280px);
     max-height: calc(100vh - 280px);

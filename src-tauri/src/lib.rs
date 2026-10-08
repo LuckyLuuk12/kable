@@ -133,6 +133,11 @@ pub fn run() {
             api::check_for_updates,
             api::update_project,
             api::update_all_projects,
+            api::get_modrinth_categories,
+            api::get_modrinth_loaders,
+            api::get_modrinth_game_versions,
+            api::get_modrinth_project_types,
+            api::get_modrinth_side_types,
             // #endregion Projects
             // #region Profiles
             api::get_profiles,

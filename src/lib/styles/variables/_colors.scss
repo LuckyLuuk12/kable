@@ -43,9 +43,13 @@
   // Status colors
   // ------------------------------------------------------
   --color-success: #22c55e;
+  --color-success-muted: #1d4331;
   --color-warning: #eab308;
+  --color-warning-muted: #78350f;
   --color-error: #ef4444;
+  --color-error-muted: #4d1212;
   --color-info: #3b82f6;
+  --color-info-muted: #1e3a8a;
 
   // ------------------------------------------------------
   // Interaction states
@@ -95,9 +99,13 @@ $color-accent-quaternary: var(--color-accent-quaternary) !default;
 
 // Status colors
 $color-success: var(--color-success) !default;
+$color-success-muted: var(--color-success-muted) !default;
 $color-warning: var(--color-warning) !default;
+$color-warning-muted: var(--color-warning-muted) !default;
 $color-error: var(--color-error) !default;
+$color-error-muted: var(--color-error-muted) !default;
 $color-info: var(--color-info) !default;
+$color-info-muted: var(--color-info-muted) !default;
 
 // Interaction states
 $color-hover: var(--color-hover) !default;
