@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::Timestamp;
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 pub struct DeviceCodeResponse {
     pub device_code: String,
     pub user_code: String,
@@ -13,7 +13,7 @@ pub struct DeviceCodeResponse {
     pub interval: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 pub struct MicrosoftToken {
     pub access_token: String,
     pub expires_at: Timestamp,
@@ -21,7 +21,7 @@ pub struct MicrosoftToken {
     pub refresh_token: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 pub struct KableAccount {
     pub access_token: String,
     pub access_token_expires_at: String,
@@ -46,7 +46,7 @@ pub struct KableAccount {
     pub username: String,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub struct KableMinecraftProfile {
     pub id: String,
@@ -55,7 +55,7 @@ pub struct KableMinecraftProfile {
     pub requires_skin_change: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 #[serde(rename_all = "snake_case")]
 pub struct KableAccountsJson {
     pub accounts: HashMap<String, KableAccount>,
@@ -65,14 +65,14 @@ pub struct KableAccountsJson {
 
 // ? Official launcher types:
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize,  specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct LauncherAccountsJson {
     pub accounts: HashMap<String, LauncherAccount>,
     pub mojang_client_token: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize,  specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct LauncherAccount {
     pub access_token: String,
@@ -95,7 +95,7 @@ pub struct LauncherAccount {
     pub username: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize,  specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MinecraftProfile {
     pub id: String,
@@ -104,7 +104,7 @@ pub struct MinecraftProfile {
     pub requires_skin_change: bool,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize,  specta::Type)]
 #[serde(rename_all = "camelCase")]
 pub struct MinecraftProfileResponse {
     pub id: String,

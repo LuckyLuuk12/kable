@@ -1,14 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 pub struct WorldDownload {
     pub name: String,
     pub url: String,
     pub version: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum WorldSource {
@@ -17,15 +16,14 @@ pub enum WorldSource {
     Other(String),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 pub struct LocalWorld {
     pub name: String,
     pub path: String,
     pub source: WorldSource,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum GameMode {
@@ -35,8 +33,7 @@ pub enum GameMode {
     Spectator,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum Difficulty {

@@ -186,6 +186,7 @@ dependencies = [
  "serde_with",
  "specta",
  "specta-serde",
+ "url",
  "uuid 1.23.3",
 ]
 
@@ -5486,6 +5487,7 @@ dependencies = [
  "paste",
  "rustc_version",
  "specta-macros",
+ "url",
 ]
 
 [[package]]

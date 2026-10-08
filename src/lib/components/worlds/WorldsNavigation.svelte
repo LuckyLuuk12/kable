@@ -141,17 +141,11 @@ async function refreshWorlds() {
   gap: $space-md;
 }
 
-.icon,
 .icon-placeholder {
   width: 42px;
   height: 42px;
   flex: 0 0 42px;
   border-radius: $radius-md;
-}
-
-.icon {
-  display: block;
-  object-fit: cover;
 }
 
 .icon-placeholder {
@@ -331,7 +325,6 @@ async function refreshWorlds() {
     height: 36px;
   }
 
-  .icon,
   .icon-placeholder {
     width: 36px;
     height: 36px;

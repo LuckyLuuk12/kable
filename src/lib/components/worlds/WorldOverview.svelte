@@ -229,7 +229,6 @@ const formatGameMode = (mode: World["level"] extends infer T ? (T extends { game
   border-radius: $radius-lg;
 }
 
-.hero-icon img,
 .icon-placeholder {
   display: block;
 

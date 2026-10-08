@@ -3,13 +3,13 @@ use std::fmt;
 
 use crate::Timestamp;
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct FrontendLogBatch {
     pub logs: Vec<LogEntry>,
     pub max_logs: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct LogEntry {
     pub level: LogLevel,
     pub message: String,
@@ -17,8 +17,7 @@ pub struct LogEntry {
     pub instance_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum LogLevel {

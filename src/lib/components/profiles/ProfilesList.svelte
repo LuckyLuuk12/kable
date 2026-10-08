@@ -631,12 +631,6 @@ function formatLastUsed(date: string | null | undefined) {
       outline: none;
     }
   }
-
-  .profile-dropdown,
-  .actions-dropdown,
-  .dropdown {
-    display: none !important;
-  }
 }
 
 /* ============================================================
@@ -949,19 +943,6 @@ function formatLastUsed(date: string | null | undefined) {
       0 0.25rem 1rem rgba(0, 0, 0, 0.1),
       0 0.125rem 0.25rem rgba(0, 0, 0, 0.06);
   }
-
-  .profile-dropdown,
-  .actions-dropdown,
-  .dropdown,
-  .dropdown-toggle,
-  .dropdown-menu,
-  .dropdown-content,
-  .dropdown-options,
-  .dropdown-separator {
-    display: none !important;
-    visibility: hidden !important;
-    pointer-events: none !important;
-  }
 }
 
 .list-item-main {
@@ -1132,10 +1113,6 @@ function formatLastUsed(date: string | null | undefined) {
   justify-content: flex-end;
 
   gap: 0.3rem;
-
-  &.hidden {
-    display: none !important;
-  }
 
   .list-action-btn {
     flex: 0 0 auto;

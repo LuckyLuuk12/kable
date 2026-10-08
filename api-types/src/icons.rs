@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 pub struct IconTemplate {
     pub id: String,
     pub name: String,
@@ -17,8 +17,8 @@ pub struct IconTemplate {
     pub updated_at: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
+
 #[serde(untagged, rename_all = "snake_case")] // ! NOTE: untagged means we CAN NOT cache this type...
 #[repr(u8)]
 pub enum IconData {
@@ -26,8 +26,8 @@ pub enum IconData {
     Legacy(String),
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
+
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum IconTemplateType {
@@ -35,8 +35,8 @@ pub enum IconTemplateType {
     Custom,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
+
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum IconType {
@@ -45,7 +45,7 @@ pub enum IconType {
     CssClass,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default,  specta::Type)]
 pub struct IconSettings {
     pub custom_templates: Vec<IconTemplate>,
 }

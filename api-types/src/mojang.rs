@@ -9,7 +9,7 @@ pub struct SkinData {
     pub alias: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 pub struct CapeData {
     pub id: String,
     pub state: String,
@@ -17,7 +17,7 @@ pub struct CapeData {
     pub alias: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 pub struct PlayerProfile {
     pub uuid: String,
     pub username: String,
@@ -26,8 +26,7 @@ pub struct PlayerProfile {
     pub skin_model: SkinModel,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum SkinModel {

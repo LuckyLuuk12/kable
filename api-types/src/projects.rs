@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 /// Represents a project in a profile's dedicated mods folder, including its metadata and whether it is enabled or disabled
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct KableProject {
     /// The project itself, containing all of its metadata
     pub project: Project,
@@ -11,13 +12,13 @@ pub struct KableProject {
     pub filename: String,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct UpdateMap {
     pub kable_project: KableProject,
     pub update: Option<Project>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, specta::Type)]
 pub struct ProjectSearch {
     pub query: Option<String>,
     pub facets: Vec<FacetGroup>,
@@ -26,18 +27,17 @@ pub struct ProjectSearch {
     pub limit: Option<i32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, specta::Type)]
 pub struct FacetGroup {
     pub facets: Vec<Facet>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, specta::Type)]
 pub struct Facet {
     pub field: FacetField,
     pub operator: FacetOperator,
     pub value: String,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum FacetOperator {
@@ -49,8 +49,7 @@ pub enum FacetOperator {
     Less,
     LessEq,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum FacetField {
@@ -75,8 +74,7 @@ pub enum FacetField {
     DateModified,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum SearchIndex {
@@ -88,7 +86,7 @@ pub enum SearchIndex {
     Updated,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct ModrinthResults {
     /// The list of results
     #[serde(rename = "hits")]
@@ -104,7 +102,7 @@ pub struct ModrinthResults {
     pub total_hits: i32,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct Project {
     /// The slug of a project, used for vanity URLs. Regex: ```^[\\w!@$()`.+,\"\\-']{3,64}$```
     #[serde(rename = "slug")]
@@ -172,15 +170,14 @@ pub struct Project {
     pub license: String,
     /// All gallery images attached to the project
     // #[serde(rename = "gallery", skip_serializing_if = "Option::is_none")]
-    pub gallery: Option<Vec<String>>,
+    pub gallery: Vec<Url>,
     /// The featured gallery image of the project
     // #[serde(rename = "featured_gallery", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
     // #[specta(type = specta_serde::Phased<Option<Option<String>>, Option<Option<String>>>)]
-    pub featured_gallery: Option<Option<String>>,
+    pub featured_gallery: Option<Url>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum ClientSide {
@@ -193,8 +190,7 @@ pub enum ClientSide {
 }
 
 /// The server side support of the project
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum ServerSide {
@@ -207,8 +203,7 @@ pub enum ServerSide {
 }
 
 /// The project type of the project
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum ProjectType {
@@ -231,8 +226,7 @@ pub enum ProjectType {
 }
 
 /// The monetization status of the project
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum MonetizationStatus {
@@ -250,7 +244,7 @@ pub enum MonetizationStatus {
 //? PROJECT VERSION STRUCTURES - from modrinth_api::models::version.rs
 //?---------------------------------------------------------------------
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct ProjectVersion {
     /// The name of this version
     // #[serde(rename = "name")]
@@ -305,7 +299,7 @@ pub struct ProjectVersion {
     pub files: Vec<VersionFile>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct VersionDependency {
     /// The ID of the version that this version depends on
     // #[serde(rename = "version_id", default, with = "::serde_with::rust::double_option", skip_serializing_if = "Option::is_none")]
@@ -324,8 +318,7 @@ pub struct VersionDependency {
     pub dependency_type: DependencyType,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum DependencyType {
@@ -342,8 +335,7 @@ pub enum DependencyType {
 }
 
 /// The release channel for this version
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum VersionType {
@@ -358,8 +350,7 @@ pub enum VersionType {
     Incomplete,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum Status {
@@ -377,8 +368,7 @@ pub enum Status {
     Unknown,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum RequestedStatus {
@@ -394,7 +384,7 @@ pub enum RequestedStatus {
     Other,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct VersionFile {
     #[serde(rename = "hashes")]
     pub hashes: VersionFileHashes,
@@ -416,7 +406,7 @@ pub struct VersionFile {
     pub file_type: Option<Option<FileType>>,
 }
 
-#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct VersionFileHashes {
     // #[serde(rename = "sha512", skip_serializing_if = "Option::is_none")]
     pub sha512: Option<String>,
@@ -424,8 +414,7 @@ pub struct VersionFileHashes {
     pub sha1: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum FileType {
@@ -449,193 +438,193 @@ pub enum FileType {
 //? Impl blocks for modrinth_api types to convert to our internal types
 //?----------------------------------------------------------------------
 
-impl From<modrinth_api::models::ProjectResult> for Project {
-    fn from(value: modrinth_api::models::ProjectResult) -> Self {
-        Project {
-            slug: value.slug,
-            title: value.title,
-            description: value.description,
-            author: value.author,
-            date_created: value.date_created,
-            date_modified: value.date_modified,
-            latest_version: value.latest_version,
-            license: value.license,
-            categories: value.categories,
-            client_side: value.client_side.into(),
-            server_side: value.server_side.into(),
-            project_type: value.project_type.into(),
-            downloads: value.downloads,
-            icon_url: value.icon_url,
-            color: value.color,
-            thread_id: value.thread_id,
-            monetization_status: value.monetization_status.map(|status| status.into()),
-            project_id: value.project_id,
-            display_categories: value.display_categories,
-            versions: value.versions.into_iter().map(|version| version.into()).collect(),
-            follows: value.follows,
-            gallery: value.gallery,
-            featured_gallery: value.featured_gallery,
-        }
-    }
-}
+// impl From<modrinth_api::models::ProjectResult> for Project {
+//     fn from(value: modrinth_api::models::ProjectResult) -> Self {
+//         Project {
+//             slug: value.slug,
+//             title: value.title,
+//             description: value.description,
+//             author: value.author,
+//             date_created: value.date_created,
+//             date_modified: value.date_modified,
+//             latest_version: value.latest_version,
+//             license: value.license,
+//             categories: value.categories,
+//             client_side: value.client_side.into(),
+//             server_side: value.server_side.into(),
+//             project_type: value.project_type.into(),
+//             downloads: value.downloads,
+//             icon_url: value.icon_url,
+//             color: value.color,
+//             thread_id: value.thread_id,
+//             monetization_status: value.monetization_status.map(|status| status.into()),
+//             project_id: value.project_id,
+//             display_categories: value.display_categories,
+//             versions: value.versions.into_iter().map(|version| version.into()).collect(),
+//             follows: value.follows,
+//             gallery: value.gallery,
+//             featured_gallery: value.featured_gallery,
+//         }
+//     }
+// }
 
-impl From<String> for ProjectVersion {
-    fn from(value: String) -> Self {
-        ProjectVersion {
-            name: value.clone(),
-            version_number: value,
-            changelog: None,
-            dependencies: None,
-            game_versions: vec![],
-            version_type: VersionType::Incomplete,
-            loaders: vec![],
-            featured: false,
-            status: None,
-            requested_status: None,
-            id: String::new(),
-            project_id: String::new(),
-            author_id: String::new(),
-            date_published: String::new(),
-            downloads: -1,
-            changelog_url: None,
-            files: vec![],
-        }
-    }
-}
+// impl From<String> for ProjectVersion {
+//     fn from(value: String) -> Self {
+//         ProjectVersion {
+//             name: value.clone(),
+//             version_number: value,
+//             changelog: None,
+//             dependencies: None,
+//             game_versions: vec![],
+//             version_type: VersionType::Incomplete,
+//             loaders: vec![],
+//             featured: false,
+//             status: None,
+//             requested_status: None,
+//             id: String::new(),
+//             project_id: String::new(),
+//             author_id: String::new(),
+//             date_published: String::new(),
+//             downloads: -1,
+//             changelog_url: None,
+//             files: vec![],
+//         }
+//     }
+// }
 
-impl From<modrinth_api::models::project_result::ProjectType> for ProjectType {
-    fn from(value: modrinth_api::models::project_result::ProjectType) -> Self {
-        match value {
-            modrinth_api::models::project_result::ProjectType::Mod => ProjectType::Mod,
-            modrinth_api::models::project_result::ProjectType::Modpack => ProjectType::Modpack,
-            modrinth_api::models::project_result::ProjectType::Resourcepack => ProjectType::Resourcepack,
-            modrinth_api::models::project_result::ProjectType::Shader => ProjectType::Shader,
-        }
-    }
-}
+// impl From<modrinth_api::models::project_result::ProjectType> for ProjectType {
+//     fn from(value: modrinth_api::models::project_result::ProjectType) -> Self {
+//         match value {
+//             modrinth_api::models::project_result::ProjectType::Mod => ProjectType::Mod,
+//             modrinth_api::models::project_result::ProjectType::Modpack => ProjectType::Modpack,
+//             modrinth_api::models::project_result::ProjectType::Resourcepack => ProjectType::Resourcepack,
+//             modrinth_api::models::project_result::ProjectType::Shader => ProjectType::Shader,
+//         }
+//     }
+// }
 
-impl From<modrinth_api::models::project_result::ClientSide> for ClientSide {
-    fn from(value: modrinth_api::models::project_result::ClientSide) -> Self {
-        match value {
-            modrinth_api::models::project_result::ClientSide::Required => ClientSide::Required,
-            modrinth_api::models::project_result::ClientSide::Optional => ClientSide::Optional,
-            modrinth_api::models::project_result::ClientSide::Unsupported => ClientSide::Unsupported,
-        }
-    }
-}
+// impl From<modrinth_api::models::project_result::ClientSide> for ClientSide {
+//     fn from(value: modrinth_api::models::project_result::ClientSide) -> Self {
+//         match value {
+//             modrinth_api::models::project_result::ClientSide::Required => ClientSide::Required,
+//             modrinth_api::models::project_result::ClientSide::Optional => ClientSide::Optional,
+//             modrinth_api::models::project_result::ClientSide::Unsupported => ClientSide::Unsupported,
+//         }
+//     }
+// }
 
-impl From<modrinth_api::models::project_result::ServerSide> for ServerSide {
-    fn from(value: modrinth_api::models::project_result::ServerSide) -> Self {
-        match value {
-            modrinth_api::models::project_result::ServerSide::Required => ServerSide::Required,
-            modrinth_api::models::project_result::ServerSide::Optional => ServerSide::Optional,
-            modrinth_api::models::project_result::ServerSide::Unsupported => ServerSide::Unsupported,
-        }
-    }
-}
+// impl From<modrinth_api::models::project_result::ServerSide> for ServerSide {
+//     fn from(value: modrinth_api::models::project_result::ServerSide) -> Self {
+//         match value {
+//             modrinth_api::models::project_result::ServerSide::Required => ServerSide::Required,
+//             modrinth_api::models::project_result::ServerSide::Optional => ServerSide::Optional,
+//             modrinth_api::models::project_result::ServerSide::Unsupported => ServerSide::Unsupported,
+//         }
+//     }
+// }
 
-impl From<modrinth_api::models::project_result::MonetizationStatus> for MonetizationStatus {
-    fn from(value: modrinth_api::models::project_result::MonetizationStatus) -> Self {
-        match value {
-            modrinth_api::models::project_result::MonetizationStatus::Monetized => MonetizationStatus::Monetized,
-            modrinth_api::models::project_result::MonetizationStatus::Demonetized => MonetizationStatus::Demonetized,
-            modrinth_api::models::project_result::MonetizationStatus::ForceDemonetized => MonetizationStatus::ForceDemonetized,
-        }
-    }
-}
+// impl From<modrinth_api::models::project_result::MonetizationStatus> for MonetizationStatus {
+//     fn from(value: modrinth_api::models::project_result::MonetizationStatus) -> Self {
+//         match value {
+//             modrinth_api::models::project_result::MonetizationStatus::Monetized => MonetizationStatus::Monetized,
+//             modrinth_api::models::project_result::MonetizationStatus::Demonetized => MonetizationStatus::Demonetized,
+//             modrinth_api::models::project_result::MonetizationStatus::ForceDemonetized => MonetizationStatus::ForceDemonetized,
+//         }
+//     }
+// }
 
-impl From<modrinth_api::models::Version> for ProjectVersion {
-    fn from(value: modrinth_api::models::Version) -> Self {
-        ProjectVersion {
-            name: value.name,
-            version_number: value.version_number,
-            changelog: value.changelog,
-            dependencies: value.dependencies.map(|deps| deps.into_iter().map(|dep| dep.into()).collect()),
-            game_versions: value.game_versions,
-            version_type: value.version_type.into(),
-            loaders: value.loaders,
-            featured: value.featured,
-            status: value.status.map(|status| status.into()),
-            requested_status: value.requested_status.map(|os| os.map(|s| s.into())),
-            id: value.id,
-            project_id: value.project_id,
-            author_id: value.author_id,
-            date_published: value.date_published,
-            downloads: value.downloads,
-            changelog_url: value.changelog_url,
-            files: value.files.into_iter().map(|file| file.into()).collect(),
-        }
-    }
-}
+// impl From<modrinth_api::models::Version> for ProjectVersion {
+//     fn from(value: modrinth_api::models::Version) -> Self {
+//         ProjectVersion {
+//             name: value.name,
+//             version_number: value.version_number,
+//             changelog: value.changelog,
+//             dependencies: value.dependencies.map(|deps| deps.into_iter().map(|dep| dep.into()).collect()),
+//             game_versions: value.game_versions,
+//             version_type: value.version_type.into(),
+//             loaders: value.loaders,
+//             featured: value.featured,
+//             status: value.status.map(|status| status.into()),
+//             requested_status: value.requested_status.map(|os| os.map(|s| s.into())),
+//             id: value.id,
+//             project_id: value.project_id,
+//             author_id: value.author_id,
+//             date_published: value.date_published,
+//             downloads: value.downloads,
+//             changelog_url: value.changelog_url,
+//             files: value.files.into_iter().map(|file| file.into()).collect(),
+//         }
+//     }
+// }
 
-impl From<modrinth_api::models::version_dependency::VersionDependency> for VersionDependency {
-    fn from(value: modrinth_api::models::version_dependency::VersionDependency) -> Self {
-        VersionDependency {
-            version_id: value.version_id,
-            project_id: value.project_id,
-            file_name: value.file_name,
-            dependency_type: match value.dependency_type {
-                modrinth_api::models::version_dependency::DependencyType::Required => DependencyType::Required,
-                modrinth_api::models::version_dependency::DependencyType::Optional => DependencyType::Optional,
-                modrinth_api::models::version_dependency::DependencyType::Incompatible => DependencyType::Incompatible,
-                modrinth_api::models::version_dependency::DependencyType::Embedded => DependencyType::Embedded,
-            },
-        }
-    }
-}
+// impl From<modrinth_api::models::version_dependency::VersionDependency> for VersionDependency {
+//     fn from(value: modrinth_api::models::version_dependency::VersionDependency) -> Self {
+//         VersionDependency {
+//             version_id: value.version_id,
+//             project_id: value.project_id,
+//             file_name: value.file_name,
+//             dependency_type: match value.dependency_type {
+//                 modrinth_api::models::version_dependency::DependencyType::Required => DependencyType::Required,
+//                 modrinth_api::models::version_dependency::DependencyType::Optional => DependencyType::Optional,
+//                 modrinth_api::models::version_dependency::DependencyType::Incompatible => DependencyType::Incompatible,
+//                 modrinth_api::models::version_dependency::DependencyType::Embedded => DependencyType::Embedded,
+//             },
+//         }
+//     }
+// }
 
-impl From<modrinth_api::models::version::VersionType> for VersionType {
-    fn from(value: modrinth_api::models::version::VersionType) -> Self {
-        match value {
-            modrinth_api::models::version::VersionType::Release => VersionType::Release,
-            modrinth_api::models::version::VersionType::Beta => VersionType::Beta,
-            modrinth_api::models::version::VersionType::Alpha => VersionType::Alpha,
-        }
-    }
-}
+// impl From<modrinth_api::models::version::VersionType> for VersionType {
+//     fn from(value: modrinth_api::models::version::VersionType) -> Self {
+//         match value {
+//             modrinth_api::models::version::VersionType::Release => VersionType::Release,
+//             modrinth_api::models::version::VersionType::Beta => VersionType::Beta,
+//             modrinth_api::models::version::VersionType::Alpha => VersionType::Alpha,
+//         }
+//     }
+// }
 
-impl From<modrinth_api::models::version::Status> for Status {
-    fn from(value: modrinth_api::models::version::Status) -> Self {
-        match value {
-            modrinth_api::models::version::Status::Listed => Status::Listed,
-            modrinth_api::models::version::Status::Archived => Status::Archived,
-            modrinth_api::models::version::Status::Draft => Status::Draft,
-            modrinth_api::models::version::Status::Unlisted => Status::Unlisted,
-            modrinth_api::models::version::Status::Scheduled => Status::Scheduled,
-            modrinth_api::models::version::Status::Unknown => Status::Unknown,
-        }
-    }
-}
+// impl From<modrinth_api::models::version::Status> for Status {
+//     fn from(value: modrinth_api::models::version::Status) -> Self {
+//         match value {
+//             modrinth_api::models::version::Status::Listed => Status::Listed,
+//             modrinth_api::models::version::Status::Archived => Status::Archived,
+//             modrinth_api::models::version::Status::Draft => Status::Draft,
+//             modrinth_api::models::version::Status::Unlisted => Status::Unlisted,
+//             modrinth_api::models::version::Status::Scheduled => Status::Scheduled,
+//             modrinth_api::models::version::Status::Unknown => Status::Unknown,
+//         }
+//     }
+// }
 
-impl From<modrinth_api::models::version::RequestedStatus> for RequestedStatus {
-    fn from(value: modrinth_api::models::version::RequestedStatus) -> Self {
-        match value {
-            modrinth_api::models::version::RequestedStatus::Listed => RequestedStatus::Listed,
-            modrinth_api::models::version::RequestedStatus::Archived => RequestedStatus::Archived,
-            modrinth_api::models::version::RequestedStatus::Draft => RequestedStatus::Draft,
-            modrinth_api::models::version::RequestedStatus::Unlisted => RequestedStatus::Unlisted,
-        }
-    }
-}
+// impl From<modrinth_api::models::version::RequestedStatus> for RequestedStatus {
+//     fn from(value: modrinth_api::models::version::RequestedStatus) -> Self {
+//         match value {
+//             modrinth_api::models::version::RequestedStatus::Listed => RequestedStatus::Listed,
+//             modrinth_api::models::version::RequestedStatus::Archived => RequestedStatus::Archived,
+//             modrinth_api::models::version::RequestedStatus::Draft => RequestedStatus::Draft,
+//             modrinth_api::models::version::RequestedStatus::Unlisted => RequestedStatus::Unlisted,
+//         }
+//     }
+// }
 
-impl From<modrinth_api::models::version_file::VersionFile> for VersionFile {
-    fn from(value: modrinth_api::models::version_file::VersionFile) -> Self {
-        VersionFile {
-            hashes: VersionFileHashes { sha512: value.hashes.sha512, sha1: value.hashes.sha1 },
-            url: value.url,
-            filename: value.filename,
-            primary: value.primary,
-            size: value.size,
-            file_type: value.file_type.map(|ft| ft.map(|f| f.into())),
-        }
-    }
-}
+// impl From<modrinth_api::models::version_file::VersionFile> for VersionFile {
+//     fn from(value: modrinth_api::models::version_file::VersionFile) -> Self {
+//         VersionFile {
+//             hashes: VersionFileHashes { sha512: value.hashes.sha512, sha1: value.hashes.sha1 },
+//             url: value.url,
+//             filename: value.filename,
+//             primary: value.primary,
+//             size: value.size,
+//             file_type: value.file_type.map(|ft| ft.map(|f| f.into())),
+//         }
+//     }
+// }
 
-impl From<modrinth_api::models::version_file::FileType> for FileType {
-    fn from(value: modrinth_api::models::version_file::FileType) -> Self {
-        match value {
-            modrinth_api::models::version_file::FileType::RequiredResourcePack => FileType::RequiredResourcePack,
-            modrinth_api::models::version_file::FileType::OptionalResourcePack => FileType::OptionalResourcePack,
-        }
-    }
-}
+// impl From<modrinth_api::models::version_file::FileType> for FileType {
+//     fn from(value: modrinth_api::models::version_file::FileType) -> Self {
+//         match value {
+//             modrinth_api::models::version_file::FileType::RequiredResourcePack => FileType::RequiredResourcePack,
+//             modrinth_api::models::version_file::FileType::OptionalResourcePack => FileType::OptionalResourcePack,
+//         }
+//     }
+// }

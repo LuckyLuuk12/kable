@@ -160,8 +160,8 @@ async fn convert_search_hit(value: ferinth::structures::search::SearchHit) -> Pr
         date_modified: value.date_modified.to_string(),
         latest_version: Some(value.latest_version),
         license: value.license,
-        gallery: None,
-        featured_gallery: None,
+        gallery: value.gallery,
+        featured_gallery: value.featured_gallery,
     }
 }
 
@@ -258,8 +258,8 @@ fn convert_project(value: ferinth::structures::project::Project, versions: Vec<P
         date_modified: value.updated.to_string(),
         latest_version: None,
         license: value.license.id,
-        gallery: None,
-        featured_gallery: None,
+        gallery: value.gallery.into_iter().map(|gi| gi.url).collect(),
+        featured_gallery: None, // value.featured_gallery doesn't exist in Ferinth's Project struct, so we can't set it here.
     }
 }
 

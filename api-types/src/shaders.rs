@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default,  specta::Type)]
 pub struct ShaderFilterFacets {
     pub query: Option<String>,
     pub loaders: Option<Vec<(String, String)>>,
@@ -10,7 +10,7 @@ pub struct ShaderFilterFacets {
     pub game_versions: Option<Vec<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 pub struct ShaderPack {
     pub id: String,
     pub name: String,
@@ -29,8 +29,8 @@ pub struct ShaderPack {
     pub last_used: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
+
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum ShaderLoader {
@@ -40,7 +40,7 @@ pub enum ShaderLoader {
     Vanilla,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 pub struct ShaderSettings {
     pub quality: ShaderQuality,
     pub shadows: bool,
@@ -51,8 +51,8 @@ pub struct ShaderSettings {
     pub custom_settings: HashMap<String, String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
+
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum ShaderQuality {
@@ -63,7 +63,7 @@ pub enum ShaderQuality {
     Custom,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 pub struct ShaderDownload {
     pub id: String,
     pub name: String,
@@ -82,8 +82,8 @@ pub struct ShaderDownload {
     pub source: ShaderSource,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
+
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum ShaderSource {

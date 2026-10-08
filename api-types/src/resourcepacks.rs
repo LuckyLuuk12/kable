@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default,  specta::Type)]
 pub struct ResourcePackFilterFacets {
     pub query: Option<String>,
     pub categories: Option<Vec<(String, String)>>,
     pub game_versions: Option<Vec<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 pub struct ResourcePack {
     pub id: String,
     pub name: String,
@@ -26,7 +26,7 @@ pub struct ResourcePack {
     pub last_used: Option<i32>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 pub struct ResourcePackDownload {
     pub id: String,
     pub name: String,
@@ -45,8 +45,8 @@ pub struct ResourcePackDownload {
     pub source: ResourcePackSource,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
+
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum ResourcePackSource {

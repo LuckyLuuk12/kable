@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::icons::IconTemplate;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default,  specta::Type)]
 #[serde(default)]
 pub struct CategorizedLauncherSettings {
     pub general: GeneralSettings,
@@ -16,7 +16,7 @@ pub struct CategorizedLauncherSettings {
     pub misc: MiscSettings,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 #[serde(default)]
 pub struct GeneralSettings {
     pub java_path: Option<String>,
@@ -29,7 +29,7 @@ pub struct GeneralSettings {
     pub update_notification_style: UpdateNotificationStyle,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone,  specta::Type)]
 #[serde(default)]
 pub struct SoundSettings {
     pub enabled: bool,
@@ -40,7 +40,7 @@ pub struct SoundSettings {
     pub selected_soundpack: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
 #[serde(default)]
 pub struct AppearanceSettings {
     pub theme: Theme,
@@ -51,7 +51,7 @@ pub struct AppearanceSettings {
     pub sound_settings: SoundSettings,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
 #[serde(default)]
 pub struct LoggingSettings {
     pub enabled: bool,
@@ -70,7 +70,7 @@ pub struct LoggingSettings {
     pub dedupe_window_size: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
 #[serde(default)]
 pub struct NetworkSettings {
     pub max_download_threads: Option<u32>,
@@ -78,7 +78,7 @@ pub struct NetworkSettings {
     pub max_requests_per_second: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
 #[serde(default)]
 pub struct ContentSettings {
     pub allow_adult_content: bool,
@@ -87,7 +87,7 @@ pub struct ContentSettings {
     pub enable_notifications: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
 #[serde(default)]
 pub struct AdvancedSettings {
     pub enable_advanced_features: bool,
@@ -96,7 +96,7 @@ pub struct AdvancedSettings {
     pub extra: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
 #[serde(default)]
 pub struct MiscSettings {
     /// I keep this mostly undocumented because it is open-source and I don't want to spoil the fun features (:
@@ -107,8 +107,8 @@ pub struct MiscSettings {
 //? custom enums to avoid using strings
 //?---------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
+
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum OnGameAction {
@@ -123,8 +123,8 @@ pub enum OnGameAction {
 }
 
 /// This determines HOW, once checked, to perform the update.
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
+
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum UpdateMode {
@@ -136,8 +136,8 @@ pub enum UpdateMode {
     Manual,
 }
 /// This determines WHEN to check for updates
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
+
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum UpdateDetection {
@@ -147,8 +147,8 @@ pub enum UpdateDetection {
     Periodically(u32),
     Manual,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
+
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum UpdateNotificationStyle {
@@ -156,8 +156,8 @@ pub enum UpdateNotificationStyle {
     Modal,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq,  specta::Type)]
+
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum Theme {
@@ -168,8 +168,8 @@ pub enum Theme {
     Custom(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
+
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum Language {

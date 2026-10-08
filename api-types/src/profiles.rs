@@ -29,7 +29,7 @@ use crate::projects::{KableProject, ProjectType};
 ///     pub merged_packs: Vec<String>,
 /// }
 /// ```
-// #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+// #[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
 // pub struct KableProfile {
 //     pub id: String,
 //     pub name: String,
@@ -55,7 +55,7 @@ use crate::projects::{KableProject, ProjectType};
 //     pub merged_packs: Vec<String>,
 // }
 
-// #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+// #[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
 // pub struct ProfileVersion {
 //     /// Raw version ID from the profile, e.g. "1.19.2-forge-43.2.0"
 //     pub id: String,
@@ -78,11 +78,11 @@ use crate::projects::{KableProject, ProjectType};
 //     pub compliance_level: Option<u32>,
 //     pub recommended: Option<bool>,
 // }
-// #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+// #[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
 // pub struct Versions(pub Vec<ProfileVersion>);
 
-// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy, Hash, facet::Facet, specta::Type)]
-// #[facet(rename_all = "snake_case")]
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy, Hash,  specta::Type)]
+//
 // #[serde(rename_all = "snake_case")]
 // #[repr(u8)]
 // pub enum LoaderKind {
@@ -107,8 +107,8 @@ use crate::projects::{KableProject, ProjectType};
 //     }
 // }
 
-// #[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
-// #[facet(rename_all = "snake_case")]
+// #[derive(Debug, Clone, Serialize, Deserialize,  specta::Type)]
+//
 // #[serde(rename_all = "snake_case")]
 // #[repr(u8)]
 // pub enum ProfileVersionType {
@@ -118,7 +118,7 @@ use crate::projects::{KableProject, ProjectType};
 //     OldAlpha,
 // }
 
-// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
+// #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq,  specta::Type)]
 // pub struct ModJarInfo {
 //     pub file_name: String,
 //     pub mod_name: Option<String>,
@@ -131,7 +131,7 @@ use crate::projects::{KableProject, ProjectType};
 //? Kable Profile types (refactored)
 //?----------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct KableProfile {
     pub id: String,
     pub version: ProfileVersion,
@@ -139,7 +139,7 @@ pub struct KableProfile {
     pub settings: KableProfileSettings,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct ProfileVersion {
     /// Raw version ID from the profile, e.g. "1.19.2-forge-43.2.0"
     pub id: String,
@@ -162,11 +162,10 @@ pub struct ProfileVersion {
     pub compliance_level: Option<u32>,
     pub recommended: Option<bool>,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
 pub struct Versions(pub Vec<ProfileVersion>);
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy, Hash, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Copy, Hash, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum LoaderKind {
@@ -191,8 +190,7 @@ impl std::fmt::Display for LoaderKind {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
-#[facet(rename_all = "snake_case")]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 #[serde(rename_all = "snake_case")]
 #[repr(u8)]
 pub enum ProfileVersionType {
@@ -202,7 +200,7 @@ pub enum ProfileVersionType {
     OldAlpha,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 pub struct KableProfileMetadata {
     pub name: String,
     pub icon: Option<String>,
@@ -214,7 +212,7 @@ pub struct KableProfileMetadata {
     pub times_launched: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 pub struct KableProfileSettings {
     pub parameters_map: HashMap<String, String>,
     pub java_args: Vec<String>,
@@ -232,7 +230,7 @@ pub struct KableProfileSettings {
     pub shaders: Projects,
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq, Eq, facet::Facet, specta::Type)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone, PartialEq, Eq, specta::Type)]
 pub struct Projects {
     pub enabled: HashSet<String>,
     pub disabled: HashSet<String>,
@@ -335,7 +333,7 @@ impl KableProfileSettings {
 //? .minecraft launcher_profiles.json types
 //?----------------------------------------------------------------------
 
-#[derive(Debug, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, specta::Type)]
 pub struct LauncherProfiles {
     // Profile name is key to profile object
     pub profiles: HashMap<String, Profile>,
@@ -343,7 +341,7 @@ pub struct LauncherProfiles {
     pub version: i32,
 }
 
-#[derive(Debug, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, specta::Type)]
 pub struct Profile {
     pub created: Option<String>,
     pub icon: Option<String>,
@@ -358,7 +356,7 @@ pub struct Profile {
     pub profile_type: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, facet::Facet, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, specta::Type)]
 pub struct OfficialLauncherSettings {
     #[serde(rename = "crashAssistance")]
     pub crash_assistance: bool,

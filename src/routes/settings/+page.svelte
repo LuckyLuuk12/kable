@@ -138,10 +138,6 @@ let saveStatus = "";
     padding: 2rem 1.5rem 1rem;
   }
 
-  .page-header h1 {
-    font-size: 2rem;
-  }
-
   .warning-card {
     right: 1rem;
     bottom: 1rem;

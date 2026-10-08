@@ -447,7 +447,7 @@ export type Project = {
 	/**  The SPDX license ID of a project */
 	license: string,
 	/**  All gallery images attached to the project */
-	gallery: string[] | null,
+	gallery: string[],
 	/**  The featured gallery image of the project */
 	featured_gallery: string | null,
 };

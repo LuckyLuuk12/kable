@@ -44,15 +44,13 @@ impl LogConfigResolver {
 
         let source_path = self.root.join(id);
 
-        if source_path.is_file() {
-            if !self.verify_file(&source_path, file.sha1.as_deref()).await? {
-                Logger::debug_global(
-                    format!("Logging configuration {} failed verification, downloading again", source_path.display()).as_str(),
-                    None,
-                );
+        if source_path.is_file() && !self.verify_file(&source_path, file.sha1.as_deref()).await? {
+            Logger::debug_global(
+                format!("Logging configuration {} failed verification, downloading again", source_path.display()).as_str(),
+                None,
+            );
 
-                crate::system::fs::remove_file(&source_path).await?;
-            }
+            crate::system::fs::remove_file(&source_path).await?;
         }
 
         if !source_path.is_file() {

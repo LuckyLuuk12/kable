@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord,  specta::Type)]
 pub struct Symlink {
     pub id: String, // unique identifier being string combo of source+destination.
     pub source: PathBuf,
@@ -18,7 +18,7 @@ impl Symlink {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, facet::Facet, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord,  specta::Type)]
 pub struct SymlinkCreateRequest {
     pub source: String,
     pub destination: String,
