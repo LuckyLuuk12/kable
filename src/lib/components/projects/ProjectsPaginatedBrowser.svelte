@@ -13,6 +13,7 @@ Provides:
 <script lang="ts">
 import { app, type FacetGroup, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "$lib";
 import { untrack } from "svelte";
+import Icon from "../Icon.svelte";
 import ProjectCard from "./ProjectCard.svelte";
 
 let {
@@ -33,8 +34,15 @@ let {
   index?: SearchIndex;
 } = $props();
 
-const limit = 20;
 const loadingDelay = 300;
+const minLimit = 1;
+const maxLimit = 100;
+
+const pageButtonWidth = 32;
+const pageButtonGap = 2;
+const ellipsisWidth = 20;
+
+let limit = $state(16);
 
 let results = $state<ModrinthResults | null>(null);
 let loading = $state(false);
@@ -42,21 +50,202 @@ let error = $state<string | null>(null);
 let offset = $state(0);
 
 let browserRoot: HTMLDivElement | null = null;
+let resultsRoot: HTMLDivElement | null = null;
+let pageNumbersRoot: HTMLElement | null = null;
 
 let projectResults = $derived(results?.hits ?? []);
 
-let hasNextPage = $derived(results !== null && results.offset + results.limit < results.total_hits);
+let totalPages = $derived(results ? Math.max(1, Math.ceil(results.total_hits / limit)) : 1);
 
-let hasPreviousPage = $derived(offset > 0);
+let currentPage = $derived(results ? Math.floor(results.offset / limit) + 1 : 1);
+
+let hasNextPage = $derived(results !== null && currentPage < totalPages);
+
+let hasPreviousPage = $derived(currentPage > 1);
+
+let pageNumbersWidth = $state(0);
+
+function getPageButtonWidth(page: number): number {
+  if (page >= 100) {
+    return 38;
+  }
+
+  if (page >= 10) {
+    return 32;
+  }
+
+  return pageButtonWidth;
+}
+
+function getPaginationWidth(pages: number[]): number {
+  if (pages.length === 0) {
+    return 0;
+  }
+
+  let width = 0;
+
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+
+    width += getPageButtonWidth(page);
+
+    if (i > 0) {
+      width += pageButtonGap;
+
+      if (page - pages[i - 1] > 1) {
+        width += ellipsisWidth;
+      }
+    }
+  }
+
+  return width;
+}
+
+function canFitPages(pages: number[]): boolean {
+  return getPaginationWidth(pages) <= pageNumbersWidth;
+}
+
+let pageNumbers = $derived.by(() => {
+  if (!results) {
+    return [];
+  }
+
+  if (totalPages <= 1) {
+    return [1];
+  }
+
+  const allPages = Array.from({ length: totalPages }, (_, index) => index + 1);
+
+  if (canFitPages(allPages)) {
+    return allPages;
+  }
+
+  /*
+   * These pages are always preferred:
+   * - first three pages
+   * - final page
+   * - current page and its immediate neighbours
+   */
+  const pages = new Set<number>();
+
+  pages.add(1);
+
+  if (totalPages >= 2) {
+    pages.add(2);
+  }
+
+  if (totalPages >= 3) {
+    pages.add(3);
+  }
+
+  pages.add(totalPages);
+
+  const preferredPages = [currentPage - 2, currentPage - 1, currentPage, currentPage + 1, currentPage + 2].filter((page) => page >= 1 && page <= totalPages);
+
+  for (const page of preferredPages) {
+    if (pages.has(page)) {
+      continue;
+    }
+
+    const candidate = [...pages, page].sort((a, b) => a - b);
+
+    if (canFitPages(candidate)) {
+      pages.add(page);
+    }
+  }
+
+  /*
+   * Expand around the current page as long as the resulting
+   * pagination still fits inside the available width.
+   */
+  let distance = 3;
+
+  while (distance <= totalPages) {
+    const candidates = [currentPage - distance, currentPage + distance];
+
+    let added = false;
+
+    for (const page of candidates) {
+      if (page < 1 || page > totalPages || pages.has(page)) {
+        continue;
+      }
+
+      const candidate = [...pages, page].sort((a, b) => a - b);
+
+      if (canFitPages(candidate)) {
+        pages.add(page);
+        added = true;
+      }
+    }
+
+    if (!added) {
+      break;
+    }
+
+    distance++;
+  }
+
+  /*
+   * Finally, use any remaining space for pages closest to the
+   * current page. This makes the pagination aggressively use
+   * available horizontal space instead of leaving large gaps.
+   */
+  const remainingPages = allPages
+    .filter((page) => !pages.has(page))
+    .sort((a, b) => {
+      const distanceA = Math.abs(a - currentPage);
+      const distanceB = Math.abs(b - currentPage);
+
+      if (distanceA !== distanceB) {
+        return distanceA - distanceB;
+      }
+
+      return a - b;
+    });
+
+  for (const page of remainingPages) {
+    const candidate = [...pages, page].sort((a, b) => a - b);
+
+    if (canFitPages(candidate)) {
+      pages.add(page);
+    }
+  }
+
+  return [...pages].sort((a, b) => a - b);
+});
+
+let paginationItems = $derived.by(() => {
+  const items: Array<number | "ellipsis"> = [];
+
+  for (let i = 0; i < pageNumbers.length; i++) {
+    const page = pageNumbers[i];
+
+    if (i > 0) {
+      const previousPage = pageNumbers[i - 1];
+
+      if (page - previousPage > 1) {
+        items.push("ellipsis");
+      }
+    }
+
+    items.push(page);
+  }
+
+  return items;
+});
 
 let requestId = 0;
 let loadingTimer: ReturnType<typeof setTimeout> | null = null;
+
 // eslint-disable-next-line svelte/prefer-svelte-reactivity
 let prefetching = new Set<number>();
+
 // eslint-disable-next-line svelte/prefer-svelte-reactivity
 let pageCache = new Map<number, ModrinthResults>();
 
 let visibilityObserver: ResizeObserver | null = null;
+let pageNumbersObserver: ResizeObserver | null = null;
+
 let isVisible = $state(false);
 let hasInitialized = false;
 
@@ -102,14 +291,18 @@ function updateVisibility(): void {
     return;
   }
 
-  /*
-   * The component can be mounted while its parent is display:none.
-   * Only perform the initial Modrinth request after it becomes visible.
-   */
   if (!hasInitialized && profile) {
     hasInitialized = true;
     void browse(0);
   }
+}
+
+function updatePageNumbersWidth(): void {
+  if (!pageNumbersRoot) {
+    return;
+  }
+
+  pageNumbersWidth = pageNumbersRoot.getBoundingClientRect().width;
 }
 
 async function fetchPage(targetOffset: number): Promise<ModrinthResults | null> {
@@ -124,10 +317,6 @@ async function fetchPage(targetOffset: number): Promise<ModrinthResults | null> 
   }
 
   try {
-    /*
-     * Visibility can change while awaiting another operation, so check
-     * again immediately before making the actual Modrinth request.
-     */
     if (!isVisible || !profile) {
       return null;
     }
@@ -179,6 +368,14 @@ async function browse(targetOffset: number) {
     error = null;
 
     prefetchNextPage();
+
+    requestAnimationFrame(() => {
+      resultsRoot?.scrollTo({
+        top: 0,
+        behavior: "auto",
+      });
+    });
+
     return;
   }
 
@@ -187,6 +384,7 @@ async function browse(targetOffset: number) {
   clearLoadingTimer();
 
   loading = false;
+
   loadingTimer = setTimeout(() => {
     if (id === requestId && isVisible) {
       loading = true;
@@ -210,6 +408,13 @@ async function browse(targetOffset: number) {
     offset = targetOffset;
 
     prefetchNextPage();
+
+    requestAnimationFrame(() => {
+      resultsRoot?.scrollTo({
+        top: 0,
+        behavior: "auto",
+      });
+    });
   } catch (e) {
     if (id !== requestId || !isVisible) {
       return;
@@ -231,10 +436,41 @@ function resetPages() {
 
   pageCache.clear();
   prefetching.clear();
+
   offset = 0;
   results = null;
   loading = false;
   error = null;
+
+  resultsRoot?.scrollTo({
+    top: 0,
+    behavior: "auto",
+  });
+}
+
+function setLimit(value: number) {
+  const nextLimit = Math.min(maxLimit, Math.max(minLimit, Math.floor(value) || minLimit));
+
+  if (nextLimit === limit) {
+    return;
+  }
+
+  limit = nextLimit;
+
+  resetPages();
+
+  if (isVisible && hasInitialized) {
+    void browse(0);
+  }
+}
+
+function handleLimitInput(event: Event) {
+  const input = event.currentTarget as HTMLInputElement;
+  const value = Number.parseInt(input.value, 10);
+
+  if (!Number.isNaN(value)) {
+    setLimit(value);
+  }
 }
 
 function nextPage() {
@@ -253,13 +489,22 @@ function previousPage() {
   void browse(Math.max(0, results.offset - limit));
 }
 
-function handleScroll() {
-  if (!isVisible || !results || !hasNextPage) {
+function goToPage(page: number) {
+  if (!isVisible || page < 1 || page > totalPages || page === currentPage) {
     return;
   }
 
-  const scrollPosition = window.scrollY + window.innerHeight;
-  const threshold = document.documentElement.scrollHeight - 600;
+  void browse((page - 1) * limit);
+}
+
+function handleResultsScroll() {
+  if (!isVisible || !results || !hasNextPage || !resultsRoot) {
+    return;
+  }
+
+  const scrollPosition = resultsRoot.scrollTop + resultsRoot.clientHeight;
+
+  const threshold = resultsRoot.scrollHeight - 600;
 
   if (scrollPosition >= threshold) {
     const nextOffset = results.offset + limit;
@@ -270,13 +515,6 @@ function handleScroll() {
   }
 }
 
-/*
- * Search/filter state can change while this browser is hidden, but
- * changing it must not cause a Modrinth request.
- *
- * When the browser is visible and initialized, any change to the
- * browser state starts a fresh search from page 0.
- */
 $effect(() => {
   if (!profileId) {
     results = null;
@@ -305,13 +543,6 @@ $effect(() => {
   void browse(0);
 });
 
-/*
- * Observe the actual rendered size of this browser.
- *
- * When its parent is `display:none`, this element has zero dimensions.
- * When the parent becomes visible again, ResizeObserver fires and we
- * initialize the browser.
- */
 $effect(() => {
   const root = browserRoot;
 
@@ -328,9 +559,6 @@ $effect(() => {
   visibilityObserver = observer;
   observer.observe(root);
 
-  /*
-   * ResizeObserver callbacks are asynchronous, so also check immediately.
-   */
   updateVisibility();
 
   return () => {
@@ -343,14 +571,45 @@ $effect(() => {
 });
 
 $effect(() => {
-  if (!isVisible) {
+  const root = pageNumbersRoot;
+
+  if (!root) {
     return;
   }
 
-  window.addEventListener("scroll", handleScroll, { passive: true });
+  pageNumbersObserver?.disconnect();
+
+  const observer = new ResizeObserver(() => {
+    updatePageNumbersWidth();
+  });
+
+  pageNumbersObserver = observer;
+  observer.observe(root);
+
+  updatePageNumbersWidth();
 
   return () => {
-    window.removeEventListener("scroll", handleScroll);
+    observer.disconnect();
+
+    if (pageNumbersObserver === observer) {
+      pageNumbersObserver = null;
+    }
+  };
+});
+
+$effect(() => {
+  const root = resultsRoot;
+
+  if (!root || !isVisible) {
+    return;
+  }
+
+  root.addEventListener("scroll", handleResultsScroll, {
+    passive: true,
+  });
+
+  return () => {
+    root.removeEventListener("scroll", handleResultsScroll);
   };
 });
 
@@ -361,6 +620,7 @@ $effect(() => {
     requestId++;
 
     visibilityObserver?.disconnect();
+    pageNumbersObserver?.disconnect();
 
     prefetching.clear();
   };
@@ -368,57 +628,271 @@ $effect(() => {
 </script>
 
 <div bind:this={browserRoot} class="projects-browser">
-  {#if error}
-    <div class="error">
-      <span>{error}</span>
+  <header class="pagination">
+    <div class="result-range">
+      <span>1 -</span>
 
-      <button type="button" onclick={() => browse(offset)} disabled={loading || !profile || !isVisible}> Retry </button>
-    </div>
-  {:else if loading && !results}
-    <div class="state">
-      <span>Loading projects...</span>
-    </div>
-  {:else if projectResults.length === 0}
-    <div class="state">
-      <span>No projects found.</span>
-    </div>
-  {:else}
-    <div class:loading class="results">
-      {#each projectResults as project (project.project_id)}
-        <ProjectCard {profile} {project} />
-      {/each}
+      <input
+        class="limit-input"
+        type="number"
+        min={minLimit}
+        max={maxLimit}
+        step="1"
+        value={limit}
+        aria-label="Projects per page"
+        title="Projects per page"
+        onchange={handleLimitInput} />
+
+      <span>
+        of {results?.total_hits.toLocaleString() ?? "0"}
+      </span>
     </div>
 
-    <footer class="pagination">
-      <button type="button" disabled={!hasPreviousPage || loading} onclick={previousPage}> Previous </button>
+    <div class="pagination-controls">
+      <button type="button" class="navigation-button" disabled={!hasPreviousPage || loading} onclick={previousPage} aria-label="Previous page" title="Previous page">
+        <Icon name="chevron-left" forceType="svg" />
+      </button>
 
-      {#if results}
-        <span>
-          {results.offset + 1}
-          -
-          {Math.min(results.offset + results.limit, results.total_hits)}
-          of {results.total_hits.toLocaleString()}
-        </span>
-      {/if}
+      <nav bind:this={pageNumbersRoot} class="page-numbers" aria-label="Project pages">
+        {#each paginationItems as item, i (item + "+" + i)}
+          {#if item === "ellipsis"}
+            <span class="ellipsis" aria-hidden="true" data-index={i}> ... </span>
+          {:else}
+            <button
+              type="button"
+              class:current={item === currentPage}
+              class="page-button"
+              disabled={loading}
+              aria-label={`Page ${item}`}
+              aria-current={item === currentPage ? "page" : undefined}
+              onclick={() => goToPage(item)}>
+              {item}
+            </button>
+          {/if}
+        {/each}
+      </nav>
 
-      <button type="button" disabled={!hasNextPage || loading} onclick={nextPage}> Next </button>
-    </footer>
-  {/if}
+      <button type="button" class="navigation-button" disabled={!hasNextPage || loading} onclick={nextPage} aria-label="Next page" title="Next page">
+        <Icon name="chevron-right" forceType="svg" />
+      </button>
+    </div>
+  </header>
+
+  <div bind:this={resultsRoot} class="results-container">
+    {#if error}
+      <div class="error">
+        <span>{error}</span>
+
+        <button type="button" onclick={() => browse(offset)} disabled={loading || !profile || !isVisible}> Retry </button>
+      </div>
+    {:else if loading && !results}
+      <div class="state">
+        <span>Loading projects...</span>
+      </div>
+    {:else if projectResults.length === 0}
+      <div class="state">
+        <span>No projects found.</span>
+      </div>
+    {:else}
+      <div class:loading class="results">
+        {#each projectResults as project (project.project_id)}
+          <ProjectCard {profile} {project} />
+        {/each}
+      </div>
+    {/if}
+  </div>
 </div>
 
 <style lang="scss">
 .projects-browser {
   display: flex;
   flex-direction: column;
-  gap: $space-lg;
+
   width: 100%;
+  height: 100%;
   min-width: 0;
+  min-height: 0;
+
+  overflow: hidden;
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: $space-lg;
+
+  padding-bottom: $space-md;
+
+  color: $color-text-muted;
+  font-size: 0.75rem;
+}
+
+.result-range {
+  display: flex;
+  align-items: center;
+  gap: $space-xs;
+
+  flex-shrink: 0;
+
+  white-space: nowrap;
+}
+
+.limit-input {
+  width: 42px;
+  height: 28px;
+  padding: 0 $space-xs;
+
+  border: 1px solid $color-border;
+  border-radius: $radius-sm;
+
+  background: $color-surface-2;
+  color: $color-text;
+
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
+
+  appearance: textfield;
+
+  &:hover {
+    border-color: $color-accent;
+    background: $color-surface-3;
+  }
+
+  &:focus {
+    border-color: $color-accent;
+    outline: none;
+    background: $color-surface-3;
+  }
+
+  &::-webkit-inner-spin-button,
+  &::-webkit-outer-spin-button {
+    margin: 0;
+    appearance: none;
+  }
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+
+  flex: 1;
+  min-width: 0;
+
+  gap: $space-xs;
+}
+
+.page-numbers {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 1;
+  min-width: 0;
+
+  gap: 2px;
+
+  overflow: hidden;
+}
+
+.navigation-button,
+.page-button {
+  display: grid;
+  place-items: center;
+
+  min-width: $space-2xl;
+  padding: $space-xs;
+
+  border: 1px solid transparent;
+  border-radius: $radius-sm;
+
+  background: transparent;
+  color: $color-text-muted;
+
+  font: inherit;
+  font-size: 0.75rem;
+
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: $color-border;
+    background: $color-surface-3;
+    color: $color-text;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-focus;
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    cursor: default;
+    opacity: 0.4;
+  }
+}
+
+.navigation-button {
+  flex-shrink: 0;
+
+  border-color: $color-border;
+  background: $color-surface-2;
+
+  &:hover:not(:disabled) {
+    background: $color-surface-3;
+  }
+}
+
+.page-button {
+  flex-shrink: 0;
+}
+
+.page-button.current {
+  border-color: $color-accent;
+  background: $color-accent;
+  color: $color-text;
+
+  cursor: default;
+}
+
+.ellipsis {
+  display: grid;
+  place-items: center;
+
+  flex-shrink: 0;
+
+  min-width: $space-xl;
+  height: 28px;
+
+  color: $color-text-muted;
+
+  user-select: none;
+}
+
+.results-container {
+  flex: 1;
+  min-height: 0;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .results {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax($layout-container-1, 1fr));
   gap: $layout-gap;
+
+  padding-bottom: $space-md;
+
   transition: opacity 120ms ease;
 
   &.loading {
@@ -431,7 +905,9 @@ $effect(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+
   min-height: 240px;
+
   color: $color-text-muted;
   font-size: 0.85rem;
 }
@@ -440,24 +916,32 @@ $effect(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+
   gap: $space-md;
+
   padding: $space-md;
+
   border: 1px solid rgba(239, 68, 68, 0.35);
   border-radius: $radius-md;
+
   background: rgba(239, 68, 68, 0.08);
   color: $color-error;
+
   font-size: 0.8rem;
 }
 
-.error button,
-.pagination button {
+.error button {
   padding: $space-sm $space-md;
+
   border: 1px solid $color-border;
   border-radius: $radius-md;
+
   background: $color-surface-2;
   color: $color-text;
+
   font: inherit;
   font-size: 0.8rem;
+
   cursor: pointer;
 
   &:hover:not(:disabled) {
@@ -473,15 +957,5 @@ $effect(() => {
     cursor: default;
     opacity: 0.5;
   }
-}
-
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: $space-md;
-  padding-top: $space-sm;
-  color: $color-text-muted;
-  font-size: 0.75rem;
 }
 </style>
