@@ -17,7 +17,7 @@ Provides:
 -->
 <script lang="ts">
 import { app, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "$lib";
-import { tick } from "svelte";
+import { tick, untrack } from "svelte";
 import ProjectCard from "./ProjectCard.svelte";
 
 let {
@@ -588,7 +588,12 @@ $effect(() => {
     return;
   }
 
-  if (!isVisible) {
+  const { visible, initialized } = untrack(() => ({
+    visible: isVisible,
+    initialized: hasInitialized,
+  }));
+
+  if (!visible) {
     return;
   }
 
@@ -596,7 +601,7 @@ $effect(() => {
    * If visibility caused initialization, loadInitialPage() has already been
    * started by updateVisibility(). Avoid scheduling a second initial request.
    */
-  if (!hasInitialized) {
+  if (!initialized) {
     hasInitialized = true;
     void loadInitialPage();
     return;

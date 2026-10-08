@@ -13,6 +13,7 @@ Provides:
 -->
 <script lang="ts">
 import { app, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "$lib";
+import { untrack } from "svelte";
 import ProjectCard from "./ProjectCard.svelte";
 
 let {
@@ -310,17 +311,12 @@ $effect(() => {
   projectType;
   smartFilter;
 
-  if (!isVisible) {
-    return;
-  }
+  const { visible, initialized } = untrack(() => ({
+    visible: isVisible,
+    initialized: hasInitialized,
+  }));
 
-  /*
-   * updateVisibility() handles the first initialization. This branch is
-   * mainly for changes to projectType/smartFilter/query/index while visible.
-   */
-  if (!hasInitialized) {
-    hasInitialized = true;
-    void browse(0);
+  if (!visible || !initialized) {
     return;
   }
 
