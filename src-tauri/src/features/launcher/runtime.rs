@@ -1,110 +1,35 @@
 /// # Minecraft Runtime Storage Model
 ///
-/// Kable never modifies the user's original Minecraft installation as part of
-/// profile management or profile launching. Each Kable profile receives its
-/// own runtime directory:
+/// Each Kable profile receives an isolated runtime directory used as
+/// Minecraft's `gameDir`. Kable-managed projects are symlinked into this
+/// directory, while shared Minecraft installation data is symlinked by default.
 ///
-///     .minecraft/.kable/runtime/<profile-id>/
+/// Runtime-owned settings and configuration are seeded from `.minecraft`
+/// only when missing. Existing runtime data is preserved between launches.
 ///
-/// The runtime directory acts as the `gameDir` supplied to Minecraft.
+/// Project directories (`mods/`, `resourcepacks/`, and `shaderpacks/`) are
+/// composed per profile. Enabled Kable-managed projects take precedence over
+/// global projects with the same filename.
 ///
-/// Runtime files are divided into three primary storage categories:
-///
-/// ## 1. Kable-managed projects
-///
-/// Projects installed and managed by Kable are stored under:
-///
-///     .minecraft/.kable/projects/
-///
-/// These files are owned by Kable and are treated as immutable project
-/// artifacts. Runtime directories symlink to these files rather than copying
-/// them.
-///
-/// ## 2. Shared Minecraft data
-///
-/// Immutable or effectively read-only installation data is shared through
-/// individual symlinks from the original `.minecraft` directory, including:
-///
-///     assets/
-///     libraries/
-///     versions/
-///     downloads/
-///
-/// Other entries are shared only when explicitly classified as safe.
-/// Unknown files and directories are runtime-owned by default.
-///
-/// ## 3. Runtime-owned data
-///
-/// Files and directories which Minecraft or its mods may modify and which must
-/// remain independent between profiles belong directly inside the runtime.
-///
-/// Examples include:
-///
-///     options.txt
-///     optionsof.txt
-///     optionsshaders.txt
-///     servers.dat
-///     config/
-///     logs/
-///     crash-reports/
-///     screenshots/
-///
-/// Known settings and configuration are copied from `.minecraft` when the
-/// runtime does not already contain them. This seeds a new profile with the
-/// user's existing settings without overwriting profile-specific changes on
-/// subsequent launches.
-///
-/// Runtime-owned data is never symlinked to the original `.minecraft`.
-///
-/// ## Project composition
-///
-/// Project directories such as `mods/`, `resourcepacks/`, and `shaderpacks/`
-/// are composed specifically for each profile. Enabled Kable-managed projects
-/// take precedence over global projects with the same filename.
-///
-/// These directories must never be symlinked as a whole.
-///
-/// ## Unknown and mod-created data
-///
-/// Unknown data is runtime-owned by default. Kable must not automatically
-/// symlink arbitrary entries from `.minecraft`, because doing so could expose
-/// mutable, profile-specific or version-specific state to every runtime.
-///
-/// ## Isolation guarantee
-///
-/// The runtime preparation system guarantees that:
-///
-/// - Kable project artifacts are never modified by Minecraft.
-/// - Profile-specific settings are not shared between runtimes.
-/// - Known shared data is deliberately shared.
-/// - Unknown files are isolated by default.
-/// - The original `.minecraft` installation remains usable independently.
-/// - Multiple Kable profiles can run simultaneously without sharing
-///   runtime-owned files.
-///
-/// The runtime system constructs this filesystem view. The symlink manager
-/// owns the creation and tracking of symlinks.
+/// The symlink manager owns creation, persistence, and reconciliation of
+/// runtime symlinks.
 use crate::constants::{MODS_DIR, RESOURCEPACKS_DIR, SHADERPACKS_DIR};
 use crate::features::advanced::symlink;
 use crate::system::fs;
 use crate::Logger;
 use api_types::profiles::KableProfile;
 use api_types::projects::{KableProject, ProjectType};
-use std::path::{Path, PathBuf};
+use std::collections::{HashMap, HashSet};
+use std::path::{Component, Path, PathBuf};
 
-/// Settings files copied from `.minecraft` when missing from the runtime.
 const RUNTIME_SEED_FILES: &[&str] = &["options.txt", "optionsof.txt", "optionsshaders.txt", "servers.dat"];
 
-/// Configuration directories copied from `.minecraft` when missing.
 const RUNTIME_SEED_DIRECTORIES: &[&str] = &["config"];
 
-/// Directories which belong exclusively to each runtime and are created empty.
 const RUNTIME_OWNED_DIRECTORIES: &[&str] = &["logs", "crash-reports", "screenshots"];
 
-/// Directories which Kable composes itself and must never be shared wholesale.
 const KABLE_COMPOSED_DIRECTORIES: &[&str] = &[MODS_DIR, RESOURCEPACKS_DIR, SHADERPACKS_DIR];
 
-/// Kable-managed storage must never be exposed inside a Minecraft runtime.
 const KABLE_DIRECTORIES: &[&str] = &[".kable", ".kable-dev"];
 
 pub struct MinecraftRuntime {
@@ -118,37 +43,95 @@ impl MinecraftRuntime {
     }
 }
 
+/// Ensure the profile's runtime directory exists.
 pub async fn ensure_runtime_dir(profile_id: &str) -> Result<PathBuf, String> {
     fs::create_dir(fs::runtime_dir(profile_id)?).await
 }
 
-/// Prepare the isolated Minecraft runtime for a profile.
-///
-/// Existing runtime-owned data is preserved. Seed settings and configuration
-/// are copied only when their runtime destinations do not exist.
+/// Prepare a profile's runtime without overwriting existing runtime-owned data.
 pub async fn prepare(profile: &KableProfile) -> Result<MinecraftRuntime, String> {
-    Logger::debug_global(format!("Preparing runtime for profile {}", profile.id).as_str(), None);
+    Logger::debug_global(&format!("Preparing runtime for profile {}", profile.id), None);
+
     let game_dir = ensure_runtime_dir(&profile.id).await?;
 
-    // Remove temporary links left over from previous preparation.
-    // Runtime-owned files and directories are not removed.
-    symlink::cleanup_profile(&profile.id).await?;
-    Logger::debug_global(format!("Cleaned up temporary symlinks for profile {}", profile.id).as_str(), None);
-    // Seed profile settings before creating links to shared data.
     prepare_runtime_owned_data(&game_dir).await?;
-    prepare_shared_data(profile, &game_dir).await?;
-    prepare_projects(profile, &game_dir).await?;
-    Logger::debug_global(format!("Runtime preparation complete for profile {}", profile.id).as_str(), None);
+
+    let desired_symlinks = collect_desired_symlinks(profile, &game_dir).await?;
+
+    Logger::debug_global(&format!("Reconciling {} desired runtime symlinks for profile {}", desired_symlinks.len(), profile.id), None);
+
+    // Do not launch if reconciliation reports an error.
+    //
+    // NOTE: reconcile_runtime() must propagate individual creation,
+    // replacement, and deletion failures. The current symlink.rs implementation
+    // logs some of these errors but still returns Ok(()); that must also be
+    // corrected for this check to be fully effective.
+    symlink::reconcile_runtime(&profile.id, desired_symlinks).await?;
+
+    Logger::debug_global(&format!("Runtime preparation complete for profile {}", profile.id), None);
+
     Ok(MinecraftRuntime::new(profile.id.clone(), game_dir))
 }
 
-/// Prepare shared Minecraft data.
+/// Build and validate the complete desired symlink set without creating links.
+async fn collect_desired_symlinks(profile: &KableProfile, game_dir: &Path) -> Result<Vec<(PathBuf, PathBuf)>, String> {
+    let mut desired = Vec::new();
+
+    collect_shared_data(game_dir, &mut desired).await?;
+
+    // The returned map is the authoritative project set for this profile.
+    // Mods are never inherited from the global .minecraft/mods directory.
+    let projects = crate::features::projects::management::list_profile_projects(profile.clone(), true).await?;
+
+    Logger::debug_global(
+        &format!("Profile {} enabled mods: {:?}", profile.id, profile.settings.by_project_type(ProjectType::Mod, true)),
+        None,
+    );
+
+    collect_project_type(ProjectType::Mod, MODS_DIR, game_dir, &projects, &mut desired, false).await?;
+
+    collect_project_type(ProjectType::Resourcepack, RESOURCEPACKS_DIR, game_dir, &projects, &mut desired, true).await?;
+
+    collect_project_type(ProjectType::Shader, SHADERPACKS_DIR, game_dir, &projects, &mut desired, true).await?;
+
+    validate_desired_destinations(&desired)?;
+
+    Logger::debug_global(&format!("Collected {} desired runtime symlinks for profile {}", desired.len(), profile.id), None);
+
+    Ok(desired)
+}
+
+/// Reject duplicate destinations before the symlink manager starts modifying
+/// the filesystem. Windows paths are compared case-insensitively.
+fn validate_desired_destinations(desired: &[(PathBuf, PathBuf)]) -> Result<(), String> {
+    let mut destinations: HashMap<String, &Path> = HashMap::new();
+
+    for (source, destination) in desired {
+        if same_path(source, destination) {
+            continue;
+        }
+
+        let key = path_key(destination);
+
+        if let Some(previous_source) = destinations.insert(key, source) {
+            return Err(format!(
+                "Multiple runtime sources target the same destination {}: {} and {}",
+                destination.display(),
+                previous_source.display(),
+                source.display(),
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+/// Share top-level Minecraft entries except paths managed separately.
 ///
-/// Every top-level entry in `.minecraft` is symlinked into the runtime unless
-/// it belongs to an explicitly excluded category. This allows unknown
-/// mod-created directories, such as `.voxy` or `DistantHorizons`, to remain
-/// accessible without requiring Kable to know about every mod.
-async fn prepare_shared_data(profile: &KableProfile, game_dir: &Path) -> Result<(), String> {
+/// Existing symlinks are retained in the desired set so the symlink manager
+/// can validate and reconcile them. Existing real files and directories are
+/// preserved instead of being overwritten.
+async fn collect_shared_data(game_dir: &Path, desired: &mut Vec<(PathBuf, PathBuf)>) -> Result<(), String> {
     let minecraft_dir = fs::mc_dir()?;
 
     for entry in fs::read_dir(&minecraft_dir).await? {
@@ -156,24 +139,36 @@ async fn prepare_shared_data(profile: &KableProfile, game_dir: &Path) -> Result<
             continue;
         };
 
-        let filename = filename.to_string_lossy();
+        let filename = filename.to_string_lossy().into_owned();
 
         if is_shared_data_excluded(&filename) {
             continue;
         }
 
-        let destination = game_dir.join(filename.as_ref());
+        let source = entry;
+        let destination = game_dir.join(&filename);
 
-        create_temporary_symlink(&profile.id, entry, destination).await?;
+        if same_path(&source, &destination) {
+            continue;
+        }
+
+        if destination_exists(&destination).await? {
+            let metadata = tokio::fs::symlink_metadata(&destination)
+                .await
+                .map_err(|error| format!("Failed to inspect runtime destination {}: {}", destination.display(), error))?;
+
+            if !metadata.file_type().is_symlink() {
+                // Preserve existing runtime-owned files and directories.
+                continue;
+            }
+        }
+
+        desired.push((source, destination));
     }
 
     Ok(())
 }
 
-/// Determine whether a top-level `.minecraft` entry must remain isolated.
-///
-/// Unknown entries are shared by default. Known mutable or Kable-managed
-/// entries are excluded and handled separately.
 fn is_shared_data_excluded(filename: &str) -> bool {
     KABLE_DIRECTORIES.contains(&filename)
         || KABLE_COMPOSED_DIRECTORIES.contains(&filename)
@@ -182,12 +177,8 @@ fn is_shared_data_excluded(filename: &str) -> bool {
         || RUNTIME_OWNED_DIRECTORIES.contains(&filename)
 }
 
-/// Copy known settings and configuration into the runtime when missing, and
-/// create empty runtime-owned directories.
-///
-/// Existing runtime data is never overwritten. In particular, the `config/`
-/// directory is copied only when it does not yet exist, preventing global
-/// configuration from being merged into a profile on every launch.
+/// Seed known settings and configuration only when their runtime destinations
+/// are absent, then ensure runtime-owned directories exist.
 async fn prepare_runtime_owned_data(game_dir: &Path) -> Result<(), String> {
     let minecraft_dir = fs::mc_dir()?;
 
@@ -199,11 +190,9 @@ async fn prepare_runtime_owned_data(game_dir: &Path) -> Result<(), String> {
             continue;
         }
 
-        if !fs::is_file(&source).await? {
-            continue;
+        if fs::is_file(&source).await? {
+            copy_file(&source, &destination).await?;
         }
-
-        copy_file(&source, &destination).await?;
     }
 
     for directory in RUNTIME_SEED_DIRECTORIES {
@@ -226,11 +215,6 @@ async fn prepare_runtime_owned_data(game_dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Copy a file using Tokio's filesystem APIs.
-///
-/// The destination parent is created when necessary. This helper deliberately
-/// avoids following a pre-existing destination symlink: callers check for
-/// destination existence before copying.
 async fn copy_file(source: &Path, destination: &Path) -> Result<(), String> {
     if let Some(parent) = destination.parent() {
         fs::create_dir(parent).await?;
@@ -242,11 +226,7 @@ async fn copy_file(source: &Path, destination: &Path) -> Result<(), String> {
         .map_err(|error| format!("Failed to copy {} to {}: {}", source.display(), destination.display(), error))
 }
 
-/// Recursively copy a directory and its contents.
-///
-/// This function is used only for initial configuration seeding. It does not
-/// merge into an existing destination directory. Boxing the recursive future
-/// allows asynchronous recursion without an infinitely sized future.
+/// Recursively copy configuration while deliberately skipping symbolic links.
 fn copy_directory_recursive<'a>(
     source: &'a Path,
     destination: &'a Path,
@@ -268,15 +248,15 @@ fn copy_directory_recursive<'a>(
 
             let file_type = metadata.file_type();
 
-            // Do not reproduce symlinks from the original Minecraft installation
-            // inside a runtime-owned configuration directory.
             if file_type.is_symlink() {
                 continue;
             }
 
             if file_type.is_dir() {
-                copy_directory_recursive(&source_path, &destination_path).await?;
-            } else if file_type.is_file() {
+                if !destination_exists(&destination_path).await? {
+                    copy_directory_recursive(&source_path, &destination_path).await?;
+                }
+            } else if file_type.is_file() && !destination_exists(&destination_path).await? {
                 copy_file(&source_path, &destination_path).await?;
             }
         }
@@ -285,73 +265,97 @@ fn copy_directory_recursive<'a>(
     })
 }
 
-/// Prepare the profile-specific project directories.
+/// Collect enabled Kable projects and optionally global projects for one type.
 ///
-/// Enabled Kable projects are linked first, followed by global projects.
-/// Kable-managed projects therefore take precedence over global projects with
-/// the same filename.
-async fn prepare_projects(profile: &KableProfile, game_dir: &Path) -> Result<(), String> {
-    Logger::debug_global(
-        &format!("Preparing profile {}: enabled mods = {:?}", profile.id, profile.settings.by_project_type(ProjectType::Mod, true),),
-        None,
-    );
-    let projects = crate::features::projects::management::list_profile_projects(profile.clone(), true).await?;
-
-    prepare_project_type(profile, ProjectType::Mod, MODS_DIR, game_dir, &projects).await?;
-    prepare_project_type(profile, ProjectType::Resourcepack, RESOURCEPACKS_DIR, game_dir, &projects).await?;
-    prepare_project_type(profile, ProjectType::Shader, SHADERPACKS_DIR, game_dir, &projects).await?;
-
-    Ok(())
-}
-
-async fn prepare_project_type(
-    profile: &KableProfile,
+/// Kable-managed projects take precedence over global projects with the same
+/// filename. Duplicate Kable filenames are treated as configuration errors
+/// rather than silently selecting whichever project happens to appear first.
+async fn collect_project_type(
     project_type: ProjectType,
     directory: &str,
     game_dir: &Path,
-    projects: &std::collections::HashMap<ProjectType, Vec<KableProject>>,
+    projects: &HashMap<ProjectType, Vec<KableProject>>,
+    desired: &mut Vec<(PathBuf, PathBuf)>,
+    include_global_projects: bool,
 ) -> Result<(), String> {
     let runtime_directory = game_dir.join(directory);
 
-    fs::create_dir(&runtime_directory).await?;
+    fs::create_dir(runtime_directory.clone())
+        .await
+        .map_err(|error| format!("Failed to prepare {} directory for runtime {}: {}", directory, game_dir.display(), error))?;
 
-    prepare_kable_projects(profile, project_type, runtime_directory.as_path(), projects).await?;
+    let mut kable_filenames = HashSet::new();
 
-    prepare_global_projects(profile, directory, runtime_directory.as_path()).await?;
+    if let Some(projects_for_type) = projects.get(&project_type) {
+        Logger::debug_global(
+            &format!(
+                "[runtime] {:?}: {:?} enabled project records",
+                project_type,
+                projects_for_type.iter().map(|f| f.filename.clone()).collect::<Vec<_>>()
+            ),
+            None,
+        );
+        for project in projects_for_type {
+            validate_project_filename(&project.filename, &project_type)?;
 
-    Ok(())
-}
+            let filename_key = filename_key(&project.filename);
 
-/// Make enabled Kable projects available to the runtime.
-async fn prepare_kable_projects(
-    profile: &KableProfile,
-    project_type: ProjectType,
-    runtime_directory: &Path,
-    projects: &std::collections::HashMap<ProjectType, Vec<KableProject>>,
-) -> Result<(), String> {
-    let Some(projects) = projects.get(&project_type) else {
-        return Ok(());
-    };
+            if !kable_filenames.insert(filename_key) {
+                return Err(format!("Duplicate enabled {:?} project filename in profile: {}", project_type, project.filename));
+            }
+            Logger::debug_global(&format!("[runtime] Checking {:?} project filename={:?}", project_type, project.filename), None);
+            let source = project_path(project, project_type).await?;
+            Logger::debug_global(
+                &format!("[runtime] Project source: {} (exists={}, is_file={})", source.display(), source.exists(), source.is_file()),
+                None,
+            );
+            if !fs::is_file(&source).await? {
+                return Err(format!(
+                    "Enabled {:?} project '{}' is missing its project file: {}",
+                    project_type,
+                    project.filename,
+                    source.display()
+                ));
+            }
 
-    for project in projects {
-        let source = project_path(project, project_type).await?;
-        let destination = runtime_directory.join(&project.filename);
+            let destination = runtime_directory.join(&project.filename);
 
-        if !fs::is_file(&source).await? {
-            return Err(format!("Project file does not exist: {}", source.display()));
+            desired.push((source, destination));
         }
+    }
 
-        create_temporary_symlink(&profile.id, source, destination).await?;
+    if include_global_projects {
+        collect_global_projects(directory, &runtime_directory, &kable_filenames, desired).await?;
     }
 
     Ok(())
 }
 
-/// Make globally installed projects available to this runtime.
+/// Ensure a project filename is exactly one normal path component.
 ///
-/// Project files are linked individually. Existing destinations are left
-/// untouched so Kable-managed projects retain precedence.
-async fn prepare_global_projects(profile: &KableProfile, directory: &str, runtime_directory: &Path) -> Result<(), String> {
+/// This prevents absolute paths, parent-directory traversal, and nested paths
+/// from escaping the intended project directory.
+fn validate_project_filename(filename: &str, project_type: &ProjectType) -> Result<(), String> {
+    if filename.is_empty() {
+        return Err(format!("Enabled {:?} project has an empty filename", project_type));
+    }
+
+    let mut components = Path::new(filename).components();
+
+    match (components.next(), components.next()) {
+        (Some(Component::Normal(_)), None) => Ok(()),
+        _ => Err(format!("Invalid filename for enabled {:?} project: {:?}", project_type, filename)),
+    }
+}
+
+/// Collect global project files unless an enabled Kable project has the same
+/// filename. Only regular files are considered.
+async fn collect_global_projects(
+    directory: &str,
+    runtime_directory: &Path,
+    kable_filenames: &HashSet<String>,
+    desired: &mut Vec<(PathBuf, PathBuf)>,
+) -> Result<(), String> {
     let minecraft_directory = fs::mc_dir()?.join(directory);
 
     if !fs::is_dir(&minecraft_directory).await? {
@@ -367,13 +371,15 @@ async fn prepare_global_projects(profile: &KableProfile, directory: &str, runtim
             continue;
         };
 
-        let destination = runtime_directory.join(filename);
+        let filename = filename.to_string_lossy().into_owned();
+        validate_project_filename(&filename, &ProjectType::Resourcepack)?;
 
-        if destination_exists(&destination).await? {
+        if kable_filenames.contains(&filename_key(&filename)) {
             continue;
         }
 
-        create_temporary_symlink(&profile.id, entry, destination).await?;
+        let destination = runtime_directory.join(&filename);
+        desired.push((entry, destination));
     }
 
     Ok(())
@@ -394,25 +400,7 @@ async fn project_path(project: &KableProject, project_type: ProjectType) -> Resu
     Ok(projects_directory.join(directory).join(&project.filename))
 }
 
-/// Create a temporary runtime symlink through the advanced symlink manager.
-///
-/// Destination checks use symlink metadata so dangling symlinks are handled
-/// correctly.
-async fn create_temporary_symlink(profile_id: &str, source: PathBuf, destination: PathBuf) -> Result<(), String> {
-    if source == destination {
-        return Ok(());
-    }
-
-    if destination_exists(&destination).await? {
-        return Ok(());
-    }
-
-    symlink::create_temporary(profile_id, source, destination).await?;
-
-    Ok(())
-}
-
-/// Check whether a filesystem entry exists, including dangling symlinks.
+/// Check existence without following symlinks, including dangling symlinks.
 async fn destination_exists(path: &Path) -> Result<bool, String> {
     match tokio::fs::symlink_metadata(path).await {
         Ok(_) => Ok(true),
@@ -421,18 +409,64 @@ async fn destination_exists(path: &Path) -> Result<bool, String> {
     }
 }
 
-/// Reset the runtime directory for a profile.
-///
-/// This removes runtime-owned and composed data as well as temporary symlinks
-/// associated with the profile. The directory is recreated empty.
+fn same_path(left: &Path, right: &Path) -> bool {
+    path_key(left) == path_key(right)
+}
+
+fn path_key(path: &Path) -> String {
+    let normalized = normalize_path(path);
+    let value = normalized.to_string_lossy().to_string();
+
+    #[cfg(windows)]
+    {
+        value.to_lowercase()
+    }
+
+    #[cfg(not(windows))]
+    {
+        value
+    }
+}
+
+fn filename_key(filename: &str) -> String {
+    #[cfg(windows)]
+    {
+        filename.to_lowercase()
+    }
+
+    #[cfg(not(windows))]
+    {
+        filename.to_string()
+    }
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut normalized = PathBuf::new();
+
+    for component in path.components() {
+        match component {
+            Component::CurDir => {}
+            Component::ParentDir => {
+                normalized.pop();
+            }
+            other => normalized.push(other.as_os_str()),
+        }
+    }
+
+    normalized
+}
+
+/// Explicitly reset a profile runtime. Normal preparation never calls this.
 pub async fn reset_runtime_dir(profile_id: &str) -> Result<PathBuf, String> {
     symlink::cleanup_profile(profile_id).await?;
 
     let path = fs::runtime_dir(profile_id)?;
 
     if destination_exists(&path).await? {
-        fs::remove_dir_all(&path).await.map_err(|error| format!("remove runtime failed {}: {}", path.display(), error))?;
+        fs::remove_dir_all(&path)
+            .await
+            .map_err(|error| format!("Failed to remove runtime directory {}: {}", path.display(), error))?;
     }
 
-    fs::create_dir(&path).await
+    fs::create_dir(path).await
 }

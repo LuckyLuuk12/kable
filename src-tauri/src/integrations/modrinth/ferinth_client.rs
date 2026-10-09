@@ -1,4 +1,9 @@
-use std::path::PathBuf;
+use std::{
+    collections::HashSet,
+    path::{Path, PathBuf},
+};
+
+use sha1::{Digest, Sha1};
 
 use ferinth::{
     structures::{
@@ -12,6 +17,7 @@ use ferinth::{
     },
     Ferinth,
 };
+use futures::future::join_all;
 use kable_macros::persistent_cache;
 
 use crate::Logger;
@@ -19,7 +25,6 @@ use api_types::projects::{
     ClientSide, DependencyType, Facet, FacetField, FacetGroup, FacetOperator, FileType, ModrinthResults, Project, ProjectSearch,
     ProjectType, ProjectVersion, SearchIndex, ServerSide, Status, VersionDependency, VersionFile, VersionFileHashes, VersionType,
 };
-use futures::future::join_all;
 
 fn client() -> Ferinth<()> {
     Ferinth::<()>::new("Kable", Some(env!("CARGO_PKG_VERSION")), Some("https://kable.kablan.nl"))
@@ -82,13 +87,7 @@ async fn search(project_type: Option<String>, project_search: ProjectSearch) -> 
     if let Some(project_type) = project_type.clone() {
         facet_groups.insert(
             0,
-            FacetGroup {
-                facets: vec![Facet {
-                    field: FacetField::ProjectType,
-                    operator: api_types::projects::FacetOperator::Eq,
-                    value: project_type,
-                }],
-            },
+            FacetGroup { facets: vec![Facet { field: FacetField::ProjectType, operator: FacetOperator::Eq, value: project_type }] },
         );
     }
 
@@ -260,7 +259,7 @@ fn convert_project(value: ferinth::structures::project::Project, versions: Vec<P
         latest_version: None,
         license: value.license.id,
         gallery: value.gallery.into_iter().map(|gi| gi.url).collect(),
-        featured_gallery: None, // value.featured_gallery doesn't exist in Ferinth's Project struct, so we can't set it here.
+        featured_gallery: None,
     }
 }
 
@@ -388,35 +387,129 @@ fn convert_version_file(value: FerinthVersionFile) -> VersionFile {
     }
 }
 
+/// Downloads one exact Modrinth version. Returns the primary artifact first,
+/// followed by any additional artifacts belonging to that version.
 pub async fn download_project(project: &Project, version_id: Option<&str>, parent_folder: PathBuf) -> Result<Vec<String>, String> {
-    let client = reqwest::Client::new();
-
     let version_id = version_id.ok_or_else(|| format!("No version ID supplied for project {}", project.project_id))?;
 
-    let version = project
-        .versions
-        .iter()
-        .find(|version| version.id == version_id)
-        .ok_or_else(|| format!("Version ID {} not found in project {}", version_id, project.project_id))?;
+    let version = project.versions.iter().find(|version| version.id == version_id).ok_or_else(|| {
+        format!("Version ID {} not found in project {} ({} versions supplied)", version_id, project.project_id, project.versions.len())
+    })?;
 
-    let mut filenames = Vec::new();
-
-    for file in &version.files {
-        let path = parent_folder.join(&file.filename);
-
-        let response = client.get(&file.url).send().await.map_err(|e| format!("Failed to download file {}: {}", file.filename, e))?;
-
-        let bytes = response.bytes().await.map_err(|e| format!("Failed to read response for file {}: {}", file.filename, e))?;
-
-        crate::system::fs::write(path.as_path(), &bytes, true).await?;
-
-        filenames.push(file.filename.clone());
+    if version.files.is_empty() {
+        return Err(format!("Modrinth version {} ({}) has no downloadable files", version.version_number, version_id));
     }
 
-    Logger::debug_global(&format!("Downloaded {} files for project {} version {}", filenames.len(), project.project_id, version_id), None);
+    let primary_indices: Vec<usize> = version.files.iter().enumerate().filter_map(|(index, file)| file.primary.then_some(index)).collect();
+
+    if primary_indices.len() != 1 {
+        return Err(format!(
+            "Modrinth version {} ({}) must have exactly one primary file; found {}",
+            version.version_number,
+            version_id,
+            primary_indices.len()
+        ));
+    }
+
+    let mut seen_names = HashSet::new();
+    for file in &version.files {
+        let filename = Path::new(&file.filename);
+        if file.filename.trim().is_empty()
+            || filename.components().count() != 1
+            || filename.file_name().and_then(|name| name.to_str()) != Some(file.filename.as_str())
+        {
+            return Err(format!("Unsafe or invalid filename {:?} in Modrinth version {}", file.filename, version_id));
+        }
+        if !seen_names.insert(file.filename.to_lowercase()) {
+            return Err(format!("Duplicate artifact filename {:?} in Modrinth version {}", file.filename, version_id));
+        }
+    }
+
+    // Download the primary file first so callers that still use filenames.first()
+    // cannot accidentally register a sources/dev/javadoc artifact as the project.
+    let mut ordered_indices = vec![primary_indices[0]];
+    ordered_indices.extend((0..version.files.len()).filter(|i| *i != primary_indices[0]));
+
+    tokio::fs::create_dir_all(&parent_folder)
+        .await
+        .map_err(|e| format!("Failed to create download directory {}: {}", parent_folder.display(), e))?;
+
+    let http = reqwest::Client::new();
+    let mut staged: Vec<(PathBuf, PathBuf, String)> = Vec::with_capacity(ordered_indices.len());
+    let mut committed: Vec<PathBuf> = Vec::with_capacity(ordered_indices.len());
+
+    let result: Result<Vec<String>, String> = async {
+        for (ordinal, index) in ordered_indices.iter().copied().enumerate() {
+            let file = &version.files[index];
+            let target = parent_folder.join(&file.filename);
+            let temp = parent_folder.join(format!(".{}.kable-download-{}-{}.tmp", file.filename, version_id, ordinal));
+
+            let response = http
+                .get(&file.url)
+                .send()
+                .await
+                .map_err(|e| format!("Failed to download {}: {}", file.filename, e))?
+                .error_for_status()
+                .map_err(|e| format!("HTTP error downloading {}: {}", file.filename, e))?;
+
+            let bytes = response.bytes().await.map_err(|e| format!("Failed to read download for {}: {}", file.filename, e))?;
+
+            if file.size >= 0 && bytes.len() != file.size as usize {
+                return Err(format!("Size mismatch for {}: expected {} bytes, received {}", file.filename, file.size, bytes.len()));
+            }
+
+            if let Some(expected_sha1) = file.hashes.sha1.as_deref() {
+                let actual_sha1 = format!("{:x}", Sha1::digest(&bytes));
+                if !expected_sha1.eq_ignore_ascii_case(&actual_sha1) {
+                    return Err(format!("SHA-1 mismatch for {}: expected {}, received {}", file.filename, expected_sha1, actual_sha1));
+                }
+            }
+
+            tokio::fs::write(&temp, &bytes).await.map_err(|e| format!("Failed to stage {}: {}", file.filename, e))?;
+
+            staged.push((temp, target, file.filename.clone()));
+        }
+
+        // Avoid overwriting an existing installation before every artifact has
+        // downloaded and passed validation.
+        for (temp, target, filename) in &staged {
+            if target.exists() {
+                return Err(format!("Refusing to overwrite existing file {} while installing version {}", target.display(), version_id));
+            }
+            tokio::fs::rename(temp, target).await.map_err(|e| format!("Failed to install {}: {}", filename, e))?;
+            committed.push(target.clone());
+        }
+
+        Ok(staged.iter().map(|(_, _, filename)| filename.clone()).collect())
+    }
+    .await;
+
+    let filenames = match result {
+        Ok(filenames) => filenames,
+        Err(error) => {
+            for (temp, _, _) in &staged {
+                let _ = tokio::fs::remove_file(temp).await;
+            }
+            for path in &committed {
+                let _ = tokio::fs::remove_file(path).await;
+            }
+            return Err(error);
+        }
+    };
+    Logger::debug_global(
+        &format!(
+            "Downloaded {} files for project {} version {} ({})",
+            filenames.len(),
+            project.project_id,
+            version.version_number,
+            version_id
+        ),
+        None,
+    );
 
     Ok(filenames)
 }
+
 #[persistent_cache(parent = "modrinth", ttl_secs = 1209600)]
 pub async fn get_categories() -> Result<Vec<String>, String> {
     client()
@@ -425,6 +518,7 @@ pub async fn get_categories() -> Result<Vec<String>, String> {
         .map(|categories| categories.into_iter().map(|category| category.name).collect())
         .map_err(|e| format!("Failed to get Modrinth categories: {e}"))
 }
+
 #[persistent_cache(parent = "modrinth", ttl_secs = 1209600)]
 pub async fn get_loaders() -> Result<Vec<String>, String> {
     client()
@@ -433,6 +527,7 @@ pub async fn get_loaders() -> Result<Vec<String>, String> {
         .map(|loaders| loaders.into_iter().map(|loader| loader.name).collect())
         .map_err(|e| format!("Failed to get Modrinth loaders: {e}"))
 }
+
 #[persistent_cache(parent = "modrinth", ttl_secs = 1209600)]
 pub async fn get_game_versions() -> Result<Vec<String>, String> {
     client()
@@ -441,11 +536,17 @@ pub async fn get_game_versions() -> Result<Vec<String>, String> {
         .map(|versions| versions.into_iter().map(|version| version.version).collect())
         .map_err(|e| format!("Failed to get Modrinth game versions: {e}"))
 }
+
 #[persistent_cache(parent = "modrinth", ttl_secs = 1209600)]
 pub async fn get_project_types() -> Result<Vec<String>, String> {
     client().tag_list_project_types().await.map_err(|e| format!("Failed to get Modrinth project types: {e}"))
 }
+
 #[persistent_cache(parent = "modrinth", ttl_secs = 1209600)]
 pub async fn get_side_types() -> Result<Vec<String>, String> {
-    client().tag_list_side_types().await.map_err(|e| format!("Failed to get Modrinth side types: {e}"))
+    client()
+        .tag_list_side_types()
+        .await
+        .map(|types| types.into_iter().collect())
+        .map_err(|e| format!("Failed to get Modrinth side types: {e}"))
 }

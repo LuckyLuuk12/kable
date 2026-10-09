@@ -42,7 +42,13 @@ impl LogConfigResolver {
             return Err(format!("Minecraft manifest {} has a logging configuration without a file URL", manifest.id));
         };
 
-        let source_path = self.root.join(id);
+        let file_name = Path::new(id)
+            .file_name()
+            .and_then(|name| name.to_str())
+            .filter(|name| !name.is_empty() && *name == id)
+            .ok_or_else(|| format!("Minecraft manifest {} has an invalid logging configuration file id: {}", manifest.id, id))?;
+
+        let source_path = self.root.join(file_name);
 
         if source_path.is_file() && !self.verify_file(&source_path, file.sha1.as_deref()).await? {
             Logger::debug_global(

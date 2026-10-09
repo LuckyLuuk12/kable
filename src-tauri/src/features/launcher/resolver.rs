@@ -625,5 +625,7 @@ pub async fn resolve(profile: KableProfile, game_dir: &Path) -> Result<Command, 
 
     let resolved = crate::integrations::minecraft::manifest::resolve_manifest_chain(manifest).await?;
 
+    Logger::debug_global(format!("Resolved Minecraft manifest chain for profile: {:?}", profile).as_str(), None);
+
     build_command(&resolved, &profile, game_dir).await
 }

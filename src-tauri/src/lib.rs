@@ -153,11 +153,15 @@ pub fn run() {
             // #endregion Profiles
             // #region Symlinks
             api::get_symlinks,
-            api::temporary_symlinks,
+            api::runtime_symlinks,
+            api::runtime_symlinks_for_profile,
             api::create,
             api::remove,
             api::toggle,
             api::update,
+            api::create_runtime_symlink,
+            api::reconcile_runtime_symlinks,
+            api::cleanup_profile_symlinks,
             // #endregion Symlinks
             // #region System
             api::open_url,

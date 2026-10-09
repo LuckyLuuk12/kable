@@ -194,4 +194,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [Advanced Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/advanced/+page.svelte#L432) | <pre><code class="language-html">&lt;Icon name="x" /&gt;</code></pre> |
 | zap | [LogsToolbar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsToolbar.svelte#L120) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2026-10-09T01:25:01.753Z_
+_Generated: 2026-10-09T19:45:17.205Z_

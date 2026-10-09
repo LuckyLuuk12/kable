@@ -4,13 +4,17 @@ use crate::{
     Logger,
 };
 use api_types::{launcher::LaunchResult, profiles::KableProfile};
-use std::process::{Command, Stdio};
+use std::{
+    process::{Command, Stdio},
+    time::Instant,
+};
 use tokio::process::Command as TokioCommand;
 
 pub async fn launch_game(
     profile: KableProfile,
     // _settings: &api_types::settings::CategorizedLauncherSettings,
 ) -> Result<LaunchResult, String> {
+    let launch_started = Instant::now();
     // Ensure the version manifest and its parent manifests are installed.
     version_manifests::ensure_version_installed(&profile.version).await?;
     // Prepare the isolated filesystem environment for this profile.
@@ -59,6 +63,8 @@ pub async fn launch_game(
     let _ = crate::features::profiles::management::update_last_used(profile.clone()).await?;
 
     Logger::debug_global(format!("Game launched with PID: {}, Runtime ID: {}", pid, runtime_id).as_str(), Some(profile.id.as_str()));
+
+    Logger::info_global(format!("Launch time: {:?}", launch_started.elapsed()).as_str(), Some(profile.id.as_str()));
 
     Ok(LaunchResult { pid, runtime_id: runtime_id.to_string(), command: format!("{:?}", cmd) })
 }
