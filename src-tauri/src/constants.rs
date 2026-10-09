@@ -64,20 +64,37 @@ pub const ALLOW_SYMLINKS_REGEX: &str = "[regex].*";
 pub const LATEST_RELEASE: &str = "latest-release";
 pub const LATEST_SNAPSHOT: &str = "latest-snapshot";
 
-/// Get the Fabric profile JSON URL for a specific Minecraft and loader version
-pub fn fabric_profile_url(mc_version: &str, loader_version: &str) -> String {
-    format!("{}/v2/versions/loader/{}/{}/profile/json", FABRIC_META_URL, mc_version, loader_version)
-}
+// Loader specific version manifest URLs, flags and url-parts
+pub const FABRIC_LOADER_PROFILE_PATH: &str = "/v2/versions/loader";
+pub const QUILT_LOADER_PROFILE_PATH: &str = "/v3/versions/loader";
+pub const LOADER_PROFILE_JSON_PATH: &str = "/profile/json";
 
-/// Get the Fabric profile JAR URL for a specific Minecraft and loader version
-pub fn fabric_profile_jar_url(mc_version: &str, loader_version: &str) -> String {
-    format!("{}/v2/versions/loader/{}/{}/profile/jar", FABRIC_META_URL, mc_version, loader_version)
-}
+pub const FORGE_MAVEN_BASE_URL: &str = "https://maven.minecraftforge.net";
+pub const FORGE_INSTALLER_PATH: &str = "/net/minecraftforge/forge";
+pub const FORGE_INSTALLER_SUFFIX: &str = "-installer.jar";
+pub const FORGE_INSTALL_CLIENT_FLAG: &str = "--installClient";
 
-/// Get the Quilt profile JSON URL for a specific Minecraft and loader version
-pub fn quilt_profile_url(mc_version: &str, loader_version: &str) -> String {
-    format!("{}/v3/versions/loader/{}/{}/profile/json", QUILT_META_URL, mc_version, loader_version)
-}
+pub const NEOFORGE_MAVEN_BASE_URL: &str = "https://maven.neoforged.net";
+pub const NEOFORGE_INSTALLER_PATH: &str = "/releases/net/neoforged/neoforge";
+pub const NEOFORGE_INSTALLER_SUFFIX: &str = "-installer.jar";
+pub const NEOFORGE_INSTALL_CLIENT_FLAG: &str = "--install-client";
+
+pub const JAVA_JAR_FLAG: &str = "-jar";
+pub const LOADER_INSTALLERS_DIR: &str = "installers";
+///// Get the Fabric profile JSON URL for a specific Minecraft and loader version
+// pub fn fabric_profile_url(mc_version: &str, loader_version: &str) -> String {
+//     format!("{}/v2/versions/loader/{}/{}/profile/json", FABRIC_META_URL, mc_version, loader_version)
+// }
+
+// /// Get the Fabric profile JAR URL for a specific Minecraft and loader version
+// pub fn fabric_profile_jar_url(mc_version: &str, loader_version: &str) -> String {
+//     format!("{}/v2/versions/loader/{}/{}/profile/jar", FABRIC_META_URL, mc_version, loader_version)
+// }
+
+// /// Get the Quilt profile JSON URL for a specific Minecraft and loader version
+// pub fn quilt_profile_url(mc_version: &str, loader_version: &str) -> String {
+//     format!("{}/v3/versions/loader/{}/{}/profile/json", QUILT_META_URL, mc_version, loader_version)
+// }
 
 // Note: We assume relative filenames to work from the .minecraft folder
 // e.g. the kable dir is usually <user path>/.minecraft/.kable

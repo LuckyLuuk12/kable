@@ -1,5 +1,6 @@
 use crate::{
     features::launcher::{resolver, runtime, runtime_inject},
+    integrations::loaders::version_manifests,
     Logger,
 };
 use api_types::{launcher::LaunchResult, profiles::KableProfile};
@@ -10,6 +11,8 @@ pub async fn launch_game(
     profile: KableProfile,
     // _settings: &api_types::settings::CategorizedLauncherSettings,
 ) -> Result<LaunchResult, String> {
+    // Ensure the version manifest and its parent manifests are installed.
+    version_manifests::ensure_version_installed(&profile.version).await?;
     // Prepare the isolated filesystem environment for this profile.
     //
     // This must happen before resolving the Minecraft command because

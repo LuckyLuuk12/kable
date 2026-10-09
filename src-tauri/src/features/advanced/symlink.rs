@@ -1,4 +1,5 @@
 use crate::system::fs;
+use crate::Logger;
 use api_types::profiles::KableProfile;
 use api_types::symlinks::{Symlink, SymlinkCreateRequest};
 use once_cell::sync::Lazy;
@@ -333,6 +334,10 @@ impl SymlinkManager {
 
     /// Create or delete the actual symlink on disk.
     async fn create(link: &Symlink) -> Result<(), String> {
+        if !link.source.exists() {
+            Logger::warn_global(format!("Skipping symlink because its source does not exist: {}", link.source.display()).as_str(), None);
+            return Ok(());
+        }
         if !link.enabled {
             return Err("Symlink is not enabled".to_string());
         }
