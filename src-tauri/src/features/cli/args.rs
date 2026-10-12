@@ -5,6 +5,7 @@ use clap::Parser;
 use crate::features::accounts::management::list_accounts;
 use crate::features::customization::settings::load_settings;
 use crate::features::launcher::launch::launch_game;
+use crate::features::profiles::minimalize::cleanup_orphaned_resources;
 use crate::features::profiles::{kable_profile::load_profiles, management::get_profile};
 use crate::integrations::loaders::get_versions;
 
@@ -42,8 +43,9 @@ pub async fn handle_args(args: Args) -> Result<(), String> {
         std::process::exit(0); // Exit after launching the game, no UI needed
     }
 
-    // 5. If no args we first load customizations if needed.
+    // 6. If no args we first clean up any leftover files that are unused like deleted profile runtime folders and unused projects.
+    cleanup_orphaned_resources().await?;
 
-    // 6. If we reached this point we assume the lib.rs run() will continue and open UI.
+    // 7. If we reached this point we assume the lib.rs run() will continue and open UI.
     Ok(())
 }

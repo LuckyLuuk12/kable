@@ -1,7 +1,7 @@
 use std::{
     collections::HashSet,
-    fs::{self, File},
-    io::{Read, Write},
+    fs::{self, File, OpenOptions},
+    io::{copy, Read, Write},
     path::{Component, Path, PathBuf},
 };
 
@@ -35,30 +35,96 @@ struct ExportManifest {
 ///
 /// The archive contains:
 /// - `kable.export.json`: the profile and export-format version.
-/// - `mods/`, `resourcepacks/`, `shaderpacks/`: managed project files and
-///   their Kable metadata JSON files.
+/// - `mods/`, `resourcepacks/`, `shaderpacks/`: managed project files and metadata.
 /// - `runtime/`: regular profile-specific runtime files.
 ///
-/// Symlinks are not followed when collecting runtime files.
+/// Files are streamed into the ZIP rather than loaded entirely into memory.
+/// Runtime symlinks are skipped.
+///
+/// The archive is first written to a temporary file in the destination
+/// directory. The ZIP writer and underlying file are closed before the
+/// completed archive is moved to its final destination.
 pub async fn export_profile(profile: &KableProfile, destination: impl AsRef<Path>) -> Result<PathBuf, String> {
-    let destination = destination.as_ref();
+    let requested_destination = destination.as_ref();
+
+    let destination = if requested_destination.is_dir() {
+        requested_destination.join(format!("{}.zip", safe_archive_name(&profile.metadata.name)))
+    } else {
+        requested_destination.to_path_buf()
+    };
 
     let parent = destination.parent().filter(|path| !path.as_os_str().is_empty()).unwrap_or_else(|| Path::new("."));
 
-    fs::create_dir_all(parent).map_err(|e| format!("Failed to create export directory: {e}"))?;
+    kable_fs::create_dir(parent).await?;
 
+    let filename = destination
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| "Export destination has an invalid filename".to_string())?;
+
+    let temporary_destination = parent.join(format!(".{filename}.{}.tmp", uuid::Uuid::new_v4()));
+
+    let result = write_profile_archive(profile, &temporary_destination).await;
+
+    if let Err(error) = result {
+        if kable_fs::exists(&temporary_destination).await.unwrap_or(false) {
+            let _ = kable_fs::remove_file(&temporary_destination).await;
+        }
+
+        return Err(error);
+    }
+
+    // Do not replace directories or symbolic links with an exported archive.
+    match fs::symlink_metadata(&destination) {
+        Ok(metadata) => {
+            if metadata.file_type().is_symlink() || !metadata.is_file() {
+                let _ = kable_fs::remove_file(&temporary_destination).await;
+
+                return Err(format!("Export destination is not a regular file: {}", destination.display()));
+            }
+
+            // The filesystem abstraction's rename operation does not
+            // guarantee replacement of an existing file on Windows.
+            if let Err(error) = kable_fs::remove_file(&destination).await {
+                let _ = kable_fs::remove_file(&temporary_destination).await;
+
+                return Err(format!("Failed to replace existing export {}: {error}", destination.display()));
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            let _ = kable_fs::remove_file(&temporary_destination).await;
+
+            return Err(format!("Failed to inspect export destination {}: {error}", destination.display()));
+        }
+    }
+
+    if let Err(error) = kable_fs::rename(&temporary_destination, &destination).await {
+        let _ = kable_fs::remove_file(&temporary_destination).await;
+
+        return Err(format!("Failed to move completed export to {}: {error}", destination.display()));
+    }
+
+    Logger::debug_global(&format!("Exported profile {} to {}", profile.id, destination.display()), Some(profile.id.as_str()));
+
+    Ok(destination)
+}
+
+/// Build and close an export archive at a temporary destination.
+async fn write_profile_archive(profile: &KableProfile, destination: &Path) -> Result<(), String> {
     let project_root = kable_fs::projects_dir()?;
     let runtime_dir = ensure_runtime_dir(&profile.id).await?;
 
-    let destination = if destination.is_dir() {
-        destination.join(format!("{}.zip", safe_archive_name(&profile.metadata.name)))
-    } else {
-        destination.to_path_buf()
-    };
-
-    let file = File::create(&destination).map_err(|e| format!("Failed to create export archive: {e}"))?;
+    // create_new prevents accidentally truncating an existing file.
+    // The current filesystem abstraction does not expose this operation.
+    let file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(destination)
+        .map_err(|e| format!("Failed to create temporary export archive {}: {e}", destination.display()))?;
 
     let mut archive = ZipWriter::new(file);
+
     let options = SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated);
 
     let manifest = ExportManifest { format_version: EXPORT_FORMAT_VERSION, profile: profile.clone() };
@@ -69,14 +135,16 @@ pub async fn export_profile(profile: &KableProfile, destination: impl AsRef<Path
 
     archive.write_all(&manifest_json).map_err(|e| format!("Failed to write export manifest: {e}"))?;
 
+    // These lists are independent of the project type, so fetch each only once.
+    let enabled_projects = list_profile_projects(profile.clone(), true).await?;
+    let disabled_projects = list_profile_projects(profile.clone(), false).await?;
+
     for project_type in PROJECT_TYPES {
         let projects_dir = project_root.join(project_type_folder(project_type));
         let mut exported_filenames = HashSet::new();
 
-        for enabled in [true, false] {
-            let projects = list_profile_projects(profile.clone(), enabled).await?;
-
-            let Some(projects) = projects.get(&project_type) else {
+        for projects_by_state in [&enabled_projects, &disabled_projects] {
+            let Some(projects) = projects_by_state.get(&project_type) else {
                 continue;
             };
 
@@ -119,11 +187,15 @@ pub async fn export_profile(profile: &KableProfile, destination: impl AsRef<Path
 
     add_runtime_files(&mut archive, &runtime_dir, Path::new(""), options).await?;
 
-    archive.finish().map_err(|e| format!("Failed to finalize export archive: {e}"))?;
+    // finish() consumes the ZIP writer and returns the underlying file.
+    // Sync and drop the handle before the temporary archive is renamed.
+    let finished_file = archive.finish().map_err(|e| format!("Failed to finalize export archive: {e}"))?;
 
-    Logger::debug_global(&format!("Exported profile {} to {}", profile.id, destination.display()), Some(profile.id.as_str()));
+    finished_file.sync_all().map_err(|e| format!("Failed to flush export archive to disk: {e}"))?;
 
-    Ok(destination)
+    drop(finished_file);
+
+    Ok(())
 }
 
 /// Import an exported profile from a directory containing `kable.export.json`
@@ -141,8 +213,6 @@ pub async fn import_profile(source: impl AsRef<Path>, target_profile_id: &str) -
         return Err("Target profile ID cannot be empty".to_string());
     }
 
-    // IDs are used as directory names. Reject path separators and traversal
-    // components rather than trusting a caller-provided string.
     validate_filename(target_profile_id)?;
 
     let mut imported_profile;
@@ -156,11 +226,11 @@ pub async fn import_profile(source: impl AsRef<Path>, target_profile_id: &str) -
             return Err(format!("Export directory does not contain {}: {}", EXPORT_FILENAME, source.display()));
         }
 
-        let manifest_bytes = fs::read(&manifest_path).map_err(|e| format!("Failed to read export manifest: {e}"))?;
+        let manifest_bytes = kable_fs::read(&manifest_path).await?;
 
         imported_profile = parse_export_manifest(&manifest_bytes)?;
 
-        collect_directory_projects(source, &mut archived_projects)?;
+        collect_directory_projects(source, &mut archived_projects).await?;
     } else if source.is_file() {
         let file = File::open(source).map_err(|e| format!("Failed to open export archive: {e}"))?;
 
@@ -249,8 +319,8 @@ pub async fn import_profile(source: impl AsRef<Path>, target_profile_id: &str) -
         Some(imported_profile.id.as_str()),
     );
 
-    // create_profile owns persistence after all source profiles have been
-    // merged and metadata/version overrides have been applied.
+    // create_profile owns persistence after all sources have been merged
+    // and metadata/version overrides have been applied.
     Ok(imported_profile)
 }
 
@@ -370,7 +440,7 @@ async fn restore_archived_projects(archived_projects: &[ArchivedProject]) -> Res
     let mut metadata = Vec::<(ProjectType, String, KableProject)>::new();
     let mut files = Vec::<(ProjectType, String, Vec<u8>)>::new();
 
-    // Validate the complete archive's metadata before making any changes.
+    // Validate all metadata before making any changes.
     for project in archived_projects {
         if project.is_metadata {
             let parsed: KableProject = serde_json::from_slice(&project.contents)
@@ -402,7 +472,7 @@ async fn restore_archived_projects(archived_projects: &[ArchivedProject]) -> Res
         }
     }
 
-    // Reject duplicate archive entries rather than relying on archive order.
+    // Reject duplicate archive entries instead of relying on archive order.
     let mut seen_files = HashSet::new();
 
     for (_, filename, _) in &files {
@@ -462,8 +532,7 @@ async fn restore_archived_projects(archived_projects: &[ArchivedProject]) -> Res
         }
     }
 
-    // Validate the destination directories and existing entries against
-    // symlink traversal before writing shared project data.
+    // Validate destination directories and files against symlink traversal.
     for (project_type, filename, _) in &files {
         let folder = project_root.join(project_type_folder(*project_type));
         let target = folder.join(filename);
@@ -518,7 +587,7 @@ async fn restore_archived_projects(archived_projects: &[ArchivedProject]) -> Res
     Ok(())
 }
 
-fn collect_directory_projects(source: &Path, projects: &mut Vec<ArchivedProject>) -> Result<(), String> {
+async fn collect_directory_projects(source: &Path, projects: &mut Vec<ArchivedProject>) -> Result<(), String> {
     for project_type in PROJECT_TYPES {
         let folder = source.join(project_type_folder(project_type));
 
@@ -539,7 +608,7 @@ fn collect_directory_projects(source: &Path, projects: &mut Vec<ArchivedProject>
 
             validate_filename(&filename)?;
 
-            let contents = fs::read(entry.path()).map_err(|e| format!("Failed to read project file: {e}"))?;
+            let contents = kable_fs::read(entry.path()).await?;
 
             projects.push(ArchivedProject { project_type, is_metadata: filename.ends_with(".json"), filename, contents });
         }
@@ -548,17 +617,21 @@ fn collect_directory_projects(source: &Path, projects: &mut Vec<ArchivedProject>
     Ok(())
 }
 
+/// Stream a file into the archive without allocating a buffer for its contents.
+///
+/// `std::fs::File` is used here because the ZIP writer requires synchronous
+/// `Write` access and system::fs currently does not expose a streaming reader.
 async fn add_file_to_archive(
     archive: &mut ZipWriter<File>,
     source: &Path,
     archive_name: &str,
     options: SimpleFileOptions,
 ) -> Result<(), String> {
-    let contents = kable_fs::read(source).await?;
-
     archive.start_file(archive_name, options).map_err(|e| format!("Failed to add {archive_name} to archive: {e}"))?;
 
-    archive.write_all(&contents).map_err(|e| format!("Failed to write {archive_name} to archive: {e}"))?;
+    let mut source_file = File::open(source).map_err(|e| format!("Failed to open file {}: {e}", source.display()))?;
+
+    copy(&mut source_file, archive).map_err(|e| format!("Failed to stream {} into archive: {e}", source.display()))?;
 
     Ok(())
 }
@@ -578,9 +651,9 @@ async fn add_runtime_files(
     let entries = kable_fs::read_dir(&current_dir).await?;
 
     for entry in entries {
-        let file_type = fs::symlink_metadata(&entry)
-            .map_err(|e| format!("Failed to inspect runtime entry {}: {e}", entry.display()))?
-            .file_type();
+        let metadata = fs::symlink_metadata(&entry).map_err(|e| format!("Failed to inspect runtime entry {}: {e}", entry.display()))?;
+
+        let file_type = metadata.file_type();
 
         if file_type.is_symlink() {
             continue;
@@ -610,9 +683,9 @@ async fn add_runtime_files(
 async fn copy_runtime_directory(source_root: &Path, destination_root: &Path, relative_dir: &Path) -> Result<(), String> {
     let current_dir = source_root.join(relative_dir);
 
-    let entries = match fs::read_dir(&current_dir) {
+    let entries = match kable_fs::read_dir(&current_dir).await {
         Ok(entries) => entries,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+        Err(_error) if !current_dir.exists() => {
             return Ok(());
         }
         Err(error) => {
@@ -621,27 +694,25 @@ async fn copy_runtime_directory(source_root: &Path, destination_root: &Path, rel
     };
 
     for entry in entries {
-        let entry = entry.map_err(|e| format!("Failed to read runtime entry: {e}"))?;
-
-        let file_type = entry.file_type().map_err(|e| format!("Failed to inspect runtime entry: {e}"))?;
+        let file_type = fs::symlink_metadata(&entry).map_err(|e| format!("Failed to inspect runtime entry: {e}"))?.file_type();
 
         if file_type.is_symlink() {
             continue;
         }
 
-        let filename = entry.file_name().into_string().map_err(|_| "Runtime filename is not valid UTF-8".to_string())?;
+        let filename = entry.file_name().and_then(|name| name.to_str()).ok_or_else(|| "Runtime filename is not valid UTF-8".to_string())?;
 
-        if relative_dir.as_os_str().is_empty() && ["mods", "resourcepacks", "shaderpacks"].contains(&filename.as_str()) {
+        if relative_dir.as_os_str().is_empty() && ["mods", "resourcepacks", "shaderpacks"].contains(&filename) {
             continue;
         }
 
-        let relative_path = relative_dir.join(&filename);
+        let relative_path = relative_dir.join(filename);
         validate_relative_path(&relative_path)?;
 
         if file_type.is_dir() {
             Box::pin(copy_runtime_directory(source_root, destination_root, &relative_path)).await?;
         } else if file_type.is_file() {
-            let contents = fs::read(entry.path()).map_err(|e| format!("Failed to read runtime file: {e}"))?;
+            let contents = kable_fs::read(&entry).await?;
 
             write_runtime_file(destination_root, &relative_path, &contents).await?;
         }
@@ -660,7 +731,6 @@ async fn write_runtime_file(runtime_root: &Path, relative_path: &Path, contents:
     ensure_directory_without_symlinks(parent)?;
     ensure_target_is_safe_file(&target)?;
 
-    // The shared filesystem abstraction resolves absolute paths unchanged.
     // Remove an existing regular file first because the abstraction's atomic
     // rename behavior may not replace an existing destination on Windows.
     if fs::symlink_metadata(&target).is_ok() {
