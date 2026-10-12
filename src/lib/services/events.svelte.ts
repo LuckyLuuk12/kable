@@ -17,7 +17,7 @@ export class EventsService implements Service {
   private initialized = false;
   private unlisteners: UnlistenFn[] = [];
 
-  constructor(private app: AppService) { }
+  constructor(private app: AppService) {}
 
   async init() {
     if (this.initialized) return;

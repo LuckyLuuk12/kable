@@ -38,7 +38,8 @@ let world = $derived(worldId ? app.worldsService.getWorld(worldId) : (app.worlds
         active={activeFeature}
         onchange={(event) => {
           activeFeature = event.at(-1) as WorldFeature;
-        }} />
+        }}
+      />
     </header>
 
     <main class="worlds-content">

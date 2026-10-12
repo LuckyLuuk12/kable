@@ -138,6 +138,7 @@ pub fn run() {
             api::get_modrinth_game_versions,
             api::get_modrinth_project_types,
             api::get_modrinth_side_types,
+            api::resolve_project_dependencies,
             // #endregion Projects
             // #region Profiles
             api::get_profiles,

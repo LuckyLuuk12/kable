@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use api_types::{
     profiles::KableProfile,
-    projects::{KableProject, ModrinthResults, Project, ProjectSearch, ProjectType, UpdateMap},
+    projects::{KableProject, ModrinthResults, Project, ProjectSearch, ProjectType, ResolvedDependency, UpdateMap},
 };
 
 use crate::features::projects::{browser, management};
@@ -88,4 +88,14 @@ pub async fn get_modrinth_project_types() -> Result<Vec<String>, String> {
 #[specta::specta]
 pub async fn get_modrinth_side_types() -> Result<Vec<String>, String> {
     crate::integrations::modrinth::ferinth_client::get_side_types().await
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn resolve_project_dependencies(
+    profile: KableProfile,
+    project: Project,
+    version_id: &str,
+) -> Result<Vec<ResolvedDependency>, String> {
+    management::resolve_project_dependencies(profile, project, version_id).await
 }

@@ -1,6 +1,13 @@
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct ResolvedDependency {
+    pub project: KableProject,
+    pub dependency_type: DependencyType,
+    pub dependencies: Vec<ResolvedDependency>,
+}
+
 /// Represents a project in a profile's dedicated mods folder, including its metadata and whether it is enabled or disabled
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, specta::Type)]
 pub struct KableProject {

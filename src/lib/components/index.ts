@@ -19,4 +19,3 @@ export { default as UpdateModal } from "./UpdateModal.svelte";
 
 export { default as NavBar } from "./NavBar.svelte";
 export { default as TitleBar } from "./TitleBar.svelte";
-

@@ -274,7 +274,8 @@ $effect(() => {
           }}
           tabindex="0"
           role="option"
-          aria-selected={item.id === profileId}>
+          aria-selected={item.id === profileId}
+        >
           <div class="profile-icon">
             <Image key={loaderImage[item.id]} />
           </div>

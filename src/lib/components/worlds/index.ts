@@ -8,4 +8,3 @@ export { default as WorldRegions } from "./WorldRegions.svelte";
 export { default as WorldsBrowser } from "./WorldsBrowser.svelte";
 export { default as WorldsNavigation } from "./WorldsNavigation.svelte";
 export { default as WorldStatistics } from "./WorldStatistics.svelte";
-

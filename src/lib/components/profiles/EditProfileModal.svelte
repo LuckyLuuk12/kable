@@ -170,7 +170,8 @@ function cancelEdit() {
     onsubmit={(e) => {
       e.preventDefault();
       confirmEdit();
-    }}>
+    }}
+  >
     <section class="settings-column">
       <div class="section-header">
         <div>
@@ -224,7 +225,8 @@ function cancelEdit() {
               installation.metadata.favorite = !installation.metadata.favorite;
             }}
             aria-label={installation.metadata.favorite ? "Remove from favorites" : "Add to favorites"}
-            title={installation.metadata.favorite ? "Remove from favorites" : "Add to favorites"}>
+            title={installation.metadata.favorite ? "Remove from favorites" : "Add to favorites"}
+          >
             {#if installation.metadata.favorite}
               <Icon name="star" size="md" />
             {:else}
@@ -249,7 +251,8 @@ function cancelEdit() {
           onclick={() => {
             showOptional = !showOptional;
           }}
-          aria-label={showOptional ? "Collapse settings" : "Expand settings"}>
+          aria-label={showOptional ? "Collapse settings" : "Expand settings"}
+        >
           <Icon name="chevron-down" forceType="svg" size="sm" />
         </button>
       </div>

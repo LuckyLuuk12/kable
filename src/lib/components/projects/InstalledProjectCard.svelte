@@ -1,6 +1,7 @@
 <!--
 @component
-This card differs from the @ProjectCard component in that it is used to display an already-installed project.
+This card displays an already-installed project and allows it to be
+enabled, disabled, inspected, or uninstalled.
 -->
 <script lang="ts">
 import { app, Icon, type KableProfile, type KableProject } from "$lib";
@@ -11,12 +12,17 @@ import ProjectVersionsModal from "./ProjectVersionsModal.svelte";
 let {
   profile,
   project,
+  enabled,
+  togglePending,
+  onToggled,
 }: {
   profile: KableProfile | null;
   project: KableProject;
+  enabled: boolean;
+  togglePending: boolean;
+  onToggled?: (enabled: boolean) => Promise<void>;
 } = $props();
 
-let isEnabled = $state(true);
 let loading = $state(false);
 let hasUpdate = $state(false);
 
@@ -28,73 +34,28 @@ let releaseDate = $derived(installedVersion?.date_published ? new Date(installed
 
 let hasGallery = $derived((project.project.gallery?.length ?? 0) > 0);
 
-/*
- * Enabled state and update state are intentionally checked independently.
- *
- * They represent different pieces of state and failure of the update check
- * must never prevent the enabled state from being updated.
- */
+// Update availability is independent of enabled state.
 $effect(() => {
   const currentProfile = profile;
   const currentProject = project;
-
-  if (!currentProfile) {
-    isEnabled = false;
-    return;
-  }
-
   let cancelled = false;
-
-  void app.projectsService
-    .isEnabled(currentProfile, currentProject)
-    .then((enabled) => {
-      if (cancelled) {
-        return;
-      }
-
-      isEnabled = enabled;
-    })
-    .catch((error) => {
-      if (cancelled) {
-        return;
-      }
-
-      console.error("[InstalledProjectCard] Failed to determine enabled state:", currentProject.filename, error);
-
-      isEnabled = false;
-    });
-
-  return () => {
-    cancelled = true;
-  };
-});
-
-$effect(() => {
-  const currentProfile = profile;
-  const currentProject = project;
 
   if (!currentProfile) {
     hasUpdate = false;
     return;
   }
 
-  let cancelled = false;
-
   void app.projectsService
     .checkUpdate(currentProfile, currentProject)
     .then(() => {
-      if (cancelled) {
-        return;
+      if (!cancelled) {
+        hasUpdate = true;
       }
-
-      hasUpdate = true;
     })
     .catch(() => {
-      if (cancelled) {
-        return;
+      if (!cancelled) {
+        hasUpdate = false;
       }
-
-      hasUpdate = false;
     });
 
   return () => {
@@ -102,49 +63,60 @@ $effect(() => {
   };
 });
 
-async function toggle() {
-  if (!profile || loading) {
+async function toggle(): Promise<void> {
+  const currentProfile = profile;
+  const currentProject = project;
+
+  if (!currentProfile || loading || togglePending) {
+    return;
+  }
+
+  const nextEnabled = !enabled;
+
+  try {
+    // The parent updates its state synchronously before awaiting the backend.
+    // That moves the card immediately and preserves pending state across
+    // the card's destruction and recreation.
+    await onToggled?.(nextEnabled);
+  } catch (error) {
+    console.error("[InstalledProjectCard] Failed to toggle project:", currentProject.filename, error);
+  }
+}
+
+async function remove(): Promise<void> {
+  const currentProfile = profile;
+  const currentProject = project;
+
+  if (!currentProfile || loading || togglePending) {
     return;
   }
 
   loading = true;
 
   try {
-    await app.projectsService.toggle(profile, project);
+    await app.projectsService.remove(currentProfile, currentProject);
+  } catch (error) {
+    console.error("[InstalledProjectCard] Failed to uninstall project:", currentProject.filename, error);
   } finally {
     loading = false;
   }
 }
 
-async function remove() {
-  if (!profile || loading) {
-    return;
-  }
-
-  loading = true;
-
-  try {
-    await app.projectsService.remove(profile, project);
-  } finally {
-    loading = false;
-  }
-}
-
-function showDetails() {
+function showDetails(): void {
   app.show(ProjectModal, {
     profile,
     project: project.project,
   });
 }
 
-function showVersions() {
+function showVersions(): void {
   app.show(ProjectVersionsModal, {
     profile,
     project,
   });
 }
 
-function showGallery() {
+function showGallery(): void {
   if (!hasGallery) {
     return;
   }
@@ -158,14 +130,16 @@ function showGallery() {
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <article
   class="installed-project-card"
-  class:enabled={isEnabled}
-  class:has-update={hasUpdate && !isEnabled}
-  class:loading
+  class:enabled
+  class:has-update={hasUpdate && !enabled}
+  class:loading={loading || togglePending}
   role="button"
   tabindex="0"
   aria-label={`Open details for ${project.project.title}`}
   onclick={showDetails}
   onkeydown={(event) => {
+    if (event.target !== event.currentTarget) return;
+
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       showDetails();
@@ -203,35 +177,48 @@ function showGallery() {
     role="group"
     aria-label={`Actions for ${project.project.title}`}>
     <button
-      class:active={isEnabled}
+      class:active={enabled}
       class="action-button toggle"
       type="button"
-      disabled={!profile || loading}
-      title={isEnabled ? "Disable project" : "Enable project"}
-      aria-label={isEnabled ? `Disable ${project.project.title}` : `Enable ${project.project.title}`}
+      disabled={!profile || loading || togglePending}
+      title={togglePending ? "Updating project..." : enabled ? "Disable project" : "Enable project"}
+      aria-label={togglePending ? `Updating ${project.project.title}` : enabled ? `Disable ${project.project.title}` : `Enable ${project.project.title}`}
+      aria-busy={togglePending}
       onclick={toggle}>
-      <Icon name={isEnabled ? "error" : "success"} forceType="svg" />
+      <Icon name={enabled ? "error" : "success"} forceType="svg" />
     </button>
 
-    <button class="action-button" type="button" disabled={loading} title="Versions" aria-label={`Versions for ${project.project.title}`} onclick={showVersions}>
+    <button
+      class="action-button"
+      type="button"
+      disabled={loading || togglePending}
+      title="Versions"
+      aria-label={`Versions for ${project.project.title}`}
+      onclick={showVersions}>
       <Icon name="list" forceType="svg" />
     </button>
-
-    {#if hasGallery}
-      <button class="action-button" type="button" disabled={loading} title="Gallery" aria-label={`Gallery for ${project.project.title}`} onclick={showGallery}>
-        <Icon name="image" forceType="svg" />
-      </button>
-    {/if}
 
     <button
       class="action-button danger"
       type="button"
-      disabled={!profile || loading}
+      disabled={!profile || loading || togglePending}
       title="Uninstall"
       aria-label={`Uninstall ${project.project.title}`}
       onclick={remove}>
       <Icon name="trash" forceType="svg" />
     </button>
+
+    {#if hasGallery}
+      <button
+        class="action-button"
+        type="button"
+        disabled={loading || togglePending}
+        title="Gallery"
+        aria-label={`Gallery for ${project.project.title}`}
+        onclick={showGallery}>
+        <Icon name="image" forceType="svg" />
+      </button>
+    {/if}
   </div>
 </article>
 

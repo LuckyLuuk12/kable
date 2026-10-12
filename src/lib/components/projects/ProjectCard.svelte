@@ -123,7 +123,7 @@ async function install() {
        * allowing the backend/download layer to fall back to
        * project.latest_version.
        */
-      await app.projectsService.download(profile, project, version.id);
+      await app.projectsService.install(profile, project, version.id);
     }
   } finally {
     installing = false;

@@ -77,13 +77,13 @@ export class ProfilesService implements Service {
     this.profiles = this.profiles.map((p) =>
       p.id === profile.id
         ? {
-          ...p,
-          metadata: {
-            ...p.metadata,
-            favorite: !p.metadata.favorite,
-          },
-        }
-        : p
+            ...p,
+            metadata: {
+              ...p.metadata,
+              favorite: !p.metadata.favorite,
+            },
+          }
+        : p,
     );
 
     try {
@@ -152,7 +152,6 @@ export class ProfilesService implements Service {
     }
   }
 
-
   async remove(id: string) {
     try {
       await api.deleteProfile(id);
@@ -162,19 +161,9 @@ export class ProfilesService implements Service {
     }
   }
 
-  async createProfile(
-    versionId: string,
-    baseProfile: KableProfile | null = null,
-    exportedZip: string | null = null,
-    mrpack: string | null = null
-  ) {
+  async createProfile(versionId: string, baseProfile: KableProfile | null = null, exportedZip: string | null = null, mrpack: string | null = null) {
     try {
-      await api.createProfile(
-        versionId,
-        baseProfile,
-        exportedZip,
-        mrpack
-      );
+      await api.createProfile(versionId, baseProfile, exportedZip, mrpack);
 
       await this.refreshProfiles();
     } catch (e) {

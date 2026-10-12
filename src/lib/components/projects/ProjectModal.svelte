@@ -337,10 +337,11 @@ async function install() {
 
       await app.projectsService.update(profile, installedProject, latestCompatibleVersion.id);
     } else {
-      await app.projectsService.download(profile, project, latestCompatibleVersion.id);
+      await app.projectsService.install(profile, project, latestCompatibleVersion.id);
     }
   } finally {
     installing = false;
+    app.dismissTop();
   }
 }
 

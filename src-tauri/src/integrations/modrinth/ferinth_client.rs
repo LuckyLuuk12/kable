@@ -389,6 +389,8 @@ fn convert_version_file(value: FerinthVersionFile) -> VersionFile {
 
 /// Downloads one exact Modrinth version. Returns the primary artifact first,
 /// followed by any additional artifacts belonging to that version.
+/// Downloads one exact Modrinth version. Returns the primary artifact first,
+/// followed by any additional artifacts belonging to that version.
 pub async fn download_project(project: &Project, version_id: Option<&str>, parent_folder: PathBuf) -> Result<Vec<String>, String> {
     let version_id = version_id.ok_or_else(|| format!("No version ID supplied for project {}", project.project_id))?;
 
@@ -412,47 +414,62 @@ pub async fn download_project(project: &Project, version_id: Option<&str>, paren
     }
 
     let mut seen_names = HashSet::new();
+
     for file in &version.files {
         let filename = Path::new(&file.filename);
+
         if file.filename.trim().is_empty()
             || filename.components().count() != 1
             || filename.file_name().and_then(|name| name.to_str()) != Some(file.filename.as_str())
         {
             return Err(format!("Unsafe or invalid filename {:?} in Modrinth version {}", file.filename, version_id));
         }
+
         if !seen_names.insert(file.filename.to_lowercase()) {
             return Err(format!("Duplicate artifact filename {:?} in Modrinth version {}", file.filename, version_id));
         }
     }
 
-    // Download the primary file first so callers that still use filenames.first()
-    // cannot accidentally register a sources/dev/javadoc artifact as the project.
+    // Preserve primary-first ordering for callers that use filenames.first().
     let mut ordered_indices = vec![primary_indices[0]];
-    ordered_indices.extend((0..version.files.len()).filter(|i| *i != primary_indices[0]));
+    ordered_indices.extend((0..version.files.len()).filter(|index| *index != primary_indices[0]));
 
     tokio::fs::create_dir_all(&parent_folder)
         .await
-        .map_err(|e| format!("Failed to create download directory {}: {}", parent_folder.display(), e))?;
+        .map_err(|error| format!("Failed to create download directory {}: {}", parent_folder.display(), error))?;
 
     let http = reqwest::Client::new();
     let mut staged: Vec<(PathBuf, PathBuf, String)> = Vec::with_capacity(ordered_indices.len());
-    let mut committed: Vec<PathBuf> = Vec::with_capacity(ordered_indices.len());
+    let mut committed: Vec<PathBuf> = Vec::new();
 
     let result: Result<Vec<String>, String> = async {
         for (ordinal, index) in ordered_indices.iter().copied().enumerate() {
             let file = &version.files[index];
             let target = parent_folder.join(&file.filename);
+
+            // Existing artifacts are retained rather than downloaded again.
+            if tokio::fs::try_exists(&target)
+                .await
+                .map_err(|error| format!("Failed to check whether {} exists: {}", target.display(), error))?
+            {
+                Logger::warn_global(
+                    &format!("Skipping existing artifact {} for project {} version {}", target.display(), project.project_id, version_id),
+                    None,
+                );
+                continue;
+            }
+
             let temp = parent_folder.join(format!(".{}.kable-download-{}-{}.tmp", file.filename, version_id, ordinal));
 
             let response = http
                 .get(&file.url)
                 .send()
                 .await
-                .map_err(|e| format!("Failed to download {}: {}", file.filename, e))?
+                .map_err(|error| format!("Failed to download {}: {}", file.filename, error))?
                 .error_for_status()
-                .map_err(|e| format!("HTTP error downloading {}: {}", file.filename, e))?;
+                .map_err(|error| format!("HTTP error downloading {}: {}", file.filename, error))?;
 
-            let bytes = response.bytes().await.map_err(|e| format!("Failed to read download for {}: {}", file.filename, e))?;
+            let bytes = response.bytes().await.map_err(|error| format!("Failed to read download for {}: {}", file.filename, error))?;
 
             if file.size >= 0 && bytes.len() != file.size as usize {
                 return Err(format!("Size mismatch for {}: expected {} bytes, received {}", file.filename, file.size, bytes.len()));
@@ -460,54 +477,83 @@ pub async fn download_project(project: &Project, version_id: Option<&str>, paren
 
             if let Some(expected_sha1) = file.hashes.sha1.as_deref() {
                 let actual_sha1 = format!("{:x}", Sha1::digest(&bytes));
+
                 if !expected_sha1.eq_ignore_ascii_case(&actual_sha1) {
                     return Err(format!("SHA-1 mismatch for {}: expected {}, received {}", file.filename, expected_sha1, actual_sha1));
                 }
             }
 
-            tokio::fs::write(&temp, &bytes).await.map_err(|e| format!("Failed to stage {}: {}", file.filename, e))?;
+            tokio::fs::write(&temp, &bytes).await.map_err(|error| format!("Failed to stage {}: {}", file.filename, error))?;
 
             staged.push((temp, target, file.filename.clone()));
         }
 
-        // Avoid overwriting an existing installation before every artifact has
-        // downloaded and passed validation.
+        // Install staged artifacts without replacing existing files.
+        // A hard link provides a no-overwrite operation on the same filesystem.
         for (temp, target, filename) in &staged {
-            if target.exists() {
-                return Err(format!("Refusing to overwrite existing file {} while installing version {}", target.display(), version_id));
+            match tokio::fs::hard_link(temp, target).await {
+                Ok(()) => {
+                    committed.push(target.clone());
+
+                    tokio::fs::remove_file(temp).await.map_err(|error| {
+                        format!("Installed {}, but failed to remove temporary file {}: {}", filename, temp.display(), error)
+                    })?;
+                }
+                Err(error) if tokio::fs::try_exists(target).await.unwrap_or(false) => {
+                    Logger::warn_global(
+                        &format!(
+                            "Skipping existing artifact {} for project {} version {}: {}",
+                            target.display(),
+                            project.project_id,
+                            version_id,
+                            error
+                        ),
+                        None,
+                    );
+
+                    tokio::fs::remove_file(temp)
+                        .await
+                        .map_err(|cleanup_error| format!("Failed to remove temporary file {}: {}", temp.display(), cleanup_error))?;
+                }
+                Err(error) => {
+                    return Err(format!("Failed to install {}: {}", filename, error));
+                }
             }
-            tokio::fs::rename(temp, target).await.map_err(|e| format!("Failed to install {}: {}", filename, e))?;
-            committed.push(target.clone());
         }
 
-        Ok(staged.iter().map(|(_, _, filename)| filename.clone()).collect())
+        // Return all version filenames in primary-first order, including
+        // artifacts that were already present and therefore skipped.
+        Ok(ordered_indices.iter().map(|index| version.files[*index].filename.clone()).collect())
     }
     .await;
 
-    let filenames = match result {
-        Ok(filenames) => filenames,
+    match result {
+        Ok(filenames) => {
+            Logger::debug_global(
+                &format!(
+                    "Processed {} files for project {} version {} ({})",
+                    filenames.len(),
+                    project.project_id,
+                    version.version_number,
+                    version_id
+                ),
+                None,
+            );
+
+            Ok(filenames)
+        }
         Err(error) => {
             for (temp, _, _) in &staged {
                 let _ = tokio::fs::remove_file(temp).await;
             }
+
             for path in &committed {
                 let _ = tokio::fs::remove_file(path).await;
             }
-            return Err(error);
-        }
-    };
-    Logger::debug_global(
-        &format!(
-            "Downloaded {} files for project {} version {} ({})",
-            filenames.len(),
-            project.project_id,
-            version.version_number,
-            version_id
-        ),
-        None,
-    );
 
-    Ok(filenames)
+            Err(error)
+        }
+    }
 }
 
 #[persistent_cache(parent = "modrinth", ttl_secs = 1209600)]

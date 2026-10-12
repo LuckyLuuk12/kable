@@ -1,4 +1,5 @@
 use crate::Logger;
+use std::collections::{HashMap, HashSet};
 
 // List, Remove, Add, Enable/Disable projects.
 // We make this kinda "project type agnostic" so we can use it for mods,
@@ -8,11 +9,11 @@ use crate::Logger;
 // enable/disable, update, list, check for updates, etc.
 // Later we can split them into separate files if needed.
 
-use crate::integrations::modrinth::ferinth_client::{download_project, get_project};
+use crate::integrations::modrinth::ferinth_client::{download_project, get_project, get_version_data};
 use crate::system::fs;
 
 use api_types::profiles::{KableProfile, KableProfileSettings};
-use api_types::projects::{KableProject, Project, ProjectType, UpdateMap};
+use api_types::projects::{DependencyType, KableProject, Project, ProjectType, ResolvedDependency, UpdateMap};
 
 /// List all projects from .kable/projects/<type>/* and return
 /// Map<ProjectType, Vec<KableProject>> for all supported project types.
@@ -121,18 +122,6 @@ fn latest_compatible_version<'a>(profile: &KableProfile, project: &'a Project) -
         .iter()
         .filter(|version| is_version_compatible(profile, version, project.project_type))
         .collect::<Vec<_>>();
-
-    Logger::debug_global(
-        &format!(
-            "Project {} has {} total versions, {} compatible versions for MC {:?} loader {}",
-            project.project_id,
-            project.versions.len(),
-            compatible_versions.len(),
-            profile.version.minecraft_version,
-            profile.version.loader,
-        ),
-        Some(profile.id.as_str()),
-    );
 
     let mut sorted = compatible_versions;
 
@@ -348,11 +337,6 @@ async fn load_project_metadata(kable_project: &KableProject) -> Result<Project, 
     let installed_project = get_installed_project(kable_project.project.project_type, &kable_project.filename).await?;
 
     if let Some(installed_project) = installed_project {
-        Logger::debug_global(
-            format!("Using local Modrinth metadata for {} ({})", installed_project.filename, installed_project.project.project_id).as_str(),
-            None,
-        );
-
         return Ok(installed_project.project);
     }
 
@@ -492,12 +476,7 @@ pub async fn check_for_updates(profile: KableProfile, project_type: ProjectType)
                     updates.push(UpdateMap { kable_project: kable_project.clone(), update: Some(latest_project) });
                 }
 
-                Err(error) => {
-                    Logger::debug_global(
-                        format!("No update for {} ({}): {}", kable_project.project.project_id, kable_project.filename, error).as_str(),
-                        Some(profile.id.as_str()),
-                    );
-                }
+                Err(_error) => {}
             }
         }
     }
@@ -515,24 +494,10 @@ pub async fn check_for_updates(profile: KableProfile, project_type: ProjectType)
 /// If the metadata file has disappeared, load_project_metadata() falls back
 /// to a direct Modrinth lookup.
 pub async fn check_for_update(profile: KableProfile, kable_project: KableProject) -> Result<Project, String> {
-    Logger::debug_global(
-        format!("Checking local project metadata for update: {} ({})", kable_project.filename, kable_project.project.project_id).as_str(),
-        Some(profile.id.as_str()),
-    );
-
     let project = load_project_metadata(&kable_project).await?;
 
     let latest_version = latest_compatible_version(&profile, &project)
         .ok_or_else(|| format!("No compatible version found for project {}", project.project_id))?;
-
-    Logger::debug_global(
-        format!(
-            "Latest compatible version for {}: {} ({}) published {}",
-            project.project_id, latest_version.id, latest_version.version_number, latest_version.date_published,
-        )
-        .as_str(),
-        Some(profile.id.as_str()),
-    );
 
     if latest_version.id == kable_project.version_id {
         return Err(format!("No update available for project {}", kable_project.filename));
@@ -664,4 +629,239 @@ pub async fn check_incompatible_projects(profile: KableProfile, auto_disable: bo
     );
 
     Ok(incompatible_projects)
+}
+
+/// Resolve a project's dependencies recursively without installing anything.
+///
+/// Returns candidate KableProjects for required, optional, and other
+/// dependencies, including transitive dependencies.
+///
+/// Each candidate contains the selected compatible version ID and the
+/// primary filename for that version. The filename is only a candidate:
+/// no file is downloaded and no profile settings are modified.
+///
+/// Dependencies are deduplicated by project ID. If two dependencies require
+/// different versions of the same project, resolution fails rather than
+/// silently selecting an incorrect version.
+///
+/// Incompatible dependencies are excluded because they must not be installed
+/// as ordinary dependencies. Embedded dependencies are also excluded because
+/// they are normally bundled with their parent project.
+pub async fn resolve_project_dependencies(
+    profile: KableProfile,
+    project: Project,
+    version_id: &str,
+) -> Result<Vec<ResolvedDependency>, String> {
+    // Validate the requested root version.
+    let root_version = project
+        .versions
+        .iter()
+        .find(|version| version.id == version_id)
+        .ok_or_else(|| format!("Version {} was not found for project {}", version_id, project.project_id))?;
+
+    if !is_version_compatible(&profile, root_version, project.project_type) {
+        return Err(format!(
+            "Version {} of project {} is not compatible with profile {}",
+            version_id, project.project_id, profile.metadata.name
+        ));
+    }
+
+    type VersionKey = (String, String);
+
+    // Intermediate arena node. Children are indices into `nodes`, allowing
+    // us to construct the recursive result after asynchronous traversal.
+    struct DependencyNode {
+        project: KableProject,
+        dependency_type: DependencyType,
+        children: Vec<usize>,
+    }
+
+    // A work item identifies the parent node to attach dependencies to,
+    // along with the ancestry of the current traversal branch.
+    struct WorkItem {
+        project: Project,
+        version_id: String,
+        parent_node: Option<usize>,
+        ancestry: HashSet<VersionKey>,
+    }
+
+    let root_key = (project.project_id.clone(), version_id.to_string());
+
+    let mut root_ancestry = HashSet::new();
+    root_ancestry.insert(root_key);
+
+    let mut pending =
+        vec![WorkItem { project: project.clone(), version_id: version_id.to_string(), parent_node: None, ancestry: root_ancestry }];
+
+    // Cache project metadata to avoid repeated Modrinth requests.
+    let mut project_cache: HashMap<String, Project> = HashMap::new();
+    project_cache.insert(project.project_id.clone(), project.clone());
+
+    // Enforce one selected version per project throughout the tree.
+    let mut selected_versions: HashMap<String, String> = HashMap::new();
+    selected_versions.insert(project.project_id.clone(), version_id.to_string());
+
+    // Store nodes separately while resolving dependencies asynchronously.
+    let mut nodes: Vec<DependencyNode> = Vec::new();
+    let mut root_nodes: Vec<usize> = Vec::new();
+
+    while let Some(work) = pending.pop() {
+        let parent_version = work.project.versions.iter().find(|version| version.id == work.version_id).ok_or_else(|| {
+            format!("Version {} was not found while resolving dependencies for {}", work.version_id, work.project.project_id)
+        })?;
+
+        let dependencies = parent_version.dependencies.clone().unwrap_or_default();
+
+        for dependency in dependencies {
+            let dependency_type = dependency.dependency_type;
+
+            match dependency_type {
+                DependencyType::Incompatible | DependencyType::Embedded => continue,
+                DependencyType::Required | DependencyType::Optional | DependencyType::Other => {}
+            }
+
+            let dependency_version_id =
+                dependency.version_id.as_ref().and_then(|value| value.as_deref()).filter(|id| !id.trim().is_empty()).map(str::to_owned);
+
+            let mut dependency_project_id =
+                dependency.project_id.as_ref().and_then(|value| value.as_deref()).filter(|id| !id.trim().is_empty()).map(str::to_owned);
+
+            // If only a version ID is provided, resolve its owning project.
+            if dependency_project_id.is_none() {
+                let Some(exact_version_id) = dependency_version_id.as_ref() else {
+                    continue;
+                };
+
+                let versions = get_version_data(vec![exact_version_id.clone()]).await.map_err(|error| {
+                    format!("Failed to resolve dependency version {} required by {}: {}", exact_version_id, work.project.title, error)
+                })?;
+
+                let version = versions.into_iter().find(|version| version.id == *exact_version_id).ok_or_else(|| {
+                    format!("Dependency version {} required by {} was not found on Modrinth", exact_version_id, work.project.title)
+                })?;
+
+                dependency_project_id = Some(version.project_id);
+            }
+
+            let Some(dependency_project_id) = dependency_project_id else {
+                continue;
+            };
+
+            // Reuse cached project metadata when possible.
+            let dependency_project = if let Some(cached) = project_cache.get(&dependency_project_id) {
+                cached.clone()
+            } else {
+                let fetched = get_project(&dependency_project_id).await.map_err(|error| {
+                    format!("Failed to fetch dependency project {} required by {}: {}", dependency_project_id, work.project.title, error)
+                })?;
+
+                project_cache.insert(dependency_project_id.clone(), fetched.clone());
+                fetched
+            };
+
+            // An explicitly requested dependency version takes precedence.
+            let selected_version_id = resolve_version_id(&profile, &dependency_project, dependency_version_id.as_deref())?.to_string();
+
+            // A project cannot resolve to different versions in different
+            // branches of the same dependency tree.
+            if let Some(existing_version_id) = selected_versions.get(&dependency_project_id) {
+                if existing_version_id != &selected_version_id {
+                    return Err(format!(
+                        "Conflicting dependency versions for project {}: {} and {}",
+                        dependency_project.title, existing_version_id, selected_version_id
+                    ));
+                }
+            } else {
+                selected_versions.insert(dependency_project_id.clone(), selected_version_id.clone());
+            }
+
+            let selected_version =
+                dependency_project.versions.iter().find(|version| version.id == selected_version_id).ok_or_else(|| {
+                    format!("Selected version {} was not found for dependency {}", selected_version_id, dependency_project.title)
+                })?;
+
+            // Match download_project(): require exactly one primary file.
+            let primary_files: Vec<_> = selected_version.files.iter().filter(|file| file.primary).collect();
+
+            if primary_files.len() != 1 {
+                return Err(format!(
+                    "Version {} of dependency {} must have exactly one primary file; found {}",
+                    selected_version.version_number,
+                    dependency_project.title,
+                    primary_files.len()
+                ));
+            }
+
+            let candidate = KableProject {
+                project: dependency_project.clone(),
+                version_id: selected_version_id.clone(),
+                filename: primary_files[0].filename.clone(),
+            };
+
+            // Always create a node for this parent-child relationship,
+            // even if the same project/version appears in another branch.
+            let node_index = nodes.len();
+
+            nodes.push(DependencyNode { project: candidate, dependency_type, children: Vec::new() });
+
+            if let Some(parent_index) = work.parent_node {
+                nodes[parent_index].children.push(node_index);
+            } else {
+                root_nodes.push(node_index);
+            }
+
+            let child_key = (dependency_project_id, selected_version_id.clone());
+
+            // Prevent cycles only within the current branch. Do not use a
+            // global visited set here: shared dependencies must appear under
+            // every parent that declares them.
+            if work.ancestry.contains(&child_key) {
+                Logger::debug_global(
+                    &format!(
+                        "Detected dependency cycle at {} version {}; stopping expansion of this branch",
+                        dependency_project.title, selected_version_id
+                    ),
+                    Some(profile.id.as_str()),
+                );
+
+                continue;
+            }
+
+            let mut child_ancestry = work.ancestry.clone();
+            child_ancestry.insert(child_key);
+
+            pending.push(WorkItem {
+                project: dependency_project,
+                version_id: selected_version_id,
+                parent_node: Some(node_index),
+                ancestry: child_ancestry,
+            });
+        }
+    }
+
+    // Convert the intermediate arena into the public recursive structure.
+    fn build_tree(index: usize, nodes: &[DependencyNode]) -> ResolvedDependency {
+        let node = &nodes[index];
+
+        ResolvedDependency {
+            project: node.project.clone(),
+            dependency_type: node.dependency_type,
+            dependencies: node.children.iter().map(|&child_index| build_tree(child_index, nodes)).collect(),
+        }
+    }
+
+    let resolved_projects = root_nodes.iter().map(|&index| build_tree(index, &nodes)).collect::<Vec<_>>();
+
+    Logger::debug_global(
+        &format!(
+            "Resolved {} top-level dependencies ({} dependency occurrences) for project {} version {}",
+            resolved_projects.len(),
+            nodes.len(),
+            project.project_id,
+            version_id
+        ),
+        Some(profile.id.as_str()),
+    );
+
+    Ok(resolved_projects)
 }

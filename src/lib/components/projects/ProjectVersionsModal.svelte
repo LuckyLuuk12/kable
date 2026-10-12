@@ -230,12 +230,13 @@ async function installVersion(version: ProjectVersion): Promise<void> {
     if (isKableProject(project)) {
       await app.projectsService.update(profile, project, version.id);
     } else {
-      await app.projectsService.download(profile, project, version.id);
+      await app.projectsService.install(profile, project, version.id);
     }
 
     selectedVersionId = version.id;
   } finally {
     loading = false;
+    app.dismissTop();
   }
 }
 

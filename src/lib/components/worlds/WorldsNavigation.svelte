@@ -77,7 +77,8 @@ async function refreshWorlds() {
         value={world?.id ?? ""}
         disabled={worlds.length === 0 || refreshing}
         aria-label="Select world"
-        onchange={(event) => selectWorld((event.currentTarget as HTMLSelectElement).value)}>
+        onchange={(event) => selectWorld((event.currentTarget as HTMLSelectElement).value)}
+      >
         {#if worlds.length === 0}
           <option value="">No worlds available</option>
         {:else}

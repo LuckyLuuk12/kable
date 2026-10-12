@@ -109,7 +109,8 @@ $effect(() => {
       type="text"
       bind:value={searchTerm}
       class="search-input"
-      placeholder={searchMode === "regex" ? "Search with regex..." : searchMode === "fuzzy" ? 'Fuzzy search (try "frge" for "forge")...' : "Search logs..."} />
+      placeholder={searchMode === "regex" ? "Search with regex..." : searchMode === "fuzzy" ? 'Fuzzy search (try "frge" for "forge")...' : "Search logs..."}
+    />
 
     <div class="search-mode-selector">
       <button class:active={searchMode === "normal"} class="search-mode-button" title="Normal text search" onclick={() => (searchMode = "normal")}>

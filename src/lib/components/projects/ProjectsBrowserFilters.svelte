@@ -16,7 +16,7 @@ Provides:
 
 <script lang="ts">
 import { api, type Facet, type FacetField, type FacetGroup, type FacetOperator, type SearchIndex } from "$lib";
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 import Icon from "../Icon.svelte";
 
 let {
@@ -195,14 +195,31 @@ onMount(() => {
   void loadFilters();
 });
 
-/*
- * Keep the local search input synchronized when the parent changes
- * the submitted search value externally.
- */
+const SEARCH_DEBOUNCE_MS = 300;
+
 $effect(() => {
-  if (query !== search) {
-    query = search;
+  const externalSearch = search;
+
+  // Only react to changes in the parent-provided search value.
+  // Reading query without tracking prevents typing from triggering this sync.
+  if (untrack(() => query) !== externalSearch) {
+    query = externalSearch;
   }
+});
+
+$effect(() => {
+  const submittedQuery = query.trim();
+
+  if (submittedQuery === search) {
+    return;
+  }
+
+  const timeout = setTimeout(() => {
+    search = submittedQuery;
+  }, SEARCH_DEBOUNCE_MS);
+
+  // Cancel the previous timeout when the query changes.
+  return () => clearTimeout(timeout);
 });
 </script>
 
@@ -213,7 +230,8 @@ $effect(() => {
       onsubmit={(event) => {
         event.preventDefault();
         submitSearch();
-      }}>
+      }}
+    >
       <input type="search" bind:value={query} placeholder="Search projects..." aria-label="Search projects" />
 
       <button type="submit" class="search-button" aria-label="Search projects">
@@ -232,7 +250,8 @@ $effect(() => {
       onchange={(event) => {
         setIndex(event.currentTarget.value as SearchIndex);
       }}
-      aria-label="Sort projects">
+      aria-label="Sort projects"
+    >
       <option value="relevance">Relevance</option>
       <option value="downloads">Downloads</option>
       <option value="follows">Follows</option>
@@ -247,7 +266,8 @@ $effect(() => {
       onclick={() => {
         smartFilter = !smartFilter;
       }}
-      aria-pressed={smartFilter}>
+      aria-pressed={smartFilter}
+    >
       <Icon name="filter" forceType="svg" />
       Smart filter
     </button>
@@ -259,7 +279,8 @@ $effect(() => {
         showPaginated = !showPaginated;
       }}
       aria-label={showPaginated ? "Switch to scrolling browser" : "Switch to paginated browser"}
-      title={showPaginated ? "Switch to scrolling browser" : "Switch to paginated browser"}>
+      title={showPaginated ? "Switch to scrolling browser" : "Switch to paginated browser"}
+    >
       <Icon name={showPaginated ? "search" : "list"} forceType="svg" />
       {showPaginated ? "Scroll" : "Pages"}
     </button>
@@ -272,7 +293,8 @@ $effect(() => {
         sidebarOpen = !sidebarOpen;
       }}
       aria-expanded={sidebarOpen}
-      aria-controls="project-filters-sidebar">
+      aria-controls="project-filters-sidebar"
+    >
       <Icon name="filter" forceType="svg" />
       Filters
     </button>
@@ -294,7 +316,8 @@ $effect(() => {
             onclick={() => {
               sidebarOpen = false;
             }}
-            aria-label="Close filters">
+            aria-label="Close filters"
+          >
             <Icon name="close" forceType="svg" />
           </button>
         </div>
@@ -327,7 +350,8 @@ $effect(() => {
                         onclick={() => toggleInclude("categories", value)}
                         aria-label={operator === "eq" ? `Remove ${category} include filter` : `Include ${category}`}
                         aria-pressed={operator === "eq"}
-                        title={operator === "eq" ? `Stop including ${category}` : `Include ${category}`}>
+                        title={operator === "eq" ? `Stop including ${category}` : `Include ${category}`}
+                      >
                         <Icon name="success" forceType="svg" />
                       </button>
 
@@ -338,7 +362,8 @@ $effect(() => {
                         onclick={() => toggleExclude("categories", value)}
                         aria-label={operator === "not_eq" ? `Remove ${category} exclude filter` : `Exclude ${category}`}
                         aria-pressed={operator === "not_eq"}
-                        title={operator === "not_eq" ? `Stop excluding ${category}` : `Exclude ${category}`}>
+                        title={operator === "not_eq" ? `Stop excluding ${category}` : `Exclude ${category}`}
+                      >
                         <Icon name="error" forceType="svg" />
                       </button>
                     </div>
@@ -367,7 +392,8 @@ $effect(() => {
                         onclick={() => toggleInclude("client_side", value)}
                         aria-label={operator === "eq" ? `Remove client-side ${side} include filter` : `Require client-side ${side}`}
                         aria-pressed={operator === "eq"}
-                        title={operator === "eq" ? `Stop requiring client-side ${side}` : `Require client-side ${side}`}>
+                        title={operator === "eq" ? `Stop requiring client-side ${side}` : `Require client-side ${side}`}
+                      >
                         <Icon name="success" forceType="svg" />
                       </button>
 
@@ -378,7 +404,8 @@ $effect(() => {
                         onclick={() => toggleExclude("client_side", value)}
                         aria-label={operator === "not_eq" ? `Remove client-side ${side} exclude filter` : `Exclude client-side ${side}`}
                         aria-pressed={operator === "not_eq"}
-                        title={operator === "not_eq" ? `Stop excluding client-side ${side}` : `Exclude client-side ${side}`}>
+                        title={operator === "not_eq" ? `Stop excluding client-side ${side}` : `Exclude client-side ${side}`}
+                      >
                         <Icon name="error" forceType="svg" />
                       </button>
                     </div>
@@ -407,7 +434,8 @@ $effect(() => {
                         onclick={() => toggleInclude("server_side", value)}
                         aria-label={operator === "eq" ? `Remove server-side ${side} include filter` : `Require server-side ${side}`}
                         aria-pressed={operator === "eq"}
-                        title={operator === "eq" ? `Stop requiring server-side ${side}` : `Require server-side ${side}`}>
+                        title={operator === "eq" ? `Stop requiring server-side ${side}` : `Require server-side ${side}`}
+                      >
                         <Icon name="success" forceType="svg" />
                       </button>
 
@@ -418,7 +446,8 @@ $effect(() => {
                         onclick={() => toggleExclude("server_side", value)}
                         aria-label={operator === "not_eq" ? `Remove server-side ${side} exclude filter` : `Exclude server-side ${side}`}
                         aria-pressed={operator === "not_eq"}
-                        title={operator === "not_eq" ? `Stop excluding server-side ${side}` : `Exclude server-side ${side}`}>
+                        title={operator === "not_eq" ? `Stop excluding server-side ${side}` : `Exclude server-side ${side}`}
+                      >
                         <Icon name="error" forceType="svg" />
                       </button>
                     </div>
@@ -447,7 +476,8 @@ $effect(() => {
                         onclick={() => toggleInclude("categories", value)}
                         aria-label={operator === "eq" ? `Remove ${loader} include filter` : `Include ${loader}`}
                         aria-pressed={operator === "eq"}
-                        title={operator === "eq" ? `Stop including ${loader}` : `Include ${loader}`}>
+                        title={operator === "eq" ? `Stop including ${loader}` : `Include ${loader}`}
+                      >
                         <Icon name="success" forceType="svg" />
                       </button>
 
@@ -458,7 +488,8 @@ $effect(() => {
                         onclick={() => toggleExclude("categories", value)}
                         aria-label={operator === "not_eq" ? `Remove ${loader} exclude filter` : `Exclude ${loader}`}
                         aria-pressed={operator === "not_eq"}
-                        title={operator === "not_eq" ? `Stop excluding ${loader}` : `Exclude ${loader}`}>
+                        title={operator === "not_eq" ? `Stop excluding ${loader}` : `Exclude ${loader}`}
+                      >
                         <Icon name="error" forceType="svg" />
                       </button>
                     </div>
@@ -487,7 +518,8 @@ $effect(() => {
                         onclick={() => toggleInclude("version", value)}
                         aria-label={operator === "eq" ? `Remove Minecraft ${version} include filter` : `Include Minecraft ${version}`}
                         aria-pressed={operator === "eq"}
-                        title={operator === "eq" ? `Stop including Minecraft ${version}` : `Include Minecraft ${version}`}>
+                        title={operator === "eq" ? `Stop including Minecraft ${version}` : `Include Minecraft ${version}`}
+                      >
                         <Icon name="success" forceType="svg" />
                       </button>
 
@@ -498,7 +530,8 @@ $effect(() => {
                         onclick={() => toggleExclude("version", value)}
                         aria-label={operator === "not_eq" ? `Remove Minecraft ${version} exclude filter` : `Exclude Minecraft ${version}`}
                         aria-pressed={operator === "not_eq"}
-                        title={operator === "not_eq" ? `Stop excluding Minecraft ${version}` : `Exclude Minecraft ${version}`}>
+                        title={operator === "not_eq" ? `Stop excluding Minecraft ${version}` : `Exclude Minecraft ${version}`}
+                      >
                         <Icon name="error" forceType="svg" />
                       </button>
                     </div>

@@ -12,7 +12,8 @@ Provides:
 -->
 
 <script lang="ts">
-import { type ProjectType, app, Icon } from "$lib";
+import { type KableProfile, type ProjectType, app, Icon } from "$lib";
+import { untrack } from "svelte";
 
 import InstalledProjects from "./InstalledProjects.svelte";
 import ProfilePicker from "./ProfilePicker.svelte";
@@ -39,25 +40,61 @@ let updatingAll = $state(false);
 let checkingUpdates = $state(false);
 let availableUpdates = $state(0);
 
-async function refreshUpdateCount(currentProfile: typeof profile): Promise<void> {
+/**
+ * Tracks concurrent update checks so the automatic effect and explicit
+ * actions can share the same request for a given profile and project type.
+ *
+ * This is intentionally a regular Map: its contents are not rendered.
+ */
+const updateChecksInFlight = new Map<string, Promise<number>>();
+
+/**
+ * Invalidates results from automatic update checks when the selected profile
+ * or project type changes.
+ */
+let updateEffectGeneration = 0;
+
+/**
+ * Checks for available updates and updates the displayed count only when
+ * the result still belongs to the currently selected profile and type.
+ */
+async function refreshUpdateCount(currentProfile: KableProfile | null, requestedType: ProjectType = projectType): Promise<void> {
   if (!currentProfile) {
-    availableUpdates = 0;
+    if (profileId === null) {
+      availableUpdates = 0;
+    }
+
     return;
   }
 
+  const key = `${currentProfile.id}:${requestedType}`;
+
+  let request = updateChecksInFlight.get(key);
+
+  if (!request) {
+    request = app.projectsService.checkUpdates(currentProfile, requestedType).then((updates) => updates.length);
+
+    updateChecksInFlight.set(key, request);
+  }
+
   try {
-    const updates = await app.projectsService.checkUpdates(currentProfile, projectType);
+    const count = await request;
 
-    availableUpdates = updates.length;
-  } catch (error) {
-    console.error("[ProjectsPage] Failed to check for updates:", currentProfile.id, error);
-
-    availableUpdates = 0;
+    // A completed request must not overwrite the count for a different
+    // profile or project type.
+    if (profileId === currentProfile.id && projectType === requestedType) {
+      availableUpdates = count;
+    }
+  } finally {
+    if (updateChecksInFlight.get(key) === request) {
+      updateChecksInFlight.delete(key);
+    }
   }
 }
 
 async function checkForUpdates(): Promise<void> {
   const currentProfile = profile;
+  const requestedType = projectType;
 
   if (!currentProfile || checkingUpdates || updatingAll || refreshing) {
     return;
@@ -66,7 +103,7 @@ async function checkForUpdates(): Promise<void> {
   checkingUpdates = true;
 
   try {
-    await refreshUpdateCount(currentProfile);
+    await refreshUpdateCount(currentProfile, requestedType);
 
     console.debug("[ProjectsPage] Checked for updates for profile:", currentProfile.id);
   } catch (error) {
@@ -77,24 +114,48 @@ async function checkForUpdates(): Promise<void> {
 }
 
 async function refresh(): Promise<void> {
-  let currentProfile = profile;
+  const currentProfile = profile;
+  const requestedType = projectType;
 
-  if (!currentProfile) {
-    console.warn("[ProjectsPage] No profile selected, cannot refresh");
+  if (!currentProfile || refreshing || updatingAll || checkingUpdates) {
     return;
   }
+
+  const requestedProfileId = currentProfile.id;
 
   refreshing = true;
 
   try {
     await app.profilesService.refreshProfiles(true);
-    currentProfile = app.profilesService.profiles.find((p) => p.id === currentProfile!.id) ?? null;
-    await app.projectsService.load(currentProfile!, projectType, true);
-    await refreshUpdateCount(currentProfile);
 
-    console.debug("[ProjectsPage] Refreshed projects for profile:", currentProfile!.id);
+    // Do not load an old profile if the user changed selection while
+    // the profile list was being refreshed.
+    if (profileId !== requestedProfileId || projectType !== requestedType) {
+      return;
+    }
+
+    const refreshedProfile = app.profilesService.profiles.find((candidate) => candidate.id === requestedProfileId) ?? null;
+
+    if (!refreshedProfile) {
+      availableUpdates = 0;
+
+      console.warn("[ProjectsPage] Selected profile no longer exists:", requestedProfileId);
+
+      return;
+    }
+
+    await app.projectsService.load(refreshedProfile, requestedType, true);
+
+    // The selection may have changed while the project list was loading.
+    if (profileId !== requestedProfileId || projectType !== requestedType) {
+      return;
+    }
+
+    await refreshUpdateCount(refreshedProfile, requestedType);
+
+    console.debug("[ProjectsPage] Refreshed projects for profile:", requestedProfileId);
   } catch (error) {
-    console.error("[ProjectsPage] Failed to refresh projects for profile:", currentProfile!.id, error);
+    console.error("[ProjectsPage] Failed to refresh projects for profile:", requestedProfileId, error);
   } finally {
     refreshing = false;
   }
@@ -102,6 +163,7 @@ async function refresh(): Promise<void> {
 
 async function updateAll(): Promise<void> {
   const currentProfile = profile;
+  const requestedType = projectType;
 
   if (!currentProfile || updatingAll || checkingUpdates || refreshing) {
     return;
@@ -112,23 +174,36 @@ async function updateAll(): Promise<void> {
     return;
   }
 
+  const requestedProfileId = currentProfile.id;
+
   updatingAll = true;
 
   try {
-    await app.projectsService.updateAll(currentProfile, projectType);
+    await app.projectsService.updateAll(currentProfile, requestedType);
 
-    await app.projectsService.load(currentProfile, projectType, true);
-    await refreshUpdateCount(currentProfile);
+    // Avoid switching the service back to an old profile if the user
+    // changed selection while the update operation was running.
+    if (profileId !== requestedProfileId || projectType !== requestedType) {
+      return;
+    }
 
-    console.debug("[ProjectsPage] Updated all projects for profile:", currentProfile.id);
+    await app.projectsService.load(currentProfile, requestedType, true);
+
+    if (profileId !== requestedProfileId || projectType !== requestedType) {
+      return;
+    }
+
+    await refreshUpdateCount(currentProfile, requestedType);
+
+    console.debug("[ProjectsPage] Updated all projects for profile:", requestedProfileId);
   } catch (error) {
-    console.error("[ProjectsPage] Failed to update all projects for profile:", currentProfile.id, error);
+    console.error("[ProjectsPage] Failed to update all projects for profile:", requestedProfileId, error);
   } finally {
     updatingAll = false;
   }
 }
 
-function launch() {
+function launch(): void {
   const currentProfile = profile;
 
   if (!currentProfile) {
@@ -138,54 +213,68 @@ function launch() {
   app.launcherService.launch(currentProfile);
 }
 
+/**
+ * Synchronize the service's selected profile and maintain the update count.
+ *
+ * Only profileId and projectType are tracked as dependencies. Reads from
+ * the profile list and project service are untracked, preventing changes
+ * to service state during selection/loading from repeatedly triggering
+ * this effect.
+ */
 $effect(() => {
   const selectedProfileId = profileId;
-  const currentProjectType = projectType;
+  const selectedType = projectType;
+  const generation = ++updateEffectGeneration;
 
   if (!selectedProfileId) {
     availableUpdates = 0;
     return;
   }
 
-  const selectedProfile = app.profilesService.profiles.find((candidate) => candidate.id === selectedProfileId) ?? null;
+  untrack(() => {
+    void (async () => {
+      try {
+        let selectedProfile = app.profilesService.profiles.find((candidate) => candidate.id === selectedProfileId) ?? null;
 
-  if (!selectedProfile) {
-    availableUpdates = 0;
-    return;
-  }
+        if (!selectedProfile) {
+          if (generation === updateEffectGeneration) {
+            availableUpdates = 0;
+          }
 
-  if (app.projectsService.loadedForProfileId !== selectedProfileId) {
-    availableUpdates = 0;
+          return;
+        }
 
-    void app.projectsService.select(selectedProfile);
+        if (app.projectsService.loadedForProfileId !== selectedProfileId) {
+          availableUpdates = 0;
 
-    return;
-  }
+          await app.projectsService.select(selectedProfile);
 
-  let cancelled = false;
+          if (generation !== updateEffectGeneration) {
+            return;
+          }
 
-  void app.projectsService
-    .checkUpdates(selectedProfile, currentProjectType)
-    .then((updates) => {
-      if (cancelled) {
-        return;
+          // Re-read the profile in case selecting it refreshed the profile
+          // list or replaced the profile object.
+          selectedProfile = app.profilesService.profiles.find((candidate) => candidate.id === selectedProfileId) ?? null;
+        }
+
+        if (!selectedProfile || generation !== updateEffectGeneration) {
+          return;
+        }
+
+        // Share the same in-flight request as manual checks and refreshes.
+        await refreshUpdateCount(selectedProfile, selectedType);
+      } catch (error) {
+        if (generation !== updateEffectGeneration) {
+          return;
+        }
+
+        console.error("[ProjectsPage] Failed to synchronize project state:", selectedProfileId, error);
+
+        availableUpdates = 0;
       }
-
-      availableUpdates = updates.length;
-    })
-    .catch((error) => {
-      if (cancelled) {
-        return;
-      }
-
-      console.error("[ProjectsPage] Failed to check for updates:", selectedProfile.id, error);
-
-      availableUpdates = 0;
-    });
-
-  return () => {
-    cancelled = true;
-  };
+    })();
+  });
 });
 </script>
 
@@ -209,7 +298,8 @@ $effect(() => {
         type="button"
         onclick={() => (pickerCollapsed = !pickerCollapsed)}
         aria-label={pickerCollapsed ? "Expand profile picker" : "Collapse profile picker"}
-        title={pickerCollapsed ? "Expand profile picker" : "Collapse profile picker"}>
+        title={pickerCollapsed ? "Expand profile picker" : "Collapse profile picker"}
+      >
         <Icon name={pickerCollapsed ? "chevron-right" : "chevron-left"} forceType="svg" />
       </button>
     </header>
@@ -242,7 +332,8 @@ $effect(() => {
             onclick={updateAll}
             disabled={updatingAll || checkingUpdates || refreshing}
             aria-label={availableUpdates > 0 ? `Update all ${projectLabel.toLowerCase()} (${availableUpdates})` : `Check for ${projectLabel.toLowerCase()} updates`}
-            title={availableUpdates > 0 ? `Update all ${availableUpdates} ${projectLabel.toLowerCase()}` : `Check for ${projectLabel.toLowerCase()} updates`}>
+            title={availableUpdates > 0 ? `Update all ${availableUpdates} ${projectLabel.toLowerCase()}` : `Check for ${projectLabel.toLowerCase()} updates`}
+          >
             <span class="update-all-icon">
               <Icon name="refresh" forceType="svg" size="sm" />
             </span>
@@ -282,7 +373,8 @@ $effect(() => {
             disabled={refreshing || updatingAll || checkingUpdates}
             class:loading={refreshing}
             aria-label="Refresh"
-            title="Refresh">
+            title="Refresh"
+          >
             <Icon name="refresh" forceType="svg" size="sm" />
           </button>
 

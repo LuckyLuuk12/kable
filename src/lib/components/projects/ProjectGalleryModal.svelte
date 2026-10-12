@@ -75,7 +75,8 @@ function handleKeydown(event: KeyboardEvent) {
             type="button"
             aria-label={`View image ${index + 1}`}
             aria-current={index === selectedIndex}
-            onclick={() => select(index)}>
+            onclick={() => select(index)}
+          >
             <img src={image} alt="" />
           </button>
         {/each}

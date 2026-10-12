@@ -144,7 +144,8 @@ function formatLastUsed(date: string | null | undefined) {
                 );
               --loader-color: {loaderColor}55;
               z-index: {profiles.length - i};
-            ">
+            "
+          >
             <div class="card-top-actions">
               <button class="star-btn" title={profile.metadata.favorite ? "Unfavorite" : "Favorite"} onclick={(event) => toggleFavorite(event, profile)}>
                 {#key profile.metadata.favorite}
@@ -184,7 +185,8 @@ function formatLastUsed(date: string | null | undefined) {
                   style="
                     color: {loaderColor};
                     background: transparent;
-                  ">
+                  "
+                >
                   {#if customIcon}
                     <img src={customIcon} alt="profile icon" class="profile-img" />
                   {:else}
@@ -211,7 +213,8 @@ function formatLastUsed(date: string | null | undefined) {
                   onclick={async () => {
                     await app.launcherService.launch(profile);
                   }}
-                  disabled={app.launcherService.launching}>
+                  disabled={app.launcherService.launching}
+                >
                   {#if app.launcherService.launchingProfileId === profile.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
 
@@ -325,7 +328,8 @@ function formatLastUsed(date: string | null | undefined) {
                   {loaderColor}05 40%
                 );
               --loader-color: {loaderColor}55;
-            ">
+            "
+          >
             <div class="list-item-main">
               <div class="list-item-icon-section">
                 <div class="profile-icon icon-tooltip-wrapper" style="color: {loaderColor};">
@@ -355,7 +359,8 @@ function formatLastUsed(date: string | null | undefined) {
                   onclick={async () => {
                     await app.launcherService.launch(profile);
                   }}
-                  disabled={app.launcherService.launching}>
+                  disabled={app.launcherService.launching}
+                >
                   {#if app.launcherService.launchingProfileId === profile.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
 

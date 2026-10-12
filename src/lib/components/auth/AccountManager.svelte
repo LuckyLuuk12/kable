@@ -95,7 +95,8 @@ async function removeCurrentAccount() {
             class:online={accountStatus === "online"}
             class:offline={accountStatus === "offline"}
             class:expired={accountStatus === "expired"}
-            title={getAccountStatusLabel(currentAccount)}></span>
+            title={getAccountStatusLabel(currentAccount)}
+          ></span>
         </div>
 
         <div class="account-identity">
@@ -129,7 +130,8 @@ async function removeCurrentAccount() {
               class:open={accountSwitcherOpen}
               onclick={() => (accountSwitcherOpen = !accountSwitcherOpen)}
               aria-expanded={accountSwitcherOpen}
-              aria-haspopup="listbox">
+              aria-haspopup="listbox"
+            >
               <Icon name="user" size="sm" forceType="svg" />
               <span>Switch account</span>
               <Icon name="chevron-down" size="sm" forceType="svg" />
@@ -145,7 +147,8 @@ async function removeCurrentAccount() {
                     class:active={account.local_id === currentAccount.local_id}
                     onclick={() => selectAccount(account)}
                     role="option"
-                    aria-selected={account.local_id === currentAccount.local_id}>
+                    aria-selected={account.local_id === currentAccount.local_id}
+                  >
                     <div class="option-avatar">
                       <PlayerHead {account} size={36} />
 
@@ -153,7 +156,8 @@ async function removeCurrentAccount() {
                         class="option-status"
                         class:online={getAccountStatusClass(account) === "online"}
                         class:offline={getAccountStatusClass(account) === "offline"}
-                        class:expired={getAccountStatusClass(account) === "expired"}></span>
+                        class:expired={getAccountStatusClass(account) === "expired"}
+                      ></span>
                     </div>
 
                     <div class="option-details">

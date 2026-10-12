@@ -111,16 +111,27 @@ pub async fn list_profiles(force: bool) -> Result<Vec<KableProfile>, String> {
 
 /// Modifies the profile.settings.<project.type> with its toggle(str) function, then uses the modify_profile function to save the updated profile to disk. This is used to enable/disable a project for a profile.
 pub async fn toggle_project(profile: KableProfile, project: KableProject) -> Result<KableProfile, String> {
-    let mut updated_profile = profile.clone();
-    let toggled = updated_profile.settings.toggle(project.project.project_type, &project.filename);
-    // if we toggled from disabled to enabled, we might have to download the project again as removing projects is possible from global projects folder if no profiles have it enabled:
-    if !toggled {
-        crate::features::projects::management::add_project(project.project, Some(&project.version_id)).await?;
+    let profile_id = profile.id.clone();
+    let project_type = project.project.project_type;
+    let filename = project.filename.clone();
+    let project_data = project.project.clone();
+    let version_id = project.version_id.clone();
+
+    let updated_profile = modify_current_profile(&profile_id, |current_profile| {
+        current_profile.settings.toggle(project_type, &filename);
+    })
+    .await?;
+
+    // If the project was enabled, it may need to be downloaded again
+    // if its files were removed while no profiles had it enabled.
+    if updated_profile.settings.is_enabled(project) {
+        crate::features::projects::management::add_project(project_data, Some(&version_id)).await?;
     }
-    modify_profile(profile, updated_profile).await
+
+    Ok(updated_profile)
 }
 
 pub async fn is_project_enabled(profile: KableProfile, project: KableProject) -> Result<bool, String> {
-    let updated_profile = profile.clone();
-    Ok(updated_profile.settings.is_enabled(project))
+    let current_profile = get_profile(&profile.id).await?;
+    Ok(current_profile.settings.is_enabled(project))
 }

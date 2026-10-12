@@ -14,12 +14,7 @@ export interface LogEvent {
   timestamp: number;
 }
 
-export type GameInstanceStatus =
-  | "launching"
-  | "running"
-  | "closed"
-  | "crashed"
-  | "stopped";
+export type GameInstanceStatus = "launching" | "running" | "closed" | "crashed" | "stopped";
 
 export interface GameInstance {
   id: string;
@@ -38,12 +33,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isLogLevel(value: unknown): value is LogLevel {
-  return (
-    value === "info" ||
-    value === "warn" ||
-    value === "error" ||
-    value === "debug"
-  );
+  return value === "info" || value === "warn" || value === "error" || value === "debug";
 }
 
 function parseLogEvent(value: unknown): LogEvent | null {
@@ -51,11 +41,7 @@ function parseLogEvent(value: unknown): LogEvent | null {
     return null;
   }
 
-  if (
-    typeof value.message !== "string" ||
-    !isLogLevel(value.level) ||
-    typeof value.timestamp !== "number"
-  ) {
+  if (typeof value.message !== "string" || !isLogLevel(value.level) || typeof value.timestamp !== "number") {
     return null;
   }
 
@@ -63,14 +49,8 @@ function parseLogEvent(value: unknown): LogEvent | null {
     level: value.level,
     message: value.message,
     fnName: typeof value.fnName === "string" ? value.fnName : null,
-    instanceId:
-      typeof value.instanceId === "string"
-        ? value.instanceId
-        : null,
-    context:
-      typeof value.context === "string"
-        ? value.context
-        : null,
+    instanceId: typeof value.instanceId === "string" ? value.instanceId : null,
+    context: typeof value.context === "string" ? value.context : null,
     value: value.value ?? null,
     timestamp: value.timestamp,
   };
@@ -96,25 +76,25 @@ export class LogsService implements Service {
     this.listeners.push(
       await listen("game-launched", (event) => {
         this.handleGameLaunched(event.payload);
-      })
+      }),
     );
 
     this.listeners.push(
       await listen("game-process-event", (event) => {
         this.handleGameProcessEvent(event.payload);
-      })
+      }),
     );
 
     this.listeners.push(
       await listen("launcher-log", (event) => {
         this.handleLauncherLog(event.payload);
-      })
+      }),
     );
 
     this.listeners.push(
       await listen("launcher-log-batch", (event) => {
         this.handleLauncherLogBatch(event.payload);
-      })
+      }),
     );
   }
 
@@ -141,25 +121,13 @@ export class LogsService implements Service {
       return;
     }
 
-    const runtimeId =
-      typeof payload.runtimeId === "string"
-        ? payload.runtimeId
-        : null;
+    const runtimeId = typeof payload.runtimeId === "string" ? payload.runtimeId : null;
 
-    const profile = isRecord(payload.profile)
-      ? payload.profile
-      : null;
+    const profile = isRecord(payload.profile) ? payload.profile : null;
 
-    const metadata = isRecord(profile?.metadata)
-      ? profile.metadata
-      : null;
+    const metadata = isRecord(profile?.metadata) ? profile.metadata : null;
 
-    if (
-      runtimeId === null ||
-      profile === null ||
-      metadata === null ||
-      typeof metadata.name !== "string"
-    ) {
+    if (runtimeId === null || profile === null || metadata === null || typeof metadata.name !== "string") {
       return;
     }
 
@@ -168,10 +136,7 @@ export class LogsService implements Service {
     const instance: GameInstance = {
       id: runtimeId,
       profileName: metadata.name,
-      installationPath:
-        typeof profile.installationPath === "string"
-          ? profile.installationPath
-          : "",
+      installationPath: typeof profile.installationPath === "string" ? profile.installationPath : "",
       status: "launching",
       launchedAt: now,
       lastActivity: now,
@@ -196,19 +161,11 @@ export class LogsService implements Service {
       return;
     }
 
-    const runtimeId =
-      typeof payload.runtimeId === "string"
-        ? payload.runtimeId
-        : null;
+    const runtimeId = typeof payload.runtimeId === "string" ? payload.runtimeId : null;
 
-    const type =
-      typeof payload.type === "string"
-        ? payload.type
-        : null;
+    const type = typeof payload.type === "string" ? payload.type : null;
 
-    const data = isRecord(payload.data)
-      ? payload.data
-      : null;
+    const data = isRecord(payload.data) ? payload.data : null;
 
     if (runtimeId === null || type === null || data === null) {
       return;
@@ -232,14 +189,8 @@ export class LogsService implements Service {
     }
   }
 
-  private handleProcessStarted(
-    runtimeId: string,
-    data: Record<string, unknown>
-  ): void {
-    const pid =
-      typeof data.pid === "number"
-        ? data.pid
-        : undefined;
+  private handleProcessStarted(runtimeId: string, data: Record<string, unknown>): void {
+    const pid = typeof data.pid === "number" ? data.pid : undefined;
 
     const now = Date.now();
 
@@ -251,10 +202,7 @@ export class LogsService implements Service {
 
     this.addLauncherLog({
       level: "info",
-      message:
-        pid !== undefined
-          ? `Game process started (PID: ${pid})`
-          : "Game process started",
+      message: pid !== undefined ? `Game process started (PID: ${pid})` : "Game process started",
       fnName: null,
       instanceId: runtimeId,
       context: null,
@@ -263,10 +211,7 @@ export class LogsService implements Service {
     });
   }
 
-  private handleProcessLog(
-    runtimeId: string,
-    data: Record<string, unknown>
-  ): void {
+  private handleProcessLog(runtimeId: string, data: Record<string, unknown>): void {
     const log = parseLogEvent(data);
 
     if (log === null) {
@@ -285,14 +230,8 @@ export class LogsService implements Service {
     });
   }
 
-  private handleProcessExit(
-    runtimeId: string,
-    data: Record<string, unknown>
-  ): void {
-    const exitCode =
-      typeof data.exitCode === "number"
-        ? data.exitCode
-        : undefined;
+  private handleProcessExit(runtimeId: string, data: Record<string, unknown>): void {
+    const exitCode = typeof data.exitCode === "number" ? data.exitCode : undefined;
 
     const status = this.getExitStatus(exitCode);
     const now = Date.now();
@@ -304,19 +243,11 @@ export class LogsService implements Service {
       lastActivity: now,
     });
 
-    const statusMessage =
-      status === "closed"
-        ? "completed normally"
-        : status === "stopped"
-          ? "was stopped by user"
-          : "crashed";
+    const statusMessage = status === "closed" ? "completed normally" : status === "stopped" ? "was stopped by user" : "crashed";
 
     this.addLauncherLog({
       level: status === "crashed" ? "error" : "info",
-      message:
-        exitCode === undefined
-          ? `Game process ${statusMessage}`
-          : `Game process ${statusMessage} (exit code: ${exitCode})`,
+      message: exitCode === undefined ? `Game process ${statusMessage}` : `Game process ${statusMessage} (exit code: ${exitCode})`,
       fnName: null,
       instanceId: runtimeId,
       context: null,
@@ -354,23 +285,14 @@ export class LogsService implements Service {
       return;
     }
 
-    this.launcherLogs = [
-      ...this.launcherLogs,
-      ...logs,
-    ];
+    this.launcherLogs = [...this.launcherLogs, ...logs];
   }
 
   addLauncherLog(log: LogEvent): void {
-    this.launcherLogs = [
-      ...this.launcherLogs,
-      log,
-    ];
+    this.launcherLogs = [...this.launcherLogs, log];
   }
 
-  addGameLog(
-    runtimeId: string,
-    log: LogEvent
-  ): void {
+  addGameLog(runtimeId: string, log: LogEvent): void {
     const existing = this.gameLogs.get(runtimeId) ?? [];
 
     this.gameLogs.set(runtimeId, [
@@ -384,10 +306,7 @@ export class LogsService implements Service {
     this.gameLogs = new SvelteMap(this.gameLogs);
   }
 
-  private updateGameInstance(
-    runtimeId: string,
-    update: Partial<GameInstance>
-  ): void {
+  private updateGameInstance(runtimeId: string, update: Partial<GameInstance>): void {
     const instance = this.gameInstances.get(runtimeId);
 
     if (instance === undefined) {
@@ -402,26 +321,16 @@ export class LogsService implements Service {
     this.gameInstances = new SvelteMap(this.gameInstances);
   }
 
-  private getExitStatus(
-    exitCode: number | undefined
-  ): GameInstanceStatus {
+  private getExitStatus(exitCode: number | undefined): GameInstanceStatus {
     if (exitCode === 0) {
       return "closed";
     }
 
-    if (
-      exitCode === 130 ||
-      exitCode === 143 ||
-      exitCode === -1073741510
-    ) {
+    if (exitCode === 130 || exitCode === 143 || exitCode === -1073741510) {
       return "stopped";
     }
 
-    if (
-      exitCode === undefined ||
-      exitCode < 0 ||
-      exitCode > 128
-    ) {
+    if (exitCode === undefined || exitCode < 0 || exitCode > 128) {
       return "crashed";
     }
 
@@ -446,21 +355,14 @@ export class LogsService implements Service {
     return this.launcherLogs;
   }
 
-  getInstance(
-    runtimeId: string
-  ): GameInstance | undefined {
+  getInstance(runtimeId: string): GameInstance | undefined {
     return this.gameInstances.get(runtimeId);
   }
 }
 
 // #region static api
 
-type ConsoleLogMethod =
-  | "log"
-  | "info"
-  | "warn"
-  | "error"
-  | "debug";
+type ConsoleLogMethod = "log" | "info" | "warn" | "error" | "debug";
 
 function formatConsoleArgument(value: unknown): string {
   if (typeof value === "string") {
@@ -484,46 +386,26 @@ function formatConsoleArgument(value: unknown): string {
   }
 
   try {
-    return JSON.stringify(value, (_, nestedValue) =>
-      typeof nestedValue === "bigint"
-        ? `${nestedValue}n`
-        : nestedValue
-    );
+    return JSON.stringify(value, (_, nestedValue) => (typeof nestedValue === "bigint" ? `${nestedValue}n` : nestedValue));
   } catch {
     return String(value);
   }
 }
 
 function formatConsoleMessage(args: unknown[]): string {
-  return args
-    .map(formatConsoleArgument)
-    .join(" ");
+  return args.map(formatConsoleArgument).join(" ");
 }
 
-function writeConsoleLog(
-  method: ConsoleLogMethod,
-  args: unknown[],
-  instanceId: string | null = null
-): void {
+function writeConsoleLog(method: ConsoleLogMethod, args: unknown[], instanceId: string | null = null): void {
   const message = formatConsoleMessage(args);
 
   const log: LogEvent = {
-    level:
-      method === "error"
-        ? "error"
-        : method === "warn"
-          ? "warn"
-          : method === "debug"
-            ? "debug"
-            : "info",
+    level: method === "error" ? "error" : method === "warn" ? "warn" : method === "debug" ? "debug" : "info",
     message,
     fnName: null,
     instanceId,
     context: "frontend",
-    value:
-      args.length === 1
-        ? args[0] ?? null
-        : args,
+    value: args.length === 1 ? (args[0] ?? null) : args,
     timestamp: Date.now(),
   };
 
@@ -580,38 +462,23 @@ export function debug(...args: unknown[]): void {
   writeConsoleLog("debug", args);
 }
 
-export function instanceLog(
-  instanceId: string,
-  ...args: unknown[]
-): void {
+export function instanceLog(instanceId: string, ...args: unknown[]): void {
   writeConsoleLog("log", args, instanceId);
 }
 
-export function instanceInfo(
-  instanceId: string,
-  ...args: unknown[]
-): void {
+export function instanceInfo(instanceId: string, ...args: unknown[]): void {
   writeConsoleLog("info", args, instanceId);
 }
 
-export function instanceWarn(
-  instanceId: string,
-  ...args: unknown[]
-): void {
+export function instanceWarn(instanceId: string, ...args: unknown[]): void {
   writeConsoleLog("warn", args, instanceId);
 }
 
-export function instanceError(
-  instanceId: string,
-  ...args: unknown[]
-): void {
+export function instanceError(instanceId: string, ...args: unknown[]): void {
   writeConsoleLog("error", args, instanceId);
 }
 
-export function instanceDebug(
-  instanceId: string,
-  ...args: unknown[]
-): void {
+export function instanceDebug(instanceId: string, ...args: unknown[]): void {
   writeConsoleLog("debug", args, instanceId);
 }
 

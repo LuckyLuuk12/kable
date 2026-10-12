@@ -81,6 +81,7 @@ export const commands = {
 	getModrinthGameVersions: () => typedError<string[], string>(__TAURI_INVOKE("get_modrinth_game_versions")),
 	getModrinthProjectTypes: () => typedError<string[], string>(__TAURI_INVOKE("get_modrinth_project_types")),
 	getModrinthSideTypes: () => typedError<string[], string>(__TAURI_INVOKE("get_modrinth_side_types")),
+	resolveProjectDependencies: (profile: KableProfile, project: Project, versionId: string) => typedError<ResolvedDependency[], string>(__TAURI_INVOKE("resolve_project_dependencies", { profile, project, versionId })),
 	getProfiles: (force: boolean) => typedError<KableProfile[], string>(__TAURI_INVOKE("get_profiles", { force })),
 	getProfile: (id: string) => typedError<KableProfile, string>(__TAURI_INVOKE("get_profile", { id })),
 	createProfile: (versionId: string | null, baseProfile: {
@@ -512,6 +513,12 @@ export type Projects = {
 };
 
 export type RequestedStatus = "listed" | "archived" | "draft" | "unlisted" | "other";
+
+export type ResolvedDependency = {
+	project: KableProject,
+	dependency_type: DependencyType,
+	dependencies: ResolvedDependency[],
+};
 
 export type SearchIndex = "relevance" | "downloads" | "follows" | "newest" | "updated";
 

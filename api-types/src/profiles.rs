@@ -260,9 +260,11 @@ impl Projects {
     /// Toggles a project between enabled and disabled, returns true if the project is now enabled, false if it is now disabled
     pub fn toggle(&mut self, id: String) -> bool {
         if self.enabled.contains(&id) {
-            self.disable(id)
+            self.disable(id);
+            false
         } else {
-            self.enable(id)
+            self.enable(id);
+            true
         }
     }
 }

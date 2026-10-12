@@ -292,7 +292,8 @@ function cancel() {
             class="loader-button"
             style:background={`${app.profilesService.getLoaderColor(loader)}20`}
             style:color={app.profilesService.getLoaderColor(loader)}
-            onclick={() => selectLoader(loader)}>
+            onclick={() => selectLoader(loader)}
+          >
             <span class="loader-icon">
               <Image key={loader} />
             </span>
@@ -314,7 +315,8 @@ function cancel() {
         bind:value={searchQuery}
         placeholder="Search versions..."
         aria-label="Search Minecraft versions"
-        oninput={resetVersionScroll} />
+        oninput={resetVersionScroll}
+      />
 
       {#if filteredVersions.length > 0}
         <div
@@ -324,7 +326,8 @@ function cancel() {
           tabindex="0"
           aria-label="Minecraft versions"
           onscroll={handleVersionScroll}
-          onresize={handleVersionResize}>
+          onresize={handleVersionResize}
+        >
           <div class="version-list-content" style:height={`${totalVersionHeight}px`}>
             <div class="version-list-items" style:transform={`translateY(${visibleOffset}px)`}>
               {#each visibleVersions as version (version.id)}
@@ -334,7 +337,8 @@ function cancel() {
                   aria-selected={selectedVersionId === version.id}
                   class:selected={selectedVersionId === version.id}
                   class="version-option"
-                  onclick={() => selectVersion(version)}>
+                  onclick={() => selectVersion(version)}
+                >
                   {version.id}
                 </button>
               {/each}
