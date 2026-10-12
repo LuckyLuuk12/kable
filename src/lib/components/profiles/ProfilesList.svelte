@@ -11,6 +11,7 @@ delete, export, create shortcuts, and favorite.
 -->
 <script lang="ts">
 import { app, clickSound, errorSound, Icon, Image, launchSound, type KableProfile } from "$lib";
+import { save } from "@tauri-apps/plugin-dialog";
 import EditProfileModal from "./EditProfileModal.svelte";
 
 let {
@@ -44,11 +45,44 @@ function editProfile(profile: KableProfile) {
 }
 
 async function duplicateProfile(profile: KableProfile) {
-  await app.profilesService.createProfile(profile.version.id, profile);
+  await app.profilesService.createProfile({
+    base: {
+      type: "existing_profile",
+      profile_id: profile.id,
+    },
+  });
 }
 
 async function exportProfile(profile: KableProfile) {
-  await app.profilesService.exportProfile(profile);
+  try {
+    const profileName = profile.metadata.name || profile.version.id;
+    const safeFileName =
+      profileName
+        .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
+        .replace(/[. ]+$/, "")
+        .trim() || "minecraft-profile";
+
+    const destination = await save({
+      title: "Export Minecraft Profile",
+      defaultPath: `${safeFileName}.zip`,
+      filters: [
+        {
+          name: "Kable Profile Archive",
+          extensions: ["zip"],
+        },
+      ],
+    });
+
+    // The user cancelled the dialog.
+    if (!destination) {
+      return;
+    }
+
+    const exportedPath = await app.profilesService.exportProfile(profile, destination);
+    console.log("Profile exported to:", exportedPath);
+  } catch (err) {
+    console.error("Failed to export profile:", err);
+  }
 }
 
 async function createShortcut(profile: KableProfile) {
@@ -144,8 +178,7 @@ function formatLastUsed(date: string | null | undefined) {
                 );
               --loader-color: {loaderColor}55;
               z-index: {profiles.length - i};
-            "
-          >
+            ">
             <div class="card-top-actions">
               <button class="star-btn" title={profile.metadata.favorite ? "Unfavorite" : "Favorite"} onclick={(event) => toggleFavorite(event, profile)}>
                 {#key profile.metadata.favorite}
@@ -185,8 +218,7 @@ function formatLastUsed(date: string | null | undefined) {
                   style="
                     color: {loaderColor};
                     background: transparent;
-                  "
-                >
+                  ">
                   {#if customIcon}
                     <img src={customIcon} alt="profile icon" class="profile-img" />
                   {:else}
@@ -213,8 +245,7 @@ function formatLastUsed(date: string | null | undefined) {
                   onclick={async () => {
                     await app.launcherService.launch(profile);
                   }}
-                  disabled={app.launcherService.launching}
-                >
+                  disabled={app.launcherService.launching}>
                   {#if app.launcherService.launchingProfileId === profile.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
 
@@ -328,8 +359,7 @@ function formatLastUsed(date: string | null | undefined) {
                   {loaderColor}05 40%
                 );
               --loader-color: {loaderColor}55;
-            "
-          >
+            ">
             <div class="list-item-main">
               <div class="list-item-icon-section">
                 <div class="profile-icon icon-tooltip-wrapper" style="color: {loaderColor};">
@@ -359,8 +389,7 @@ function formatLastUsed(date: string | null | undefined) {
                   onclick={async () => {
                     await app.launcherService.launch(profile);
                   }}
-                  disabled={app.launcherService.launching}
-                >
+                  disabled={app.launcherService.launching}>
                   {#if app.launcherService.launchingProfileId === profile.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
 

@@ -84,12 +84,7 @@ export const commands = {
 	resolveProjectDependencies: (profile: KableProfile, project: Project, versionId: string) => typedError<ResolvedDependency[], string>(__TAURI_INVOKE("resolve_project_dependencies", { profile, project, versionId })),
 	getProfiles: (force: boolean) => typedError<KableProfile[], string>(__TAURI_INVOKE("get_profiles", { force })),
 	getProfile: (id: string) => typedError<KableProfile, string>(__TAURI_INVOKE("get_profile", { id })),
-	createProfile: (versionId: string | null, baseProfile: {
-	id: string,
-	version: ProfileVersion,
-	metadata: KableProfileMetadata,
-	settings: KableProfileSettings,
-} | null, exportedProfile: string | null, mrpack: string | null) => typedError<KableProfile, string>(__TAURI_INVOKE("create_profile", { versionId, baseProfile, exportedProfile, mrpack })),
+	createProfile: (request: CreateProfileRequest) => typedError<KableProfile, string>(__TAURI_INVOKE("create_profile", { request })),
 	modifyProfile: (oldProfile: KableProfile, newProfile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("modify_profile", { oldProfile, newProfile })),
 	deleteProfile: (id: string) => typedError<null, string>(__TAURI_INVOKE("delete_profile", { id })),
 	getVersions: () => typedError<Versions, string>(__TAURI_INVOKE("get_versions")),
@@ -97,6 +92,7 @@ export const commands = {
 	toggleProject: (profile: KableProfile, kableProject: KableProject) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_project", { profile, kableProject })),
 	toggleFavorite: (profile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_favorite", { profile })),
 	isProjectEnabled: (profile: KableProfile, kableProject: KableProject) => typedError<boolean, string>(__TAURI_INVOKE("is_project_enabled", { profile, kableProject })),
+	exportProfile: (profile: KableProfile, destination: string) => typedError<string, string>(__TAURI_INVOKE("export_profile", { profile, destination })),
 	getSymlinks: () => typedError<Symlink[], string>(__TAURI_INVOKE("get_symlinks")),
 	runtimeSymlinks: () => typedError<{ [key in string]: Symlink[] }, string>(__TAURI_INVOKE("runtime_symlinks")),
 	runtimeSymlinksForProfile: (profileId: string) => typedError<Symlink[], string>(__TAURI_INVOKE("runtime_symlinks_for_profile", { profileId })),
@@ -161,6 +157,17 @@ export type ContentSettings = {
 	enable_notifications?: boolean,
 };
 
+export type CreateProfileRequest = {
+	/**  Primary source. If None, the first additional source becomes the base. */
+	base?: ProfileSource | null,
+	/**  Sources merged in order. Later sources take precedence over earlier ones. */
+	additional_sources?: ProfileSource[],
+	/**  Optional final version ID override. */
+	version_override?: string | null,
+	/**  Metadata overrides applied after source merging. */
+	metadata?: ProfileMetadataOverrides,
+};
+
 export type DependencyType = "required" | "optional" | "incompatible" | "embedded" | "other";
 
 export type DeviceCodeResponse = {
@@ -170,6 +177,8 @@ export type DeviceCodeResponse = {
 	expires_in: number,
 	interval: number,
 };
+
+export type ExternalLauncher = "prism_launcher" | "multi_mc" | "minecraft_launcher" | "modrinth_app" | "curse_forge" | "other";
 
 export type Facet = {
 	field: FacetField,
@@ -358,6 +367,14 @@ export type MiscSettings = {
 	enable_fun?: boolean,
 };
 
+export type ModpackSource = 
+/**  A locally accessible modpack archive. */
+{ type: "file"; path: string } | 
+/**  A remotely accessible archive URL. */
+{ type: "url"; url: string } | 
+/**  A project hosted by a modpack provider. */
+{ type: "project"; project_id: string; version_id: string | null };
+
 export type ModrinthResults = {
 	/**  The list of results */
 	hits: Project[],
@@ -388,6 +405,26 @@ export type NetworkSettings = {
 export type OnGameAction = "ask" | "exit" | "minimize" | "minimize_to_tray" | "nothing" | 
 /**  Opens a specific page by name, e.g. "home", "logs", etc. */
 { open: string } | "restart";
+
+export type ProfileMetadataOverrides = {
+	name: string | null,
+	icon: string | null,
+	description: string | null,
+};
+
+export type ProfileSource = 
+/**  Create a new profile from a Minecraft/loader version ID. */
+{ type: "version"; version_id: string } | 
+/**  Use an existing Kable profile as the starting point. */
+{ type: "existing_profile"; profile_id: string } | 
+/**  Import a Kable-exported profile from a local directory. */
+{ type: "exported_profile"; path: string } | 
+/**  Import a profile or instance from another launcher. */
+{ type: "external_profile"; launcher: ExternalLauncher; path: string } | 
+/**  Import a Modrinth modpack. */
+{ type: "modrinth_modpack"; source: ModpackSource } | 
+/**  Import a CurseForge modpack. */
+{ type: "curse_forge_modpack"; source: ModpackSource };
 
 export type ProfileVersion = {
 	/**  Raw version ID from the profile, e.g. "1.19.2-forge-43.2.0" */

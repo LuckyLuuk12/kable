@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Icon, Image, app, clickSound, successSound, type LoaderKind, type ProfileVersion } from "$lib";
+import { Icon, Image, app, clickSound, successSound, type CreateProfileRequest, type LoaderKind, type ProfileSource, type ProfileVersion } from "$lib";
 import { MODAL_CONTEXT, type ModalContext } from "$lib/utils/modal";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getContext } from "svelte";
@@ -66,17 +66,9 @@ const loaderOptions = $derived.by(() => {
     const aIndex = LOADER_ORDER.indexOf(a);
     const bIndex = LOADER_ORDER.indexOf(b);
 
-    if (aIndex === -1 && bIndex === -1) {
-      return a.localeCompare(b);
-    }
-
-    if (aIndex === -1) {
-      return 1;
-    }
-
-    if (bIndex === -1) {
-      return -1;
-    }
+    if (aIndex === -1 && bIndex === -1) return a.localeCompare(b);
+    if (aIndex === -1) return 1;
+    if (bIndex === -1) return -1;
 
     return aIndex - bIndex;
   });
@@ -87,9 +79,7 @@ const versionsForLoader = $derived(availableVersions.filter((version) => version
 const filteredVersions = $derived.by(() => {
   const query = searchQuery.trim().toLowerCase();
 
-  if (!query) {
-    return versionsForLoader;
-  }
+  if (!query) return versionsForLoader;
 
   return versionsForLoader.filter((version) => version.id.toLowerCase().includes(query));
 });
@@ -144,17 +134,13 @@ function selectVersion(version: ProfileVersion) {
 }
 
 function handleVersionScroll() {
-  if (!versionListElement) {
-    return;
-  }
+  if (!versionListElement) return;
 
   scrollTop = versionListElement.scrollTop;
 }
 
 function handleVersionResize() {
-  if (!versionListElement) {
-    return;
-  }
+  if (!versionListElement) return;
 
   versionListHeight = versionListElement.clientHeight;
 }
@@ -171,17 +157,9 @@ function selectSource(source: CreationSource) {
   creationSource = source;
   error = null;
 
-  if (source !== "profile") {
-    selectedProfileId = null;
-  }
-
-  if (source !== "zip") {
-    exportedZip = null;
-  }
-
-  if (source !== "mrpack") {
-    mrpack = null;
-  }
+  if (source !== "profile") selectedProfileId = null;
+  if (source !== "zip") exportedZip = null;
+  if (source !== "mrpack") mrpack = null;
 }
 
 async function selectZip() {
@@ -191,12 +169,7 @@ async function selectZip() {
     const path = await open({
       multiple: false,
       directory: false,
-      filters: [
-        {
-          name: "Exported Profile",
-          extensions: ["zip"],
-        },
-      ],
+      filters: [{ name: "Exported Profile", extensions: ["zip"] }],
     });
 
     if (typeof path === "string") {
@@ -215,39 +188,93 @@ async function selectMrpack() {
     const path = await open({
       multiple: false,
       directory: false,
-      filters: [
-        {
-          name: "Modrinth Pack",
-          extensions: ["mrpack"],
-        },
-      ],
+      filters: [{ name: "Modrinth Pack", extensions: ["mrpack"] }],
     });
 
     if (typeof path === "string") {
       mrpack = path;
     }
   } catch (e) {
+    console.error("Failed to open file dialog:", e);
     error = e instanceof Error ? e.message : "Failed to select Modrinth pack.";
   }
+}
+
+function buildRequest(): CreateProfileRequest {
+  let base: ProfileSource;
+
+  switch (creationSource) {
+    case "profile": {
+      if (!selectedProfile) {
+        throw new Error("Select a base profile.");
+      }
+
+      base = {
+        type: "existing_profile",
+        profile_id: selectedProfile.id,
+      };
+      break;
+    }
+
+    case "zip": {
+      if (!exportedZip) {
+        throw new Error("Select an exported profile ZIP.");
+      }
+
+      base = {
+        type: "exported_profile",
+        path: exportedZip,
+      };
+      break;
+    }
+
+    case "mrpack": {
+      if (!mrpack) {
+        throw new Error("Select a Modrinth pack.");
+      }
+
+      base = {
+        type: "modrinth_modpack",
+        source: {
+          type: "file",
+          path: mrpack,
+        },
+      };
+      break;
+    }
+
+    case "none":
+    default:
+      base = {
+        type: "version",
+        version_id: selectedVersionId,
+      };
+      break;
+  }
+
+  const request: CreateProfileRequest = { base };
+
+  // A selected version is the initial version for a new profile.
+  // For imports/clones, apply it as the final version override.
+  if (creationSource !== "none") {
+    request.version_override = selectedVersionId;
+  }
+
+  return request;
 }
 
 async function createProfile(event: SubmitEvent) {
   event.preventDefault();
 
-  if (!canCreate) {
-    return;
-  }
+  if (!canCreate) return;
 
   isCreating = true;
   error = null;
 
   try {
-    await app.profilesService.createProfile(
-      selectedVersionId,
-      creationSource === "profile" ? selectedProfile : null,
-      creationSource === "zip" ? exportedZip : null,
-      creationSource === "mrpack" ? mrpack : null,
-    );
+    const request = buildRequest();
+
+    await app.profilesService.createProfile(request);
 
     modal.resolve();
   } catch (e) {
@@ -292,8 +319,7 @@ function cancel() {
             class="loader-button"
             style:background={`${app.profilesService.getLoaderColor(loader)}20`}
             style:color={app.profilesService.getLoaderColor(loader)}
-            onclick={() => selectLoader(loader)}
-          >
+            onclick={() => selectLoader(loader)}>
             <span class="loader-icon">
               <Image key={loader} />
             </span>
@@ -315,8 +341,7 @@ function cancel() {
         bind:value={searchQuery}
         placeholder="Search versions..."
         aria-label="Search Minecraft versions"
-        oninput={resetVersionScroll}
-      />
+        oninput={resetVersionScroll} />
 
       {#if filteredVersions.length > 0}
         <div
@@ -326,8 +351,7 @@ function cancel() {
           tabindex="0"
           aria-label="Minecraft versions"
           onscroll={handleVersionScroll}
-          onresize={handleVersionResize}
-        >
+          onresize={handleVersionResize}>
           <div class="version-list-content" style:height={`${totalVersionHeight}px`}>
             <div class="version-list-items" style:transform={`translateY(${visibleOffset}px)`}>
               {#each visibleVersions as version (version.id)}
@@ -337,8 +361,7 @@ function cancel() {
                   aria-selected={selectedVersionId === version.id}
                   class:selected={selectedVersionId === version.id}
                   class="version-option"
-                  onclick={() => selectVersion(version)}
-                >
+                  onclick={() => selectVersion(version)}>
                   {version.id}
                 </button>
               {/each}
@@ -389,7 +412,7 @@ function cancel() {
           <label for="base-profile">Base Profile</label>
 
           <select id="base-profile" class="source-select" bind:value={selectedProfileId}>
-            <option value={null}>Select a profile...</option>
+            <option value="">Select a profile...</option>
 
             {#each availableProfiles as profile (profile.id)}
               <option value={profile.id}>
@@ -401,7 +424,7 @@ function cancel() {
           <div class="source-description">Use an existing installation as the base for the new profile.</div>
         {:else if creationSource === "zip"}
           <div class="file-picker">
-            <div class:file-selected={exportedZip} class="file-name">
+            <div class:file-selected={exportedZip !== null} class="file-name">
               {exportedZip ?? "No exported profile selected"}
             </div>
 
@@ -414,7 +437,7 @@ function cancel() {
           <div class="source-description">Import an exported Kable profile from a ZIP file.</div>
         {:else if creationSource === "mrpack"}
           <div class="file-picker">
-            <div class:file-selected={mrpack} class="file-name">
+            <div class:file-selected={mrpack !== null} class="file-name">
               {mrpack ?? "No Modrinth pack selected"}
             </div>
 
@@ -450,12 +473,9 @@ function cancel() {
   width: min(900px, 90vw);
   max-height: 90vh;
   overflow-y: auto;
-
   padding: 1.5rem;
-
   background: $color-surface-1;
   color: $color-text;
-
   border: 1px solid $color-border;
   border-radius: $radius-lg;
   box-shadow: 0 0.75rem 3rem rgba(0, 0, 0, 0.35);
@@ -475,16 +495,13 @@ function cancel() {
       display: flex;
       align-items: center;
       justify-content: center;
-
       width: 2rem;
       height: 2rem;
       padding: 0;
-
       border: none;
       border-radius: $radius-lg;
       background: transparent;
       color: $color-text-muted;
-
       cursor: pointer;
 
       &:hover {
@@ -498,10 +515,8 @@ function cancel() {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-
     margin-bottom: 1rem;
     padding: 0.75rem 1rem;
-
     border-radius: $radius-lg;
     background: color-mix(in srgb, $color-error 15%, transparent);
     color: $color-error;
@@ -520,7 +535,6 @@ function cancel() {
 
   .section-label {
     margin-bottom: 0.5rem;
-
     color: $color-text-muted;
     font-size: 0.9rem;
     font-weight: 600;
@@ -536,14 +550,10 @@ function cancel() {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-
     padding: 0.65rem 1rem;
-
     border: 2px solid transparent;
     border-radius: $radius-lg;
-
     cursor: pointer;
-
     transition:
       border-color 0.15s,
       box-shadow 0.15s;
@@ -556,7 +566,6 @@ function cancel() {
       display: flex;
       align-items: center;
       justify-content: center;
-
       width: 1.5rem;
       height: 1.5rem;
     }
@@ -569,16 +578,12 @@ function cancel() {
   .version-search {
     width: 100%;
     box-sizing: border-box;
-
     padding: 0.65rem 0.75rem;
     margin-bottom: 0.5rem;
-
     border: 1px solid $color-border;
     border-radius: $radius-lg;
-
     background: $color-surface-2;
     color: $color-text;
-
     font-size: 0.95rem;
 
     &:focus {
@@ -594,10 +599,8 @@ function cancel() {
   .version-list {
     height: 360px;
     overflow-y: auto;
-
     border: 1px solid $color-border;
     border-radius: $radius-lg;
-
     background: $color-surface-2;
 
     &:focus {
@@ -619,20 +622,15 @@ function cancel() {
 
   .version-option {
     display: block;
-
     width: 100%;
     height: 36px;
     padding: 0 0.75rem;
-
     border: none;
     border-bottom: 1px solid color-mix(in srgb, $color-border 50%, transparent);
-
     background: transparent;
     color: $color-text;
-
     text-align: left;
     font-size: 0.9rem;
-
     cursor: pointer;
 
     &:hover {
@@ -648,7 +646,6 @@ function cancel() {
 
   .version-count {
     margin-top: 0.4rem;
-
     color: $color-text-muted;
     font-size: 0.8rem;
     text-align: right;
@@ -656,23 +653,18 @@ function cancel() {
 
   .no-results {
     padding: 2rem;
-
     border: 1px solid $color-border;
     border-radius: $radius-lg;
-
     background: $color-surface-2;
     color: $color-text-muted;
-
     text-align: center;
   }
 
   .source-tabs {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-
     gap: 0.25rem;
     padding: 0.25rem;
-
     border-radius: $radius-lg;
     background: $color-surface-2;
 
@@ -681,23 +673,18 @@ function cancel() {
       align-items: center;
       justify-content: center;
       gap: 0.4rem;
-
       min-width: 0;
       padding: 0.65rem 0.75rem;
-
       border: none;
       border-radius: $radius-lg;
-
       background: transparent;
       color: $color-text-muted;
-
       cursor: pointer;
       font-size: 0.9rem;
 
       &.active {
         background: $color-surface-1;
         color: $color-text;
-
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
       }
 
@@ -711,7 +698,6 @@ function cancel() {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-
     margin-top: 1rem;
   }
 
@@ -724,12 +710,9 @@ function cancel() {
   .source-select {
     width: 100%;
     box-sizing: border-box;
-
     padding: 0.65rem 0.75rem;
-
     border: 1px solid $color-border;
     border-radius: $radius-lg;
-
     background: $color-surface-2;
     color: $color-text;
 
@@ -752,17 +735,12 @@ function cancel() {
     .file-name {
       min-width: 0;
       flex: 1;
-
       overflow: hidden;
-
       padding: 0.65rem 0.75rem;
-
       border: 1px solid $color-border;
       border-radius: $radius-lg;
-
       background: $color-surface-2;
       color: $color-text-muted;
-
       text-overflow: ellipsis;
       white-space: nowrap;
 
@@ -776,7 +754,6 @@ function cancel() {
     display: flex;
     justify-content: flex-end;
     gap: 0.75rem;
-
     padding-top: 0.5rem;
 
     .btn {
@@ -784,12 +761,9 @@ function cancel() {
       align-items: center;
       justify-content: center;
       gap: 0.4rem;
-
       padding: 0.6rem 1.25rem;
-
       border: none;
       border-radius: $radius-lg;
-
       cursor: pointer;
       font-size: 0.95rem;
 

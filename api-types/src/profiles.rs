@@ -385,6 +385,83 @@ pub struct OfficialLauncherSettings {
 }
 
 //?----------------------------------------------------------------------
+//? Profile creation types
+//?----------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct CreateProfileRequest {
+    /// Primary source. If None, the first additional source becomes the base.
+    #[serde(default)]
+    pub base: Option<ProfileSource>,
+
+    /// Sources merged in order. Later sources take precedence over earlier ones.
+    #[serde(default)]
+    pub additional_sources: Vec<ProfileSource>,
+
+    /// Optional final version ID override.
+    #[serde(default)]
+    pub version_override: Option<String>,
+
+    /// Metadata overrides applied after source merging.
+    #[serde(default)]
+    pub metadata: ProfileMetadataOverrides,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type, Default)]
+pub struct ProfileMetadataOverrides {
+    pub name: Option<String>,
+    pub icon: Option<String>,
+    pub description: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(tag = "type", rename_all = "snake_case")]
+#[allow(clippy::large_enum_variant)]
+pub enum ProfileSource {
+    /// Create a new profile from a Minecraft/loader version ID.
+    Version { version_id: String },
+
+    /// Use an existing Kable profile as the starting point.
+    ExistingProfile { profile_id: String },
+
+    /// Import a Kable-exported profile from a local directory.
+    ExportedProfile { path: String },
+
+    /// Import a profile or instance from another launcher.
+    ExternalProfile { launcher: ExternalLauncher, path: String },
+
+    /// Import a Modrinth modpack.
+    ModrinthModpack { source: ModpackSource },
+
+    /// Import a CurseForge modpack.
+    CurseForgeModpack { source: ModpackSource },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(rename_all = "snake_case")]
+pub enum ExternalLauncher {
+    PrismLauncher,
+    MultiMc,
+    MinecraftLauncher,
+    ModrinthApp,
+    CurseForge,
+    Other,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ModpackSource {
+    /// A locally accessible modpack archive.
+    File { path: String },
+
+    /// A remotely accessible archive URL.
+    Url { url: String },
+
+    /// A project hosted by a modpack provider.
+    Project { project_id: String, version_id: Option<String> },
+}
+
+//?----------------------------------------------------------------------
 //? impl blocks
 //?----------------------------------------------------------------------
 

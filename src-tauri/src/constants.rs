@@ -13,6 +13,8 @@ pub const MSA_AUTHORIZE_URL: &str = "https://login.microsoftonline.com/consumers
 pub const MSA_TOKEN_URL: &str = "https://login.microsoftonline.com/consumers/oauth2/v2.0/token";
 pub const DEFAULT_AZURE_REDIRECT_URI: &str = "http://localhost:43110/callback";
 pub const DEFAULT_OAUTH_PORT: u16 = 43110;
+/// The export kable profile format version. This is used to ensure that the exported profile can be imported correctly by other versions of Kable.
+pub const EXPORT_FORMAT_VERSION: u32 = 1;
 
 // App Folder names - all are relative to .kable except .kable itself which is relative to .minecraft
 /// Root folder for all kable data, usually <user path>/.minecraft/.kable (on Windows: C:\Users\<User>\AppData\Roaming\.minecraft\.kable)
@@ -22,6 +24,7 @@ pub const PROJECTS_DIR_NAME: &str = "projects";
 /// subfolder of KABLE_DIR_NAME for storing profile-specific data like config folder, options.txt, and other things that are usually in .minecraft folder
 pub const PROFILES_DIR_NAME: &str = "profiles";
 pub const RUNTIME_DIR_NAME: &str = "runtime";
+pub const RUNTIME_PREFIX: &str = "runtime/";
 /// folder in .kable for storing mods per profile like mods/<profile_id>/*.jar.
 pub const EXPORTS_DIR: &str = "exports";
 pub const LOGS_DIR: &str = "logs";
@@ -58,6 +61,7 @@ pub const KABLE_PROFILES_FILE: &str = "kable_profiles.json";
 pub const MODRINTH_CACHE_FILE: &str = "modrinth_cache.json";
 pub const MODRINTH_VERSIONS_CACHE_FILE: &str = "modrinth_versions_cache.json";
 pub const ALLOWED_SYMLINKS_FILE: &str = "allowed_symlinks.txt";
+pub const EXPORT_FILENAME: &str = "kable.export.json";
 
 // Launcher special values
 pub const ALLOW_SYMLINKS_REGEX: &str = "[regex].*";

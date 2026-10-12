@@ -1,4 +1,4 @@
-import { type KableProfile, type LoaderKind, api } from "$lib";
+import { type CreateProfileRequest, type KableProfile, type LoaderKind, api } from "$lib";
 import { SvelteDate } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
 
@@ -77,12 +77,12 @@ export class ProfilesService implements Service {
     this.profiles = this.profiles.map((p) =>
       p.id === profile.id
         ? {
-            ...p,
-            metadata: {
-              ...p.metadata,
-              favorite: !p.metadata.favorite,
-            },
-          }
+          ...p,
+          metadata: {
+            ...p.metadata,
+            favorite: !p.metadata.favorite,
+          },
+        }
         : p,
     );
 
@@ -161,13 +161,13 @@ export class ProfilesService implements Service {
     }
   }
 
-  async createProfile(versionId: string, baseProfile: KableProfile | null = null, exportedZip: string | null = null, mrpack: string | null = null) {
+  async createProfile(request: CreateProfileRequest) {
     try {
-      await api.createProfile(versionId, baseProfile, exportedZip, mrpack);
-
-      await this.refreshProfiles();
+      await api.createProfile(request);
+      await this.refreshProfiles(true);
     } catch (e) {
       console.error("[ProfilesService] Failed to create profile", e);
+      throw e;
     }
   }
 
@@ -179,9 +179,9 @@ export class ProfilesService implements Service {
     }
   }
 
-  async exportProfile(profile: KableProfile) {
+  async exportProfile(profile: KableProfile, destination: string) {
     try {
-      // await api.exportProfile(profile);
+      await api.exportProfile(profile, destination);
     } catch (e) {
       console.error("[ProfilesService] Failed to export profile", e);
     }

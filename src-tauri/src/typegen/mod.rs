@@ -81,6 +81,7 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::toggle_project,
             api::toggle_favorite,
             api::is_project_enabled,
+            api::export_profile,
             // #endregion Profiles
             // #region Symlinks
             api::get_symlinks,

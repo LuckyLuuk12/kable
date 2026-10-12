@@ -1,25 +1,28 @@
 // use std::path::PathBuf;
 
-use api_types::profiles::KableProfile;
+pub mod mrpack_import;
+pub use mrpack_import::*;
 
-/// converts a MRPack zip file into a KableProfile assuming the string passed is a valid path to a MRPack zip file, and returns an error if it is not
-pub async fn into(_mrpack: String) -> Result<KableProfile, String> {
-    // TODO: Implement this...
-    Err("Not implemented yet".to_string())
+// use api_types::profiles::KableProfile;
 
-    // let mrpack_path = std::path::PathBuf::from(mrpack);
-    // if !mrpack_path.exists() {
-    //     return Err(format!("MRPack file does not exist: {}", mrpack));
-    // }
+// /// converts a MRPack zip file into a KableProfile assuming the string passed is a valid path to a MRPack zip file, and returns an error if it is not
+// pub async fn into(_mrpack: String) -> Result<KableProfile, String> {
+//     // TODO: Implement this...
+//     Err("Not implemented yet".to_string())
 
-    // let mrpack_data = crate::features::modpack::load_mrpack(&mrpack_path).await?;
-    // let mut profile = crate::features::profiles::create::create_profile_from_mrpack(&mrpack_data).await?;
+//     // let mrpack_path = std::path::PathBuf::from(mrpack);
+//     // if !mrpack_path.exists() {
+//     //     return Err(format!("MRPack file does not exist: {}", mrpack));
+//     // }
 
-    // // Set the profile name to the MRPack name
-    // profile.metadata.name = mrpack_data.name.clone();
+//     // let mrpack_data = crate::features::modpack::load_mrpack(&mrpack_path).await?;
+//     // let mut profile = crate::features::profiles::create::create_profile_from_mrpack(&mrpack_data).await?;
 
-    // Ok(profile)
-}
+//     // // Set the profile name to the MRPack name
+//     // profile.metadata.name = mrpack_data.name.clone();
+
+//     // Ok(profile)
+// }
 
 /*
 A mrpack contains, as described here: https://support.modrinth.com/en/articles/8802351-modrinth-modpack-format-mrpack
