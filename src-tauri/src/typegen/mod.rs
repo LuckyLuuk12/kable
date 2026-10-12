@@ -54,6 +54,19 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::auto_detect_java,
             api::get_java_path,
             // #endregion Launcher
+            // #region Profiles
+            api::get_profiles,
+            api::get_profile,
+            api::create_profile,
+            api::modify_profile,
+            api::delete_profile,
+            api::get_versions,
+            api::refresh_versions,
+            api::toggle_project,
+            api::toggle_favorite,
+            api::is_project_enabled,
+            api::export_profile,
+            // #endregion Profiles
             // #region Projects
             api::browse,
             api::list_profile_projects,
@@ -70,19 +83,20 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::get_modrinth_side_types,
             api::resolve_project_dependencies,
             // #endregion Projects
-            // #region Profiles
-            api::get_profiles,
-            api::get_profile,
-            api::create_profile,
-            api::modify_profile,
-            api::delete_profile,
-            api::get_versions,
-            api::refresh_versions,
-            api::toggle_project,
-            api::toggle_favorite,
-            api::is_project_enabled,
-            api::export_profile,
-            // #endregion Profiles
+            // #region Skins
+            api::get_player_profile,
+            api::get_current_skin_info,
+            api::get_all_account_skins,
+            api::get_local_skins,
+            api::upload_skin_to_account,
+            api::modify_skin_by_id,
+            api::remove_skin_by_id,
+            api::apply_account_skin,
+            api::change_skin_model,
+            api::get_active_cape,
+            api::apply_cape,
+            api::download_skin_from_url,
+            // #endregion Skins
             // #region Symlinks
             api::get_symlinks,
             api::runtime_symlinks,

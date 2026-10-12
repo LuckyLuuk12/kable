@@ -6,4 +6,5 @@ pub mod manifest;
 pub mod natives;
 pub mod profiles;
 pub mod saves;
+pub mod skins;
 pub mod versions;

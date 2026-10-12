@@ -68,6 +68,17 @@ export const commands = {
 	launchGame: (profile: KableProfile) => typedError<LaunchResult, string>(__TAURI_INVOKE("launch_game", { profile })),
 	autoDetectJava: () => typedError<string, string>(__TAURI_INVOKE("auto_detect_java")),
 	getJavaPath: (javaPath: string | null) => typedError<string, string>(__TAURI_INVOKE("get_java_path", { javaPath })),
+	getProfiles: (force: boolean) => typedError<KableProfile[], string>(__TAURI_INVOKE("get_profiles", { force })),
+	getProfile: (id: string) => typedError<KableProfile, string>(__TAURI_INVOKE("get_profile", { id })),
+	createProfile: (request: CreateProfileRequest) => typedError<KableProfile, string>(__TAURI_INVOKE("create_profile", { request })),
+	modifyProfile: (oldProfile: KableProfile, newProfile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("modify_profile", { oldProfile, newProfile })),
+	deleteProfile: (id: string) => typedError<null, string>(__TAURI_INVOKE("delete_profile", { id })),
+	getVersions: () => typedError<Versions, string>(__TAURI_INVOKE("get_versions")),
+	refreshVersions: () => typedError<Versions, string>(__TAURI_INVOKE("refresh_versions")),
+	toggleProject: (profile: KableProfile, kableProject: KableProject) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_project", { profile, kableProject })),
+	toggleFavorite: (profile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_favorite", { profile })),
+	isProjectEnabled: (profile: KableProfile, kableProject: KableProject) => typedError<boolean, string>(__TAURI_INVOKE("is_project_enabled", { profile, kableProject })),
+	exportProfile: (profile: KableProfile, destination: string) => typedError<string, string>(__TAURI_INVOKE("export_profile", { profile, destination })),
 	browse: (profile: KableProfile, search: ProjectSearch, smartFilter: boolean, projectType: ProjectType) => typedError<ModrinthResults, string>(__TAURI_INVOKE("browse", { profile, search, smartFilter, projectType })),
 	listProfileProjects: (profile: KableProfile, enabled: boolean) => typedError<Partial<{ [key in ProjectType]: KableProject[] }>, string>(__TAURI_INVOKE("list_profile_projects", { profile, enabled })),
 	removeProject: (profile: KableProfile, kableProject: KableProject) => typedError<KableProject, string>(__TAURI_INVOKE("remove_project", { profile, kableProject })),
@@ -82,17 +93,23 @@ export const commands = {
 	getModrinthProjectTypes: () => typedError<string[], string>(__TAURI_INVOKE("get_modrinth_project_types")),
 	getModrinthSideTypes: () => typedError<string[], string>(__TAURI_INVOKE("get_modrinth_side_types")),
 	resolveProjectDependencies: (profile: KableProfile, project: Project, versionId: string) => typedError<ResolvedDependency[], string>(__TAURI_INVOKE("resolve_project_dependencies", { profile, project, versionId })),
-	getProfiles: (force: boolean) => typedError<KableProfile[], string>(__TAURI_INVOKE("get_profiles", { force })),
-	getProfile: (id: string) => typedError<KableProfile, string>(__TAURI_INVOKE("get_profile", { id })),
-	createProfile: (request: CreateProfileRequest) => typedError<KableProfile, string>(__TAURI_INVOKE("create_profile", { request })),
-	modifyProfile: (oldProfile: KableProfile, newProfile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("modify_profile", { oldProfile, newProfile })),
-	deleteProfile: (id: string) => typedError<null, string>(__TAURI_INVOKE("delete_profile", { id })),
-	getVersions: () => typedError<Versions, string>(__TAURI_INVOKE("get_versions")),
-	refreshVersions: () => typedError<Versions, string>(__TAURI_INVOKE("refresh_versions")),
-	toggleProject: (profile: KableProfile, kableProject: KableProject) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_project", { profile, kableProject })),
-	toggleFavorite: (profile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_favorite", { profile })),
-	isProjectEnabled: (profile: KableProfile, kableProject: KableProject) => typedError<boolean, string>(__TAURI_INVOKE("is_project_enabled", { profile, kableProject })),
-	exportProfile: (profile: KableProfile, destination: string) => typedError<string, string>(__TAURI_INVOKE("export_profile", { profile, destination })),
+	getPlayerProfile: (account: KableAccount) => typedError<PlayerProfile, string>(__TAURI_INVOKE("get_player_profile", { account })),
+	getCurrentSkinInfo: (account: KableAccount) => typedError<CurrentSkin, string>(__TAURI_INVOKE("get_current_skin_info", { account })),
+	getAllAccountSkins: (account: KableAccount) => typedError<AccountSkin[], string>(__TAURI_INVOKE("get_all_account_skins", { account })),
+	getLocalSkins: () => typedError<AccountSkin[], string>(__TAURI_INVOKE("get_local_skins")),
+	uploadSkinToAccount: (config: SkinUploadConfig) => typedError<SkinUploadResponse, string>(__TAURI_INVOKE("upload_skin_to_account", { config })),
+	modifySkinById: (skinId: string, newName: string | null, newCapeId: string | null, newSlim: boolean | null) => typedError<null, string>(__TAURI_INVOKE("modify_skin_by_id", { skinId, newName, newCapeId, newSlim })),
+	removeSkinById: (skinId: string) => typedError<null, string>(__TAURI_INVOKE("remove_skin_by_id", { skinId })),
+	applyAccountSkin: (skinId: string) => typedError<null, string>(__TAURI_INVOKE("apply_account_skin", { skinId })),
+	changeSkinModel: (newModel: SkinModel) => typedError<null, string>(__TAURI_INVOKE("change_skin_model", { newModel })),
+	getActiveCape: () => typedError<{
+	id: string,
+	state: string,
+	url: string | null,
+	alias: string | null,
+} | null, string>(__TAURI_INVOKE("get_active_cape")),
+	applyCape: (capeId: string | null) => typedError<null, string>(__TAURI_INVOKE("apply_cape", { capeId })),
+	downloadSkinFromUrl: (url: string) => typedError<number[], string>(__TAURI_INVOKE("download_skin_from_url", { url })),
 	getSymlinks: () => typedError<Symlink[], string>(__TAURI_INVOKE("get_symlinks")),
 	runtimeSymlinks: () => typedError<{ [key in string]: Symlink[] }, string>(__TAURI_INVOKE("runtime_symlinks")),
 	runtimeSymlinksForProfile: (profileId: string) => typedError<Symlink[], string>(__TAURI_INVOKE("runtime_symlinks_for_profile", { profileId })),
@@ -122,6 +139,22 @@ export const commands = {
 };
 
 /* Types */
+export type AccountCape = {
+	id: string,
+	state: string,
+	url: string | null,
+	alias: string | null,
+};
+
+export type AccountSkin = {
+	id: string,
+	name: string,
+	url: string | null,
+	model: SkinModel,
+	is_current: boolean,
+	uploaded_date: number | null,
+};
+
 export type AdvancedSettings = {
 	enable_advanced_features?: boolean,
 	enable_nightly_updates?: boolean,
@@ -166,6 +199,12 @@ export type CreateProfileRequest = {
 	version_override?: string | null,
 	/**  Metadata overrides applied after source merging. */
 	metadata?: ProfileMetadataOverrides,
+};
+
+export type CurrentSkin = {
+	model: SkinModel,
+	url: string | null,
+	has_skin: boolean,
 };
 
 export type DependencyType = "required" | "optional" | "incompatible" | "embedded" | "other";
@@ -406,6 +445,13 @@ export type OnGameAction = "ask" | "exit" | "minimize" | "minimize_to_tray" | "n
 /**  Opens a specific page by name, e.g. "home", "logs", etc. */
 { open: string } | "restart";
 
+export type PlayerProfile = {
+	id: string,
+	name: string,
+	skins: AccountSkin[],
+	capes: AccountCape[],
+};
+
 export type ProfileMetadataOverrides = {
 	name: string | null,
 	icon: string | null,
@@ -561,6 +607,19 @@ export type SearchIndex = "relevance" | "downloads" | "follows" | "newest" | "up
 
 /**  The server side support of the project */
 export type ServerSide = "required" | "optional" | "unsupported";
+
+export type SkinModel = "Classic" | "Slim";
+
+export type SkinUploadConfig = {
+	model: SkinModel,
+	file_path: string,
+};
+
+export type SkinUploadResponse = {
+	success: boolean,
+	message: string,
+	model_used: SkinModel,
+};
 
 export type SoundSettings = {
 	enabled?: boolean,

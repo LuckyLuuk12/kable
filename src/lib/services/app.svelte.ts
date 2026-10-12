@@ -10,6 +10,7 @@ import { LogsService } from "./logs.svelte";
 import { NotificationService } from "./notification.svelte";
 import { ProfilesService } from "./profiles.svelte";
 import { ProjectsService } from "./projects.svelte";
+import { SkinsService } from "./skins.svelte";
 import { UpdaterService } from "./updater.svelte";
 import { WorldsService } from "./worlds.svelte";
 
@@ -38,6 +39,7 @@ export class AppService {
   projectsService = new ProjectsService();
   updaterService = new UpdaterService();
   worldsService = new WorldsService();
+  skinsService = new SkinsService();
 
   /// ! note that the order of services here matters, as some services depend on others being initialized first
   get services(): Service[] {
@@ -53,6 +55,7 @@ export class AppService {
       this.profilesService,
       this.projectsService,
       this.worldsService,
+      this.skinsService,
     ];
   }
 

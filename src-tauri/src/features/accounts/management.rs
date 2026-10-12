@@ -231,3 +231,18 @@ async fn refresh_account(account: &mut KableAccount) -> Result<(), String> {
 
     Ok(())
 }
+
+pub async fn refresh_accounts() -> Result<(), String> {
+    let mut accounts_json = ensure_accounts_file().await?;
+
+    for account in accounts_json.accounts.values_mut() {
+        if minecraft_token_needs_refresh(account) {
+            Logger::debug_global(format!("Refreshing account {}", account.local_id).as_str(), None);
+            refresh_account(account).await?;
+        }
+    }
+
+    write_accounts(&accounts_json).await?;
+
+    Ok(())
+}

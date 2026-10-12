@@ -2,7 +2,7 @@
 // for now we only support running a "profile" (which refreshes auth for default account and launches the game)
 use clap::Parser;
 
-use crate::features::accounts::management::list_accounts;
+use crate::features::accounts::management::{list_accounts, refresh_accounts};
 use crate::features::customization::settings::load_settings;
 use crate::features::launcher::launch::launch_game;
 use crate::features::profiles::minimalize::cleanup_orphaned_resources;
@@ -30,7 +30,7 @@ pub async fn handle_args(args: Args) -> Result<(), String> {
     // 2. Second, we load all profiles
     let _profiles = load_profiles().await?;
     // 3. Then we refresh auth for default account if possible
-    let _accounts = list_accounts().await?;
+    refresh_accounts().await?;
     // 4. Then in async we can also fetch/load version info from loader manifests, once caching has been implemented this should improve initial loading time of the launcher
     let _versions = get_versions().await?;
 

@@ -77,8 +77,7 @@ async function refreshWorlds() {
         value={world?.id ?? ""}
         disabled={worlds.length === 0 || refreshing}
         aria-label="Select world"
-        onchange={(event) => selectWorld((event.currentTarget as HTMLSelectElement).value)}
-      >
+        onchange={(event) => selectWorld((event.currentTarget as HTMLSelectElement).value)}>
         {#if worlds.length === 0}
           <option value="">No worlds available</option>
         {:else}
@@ -202,10 +201,6 @@ async function refreshWorlds() {
   font: inherit;
   font-size: $font-sm;
   cursor: pointer;
-
-  &:hover:not(:disabled) {
-    background: $color-hover;
-  }
 
   &:focus {
     border-color: $color-focus;
