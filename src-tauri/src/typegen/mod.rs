@@ -66,6 +66,7 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::toggle_favorite,
             api::is_project_enabled,
             api::export_profile,
+            api::create_desktop_shortcut,
             // #endregion Profiles
             // #region Projects
             api::browse,

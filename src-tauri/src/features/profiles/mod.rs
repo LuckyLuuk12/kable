@@ -5,3 +5,4 @@ pub mod kable_profile;
 pub mod management;
 pub mod merge;
 pub mod minimalize;
+pub mod shortcut;

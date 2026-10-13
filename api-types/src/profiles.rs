@@ -214,6 +214,8 @@ pub struct KableProfileMetadata {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
 pub struct KableProfileSettings {
+    /// if specified the profile will always be launched using the account, the string represents the local_id which is also used in KableAccountsJson.accounts
+    pub launch_with_account: Option<String>,
     pub parameters_map: HashMap<String, String>,
     pub java_args: Vec<String>,
     #[serde(default)]

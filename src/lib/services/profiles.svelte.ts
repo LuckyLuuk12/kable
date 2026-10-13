@@ -173,7 +173,7 @@ export class ProfilesService implements Service {
 
   async createShortcut(profile: KableProfile) {
     try {
-      // await api.createShortcut(profile);
+      await api.createDesktopShortcut(profile);
     } catch (e) {
       console.error("[ProfilesService] Failed to create shortcut for profile", e);
     }

@@ -63,7 +63,12 @@ export class LauncherService implements Service {
    * Resolve / validate a Java path
    */
   async getJavaPath(javaPath: string | null) {
-    return await api.getJavaPath(javaPath);
+    try {
+      return await api.getJavaPath(javaPath);
+    } catch (e) {
+      console.error("API call failed: `return await api.getJavaPath(javaPath);`", e);
+      return null;
+    }
   }
 
   /**

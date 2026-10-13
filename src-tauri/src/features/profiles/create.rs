@@ -43,6 +43,7 @@ pub async fn from_loader_version(
         },
         version: version_data,
         settings: KableProfileSettings {
+            launch_with_account: None,
             java_args: Vec::new(),
             parameters_map: std::collections::HashMap::new(),
             enable_pack_merging: false,
@@ -388,6 +389,7 @@ fn new_profile(version_id: String, target_profile_id: &str, versions: &[ProfileV
         },
         version: version_data,
         settings: KableProfileSettings {
+            launch_with_account: None,
             java_args: Vec::new(),
             parameters_map: std::collections::HashMap::new(),
             enable_pack_merging: true,

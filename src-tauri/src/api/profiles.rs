@@ -1,4 +1,4 @@
-use crate::features::profiles::{create, import, management};
+use crate::features::profiles::{create, import, management, shortcut};
 use crate::integrations::loaders;
 use api_types::profiles::CreateProfileRequest;
 use api_types::{
@@ -78,3 +78,9 @@ pub async fn create_profile(request: CreateProfileRequest) -> Result<KableProfil
 // - from an (older) profile with newer/other version_data
 // - from 1 (or more) mrpack's
 // - from any combination of the above, where the user can choose which data to take from each source (e.g. version data from version_data, mods from mrpack, etc.)
+
+#[tauri::command]
+#[specta::specta]
+pub fn create_desktop_shortcut(profile: KableProfile) -> Result<String, String> {
+    shortcut::create_desktop_shortcut(&profile)
+}

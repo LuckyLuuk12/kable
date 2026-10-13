@@ -6,7 +6,7 @@ use crate::integrations::{minecraft, mojang_api};
 
 /// Returns the active account with a refreshed Minecraft access token when needed.
 async fn require_active_account() -> Result<KableAccount, String> {
-    get_active_account_for_launch().await?.ok_or_else(|| "No active Minecraft account is configured".to_string())
+    get_active_account_for_launch(None).await?.ok_or_else(|| "No active Minecraft account is configured".to_string())
 }
 
 /// Retrieves the authenticated player's Minecraft profile, online skins and capes.

@@ -58,6 +58,7 @@ fn into(launcher_profiles: LauncherProfiles, all_versions: &[api_types::profiles
                 times_launched: 0,
             },
             settings: api_types::profiles::KableProfileSettings {
+                launch_with_account: None,
                 java_args: profile.java_args.map(|args| args.split_whitespace().map(|s| s.to_string()).collect()).unwrap_or_else(Vec::new),
                 parameters_map: HashMap::new(),
                 enable_pack_merging: true,

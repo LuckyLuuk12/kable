@@ -79,6 +79,7 @@ export const commands = {
 	toggleFavorite: (profile: KableProfile) => typedError<KableProfile, string>(__TAURI_INVOKE("toggle_favorite", { profile })),
 	isProjectEnabled: (profile: KableProfile, kableProject: KableProject) => typedError<boolean, string>(__TAURI_INVOKE("is_project_enabled", { profile, kableProject })),
 	exportProfile: (profile: KableProfile, destination: string) => typedError<string, string>(__TAURI_INVOKE("export_profile", { profile, destination })),
+	createDesktopShortcut: (profile: KableProfile) => typedError<string, string>(__TAURI_INVOKE("create_desktop_shortcut", { profile })),
 	browse: (profile: KableProfile, search: ProjectSearch, smartFilter: boolean, projectType: ProjectType) => typedError<ModrinthResults, string>(__TAURI_INVOKE("browse", { profile, search, smartFilter, projectType })),
 	listProfileProjects: (profile: KableProfile, enabled: boolean) => typedError<Partial<{ [key in ProjectType]: KableProject[] }>, string>(__TAURI_INVOKE("list_profile_projects", { profile, enabled })),
 	removeProject: (profile: KableProfile, kableProject: KableProject) => typedError<KableProject, string>(__TAURI_INVOKE("remove_project", { profile, kableProject })),
@@ -347,6 +348,8 @@ export type KableProfileMetadata = {
 };
 
 export type KableProfileSettings = {
+	/**  if specified the profile will always be launched using the account, the string represents the local_id which is also used in KableAccountsJson.accounts */
+	launch_with_account: string | null,
 	parameters_map: { [key in string]: string },
 	java_args: string[],
 	enable_pack_merging?: boolean,

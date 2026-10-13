@@ -47,6 +47,7 @@ libc = "0.2.182"
 md-5 = "0.11.0"
 minecraft-msa-auth = "0.4.0"
 modrinth-api = "2.7.1"
+moka = { version = "0.12", features = ["future"] }
 oauth2 = { version = "5.0.0", features = ["reqwest"] }
 once_cell = "1.17"
 percent-encoding = "2.2"

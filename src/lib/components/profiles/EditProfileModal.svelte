@@ -2,7 +2,7 @@
 import { app, Icon, type KableProfile } from "$lib";
 import { clickSound, successSound } from "$lib/actions";
 import { MODAL_CONTEXT, type ModalContext } from "$lib/utils/modal";
-import { getContext } from "svelte";
+import { getContext, onMount } from "svelte";
 
 const modal = getContext<ModalContext>(MODAL_CONTEXT);
 
@@ -16,14 +16,29 @@ let {
 let installation = $state(app.profilesService.memoryClone(profile));
 let javaArgsString = $state(installation.settings.java_args?.join(" ") ?? "");
 let parametersJson = $state(JSON.stringify(installation.settings.parameters_map ?? {}, null, 2));
+let launchWithAccountSelection = $state(installation.settings.launch_with_account ?? "");
 let showOptional = $state(false);
 let isSaving = $state(false);
 let error = $state<string | null>(null);
+
+onMount(() => {
+  void app.authService.init().catch((e: unknown) => {
+    error = e instanceof Error ? e.message : "Failed to load authenticated accounts.";
+  });
+});
+
+let hasSelectedAccount = $derived(launchWithAccountSelection !== "" && app.authService.accounts.some((account) => account.local_id === launchWithAccountSelection));
 
 let jsonPreviewInstallation = $derived.by(() => {
   const preview = app.profilesService.memoryClone(installation);
 
   preview.settings.java_args = javaArgsString.split(" ").filter((arg) => arg.length > 0);
+
+  if (launchWithAccountSelection) {
+    preview.settings.launch_with_account = launchWithAccountSelection;
+  } else {
+    preview.settings.launch_with_account = null;
+  }
 
   try {
     const parsed = JSON.parse(parametersJson || "{}");
@@ -115,6 +130,12 @@ async function confirmEdit() {
 
   installation.settings.java_args = javaArgsString.split(" ").filter((arg) => arg.length > 0);
 
+  if (launchWithAccountSelection) {
+    installation.settings.launch_with_account = launchWithAccountSelection;
+  } else {
+    installation.settings.launch_with_account = null;
+  }
+
   try {
     const parsed = JSON.parse(parametersJson || "{}");
 
@@ -170,8 +191,7 @@ function cancelEdit() {
     onsubmit={(e) => {
       e.preventDefault();
       confirmEdit();
-    }}
-  >
+    }}>
     <section class="settings-column">
       <div class="section-header">
         <div>
@@ -225,8 +245,7 @@ function cancelEdit() {
               installation.metadata.favorite = !installation.metadata.favorite;
             }}
             aria-label={installation.metadata.favorite ? "Remove from favorites" : "Add to favorites"}
-            title={installation.metadata.favorite ? "Remove from favorites" : "Add to favorites"}
-          >
+            title={installation.metadata.favorite ? "Remove from favorites" : "Add to favorites"}>
             {#if installation.metadata.favorite}
               <Icon name="star" size="md" />
             {:else}
@@ -251,8 +270,7 @@ function cancelEdit() {
           onclick={() => {
             showOptional = !showOptional;
           }}
-          aria-label={showOptional ? "Collapse settings" : "Expand settings"}
-        >
+          aria-label={showOptional ? "Collapse settings" : "Expand settings"}>
           <Icon name="chevron-down" forceType="svg" size="sm" />
         </button>
       </div>
@@ -262,13 +280,45 @@ function cancelEdit() {
       {#if showOptional}
         <div class="section-content optional-content">
           <label>
+            <span class="label-text">Launch with account</span>
+            <span class="field-description">
+              Optionally assign an authenticated account to this installation. If unset, the launcher can use its normal account-selection behavior.
+            </span>
+
+            <select bind:value={launchWithAccountSelection} disabled={app.authService.loading || isSaving}>
+              <option value="">Active Account</option>
+
+              {#if launchWithAccountSelection && !hasSelectedAccount}
+                <option value={launchWithAccountSelection}>
+                  Unavailable account ({launchWithAccountSelection})
+                </option>
+              {/if}
+
+              {#each app.authService.accounts as account (account.local_id)}
+                <option value={account.local_id}>
+                  {app.authService.getAccountDisplayName(account)}
+                  {#if account.local_id === app.authService.activeAccount?.local_id}
+                    — Active
+                  {/if}
+                </option>
+              {/each}
+            </select>
+
+            {#if app.authService.loading}
+              <span class="field-description">Loading authenticated accounts…</span>
+            {:else if app.authService.accounts.length === 0}
+              <span class="field-description">No authenticated accounts found. Sign in to an account to assign it here.</span>
+            {/if}
+          </label>
+
+          <label>
             <span class="label-text">Java arguments</span>
             <input type="text" bind:value={javaArgsString} placeholder="e.g. -Xmx4G -XX:+UseG1GC" />
           </label>
 
           <label>
             <span class="label-text">Parameters</span>
-            <span class="field-description"> JSON object passed to the installation. </span>
+            <span class="field-description">JSON object passed to the installation.</span>
 
             <textarea class="parameters-input" bind:value={parametersJson} rows="10" spellcheck="false"></textarea>
           </label>
@@ -303,7 +353,7 @@ function cancelEdit() {
         {/if}
       </button>
 
-      <button use:clickSound type="button" class="btn btn-secondary" onclick={cancelEdit} disabled={isSaving}> Cancel </button>
+      <button use:clickSound type="button" class="btn btn-secondary" onclick={cancelEdit} disabled={isSaving}>Cancel</button>
     </div>
   </form>
 </div>
@@ -427,7 +477,8 @@ function cancelEdit() {
     }
 
     input[type="text"],
-    textarea {
+    textarea,
+    select {
       display: block;
       width: 100%;
       min-width: 0;
@@ -443,7 +494,7 @@ function cancelEdit() {
         box-shadow 120ms ease,
         background 120ms ease;
 
-      &:hover {
+      &:hover:not(:disabled) {
         border-color: color-mix(in srgb, $color-text-muted 45%, transparent);
       }
 
@@ -452,15 +503,25 @@ function cancelEdit() {
         box-shadow: 0 0 0 2px color-mix(in srgb, $color-text 10%, transparent);
       }
 
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
       &::placeholder {
         color: $color-text-muted;
         opacity: 0.7;
       }
     }
 
-    input[type="text"] {
+    input[type="text"],
+    select {
       height: 2.4rem;
       padding: 0.5rem 0.7rem;
+    }
+
+    select {
+      cursor: pointer;
     }
 
     textarea {
@@ -643,7 +704,6 @@ function cancelEdit() {
       border: 1px solid color-mix(in srgb, $color-text-muted 18%, transparent);
       border-radius: $radius-md;
       background: $color-surface-1;
-
       font-family: "Cascadia Code", "Fira Code", monospace;
       font-size: 0.76rem;
       line-height: 1.55;

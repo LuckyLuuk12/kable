@@ -237,7 +237,8 @@ async fn replace_variables(
 
     let libraries_root = mc_root.join(crate::constants::LIBRARIES_DIR);
 
-    let active_account = crate::features::accounts::management::get_active_account().await?;
+    let active_account =
+        crate::features::accounts::management::get_active_account_for_launch(profile.settings.launch_with_account.clone()).await?;
 
     let monitor = crate::app_handle()?.primary_monitor().ok().flatten();
 

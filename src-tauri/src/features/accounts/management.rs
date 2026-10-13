@@ -87,10 +87,10 @@ pub async fn get_active_account() -> Result<Option<KableAccount>, String> {
 ///
 /// This should be called once at the beginning of a launch, not for every
 /// individual argument or placeholder.
-pub async fn get_active_account_for_launch() -> Result<Option<KableAccount>, String> {
+pub async fn get_active_account_for_launch(override_id: Option<String>) -> Result<Option<KableAccount>, String> {
     let mut accounts_json = ensure_accounts_file().await?;
 
-    let active_id = accounts_json.active_account_local_id.clone();
+    let active_id = override_id.unwrap_or_else(|| accounts_json.active_account_local_id.clone());
 
     if active_id.is_empty() {
         return Ok(None);

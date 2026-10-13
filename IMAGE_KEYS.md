@@ -55,7 +55,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | check | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L146) | <pre><code class="language-html">&lt;Icon name="check" size="sm" forceType="svg" /&gt;</code></pre> |
 | chevron-down | [AccountManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AccountManager.svelte#L137) | <pre><code class="language-html">&lt;Icon name="chevron-down" size="sm" forceType="svg" /&gt;</code></pre> |
 | chevron-down | [CreateProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/CreateProfileModal.svelte#L540) | <pre><code class="language-html">&lt;Icon name="chevron-down" size="sm" forceType="svg" /&gt;</code></pre> |
-| chevron-down | [EditProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/EditProfileModal.svelte#L256) | <pre><code class="language-html">&lt;Icon name="chevron-down" forceType="svg" size="sm" /&gt;</code></pre> |
+| chevron-down | [EditProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/EditProfileModal.svelte#L274) | <pre><code class="language-html">&lt;Icon name="chevron-down" forceType="svg" size="sm" /&gt;</code></pre> |
 | chevron-down | [InstalledProjects](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/InstalledProjects.svelte#L450) | <pre><code class="language-html">&lt;Icon name="chevron-down" size="sm" forceType="svg" /&gt;</code></pre> |
 | chevron-down | [InstalledProjects](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/InstalledProjects.svelte#L476) | <pre><code class="language-html">&lt;Icon name="chevron-down" size="sm" forceType="svg" /&gt;</code></pre> |
 | chevron-left | [ProjectsPaginatedBrowser](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/ProjectsPaginatedBrowser.svelte#L654) | <pre><code class="language-html">&lt;Icon name="chevron-left" forceType="svg" /&gt;</code></pre> |
@@ -168,8 +168,8 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | settings | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L212) | <pre><code class="language-html">&lt;Icon name="settings" size="md" className="nav-icon" /&gt;</code></pre> |
 | shirt | [SkinsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinsPage.svelte#L62) | <pre><code class="language-html">&lt;Icon name="shirt" forceType="svg" size="sm" /&gt;</code></pre> |
 | skull | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L334) | <pre><code class="language-html">&lt;Icon name="skull" size="md" /&gt;</code></pre> |
-| star | [EditProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/EditProfileModal.svelte#L231) | <pre><code class="language-html">&lt;Icon name="star" size="md" /&gt;</code></pre> |
-| star | [EditProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/EditProfileModal.svelte#L233) | <pre><code class="language-html">&lt;Icon name="star" forceType="svg" size="md" /&gt;</code></pre> |
+| star | [EditProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/EditProfileModal.svelte#L250) | <pre><code class="language-html">&lt;Icon name="star" size="md" /&gt;</code></pre> |
+| star | [EditProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/EditProfileModal.svelte#L252) | <pre><code class="language-html">&lt;Icon name="star" forceType="svg" size="md" /&gt;</code></pre> |
 | star | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L211) | <pre><code class="language-html">&lt;Icon name="star" forceType={profile.metadata.favorite ? "emoji" : "svg"} size="md" /&gt;</code></pre> |
 | star | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L406) | <pre><code class="language-html">&lt;Icon name="star" forceType={profile.metadata.favorite ? "emoji" : "svg"} size="sm" /&gt;</code></pre> |
 | star | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L247) | <pre><code class="language-html">&lt;Icon name="star" size="md" /&gt;</code></pre> |
@@ -204,4 +204,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L114) | <pre><code class="language-html">&lt;Icon name="x" size="md" forceType="svg" /&gt;</code></pre> |
 | zap | [LogsToolbar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsToolbar.svelte#L121) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2026-10-13T16:47:28.023Z_
+_Generated: 2026-10-13T19:30:08.868Z_
