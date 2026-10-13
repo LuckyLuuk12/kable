@@ -12,27 +12,27 @@ export const commands = {
 	removeAccount: (account: KableAccount) => typedError<KableAccount[], string>(__TAURI_INVOKE("remove_account", { account })),
 	setActiveAccount: (account: KableAccount) => typedError<null, string>(__TAURI_INVOKE("set_active_account", { account })),
 	getActiveAccount: () => typedError<{
-	access_token: string,
-	access_token_expires_at: string,
-	/**  AES-encrypted refresh token for "persistent" accounts. */
-	encrypted_refresh_token: string | null,
-	avatar: string,
-	eligible_for_free_trials: boolean,
-	eligible_for_migration: boolean,
-	franchise_inventory_id: string,
-	has_multiple_profiles: boolean,
-	in_forced_migration: boolean,
-	legacy: boolean,
-	license_product_ids: string[],
-	/**  This is usually the same as the user's UUID but for correctness use the Minecraft Profile's ID! */
-	local_id: string,
-	minecraft_profile: KableMinecraftProfile,
-	persistent: boolean,
-	remote_id: string,
-	type: string,
-	user_properties: null[],
-	username: string,
-} | null, string>(__TAURI_INVOKE("get_active_account")),
+		access_token: string,
+		access_token_expires_at: string,
+		/**  AES-encrypted refresh token for "persistent" accounts. */
+		encrypted_refresh_token: string | null,
+		avatar: string,
+		eligible_for_free_trials: boolean,
+		eligible_for_migration: boolean,
+		franchise_inventory_id: string,
+		has_multiple_profiles: boolean,
+		in_forced_migration: boolean,
+		legacy: boolean,
+		license_product_ids: string[],
+		/**  This is usually the same as the user's UUID but for correctness use the Minecraft Profile's ID! */
+		local_id: string,
+		minecraft_profile: KableMinecraftProfile,
+		persistent: boolean,
+		remote_id: string,
+		type: string,
+		user_properties: null[],
+		username: string,
+	} | null, string>(__TAURI_INVOKE("get_active_account")),
 	getIconTemplates: () => typedError<IconTemplate[], string>(__TAURI_INVOKE("get_icon_templates")),
 	saveCustomIconTemplate: (template: IconTemplate) => typedError<string, string>(__TAURI_INVOKE("save_custom_icon_template", { template })),
 	deleteCustomIconTemplate: (templateName: string) => typedError<null, string>(__TAURI_INVOKE("delete_custom_icon_template", { templateName })),
@@ -103,11 +103,11 @@ export const commands = {
 	applyAccountSkin: (skinId: string) => typedError<null, string>(__TAURI_INVOKE("apply_account_skin", { skinId })),
 	changeSkinModel: (newModel: SkinModel) => typedError<null, string>(__TAURI_INVOKE("change_skin_model", { newModel })),
 	getActiveCape: () => typedError<{
-	id: string,
-	state: string,
-	url: string | null,
-	alias: string | null,
-} | null, string>(__TAURI_INVOKE("get_active_cape")),
+		id: string,
+		state: string,
+		url: string | null,
+		alias: string | null,
+	} | null, string>(__TAURI_INVOKE("get_active_cape")),
 	applyCape: (capeId: string | null) => typedError<null, string>(__TAURI_INVOKE("apply_cape", { capeId })),
 	downloadSkinFromUrl: (url: string) => typedError<number[], string>(__TAURI_INVOKE("download_skin_from_url", { url })),
 	getSymlinks: () => typedError<Symlink[], string>(__TAURI_INVOKE("get_symlinks")),
@@ -225,9 +225,9 @@ export type Facet = {
 	value: string,
 };
 
-export type FacetField = "project_type" | 
-/**  Categories also contains loaders: "fabric", "forge", "quilt", "neo-forge", etc. */
-"categories" | "version" | "client_side" | "server_side" | "open_source" | "title" | "author" | "follows" | "project_id" | "license" | "downloads" | "color" | "created_timestamp" | "modified_timestamp" | "date_created" | "date_modified";
+export type FacetField = "project_type" |
+	/**  Categories also contains loaders: "fabric", "forge", "quilt", "neo-forge", etc. */
+	"categories" | "version" | "client_side" | "server_side" | "open_source" | "title" | "author" | "follows" | "project_id" | "license" | "downloads" | "color" | "created_timestamp" | "modified_timestamp" | "date_created" | "date_modified";
 
 export type FacetGroup = {
 	facets: Facet[],
@@ -406,13 +406,13 @@ export type MiscSettings = {
 	enable_fun?: boolean,
 };
 
-export type ModpackSource = 
-/**  A locally accessible modpack archive. */
-{ type: "file"; path: string } | 
-/**  A remotely accessible archive URL. */
-{ type: "url"; url: string } | 
-/**  A project hosted by a modpack provider. */
-{ type: "project"; project_id: string; version_id: string | null };
+export type ModpackSource =
+	/**  A locally accessible modpack archive. */
+	{ type: "file"; path: string } |
+	/**  A remotely accessible archive URL. */
+	{ type: "url"; url: string } |
+	/**  A project hosted by a modpack provider. */
+	{ type: "project"; project_id: string; version_id: string | null };
 
 export type ModrinthResults = {
 	/**  The list of results */
@@ -441,7 +441,7 @@ export type NetworkSettings = {
 	max_requests_per_second?: number | null,
 };
 
-export type OnGameAction = "ask" | "exit" | "minimize" | "minimize_to_tray" | "nothing" | 
+export type OnGameAction = "ask" | "exit" | "minimize" | "minimize_to_tray" | "nothing" |
 /**  Opens a specific page by name, e.g. "home", "logs", etc. */
 { open: string } | "restart";
 
@@ -458,19 +458,19 @@ export type ProfileMetadataOverrides = {
 	description: string | null,
 };
 
-export type ProfileSource = 
-/**  Create a new profile from a Minecraft/loader version ID. */
-{ type: "version"; version_id: string } | 
-/**  Use an existing Kable profile as the starting point. */
-{ type: "existing_profile"; profile_id: string } | 
-/**  Import a Kable-exported profile from a local directory. */
-{ type: "exported_profile"; path: string } | 
-/**  Import a profile or instance from another launcher. */
-{ type: "external_profile"; launcher: ExternalLauncher; path: string } | 
-/**  Import a Modrinth modpack. */
-{ type: "modrinth_modpack"; source: ModpackSource } | 
-/**  Import a CurseForge modpack. */
-{ type: "curse_forge_modpack"; source: ModpackSource };
+export type ProfileSource =
+	/**  Create a new profile from a Minecraft/loader version ID. */
+	{ type: "version"; version_id: string } |
+	/**  Use an existing Kable profile as the starting point. */
+	{ type: "existing_profile"; profile_id: string } |
+	/**  Import a Kable-exported profile from a local directory. */
+	{ type: "exported_profile"; path: string } |
+	/**  Import a profile or instance from another launcher. */
+	{ type: "external_profile"; launcher: ExternalLauncher; path: string } |
+	/**  Import a Modrinth modpack. */
+	{ type: "modrinth_modpack"; source: ModpackSource } |
+	/**  Import a CurseForge modpack. */
+	{ type: "curse_forge_modpack"; source: ModpackSource };
 
 export type ProfileVersion = {
 	/**  Raw version ID from the profile, e.g. "1.19.2-forge-43.2.0" */
@@ -655,7 +655,7 @@ export type SymlinkCreateRequest = {
 	destination: string,
 };
 
-export type Theme = "light" | "dark" | "system" | 
+export type Theme = "light" | "dark" | "system" |
 /**  Custom theme, specified by a path/name to a CSS file */
 { custom: string };
 
@@ -667,7 +667,7 @@ export type UpdateData = {
 };
 
 /**  This determines WHEN to check for updates */
-export type UpdateDetection = "on_startup" | "on_close" | 
+export type UpdateDetection = "on_startup" | "on_close" |
 /**  Checks for updates every N seconds */
 { periodically: number } | "manual";
 
@@ -677,13 +677,13 @@ export type UpdateMap = {
 };
 
 /**  This determines HOW, once checked, to perform the update. */
-export type UpdateMode = 
-/**  After a check the user gets prompted to confirm, skip/cancel or only download and wait for restart */
-"on_confirm" | 
-/**  Download + install automatically, without asking the user */
-"automatic" | 
-/**  No checks, no prompts, nothing. Users have to go to settings and do everything manually. */
-"manual";
+export type UpdateMode =
+	/**  After a check the user gets prompted to confirm, skip/cancel or only download and wait for restart */
+	"on_confirm" |
+	/**  Download + install automatically, without asking the user */
+	"automatic" |
+	/**  No checks, no prompts, nothing. Users have to go to settings and do everything manually. */
+	"manual";
 
 export type UpdateNotificationStyle = "notification" | "modal";
 
@@ -718,9 +718,9 @@ export type VersionFileHashes = {
 };
 
 /**  The release channel for this version */
-export type VersionType = "release" | "beta" | "alpha" | 
-/**  This one is used when converting String to ProjectVersion as they lack a lot of info but the alternative is dropping all version info on converting ProjectResults... */
-"incomplete";
+export type VersionType = "release" | "beta" | "alpha" |
+	/**  This one is used when converting String to ProjectVersion as they lack a lot of info but the alternative is dropping all version info on converting ProjectResults... */
+	"incomplete";
 
 export type Versions = ProfileVersion[];
 
@@ -928,11 +928,11 @@ export type WorldWeather = {
 
 /* Tauri Specta runtime */
 async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {
-    try {
-        return { status: "ok", data: await result };
-    } catch (e) {
-        if (e instanceof Error) throw e;
-        return { status: "error", error: e as any };
-    }
+	try {
+		return { status: "ok", data: await result };
+	} catch (e) {
+		if (e instanceof Error) throw e;
+		return { status: "error", error: e as any };
+	}
 }
 

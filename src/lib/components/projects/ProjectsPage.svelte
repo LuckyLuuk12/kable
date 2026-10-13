@@ -46,6 +46,7 @@ let availableUpdates = $state(0);
  *
  * This is intentionally a regular Map: its contents are not rendered.
  */
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
 const updateChecksInFlight = new Map<string, Promise<number>>();
 
 /**
@@ -298,8 +299,7 @@ $effect(() => {
         type="button"
         onclick={() => (pickerCollapsed = !pickerCollapsed)}
         aria-label={pickerCollapsed ? "Expand profile picker" : "Collapse profile picker"}
-        title={pickerCollapsed ? "Expand profile picker" : "Collapse profile picker"}
-      >
+        title={pickerCollapsed ? "Expand profile picker" : "Collapse profile picker"}>
         <Icon name={pickerCollapsed ? "chevron-right" : "chevron-left"} forceType="svg" />
       </button>
     </header>
@@ -332,8 +332,7 @@ $effect(() => {
             onclick={updateAll}
             disabled={updatingAll || checkingUpdates || refreshing}
             aria-label={availableUpdates > 0 ? `Update all ${projectLabel.toLowerCase()} (${availableUpdates})` : `Check for ${projectLabel.toLowerCase()} updates`}
-            title={availableUpdates > 0 ? `Update all ${availableUpdates} ${projectLabel.toLowerCase()}` : `Check for ${projectLabel.toLowerCase()} updates`}
-          >
+            title={availableUpdates > 0 ? `Update all ${availableUpdates} ${projectLabel.toLowerCase()}` : `Check for ${projectLabel.toLowerCase()} updates`}>
             <span class="update-all-icon">
               <Icon name="refresh" forceType="svg" size="sm" />
             </span>
@@ -373,8 +372,7 @@ $effect(() => {
             disabled={refreshing || updatingAll || checkingUpdates}
             class:loading={refreshing}
             aria-label="Refresh"
-            title="Refresh"
-          >
+            title="Refresh">
             <Icon name="refresh" forceType="svg" size="sm" />
           </button>
 

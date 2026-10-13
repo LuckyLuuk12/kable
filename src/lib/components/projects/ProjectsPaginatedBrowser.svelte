@@ -126,6 +126,7 @@ let pageNumbers = $derived.by(() => {
    * - final page
    * - current page and its immediate neighbours
    */
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const pages = new Set<number>();
 
   pages.add(1);
@@ -641,8 +642,7 @@ $effect(() => {
         value={limit}
         aria-label="Projects per page"
         title="Projects per page"
-        onchange={handleLimitInput}
-      />
+        onchange={handleLimitInput} />
 
       <span>
         of {results?.total_hits.toLocaleString() ?? "0"}
@@ -666,8 +666,7 @@ $effect(() => {
               disabled={loading}
               aria-label={`Page ${item}`}
               aria-current={item === currentPage ? "page" : undefined}
-              onclick={() => goToPage(item)}
-            >
+              onclick={() => goToPage(item)}>
               {item}
             </button>
           {/if}

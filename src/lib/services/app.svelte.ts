@@ -181,6 +181,7 @@ if (import.meta.hot?.data.app) {
   app = import.meta.hot.data.app;
 } else {
   app = new AppService();
+  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
   import.meta.hot && (import.meta.hot.data.app = app);
 }
 

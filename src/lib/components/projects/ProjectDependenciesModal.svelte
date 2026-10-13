@@ -58,7 +58,9 @@ interface SelectionState {
  * order.
  */
 function calculateSelectionState(roots: ResolvedDependency[], manuallySelected: Set<string>): SelectionState {
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const active = new Set<string>();
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const required = new Set<string>();
 
   let changed = true;
@@ -97,6 +99,7 @@ function calculateSelectionState(roots: ResolvedDependency[], manuallySelected: 
 const selectionState = $derived.by(() => calculateSelectionState(dependencies, selectedProjectIds));
 
 const selectedDependencies = $derived.by(() => {
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const unique = new Map<string, KableProject>();
 
   function visit(nodes: ResolvedDependency[]): void {
@@ -144,6 +147,7 @@ function toggleDependency(dependency: ResolvedDependency, checked: boolean, pare
   }
 
   const key = projectKey(dependency);
+  // eslint-disable-next-line svelte/prefer-svelte-reactivity
   const next = new Set(selectedProjectIds);
 
   if (checked) {
