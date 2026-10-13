@@ -374,8 +374,7 @@ async function selectSoundpack(packName: string) {
               }
 
               app.customizationService.scheduleSave();
-            }}
-          >
+            }}>
             <option value="light">Light</option>
             <option value="dark">Dark</option>
             <option value="system">System</option>
@@ -425,8 +424,7 @@ async function selectSoundpack(packName: string) {
               class="upload-zone"
               ondragover={handleCssDragOver}
               ondragleave={handleCssDragLeave}
-              ondrop={handleCssDrop}
-            >
+              ondrop={handleCssDrop}>
               <input type="file" id="css-file-input" accept=".css" onchange={handleCssFileSelect} hidden />
 
               <div class="upload-placeholder">
@@ -510,8 +508,7 @@ async function selectSoundpack(packName: string) {
           <select
             id="selected-icon-template"
             value={appearance.icon_template ?? ""}
-            onchange={(event) => selectIconTemplate((event.currentTarget as HTMLSelectElement).value)}
-          >
+            onchange={(event) => selectIconTemplate((event.currentTarget as HTMLSelectElement).value)}>
             {#each iconTemplates as template (template.id)}
               <option value={template.id}>
                 {template.name}
@@ -553,8 +550,7 @@ async function selectSoundpack(packName: string) {
               class="upload-zone"
               ondragover={handleDragOver}
               ondragleave={handleDragLeave}
-              ondrop={handleDrop}
-            >
+              ondrop={handleDrop}>
               <input type="file" id="template-file-input" accept=".json,.yml,.yaml" onchange={handleFileSelect} hidden />
 
               <div class="upload-placeholder">
@@ -631,8 +627,7 @@ async function selectSoundpack(packName: string) {
               id="sound-enabled"
               type="checkbox"
               bind:checked={sound.enabled}
-              onchange={(event) => updateSoundEnabled((event.currentTarget as HTMLInputElement).checked)}
-            />
+              onchange={(event) => updateSoundEnabled((event.currentTarget as HTMLInputElement).checked)} />
           </div>
         </div>
 
@@ -647,8 +642,7 @@ async function selectSoundpack(packName: string) {
               id="music-enabled"
               type="checkbox"
               bind:checked={sound.music_enabled}
-              onchange={(event) => updateMusicEnabled((event.currentTarget as HTMLInputElement).checked)}
-            />
+              onchange={(event) => updateMusicEnabled((event.currentTarget as HTMLInputElement).checked)} />
           </div>
         </div>
 
@@ -669,8 +663,7 @@ async function selectSoundpack(packName: string) {
                 max="100"
                 step="5"
                 value={sound.master_volume ?? 100}
-                oninput={(event) => updateMasterVolume(Number((event.currentTarget as HTMLInputElement).value))}
-              />
+                oninput={(event) => updateMasterVolume(Number((event.currentTarget as HTMLInputElement).value))} />
             </div>
           </div>
 
@@ -691,8 +684,7 @@ async function selectSoundpack(packName: string) {
                   max="100"
                   step="5"
                   value={sound.sound_volume ?? 100}
-                  oninput={(event) => updateSoundVolume(Number((event.currentTarget as HTMLInputElement).value))}
-                />
+                  oninput={(event) => updateSoundVolume(Number((event.currentTarget as HTMLInputElement).value))} />
               </div>
             </div>
           {/if}
@@ -714,8 +706,7 @@ async function selectSoundpack(packName: string) {
                   max="100"
                   step="5"
                   value={sound.music_volume ?? 50}
-                  oninput={(event) => updateMusicVolume(Number((event.currentTarget as HTMLInputElement).value))}
-                />
+                  oninput={(event) => updateMusicVolume(Number((event.currentTarget as HTMLInputElement).value))} />
               </div>
             </div>
           {/if}
@@ -730,8 +721,7 @@ async function selectSoundpack(packName: string) {
               <select
                 id="soundpack"
                 value={sound.selected_soundpack ?? "default"}
-                onchange={(event) => selectSoundpack((event.currentTarget as HTMLSelectElement).value)}
-              >
+                onchange={(event) => selectSoundpack((event.currentTarget as HTMLSelectElement).value)}>
                 {#each app.customizationService.availableSoundpacks as pack (pack.name)}
                   <option value={pack.name}>
                     {pack.displayName}
@@ -752,6 +742,7 @@ async function selectSoundpack(packName: string) {
   </div>
 {/if}
 
+<!-- svelte-ignore css_unused_selector -->
 <style lang="scss">
 .settings-tab {
   width: 100%;

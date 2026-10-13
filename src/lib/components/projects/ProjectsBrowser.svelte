@@ -58,11 +58,4 @@ let facets = $state<FacetGroup[]>([]);
   min-width: 0;
   min-height: 0;
 }
-
-.browser-toggle {
-  position: absolute;
-  right: $space-md;
-  bottom: $space-md;
-  z-index: 1000;
-}
 </style>

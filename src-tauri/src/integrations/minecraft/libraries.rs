@@ -125,7 +125,7 @@ impl LibraryResolver {
 
         Ok(None)
     }
-
+    #[allow(clippy::type_complexity)]
     fn resolve_download<'a>(&self, lib: &'a Library) -> Result<Option<(String, PathBuf, Option<&'a DownloadArtifact>)>, String> {
         if let Some(artifact) = self.get_artifact(lib) {
             if let (Some(url), Some(path)) = (&artifact.url, &artifact.path) {

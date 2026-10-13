@@ -157,12 +157,6 @@ async function applyCape(capeId: string | null): Promise<void> {
   border: 1px solid $color-border;
   border-radius: $radius-md;
   font-size: 0.85rem;
-
-  > span {
-    flex: 1;
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
 }
 
 .error-message {

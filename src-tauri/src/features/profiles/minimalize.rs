@@ -40,9 +40,8 @@ pub async fn cleanup_orphaned_resources() -> Result<CleanupReport, String> {
     let profile_ids = collect_profile_ids(&profiles);
     let referenced_projects = collect_project_references(&profiles);
 
-    let mut report = CleanupReport::default();
-
-    report.removed_runtime_directories = cleanup_orphaned_runtime_directories(&profile_ids).await?;
+    let mut report =
+        CleanupReport { removed_runtime_directories: cleanup_orphaned_runtime_directories(&profile_ids).await?, ..Default::default() };
 
     let projects_root = kable_fs::projects_dir()?;
 

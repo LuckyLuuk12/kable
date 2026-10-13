@@ -818,14 +818,8 @@ function handleModalKeydown(event: KeyboardEvent): void {
   flex: 1;
   padding: $space-2xl;
 
-  h2,
   p {
     margin: 0;
-  }
-
-  h2 {
-    color: $color-text;
-    font-size: 1rem;
   }
 
   p {

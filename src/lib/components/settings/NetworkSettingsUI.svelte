@@ -67,16 +67,14 @@ function setUnlimited(field: keyof NetworkSettings) {
             min="1"
             max="32"
             value={app.customizationService.settings?.network?.max_download_threads ?? 8}
-            onchange={(event) => onChange(event, "max_download_threads")}
-          />
+            onchange={(event) => onChange(event, "max_download_threads")} />
           <input
             type="number"
             id="max-download-threads"
             min="1"
             max="32"
             value={app.customizationService.settings?.network?.max_download_threads ?? 8}
-            onchange={(event) => onChange(event, "max_download_threads")}
-          />
+            onchange={(event) => onChange(event, "max_download_threads")} />
         </div>
       </div>
     </div>
@@ -96,8 +94,7 @@ function setUnlimited(field: keyof NetworkSettings) {
             step="64"
             value={app.customizationService.settings?.network?.max_download_speed_kbps ?? 1024}
             disabled={app.customizationService.settings?.network?.max_download_speed_kbps == null}
-            onchange={(event) => onChange(event, "max_download_speed_kbps")}
-          />
+            onchange={(event) => onChange(event, "max_download_speed_kbps")} />
           <input
             type="number"
             id="max-download-speed"
@@ -106,8 +103,7 @@ function setUnlimited(field: keyof NetworkSettings) {
             step="64"
             value={app.customizationService.settings?.network?.max_download_speed_kbps ?? 1024}
             disabled={app.customizationService.settings?.network?.max_download_speed_kbps == null}
-            onchange={(event) => onChange(event, "max_download_speed_kbps")}
-          />
+            onchange={(event) => onChange(event, "max_download_speed_kbps")} />
         </div>
 
         <div class="download-speed-btn">
@@ -127,8 +123,7 @@ function setUnlimited(field: keyof NetworkSettings) {
                 };
 
                 app.customizationService.scheduleSave();
-              }}
-            >
+              }}>
               Use Limit
             </button>
           {:else}
@@ -152,8 +147,7 @@ function setUnlimited(field: keyof NetworkSettings) {
             max="100"
             value={app.customizationService.settings?.network?.max_requests_per_second ?? 10}
             disabled={app.customizationService.settings?.network?.max_requests_per_second == null}
-            onchange={(event) => onChange(event, "max_requests_per_second")}
-          />
+            onchange={(event) => onChange(event, "max_requests_per_second")} />
           <input
             type="number"
             id="max-requests-per-second"
@@ -161,8 +155,7 @@ function setUnlimited(field: keyof NetworkSettings) {
             max="100"
             value={app.customizationService.settings?.network?.max_requests_per_second ?? 10}
             disabled={app.customizationService.settings?.network?.max_requests_per_second == null}
-            onchange={(event) => onChange(event, "max_requests_per_second")}
-          />
+            onchange={(event) => onChange(event, "max_requests_per_second")} />
         </div>
 
         <div class="request-rate-btn">
@@ -182,8 +175,7 @@ function setUnlimited(field: keyof NetworkSettings) {
                 };
 
                 app.customizationService.scheduleSave();
-              }}
-            >
+              }}>
               Use Limit
             </button>
           {:else}
@@ -195,6 +187,7 @@ function setUnlimited(field: keyof NetworkSettings) {
   </form>
 </div>
 
+<!-- svelte-ignore css_unused_selector -->
 <style lang="scss">
 .settings-tab {
   width: 100%;

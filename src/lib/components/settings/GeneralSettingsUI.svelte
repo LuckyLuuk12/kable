@@ -114,8 +114,7 @@ onMount(() => {
           id="java-path"
           value={app.customizationService.settings?.general?.java_path ?? ""}
           placeholder={detectedJavaPath || "Path to Java executable"}
-          onchange={(event) => updateSetting("java_path", (event.currentTarget as HTMLInputElement).value || null)}
-        />
+          onchange={(event) => updateSetting("java_path", (event.currentTarget as HTMLInputElement).value || null)} />
       </div>
     </div>
 
@@ -130,8 +129,7 @@ onMount(() => {
           id="game-directory"
           value={app.customizationService.settings?.general?.game_directory ?? ""}
           placeholder="C:/Users/user/AppData/Roaming/.minecraft"
-          onchange={(event) => updateSetting("game_directory", (event.currentTarget as HTMLInputElement).value || null)}
-        />
+          onchange={(event) => updateSetting("game_directory", (event.currentTarget as HTMLInputElement).value || null)} />
       </div>
     </div>
 
@@ -150,8 +148,7 @@ onMount(() => {
                 name="on-game-close"
                 checked={JSON.stringify(app.customizationService.settings?.general?.on_game_close) === JSON.stringify({ open: "logs" })}
                 onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
-                value="logs"
-              />
+                value="logs" />
               Open Logs
             </label>
 
@@ -161,8 +158,7 @@ onMount(() => {
                 name="on-game-close"
                 checked={JSON.stringify(app.customizationService.settings?.general?.on_game_close) === JSON.stringify({ open: "home" })}
                 onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
-                value="home"
-              />
+                value="home" />
               Open Home
             </label>
 
@@ -172,8 +168,7 @@ onMount(() => {
                 name="on-game-close"
                 checked={app.customizationService.settings?.general?.on_game_close === "exit"}
                 onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
-                value="exit"
-              />
+                value="exit" />
               Exit Application
             </label>
 
@@ -183,8 +178,7 @@ onMount(() => {
                 name="on-game-close"
                 checked={app.customizationService.settings?.general?.on_game_close === "minimize"}
                 onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
-                value="minimize"
-              />
+                value="minimize" />
               Minimize
             </label>
 
@@ -194,8 +188,7 @@ onMount(() => {
                 name="on-game-close"
                 checked={app.customizationService.settings?.general?.on_game_close === "minimize_to_tray"}
                 onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
-                value="minimize_to_tray"
-              />
+                value="minimize_to_tray" />
               Minimize to Tray
             </label>
 
@@ -205,8 +198,7 @@ onMount(() => {
                 name="on-game-close"
                 checked={app.customizationService.settings?.general?.on_game_close === "nothing"}
                 onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
-                value="nothing"
-              />
+                value="nothing" />
               Do Nothing
             </label>
 
@@ -216,8 +208,7 @@ onMount(() => {
                 name="on-game-close"
                 checked={app.customizationService.settings?.general?.on_game_close === "ask"}
                 onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
-                value="ask"
-              />
+                value="ask" />
               Ask
             </label>
           </div>
@@ -225,8 +216,7 @@ onMount(() => {
           <select
             id="on-game-close"
             value={JSON.stringify(app.customizationService.settings?.general?.on_game_close)}
-            onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
-          >
+            onchange={(event) => updateSetting("on_game_close", getActionValue(event))}>
             <option value={JSON.stringify({ open: "logs" })}>Open Logs</option>
             <option value={JSON.stringify({ open: "home" })}>Open Home</option>
             <option value="exit">Exit Application</option>
@@ -254,8 +244,7 @@ onMount(() => {
                 name="on-game-crash"
                 checked={app.customizationService.settings?.general?.on_game_crash === "restart"}
                 onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
-                value="restart"
-              />
+                value="restart" />
               Restart Game
             </label>
 
@@ -265,8 +254,7 @@ onMount(() => {
                 name="on-game-crash"
                 checked={JSON.stringify(app.customizationService.settings?.general?.on_game_crash) === JSON.stringify({ open: "logs" })}
                 onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
-                value="logs"
-              />
+                value="logs" />
               Open Logs
             </label>
 
@@ -276,8 +264,7 @@ onMount(() => {
                 name="on-game-crash"
                 checked={JSON.stringify(app.customizationService.settings?.general?.on_game_crash) === JSON.stringify({ open: "home" })}
                 onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
-                value="home"
-              />
+                value="home" />
               Open Home
             </label>
 
@@ -287,8 +274,7 @@ onMount(() => {
                 name="on-game-crash"
                 checked={app.customizationService.settings?.general?.on_game_crash === "exit"}
                 onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
-                value="exit"
-              />
+                value="exit" />
               Exit Application
             </label>
 
@@ -298,8 +284,7 @@ onMount(() => {
                 name="on-game-crash"
                 checked={app.customizationService.settings?.general?.on_game_crash === "minimize"}
                 onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
-                value="minimize"
-              />
+                value="minimize" />
               Minimize
             </label>
 
@@ -309,8 +294,7 @@ onMount(() => {
                 name="on-game-crash"
                 checked={app.customizationService.settings?.general?.on_game_crash === "minimize_to_tray"}
                 onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
-                value="minimize_to_tray"
-              />
+                value="minimize_to_tray" />
               Minimize to Tray
             </label>
 
@@ -320,8 +304,7 @@ onMount(() => {
                 name="on-game-crash"
                 checked={app.customizationService.settings?.general?.on_game_crash === "nothing"}
                 onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
-                value="nothing"
-              />
+                value="nothing" />
               Do Nothing
             </label>
 
@@ -331,8 +314,7 @@ onMount(() => {
                 name="on-game-crash"
                 checked={app.customizationService.settings?.general?.on_game_crash === "ask"}
                 onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
-                value="ask"
-              />
+                value="ask" />
               Ask
             </label>
           </div>
@@ -340,8 +322,7 @@ onMount(() => {
           <select
             id="on-game-crash"
             value={JSON.stringify(app.customizationService.settings?.general?.on_game_crash)}
-            onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
-          >
+            onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}>
             <option value="restart">Restart Game</option>
             <option value={JSON.stringify({ open: "logs" })}>Open Logs</option>
             <option value={JSON.stringify({ open: "home" })}>Open Home</option>
@@ -357,6 +338,7 @@ onMount(() => {
 
     <div class="setting-item">
       <div class="setting-info">
+        <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>On Game Launch</label>
         <p class="setting-description">What should happen when the game launches?</p>
       </div>
@@ -370,8 +352,7 @@ onMount(() => {
                 name="on-game-launch"
                 checked={app.customizationService.settings?.general?.on_game_launch === "nothing"}
                 onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
-                value="nothing"
-              />
+                value="nothing" />
               Keep Application Open
             </label>
 
@@ -381,8 +362,7 @@ onMount(() => {
                 name="on-game-launch"
                 checked={app.customizationService.settings?.general?.on_game_launch === "exit"}
                 onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
-                value="exit"
-              />
+                value="exit" />
               Exit Application
             </label>
 
@@ -392,8 +372,7 @@ onMount(() => {
                 name="on-game-launch"
                 checked={JSON.stringify(app.customizationService.settings?.general?.on_game_launch) === JSON.stringify({ open: "logs" })}
                 onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
-                value="logs"
-              />
+                value="logs" />
               Open Logs
             </label>
 
@@ -403,8 +382,7 @@ onMount(() => {
                 name="on-game-launch"
                 checked={app.customizationService.settings?.general?.on_game_launch === "minimize"}
                 onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
-                value="minimize"
-              />
+                value="minimize" />
               Minimize
             </label>
 
@@ -414,8 +392,7 @@ onMount(() => {
                 name="on-game-launch"
                 checked={app.customizationService.settings?.general?.on_game_launch === "minimize_to_tray"}
                 onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
-                value="minimize_to_tray"
-              />
+                value="minimize_to_tray" />
               Minimize to Tray
             </label>
 
@@ -425,8 +402,7 @@ onMount(() => {
                 name="on-game-launch"
                 checked={app.customizationService.settings?.general?.on_game_launch === "ask"}
                 onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
-                value="ask"
-              />
+                value="ask" />
               Ask
             </label>
           </div>
@@ -434,8 +410,7 @@ onMount(() => {
           <select
             id="on-game-launch"
             value={JSON.stringify(app.customizationService.settings?.general?.on_game_launch)}
-            onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
-          >
+            onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}>
             <option value="nothing">Keep Application Open</option>
             <option value="exit">Exit Application</option>
             <option value={JSON.stringify({ open: "logs" })}>Open Logs</option>
@@ -459,8 +434,7 @@ onMount(() => {
           value={typeof app.customizationService.settings?.general?.update_detection === "string"
             ? app.customizationService.settings?.general.update_detection
             : "manual"}
-          onchange={(event) => updateSetting("update_detection", getUpdateDetectionValue(event))}
-        >
+          onchange={(event) => updateSetting("update_detection", getUpdateDetectionValue(event))}>
           <option value="manual">Manual</option>
           <option value="on_startup">On Startup</option>
           <option value="on_close">On Close</option>
@@ -478,8 +452,7 @@ onMount(() => {
         <select
           id="update-mode"
           value={app.customizationService.settings?.general?.update_mode ?? "manual"}
-          onchange={(event) => updateSetting("update_mode", getUpdateModeValue(event))}
-        >
+          onchange={(event) => updateSetting("update_mode", getUpdateModeValue(event))}>
           <option value="automatic">Automatic</option>
           <option value="manual">Manually</option>
           <option value="on_confirm">Update on Confirm</option>
@@ -497,8 +470,7 @@ onMount(() => {
         <select
           id="update-notification-style"
           value={app.customizationService.settings?.general?.update_notification_style ?? "notification"}
-          onchange={(event) => updateSetting("update_notification_style", getUpdateNotificationStyleValue(event))}
-        >
+          onchange={(event) => updateSetting("update_notification_style", getUpdateNotificationStyleValue(event))}>
           <option value="notification">Notification Toast</option>
           <option value="modal">Modal Dialog</option>
         </select>
@@ -509,6 +481,7 @@ onMount(() => {
   <AutoUpdater />
 </div>
 
+<!-- svelte-ignore css_unused_selector -->
 <style lang="scss">
 .settings-tab {
   width: 100%;

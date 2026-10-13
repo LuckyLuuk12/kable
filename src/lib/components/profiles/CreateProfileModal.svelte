@@ -591,6 +591,7 @@ function cancel() {
 
                     <p class="source-description">Merge an existing installation into the new profile. The same profile can be selected more than once.</p>
                   {:else}
+                    <!-- svelte-ignore a11y_label_has_associated_control -->
                     <label>{source.type === "zip" ? "Exported profile ZIP" : "Modrinth pack file"}</label>
 
                     <div class="file-picker">

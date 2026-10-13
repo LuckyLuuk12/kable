@@ -40,6 +40,7 @@ let statusLoading = $state(false);
 let requestGeneration = 0;
 
 // Per-project revisions prevent stale lookups from overwriting local changes.
+// eslint-disable-next-line svelte/prefer-svelte-reactivity
 const enabledStateRevisions = new Map<string, number>();
 
 const projectId = (project: KableProject) => project.project.project_id;
@@ -402,8 +403,7 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
           placeholder="Search by name or description..."
           bind:value={searchInput}
           autocomplete="off"
-          spellcheck="false"
-        />
+          spellcheck="false" />
       </div>
 
       <div class="sort">
@@ -458,8 +458,7 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
                 {project}
                 enabled={true}
                 togglePending={pendingById[revisionKey(profile.id, projectId(project))] === true}
-                onToggled={(enabled) => toggleProject(project, enabled)}
-              />
+                onToggled={(enabled) => toggleProject(project, enabled)} />
             {/each}
           </div>
         </section>
@@ -485,8 +484,7 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
                 {project}
                 enabled={false}
                 togglePending={pendingById[revisionKey(profile.id, projectId(project))] === true}
-                onToggled={(enabled) => toggleProject(project, enabled)}
-              />
+                onToggled={(enabled) => toggleProject(project, enabled)} />
             {/each}
           </div>
         </section>
@@ -523,21 +521,18 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
     color: $color-text-muted;
     font-size: 0.8rem;
   }
-
-  input,
-  select {
-    box-sizing: border-box;
-    width: 100%;
-    min-width: 0;
-    padding: $space-sm $space-md;
-    color: inherit;
-    background: var(--color-surface, transparent);
-    border: 1px solid var(--color-border, currentColor);
-    border-radius: $radius-md;
-    font: inherit;
-  }
 }
-
+select,
+input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: $space-sm $space-md;
+  color: inherit;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  font: inherit;
+}
 .refresh-status {
   margin: 0 0 $space-sm;
   color: $color-text-muted;
@@ -558,13 +553,9 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
   color: inherit;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid var(--color-border, currentColor);
+  border-bottom: 1px solid $color-border;
   cursor: pointer;
   text-align: left;
-
-  svg {
-    margin-left: auto;
-  }
 }
 
 .group-title {
