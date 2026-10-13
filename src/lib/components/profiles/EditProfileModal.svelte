@@ -3,22 +3,21 @@ import { app, Icon, type KableProfile } from "$lib";
 import { clickSound, successSound } from "$lib/actions";
 import { MODAL_CONTEXT, type ModalContext } from "$lib/utils/modal";
 import { getContext, onMount } from "svelte";
+import RamAllocation from "./RamAllocation.svelte";
 
 const modal = getContext<ModalContext>(MODAL_CONTEXT);
 
-let {
-  profile,
-}: {
-  profile: KableProfile;
-} = $props();
+let { profileProp }: { profileProp: KableProfile } = $props();
 
 // svelte-ignore state_referenced_locally
-let installation = $state(app.profilesService.memoryClone(profile));
-let javaArgsString = $state(installation.settings.java_args?.join(" ") ?? "");
-let parametersJson = $state(JSON.stringify(installation.settings.parameters_map ?? {}, null, 2));
-let launchWithAccountSelection = $state(installation.settings.launch_with_account ?? "");
-let showOptional = $state(false);
+let profile = $state(app.profilesService.memoryClone(profileProp));
+
+let javaArgsString = $state(profile.settings.java_args?.join(" ") ?? "");
+let parametersJson = $state(JSON.stringify(profile.settings.parameters_map ?? {}, null, 2));
+let launchWithAccountSelection = $state(profile.settings.launch_with_account ?? "");
+
 let isSaving = $state(false);
+let copiedJson = $state(false);
 let error = $state<string | null>(null);
 
 onMount(() => {
@@ -29,16 +28,11 @@ onMount(() => {
 
 let hasSelectedAccount = $derived(launchWithAccountSelection !== "" && app.authService.accounts.some((account) => account.local_id === launchWithAccountSelection));
 
-let jsonPreviewInstallation = $derived.by(() => {
-  const preview = app.profilesService.memoryClone(installation);
+let jsonPreviewProfile = $derived.by(() => {
+  const preview = app.profilesService.memoryClone(profile);
 
   preview.settings.java_args = javaArgsString.split(" ").filter((arg) => arg.length > 0);
-
-  if (launchWithAccountSelection) {
-    preview.settings.launch_with_account = launchWithAccountSelection;
-  } else {
-    preview.settings.launch_with_account = null;
-  }
+  preview.settings.launch_with_account = launchWithAccountSelection || null;
 
   try {
     const parsed = JSON.parse(parametersJson || "{}");
@@ -47,16 +41,13 @@ let jsonPreviewInstallation = $derived.by(() => {
       preview.settings.parameters_map = parsed;
     }
   } catch {
-    preview.settings.parameters_map = {
-      ...preview.settings.parameters_map,
-    };
+    // Preserve the last valid parameters while the JSON editor is invalid.
   }
 
   return preview;
 });
 
-let jsonPreview = $derived(JSON.stringify(jsonPreviewInstallation, null, 2));
-
+let jsonPreview = $derived(JSON.stringify(jsonPreviewProfile, null, 2));
 let highlightedJson = $derived(highlightJson(jsonPreview));
 
 function escapeHtml(value: string): string {
@@ -113,7 +104,7 @@ function handleIconFile(event: Event) {
 
   reader.onload = () => {
     if (typeof reader.result === "string") {
-      installation.metadata.icon = reader.result;
+      profile.metadata.icon = reader.result;
       error = null;
     }
   };
@@ -125,26 +116,31 @@ function handleIconFile(event: Event) {
   reader.readAsDataURL(file);
 }
 
+async function copyJson() {
+  try {
+    await navigator.clipboard.writeText(jsonPreview);
+    copiedJson = true;
+    error = null;
+  } catch {
+    error = "Could not copy JSON. Check clipboard permissions.";
+  }
+}
+
 async function confirmEdit() {
   error = null;
 
-  installation.settings.java_args = javaArgsString.split(" ").filter((arg) => arg.length > 0);
-
-  if (launchWithAccountSelection) {
-    installation.settings.launch_with_account = launchWithAccountSelection;
-  } else {
-    installation.settings.launch_with_account = null;
-  }
+  profile.settings.java_args = javaArgsString.split(" ").filter((arg) => arg.length > 0);
+  profile.settings.launch_with_account = launchWithAccountSelection || null;
 
   try {
     const parsed = JSON.parse(parametersJson || "{}");
 
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-      installation.settings.parameters_map = parsed;
-    } else {
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
       error = "Parameters must contain a JSON object.";
       return;
     }
+
+    profile.settings.parameters_map = parsed;
   } catch {
     error = "Parameters must contain valid JSON.";
     return;
@@ -153,10 +149,10 @@ async function confirmEdit() {
   isSaving = true;
 
   try {
-    await app.profilesService.modify(installation, installation);
+    await app.profilesService.modify(profile, profile);
     modal.resolve(true);
   } catch (e) {
-    error = e instanceof Error ? e.message : "Failed to update installation.";
+    error = e instanceof Error ? e.message : "Failed to update profile.";
   } finally {
     isSaving = false;
   }
@@ -167,178 +163,147 @@ function cancelEdit() {
 }
 </script>
 
-<div class="edit-installation-modal">
+<div class="edit-profile-modal">
   <div class="modal-header">
-    <div>
-      <h2>Edit Installation</h2>
-
-      {#if installation.metadata.name}
-        <div class="profile-name">{installation.metadata.name}</div>
-      {/if}
-    </div>
+    <h2>Edit profile</h2>
   </div>
 
-  <div class="header-divider"></div>
-
   {#if error}
-    <div class="error-message">
+    <div class="error-message" role="alert">
       {error}
     </div>
   {/if}
 
   <form
-    class="three-column-form"
+    class="profile-grid"
     onsubmit={(e) => {
       e.preventDefault();
-      confirmEdit();
+      void confirmEdit();
     }}>
-    <section class="settings-column">
-      <div class="section-header">
-        <div>
-          <h3>Basic settings</h3>
-          <p>Identity and appearance of this installation.</p>
-        </div>
-      </div>
+    <section class="basic-settings panel">
+      <div class="profile-identity">
+        <label class="icon-picker" title="Choose profile icon">
+          {#if profile.metadata.icon}
+            <img src={profile.metadata.icon} alt="Profile icon" />
+          {:else}
+            <span class="empty-icon">
+              <Icon name="image" forceType="svg" size="md" />
+            </span>
+          {/if}
 
-      <div class="section-divider"></div>
-
-      <div class="section-content">
-        <label>
-          <span class="label-text">Name</span>
-          <input type="text" bind:value={installation.metadata.name} placeholder="Installation name" />
+          <input type="file" accept="image/*" aria-label="Choose profile icon" onchange={handleIconFile} />
         </label>
 
-        <label>
-          <span class="label-text">Icon</span>
-
-          <div class="icon-input">
-            {#if installation.metadata.icon}
-              <div class="icon-preview">
-                <img src={installation.metadata.icon} alt="Installation icon preview" />
-              </div>
-            {/if}
-
-            <div class="icon-input-controls">
-              <input type="text" bind:value={installation.metadata.icon} placeholder="Icon URL or data URI" />
-
-              <label class="file-button">
-                <span>Select</span>
-                <input type="file" accept="image/*" onchange={handleIconFile} />
-              </label>
-            </div>
-          </div>
-        </label>
-
-        <label>
-          <span class="label-text">Description</span>
-          <textarea bind:value={installation.metadata.description} placeholder="Optional description" rows="5"></textarea>
-        </label>
-
-        <div class="favorite-setting">
-          <span class="label-text">Favorite</span>
-
-          <button
-            type="button"
-            class:favorite-active={installation.metadata.favorite}
-            class="favorite-button"
-            onclick={() => {
-              installation.metadata.favorite = !installation.metadata.favorite;
-            }}
-            aria-label={installation.metadata.favorite ? "Remove from favorites" : "Add to favorites"}
-            title={installation.metadata.favorite ? "Remove from favorites" : "Add to favorites"}>
-            {#if installation.metadata.favorite}
-              <Icon name="star" size="md" />
-            {:else}
-              <Icon name="star" forceType="svg" size="md" />
-            {/if}
-          </button>
-        </div>
-      </div>
-    </section>
-
-    <section class="settings-column">
-      <div class="section-header">
-        <div>
-          <h3>Optional settings</h3>
-          <p>Advanced launch configuration for this installation.</p>
-        </div>
+        <input class="profile-name-input" type="text" bind:value={profile.metadata.name} placeholder="Profile name" aria-label="Profile name" />
 
         <button
           type="button"
-          class="collapse-button"
-          class:expanded={showOptional}
+          class="favorite-button"
+          class:favorite-active={profile.metadata.favorite}
           onclick={() => {
-            showOptional = !showOptional;
+            profile.metadata.favorite = !profile.metadata.favorite;
           }}
-          aria-label={showOptional ? "Collapse settings" : "Expand settings"}>
-          <Icon name="chevron-down" forceType="svg" size="sm" />
+          aria-label={profile.metadata.favorite ? "Remove from favorites" : "Add to favorites"}
+          title={profile.metadata.favorite ? "Remove from favorites" : "Add to favorites"}>
+          {#if profile.metadata.favorite}
+            <Icon name="star" size="md" />
+          {:else}
+            <Icon name="star" forceType="svg" size="md" />
+          {/if}
         </button>
       </div>
 
-      <div class="section-divider"></div>
-
-      {#if showOptional}
-        <div class="section-content optional-content">
-          <label>
-            <span class="label-text">Launch with account</span>
-            <span class="field-description">
-              Optionally assign an authenticated account to this installation. If unset, the launcher can use its normal account-selection behavior.
-            </span>
-
-            <select bind:value={launchWithAccountSelection} disabled={app.authService.loading || isSaving}>
-              <option value="">Active Account</option>
-
-              {#if launchWithAccountSelection && !hasSelectedAccount}
-                <option value={launchWithAccountSelection}>
-                  Unavailable account ({launchWithAccountSelection})
-                </option>
-              {/if}
-
-              {#each app.authService.accounts as account (account.local_id)}
-                <option value={account.local_id}>
-                  {app.authService.getAccountDisplayName(account)}
-                  {#if account.local_id === app.authService.activeAccount?.local_id}
-                    — Active
-                  {/if}
-                </option>
-              {/each}
-            </select>
-
-            {#if app.authService.loading}
-              <span class="field-description">Loading authenticated accounts…</span>
-            {:else if app.authService.accounts.length === 0}
-              <span class="field-description">No authenticated accounts found. Sign in to an account to assign it here.</span>
-            {/if}
-          </label>
-
-          <label>
-            <span class="label-text">Java arguments</span>
-            <input type="text" bind:value={javaArgsString} placeholder="e.g. -Xmx4G -XX:+UseG1GC" />
-          </label>
-
-          <label>
-            <span class="label-text">Parameters</span>
-            <span class="field-description">JSON object passed to the installation.</span>
-
-            <textarea class="parameters-input" bind:value={parametersJson} rows="10" spellcheck="false"></textarea>
-          </label>
-        </div>
-      {:else}
-        <div class="collapsed-message">Optional launch settings are hidden.</div>
-      {/if}
+      <label class="description-field">
+        <span class="label-text">Description</span>
+        <textarea bind:value={profile.metadata.description} placeholder="Add a description..." rows="4"></textarea>
+      </label>
     </section>
 
-    <section class="preview-column">
-      <div class="section-header">
-        <div>
-          <h3>Profile JSON</h3>
-          <p>Live read-only representation of the profile.</p>
-        </div>
-
-        <span class="readonly-label">Read-only</span>
+    <section class="optional-settings panel">
+      <div class="optional-heading">
+        <span class="label-text">Launch configuration</span>
       </div>
 
-      <div class="section-divider"></div>
+      <div class="optional-content">
+        <label class="form-field">
+          <span class="label-text">Launch with account</span>
+
+          <select bind:value={launchWithAccountSelection} disabled={app.authService.loading || isSaving}>
+            <option value="">Active Account</option>
+
+            {#if launchWithAccountSelection && !hasSelectedAccount}
+              <option value={launchWithAccountSelection}>
+                Unavailable account ({launchWithAccountSelection})
+              </option>
+            {/if}
+
+            {#each app.authService.accounts as account (account.local_id)}
+              <option value={account.local_id}>
+                {app.authService.getAccountDisplayName(account)}
+                {#if account.local_id === app.authService.activeAccount?.local_id}
+                  — Active
+                {/if}
+              </option>
+            {/each}
+          </select>
+
+          {#if app.authService.loading}
+            <span class="field-description">Loading accounts…</span>
+          {:else if app.authService.accounts.length === 0}
+            <span class="field-description"> No authenticated accounts. Sign in to assign one. </span>
+          {/if}
+        </label>
+
+        <label class="form-field">
+          <span class="label-text">Java arguments</span>
+
+          <textarea class="java-args-input" bind:value={javaArgsString} placeholder="-Xmx4G -XX:+UseG1GC" rows="4" spellcheck="false"></textarea>
+        </label>
+
+        <label class="pack-merging-option">
+          <input type="checkbox" bind:checked={profile.settings.enable_pack_merging} />
+
+          <span class="pack-merging-text">
+            <span class="pack-merging-title">Enable pack merging</span>
+            <span class="pack-merging-description"> Merge compatible resource packs when launching this profile. </span>
+          </span>
+        </label>
+
+        <label class="form-field advanced-field">
+          <span class="label-text">Parameters (JSON)</span>
+          <span class="field-description"> Custom key-value parameters passed to the profile. </span>
+
+          <textarea class="parameters-input" bind:value={parametersJson} rows="8" spellcheck="false"></textarea>
+        </label>
+      </div>
+    </section>
+
+    <section class="ram-allocation-section">
+      <RamAllocation
+        {profile}
+        embedded
+        saveToService={false}
+        onJavaArgsChange={(args) => {
+          profile.settings.java_args = args;
+          javaArgsString = args.join(" ");
+        }} />
+    </section>
+
+    <section class="preview-column panel">
+      <div class="preview-toolbar">
+        <span class="label-text">Profile JSON</span>
+
+        <button
+          type="button"
+          class="copy-json-button"
+          use:clickSound
+          onclick={() => void copyJson()}
+          title="Copy the current JSON preview"
+          aria-label="Copy profile JSON">
+          <Icon name={copiedJson ? "check" : "copy"} forceType="svg" size="sm" />
+          <span>{copiedJson ? "Copied" : "Copy JSON"}</span>
+        </button>
+      </div>
 
       <!-- eslint-disable-next-line svelte/no-at-html-tags -->
       <pre class="json-preview"><code>{@html highlightedJson}</code></pre>
@@ -346,495 +311,615 @@ function cancelEdit() {
 
     <div class="actions">
       <button use:successSound type="submit" class="btn btn-primary" disabled={isSaving}>
-        {#if isSaving}
-          Saving...
-        {:else}
-          Confirm
-        {/if}
+        {isSaving ? "Saving..." : "Confirm"}
       </button>
 
-      <button use:clickSound type="button" class="btn btn-secondary" onclick={cancelEdit} disabled={isSaving}>Cancel</button>
+      <button use:clickSound type="button" class="btn btn-secondary" onclick={cancelEdit} disabled={isSaving}> Cancel </button>
     </div>
   </form>
 </div>
 
 <style lang="scss">
-.edit-installation-modal {
-  padding: 1.5rem;
+.edit-profile-modal {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: min(94vw, 1500px);
+  height: min(92vh, 1000px);
+  max-height: 92vh;
+  min-height: 0;
+  padding: 1.25rem;
+  overflow: hidden;
+
+  color: $color-text;
   background: $color-surface-1;
   border-radius: $radius-md;
-  width: 80vw;
-  max-width: 1400px;
-  max-height: 90vh;
-  overflow-y: auto;
   box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.3);
-  color: $color-text;
 
   .modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 3rem;
+    flex: 0 0 auto;
+    padding-bottom: 0.9rem;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid color-mix(in srgb, $color-text-muted 22%, transparent);
 
     h2 {
       margin: 0;
-      color: $color-text;
-      font-size: 1.4rem;
+      font-size: 1.2rem;
       font-weight: 650;
     }
-
-    .profile-name {
-      margin-top: 0.25rem;
-      color: $color-text-muted;
-      font-size: 0.9rem;
-    }
-  }
-
-  .header-divider {
-    height: 1px;
-    margin: 1rem 0 1.25rem;
-    background: color-mix(in srgb, $color-text-muted 25%, transparent);
   }
 
   .error-message {
-    margin-bottom: 1rem;
-    padding: 0.75rem 1rem;
+    flex: 0 0 auto;
+    padding: 0.7rem 0.9rem;
+    margin-bottom: 0.85rem;
     border: 1px solid color-mix(in srgb, $color-error 35%, transparent);
     border-radius: $radius-md;
     background: color-mix(in srgb, $color-error 10%, transparent);
     color: $color-error;
+    font-size: 0.85rem;
   }
 
-  .three-column-form {
+  .profile-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr);
-    gap: 1.25rem;
-    align-items: start;
+    flex: 1 1 0;
+    grid-template-columns:
+      minmax(0, 0.9fr)
+      minmax(0, 1fr)
+      minmax(0, 1.15fr);
+    grid-template-areas:
+      "basic optional preview"
+      "ram ram preview"
+      "actions actions actions";
+    grid-template-rows: minmax(0, 1fr) auto auto;
+    align-items: stretch;
+    gap: 1rem;
 
-    .settings-column,
-    .preview-column {
-      min-width: 0;
-      min-height: 0;
-      padding: 1rem;
-      border: 1px solid color-mix(in srgb, $color-text-muted 18%, transparent);
-      border-radius: $radius-md;
-      background: color-mix(in srgb, $color-surface-2 35%, transparent);
-    }
+    min-width: 0;
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
 
-    .section-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 1rem;
+  .panel {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 0;
+    padding: 1rem;
+    border: 1px solid color-mix(in srgb, $color-text-muted 18%, transparent);
+    border-radius: $radius-md;
+    background: color-mix(in srgb, $color-surface-2 35%, transparent);
+  }
 
-      h3 {
-        margin: 0;
-        color: $color-text;
-        font-size: 1rem;
-        font-weight: 650;
-      }
+  .basic-settings {
+    grid-area: basic;
+    gap: 1rem;
+    min-height: 0;
+    overflow: hidden;
+  }
 
-      p {
-        margin: 0.3rem 0 0;
-        color: $color-text-muted;
-        font-size: 0.75rem;
-        line-height: 1.4;
-      }
-    }
+  .profile-identity {
+    display: grid;
+    flex: 0 0 auto;
+    grid-template-columns: 2.25rem minmax(0, 1fr) 2.25rem;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: 0;
+  }
 
-    .section-divider {
-      height: 1px;
-      margin: 0.85rem 0 1rem;
-      background: color-mix(in srgb, $color-text-muted 15%, transparent);
-    }
+  .icon-picker {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    box-sizing: border-box;
+    overflow: hidden;
+    border: 1px solid color-mix(in srgb, $color-text-muted 25%, transparent);
+    border-radius: $radius-md;
+    background: $color-surface-1;
+    cursor: pointer;
 
-    .section-content {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      min-width: 0;
-    }
-
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: 0.4rem;
-      min-width: 0;
-      color: $color-text;
-      font-size: 0.9rem;
-    }
-
-    .label-text {
-      color: $color-text;
-      font-size: 0.85rem;
-      font-weight: 550;
-    }
-
-    .field-description {
-      color: $color-text-muted;
-      font-size: 0.75rem;
-      line-height: 1.35;
-    }
-
-    input[type="text"],
-    textarea,
-    select {
+    img {
       display: block;
       width: 100%;
-      min-width: 0;
-      box-sizing: border-box;
-      border: 1px solid color-mix(in srgb, $color-text-muted 25%, transparent);
-      border-radius: $radius-md;
-      background: $color-surface-1;
-      color: $color-text;
-      font: inherit;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .empty-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      color: $color-text-muted;
+    }
+
+    input[type="file"] {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    &:hover {
+      border-color: color-mix(in srgb, $color-text-muted 55%, transparent);
+    }
+
+    &:focus-within {
+      outline: 2px solid color-mix(in srgb, $color-text 45%, transparent);
+      outline-offset: 2px;
+    }
+  }
+
+  .profile-name-input {
+    width: 100%;
+    min-width: 0;
+    height: 2.25rem;
+    box-sizing: border-box;
+    padding: 0.4rem 0.6rem;
+    border: 1px solid color-mix(in srgb, $color-text-muted 25%, transparent);
+    border-radius: $radius-md;
+    background: $color-surface-1;
+    color: $color-text;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+
+    &:focus {
       outline: none;
+      border-color: color-mix(in srgb, $color-text 55%, transparent);
+    }
+  }
+
+  .label-text {
+    color: $color-text;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .description-field,
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+    max-width: 100%;
+    font-size: 0.85rem;
+  }
+
+  .description-field {
+    flex: 1 1 auto;
+    min-height: 0;
+
+    textarea {
+      flex: 1 1 auto;
+      min-height: 0;
+      height: auto;
+    }
+  }
+
+  input[type="text"],
+  textarea,
+  select {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid color-mix(in srgb, $color-text-muted 25%, transparent);
+    border-radius: $radius-md;
+    background: $color-surface-1;
+    color: $color-text;
+    font: inherit;
+    outline: none;
+
+    &:hover:not(:disabled) {
+      border-color: color-mix(in srgb, $color-text-muted 45%, transparent);
+    }
+
+    &:focus {
+      border-color: color-mix(in srgb, $color-text 55%, transparent);
+      box-shadow: 0 0 0 2px color-mix(in srgb, $color-text 10%, transparent);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    &::placeholder {
+      color: $color-text-muted;
+      opacity: 0.7;
+    }
+  }
+
+  textarea {
+    min-height: 0;
+    resize: none;
+    overflow: auto;
+    line-height: 1.45;
+  }
+
+  .favorite-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    box-sizing: border-box;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, $color-text-muted 25%, transparent);
+    border-radius: $radius-md;
+    background: $color-surface-1;
+    color: $color-text-muted;
+    cursor: pointer;
+
+    &:hover {
+      border-color: color-mix(in srgb, $color-text-muted 45%, transparent);
+      background: $color-surface-2;
+    }
+
+    &.favorite-active {
+      color: $color-warning;
+      border-color: color-mix(in srgb, $color-warning 40%, transparent);
+      background: color-mix(in srgb, $color-warning 10%, transparent);
+    }
+  }
+
+  .optional-settings {
+    grid-area: optional;
+    align-self: stretch;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .optional-heading,
+  .preview-toolbar {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .optional-heading {
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid color-mix(in srgb, $color-text-muted 15%, transparent);
+  }
+
+  .optional-content {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 0.85rem;
+    min-width: 0;
+    min-height: 0;
+    padding-top: 0.85rem;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .field-description {
+    color: $color-text-muted;
+    font-size: 0.75rem;
+    line-height: 1.4;
+  }
+
+  .java-args-input {
+    height: 6.5rem;
+    min-height: 6.5rem;
+    max-height: 6.5rem;
+    flex: 0 0 auto;
+    font-family: "Cascadia Code", "Fira Code", monospace;
+    font-size: 0.8rem;
+  }
+
+  .parameters-input {
+    height: 12rem;
+    min-height: 12rem;
+    max-height: 12rem;
+    flex: 0 0 auto;
+    font-family: "Cascadia Code", "Fira Code", monospace;
+    font-size: 0.8rem;
+  }
+
+  .advanced-field {
+    flex: 0 0 auto;
+    min-height: 0;
+  }
+
+  .pack-merging-option {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: $space-sm;
+    min-width: 0;
+    cursor: pointer;
+
+    input[type="checkbox"] {
+      flex: 0 0 auto;
+      width: $space-lg;
+      height: $space-2xl;
+      margin: 3px 0 0;
+      accent-color: $color-accent;
+    }
+  }
+
+  .pack-merging-text {
+    display: flex;
+    flex-direction: column;
+    gap: $space-xs;
+    min-width: 0;
+  }
+
+  .pack-merging-title {
+    color: $color-text;
+  }
+
+  .pack-merging-description {
+    color: $color-text-muted;
+    font-size: 0.875rem;
+    line-height: 1.4;
+  }
+
+  .ram-allocation-section {
+    grid-area: ram;
+    align-self: start;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .preview-column {
+    grid-area: preview;
+    align-self: stretch;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    overflow: hidden;
+  }
+
+  .copy-json-button {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    min-height: 2rem;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid color-mix(in srgb, $color-text-muted 25%, transparent);
+    border-radius: $radius-md;
+    background: $color-surface-1;
+    color: $color-text;
+    font-size: 0.75rem;
+    cursor: pointer;
+
+    &:hover {
+      border-color: color-mix(in srgb, $color-text-muted 45%, transparent);
+      background: $color-surface-2;
+    }
+  }
+
+  .json-preview {
+    display: block;
+    flex: 1 1 0;
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: 0;
+    margin: 0.75rem 0 0;
+    padding: 0.8rem;
+    box-sizing: border-box;
+
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+    border: 1px solid color-mix(in srgb, $color-text-muted 18%, transparent);
+    border-radius: $radius-md;
+    background: $color-surface-1;
+
+    font-family: "Cascadia Code", "Fira Code", monospace;
+    font-size: 0.74rem;
+    line-height: 1.55;
+    white-space: pre;
+    tab-size: 2;
+
+    code {
+      display: block;
+      width: max-content;
+      min-width: 100%;
+    }
+
+    :global(.json-key) {
+      color: #8ab4f8;
+    }
+
+    :global(.json-string) {
+      color: #a8d08d;
+    }
+
+    :global(.json-number) {
+      color: #f6c177;
+    }
+
+    :global(.json-boolean) {
+      color: #d19a66;
+    }
+
+    :global(.json-null) {
+      color: #c586c0;
+    }
+  }
+
+  .actions {
+    grid-area: actions;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid color-mix(in srgb, $color-text-muted 18%, transparent);
+
+    button {
+      min-width: 6.5rem;
+      height: 2.4rem;
+      padding: 0.45rem 1.25rem;
+      border: 1px solid transparent;
+      border-radius: $radius-md;
+      font-size: 0.9rem;
+      font-weight: 550;
+      cursor: pointer;
       transition:
+        background 120ms ease,
         border-color 120ms ease,
-        box-shadow 120ms ease,
-        background 120ms ease;
+        opacity 120ms ease,
+        transform 120ms ease;
 
-      &:hover:not(:disabled) {
-        border-color: color-mix(in srgb, $color-text-muted 45%, transparent);
-      }
-
-      &:focus {
-        border-color: color-mix(in srgb, $color-text 55%, transparent);
-        box-shadow: 0 0 0 2px color-mix(in srgb, $color-text 10%, transparent);
+      &:active:not(:disabled) {
+        transform: translateY(1px);
       }
 
       &:disabled {
-        opacity: 0.6;
+        opacity: 0.5;
         cursor: not-allowed;
       }
-
-      &::placeholder {
-        color: $color-text-muted;
-        opacity: 0.7;
-      }
     }
 
-    input[type="text"],
-    select {
-      height: 2.4rem;
-      padding: 0.5rem 0.7rem;
-    }
-
-    select {
-      cursor: pointer;
-    }
-
-    textarea {
-      resize: vertical;
-      padding: 0.65rem 0.7rem;
-      line-height: 1.45;
-    }
-
-    .parameters-input {
-      min-height: 12rem;
-      resize: vertical;
-      font-family: "Cascadia Code", "Fira Code", monospace;
-      font-size: 0.8rem;
-    }
-
-    .icon-input {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-      min-width: 0;
-    }
-
-    .icon-preview {
-      width: 3rem;
-      height: 3rem;
-      overflow: hidden;
-      border: 1px solid color-mix(in srgb, $color-text-muted 25%, transparent);
-      border-radius: $radius-md;
-      background: $color-surface-1;
-
-      img {
-        width: 100%;
-        height: 100%;
-        display: block;
-        object-fit: contain;
-      }
-    }
-
-    .icon-input-controls {
-      display: flex;
-      gap: 0.5rem;
-      min-width: 0;
-
-      > input {
-        flex: 1;
-        min-width: 0;
-      }
-    }
-
-    .file-button {
-      position: relative;
-      display: inline-flex;
-      flex: 0 0 auto;
-      align-items: center;
-      justify-content: center;
-      min-width: 5rem;
-      padding: 0 0.8rem;
-      border: 1px solid color-mix(in srgb, $color-text-muted 25%, transparent);
-      border-radius: $radius-md;
-      background: $color-surface-1;
+    .btn-primary {
+      border-color: color-mix(in srgb, $color-success 70%, transparent);
+      background: color-mix(in srgb, $color-success 85%, transparent);
       color: $color-text;
-      cursor: pointer;
-      font-size: 0.8rem;
-      transition:
-        background 120ms ease,
-        border-color 120ms ease;
 
-      &:hover {
-        border-color: color-mix(in srgb, $color-text-muted 45%, transparent);
-        background: $color-surface-2;
-      }
-
-      input[type="file"] {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        opacity: 0;
-        pointer-events: none;
+      &:hover:not(:disabled) {
+        background: $color-success;
       }
     }
 
-    .favorite-setting {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 1rem;
-      min-height: 2.5rem;
-    }
+    .btn-secondary {
+      border-color: color-mix(in srgb, $color-error 70%, transparent);
+      background: color-mix(in srgb, $color-error 12%, transparent);
+      color: $color-error;
 
-    .favorite-button {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 2.25rem;
-      height: 2.25rem;
-      padding: 0;
-      border: 1px solid color-mix(in srgb, $color-text-muted 25%, transparent);
-      border-radius: $radius-md;
-      background: $color-surface-1;
-      color: $color-text-muted;
-      cursor: pointer;
-      transition:
-        color 120ms ease,
-        background 120ms ease,
-        border-color 120ms ease,
-        transform 120ms ease;
-
-      &:hover {
-        color: $color-text;
-        border-color: color-mix(in srgb, $color-text-muted 45%, transparent);
-        background: $color-surface-2;
-      }
-
-      &:active {
-        transform: scale(0.94);
-      }
-
-      &.favorite-active {
-        color: $color-warning;
-        border-color: color-mix(in srgb, $color-warning 40%, transparent);
-        background: color-mix(in srgb, $color-warning 10%, transparent);
-      }
-    }
-
-    .collapse-button {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 2rem;
-      height: 2rem;
-      padding: 0;
-      border: none;
-      border-radius: $radius-md;
-      background: transparent;
-      color: $color-text-muted;
-      cursor: pointer;
-      transition:
-        color 120ms ease,
-        background 120ms ease,
-        transform 120ms ease;
-
-      &:hover {
-        background: $color-surface-2;
-        color: $color-text;
-      }
-
-      &.expanded {
-        transform: rotate(180deg);
-      }
-    }
-
-    .collapsed-message {
-      padding: 0.5rem 0;
-      color: $color-text-muted;
-      font-size: 0.8rem;
-      font-style: italic;
-    }
-
-    .readonly-label {
-      flex: 0 0 auto;
-      padding: 0.2rem 0.45rem;
-      border: 1px solid color-mix(in srgb, $color-text-muted 20%, transparent);
-      border-radius: 999px;
-      color: $color-text-muted;
-      font-size: 0.65rem;
-      font-weight: 500;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .json-preview {
-      width: 100%;
-      min-width: 0;
-      height: 34rem;
-      margin: 0;
-      padding: 0.85rem;
-      box-sizing: border-box;
-      overflow: auto;
-      border: 1px solid color-mix(in srgb, $color-text-muted 18%, transparent);
-      border-radius: $radius-md;
-      background: $color-surface-1;
-      font-family: "Cascadia Code", "Fira Code", monospace;
-      font-size: 0.76rem;
-      line-height: 1.55;
-      white-space: pre;
-      tab-size: 2;
-
-      :global(.json-key) {
-        color: #8ab4f8;
-      }
-
-      :global(.json-string) {
-        color: #a8d08d;
-      }
-
-      :global(.json-number) {
-        color: #f6c177;
-      }
-
-      :global(.json-boolean) {
-        color: #d19a66;
-      }
-
-      :global(.json-null) {
-        color: #c586c0;
-      }
-    }
-
-    .actions {
-      grid-column: 1 / -1;
-      display: flex;
-      justify-content: flex-end;
-      gap: 0.75rem;
-      padding-top: 0.25rem;
-      border-top: 1px solid color-mix(in srgb, $color-text-muted 18%, transparent);
-
-      button {
-        min-width: 6.5rem;
-        height: 2.4rem;
-        padding: 0.45rem 1.25rem;
-        border: 1px solid transparent;
-        border-radius: $radius-md;
-        font-size: 0.9rem;
-        font-weight: 550;
-        cursor: pointer;
-        transition:
-          background 120ms ease,
-          border-color 120ms ease,
-          opacity 120ms ease,
-          transform 120ms ease;
-
-        &:active:not(:disabled) {
-          transform: translateY(1px);
-        }
-
-        &:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-      }
-
-      .btn-primary {
-        border-color: color-mix(in srgb, $color-success 70%, transparent);
-        background: color-mix(in srgb, $color-success 85%, transparent);
-        color: $color-text;
-
-        &:hover:not(:disabled) {
-          background: $color-success;
-        }
-      }
-
-      .btn-secondary {
-        border-color: color-mix(in srgb, $color-error 70%, transparent);
-        background: color-mix(in srgb, $color-error 12%, transparent);
-        color: $color-error;
-
-        &:hover:not(:disabled) {
-          background: color-mix(in srgb, $color-error 20%, transparent);
-        }
+      &:hover:not(:disabled) {
+        background: color-mix(in srgb, $color-error 20%, transparent);
       }
     }
   }
 }
 
 @media (max-width: 1100px) {
-  .edit-installation-modal {
-    width: 90vw;
+  .edit-profile-modal {
+    height: min(92vh, 1000px);
+    width: 94vw;
 
-    .three-column-form {
+    .profile-grid {
       grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      grid-template-areas:
+        "basic optional"
+        "preview preview"
+        "ram ram"
+        "actions actions";
+      grid-template-rows: auto auto auto auto;
+    }
 
-      .preview-column {
-        grid-column: 1 / -1;
-      }
+    .basic-settings {
+      min-height: 16rem;
+    }
 
-      .json-preview {
-        height: 30rem;
-      }
+    .optional-settings {
+      min-height: 0;
+      max-height: 28rem;
+    }
+
+    .preview-column {
+      height: auto;
+      max-height: none;
+      min-height: 24rem;
+    }
+
+    .json-preview {
+      flex: 1 1 0;
+      height: 0;
+      min-height: 14rem;
     }
   }
 }
 
 @media (max-width: 700px) {
-  .edit-installation-modal {
+  .edit-profile-modal {
     width: 95vw;
-    padding: 1rem;
+    height: 94vh;
+    max-height: 94vh;
+    padding: 0.85rem;
 
-    .three-column-form {
-      grid-template-columns: 1fr;
+    .profile-grid {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-areas:
+        "basic"
+        "optional"
+        "ram"
+        "preview"
+        "actions";
+      grid-template-rows: auto minmax(18rem, auto) auto minmax(22rem, auto) auto;
+      gap: 0.75rem;
+    }
 
-      .preview-column {
-        grid-column: auto;
-      }
+    .basic-settings {
+      min-height: 14rem;
+    }
 
-      .json-preview {
-        height: 24rem;
-      }
+    .description-field textarea {
+      min-height: 7rem;
+    }
 
-      .icon-input-controls {
-        flex-direction: column;
+    .optional-settings {
+      min-height: 18rem;
+      max-height: 30rem;
+    }
 
-        .file-button {
-          min-height: 2.4rem;
-        }
-      }
+    .java-args-input {
+      height: 6rem;
+      min-height: 6rem;
+      max-height: 6rem;
+    }
 
-      .actions {
-        flex-direction: column-reverse;
+    .parameters-input {
+      height: 10rem;
+      min-height: 10rem;
+      max-height: 10rem;
+    }
 
-        button {
-          width: 100%;
-        }
+    .preview-column {
+      height: auto;
+      max-height: none;
+      min-height: 22rem;
+    }
+
+    .json-preview {
+      flex: 1 1 0;
+      height: 0;
+      min-height: 12rem;
+    }
+
+    .actions {
+      flex-direction: column-reverse;
+
+      button {
+        width: 100%;
       }
     }
   }

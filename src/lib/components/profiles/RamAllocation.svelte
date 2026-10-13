@@ -2,6 +2,18 @@
 import { app, Icon, type KableProfile } from "$lib";
 import { onMount } from "svelte";
 
+let {
+  profile: profileProp = null,
+  embedded = false,
+  saveToService = true,
+  onJavaArgsChange,
+}: {
+  profile?: KableProfile | null;
+  embedded?: boolean;
+  saveToService?: boolean;
+  onJavaArgsChange?: (args: string[]) => void;
+} = $props();
+
 const RAM_STEP = 256;
 const RESERVED_SYSTEM_RAM = 4096;
 const MIN_RAM = 512;
@@ -46,7 +58,7 @@ let systemRam = $state(8192);
 let systemRamLoaded = $state(false);
 let initializedProfileId = $state<string | null>(null);
 
-let profile = $derived(app.profilesService.profiles[0] ?? null);
+let profile = $derived(profileProp ?? app.profilesService.profiles[0] ?? null);
 
 let maxRamLimit = $derived(Math.max(MIN_RAM, Math.min(MAX_RAM, Math.floor(Math.max(MIN_RAM, systemRam - RESERVED_SYSTEM_RAM) / RAM_STEP) * RAM_STEP)));
 
@@ -215,13 +227,11 @@ $effect(() => {
 
 function updateMinRamFromSlider() {
   minRamAllocation = clampRam(minRamAllocation, MIN_RAM, maxRamAllocation);
-
   minRamInputValue = String(minRamAllocation);
 }
 
 function updateMaxRamFromSlider() {
   maxRamAllocation = clampRam(maxRamAllocation, minRamAllocation, maxRamLimit);
-
   maxRamInputValue = String(maxRamAllocation);
 }
 
@@ -234,7 +244,6 @@ function updateMinRamFromInput(): boolean {
   }
 
   minRamAllocation = clampRam(roundRam(value), MIN_RAM, maxRamAllocation);
-
   minRamInputValue = String(minRamAllocation);
 
   return true;
@@ -249,7 +258,6 @@ function updateMaxRamFromInput(): boolean {
   }
 
   maxRamAllocation = clampRam(roundRam(value), minRamAllocation, maxRamLimit);
-
   maxRamInputValue = String(maxRamAllocation);
 
   return true;
@@ -318,13 +326,15 @@ async function commitRamChange() {
     return;
   }
 
-  const updatedProfile = app.profilesService.memoryClone(currentProfile);
+  const updatedArgs = [...args.filter((arg) => !/^-Xm[sx](?:=|\d)/i.test(arg)), `-Xms${minRamAllocation}M`, `-Xmx${maxRamAllocation}M`];
 
-  updatedProfile.settings.java_args = [
-    ...updatedProfile.settings.java_args.filter((arg) => !/^-Xm[sx](?:=|\d)/i.test(arg)),
-    `-Xms${minRamAllocation}M`,
-    `-Xmx${maxRamAllocation}M`,
-  ];
+  if (!saveToService) {
+    onJavaArgsChange?.(updatedArgs);
+    return;
+  }
+
+  const updatedProfile = app.profilesService.memoryClone(currentProfile);
+  updatedProfile.settings.java_args = updatedArgs;
 
   isSaving = true;
 
@@ -336,7 +346,7 @@ async function commitRamChange() {
 }
 </script>
 
-<div class="ram-controls">
+<div class="ram-controls" class:embedded>
   <div class="ram-header">
     <div class="profile-info">
       <span class="installation-name">
@@ -588,6 +598,16 @@ async function commitRamChange() {
   background: $color-surface-2;
   border: 1px solid $color-border;
   border-radius: 0.625rem;
+
+  &.embedded {
+    position: relative;
+    inset: auto;
+
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    margin: 1rem 0 0;
+  }
 
   .ram-header {
     display: flex;

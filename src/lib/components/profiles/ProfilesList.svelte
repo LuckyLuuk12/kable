@@ -34,7 +34,7 @@ let profiles = $derived.by(() => {
 });
 
 function editProfile(profile: KableProfile) {
-  app.show(EditProfileModal, { profile });
+  app.show(EditProfileModal, { profileProp: profile });
 }
 
 /**
