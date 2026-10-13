@@ -24,16 +24,6 @@ async function launch() {
 </script>
 
 <div class="play-section">
-  <button class="play-button" onclick={launch} use:launchSound disabled={isLaunching}>
-    {#if isLaunching}
-      <Icon name="refresh" size="md" forceType="svg" className="spin" />
-      <span>Launching...</span>
-    {:else}
-      <Icon name="play" size="md" forceType="svg" />
-      <span>Play Minecraft</span>
-    {/if}
-  </button>
-
   {#if !app.profilesService.profiles.length}
     <p class="no-installations">No installations found. Please check your Minecraft directory in settings.</p>
   {/if}
@@ -43,6 +33,15 @@ async function launch() {
       {launchStatus}
     </p>
   {/if}
+  <button class="play-button" onclick={launch} use:launchSound disabled={isLaunching}>
+    {#if isLaunching}
+      <Icon name="refresh" size="md" forceType="svg" className="spin" />
+      <span>Launching...</span>
+    {:else}
+      <Icon name="play" size="md" forceType="svg" />
+      <span>Play Minecraft</span>
+    {/if}
+  </button>
 </div>
 
 <style lang="scss">
@@ -68,7 +67,7 @@ async function launch() {
   padding: 1rem 2rem;
 
   background: $color-accent;
-  color: var(--text-white);
+  color: $color-text;
 
   border: none;
   border-radius: 0.75rem;
@@ -80,7 +79,7 @@ async function launch() {
   transition: all 0.2s ease;
 
   &:hover:not(:disabled) {
-    background: var(--primary-600);
+    background: $color-accent-hover;
     transform: translateY(-0.125rem);
   }
 
@@ -94,7 +93,7 @@ async function launch() {
 .no-installations {
   margin: 1rem 0 0;
 
-  color: var(--placeholder);
+  color: $color-placeholder;
   font-size: 0.875rem;
 }
 
@@ -103,17 +102,17 @@ async function launch() {
   padding: 0.75rem 1rem;
 
   border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--green), 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-success), 30%, transparent);
 
-  background: color-mix(in srgb, var(--green), 10%, transparent);
-  color: var(--green);
+  background: color-mix(in srgb, var(--color-success), 10%, transparent);
+  color: $color-success;
 
   font-size: 0.875rem;
 
   &.error {
-    background: color-mix(in srgb, var(--red), 10%, transparent);
-    color: var(--red);
-    border-color: color-mix(in srgb, var(--red), 30%, transparent);
+    background: color-mix(in srgb, var(--color-error), 10%, transparent);
+    color: $color-error;
+    border-color: color-mix(in srgb, var(--color-error), 30%, transparent);
   }
 }
 

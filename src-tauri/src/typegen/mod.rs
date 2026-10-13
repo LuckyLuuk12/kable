@@ -113,6 +113,7 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             // #region System
             api::open_url,
             api::open_path,
+            api::get_max_ram,
             // #endregion System
             // #region Updater
             api::check_launcher_updates,

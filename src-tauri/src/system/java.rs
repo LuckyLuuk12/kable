@@ -215,3 +215,10 @@ fn extract_java_version(version_str: &str) -> u32 {
 pub fn auto_detect_java() -> Result<String, String> {
     find_java_executable(None)
 }
+
+/// Returns the maximum RAM available on the system in megabytes.
+pub async fn get_max_ram() -> Result<u32, String> {
+    let total_memory = sysinfo::System::new_all().total_memory();
+
+    u32::try_from(total_memory / (1024 * 1024)).map_err(|e| format!("Failed to get max RAM: {e}"))
+}

@@ -123,6 +123,7 @@ export const commands = {
 	cleanupProfileSymlinks: (profileId: string) => typedError<null, string>(__TAURI_INVOKE("cleanup_profile_symlinks", { profileId })),
 	openUrl: (url: string) => typedError<null, string>(__TAURI_INVOKE("open_url", { url })),
 	openPath: (path: string) => typedError<null, string>(__TAURI_INVOKE("open_path", { path })),
+	getMaxRam: () => typedError<number, string>(__TAURI_INVOKE("get_max_ram")),
 	checkLauncherUpdates: (includePrerelease: boolean) => typedError<UpdateData, string>(__TAURI_INVOKE("check_launcher_updates", { includePrerelease })),
 	installLauncherUpdate: (includePrerelease: boolean) => typedError<null, string>(__TAURI_INVOKE("install_launcher_update", { includePrerelease })),
 	downloadLauncherUpdate: (includePrerelease: boolean) => typedError<string, string>(__TAURI_INVOKE("download_launcher_update", { includePrerelease })),

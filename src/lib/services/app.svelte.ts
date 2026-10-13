@@ -126,6 +126,17 @@ export class AppService {
       console.error("API call failed: `await api.openPath(filePath);`", e);
     }
   }
+  /// Returns the maximum RAM available on the system in megabytes.
+  async getMaxRam(): Promise<number> {
+    try {
+      const maxRam = await api.getMaxRam();
+      console.log("[AppService] Max RAM:", maxRam);
+      return maxRam;
+    } catch (e) {
+      console.error("API call failed: `await api.getMaxRam();`", e);
+      return 0;
+    }
+  }
 
   // #region Modal
   public readonly stack = $state<ModalInstance[]>([]);
