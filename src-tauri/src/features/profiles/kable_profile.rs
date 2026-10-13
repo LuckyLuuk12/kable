@@ -144,7 +144,7 @@ pub async fn save_profiles(profiles: &[KableProfile]) -> Result<(), String> {
     let content = serde_json::to_string_pretty(&profiles).map_err(|e| format!("Failed to serialize profiles: {e}"))?;
 
     write_str(&profiles_file, &content, false).await?;
-    Logger::debug_global(format!("Saved profiles to {}", profiles_file.display()).as_str(), None);
+    Logger::info(format!("Saved profiles to {}", profiles_file.display()).as_str(), None);
     invalidate_no_args("profiles", "load_profiles").await
 }
 

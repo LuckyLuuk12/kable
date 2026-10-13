@@ -60,7 +60,7 @@ pub async fn from_loader_version(
 /// Fetch version metadata at most once for this operation. Sources that do not
 /// require version metadata can still be resolved without fetching it.
 pub async fn create_profile(request: CreateProfileRequest) -> Result<KableProfile, String> {
-    Logger::debug_global(&format!("[create_profile] Creating profile with request: {:?}", request), None);
+    Logger::debug(&format!("[create_profile] Creating profile with request: {:?}", request), None);
 
     let CreateProfileRequest { base, additional_sources, version_override, metadata } = request;
 
@@ -113,7 +113,7 @@ pub async fn create_profile(request: CreateProfileRequest) -> Result<KableProfil
 
     apply_metadata_overrides(&mut profile, metadata);
 
-    Logger::debug_global(
+    Logger::debug(
         &format!(
             "[create_profile] Resolved profile id: {}, version_id: {}, loader: {:?}",
             profile.id, profile.version.id, profile.version.loader
@@ -189,7 +189,7 @@ async fn resolve_modrinth_modpack(
             let result = import_mrpack_from_path(archive_path.clone(), target_profile_id, versions).await;
 
             if let Err(error) = tokio::fs::remove_file(&archive_path).await {
-                Logger::debug_global(&format!("Failed to remove temporary modpack archive {}: {}", archive_path.display(), error), None);
+                Logger::warn_global(&format!("Failed to remove temporary modpack archive {}: {}", archive_path.display(), error), None);
             }
 
             result

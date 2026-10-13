@@ -35,7 +35,7 @@ pub async fn load_worlds() -> Result<Vec<WorldSummary>, String> {
 
     worlds.sort_by_key(|world| world.name.to_lowercase());
 
-    Logger::debug_global(format!("Loaded {} world summaries from {}", worlds.len(), saves_dir.display()).as_str(), None);
+    Logger::info(format!("Loaded {} world summaries from {}", worlds.len(), saves_dir.display()).as_str(), None);
 
     Ok(worlds)
 }

@@ -71,7 +71,7 @@ pub async fn get_versions() -> Result<Versions, String> {
     }
 
     // TODO: we might want to "enrich" the data of non-vanilla versions with url, releaseTime, etc from the corresponding vanilla version if we can find it??
-    Logger::debug_global(format!("Fetched {} versions from all loaders", all_versions.len()).as_str(), None);
+    Logger::info(format!("Fetched {} versions from all loaders", all_versions.len()).as_str(), None);
     Ok(Versions(all_versions))
 }
 

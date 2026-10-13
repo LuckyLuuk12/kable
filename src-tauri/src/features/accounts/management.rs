@@ -119,7 +119,7 @@ pub async fn get_active_account_for_launch() -> Result<Option<KableAccount>, Str
 pub async fn list_accounts() -> Result<Vec<KableAccount>, String> {
     let accounts_json = ensure_accounts_file().await?;
 
-    Logger::debug_global(format!("Listing {} accounts", accounts_json.accounts.len()).as_str(), None);
+    Logger::info(format!("Listing {} accounts", accounts_json.accounts.len()).as_str(), None);
 
     Ok(accounts_json.accounts.values().cloned().collect())
 }
@@ -237,7 +237,7 @@ pub async fn refresh_accounts() -> Result<(), String> {
 
     for account in accounts_json.accounts.values_mut() {
         if minecraft_token_needs_refresh(account) {
-            Logger::debug_global(format!("Refreshing account {}", account.local_id).as_str(), None);
+            Logger::info(format!("Refreshing account {}", account.local_id).as_str(), None);
             refresh_account(account).await?;
         }
     }

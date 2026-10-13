@@ -50,7 +50,7 @@ fn find_java_windows() -> Result<String, String> {
                 let path = path.trim();
                 // Skip Oracle javapath stub launcher
                 if !path.is_empty() && std::path::Path::new(path).exists() && !path.contains("Common Files\\Oracle\\Java\\javapath") {
-                    Logger::debug_global(&format!("Found javaw.exe via PowerShell: {}", path), None);
+                    Logger::info(&format!("Found javaw.exe via PowerShell: {}", path), None);
                     return Ok(path.to_string());
                 }
             }
@@ -59,7 +59,7 @@ fn find_java_windows() -> Result<String, String> {
 
     // Try Minecraft Launcher's bundled runtimes
     if let Some(path) = find_minecraft_launcher_java_windows() {
-        Logger::debug_global(&format!("Found javaw.exe in Minecraft Launcher runtime: {}", path.display()), None);
+        Logger::info(&format!("Found javaw.exe in Minecraft Launcher runtime: {}", path.display()), None);
         return Ok(path.to_string_lossy().to_string());
     }
 
