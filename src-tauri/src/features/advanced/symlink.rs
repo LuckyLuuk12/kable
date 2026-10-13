@@ -3,6 +3,7 @@ use crate::Logger;
 use api_types::symlinks::{Symlink, SymlinkCreateRequest};
 use once_cell::sync::Lazy;
 use std::collections::{HashMap, HashSet};
+use std::io::ErrorKind;
 use std::path::{Component, Path, PathBuf};
 use tokio::sync::{Mutex, MutexGuard};
 
@@ -22,6 +23,44 @@ impl SymlinkManager {
     }
 
     // ---------------------------------------------------------------------
+    // Destination resolution
+    // ---------------------------------------------------------------------
+
+    /// Resolve a destination that may represent either:
+    ///
+    /// 1. An existing directory into which the source should be linked.
+    /// 2. The complete path at which the symlink should be created.
+    ///
+    /// For an existing directory, the source's filename is appended.
+    /// Symlink destinations are deliberately not treated as directories:
+    /// a registered symlink to a directory is still a link entry, not a
+    /// destination directory selected by the caller.
+    ///
+    /// This distinction also keeps toggle/update operations from changing
+    /// the destination of an existing directory symlink.
+    async fn resolve_destination(source: &Path, destination: &Path) -> Result<PathBuf, String> {
+        let metadata = match tokio::fs::symlink_metadata(destination).await {
+            Ok(metadata) => Some(metadata),
+            Err(error) if error.kind() == ErrorKind::NotFound => None,
+            Err(error) => {
+                return Err(format!("Failed to inspect destination path {}: {}", destination.display(), error));
+            }
+        };
+
+        let is_existing_directory = metadata.as_ref().is_some_and(|metadata| metadata.file_type().is_dir());
+
+        if !is_existing_directory {
+            return Ok(destination.to_path_buf());
+        }
+
+        let source_name = source.file_name().ok_or_else(|| {
+            format!("Cannot create a symlink inside {} because the source has no filename: {}", destination.display(), source.display())
+        })?;
+
+        Ok(destination.join(source_name))
+    }
+
+    // ---------------------------------------------------------------------
     // Persistent custom symlinks
     // ---------------------------------------------------------------------
 
@@ -34,7 +73,7 @@ impl SymlinkManager {
                 if !matches!(
                     tokio::fs::metadata(&config_path).await,
                     Err(ref metadata_error)
-                        if metadata_error.kind() == std::io::ErrorKind::NotFound
+                        if metadata_error.kind() == ErrorKind::NotFound
                 ) {
                     return Err(format!("Failed to read custom symlink configuration {}: {}", config_path.display(), error));
                 }
@@ -89,6 +128,8 @@ impl SymlinkManager {
             }
         }
 
+        // These links already have their complete, persisted destination
+        // paths. Do not resolve them as directory destinations again.
         let configured_links = self.symlinks.clone();
 
         for link in &configured_links {
@@ -153,6 +194,9 @@ impl SymlinkManager {
     }
 
     async fn add(&mut self, mut link: Symlink) -> Result<Symlink, String> {
+        // Resolve before checking collisions or creating the link.
+        link.destination = Self::resolve_destination(&link.source, &link.destination).await?;
+
         link.is_temporary = false;
         link.from_launcher = true;
 
@@ -207,14 +251,22 @@ impl SymlinkManager {
             return Err("Symlink not found".to_string());
         };
 
+        let old_link = self.symlinks[index].clone();
+
+        // Keep the resolved destination for toggles and updates that do not
+        // change it. Only resolve a destination when the user changes it.
+        if same_path(&new.destination, &old_link.destination) {
+            new.destination = old_link.destination.clone();
+        } else {
+            new.destination = Self::resolve_destination(&new.source, &new.destination).await?;
+        }
+
         new.is_temporary = false;
         new.from_launcher = true;
 
         if self.symlinks.iter().enumerate().any(|(i, existing)| i != index && same_path(&existing.destination, &new.destination)) {
             return Err(format!("A custom symlink already uses destination {}", new.destination.display()));
         }
-
-        let old_link = self.symlinks[index].clone();
 
         if new.enabled {
             if !new.source.exists() {
@@ -378,7 +430,7 @@ impl SymlinkManager {
 
         let contents = match tokio::fs::read_to_string(&path).await {
             Ok(contents) => contents,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Err(error) if error.kind() == ErrorKind::NotFound => {
                 self.runtime_symlinks.insert(profile_id.to_string(), Vec::new());
                 return Ok(Vec::new());
             }
@@ -436,6 +488,9 @@ impl SymlinkManager {
     }
 
     async fn create_runtime_link(&mut self, profile_id: &str, source: PathBuf, destination: PathBuf) -> Result<Symlink, String> {
+        // Resolve directory destinations before identity and collision checks.
+        let destination = Self::resolve_destination(&source, &destination).await?;
+
         if same_path(&source, &destination) {
             return Err("Source and destination must be different paths".to_string());
         }
@@ -485,8 +540,23 @@ impl SymlinkManager {
         let mut desired_links = Vec::new();
         let mut desired_destinations = HashSet::new();
 
-        // Validate the desired set before changing the filesystem.
-        for (source, destination) in desired {
+        // Resolve directory destinations before duplicate detection. This is
+        // important because two sources linked into the same directory must
+        // be checked using their actual resulting link paths.
+        for (source, requested_destination) in desired {
+            let destination = match Self::resolve_destination(&source, &requested_destination).await {
+                Ok(destination) => destination,
+                Err(error) => {
+                    failures.push(format!(
+                        "Failed to resolve runtime symlink destination {} for source {}: {}",
+                        requested_destination.display(),
+                        source.display(),
+                        error
+                    ));
+                    continue;
+                }
+            };
+
             if same_path(&source, &destination) {
                 failures.push(format!("Runtime symlink source and destination are identical: {}", source.display()));
                 continue;
@@ -615,6 +685,11 @@ impl SymlinkManager {
     // Low-level filesystem operations
     // ---------------------------------------------------------------------
 
+    /// Create a symlink at the complete destination path stored in `link`.
+    ///
+    /// This function intentionally does not resolve directory destinations:
+    /// callers that accept a destination folder must resolve it before
+    /// constructing/persisting the Symlink.
     async fn create(link: &Symlink) -> Result<(), String> {
         if !link.enabled {
             return Err("Cannot create a disabled symlink".to_string());
@@ -668,7 +743,7 @@ impl SymlinkManager {
     async fn delete_if_exists(link: &Symlink) -> Result<(), String> {
         let metadata = match tokio::fs::symlink_metadata(&link.destination).await {
             Ok(metadata) => metadata,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Err(error) if error.kind() == ErrorKind::NotFound => {
                 return Ok(());
             }
             Err(error) => {
@@ -714,7 +789,7 @@ impl SymlinkManager {
     async fn path_exists_without_following_symlinks(path: &Path) -> Result<bool, String> {
         match tokio::fs::symlink_metadata(path).await {
             Ok(_) => Ok(true),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            Err(error) if error.kind() == ErrorKind::NotFound => Ok(false),
             Err(error) => Err(format!("Failed to inspect path {}: {}", path.display(), error)),
         }
     }
@@ -722,7 +797,7 @@ impl SymlinkManager {
     async fn is_correct_symlink(link: &Symlink) -> Result<bool, String> {
         let metadata = match tokio::fs::symlink_metadata(&link.destination).await {
             Ok(metadata) => metadata,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Err(error) if error.kind() == ErrorKind::NotFound => {
                 return Ok(false);
             }
             Err(error) => {
@@ -851,8 +926,8 @@ pub async fn cleanup_profile(profile_id: &str) -> Result<(), String> {
 
 /// Disable persistent custom symlinks and persist their disabled state.
 ///
-/// Runtime symlinks are intentionally left in place because their registry is
-/// reconciled on the next launch.
+/// Runtime symlinks are intentionally left in place because their registry
+/// is reconciled on the next launch.
 pub async fn cleanup() -> Result<(), String> {
     manager().await?.cleanup().await
 }

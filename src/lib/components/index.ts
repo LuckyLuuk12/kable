@@ -1,4 +1,5 @@
 // Component exports
+export * from "./advanced";
 export * from "./auth";
 export * from "./logs";
 // export * from "./mods";
@@ -19,3 +20,4 @@ export { default as UpdateModal } from "./UpdateModal.svelte";
 
 export { default as NavBar } from "./NavBar.svelte";
 export { default as TitleBar } from "./TitleBar.svelte";
+
