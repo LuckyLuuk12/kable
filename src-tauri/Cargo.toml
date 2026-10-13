@@ -39,7 +39,7 @@ flate2 = "1.1.9"
 futures = "0.3.32"
 hex = "0.4"
 ico = "0.5"
-image = "0.25.9"
+image = { version = "0.25.9" , default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "ico"] }
 kable-macros = { path = "../kable-macros" }
 keyring = "3.6.3"
 lazy_static = "1.4"
