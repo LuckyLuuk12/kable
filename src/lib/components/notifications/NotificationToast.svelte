@@ -53,7 +53,6 @@ const iconMap = {
 };
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div
   class="notification-toast notification-{notification.type}"
@@ -64,13 +63,14 @@ const iconMap = {
   on:keydown={handleKeyDown}
   role={notification.onClick ? "button" : "alert"}
   tabindex={notification.onClick ? 0 : -1}
-  aria-live="polite"
->
+  aria-live="polite">
   <div class="notification-icon">
     <Icon name={iconMap[notification.type]} size="sm" forceType="svg" />
   </div>
   <div class="notification-content">
     {#if notification.markdown}
+      <!-- TODO: Add proper escaping -->
+      <!-- eslint-disable-next-line svelte/no-at-html-tags -->
       {@html notification.message}
     {:else}
       <span>{notification.message}</span>
@@ -87,7 +87,7 @@ const iconMap = {
   align-items: center;
   gap: 0.75rem;
   padding: 1rem 1.25rem;
-  border-radius: var(--border-radius);
+  border-radius: $radius-md;
   box-shadow:
     0 0.5rem 2rem rgba(0, 0, 0, 0.2),
     0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
@@ -118,25 +118,25 @@ const iconMap = {
   }
 
   &.notification-success {
-    background: var(--container);
-    border-color: var(--green);
-    color: var(--green);
+    background: $color-surface-2;
+    border-color: $color-success;
+    color: $color-success;
   }
 
   &.notification-error {
-    background: var(--container);
-    border-color: var(--red);
-    color: var(--red);
+    background: $color-surface-2;
+    border-color: $color-error;
+    color: $color-error;
   }
 
   &.notification-warning {
-    background: var(--container);
-    border-color: var(--yellow);
-    color: var(--yellow);
+    background: $color-surface-2;
+    border-color: $color-warning;
+    color: $color-warning;
   }
 
   &.notification-info {
-    background: var(--container);
+    background: $color-surface-2;
     border-color: $color-accent;
     color: $color-accent;
   }

@@ -1,4 +1,4 @@
-import { type KableProfile, type LaunchResult, type Versions, api } from "$lib";
+import { type KableProfile, type LaunchResult, type Versions, api, app } from "$lib";
 import type { Service } from "./app.svelte";
 
 export class LauncherService implements Service {
@@ -13,12 +13,11 @@ export class LauncherService implements Service {
   loadingJava = $state(false);
 
   async init() {
-    // Load versions, javapath, etc. on startup
     await Promise.all([this.loadVersions(), this.autoDetectJava()]);
   }
 
   /**
-   * Launch a Minecraft profile
+   * Launch a Minecraft profile.
    */
   async launch(profile: KableProfile): Promise<LaunchResult> {
     this.launching = true;
@@ -27,7 +26,17 @@ export class LauncherService implements Service {
     try {
       const result = await api.launchGame(profile);
       this.lastLaunch = result;
+
+      app.notificationService.success(
+        `Launching Minecraft with profile "${profile.metadata.name}".`
+      );
+
       return result;
+    } catch (error) {
+      app.notificationService.error(
+        `Failed to launch Minecraft with profile "${profile.metadata.name}".`
+      );
+      throw error;
     } finally {
       this.launching = false;
       this.launchingProfileId = null;
@@ -36,16 +45,25 @@ export class LauncherService implements Service {
   }
 
   async launchLatest() {
-    const profiles = await api.getProfiles(true);
-    if (!profiles || profiles.length === 0) {
-      throw new Error("No profiles found to launch");
+    try {
+      const profiles = await api.getProfiles(true);
+
+      if (!profiles || profiles.length === 0) {
+        throw new Error("No profiles found to launch.");
+      }
+
+      return await this.launch(profiles[0]);
+    } catch (error) {
+      if (error instanceof Error && error.message === "No profiles found to launch.") {
+        app.notificationService.warning(error.message);
+      }
+
+      throw error;
     }
-    const latestProfile = profiles[0];
-    return await this.launch(latestProfile);
   }
 
   /**
-   * Auto-detect Java installation path
+   * Auto-detect Java installation path.
    */
   async autoDetectJava() {
     this.loadingJava = true;
@@ -60,19 +78,19 @@ export class LauncherService implements Service {
   }
 
   /**
-   * Resolve / validate a Java path
+   * Resolve or validate a Java path.
    */
   async getJavaPath(javaPath: string | null) {
     try {
       return await api.getJavaPath(javaPath);
-    } catch (e) {
-      console.error("API call failed: `return await api.getJavaPath(javaPath);`", e);
+    } catch (error) {
+      console.error("API call failed: `return await api.getJavaPath(javaPath);`", error);
       return null;
     }
   }
 
   /**
-   * Load available Minecraft / loader versions
+   * Load available Minecraft and loader versions.
    */
   async loadVersions(force: boolean = false) {
     if (this.versions && !force) return this.versions;
@@ -89,18 +107,25 @@ export class LauncherService implements Service {
   }
 
   /**
-   * Refresh versions explicitly
+   * Refresh versions explicitly.
    */
   async refreshVersions() {
-    this.versions = await api.refreshVersions();
-    return this.versions;
+    this.loadingVersions = true;
+
+    try {
+      this.versions = await api.refreshVersions();
+      return this.versions;
+    } finally {
+      this.loadingVersions = false;
+    }
   }
 
   /**
-   * Clears runtime state (useful on profile switch or app reset)
+   * Clear runtime state, for example on profile switch or app reset.
    */
   async destroy() {
     this.launching = false;
+    this.launchingProfileId = null;
     this.lastLaunch = null;
     this.javaPath = null;
     this.versions = null;

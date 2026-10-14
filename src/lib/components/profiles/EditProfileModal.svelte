@@ -305,6 +305,7 @@ function cancelEdit() {
         </button>
       </div>
 
+      <!-- TODO: Add proper escaping -->
       <!-- eslint-disable-next-line svelte/no-at-html-tags -->
       <pre class="json-preview"><code>{@html highlightedJson}</code></pre>
     </section>

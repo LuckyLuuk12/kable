@@ -1,6 +1,7 @@
 import { type CreateProfileRequest, type KableProfile, type LoaderKind, api } from "$lib";
 import { SvelteDate } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
+import { app } from "./app.svelte";
 
 export type ProfileStatistics = {
   totalPlaytimeMs: number;
@@ -44,7 +45,8 @@ export class ProfilesService implements Service {
 
     try {
       const tmp_profiles = await api.getProfiles(force);
-      // only update the profiles if they have changed to avoid unnecessary reactivity updates
+
+      // Only update the profiles if they have changed to avoid unnecessary reactivity updates.
       if (JSON.stringify(tmp_profiles) !== JSON.stringify(this.profiles)) {
         this.profiles = tmp_profiles;
       }
@@ -66,8 +68,11 @@ export class ProfilesService implements Service {
     try {
       await api.modifyProfile(oldProfile, newProfile);
       await this.refreshProfiles();
+
+      app.notificationService.success("Profile updated successfully.");
     } catch (e) {
       console.error("[ProfilesService] Failed to modify profile", e);
+      app.notificationService.error("Failed to update profile.");
     }
   }
 
@@ -92,25 +97,26 @@ export class ProfilesService implements Service {
     } catch (e) {
       this.profiles = previousProfiles;
       console.error("[ProfilesService] Failed to toggle favorite status for profile", e);
+      app.notificationService.error("Failed to update profile favorite status.");
     }
   }
 
   getLoaderColor(loader: LoaderKind): string {
     switch (loader) {
       case "vanilla":
-        return "#11833c"; // Vanilla's green/grass color
+        return "#11833c";
       case "fabric":
-        return "#dbb866"; // Fabric's golden color
+        return "#dbb866";
       case "forge":
-        return "#1e2d43"; // Forge's dark color
+        return "#1e2d43";
       case "quilt":
-        return "#9c5aa0"; // Quilt's purple color
+        return "#9c5aa0";
       case "neo_forge":
-        return "#f16436"; // NeoForge's orange color
+        return "#f16436";
       case "iris_fabric":
-        return "#4c8cff"; // Iris Fabric's blue color
+        return "#4c8cff";
       default:
-        return "#cccccc"; // Default gray for unknown loaders
+        return "#cccccc";
     }
   }
 
@@ -129,7 +135,7 @@ export class ProfilesService implements Service {
       case "iris_fabric":
         return "iris_fabric";
       default:
-        return "unknown"; // Default icon for unknown loaders
+        return "unknown";
     }
   }
 
@@ -148,7 +154,7 @@ export class ProfilesService implements Service {
       case "iris_fabric":
         return "iris_fabric";
       default:
-        return "unknown"; // Default image for unknown loaders
+        return "unknown";
     }
   }
 
@@ -156,8 +162,11 @@ export class ProfilesService implements Service {
     try {
       await api.deleteProfile(id);
       await this.refreshProfiles();
+
+      app.notificationService.success("Profile deleted successfully.");
     } catch (e) {
       console.error("[ProfilesService] Failed to delete profile", e);
+      app.notificationService.error("Failed to delete profile.");
     }
   }
 
@@ -165,6 +174,8 @@ export class ProfilesService implements Service {
     try {
       await api.createProfile(request);
       await this.refreshProfiles(true);
+
+      app.notificationService.success("Profile created successfully.");
     } catch (e) {
       console.error("[ProfilesService] Failed to create profile", e);
       throw e;
@@ -174,16 +185,22 @@ export class ProfilesService implements Service {
   async createShortcut(profile: KableProfile) {
     try {
       await api.createDesktopShortcut(profile);
+
+      app.notificationService.success("Desktop shortcut created successfully.");
     } catch (e) {
       console.error("[ProfilesService] Failed to create shortcut for profile", e);
+      app.notificationService.error("Failed to create desktop shortcut.");
     }
   }
 
   async exportProfile(profile: KableProfile, destination: string) {
     try {
       await api.exportProfile(profile, destination);
+
+      app.notificationService.success("Profile exported successfully.");
     } catch (e) {
       console.error("[ProfilesService] Failed to export profile", e);
+      app.notificationService.error("Failed to export profile.");
     }
   }
 
@@ -192,9 +209,15 @@ export class ProfilesService implements Service {
 
     const totalProfiles = profiles.length;
 
-    const totalPlaytimeMs = profiles.reduce((total, profile) => total + profile.metadata.total_time_played_ms, 0);
+    const totalPlaytimeMs = profiles.reduce(
+      (total, profile) => total + profile.metadata.total_time_played_ms,
+      0,
+    );
 
-    const totalLaunches = profiles.reduce((total, profile) => total + profile.metadata.times_launched, 0);
+    const totalLaunches = profiles.reduce(
+      (total, profile) => total + profile.metadata.times_launched,
+      0,
+    );
 
     const favoriteCount = profiles.filter((profile) => profile.metadata.favorite).length;
 
@@ -203,7 +226,9 @@ export class ProfilesService implements Service {
         return profile.metadata.last_used;
       }
 
-      return new SvelteDate(profile.metadata.last_used) > new SvelteDate(latest) ? profile.metadata.last_used : latest;
+      return new SvelteDate(profile.metadata.last_used) > new SvelteDate(latest)
+        ? profile.metadata.last_used
+        : latest;
     }, null);
 
     const mostPlayedProfile = profiles.reduce<KableProfile | null>((mostPlayed, profile) => {
@@ -226,13 +251,16 @@ export class ProfilesService implements Service {
       loaderCounts[loader] = (loaderCounts[loader] ?? 0) + 1;
     }
 
-    const mostUsedLoader = Object.entries(loaderCounts).reduce<string | null>((mostUsed, [loader, count]) => {
-      if (!mostUsed || count > loaderCounts[mostUsed]) {
-        return loader;
-      }
+    const mostUsedLoader = Object.entries(loaderCounts).reduce<string | null>(
+      (mostUsed, [loader, count]) => {
+        if (!mostUsed || count > loaderCounts[mostUsed]) {
+          return loader;
+        }
 
-      return mostUsed;
-    }, null);
+        return mostUsed;
+      },
+      null,
+    );
 
     return {
       profiles: {

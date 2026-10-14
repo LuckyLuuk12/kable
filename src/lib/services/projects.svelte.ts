@@ -145,9 +145,16 @@ export class ProjectsService implements Service {
 
     const request = Promise.resolve().then(async () => {
       try {
-        const [enabled, disabled] = await Promise.all([api.listProfileProjects(profile, true), api.listProfileProjects(profile, false)]);
+        const [enabled, disabled] = await Promise.all([
+          api.listProfileProjects(profile, true),
+          api.listProfileProjects(profile, false),
+        ]);
 
-        if (generation !== this.profileGeneration || this.loadedForProfileId !== profile.id || this.loadVersions.get(projectType) !== version) {
+        if (
+          generation !== this.profileGeneration ||
+          this.loadedForProfileId !== profile.id ||
+          this.loadVersions.get(projectType) !== version
+        ) {
           return;
         }
 
@@ -160,7 +167,6 @@ export class ProjectsService implements Service {
         this.notifyEnabledStateChanged();
       } catch (error) {
         console.error(`[ProjectsService] Failed to load ${projectType} projects`, error);
-
         throw error;
       } finally {
         if (this.pendingLoads.get(projectType) === request) {
@@ -252,11 +258,17 @@ export class ProjectsService implements Service {
         versionId,
         dependencies,
         onConfirm: async (selectedDependencies: KableProject[]) => {
-          for (const dependency of selectedDependencies) {
-            await this.download(profile, dependency.project, dependency.version_id);
-          }
+          try {
+            for (const dependency of selectedDependencies) {
+              await this.download(profile, dependency.project, dependency.version_id);
+            }
 
-          await this.download(profile, project, versionId);
+            await this.download(profile, project, versionId);
+          } catch (error) {
+            console.error("Failed to install project and dependencies", error);
+            app.notificationService.error("Failed to install project or one of its dependencies.");
+            throw error;
+          }
         },
       });
     } catch (error) {
@@ -276,9 +288,12 @@ export class ProjectsService implements Service {
       // Installation can change enabledById in InstalledProjects.svelte.
       this.notifyEnabledStateChanged();
 
+      app.notificationService.success(`${project.title} installed successfully.`);
+
       return result;
     } catch (error) {
       console.error("Failed to download project", error);
+      app.notificationService.error(`Failed to install ${project.title}.`);
       throw error;
     }
   }
@@ -290,9 +305,12 @@ export class ProjectsService implements Service {
       this.removeStoredProject(result.project.project_id);
       this.notifyEnabledStateChanged();
 
+      app.notificationService.success(`${project.project.title} removed successfully.`);
+
       return result;
     } catch (error) {
       console.error("Failed to remove project", error);
+      app.notificationService.error(`Failed to remove ${project.project.title}.`);
       throw error;
     }
   }
@@ -312,11 +330,14 @@ export class ProjectsService implements Service {
         await api.toggleProject(profile, project);
         await this.isEnabled(profile, project);
         this.notifyEnabledStateChanged();
+
+        app.notificationService.success(`${project.project.title} enabled.`);
       }
 
       return project;
     } catch (error) {
       console.error("Failed to enable project", error);
+      app.notificationService.error(`Failed to enable ${project.project.title}.`);
       throw error;
     }
   }
@@ -327,11 +348,14 @@ export class ProjectsService implements Service {
         await api.toggleProject(profile, project);
         await this.isEnabled(profile, project);
         this.notifyEnabledStateChanged();
+
+        app.notificationService.success(`${project.project.title} disabled.`);
       }
 
       return project;
     } catch (error) {
       console.error("Failed to disable project", error);
+      app.notificationService.error(`Failed to disable ${project.project.title}.`);
       throw error;
     }
   }
@@ -341,13 +365,18 @@ export class ProjectsService implements Service {
       await api.toggleProject(profile, project);
 
       // Confirm the API can read the state after the toggle completes.
-      await this.isEnabled(profile, project);
+      const enabled = await this.isEnabled(profile, project);
 
       this.notifyEnabledStateChanged();
+
+      app.notificationService.success(
+        `${project.project.title} ${enabled ? "enabled" : "disabled"}.`,
+      );
 
       return project;
     } catch (error) {
       console.error("Failed to toggle project", error);
+      app.notificationService.error(`Failed to change the enabled state of ${project.project.title}.`);
       throw error;
     }
   }
@@ -381,9 +410,12 @@ export class ProjectsService implements Service {
       this.updateStoredProject(updated);
       this.notifyEnabledStateChanged();
 
+      app.notificationService.success(`${project.project.title} updated successfully.`);
+
       return updated;
     } catch (error) {
       console.error("Failed to update project", error);
+      app.notificationService.error(`Failed to update ${project.project.title}.`);
       throw error;
     }
   }
@@ -395,9 +427,14 @@ export class ProjectsService implements Service {
       this.replaceTypeProjects(projectType, updated);
       this.notifyEnabledStateChanged();
 
+      app.notificationService.success(
+        `All ${projectType === "resourcepack" ? "resource packs" : `${projectType}s`} updated successfully.`,
+      );
+
       return updated;
     } catch (error) {
       console.error("Failed to update all projects", error);
+      app.notificationService.error(`Failed to update ${projectType} projects.`);
       throw error;
     }
   }
@@ -409,7 +446,9 @@ export class ProjectsService implements Service {
   getLatestCompatibleVersion(profile: KableProfile, project: Project): ProjectVersion | null {
     const compatibleVersions = this.getCompatibleVersions(profile, project);
 
-    return [...compatibleVersions].sort((a, b) => new Date(b.date_published).getTime() - new Date(a.date_published).getTime())[0] ?? null;
+    return [...compatibleVersions].sort(
+      (a, b) => new Date(b.date_published).getTime() - new Date(a.date_published).getTime(),
+    )[0] ?? null;
   }
 
   isVersionCompatible(profile: KableProfile, version: ProjectVersion, projectType: ProjectType): boolean {
@@ -453,7 +492,13 @@ export class ProjectsService implements Service {
       return;
     }
 
-    console.log("[ProjectsService] selected profile changed to", profile.metadata.name, "with", this.projects.length, "projects loaded");
+    console.log(
+      "[ProjectsService] selected profile changed to",
+      profile.metadata.name,
+      "with",
+      this.projects.length,
+      "projects loaded",
+    );
   }
 
   async getModrinthCategories(): Promise<string[]> {

@@ -110,6 +110,8 @@ function formatTime(date: Date): string {
               </div>
               <div class="item-content">
                 {#if notification.markdown}
+                  <!-- TODO: Add proper escaping -->
+                  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                   <div class="item-message">{@html notification.message}</div>
                 {:else}
                   <div class="item-message">{notification.message}</div>

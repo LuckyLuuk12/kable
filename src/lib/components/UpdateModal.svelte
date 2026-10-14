@@ -121,6 +121,8 @@ function handleKeydown(e: KeyboardEvent) {
           <div class="release-notes">
             <h3>What's New</h3>
             <div class="notes-content markdown-content">
+              <!-- TODO: Add proper escaping -->
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
               {@html releaseNotesHtml}
             </div>
           </div>

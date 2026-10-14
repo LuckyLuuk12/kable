@@ -113,7 +113,8 @@ $effect(() => {
   <i class="icon icon-fontawesome {icon} {sizeClasses[size]} {className}" aria-label={name}></i>
 {:else if type === "svg"}
   <span class="icon icon-svg {sizeClasses[size]} {className}" aria-label={name}>
-    <!-- TODO: Implement either SVG rendering or sanitize HTML to make this safe... -->
+    <!-- TODO: Add proper escaping -->
+    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
     {@html icon}
   </span>
 {:else}

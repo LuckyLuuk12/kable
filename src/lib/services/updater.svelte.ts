@@ -1,4 +1,4 @@
-import { type UpdateData, api } from "$lib";
+import { type UpdateData, api, app } from "$lib";
 import type { Service } from "./app.svelte";
 
 export class UpdaterService implements Service {
@@ -35,6 +35,7 @@ export class UpdaterService implements Service {
       return result;
     } catch (e) {
       this.error = String(e);
+      app.notificationService.error("Failed to check for launcher updates.");
       return null;
     } finally {
       this.checking = false;
@@ -50,9 +51,13 @@ export class UpdaterService implements Service {
 
     try {
       const path = await api.downloadLauncherUpdate(includePrerelease);
+
+      app.notificationService.success("Launcher update downloaded successfully.");
+
       return path;
     } catch (e) {
       this.error = String(e);
+      app.notificationService.error("Failed to download launcher update.");
       return null;
     } finally {
       this.downloading = false;
@@ -68,9 +73,13 @@ export class UpdaterService implements Service {
 
     try {
       await api.installLauncherUpdate(includePrerelease);
+
+      app.notificationService.success("Launcher update installed successfully.");
+
       return true;
     } catch (e) {
       this.error = String(e);
+      app.notificationService.error("Failed to install launcher update.");
       return false;
     } finally {
       this.installing = false;
@@ -86,9 +95,13 @@ export class UpdaterService implements Service {
 
     try {
       await api.applyDownloadedUpdate();
+
+      app.notificationService.success("Downloaded launcher update applied successfully.");
+
       return true;
     } catch (e) {
       this.error = String(e);
+      app.notificationService.error("Failed to apply downloaded launcher update.");
       return false;
     } finally {
       this.installing = false;
