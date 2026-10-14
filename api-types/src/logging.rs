@@ -1,0 +1,39 @@
+use serde::{Deserialize, Serialize};
+use std::fmt;
+
+use crate::Timestamp;
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct FrontendLogBatch {
+    pub logs: Vec<LogEntry>,
+    pub max_logs: u32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct LogEntry {
+    pub level: LogLevel,
+    pub message: String,
+    pub timestamp: Timestamp,
+    pub instance_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum LogLevel {
+    Info,
+    Warn,
+    Error,
+    Debug,
+}
+
+impl fmt::Display for LogLevel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Info => write!(f, "info"),
+            Self::Warn => write!(f, "warn"),
+            Self::Error => write!(f, "error"),
+            Self::Debug => write!(f, "debug"),
+        }
+    }
+}

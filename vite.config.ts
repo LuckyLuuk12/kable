@@ -7,6 +7,9 @@ export default defineConfig({
     preprocessorOptions: {
       scss: {
         api: 'modern',
+        additionalData: `
+          @use "$lib/styles/_inject.scss" as *;
+        `,
         includePaths: [
           'src/lib/styles',
           'node_modules',
@@ -21,6 +24,12 @@ export default defineConfig({
     alias: {
       $lib: './src/lib'
     }
+  },
+  // Ignore changes in the src-tauri directory to prevent unnecessary reloads and make `npm run dev` work the first time.
+  server: {
+    watch: {
+      ignored: ['**/src-tauri/**'],
+    },
   },
   // Tauri expects a static build
   build: {

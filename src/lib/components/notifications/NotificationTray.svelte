@@ -5,13 +5,10 @@ Displays notification history in a dropdown tray accessible from a bell icon.
 Shows recent notifications and allows clearing history.
 -->
 <script lang="ts">
-import { notificationHistory } from "$lib/services/NotificationService";
-import { NotificationService, Icon } from "$lib";
-import { clickSound } from "$lib/actions";
-import { onMount, onDestroy } from "svelte";
-import * as systemApi from "$lib/api/system";
+import { Icon, app, clickSound } from "$lib";
+import { onDestroy, onMount } from "svelte";
 
-let isOpen = false;
+let isOpen = $state(false);
 let trayElement: HTMLDivElement;
 
 function toggleTray() {
@@ -23,16 +20,16 @@ function closeTray() {
 }
 
 function clearHistory() {
-  NotificationService.clearHistory();
+  app.notificationService.clearHistory();
   closeTray();
 }
 
 async function openHelp() {
   try {
-    await systemApi.openUrl("https://github.com/LuckyLuuk12/kable/wiki");
+    await app.openUrl("https://github.com/LuckyLuuk12/kable/wiki");
   } catch (error) {
     console.error("Failed to open help wiki:", error);
-    NotificationService.error("Failed to open help page");
+    app.notificationService.error("Failed to open help page");
   }
 }
 
@@ -77,16 +74,10 @@ function formatTime(date: Date): string {
 </script>
 
 <div class="notification-tray" bind:this={trayElement}>
-  <button
-    use:clickSound
-    class="tray-toggle"
-    on:click|stopPropagation={toggleTray}
-    aria-label="Notification history"
-    title="Notification history"
-  >
+  <button use:clickSound class="tray-toggle" onclick={toggleTray} aria-label="Notification history" title="Notification history">
     <Icon name="help" size="sm" />
-    {#if $notificationHistory.length > 0}
-      <span class="notification-badge">{$notificationHistory.length}</span>
+    {#if app.notificationService.notificationHistory.length > 0}
+      <span class="notification-badge">{app.notificationService.notificationHistory.length}</span>
     {/if}
   </button>
 
@@ -95,16 +86,9 @@ function formatTime(date: Date): string {
       <div class="tray-header">
         <h3>Notifications</h3>
         <div class="header-actions">
-          <button
-            use:clickSound
-            class="help-btn"
-            on:click={openHelp}
-            title="Get help"
-          >
-            Get Help
-          </button>
-          {#if $notificationHistory.length > 0}
-            <button use:clickSound class="clear-btn" on:click={clearHistory}>
+          <button use:clickSound class="help-btn" onclick={openHelp} title="Get help"> Get Help </button>
+          {#if app.notificationService.notificationHistory.length > 0}
+            <button use:clickSound class="clear-btn" onclick={clearHistory}>
               <Icon name="trash" size="sm" />
               Clear
             </button>
@@ -113,19 +97,21 @@ function formatTime(date: Date): string {
       </div>
 
       <div class="tray-content">
-        {#if $notificationHistory.length === 0}
+        {#if app.notificationService.notificationHistory.length === 0}
           <div class="empty-state">
             <Icon name="activity" size="lg" />
             <p>No notifications yet</p>
           </div>
         {:else}
-          {#each $notificationHistory as notification (notification.id)}
+          {#each app.notificationService.notificationHistory as notification (notification.id)}
             <div class="tray-item notification-{notification.type}">
               <div class="item-icon">
                 <Icon name={iconMap[notification.type]} size="sm" />
               </div>
               <div class="item-content">
                 {#if notification.markdown}
+                  <!-- TODO: Add proper escaping -->
+                  <!-- eslint-disable-next-line svelte/no-at-html-tags -->
                   <div class="item-message">{@html notification.message}</div>
                 {:else}
                   <div class="item-message">{notification.message}</div>
@@ -143,8 +129,6 @@ function formatTime(date: Date): string {
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/variables" as *;
-
 .notification-tray {
   position: relative;
   display: flex;
@@ -155,18 +139,18 @@ function formatTime(date: Date): string {
   position: relative;
   background: transparent;
   border: none;
-  color: var(--text);
+  color: $color-text;
   cursor: pointer;
   padding: 0.5rem;
-  border-radius: var(--border-radius);
+  border-radius: $radius-md;
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
 
   &:hover {
-    background: var(--button-hover);
-    color: var(--primary);
+    background: $color-hover;
+    color: $color-accent;
   }
 }
 
@@ -174,8 +158,8 @@ function formatTime(date: Date): string {
   position: absolute;
   top: 0.25rem;
   right: 0.25rem;
-  background: var(--red);
-  color: var(--text-white);
+  background: $color-error;
+  color: $color-text;
   font-size: 0.65rem;
   font-weight: 700;
   padding: 0.125rem 0.35rem;
@@ -191,9 +175,9 @@ function formatTime(date: Date): string {
   right: 0;
   width: 360px;
   max-height: 500px;
-  background: var(--card);
-  border: 1px solid var(--dark-600);
-  border-radius: var(--border-radius);
+  background: $color-surface-3;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
   box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
@@ -206,13 +190,13 @@ function formatTime(date: Date): string {
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.25rem;
-  border-bottom: 1px solid var(--dark-600);
+  border-bottom: 1px solid $color-border;
 
   h3 {
     margin: 0;
     font-size: 1rem;
     font-weight: 600;
-    color: var(--text);
+    color: $color-text;
   }
 
   .header-actions {
@@ -236,20 +220,20 @@ function formatTime(date: Date): string {
   }
 
   .help-btn {
-    color: var(--primary);
+    color: $color-accent;
 
     &:hover {
-      background: color-mix(in srgb, var(--primary), 10%, transparent);
-      color: var(--primary);
+      background: color-mix(in srgb, $color-accent, 10%, transparent);
+      color: $color-accent;
     }
   }
 
   .clear-btn {
-    color: var(--placeholder);
+    color: $color-text-muted;
 
     &:hover {
       background: color-mix(in srgb, var(--red), 10%, transparent);
-      color: var(--red);
+      color: $color-error;
     }
   }
 }
@@ -312,9 +296,9 @@ function formatTime(date: Date): string {
   }
 
   &.notification-info {
-    border-left-color: var(--primary);
+    border-left-color: $color-accent;
     .item-icon {
-      color: var(--primary);
+      color: $color-accent;
     }
   }
 }
@@ -338,7 +322,7 @@ function formatTime(date: Date): string {
     word-wrap: break-word;
 
     :global(code) {
-      background: var(--background);
+      background: $color-background;
       padding: 0.125rem 0.25rem;
       border-radius: 0.25rem;
       font-family: monospace;

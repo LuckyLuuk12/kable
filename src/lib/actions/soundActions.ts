@@ -1,32 +1,29 @@
-import { soundService } from "$lib/services/SoundService";
+import { app } from "$lib/services";
 
 /**
  * Action to add sound effects to interactive elements (buttons, links, etc.)
  * Works on any HTMLElement that can receive click and mouseenter events.
  *
  * @example
- * // Basic usage
+ * <!-- Basic usage -->
  * <button use:clickSound>Click me</button>
  * <a href="/page" use:clickSound>Link</a>
  *
  * @example
- * // Custom sounds
+ * <!--Custom sounds -->
  * <button use:clickSound={{ click: 'launch', hover: 'hover' }}>Launch</button>
  * <a href="/settings" use:clickSound={{ click: 'success' }}>Settings</a>
  */
-export function clickSound(
-  node: HTMLElement,
-  options: { click?: string; hover?: string } = {},
-) {
+export function clickSound(node: HTMLElement, options: { click?: string; hover?: string } = {}) {
   const clickSound = options.click || "click";
   const hoverSound = options.hover || "hover";
 
   const handleClick = () => {
-    soundService.playSound(clickSound);
+    app.customizationService.playSound(clickSound);
   };
 
   const handleMouseEnter = () => {
-    soundService.playSound(hoverSound, { volume: 0.3 });
+    app.customizationService.playSound(hoverSound, { volume: 0.3 });
   };
 
   node.addEventListener("click", handleClick);
@@ -48,11 +45,11 @@ export function clickSound(
 
       // Create new handlers with updated sounds
       const newHandleClick = () => {
-        soundService.playSound(newClickSound);
+        app.customizationService.playSound(newClickSound);
       };
 
       const newHandleMouseEnter = () => {
-        soundService.playSound(newHoverSound, { volume: 0.3 });
+        app.customizationService.playSound(newHoverSound, { volume: 0.3 });
       };
 
       // Add new listeners
@@ -109,19 +106,19 @@ export const buttonSound = clickSound;
  * Helper to play sound on specific events
  */
 export function playOnEvent(soundKey: string) {
-  soundService.playSound(soundKey);
+  app.customizationService.playSound(soundKey);
 }
 
 /**
  * Helper to play music
  */
 export function playMusic(playlistKey: string) {
-  soundService.playBackgroundMusic(playlistKey);
+  app.customizationService.playBackgroundMusic(playlistKey);
 }
 
 /**
  * Helper to stop music
  */
 export function stopMusic() {
-  soundService.stopBackgroundMusic();
+  app.customizationService.stopBackgroundMusic();
 }

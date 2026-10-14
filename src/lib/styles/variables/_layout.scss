@@ -1,0 +1,104 @@
+@use "sass:map";
+
+// region Variables
+:root {
+  // ------------------------------------------------------
+  // Layout scalars
+  // ------------------------------------------------------
+  --layout-scale: 1;
+  --layout-container-scale: 1;
+  --layout-shell-scale: 1;
+
+  // ------------------------------------------------------
+  // Sidebar (desktop shell navigation)
+  // ------------------------------------------------------
+  --layout-sidebar-collapsed-width: calc(72px * var(--layout-shell-scale));
+  --layout-sidebar-expanded-width: fit-content;
+
+  // ------------------------------------------------------
+  // Titlebar (custom window chrome)
+  // ------------------------------------------------------
+  --layout-titlebar-height: calc(36px * var(--layout-shell-scale));
+
+  // ------------------------------------------------------
+  // Top tab bar (per-page navigation)
+  // ------------------------------------------------------
+  --layout-tabbar-height: calc(40px * var(--layout-shell-scale));
+
+  // ------------------------------------------------------
+  // Containers (card/panel system)
+  // ------------------------------------------------------
+  --layout-container-1: calc(280px * var(--layout-container-scale));
+  --layout-container-2: calc(360px * var(--layout-container-scale));
+  --layout-container-3: calc(480px * var(--layout-container-scale));
+  --layout-container-4: calc(640px * var(--layout-container-scale));
+  --layout-container-5: calc(800px * var(--layout-container-scale));
+  --layout-container-6: calc(960px * var(--layout-container-scale));
+  --layout-container-7: calc(1120px * var(--layout-container-scale));
+  --layout-container-8: calc(1280px * var(--layout-container-scale));
+
+  // ------------------------------------------------------
+  // Layout spacing context (NOT spacing system itself)
+  // ------------------------------------------------------
+  --layout-gap: calc(16px * var(--layout-scale));
+  --layout-gap-sm: calc(8px * var(--layout-scale));
+  --layout-gap-lg: calc(24px * var(--layout-scale));
+
+  // ------------------------------------------------------
+  // Scroll behavior (desktop-first)
+  // ------------------------------------------------------
+  --layout-scrollbar-size: 10px;
+  --layout-scrollbar-radius: 6px;
+
+  // ------------------------------------------------------
+  // Z-index layers (windowed app model)
+  // ------------------------------------------------------
+  --layout-z-base: 0;
+  --layout-z-content: 10;
+  --layout-z-shell: 100;
+  --layout-z-dropdown: 200;
+  --layout-z-overlay: 500;
+  --layout-z-modal: 1000;
+  --layout-z-toast: 1500;
+}
+
+// endregion
+
+// region Shell
+$layout-sidebar-expanded-width: var(--layout-sidebar-expanded-width) !default;
+$layout-sidebar-collapsed-width: var(--layout-sidebar-collapsed-width) !default;
+$layout-titlebar-height: var(--layout-titlebar-height) !default;
+$layout-tabbar-height: var(--layout-tabbar-height) !default;
+// endregion
+
+// region Containers
+$layout-container-1: var(--layout-container-1) !default;
+$layout-container-2: var(--layout-container-2) !default;
+$layout-container-3: var(--layout-container-3) !default;
+$layout-container-4: var(--layout-container-4) !default;
+$layout-container-5: var(--layout-container-5) !default;
+$layout-container-6: var(--layout-container-6) !default;
+$layout-container-7: var(--layout-container-7) !default;
+$layout-container-8: var(--layout-container-8) !default;
+// endregion
+
+// region Layout Gaps
+$layout-gap: var(--layout-gap) !default;
+$layout-gap-sm: var(--layout-gap-sm) !default;
+$layout-gap-lg: var(--layout-gap-lg) !default;
+// endregion
+
+// region Z-index
+$layout-z-base: var(--layout-z-base) !default;
+$layout-z-content: var(--layout-z-content) !default;
+$layout-z-shell: var(--layout-z-shell) !default;
+$layout-z-dropdown: var(--layout-z-dropdown) !default;
+$layout-z-overlay: var(--layout-z-overlay) !default;
+$layout-z-modal: var(--layout-z-modal) !default;
+$layout-z-toast: var(--layout-z-toast) !default;
+// endregion
+
+// region Scroll
+$layout-scrollbar-size: var(--layout-scrollbar-size) !default;
+$layout-scrollbar-radius: var(--layout-scrollbar-radius) !default;
+// endregion

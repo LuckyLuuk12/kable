@@ -1,32 +1,91 @@
 <!-- @component
 GeneralSettingsUI - General launcher settings panel
 
-Core launcher configuration including Java paths, memory allocation,
-game directory, and window behavior settings.
+Core launcher configuration including all fields of:
+```
+export type GeneralSettings = {
+  java_path?: string | null;
+  game_directory?: string | null;
+  on_game_close?: OnGameAction;
+  on_game_crash?: OnGameAction;
+  on_game_launch?: OnGameAction;
+  update_mode?: UpdateMode;
+  update_detection?: UpdateDetection;
+  update_notification_style?: UpdateNotificationStyle;
+};
+```
 
 @example
 ```svelte
 ◄GeneralSettingsUI /►
 ```
 -->
-<script>
-import { settings, AutoUpdater } from "$lib";
+<script lang="ts">
+import { AutoUpdater, app, type GeneralSettings, type OnGameAction, type UpdateDetection, type UpdateMode, type UpdateNotificationStyle } from "$lib";
 import { onMount } from "svelte";
-import { autoDetectJava } from "$lib/api/launcher";
 
-let isWideScreen = true;
-let detectedJavaPath = "";
+let isWideScreen = $state(true);
+let detectedJavaPath = $state("");
 
 function checkScreen() {
   isWideScreen = window.innerWidth >= 700;
+}
+
+function updateSetting<K extends keyof GeneralSettings>(field: K, value: GeneralSettings[K]) {
+  const general = app.customizationService.settings?.general;
+  if (!general) return;
+
+  app.customizationService.settings!.general = {
+    ...general,
+    [field]: value,
+  };
+
+  app.customizationService.scheduleSave();
+}
+
+function getActionValue(event: Event): OnGameAction {
+  const value = (event.currentTarget as HTMLSelectElement).value;
+
+  switch (value) {
+    case "ask":
+    case "exit":
+    case "minimize":
+    case "minimize_to_tray":
+    case "nothing":
+    case "restart":
+      return value;
+    default:
+      return { open: value };
+  }
+}
+
+function getUpdateDetectionValue(event: Event): UpdateDetection {
+  const value = (event.currentTarget as HTMLSelectElement).value;
+
+  switch (value) {
+    case "on_startup":
+    case "on_close":
+    case "manual":
+      return value;
+    default:
+      return "manual";
+  }
+}
+
+function getUpdateModeValue(event: Event): UpdateMode {
+  return (event.currentTarget as HTMLSelectElement).value as UpdateMode;
+}
+
+function getUpdateNotificationStyleValue(event: Event): UpdateNotificationStyle {
+  return (event.currentTarget as HTMLSelectElement).value as UpdateNotificationStyle;
 }
 
 onMount(() => {
   checkScreen();
   window.addEventListener("resize", checkScreen);
 
-  // Auto-detect Java path for placeholder
-  autoDetectJava()
+  app.launcherService
+    .autoDetectJava()
     .then((path) => {
       detectedJavaPath = path;
     })
@@ -42,19 +101,20 @@ onMount(() => {
 <div class="settings-tab">
   <h2>General Settings</h2>
   <p>Configure general settings for the application.</p>
+
   <form>
     <div class="setting-item">
       <div class="setting-info">
         <label for="java-path">Java Path</label>
-        <p class="setting-description">Path to Java executable</p>
+        <p class="setting-description">Path to the Java executable</p>
       </div>
       <div class="setting-control">
         <input
           type="text"
           id="java-path"
-          bind:value={$settings.general.java_path}
+          value={app.customizationService.settings?.general?.java_path ?? ""}
           placeholder={detectedJavaPath || "Path to Java executable"}
-        />
+          onchange={(event) => updateSetting("java_path", (event.currentTarget as HTMLInputElement).value || null)} />
       </div>
     </div>
 
@@ -67,73 +127,102 @@ onMount(() => {
         <input
           type="text"
           id="game-directory"
-          bind:value={$settings.general.game_directory}
+          value={app.customizationService.settings?.general?.game_directory ?? ""}
           placeholder="C:/Users/user/AppData/Roaming/.minecraft"
-        />
+          onchange={(event) => updateSetting("game_directory", (event.currentTarget as HTMLInputElement).value || null)} />
       </div>
     </div>
 
     <div class="setting-item">
       <div class="setting-info">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label>On Game Close</label>
-        <p class="setting-description">
-          What should happen when the game closes?
-        </p>
+        <label for="on-game-close">On Game Close</label>
+        <p class="setting-description">What should happen when the game closes?</p>
       </div>
+
       <div class="setting-control">
         {#if isWideScreen}
           <div class="radio-group">
-            <label
-              ><input
+            <label>
+              <input
                 type="radio"
                 name="on-game-close"
-                value="open_logs"
-                bind:group={$settings.general.on_game_close}
-              /> Open Logs</label
-            >
-            <label
-              ><input
+                checked={JSON.stringify(app.customizationService.settings?.general?.on_game_close) === JSON.stringify({ open: "logs" })}
+                onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
+                value="logs" />
+              Open Logs
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-close"
-                value="open_home"
-                bind:group={$settings.general.on_game_close}
-              /> Open Home</label
-            >
-            <label
-              ><input
+                checked={JSON.stringify(app.customizationService.settings?.general?.on_game_close) === JSON.stringify({ open: "home" })}
+                onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
+                value="home" />
+              Open Home
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-close"
-                value="exit"
-                bind:group={$settings.general.on_game_close}
-              /> Exit Application</label
-            >
-            <label
-              ><input
+                checked={app.customizationService.settings?.general?.on_game_close === "exit"}
+                onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
+                value="exit" />
+              Exit Application
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-close"
-                value="minimize"
-                bind:group={$settings.general.on_game_close}
-              /> Minimize to Tray</label
-            >
-            <label
-              ><input
+                checked={app.customizationService.settings?.general?.on_game_close === "minimize"}
+                onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
+                value="minimize" />
+              Minimize
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-close"
-                value="ask"
-                bind:group={$settings.general.on_game_close}
-              /> Ask</label
-            >
+                checked={app.customizationService.settings?.general?.on_game_close === "minimize_to_tray"}
+                onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
+                value="minimize_to_tray" />
+              Minimize to Tray
+            </label>
+
+            <label>
+              <input
+                type="radio"
+                name="on-game-close"
+                checked={app.customizationService.settings?.general?.on_game_close === "nothing"}
+                onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
+                value="nothing" />
+              Do Nothing
+            </label>
+
+            <label>
+              <input
+                type="radio"
+                name="on-game-close"
+                checked={app.customizationService.settings?.general?.on_game_close === "ask"}
+                onchange={(event) => updateSetting("on_game_close", getActionValue(event))}
+                value="ask" />
+              Ask
+            </label>
           </div>
         {:else}
           <select
             id="on-game-close"
-            bind:value={$settings.general.on_game_close}
-          >
-            <option value="open_logs">Open Logs</option>
-            <option value="open_home">Open Home</option>
+            value={JSON.stringify(app.customizationService.settings?.general?.on_game_close)}
+            onchange={(event) => updateSetting("on_game_close", getActionValue(event))}>
+            <option value={JSON.stringify({ open: "logs" })}>Open Logs</option>
+            <option value={JSON.stringify({ open: "home" })}>Open Home</option>
             <option value="exit">Exit Application</option>
-            <option value="minimize">Minimize to Tray</option>
+            <option value="minimize">Minimize</option>
+            <option value="minimize_to_tray">Minimize to Tray</option>
+            <option value="nothing">Do Nothing</option>
             <option value="ask">Ask</option>
           </select>
         {/if}
@@ -142,74 +231,105 @@ onMount(() => {
 
     <div class="setting-item">
       <div class="setting-info">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label>On Game Crash</label>
-        <p class="setting-description">
-          What should happen when the game crashes?
-        </p>
+        <label for="">On Game Crash</label>
+        <p class="setting-description">What should happen when the game crashes?</p>
       </div>
+
       <div class="setting-control">
         {#if isWideScreen}
           <div class="radio-group">
-            <label
-              ><input
+            <label>
+              <input
                 type="radio"
                 name="on-game-crash"
-                value="restart"
-                bind:group={$settings.general.on_game_crash}
-              /> Restart Game</label
-            >
-            <label
-              ><input
+                checked={app.customizationService.settings?.general?.on_game_crash === "restart"}
+                onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
+                value="restart" />
+              Restart Game
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-crash"
-                value="open_logs"
-                bind:group={$settings.general.on_game_crash}
-              /> Open Logs</label
-            >
-            <label
-              ><input
+                checked={JSON.stringify(app.customizationService.settings?.general?.on_game_crash) === JSON.stringify({ open: "logs" })}
+                onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
+                value="logs" />
+              Open Logs
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-crash"
-                value="open_home"
-                bind:group={$settings.general.on_game_crash}
-              /> Open Home</label
-            >
-            <label
-              ><input
+                checked={JSON.stringify(app.customizationService.settings?.general?.on_game_crash) === JSON.stringify({ open: "home" })}
+                onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
+                value="home" />
+              Open Home
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-crash"
-                value="exit"
-                bind:group={$settings.general.on_game_crash}
-              /> Exit Application</label
-            >
-            <label
-              ><input
+                checked={app.customizationService.settings?.general?.on_game_crash === "exit"}
+                onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
+                value="exit" />
+              Exit Application
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-crash"
-                value="minimize"
-                bind:group={$settings.general.on_game_crash}
-              /> Minimize to Tray</label
-            >
-            <label
-              ><input
+                checked={app.customizationService.settings?.general?.on_game_crash === "minimize"}
+                onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
+                value="minimize" />
+              Minimize
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-crash"
-                value="ask"
-                bind:group={$settings.general.on_game_crash}
-              /> Ask</label
-            >
+                checked={app.customizationService.settings?.general?.on_game_crash === "minimize_to_tray"}
+                onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
+                value="minimize_to_tray" />
+              Minimize to Tray
+            </label>
+
+            <label>
+              <input
+                type="radio"
+                name="on-game-crash"
+                checked={app.customizationService.settings?.general?.on_game_crash === "nothing"}
+                onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
+                value="nothing" />
+              Do Nothing
+            </label>
+
+            <label>
+              <input
+                type="radio"
+                name="on-game-crash"
+                checked={app.customizationService.settings?.general?.on_game_crash === "ask"}
+                onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}
+                value="ask" />
+              Ask
+            </label>
           </div>
         {:else}
           <select
             id="on-game-crash"
-            bind:value={$settings.general.on_game_crash}
-          >
+            value={JSON.stringify(app.customizationService.settings?.general?.on_game_crash)}
+            onchange={(event) => updateSetting("on_game_crash", getActionValue(event))}>
             <option value="restart">Restart Game</option>
-            <option value="open_logs">Open Logs</option>
-            <option value="open_home">Open Home</option>
+            <option value={JSON.stringify({ open: "logs" })}>Open Logs</option>
+            <option value={JSON.stringify({ open: "home" })}>Open Home</option>
             <option value="exit">Exit Application</option>
-            <option value="minimize">Minimize to Tray</option>
+            <option value="minimize">Minimize</option>
+            <option value="minimize_to_tray">Minimize to Tray</option>
+            <option value="nothing">Do Nothing</option>
             <option value="ask">Ask</option>
           </select>
         {/if}
@@ -220,63 +340,82 @@ onMount(() => {
       <div class="setting-info">
         <!-- svelte-ignore a11y_label_has_associated_control -->
         <label>On Game Launch</label>
-        <p class="setting-description">
-          What should happen when the game launches?
-        </p>
+        <p class="setting-description">What should happen when the game launches?</p>
       </div>
+
       <div class="setting-control">
         {#if isWideScreen}
           <div class="radio-group">
-            <label
-              ><input
+            <label>
+              <input
                 type="radio"
                 name="on-game-launch"
-                value="keep_open"
-                bind:group={$settings.general.on_game_launch}
-              /> Keep Application Open</label
-            >
-            <label
-              ><input
+                checked={app.customizationService.settings?.general?.on_game_launch === "nothing"}
+                onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
+                value="nothing" />
+              Keep Application Open
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-launch"
-                value="exit"
-                bind:group={$settings.general.on_game_launch}
-              /> Exit Application</label
-            >
-            <label
-              ><input
+                checked={app.customizationService.settings?.general?.on_game_launch === "exit"}
+                onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
+                value="exit" />
+              Exit Application
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-launch"
-                value="open_logs"
-                bind:group={$settings.general.on_game_launch}
-              /> Open Logs</label
-            >
-            <label
-              ><input
+                checked={JSON.stringify(app.customizationService.settings?.general?.on_game_launch) === JSON.stringify({ open: "logs" })}
+                onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
+                value="logs" />
+              Open Logs
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-launch"
-                value="minimize"
-                bind:group={$settings.general.on_game_launch}
-              /> Minimize to Tray</label
-            >
-            <label
-              ><input
+                checked={app.customizationService.settings?.general?.on_game_launch === "minimize"}
+                onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
+                value="minimize" />
+              Minimize
+            </label>
+
+            <label>
+              <input
                 type="radio"
                 name="on-game-launch"
-                value="ask"
-                bind:group={$settings.general.on_game_launch}
-              /> Ask</label
-            >
+                checked={app.customizationService.settings?.general?.on_game_launch === "minimize_to_tray"}
+                onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
+                value="minimize_to_tray" />
+              Minimize to Tray
+            </label>
+
+            <label>
+              <input
+                type="radio"
+                name="on-game-launch"
+                checked={app.customizationService.settings?.general?.on_game_launch === "ask"}
+                onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}
+                value="ask" />
+              Ask
+            </label>
           </div>
         {:else}
           <select
             id="on-game-launch"
-            bind:value={$settings.general.on_game_launch}
-          >
-            <option value="keep_open">Keep Application Open</option>
+            value={JSON.stringify(app.customizationService.settings?.general?.on_game_launch)}
+            onchange={(event) => updateSetting("on_game_launch", getActionValue(event))}>
+            <option value="nothing">Keep Application Open</option>
             <option value="exit">Exit Application</option>
-            <option value="open_logs">Open Logs</option>
-            <option value="minimize">Minimize to Tray</option>
+            <option value={JSON.stringify({ open: "logs" })}>Open Logs</option>
+            <option value="minimize">Minimize</option>
+            <option value="minimize_to_tray">Minimize to Tray</option>
             <option value="ask">Ask</option>
           </select>
         {/if}
@@ -285,38 +424,38 @@ onMount(() => {
 
     <div class="setting-item">
       <div class="setting-info">
-        <label for="auto-update-launcher">Auto Update Launcher</label>
-        <p class="setting-description">
-          Automatically check for launcher updates
-        </p>
+        <label for="update-detection">Update Detection</label>
+        <p class="setting-description">When should the launcher check for updates?</p>
       </div>
+
       <div class="setting-control">
-        <input
-          type="checkbox"
-          id="auto-update-launcher"
-          bind:checked={$settings.general.auto_update_launcher}
-        />
+        <select
+          id="update-detection"
+          value={typeof app.customizationService.settings?.general?.update_detection === "string"
+            ? app.customizationService.settings?.general.update_detection
+            : "manual"}
+          onchange={(event) => updateSetting("update_detection", getUpdateDetectionValue(event))}>
+          <option value="manual">Manual</option>
+          <option value="on_startup">On Startup</option>
+          <option value="on_close">On Close</option>
+        </select>
       </div>
     </div>
 
     <div class="setting-item">
       <div class="setting-info">
         <label for="update-mode">Update Mode</label>
-        <p class="setting-description">
-          Choose how updates should be applied: install immediately, download
-          and install on restart, or download on click and install after
-          confirmation.
-        </p>
+        <p class="setting-description">Choose how updates should be applied: install automatically, manually handle updates, or ask for confirmation.</p>
       </div>
+
       <div class="setting-control">
-        <select id="update-mode" bind:value={$settings.general.update_mode}>
-          <option value="instant">Instant update (install immediately)</option>
-          <option value="on_restart"
-            >Update on restart (download now, install on restart)</option
-          >
-          <option value="on_confirm"
-            >Update on confirm (ask before installing)</option
-          >
+        <select
+          id="update-mode"
+          value={app.customizationService.settings?.general?.update_mode ?? "manual"}
+          onchange={(event) => updateSetting("update_mode", getUpdateModeValue(event))}>
+          <option value="automatic">Automatic</option>
+          <option value="manual">Manually</option>
+          <option value="on_confirm">Update on Confirm</option>
         </select>
       </div>
     </div>
@@ -324,126 +463,312 @@ onMount(() => {
     <div class="setting-item">
       <div class="setting-info">
         <label for="update-notification-style">Update Notification Style</label>
-        <p class="setting-description">
-          Choose how update notifications are displayed: as a modal dialog or as
-          a notification toast.
-        </p>
+        <p class="setting-description">Choose how update notifications are displayed.</p>
       </div>
+
       <div class="setting-control">
         <select
           id="update-notification-style"
-          bind:value={$settings.general.update_notification_style}
-        >
+          value={app.customizationService.settings?.general?.update_notification_style ?? "notification"}
+          onchange={(event) => updateSetting("update_notification_style", getUpdateNotificationStyleValue(event))}>
           <option value="notification">Notification Toast</option>
           <option value="modal">Modal Dialog</option>
         </select>
       </div>
     </div>
-
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="show-ads">Show Ads</label>
-        <p class="setting-description">
-          Show ads in the launcher (no paid subscription required)
-        </p>
-      </div>
-      <div class="setting-control">
-        <input
-          type="checkbox"
-          id="show-ads"
-          bind:checked={$settings.general.show_ads}
-        />
-      </div>
-    </div>
   </form>
-  <!-- Auto-updater section -->
+
   <AutoUpdater />
 </div>
 
+<!-- svelte-ignore css_unused_selector -->
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
-
 .settings-tab {
-  background: var(--container);
-  border-radius: var(--border-radius-large);
-  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
-  padding: 2rem 2.5rem;
-  margin-bottom: 2rem;
   width: 100%;
+
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.75rem;
+
+  padding: 2rem 2.5rem;
+  margin-bottom: 2rem;
+
+  background: $color-surface-1;
+  border: 1px solid $color-border-muted;
+  border-radius: $radius-2xl;
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
 }
+
 .settings-tab h2 {
+  margin: 0;
+
+  color: $color-text;
   font-size: 1.5rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
-  background: linear-gradient(to right, $primary, $secondary);
-  color: var(--text-transparent);
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+
+  background: linear-gradient(to right, $color-accent, $color-accent-secondary);
   background-clip: text;
   -webkit-background-clip: text;
-  -moz-background-clip: text;
-  letter-spacing: 0.02em;
+  -webkit-text-fill-color: transparent;
 }
+
+.settings-tab > p {
+  margin: -1rem 0 0;
+
+  color: $color-text-muted;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
 form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 0;
 }
+
 .setting-item {
   display: flex;
-  align-items: flex-start;
-  gap: 2rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--dark-200);
+  align-items: center;
+  gap: 2.5rem;
+
+  min-width: 0;
+  padding: 1.25rem 0;
+
+  border-bottom: 1px solid $color-border-muted;
+
+  &:last-child {
+    border-bottom: none;
+  }
 }
-.setting-item:last-child {
-  border-bottom: none;
-}
+
 .setting-info {
-  flex: 1 1 16.25rem;
-  min-width: 13.75rem;
+  flex: 1 1 16rem;
+  min-width: 13rem;
+
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
+  gap: 0.35rem;
 }
+
 .setting-info label {
-  font-size: 1.08rem;
+  margin: 0;
+
+  color: $color-text;
+  font-size: 1rem;
   font-weight: 500;
-  color: var(--text);
-  margin-bottom: 0.1rem;
-}
-.setting-description {
-  font-size: 0.95rem;
-  color: var(--placeholder);
-  margin-bottom: 0.2rem;
   line-height: 1.4;
 }
+
+.setting-description {
+  margin: 0;
+
+  color: $color-text-muted;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
 .setting-control {
-  flex: 1 1 11.25rem;
+  flex: 1 1 18rem;
+  min-width: 12rem;
+
   display: flex;
   align-items: center;
-  gap: 1rem;
-  min-width: 10rem;
+  justify-content: flex-start;
+  gap: 0.75rem;
 }
+
 .radio-group {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-}
-input[type="text"] {
+  align-items: flex-start;
+  gap: 0.6rem;
   width: 100%;
-  font-size: 1rem;
-  padding: 0.4em 0.8em;
-  border-radius: var(--border-radius);
-  border: 1px solid var(--dark-200);
-  color: var(--text);
+  max-width: 20rem;
 }
+
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+
+  width: 100%;
+
+  color: $color-text;
+  cursor: pointer;
+}
+
+.radio-group input[type="radio"] {
+  appearance: none;
+
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 1rem;
+
+  margin: 0;
+
+  border: 2px solid $color-surface-3;
+  border-radius: 50%;
+
+  background: $color-surface-2;
+
+  cursor: pointer;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &:hover {
+    border-color: $color-accent-muted;
+  }
+
+  &:checked {
+    border-color: $color-accent;
+    background: $color-accent;
+    box-shadow: inset 0 0 0 3px $color-surface-3;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow:
+      inset 0 0 0 3px $color-surface-3,
+      0 0 0 3px color-mix(in srgb, $color-focus 20%, transparent);
+  }
+}
+
+/* Inputs */
+
+input[type="text"],
 select {
-  font-size: 1rem;
-  padding: 0.4em 0.8em;
-  border-radius: var(--border-radius);
-  border: 1px solid var(--dark-200);
-  color: var(--text);
+  width: 100%;
+  max-width: 20rem;
+
+  padding: 0.55rem 0.8rem;
+
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+
+  background: $color-surface-2;
+  color: $color-text;
+
+  font: inherit;
+  font-size: 0.9rem;
+
+  outline: none;
+
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &:hover {
+    border-color: $color-accent-muted;
+    background: $color-surface-3;
+  }
+
+  &:focus {
+    border-color: $color-focus;
+    box-shadow: 0 0 0 3px color-mix(in srgb, $color-focus 20%, transparent);
+  }
+}
+
+select {
+  cursor: pointer;
+}
+
+/* Radio buttons */
+
+input[type="radio"] {
+  width: 1rem;
+  height: 1rem;
+
+  margin: 0;
+
+  accent-color: $color-accent;
+  cursor: pointer;
+}
+
+/* Checkbox */
+
+input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+
+  margin: 0;
+
+  accent-color: $color-accent;
+  cursor: pointer;
+}
+
+/* Buttons */
+
+button {
+  padding: 0.55rem 0.9rem;
+
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+
+  background: $color-surface-2;
+  color: $color-text;
+
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.15s ease;
+
+  &:hover {
+    background: $color-surface-3;
+    border-color: $color-accent;
+    color: $color-accent;
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: $color-focus;
+    box-shadow: 0 0 0 3px color-mix(in srgb, $color-focus 20%, transparent);
+  }
+}
+
+/* Responsive */
+
+@media (max-width: 700px) {
+  .settings-tab {
+    padding: 1.5rem;
+  }
+
+  .setting-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .setting-info {
+    min-width: 0;
+  }
+
+  .setting-control {
+    width: 100%;
+    min-width: 0;
+
+    justify-content: flex-start;
+  }
+
+  input[type="text"],
+  select {
+    max-width: none;
+  }
 }
 </style>

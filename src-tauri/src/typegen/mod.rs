@@ -1,0 +1,152 @@
+/// Specta is a library for generating TypeScript types from Rust types. This module is responsible for generating the TypeScript types for the API commands.
+/// As well as any other types that are used in the API commands. This is done by using the `specta` crate to collect all the types that are used in the API
+/// commands and then generating the TypeScript types for those types.
+// use tauri_specta::ts;
+use crate::api;
+use specta_typescript::Typescript;
+use tauri_specta::{collect_commands, collect_events, Builder};
+
+pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
+    let builder = Builder::<tauri::Wry>::new()
+        .commands(collect_commands![
+            // TODO: make sure all commands are registered in lib.rs AND in typegen module
+            // #region Accounts
+            api::start_authentication,
+            api::poll_authentication,
+            api::authenticate,
+            api::list_accounts,
+            api::add_account,
+            api::remove_account,
+            api::set_active_account,
+            api::get_active_account,
+            // #endregion Accounts
+            // #region Cache
+            api::list_entries,
+            api::invalidate_entry,
+            api::invalidate_namespace,
+            api::invalidate_memory,
+            api::invalidate_all,
+            // #endregion Cache
+            // #region Customization
+            api::get_icon_templates,
+            api::save_custom_icon_template,
+            api::delete_custom_icon_template,
+            api::open_icons_directory,
+            api::resolve_image_path,
+            api::get_settings,
+            api::set_settings,
+            api::list_soundpacks,
+            api::get_soundpack_metadata,
+            api::load_soundpack_file,
+            api::import_soundpack_zip,
+            api::get_sounds_directory_path,
+            api::open_sounds_directory,
+            api::list_css_themes,
+            api::load_css,
+            api::save_css_theme,
+            api::delete_css_theme,
+            api::open_css_themes_directory,
+            // #endregion Customization
+            // #region Discord
+            api::initialize_discord_rpc,
+            api::set_discord_enabled,
+            api::set_discord_playing,
+            api::set_discord_browsing,
+            api::clear_discord_playing,
+            api::clear_discord_presence,
+            api::disconnect_discord,
+            // #endregion Discord
+            // #region Launcher
+            api::launch_game,
+            api::auto_detect_java,
+            api::get_java_path,
+            // #endregion Launcher
+            // #region Profiles
+            api::get_profiles,
+            api::get_profile,
+            api::create_profile,
+            api::modify_profile,
+            api::delete_profile,
+            api::get_versions,
+            api::refresh_versions,
+            api::toggle_project,
+            api::toggle_favorite,
+            api::is_project_enabled,
+            api::export_profile,
+            api::create_desktop_shortcut,
+            // #endregion Profiles
+            // #region Projects
+            api::browse,
+            api::list_profile_projects,
+            api::remove_project,
+            api::add_project_to_profile,
+            api::check_for_update,
+            api::check_for_updates,
+            api::update_project,
+            api::update_all_projects,
+            api::get_modrinth_categories,
+            api::get_modrinth_loaders,
+            api::get_modrinth_game_versions,
+            api::get_modrinth_project_types,
+            api::get_modrinth_side_types,
+            api::resolve_project_dependencies,
+            // #endregion Projects
+            // #region Skins
+            api::get_player_profile,
+            api::get_current_skin_info,
+            api::get_all_account_skins,
+            api::get_local_skins,
+            api::upload_skin_to_account,
+            api::modify_skin_by_id,
+            api::remove_skin_by_id,
+            api::apply_account_skin,
+            api::change_skin_model,
+            api::get_active_cape,
+            api::apply_cape,
+            api::download_skin_from_url,
+            // #endregion Skins
+            // #region Symlinks
+            api::get_symlinks,
+            api::runtime_symlinks,
+            api::runtime_symlinks_for_profile,
+            api::create,
+            api::remove,
+            api::toggle,
+            api::update,
+            api::create_runtime_symlink,
+            api::reconcile_runtime_symlinks,
+            api::cleanup_profile_symlinks,
+            // #endregion Symlinks
+            // #region System
+            api::open_url,
+            api::open_path,
+            api::get_max_ram,
+            // #endregion System
+            // #region Updater
+            api::check_launcher_updates,
+            api::install_launcher_update,
+            api::download_launcher_update,
+            api::apply_downloaded_update,
+            api::get_current_version,
+            // #endregion Updater
+            // #region Worlds
+            api::load_worlds,
+            api::load_world,
+            api::load_world_level,
+            api::load_world_players,
+            api::load_world_player,
+            api::load_world_dimensions,
+            api::load_world_region_storage,
+            api::load_world_datapacks,
+            api::load_world_nbt,
+            // #endregion Worlds
+        ])
+        .events(collect_events![]);
+
+    #[cfg(debug_assertions)]
+    {
+        builder.export(Typescript::default(), "../src/lib/api.ts").expect("failed to export TS");
+    }
+
+    Ok(())
+}

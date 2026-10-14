@@ -1,0 +1,284 @@
+import { type CreateProfileRequest, type KableProfile, type LoaderKind, api } from "$lib";
+import { SvelteDate } from "svelte/reactivity";
+import type { Service } from "./app.svelte";
+import { app } from "./app.svelte";
+
+export type ProfileStatistics = {
+  totalPlaytimeMs: number;
+  totalProfiles: number;
+  lastPlayedDate: string | null;
+  totalLaunches: number;
+  favoriteCount: number;
+  averageLaunchesPerProfile: number;
+  mostPlayedProfile: KableProfile | null;
+  mostUsedLoader: string | null;
+  loaderCounts: Record<string, number>;
+};
+
+export type AccountStatistics = {
+  profiles: ProfileStatistics;
+};
+
+export class ProfilesService implements Service {
+  profiles = $state<KableProfile[]>([]);
+
+  loaded = $state(false);
+  loading = $state(false);
+
+  async init() {
+    if (this.loaded) return;
+
+    this.loading = true;
+    try {
+      const [profiles] = await Promise.all([api.getProfiles(false)]);
+
+      this.profiles = profiles;
+
+      this.loaded = true;
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  async refreshProfiles(force: boolean = false) {
+    this.loading = true;
+
+    try {
+      const tmp_profiles = await api.getProfiles(force);
+
+      // Only update the profiles if they have changed to avoid unnecessary reactivity updates.
+      if (JSON.stringify(tmp_profiles) !== JSON.stringify(this.profiles)) {
+        this.profiles = tmp_profiles;
+      }
+    } finally {
+      this.loading = false;
+    }
+  }
+
+  /**
+   * Creates a deep clone of the given profile object in memory. This is useful for creating a temporary copy of a profile for editing purposes without affecting the original profile until changes are saved.
+   * @param profile The profile to clone.
+   * @returns A deep clone of the given profile.
+   */
+  memoryClone(profile: KableProfile): KableProfile {
+    return JSON.parse(JSON.stringify(profile));
+  }
+
+  async modify(oldProfile: KableProfile, newProfile: KableProfile) {
+    try {
+      await api.modifyProfile(oldProfile, newProfile);
+      await this.refreshProfiles();
+
+      app.notificationService.success("Profile updated successfully.");
+    } catch (e) {
+      console.error("[ProfilesService] Failed to modify profile", e);
+      app.notificationService.error("Failed to update profile.");
+    }
+  }
+
+  async toggleFavorite(profile: KableProfile) {
+    const previousProfiles = this.profiles;
+
+    this.profiles = this.profiles.map((p) =>
+      p.id === profile.id
+        ? {
+          ...p,
+          metadata: {
+            ...p.metadata,
+            favorite: !p.metadata.favorite,
+          },
+        }
+        : p,
+    );
+
+    try {
+      await api.toggleFavorite(profile);
+      await this.refreshProfiles();
+    } catch (e) {
+      this.profiles = previousProfiles;
+      console.error("[ProfilesService] Failed to toggle favorite status for profile", e);
+      app.notificationService.error("Failed to update profile favorite status.");
+    }
+  }
+
+  getLoaderColor(loader: LoaderKind): string {
+    switch (loader) {
+      case "vanilla":
+        return "#11833c";
+      case "fabric":
+        return "#dbb866";
+      case "forge":
+        return "#1e2d43";
+      case "quilt":
+        return "#9c5aa0";
+      case "neo_forge":
+        return "#f16436";
+      case "iris_fabric":
+        return "#4c8cff";
+      default:
+        return "#cccccc";
+    }
+  }
+
+  getLoaderIcon(loader: LoaderKind): string {
+    switch (loader) {
+      case "vanilla":
+        return "vanilla";
+      case "fabric":
+        return "fabric";
+      case "forge":
+        return "forge";
+      case "quilt":
+        return "quilt";
+      case "neo_forge":
+        return "neoforge";
+      case "iris_fabric":
+        return "iris_fabric";
+      default:
+        return "unknown";
+    }
+  }
+
+  getLoaderImage(loader: LoaderKind): string {
+    switch (loader) {
+      case "vanilla":
+        return "vanilla";
+      case "fabric":
+        return "fabric";
+      case "forge":
+        return "forge";
+      case "quilt":
+        return "quilt";
+      case "neo_forge":
+        return "neo_forge";
+      case "iris_fabric":
+        return "iris_fabric";
+      default:
+        return "unknown";
+    }
+  }
+
+  async remove(id: string) {
+    try {
+      await api.deleteProfile(id);
+      await this.refreshProfiles();
+
+      app.notificationService.success("Profile deleted successfully.");
+    } catch (e) {
+      console.error("[ProfilesService] Failed to delete profile", e);
+      app.notificationService.error("Failed to delete profile.");
+    }
+  }
+
+  async createProfile(request: CreateProfileRequest) {
+    try {
+      await api.createProfile(request);
+      await this.refreshProfiles(true);
+
+      app.notificationService.success("Profile created successfully.");
+    } catch (e) {
+      console.error("[ProfilesService] Failed to create profile", e);
+      throw e;
+    }
+  }
+
+  async createShortcut(profile: KableProfile) {
+    try {
+      await api.createDesktopShortcut(profile);
+
+      app.notificationService.success("Desktop shortcut created successfully.");
+    } catch (e) {
+      console.error("[ProfilesService] Failed to create shortcut for profile", e);
+      app.notificationService.error("Failed to create desktop shortcut.");
+    }
+  }
+
+  async exportProfile(profile: KableProfile, destination: string) {
+    try {
+      await api.exportProfile(profile, destination);
+
+      app.notificationService.success("Profile exported successfully.");
+    } catch (e) {
+      console.error("[ProfilesService] Failed to export profile", e);
+      app.notificationService.error("Failed to export profile.");
+    }
+  }
+
+  public getStatistics(): AccountStatistics {
+    const profiles = this.profiles;
+
+    const totalProfiles = profiles.length;
+
+    const totalPlaytimeMs = profiles.reduce(
+      (total, profile) => total + profile.metadata.total_time_played_ms,
+      0,
+    );
+
+    const totalLaunches = profiles.reduce(
+      (total, profile) => total + profile.metadata.times_launched,
+      0,
+    );
+
+    const favoriteCount = profiles.filter((profile) => profile.metadata.favorite).length;
+
+    const lastPlayedDate = profiles.reduce<string | null>((latest, profile) => {
+      if (!latest) {
+        return profile.metadata.last_used;
+      }
+
+      return new SvelteDate(profile.metadata.last_used) > new SvelteDate(latest)
+        ? profile.metadata.last_used
+        : latest;
+    }, null);
+
+    const mostPlayedProfile = profiles.reduce<KableProfile | null>((mostPlayed, profile) => {
+      if (!mostPlayed || profile.metadata.total_time_played_ms > mostPlayed.metadata.total_time_played_ms) {
+        return profile;
+      }
+
+      return mostPlayed;
+    }, null);
+
+    const loaderCounts: Record<string, number> = {};
+
+    for (const profile of profiles) {
+      const loader = profile.version.loader;
+
+      if (!loader) {
+        continue;
+      }
+
+      loaderCounts[loader] = (loaderCounts[loader] ?? 0) + 1;
+    }
+
+    const mostUsedLoader = Object.entries(loaderCounts).reduce<string | null>(
+      (mostUsed, [loader, count]) => {
+        if (!mostUsed || count > loaderCounts[mostUsed]) {
+          return loader;
+        }
+
+        return mostUsed;
+      },
+      null,
+    );
+
+    return {
+      profiles: {
+        totalPlaytimeMs,
+        totalProfiles,
+        lastPlayedDate,
+        totalLaunches,
+        favoriteCount,
+        averageLaunchesPerProfile: totalProfiles > 0 ? totalLaunches / totalProfiles : 0,
+        mostPlayedProfile,
+        mostUsedLoader,
+        loaderCounts,
+      },
+    };
+  }
+
+  async destroy() {
+    this.profiles = [];
+    this.loaded = false;
+  }
+}

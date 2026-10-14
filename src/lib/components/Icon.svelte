@@ -7,7 +7,7 @@ Automatically selects the appropriate icon type based on the IconService configu
 @prop {string} name - The name/identifier of the icon to display
 @prop {'sm' | 'md' | 'lg' | 'xl'} [size='md'] - Size of the icon
 @prop {string} [className=''] - Additional CSS classes to apply
-@prop {'emoji' | 'fontawesome' | 'svg' | 'system' | 'css' | null} [forceType=null] - Force a specific icon type
+@prop {string} [forceType] - Force a specific icon type (e.g., 'svg', 'emoji', 'css_class', 'system', 'custom')
 
 @example
 ```svelte
@@ -16,25 +16,17 @@ Automatically selects the appropriate icon type based on the IconService configu
 ```
 -->
 <script lang="ts">
+import { app, type IconData, type IconType } from "$lib";
 import { onMount } from "svelte";
-import { IconService, selectedTemplate } from "$lib";
 
-export let name: string;
-export let size: "sm" | "md" | "lg" | "xl" = "md";
-export let className: string = "";
-export let forceType:
-  | "emoji"
-  | "fontawesome"
-  | "svg"
-  | "system"
-  | "css"
-  | null = null;
+let {
+  name,
+  size = "md",
+  className = "",
+  forceType = undefined,
+}: { name: string; size?: "sm" | "md" | "lg" | "xl"; className?: string; forceType?: string | undefined } = $props();
 
-let iconData: { icon: string; type: string; fallback: string } = {
-  icon: "❓",
-  type: "emoji",
-  fallback: "❓",
-};
+let iconData: IconData | undefined = $state({ icon: "❓", type: "emoji" });
 
 // Size mappings
 const sizeClasses = {
@@ -46,17 +38,18 @@ const sizeClasses = {
 
 // Initialize icon system on mount
 onMount(async () => {
-  await IconService.initialize();
   updateIcon();
 });
 
 // Update icon when name changes or when selected template changes
-$: if (name || $selectedTemplate) {
-  updateIcon();
-}
+$effect(() => {
+  if (name || app.customizationService.selectedIconTemplate) {
+    updateIcon();
+  }
+});
 
-function updateIcon() {
-  iconData = IconService.getIconWithFallback(name, forceType);
+async function updateIcon() {
+  iconData = await app.customizationService.getIcon(name, forceType);
 }
 
 // Validate SVG content for security
@@ -64,10 +57,7 @@ function isValidSvg(content: string): boolean {
   if (!content || typeof content !== "string") return false;
 
   // Must start with <svg and end with </svg>
-  if (
-    !content.trim().startsWith("<svg") ||
-    !content.trim().endsWith("</svg>")
-  ) {
+  if (!content.trim().startsWith("<svg") || !content.trim().endsWith("</svg>")) {
     return false;
   }
 
@@ -89,52 +79,47 @@ function isValidSvg(content: string): boolean {
   return !dangerousPatterns.some((pattern) => pattern.test(content));
 }
 
-// Reactive statements for rendering
-$: type = iconData.type;
-$: icon = iconData.icon;
+function detectIconType(icon: string): IconType {
+  const trimmed = icon.trim();
+
+  if (trimmed.startsWith("<")) {
+    return "svg";
+  }
+
+  if (trimmed.startsWith("fa ")) {
+    return "css_class";
+  }
+
+  return "emoji";
+}
+
+let type = $derived(typeof iconData === "string" ? detectIconType(iconData) : (iconData?.type ?? null));
+
+let icon = $derived(typeof iconData === "string" ? iconData : (iconData?.icon ?? "❓"));
 
 // Log warning if SVG type but invalid content
-$: if (type === "svg" && !isValidSvg(icon)) {
-  console.warn(
-    `Icon "${name}": Invalid or potentially unsafe SVG content detected, falling back to custom renderer`,
-    icon.substring(0, 100),
-  );
-}
+$effect(() => {
+  if (type === "svg" && !isValidSvg(icon)) {
+    console.warn(`Icon "${name}": Invalid or potentially unsafe SVG content detected, falling back to custom renderer`, icon.substring(0, 100));
+  }
+});
 </script>
 
 {#if type === "emoji"}
-  <span
-    class="icon icon-emoji {sizeClasses[size]} {className}"
-    role="img"
-    aria-label={name}
-  >
+  <span class="icon icon-emoji {sizeClasses[size]} {className}" role="img" aria-label={name}>
     {icon}
   </span>
-{:else if type === "fontawesome"}
-  <i
-    class="icon icon-fontawesome {icon} {sizeClasses[size]} {className}"
-    aria-label={name}
-  ></i>
+{:else if type === "css_class"}
+  <i class="icon icon-fontawesome {icon} {sizeClasses[size]} {className}" aria-label={name}></i>
 {:else if type === "svg"}
   <span class="icon icon-svg {sizeClasses[size]} {className}" aria-label={name}>
+    <!-- TODO: Add proper escaping -->
+    <!-- eslint-disable-next-line svelte/no-at-html-tags -->
     {@html icon}
-  </span>
-{:else if type === "system" || type === "css"}
-  <span
-    class="icon icon-system {sizeClasses[size]} {className}"
-    data-icon={icon}
-    aria-label={name}
-  >
-    <!-- System/CSS icon placeholder - fallback to emoji -->
-    {iconData.fallback}
   </span>
 {:else}
   <!-- Custom template type (svg, image, etc.) - render as span -->
-  <span
-    class="icon icon-custom {sizeClasses[size]} {className}"
-    role="img"
-    aria-label={name}
-  >
+  <span class="icon icon-custom {sizeClasses[size]} {className}" role="img" aria-label={name}>
     {icon}
   </span>
 {/if}
@@ -171,8 +156,7 @@ $: if (type === "svg" && !isValidSvg(icon)) {
   }
 
   &.icon-emoji {
-    font-family:
-      "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
   }
 
   &.icon-fontawesome {

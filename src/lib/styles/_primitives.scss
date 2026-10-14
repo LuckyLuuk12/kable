@@ -1,0 +1,39 @@
+.surface {
+  background: var(--color-container);
+  box-shadow: var(--shadows-2);
+  border-radius: var(--radius-md);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.truncated {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.center {
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}

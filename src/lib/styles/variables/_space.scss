@@ -1,0 +1,56 @@
+// ======================================================
+// SPACING SYSTEM (CSS VARIABLES BASE)
+// ======================================================
+
+:root {
+  // ------------------------------------------------------
+  // Core spacing scale (density-safe)
+  // ------------------------------------------------------
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  // ------------------------------------------------------
+  // UI density control (global scaling)
+  // ------------------------------------------------------
+  --space-scale: 1;
+
+  --space-xs: calc(var(--space-1) * var(--space-scale));
+  --space-sm: calc(var(--space-2) * var(--space-scale));
+  --space-md: calc(var(--space-3) * var(--space-scale));
+  --space-lg: calc(var(--space-4) * var(--space-scale));
+  --space-xl: calc(var(--space-5) * var(--space-scale));
+  --space-2xl: calc(var(--space-6) * var(--space-scale));
+  --space-3xl: calc(var(--space-7) * var(--space-scale));
+  --space-4xl: calc(var(--space-8) * var(--space-scale));
+}
+
+// ===============================================================================================================
+// SCSS ALIASES - this allows to use the variables in SCSS and also have them available in CSS for runtime changes
+// ===============================================================================================================
+
+$space-0: var(--space-0) !default;
+$space-1: var(--space-1) !default;
+$space-2: var(--space-2) !default;
+$space-3: var(--space-3) !default;
+$space-4: var(--space-4) !default;
+$space-5: var(--space-5) !default;
+$space-6: var(--space-6) !default;
+$space-7: var(--space-7) !default;
+$space-8: var(--space-8) !default;
+
+// Semantic aliases (recommended for components)
+$space-xs: var(--space-xs) !default;
+$space-sm: var(--space-sm) !default;
+$space-md: var(--space-md) !default;
+$space-lg: var(--space-lg) !default;
+$space-xl: var(--space-xl) !default;
+$space-2xl: var(--space-2xl) !default;
+$space-3xl: var(--space-3xl) !default;
+$space-4xl: var(--space-4xl) !default;
