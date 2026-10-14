@@ -4,124 +4,176 @@ UpdateModal - Modal for application updates
 Displays update information and provides options to install, download, or dismiss.
 Respects user's update mode preference.
 
-@prop {any | null} [updateInfo=null] - Update information
+@prop {UpdateInfo | null} [updateInfo=null] - Update information
 @prop {boolean} [open=false] - Whether modal is open
 @prop {(() => void) | undefined} onclose - Callback when modal is closed
 @prop {(() => void) | undefined} oninstallnow - Callback to install update immediately
-@prop {(() => void) | undefined} ondownloadandrestart - Callback to download and install on restart
 @prop {(() => void) | undefined} ondownload - Callback to download update for later
-
-@example
-```svelte
-<UpdateModal 
-  {updateInfo} 
-  bind:open 
-  onclose={handleClose} 
-  oninstallnow={handleInstallNow}
-  ondownloadandrestart={handleDownloadRestart}
-  ondownload={handleDownload}
-/>
-```
 -->
 <script lang="ts">
 import { Icon } from "$lib";
 import { clickSound, successSound } from "$lib/actions";
 import { marked } from "marked";
 
-export let updateInfo: any = null;
-export let open = false;
-export let onclose: (() => void) | undefined = undefined;
-export let oninstallnow: (() => void) | undefined = undefined;
-export let ondownload: (() => void) | undefined = undefined;
+type UpdateInfo = {
+  body?: string | null;
+  version?: string | number;
+  current_version?: string | number | null;
+};
 
-let releaseNotesHtml = "";
-let isProcessing = false;
+let {
+  updateInfo = null,
+  open = $bindable(false),
+  onclose,
+  oninstallnow,
+  ondownload,
+}: {
+  updateInfo?: UpdateInfo | null;
+  open?: boolean;
+  onclose?: () => void;
+  oninstallnow?: () => void | Promise<void>;
+  ondownload?: () => void | Promise<void>;
+} = $props();
 
-$: if (updateInfo?.body && open) {
-  const parseMarkdown = async () => {
-    releaseNotesHtml = await marked.parse(updateInfo.body, {
-      breaks: true,
-      gfm: true,
-    });
+let releaseNotesHtml = $state("");
+let isProcessing = $state(false);
+
+// Parse release notes whenever the modal opens or its update information changes.
+// Cancel outdated parses to prevent stale results from replacing newer content.
+$effect(() => {
+  if (!open) {
+    releaseNotesHtml = "";
+    return;
+  }
+
+  let cancelled = false;
+  releaseNotesHtml = "";
+
+  async function parseReleaseNotes(): Promise<void> {
+    const body = updateInfo?.body;
+
+    if (typeof body !== "string" || body.length === 0) {
+      return;
+    }
+
+    try {
+      const html = await marked.parse(body, {
+        breaks: true,
+        gfm: true,
+      });
+
+      if (!cancelled) {
+        releaseNotesHtml = html;
+      }
+    } catch (error) {
+      if (!cancelled) {
+        releaseNotesHtml = "";
+        console.error("Failed to parse update release notes:", error);
+      }
+    }
+  }
+
+  void parseReleaseNotes();
+
+  return () => {
+    cancelled = true;
   };
-  parseMarkdown();
-}
+});
 
-function handleClose() {
+function handleClose(): void {
   if (isProcessing) return;
+
   open = false;
   onclose?.();
 }
 
-async function handleInstallNow() {
-  if (isProcessing) return;
+async function handleInstallNow(): Promise<void> {
+  if (isProcessing || !oninstallnow) return;
+
   isProcessing = true;
+
   try {
-    await oninstallnow?.();
+    await oninstallnow();
+  } catch (error) {
+    console.error("Failed to install update:", error);
   } finally {
     isProcessing = false;
   }
 }
 
-async function handleDownload() {
-  if (isProcessing) return;
+async function handleDownload(): Promise<void> {
+  if (isProcessing || !ondownload) return;
+
   isProcessing = true;
+
   try {
-    await ondownload?.();
+    await ondownload();
     handleClose();
+  } catch (error) {
+    console.error("Failed to download update:", error);
   } finally {
     isProcessing = false;
   }
 }
 
-function handleBackdropClick(e: MouseEvent) {
-  if (e.target === e.currentTarget && !isProcessing) {
+function handleBackdropClick(event: MouseEvent): void {
+  if (event.target === event.currentTarget && !isProcessing) {
     handleClose();
   }
 }
 
-function handleKeydown(e: KeyboardEvent) {
-  if (e.key === "Escape" && !isProcessing) {
+function handleKeydown(event: KeyboardEvent): void {
+  if (event.key === "Escape" && open && !isProcessing) {
     handleClose();
   }
 }
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window onkeydown={handleKeydown} />
 
 {#if open && updateInfo}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
-  <div class="modal-backdrop" on:click={handleBackdropClick}>
-    <div class="modal-content" on:click|stopPropagation role="dialog" aria-modal="true" aria-labelledby="update-modal-title" tabindex="-1">
-      <!-- Header -->
+  <div class="modal-backdrop" onclick={handleBackdropClick} role="presentation">
+    <div
+      class="modal-content"
+      onclick={(event) => event.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="update-modal-title"
+      tabindex="-1"
+      onkeydown={(event) => event.stopPropagation()}>
       <div class="modal-header">
         <div class="header-content">
           <div class="update-icon">
             <Icon name="arrow-up" size="lg" forceType="svg" />
           </div>
+
           <div class="header-text">
             <h2 id="update-modal-title">Update Available</h2>
+
             <p class="version-info">
               Version <strong>v{updateInfo.version}</strong> is now available
+
               {#if updateInfo.current_version}
-                <span class="current-version">(Current: v{updateInfo.current_version})</span>
+                <span class="current-version">
+                  (Current: v{updateInfo.current_version})
+                </span>
               {/if}
             </p>
           </div>
         </div>
-        <button class="close-btn" on:click={handleClose} use:clickSound disabled={isProcessing} aria-label="Close modal">
+
+        <button class="close-btn" onclick={handleClose} use:clickSound disabled={isProcessing} aria-label="Close modal">
           <Icon name="x" size="md" forceType="svg" />
         </button>
       </div>
 
-      <!-- Body -->
       <div class="modal-body">
         {#if releaseNotesHtml}
           <div class="release-notes">
             <h3>What's New</h3>
+
             <div class="notes-content markdown-content">
-              <!-- TODO: Add proper escaping -->
+              <!-- Only render sanitized HTML here if release notes are not fully trusted. -->
               <!-- eslint-disable-next-line svelte/no-at-html-tags -->
               {@html releaseNotesHtml}
             </div>
@@ -131,20 +183,19 @@ function handleKeydown(e: KeyboardEvent) {
         {/if}
       </div>
 
-      <!-- Footer -->
       <div class="modal-footer">
-        <button class="btn-secondary" on:click={handleClose} use:clickSound disabled={isProcessing}> Skip </button>
+        <button class="btn-secondary" onclick={handleClose} use:clickSound disabled={isProcessing}> Skip </button>
 
         <div class="action-buttons">
           {#if ondownload}
-            <button class="btn-download" on:click={handleDownload} use:clickSound disabled={isProcessing} title="Download update for later installation">
+            <button class="btn-download" onclick={handleDownload} use:clickSound disabled={isProcessing} title="Download update for later installation">
               <Icon name="download" size="sm" forceType="svg" />
-              Download & Install on Restart
+              Download &amp; Install on Restart
             </button>
           {/if}
 
           {#if oninstallnow}
-            <button class="btn-primary" on:click={handleInstallNow} use:successSound disabled={isProcessing} title="Install update and restart the application now">
+            <button class="btn-primary" onclick={handleInstallNow} use:successSound disabled={isProcessing} title="Install update and restart the application now">
               <Icon name="check" size="sm" forceType="svg" />
               {isProcessing ? "Installing..." : "Install Now"}
             </button>
@@ -158,10 +209,7 @@ function handleKeydown(e: KeyboardEvent) {
 <style lang="scss">
 .modal-backdrop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -177,6 +225,7 @@ function handleKeydown(e: KeyboardEvent) {
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -203,6 +252,7 @@ function handleKeydown(e: KeyboardEvent) {
     transform: translateY(20px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -241,7 +291,7 @@ function handleKeydown(e: KeyboardEvent) {
       min-width: 0;
 
       h2 {
-        margin: 0 0 0.25rem 0;
+        margin: 0 0 0.25rem;
         font-size: 1.25rem;
         font-weight: 600;
         color: var(--text);
@@ -304,7 +354,7 @@ function handleKeydown(e: KeyboardEvent) {
 
   .release-notes {
     h3 {
-      margin: 0 0 1rem 0;
+      margin: 0 0 1rem;
       font-size: 1rem;
       font-weight: 600;
       color: var(--text);

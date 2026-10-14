@@ -1,12 +1,13 @@
 use std::future::Future;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::OnceLock;
 use std::time::Duration;
 
 use chrono::Utc;
 use moka::future::Cache;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use tokio::sync::RwLock;
 
 use super::config::cache_root;
 use super::entry::CacheEntry;
@@ -21,17 +22,16 @@ use crate::{
 const MEMORY_CACHE_MAX_ENTRIES: u64 = 10_000;
 
 /// Maximum time an unused entry remains in the memory cache.
-///
-/// This is an eviction policy, not the authoritative cache TTL.
-/// CacheEntry::is_expired remains responsible for validating TTLs.
 const MEMORY_CACHE_IDLE_SECS: u64 = 600;
 
-/// Process-wide L1 cache.
-///
-/// Values are serialized CacheEntry blobs, identical to the representation
-/// stored in persistent `.bin` files. This allows the cache to hold values
-/// of different types without requiring T: Clone or TypeId-based storage.
+/// Process-wide L1 cache containing serialized CacheEntry values.
 static MEMORY_CACHE: OnceLock<Cache<String, Vec<u8>>> = OnceLock::new();
+
+/// Coordinates cache operations with invalidation and cache inspection.
+///
+/// Normal operations hold a shared lock. Invalidation and listing hold an
+/// exclusive lock to prevent concurrent writes while they operate.
+static CACHE_OPERATION_LOCK: OnceLock<RwLock<()>> = OnceLock::new();
 
 fn memory_cache() -> &'static Cache<String, Vec<u8>> {
     MEMORY_CACHE.get_or_init(|| {
@@ -42,20 +42,34 @@ fn memory_cache() -> &'static Cache<String, Vec<u8>> {
     })
 }
 
-/// Returns a stable cache identity including the root, namespace and hash.
-///
-/// Including the full path prevents collisions between different cache
-/// namespaces that happen to use the same argument hash.
+fn operation_lock() -> &'static RwLock<()> {
+    CACHE_OPERATION_LOCK.get_or_init(|| RwLock::new(()))
+}
+
+/// Returns the stable identity used by the memory cache.
 fn cache_key(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
-/// Decode and validate a serialized cache entry.
+/// Rejects absolute paths and parent-directory traversal in namespaces.
+fn validate_namespace(parent: &str) -> Result<(), String> {
+    let path = Path::new(parent);
+
+    if parent.is_empty()
+        || path.components().any(|component| matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_)))
+    {
+        return Err(format!("Invalid cache namespace: {parent}"));
+    }
+
+    Ok(())
+}
+
+/// Decodes and validates a serialized cache entry.
 ///
 /// Expired or outdated entries are treated as cache misses.
 fn decode_valid_entry<T: DeserializeOwned>(raw: &[u8]) -> Result<Option<T>, String> {
     let (entry, _): (CacheEntry<T>, usize) =
-        bincode::serde::decode_from_slice(raw, bincode::config::standard()).map_err(|e| format!("Failed to decode cache entry: {}", e))?;
+        bincode::serde::decode_from_slice(raw, bincode::config::standard()).map_err(|e| format!("Failed to decode cache entry: {e}"))?;
 
     if entry.is_expired(Utc::now().timestamp() as u64) || !entry.is_current_format() {
         return Ok(None);
@@ -64,16 +78,31 @@ fn decode_valid_entry<T: DeserializeOwned>(raw: &[u8]) -> Result<Option<T>, Stri
     Ok(Some(entry.value))
 }
 
-/**
- * Public API for getting or computing cached values.
- *
- * Lookup order:
- * 1. In-memory cache.
- * 2. Persistent `.bin` cache.
- * 3. Compute the value and write both cache levels.
- *
- * The persistent cache format and macro-facing API remain unchanged.
- */
+/// Persistent cache entry metadata suitable for frontend consumption.
+///
+/// Paths are relative to the configured cache root.
+#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+pub struct CacheEntryInfo {
+    /// Relative path, for example `projects/abc123.bin`.
+    pub path: PathBuf,
+
+    /// Namespace directory relative to the cache root.
+    pub namespace: String,
+
+    /// Persistent file size in bytes.
+    pub size_bytes: f64,
+}
+
+/// Public API for getting or computing cached values.
+///
+/// Lookup order:
+/// 1. In-memory cache.
+/// 2. Persistent `.bin` cache.
+/// 3. Compute the value and write both cache levels.
+///
+/// Shared operation locking permits concurrent requests for different
+/// entries. The per-entry lock prevents duplicate computation for the
+/// same cache path.
 pub async fn get_or_compute<T, F, Fut>(
     root: PathBuf,
     parent: &str,
@@ -86,32 +115,28 @@ where
     F: FnOnce() -> Fut,
     Fut: Future<Output = Result<T, String>>,
 {
+    let _operation_guard = operation_lock().read().await;
+
     let hash = hash_args(&args);
     let path = root.join(parent).join(format!("{hash}.bin"));
-    let path_str = path.to_string_lossy().to_string();
+    let path_str = path.to_string_lossy().into_owned();
     let memory_key = cache_key(&path);
 
-    // Keep memory and disk operations for the same entry serialized.
     let lock = super::locks::get_lock(&memory_key);
-    let _guard = lock.lock().await;
+    let _entry_guard = lock.lock().await;
 
     // L1: in-memory cache.
-    //
-    // The serialized entry is validated on every hit so that per-entry TTL
-    // and format-version rules remain authoritative.
     if let Some(raw) = memory_cache().get(&memory_key).await {
         match decode_valid_entry::<T>(&raw) {
             Ok(Some(value)) => {
                 Logger::debug_global(&format!("Memory cache hit for key: {path_str}"), None);
+
                 return Ok(value);
             }
             Ok(None) => {
-                // Expired or outdated. Continue to the persistent cache.
                 memory_cache().invalidate(&memory_key).await;
             }
             Err(error) => {
-                // The memory entry is invalid. Remove it and let the
-                // persistent cache determine whether the entry is usable.
                 memory_cache().invalidate(&memory_key).await;
 
                 Logger::warn_global(&format!("Invalid in-memory cache entry for {path_str}: {error}"), None);
@@ -125,17 +150,12 @@ where
             Ok(Some(value)) => {
                 Logger::debug_global(&format!("Persistent cache hit for key: {path_str}"), None);
 
-                // Warm L1 for subsequent requests.
                 memory_cache().insert(memory_key, raw).await;
 
                 return Ok(value);
             }
-            Ok(None) => {
-                // Expired or outdated. Recompute below.
-            }
-            Err(error) => {
-                return Err(error);
-            }
+            Ok(None) => {}
+            Err(error) => return Err(error),
         }
     }
 
@@ -145,21 +165,18 @@ where
     let entry = CacheEntry::new(&result, ttl_secs, Utc::now().timestamp() as u64);
 
     let bytes =
-        bincode::serde::encode_to_vec(&entry, bincode::config::standard()).map_err(|e| format!("Failed to encode cache entry: {}", e))?;
+        bincode::serde::encode_to_vec(&entry, bincode::config::standard()).map_err(|e| format!("Failed to encode cache entry: {e}"))?;
 
-    // Persist first. If persistence fails, return the error and do not
-    // populate L1 with an entry that was not successfully persisted.
     Logger::debug_global(&format!("Cache miss for key: {path_str}. Storing new entry."), None);
 
-    write(&path, &bytes, false).await.map_err(|e| format!("Failed to write cache entry: {}", e))?;
+    write(&path, &bytes, false).await.map_err(|e| format!("Failed to write cache entry: {e}"))?;
 
-    // L1: populate memory after the persistent write succeeds.
     memory_cache().insert(memory_key, bytes).await;
 
     Ok(result)
 }
 
-/// Macro-facing wrapper (stable API for generated code).
+/// Macro-facing wrapper. The generated-code API remains unchanged.
 #[doc(hidden)]
 pub async fn __macro_get_or_compute<T, F, Fut>(parent: &str, args: impl Serialize, ttl_secs: Option<u64>, compute: F) -> Result<T, String>
 where
@@ -167,63 +184,80 @@ where
     F: FnOnce() -> Fut,
     Fut: Future<Output = Result<T, String>>,
 {
-    let root = cache_root().map_err(|e| format!("Failed to get cache root: {}", e))?.to_path_buf();
+    let root = cache_root().map_err(|e| format!("Failed to get cache root: {e}"))?.to_path_buf();
 
     get_or_compute(root, parent, args, ttl_secs, compute).await
 }
 
-/// Invalidate a single cached entry.
+/// Removes a persistent file, treating an already-missing file as success.
+async fn remove_file_if_exists(path: &Path) -> Result<(), String> {
+    match tokio::fs::remove_file(path).await {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("Failed to remove cache file {}: {error}", path.display())),
+    }
+}
+
+/// Invalidates a single cached entry.
 pub async fn invalidate<T: Serialize>(parent: &str, fn_name: &str, args: &T) -> Result<(), String> {
-    let root = super::config::cache_root().map_err(|e| format!("Failed to get cache root: {}", e))?;
+    validate_namespace(parent)?;
+
+    let _operation_guard = operation_lock().write().await;
+
+    let root = cache_root().map_err(|e| format!("Failed to get cache root: {e}"))?;
 
     let key = hash_args(&(fn_name, args));
     let path = root.join(parent).join(format!("{key}.bin"));
     let memory_key = cache_key(&path);
 
+    remove_file_if_exists(&path).await?;
     memory_cache().invalidate(&memory_key).await;
-
-    let _ = crate::system::fs::remove_file(&path).await;
 
     Ok(())
 }
 
-/// Invalidate a cached entry for a function without arguments.
+/// Invalidates an entry for a function without arguments.
 pub async fn invalidate_no_args(parent: &str, fn_name: &str) -> Result<(), String> {
-    let root = super::config::cache_root().map_err(|e| format!("Failed to get cache root: {}", e))?;
+    validate_namespace(parent)?;
+
+    let _operation_guard = operation_lock().write().await;
+
+    let root = cache_root().map_err(|e| format!("Failed to get cache root: {e}"))?;
 
     let key = hash_args(&(fn_name, ()));
     let path = root.join(parent).join(format!("{key}.bin"));
     let memory_key = cache_key(&path);
 
+    remove_file_if_exists(&path).await?;
     memory_cache().invalidate(&memory_key).await;
-
-    let _ = crate::system::fs::remove_file(&path).await;
 
     Ok(())
 }
 
-/// Invalidate every cached entry in a namespace.
+/// Invalidates every cached entry in a namespace.
 ///
-/// Only memory entries whose full path belongs to this namespace are
-/// removed; unrelated namespaces remain warm.
+/// The namespace directory is removed recursively. Its in-memory entries
+/// are invalidated using a path prefix with a trailing separator.
 pub async fn invalidate_group(parent: &str) -> Result<(), String> {
-    let root = super::config::cache_root().map_err(|e| format!("Failed to get cache root: {}", e))?;
+    validate_namespace(parent)?;
+
+    let _operation_guard = operation_lock().write().await;
+
+    let root = cache_root().map_err(|e| format!("Failed to get cache root: {e}"))?;
 
     let dir = root.join(parent);
 
-    let mut entries = crate::system::fs::read_dir(&dir).await.map_err(|e| format!("Failed to read cache group directory: {}", e))?;
-
-    for entry in entries.iter_mut() {
-        let path = entry.as_path();
-
-        if path.is_file() {
-            let _ = crate::system::fs::remove_file(path).await;
+    // Remove persistent entries, including nested directories.
+    match tokio::fs::remove_dir_all(&dir).await {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(format!("Failed to remove cache namespace {}: {error}", dir.display()));
         }
     }
 
-    // Use a directory prefix with a separator so that namespace "foo"
-    // does not accidentally match namespace "foobar".
-    let mut prefix = dir.to_string_lossy().into_owned();
+    // Keep unrelated namespaces, such as "foobar", untouched.
+    let mut prefix = cache_key(&dir);
 
     if !prefix.ends_with(std::path::MAIN_SEPARATOR) {
         prefix.push(std::path::MAIN_SEPARATOR);
@@ -238,24 +272,118 @@ pub async fn invalidate_group(parent: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// Invalidate the entire persistent cache and clear the in-memory cache.
+/// Invalidates every persistent cache entry and clears the memory cache.
 pub async fn invalidate_all() -> Result<(), String> {
-    let root = super::config::cache_root().map_err(|e| format!("Failed to get cache root: {}", e))?;
+    let _operation_guard = operation_lock().write().await;
 
-    let mut entries = crate::system::fs::read_dir(&root).await.map_err(|e| format!("Failed to read cache root directory: {}", e))?;
+    let root = cache_root().map_err(|e| format!("Failed to get cache root: {e}"))?;
 
-    for entry in entries.iter_mut() {
-        let path = entry.as_path();
+    let mut entries = match tokio::fs::read_dir(&root).await {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            memory_cache().invalidate_all();
+            return Ok(());
+        }
+        Err(error) => {
+            return Err(format!("Failed to read cache root directory {}: {error}", root.display()));
+        }
+    };
 
-        if path.is_file() {
-            let _ = crate::system::fs::remove_file(path).await;
-        } else if path.is_dir() {
-            let _ = crate::system::fs::remove_dir_all(path).await;
+    while let Some(entry) = entries.next_entry().await.map_err(|e| format!("Failed to enumerate cache root: {e}"))? {
+        let path = entry.path();
+        let file_type = entry.file_type().await.map_err(|e| format!("Failed to inspect {}: {e}", path.display()))?;
+
+        if file_type.is_dir() {
+            tokio::fs::remove_dir_all(&path).await.map_err(|e| format!("Failed to remove {}: {e}", path.display()))?;
+        } else {
+            remove_file_if_exists(&path).await?;
         }
     }
 
-    // Clear all L1 entries after the persistent cache is cleared.
     memory_cache().invalidate_all();
+
+    Ok(())
+}
+
+/// Clears only the in-memory cache.
+///
+/// Persistent `.bin` files are left untouched.
+pub async fn invalidate_memory() {
+    let _operation_guard = operation_lock().write().await;
+
+    memory_cache().invalidate_all();
+}
+
+/// Lists persistent `.bin` cache entries.
+///
+/// The returned paths are relative to the configured cache root.
+/// Entries are sorted by relative path.
+///
+/// An exclusive operation lock ensures that application cache operations
+/// cannot modify the persistent cache while this listing is in progress.
+pub async fn list_entries() -> Result<Vec<CacheEntryInfo>, String> {
+    let _operation_guard = operation_lock().write().await;
+
+    let root = cache_root().map_err(|e| format!("Failed to get cache root: {e}"))?.to_path_buf();
+
+    let mut pending = vec![root.clone()];
+    let mut result = Vec::new();
+
+    while let Some(dir) = pending.pop() {
+        let mut entries = match tokio::fs::read_dir(&dir).await {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                continue;
+            }
+            Err(error) => {
+                return Err(format!("Failed to read cache directory {}: {error}", dir.display()));
+            }
+        };
+
+        while let Some(entry) =
+            entries.next_entry().await.map_err(|e| format!("Failed to enumerate cache directory {}: {e}", dir.display()))?
+        {
+            let path = entry.path();
+
+            let file_type = entry.file_type().await.map_err(|e| format!("Failed to inspect {}: {e}", path.display()))?;
+
+            if file_type.is_dir() {
+                pending.push(path);
+                continue;
+            }
+
+            if !file_type.is_file() || path.extension().and_then(|ext| ext.to_str()) != Some("bin") {
+                continue;
+            }
+
+            let metadata = entry.metadata().await.map_err(|e| format!("Failed to read metadata for {}: {e}", path.display()))?;
+
+            let relative_path = path.strip_prefix(&root).map_err(|e| format!("Cache entry is outside the cache root: {e}"))?.to_path_buf();
+
+            let namespace = relative_path.parent().unwrap_or_else(|| Path::new("")).to_string_lossy().into_owned();
+
+            result.push(CacheEntryInfo { path: relative_path, namespace, size_bytes: metadata.len() as f64 });
+        }
+    }
+
+    result.sort_by(|a, b| a.path.cmp(&b.path));
+
+    Ok(result)
+}
+
+pub async fn invalidate_entry(path: &str) -> Result<(), String> {
+    let root = cache_root().map_err(|e| format!("Failed to get cache root: {e}"))?.to_path_buf();
+
+    let full_path = root.join(path);
+
+    if !full_path.starts_with(&root) {
+        return Err(format!("Invalid cache entry path: {path}"));
+    }
+
+    let memory_key = cache_key(&full_path);
+
+    remove_file_if_exists(&full_path).await?;
+    memory_cache().invalidate(&memory_key).await;
 
     Ok(())
 }

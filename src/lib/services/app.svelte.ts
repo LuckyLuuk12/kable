@@ -2,6 +2,7 @@ import { api } from "$lib";
 import { type ModalInstance } from "$lib/utils/modal";
 import type { Component } from "svelte";
 import { AuthService } from "./auth.svelte";
+import { CacheService } from "./cache.svelte";
 import { CustomizationService } from "./customization.svelte";
 import { DiscordService } from "./discord.svelte";
 import { EventsService } from "./events.svelte";
@@ -42,6 +43,7 @@ export class AppService {
   worldsService = new WorldsService();
   skinsService = new SkinsService();
   symlinkService = new SymlinkService();
+  cacheService = new CacheService();
 
   /// ! note that the order of services here matters, as some services depend on others being initialized first
   get services(): Service[] {
@@ -59,6 +61,7 @@ export class AppService {
       this.worldsService,
       this.skinsService,
       this.symlinkService,
+      this.cacheService,
     ];
   }
 

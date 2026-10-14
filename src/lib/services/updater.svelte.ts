@@ -34,13 +34,25 @@ export class UpdaterService implements Service {
       this.updateInfo = result;
       return result;
     } catch (e) {
-      this.error = String(e);
+      const message = String(e);
+
+      // These are expected outcomes, not actual failures.
+      if (
+        message.includes("No updates available") ||
+        message.includes("Updates are disabled in development mode")
+      ) {
+        this.updateInfo = null;
+        return null;
+      }
+
+      this.error = message;
       app.notificationService.error("Failed to check for launcher updates.");
       return null;
     } finally {
       this.checking = false;
     }
   }
+
 
   /**
    * Download update without applying

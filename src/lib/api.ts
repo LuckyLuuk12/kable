@@ -33,6 +33,11 @@ export const commands = {
 	user_properties: null[],
 	username: string,
 } | null, string>(__TAURI_INVOKE("get_active_account")),
+	listEntries: () => typedError<CacheEntryInfo[], string>(__TAURI_INVOKE("list_entries")),
+	invalidateEntry: (path: string) => typedError<null, string>(__TAURI_INVOKE("invalidate_entry", { path })),
+	invalidateNamespace: (namespace: string) => typedError<null, string>(__TAURI_INVOKE("invalidate_namespace", { namespace })),
+	invalidateMemory: () => typedError<null, string>(__TAURI_INVOKE("invalidate_memory")),
+	invalidateAll: () => typedError<null, string>(__TAURI_INVOKE("invalidate_all")),
 	getIconTemplates: () => typedError<IconTemplate[], string>(__TAURI_INVOKE("get_icon_templates")),
 	saveCustomIconTemplate: (template: IconTemplate) => typedError<string, string>(__TAURI_INVOKE("save_custom_icon_template", { template })),
 	deleteCustomIconTemplate: (templateName: string) => typedError<null, string>(__TAURI_INVOKE("delete_custom_icon_template", { templateName })),
@@ -171,6 +176,20 @@ export type AppearanceSettings = {
 	custom_icon_templates?: IconTemplate[],
 	selected_css_theme?: Theme | null,
 	sound_settings?: SoundSettings,
+};
+
+/**
+ *  Persistent cache entry metadata suitable for frontend consumption.
+ * 
+ *  Paths are relative to the configured cache root.
+ */
+export type CacheEntryInfo = {
+	/**  Relative path, for example `projects/abc123.bin`. */
+	path: string,
+	/**  Namespace directory relative to the cache root. */
+	namespace: string,
+	/**  Persistent file size in bytes. */
+	size_bytes: number | null,
 };
 
 export type CategorizedLauncherSettings = {

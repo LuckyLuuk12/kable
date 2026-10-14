@@ -90,6 +90,13 @@ pub fn run() {
             api::set_active_account,
             api::get_active_account,
             // #endregion Accounts
+            // #region Cache
+            api::list_entries,
+            api::invalidate_entry,
+            api::invalidate_namespace,
+            api::invalidate_memory,
+            api::invalidate_all,
+            // #endregion Cache
             // #region Customization
             api::get_icon_templates,
             api::save_custom_icon_template,
