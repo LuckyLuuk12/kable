@@ -1,3 +1,4 @@
+
 import { type CreateProfileRequest, type KableProfile, type LoaderKind, api } from "$lib";
 import { SvelteDate } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
@@ -25,79 +26,125 @@ export class ProfilesService implements Service {
   loaded = $state(false);
   loading = $state(false);
 
+  private loadGeneration = 0;
+  private refreshRequest = 0;
+  private refreshPromise: Promise<void> | null = null;
+  private pendingMutations = 0;
+
   async init() {
     if (this.loaded) return;
-
-    this.loading = true;
-    try {
-      const [profiles] = await Promise.all([api.getProfiles(false)]);
-
-      this.profiles = profiles;
-
-      this.loaded = true;
-    } finally {
-      this.loading = false;
-    }
+    await this.refreshProfiles();
   }
 
-  async refreshProfiles(force: boolean = false) {
+  async refreshProfiles(force = false): Promise<void> {
+    const request = ++this.refreshRequest;
+    const generation = this.loadGeneration;
+
     this.loading = true;
 
     try {
-      const tmp_profiles = await api.getProfiles(force);
+      const profiles = await api.getProfiles(force);
 
-      // Only update the profiles if they have changed to avoid unnecessary reactivity updates.
-      if (JSON.stringify(tmp_profiles) !== JSON.stringify(this.profiles)) {
-        this.profiles = tmp_profiles;
+      // Do not allow an older response to overwrite a newer refresh or
+      // a state reset that happened while this request was running.
+      if (request !== this.refreshRequest || generation !== this.loadGeneration) {
+        return;
       }
+
+      if (JSON.stringify(profiles) !== JSON.stringify(this.profiles)) {
+        this.profiles = profiles;
+      }
+
+      this.loaded = true;
+    } catch (error) {
+      console.error("[ProfilesService] Failed to refresh profiles", error);
+      throw error;
     } finally {
-      this.loading = false;
+      if (request === this.refreshRequest && generation === this.loadGeneration) {
+        this.loading = false;
+      }
     }
   }
 
   /**
-   * Creates a deep clone of the given profile object in memory. This is useful for creating a temporary copy of a profile for editing purposes without affecting the original profile until changes are saved.
-   * @param profile The profile to clone.
-   * @returns A deep clone of the given profile.
+   * Refresh the profile list without allowing concurrent refreshes to
+   * overwrite newer state.
    */
-  memoryClone(profile: KableProfile): KableProfile {
-    return JSON.parse(JSON.stringify(profile));
-  }
+  private async refreshAfterMutation(force = true): Promise<void> {
+    this.pendingMutations++;
 
-  async modify(oldProfile: KableProfile, newProfile: KableProfile) {
     try {
-      await api.modifyProfile(oldProfile, newProfile);
-      await this.refreshProfiles();
-
-      app.notificationService.success("Profile updated successfully.");
-    } catch (e) {
-      console.error("[ProfilesService] Failed to modify profile", e);
-      app.notificationService.error("Failed to update profile.");
+      await this.refreshProfiles(force);
+    } finally {
+      this.pendingMutations--;
     }
   }
 
-  async toggleFavorite(profile: KableProfile) {
-    const previousProfiles = this.profiles;
+  /**
+   * Creates a deep clone of the given profile object in memory.
+   * Changes to the clone do not affect the original object.
+   */
+  memoryClone(profile: KableProfile): KableProfile {
+    return structuredClone(profile);
+  }
 
-    this.profiles = this.profiles.map((p) =>
-      p.id === profile.id
+  async modify(oldProfile: KableProfile, newProfile: KableProfile): Promise<void> {
+    try {
+      await api.modifyProfile(oldProfile, newProfile);
+      await this.refreshAfterMutation();
+
+      app.notificationService.success("Profile updated successfully.");
+    } catch (error) {
+      console.error("[ProfilesService] Failed to modify profile", error);
+      app.notificationService.error("Failed to update profile.");
+      throw error;
+    }
+  }
+
+  async toggleFavorite(profile: KableProfile): Promise<void> {
+    const previousProfiles = this.profiles;
+    const target = previousProfiles.find((item) => item.id === profile.id);
+
+    if (!target) {
+      await this.refreshProfiles(true);
+      return;
+    }
+
+    const previousFavorite = target.metadata.favorite;
+    const optimisticProfiles = previousProfiles.map((item) =>
+      item.id === profile.id
         ? {
-          ...p,
+          ...item,
           metadata: {
-            ...p.metadata,
-            favorite: !p.metadata.favorite,
+            ...item.metadata,
+            favorite: !previousFavorite,
           },
         }
-        : p,
+        : item,
     );
 
+    this.profiles = optimisticProfiles;
+
     try {
-      await api.toggleFavorite(profile);
-      await this.refreshProfiles();
-    } catch (e) {
-      this.profiles = previousProfiles;
-      console.error("[ProfilesService] Failed to toggle favorite status for profile", e);
+      await api.toggleFavorite(target);
+      await this.refreshAfterMutation();
+    } catch (error) {
+      // Restore only if no later state update has replaced our optimistic
+      // state. Otherwise refresh from the backend to avoid clobbering it.
+      console.error("[ProfilesService] Failed to toggle favorite status for profile", error);
+
+      try {
+        await this.refreshProfiles(true);
+      } catch (refreshError) {
+        console.error("[ProfilesService] Failed to recover profiles after favorite update", refreshError);
+
+        if (this.profiles === optimisticProfiles) {
+          this.profiles = previousProfiles;
+        }
+      }
+
       app.notificationService.error("Failed to update profile favorite status.");
+      throw error;
     }
   }
 
@@ -158,49 +205,53 @@ export class ProfilesService implements Service {
     }
   }
 
-  async remove(id: string) {
+  async remove(id: string): Promise<void> {
     try {
       await api.deleteProfile(id);
-      await this.refreshProfiles();
+      await this.refreshAfterMutation();
 
       app.notificationService.success("Profile deleted successfully.");
-    } catch (e) {
-      console.error("[ProfilesService] Failed to delete profile", e);
+    } catch (error) {
+      console.error("[ProfilesService] Failed to delete profile", error);
       app.notificationService.error("Failed to delete profile.");
+      throw error;
     }
   }
 
-  async createProfile(request: CreateProfileRequest) {
+  async createProfile(request: CreateProfileRequest): Promise<void> {
     try {
       await api.createProfile(request);
-      await this.refreshProfiles(true);
+      await this.refreshAfterMutation();
 
       app.notificationService.success("Profile created successfully.");
-    } catch (e) {
-      console.error("[ProfilesService] Failed to create profile", e);
-      throw e;
+    } catch (error) {
+      console.error("[ProfilesService] Failed to create profile", error);
+      app.notificationService.error("Failed to create profile.");
+      throw error;
     }
   }
 
-  async createShortcut(profile: KableProfile) {
+  async createShortcut(profile: KableProfile): Promise<void> {
     try {
       await api.createDesktopShortcut(profile);
 
       app.notificationService.success("Desktop shortcut created successfully.");
-    } catch (e) {
-      console.error("[ProfilesService] Failed to create shortcut for profile", e);
+    } catch (error) {
+      console.error("[ProfilesService] Failed to create shortcut for profile", error);
       app.notificationService.error("Failed to create desktop shortcut.");
+      throw error;
     }
   }
 
-  async exportProfile(profile: KableProfile, destination: string) {
+  async exportProfile(profile: KableProfile, destination: string): Promise<void> {
     try {
       await api.exportProfile(profile, destination);
 
       app.notificationService.success("Profile exported successfully.");
-    } catch (e) {
-      console.error("[ProfilesService] Failed to export profile", e);
+    } catch (error) {
+      console.error("[ProfilesService] Failed to export profile", error);
       app.notificationService.error("Failed to export profile.");
+      throw error;
     }
   }
 
@@ -222,38 +273,52 @@ export class ProfilesService implements Service {
     const favoriteCount = profiles.filter((profile) => profile.metadata.favorite).length;
 
     const lastPlayedDate = profiles.reduce<string | null>((latest, profile) => {
-      if (!latest) {
-        return profile.metadata.last_used;
+      const candidate = profile.metadata.last_used;
+
+      if (!candidate) return latest;
+      if (!latest) return candidate;
+
+      const candidateDate = new SvelteDate(candidate);
+      const latestDate = new SvelteDate(latest);
+
+      if (
+        Number.isNaN(candidateDate.getTime()) ||
+        Number.isNaN(latestDate.getTime())
+      ) {
+        return latest;
       }
 
-      return new SvelteDate(profile.metadata.last_used) > new SvelteDate(latest)
-        ? profile.metadata.last_used
-        : latest;
+      return candidateDate.getTime() > latestDate.getTime() ? candidate : latest;
     }, null);
 
-    const mostPlayedProfile = profiles.reduce<KableProfile | null>((mostPlayed, profile) => {
-      if (!mostPlayed || profile.metadata.total_time_played_ms > mostPlayed.metadata.total_time_played_ms) {
-        return profile;
-      }
+    const mostPlayedProfile = profiles.reduce<KableProfile | null>(
+      (mostPlayed, profile) => {
+        if (
+          !mostPlayed ||
+          profile.metadata.total_time_played_ms >
+          mostPlayed.metadata.total_time_played_ms
+        ) {
+          return profile;
+        }
 
-      return mostPlayed;
-    }, null);
+        return mostPlayed;
+      },
+      null,
+    );
 
     const loaderCounts: Record<string, number> = {};
 
     for (const profile of profiles) {
       const loader = profile.version.loader;
 
-      if (!loader) {
-        continue;
-      }
+      if (!loader) continue;
 
       loaderCounts[loader] = (loaderCounts[loader] ?? 0) + 1;
     }
 
     const mostUsedLoader = Object.entries(loaderCounts).reduce<string | null>(
       (mostUsed, [loader, count]) => {
-        if (!mostUsed || count > loaderCounts[mostUsed]) {
+        if (!mostUsed || count > (loaderCounts[mostUsed] ?? 0)) {
           return loader;
         }
 
@@ -269,7 +334,8 @@ export class ProfilesService implements Service {
         lastPlayedDate,
         totalLaunches,
         favoriteCount,
-        averageLaunchesPerProfile: totalProfiles > 0 ? totalLaunches / totalProfiles : 0,
+        averageLaunchesPerProfile:
+          totalProfiles > 0 ? totalLaunches / totalProfiles : 0,
         mostPlayedProfile,
         mostUsedLoader,
         loaderCounts,
@@ -277,8 +343,13 @@ export class ProfilesService implements Service {
     };
   }
 
-  async destroy() {
+  async destroy(): Promise<void> {
+    this.loadGeneration++;
+    this.refreshRequest++;
     this.profiles = [];
     this.loaded = false;
+    this.loading = false;
+    this.refreshPromise = null;
+    this.pendingMutations = 0;
   }
 }

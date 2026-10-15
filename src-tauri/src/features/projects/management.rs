@@ -1,28 +1,18 @@
 use crate::Logger;
 use std::collections::{HashMap, HashSet};
 
-// List, Remove, Add, Enable/Disable projects.
-// We make this kinda "project type agnostic" so we can use it for mods,
-// resourcepacks, shaderpacks, etc.
-//
-// For now I implement all project features here: download/install, remove,
-// enable/disable, update, list, check for updates, etc.
-// Later we can split them into separate files if needed.
-
 use crate::integrations::modrinth::ferinth_client::{download_project, get_project, get_version_data};
 use crate::system::fs;
 
 use api_types::profiles::{KableProfile, KableProfileSettings};
 use api_types::projects::{DependencyType, KableProject, Project, ProjectType, ResolvedDependency, UpdateMap};
 
-/// List all projects from .kable/projects/<type>/* and return
-/// Map<ProjectType, Vec<KableProject>> for all supported project types.
-pub async fn list_all_projects() -> Result<std::collections::HashMap<ProjectType, Vec<KableProject>>, String> {
-    let mut all_projects = std::collections::HashMap::<ProjectType, Vec<KableProject>>::new();
+/// List all projects from the global projects directory.
+pub async fn list_all_projects() -> Result<HashMap<ProjectType, Vec<KableProject>>, String> {
+    let mut all_projects = HashMap::new();
 
-    for project_type in &[ProjectType::Mod, ProjectType::Resourcepack, ProjectType::Shader] {
-        let projects = list_projects_for_type(*project_type).await?;
-        all_projects.insert(*project_type, projects);
+    for project_type in [ProjectType::Mod, ProjectType::Resourcepack, ProjectType::Shader] {
+        all_projects.insert(project_type, list_projects_for_type(project_type).await?);
     }
 
     Ok(all_projects)
@@ -41,18 +31,11 @@ async fn folder_for_project_type(project_type: ProjectType) -> Result<std::path:
     Ok(projects_dir.join(type_folder_name))
 }
 
-/// Normalize a loader name for compatibility comparisons.
-///
-/// Iris-backed Fabric profiles may be represented as `IrisFabric`,
-/// `iris-fabric`, `iris_fabric`, etc., while Modrinth normally reports
-/// `fabric`. Normalize both sides to the same canonical loader name.
 fn normalize_loader(loader: &str) -> String {
     let normalized = loader.trim().to_lowercase().replace(['_', '-', ' '], "");
 
     match normalized.as_str() {
-        "irisfabric" | "irisfabricloader" => "fabric".to_string(),
-        "fabric" => "fabric".to_string(),
-        "quiltedfabric" => "fabric".to_string(),
+        "irisfabric" | "irisfabricloader" | "fabric" | "quiltedfabric" => "fabric".to_string(),
         "quilt" => "quilt".to_string(),
         "neoforge" => "neoforge".to_string(),
         "forge" => "forge".to_string(),
@@ -61,12 +44,6 @@ fn normalize_loader(loader: &str) -> String {
     }
 }
 
-/// Check whether a specific project version is compatible with a profile.
-///
-/// Minecraft version is relevant for every project type.
-///
-/// Loader compatibility is only relevant for mods and modpacks.
-/// Resourcepacks and shaders do not use the profile's mod loader.
 fn is_version_compatible(profile: &KableProfile, version: &api_types::projects::ProjectVersion, project_type: ProjectType) -> bool {
     let minecraft_compatible = profile
         .version
@@ -76,7 +53,6 @@ fn is_version_compatible(profile: &KableProfile, version: &api_types::projects::
         .unwrap_or(true);
 
     let loader_relevant = project_type == ProjectType::Mod || project_type == ProjectType::Modpack;
-
     let profile_loader = normalize_loader(&profile.version.loader.to_string());
 
     let loader_compatible = !loader_relevant || version.loaders.iter().any(|loader| normalize_loader(loader) == profile_loader);
@@ -84,16 +60,6 @@ fn is_version_compatible(profile: &KableProfile, version: &api_types::projects::
     minecraft_compatible && loader_compatible
 }
 
-/// Parse the date representation used by ProjectVersion.
-///
-/// Modrinth/Ferinth timestamps may currently be serialized as:
-///
-///     2026-09-18 05:45:50.817305 UTC
-///
-/// which is not RFC3339. The old implementation only attempted
-/// parse_from_rfc3339(), causing all such timestamps to become i64::MIN.
-/// That meant max_by_key()/sorting could select an arbitrary compatible
-/// version rather than the newest one.
 fn version_timestamp(date: &str) -> i64 {
     if let Ok(date) = chrono::DateTime::parse_from_rfc3339(date) {
         return date.timestamp_millis();
@@ -108,35 +74,14 @@ fn version_timestamp(date: &str) -> i64 {
     i64::MIN
 }
 
-/// Find the newest compatible version of a project for a profile.
-///
-/// This deliberately does not use `project.latest_version` because that is
-/// the project's globally latest Modrinth version and may belong to another
-/// loader, for example NeoForge while the profile uses Fabric.
-///
-/// The Project stored in the local KableProject metadata JSON is used
-/// directly. No Modrinth request is performed here.
 fn latest_compatible_version<'a>(profile: &KableProfile, project: &'a Project) -> Option<&'a api_types::projects::ProjectVersion> {
-    let compatible_versions = project
+    project
         .versions
         .iter()
         .filter(|version| is_version_compatible(profile, version, project.project_type))
-        .collect::<Vec<_>>();
-
-    let mut sorted = compatible_versions;
-
-    sorted.sort_by_key(|b| std::cmp::Reverse(version_timestamp(&b.date_published)));
-
-    sorted.into_iter().next()
+        .max_by_key(|version| version_timestamp(&version.date_published))
 }
 
-/// Given a project and optional version ID, resolve the version that should
-/// actually be installed.
-///
-/// If `version_id` is Some, that exact version must exist and be compatible
-/// with the profile.
-///
-/// If `version_id` is None, the newest compatible version is selected.
 fn resolve_version_id<'a>(profile: &KableProfile, project: &'a Project, version_id: Option<&str>) -> Result<&'a str, String> {
     if let Some(version_id) = version_id {
         let version = project
@@ -160,56 +105,47 @@ fn resolve_version_id<'a>(profile: &KableProfile, project: &'a Project, version_
         .ok_or_else(|| format!("No compatible version found for project {} and profile {}", project.project_id, profile.metadata.name))
 }
 
-/// Completely remove a project filename from a profile's project settings.
 fn remove_project_from_settings(settings: &mut KableProfileSettings, project_type: ProjectType, filename: &str) {
     let mut projects = settings.from(project_type);
-
     projects.enabled.remove(filename);
     projects.disabled.remove(filename);
-
     settings.set_projects(project_type, projects);
 }
 
-/// Explicitly enable a project in a profile.
 fn enable_project_in_settings(settings: &mut KableProfileSettings, project_type: ProjectType, filename: &str) {
     let mut projects = settings.from(project_type);
-
     projects.enable(filename.to_string());
-
     settings.set_projects(project_type, projects);
 }
 
-/// Find every filename in this profile that belongs to the given Modrinth
-/// project ID.
 async fn find_profile_project_filenames(
     profile: &KableProfile,
     project_type: ProjectType,
     project_id: &str,
 ) -> Result<Vec<String>, String> {
     let mut referenced_filenames = profile.settings.by_project_type(project_type, true);
-
     referenced_filenames.extend(profile.settings.by_project_type(project_type, false));
 
     let installed_projects = list_projects_for_type(project_type).await?;
 
-    let mut filenames = Vec::new();
-
-    for installed_project in installed_projects {
-        if referenced_filenames.contains(&installed_project.filename) && installed_project.project.project_id == project_id {
-            filenames.push(installed_project.filename);
-        }
-    }
-
-    Ok(filenames)
+    Ok(installed_projects
+        .into_iter()
+        .filter(|project| referenced_filenames.contains(&project.filename) && project.project.project_id == project_id)
+        .map(|project| project.filename)
+        .collect())
 }
 
 /// Delete global project files that are no longer referenced by any profile.
+///
+/// Always bypass the profile-list cache when checking references. The profile
+/// settings on disk, rather than a cached snapshot, determine whether a file
+/// can be deleted.
 async fn cleanup_unreferenced_project_files(project_type: ProjectType, filenames: &[String]) -> Result<(), String> {
     if filenames.is_empty() {
         return Ok(());
     }
 
-    let all_profiles = crate::features::profiles::management::list_profiles(false).await?;
+    let all_profiles = crate::features::profiles::management::list_profiles(true).await?;
 
     let folder = folder_for_project_type(project_type).await?;
 
@@ -223,13 +159,12 @@ async fn cleanup_unreferenced_project_files(project_type: ProjectType, filenames
             continue;
         }
 
-        let metadata_path = std::path::Path::new(&folder).join(filename).with_extension("json");
+        let project_path = folder.join(filename);
+        let metadata_path = project_path.with_extension("json");
 
         if metadata_path.exists() {
             fs::remove_file(&metadata_path).await?;
         }
-
-        let project_path = std::path::Path::new(&folder).join(filename);
 
         if project_path.exists() {
             fs::remove_file(&project_path).await?;
@@ -241,29 +176,21 @@ async fn cleanup_unreferenced_project_files(project_type: ProjectType, filenames
     Ok(())
 }
 
-/// Given a string, check if the project is already installed in the global
-/// projects folder, and if so return the KableProject metadata.
 pub async fn get_installed_project(project_type: ProjectType, filename: &str) -> Result<Option<KableProject>, String> {
     let type_dir = folder_for_project_type(project_type).await?;
+    let metadata_path = type_dir.join(filename).with_extension("json");
 
-    let metadata_path = std::path::Path::new(&type_dir).join(filename).with_extension("json");
-
-    if metadata_path.exists() {
-        let serialized_project = fs::read_str(&metadata_path).await?;
-
-        let project: KableProject = serde_json::from_str(&serialized_project).map_err(|e| e.to_string())?;
-
-        return Ok(Some(project));
+    if !metadata_path.exists() {
+        return Ok(None);
     }
 
-    Ok(None)
+    let serialized_project = fs::read_str(&metadata_path).await?;
+
+    let project: KableProject = serde_json::from_str(&serialized_project).map_err(|error| error.to_string())?;
+
+    Ok(Some(project))
 }
 
-/// List all projects of a specific type from
-/// .kable/projects/<type>/* and return Vec<KableProject>.
-///
-/// KableProject metadata is stored in .json files in the projects/<type>
-/// folder, while the actual project files are stored beside the metadata.
 async fn list_projects_for_type(project_type: ProjectType) -> Result<Vec<KableProject>, String> {
     let type_dir = folder_for_project_type(project_type).await?;
 
@@ -272,43 +199,43 @@ async fn list_projects_for_type(project_type: ProjectType) -> Result<Vec<KablePr
     }
 
     let mut projects = Vec::new();
-    let metadata_dir = fs::read_dir(&type_dir).await?;
 
-    for pathbuf in metadata_dir {
-        if let Some(filename) = pathbuf.file_name() {
-            if let Some(filename_str) = filename.to_str() {
-                if filename_str.ends_with(".json") {
-                    let metadata_path = std::path::Path::new(&type_dir).join(filename_str);
+    for path in fs::read_dir(&type_dir).await? {
+        let Some(filename) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
 
-                    let serialized_project = fs::read_str(&metadata_path).await?;
-
-                    let project: KableProject = serde_json::from_str(&serialized_project).map_err(|e| e.to_string())?;
-
-                    projects.push(project);
-                }
-            }
+        if !filename.ends_with(".json") {
+            continue;
         }
+
+        let metadata_path = type_dir.join(filename);
+        let serialized_project = fs::read_str(&metadata_path).await?;
+
+        let project: KableProject = serde_json::from_str(&serialized_project)
+            .map_err(|error| format!("Failed to parse installed project metadata {}: {}", metadata_path.display(), error))?;
+
+        projects.push(project);
     }
 
     Ok(projects)
 }
 
-/// Given a profile, list all enabled or disabled KableProjects for that
-/// profile, grouped by project type.
-pub async fn list_profile_projects(
-    profile: KableProfile,
-    enabled: bool,
-) -> Result<std::collections::HashMap<ProjectType, Vec<KableProject>>, String> {
-    let mut projects_map = std::collections::HashMap::<ProjectType, Vec<KableProject>>::new();
+/// List installed projects using the current persisted profile, not the
+/// potentially stale profile settings supplied by the frontend.
+pub async fn list_profile_projects(profile: KableProfile, enabled: bool) -> Result<HashMap<ProjectType, Vec<KableProject>>, String> {
+    let current_profile = crate::features::profiles::management::get_profile(&profile.id).await?;
+
+    let mut projects_map = HashMap::new();
 
     for project_type in [ProjectType::Mod, ProjectType::Resourcepack, ProjectType::Shader] {
-        let project_filenames = profile.settings.by_project_type(project_type, enabled);
+        let project_filenames = current_profile.settings.by_project_type(project_type, enabled);
 
         let projects = list_projects_for_type(project_type)
             .await?
             .into_iter()
             .filter(|project| project_filenames.contains(&project.filename))
-            .collect::<Vec<KableProject>>();
+            .collect();
 
         projects_map.insert(project_type, projects);
     }
@@ -316,27 +243,14 @@ pub async fn list_profile_projects(
     Ok(projects_map)
 }
 
-/// Fetch the complete Modrinth project directly by ID.
-///
-/// This should only be used when local metadata is unavailable. Normal
-/// update checking must use the persisted KableProject metadata instead.
 async fn fetch_project_from_modrinth(project_id: &str) -> Result<Project, String> {
     Logger::debug_global(format!("Fetching project {} from Modrinth because local metadata is unavailable", project_id).as_str(), None);
 
     get_project(project_id).await
 }
 
-/// Load a KableProject's persisted metadata.
-///
-/// The installed .json file is the normal source of truth. Modrinth is only
-/// contacted when the local metadata file is genuinely unavailable.
-///
-/// This is intentionally separate from get_installed_project() because some
-/// callers already have a KableProject and should not need to rediscover it.
 async fn load_project_metadata(kable_project: &KableProject) -> Result<Project, String> {
-    let installed_project = get_installed_project(kable_project.project.project_type, &kable_project.filename).await?;
-
-    if let Some(installed_project) = installed_project {
+    if let Some(installed_project) = get_installed_project(kable_project.project.project_type, &kable_project.filename).await? {
         return Ok(installed_project.project);
     }
 
@@ -345,32 +259,31 @@ async fn load_project_metadata(kable_project: &KableProject) -> Result<Project, 
     fetch_project_from_modrinth(&kable_project.project.project_id).await
 }
 
-/// Given a profile and a Project, download/install the selected compatible
-/// version into the global projects folder and add the resulting filename to
-/// the profile as enabled.
+/// Download/install the selected version, then add its filename to the
+/// current persisted profile. Profile settings are never replaced from the
+/// caller's potentially stale snapshot.
 pub async fn add_project_to_profile(profile: KableProfile, project: Project, version_id: Option<&str>) -> Result<KableProject, String> {
-    let resolved_version_id = resolve_version_id(&profile, &project, version_id)?;
+    let current_profile = crate::features::profiles::management::get_profile(&profile.id).await?;
 
-    let kable_project = add_project(project.clone(), Some(resolved_version_id)).await?;
+    let resolved_version_id = resolve_version_id(&current_profile, &project, version_id)?.to_string();
 
-    crate::features::profiles::management::modify_current_profile(&profile.id, |current_profile| {
-        enable_project_in_settings(&mut current_profile.settings, kable_project.project.project_type, &kable_project.filename);
+    let kable_project = add_project(project, Some(&resolved_version_id)).await?;
+
+    crate::features::profiles::management::modify_current_profile(&current_profile.id, |profile| {
+        enable_project_in_settings(&mut profile.settings, kable_project.project.project_type, &kable_project.filename);
     })
     .await?;
 
     Ok(kable_project)
 }
 
-/// Wrapper for Modrinth's download_project and metadata creation.
-///
-/// `version_id` is expected to already have been resolved and validated by
-/// the caller.
+/// Download a project version and persist its metadata.
 pub async fn add_project(project: Project, version_id: Option<&str>) -> Result<KableProject, String> {
     let folder = folder_for_project_type(project.project_type).await?;
 
     let filenames = download_project(&project, version_id, folder.clone()).await?;
 
-    let filename = filenames.first().ok_or("No files downloaded")?.to_string();
+    let filename = filenames.first().ok_or_else(|| "No files downloaded".to_string())?.to_string();
 
     let resolved_version_id = version_id
         .or(project.latest_version.as_deref())
@@ -379,61 +292,62 @@ pub async fn add_project(project: Project, version_id: Option<&str>) -> Result<K
     let metadata = KableProject { project: project.clone(), version_id: resolved_version_id.to_string(), filename };
 
     let metadata_path = folder.join(&metadata.filename).with_extension("json");
+    let serialized_metadata = serde_json::to_string(&metadata).map_err(|error| error.to_string())?;
 
-    fs::write_str(&metadata_path, &serde_json::to_string(&metadata).map_err(|e| e.to_string())?, false).await?;
+    fs::write_str(&metadata_path, &serialized_metadata, false).await?;
 
     Logger::debug_global(format!("Added project: {}", metadata.filename).as_str(), None);
 
     Ok(metadata)
 }
 
-/// Ensures that all projects enabled in the profile are actually present in
-/// the global projects folder.
-///
-/// If an enabled project is missing, search for it and reinstall the newest
-/// compatible version.
+/// Ensure every enabled project in the current persisted profile has local
+/// metadata. Missing projects are reinstalled only when actually missing.
 pub async fn ensure_profile_projects(profile: KableProfile) -> Result<(), String> {
     for project_type in [ProjectType::Mod, ProjectType::Resourcepack, ProjectType::Shader] {
-        let enabled_project_filenames = profile.settings.by_project_type(project_type, true);
+        let current_profile = crate::features::profiles::management::get_profile(&profile.id).await?;
 
-        for filename in enabled_project_filenames {
+        let enabled_filenames = current_profile.settings.by_project_type(project_type, true);
+
+        for filename in enabled_filenames {
             if get_installed_project(project_type, &filename).await?.is_some() {
                 continue;
             }
 
             let project_search = api_types::projects::ProjectSearch { query: Some(filename.clone()), ..Default::default() };
 
-            let results = crate::features::projects::browser::browse(profile.clone(), project_search, true, project_type).await?;
+            let results = crate::features::projects::browser::browse(current_profile.clone(), project_search, true, project_type).await?;
 
-            if let Some(latest_project) = results.hits.into_iter().next() {
-                add_project_to_profile(profile.clone(), latest_project, None).await?;
-            } else {
-                return Err(format!("No project found for {}", filename));
-            }
+            let project =
+                results.hits.into_iter().next().ok_or_else(|| format!("No project found for missing installed file {}", filename))?;
+
+            add_project_to_profile(current_profile.clone(), project, None).await?;
         }
     }
 
     Ok(())
 }
 
-/// Remove a project from a profile.
+/// Remove every installed filename for this Modrinth project from the
+/// current profile. Do not replace the profile with a stale caller snapshot.
 pub async fn remove_project(profile: KableProfile, kable_project: KableProject) -> Result<KableProject, String> {
+    let current_profile = crate::features::profiles::management::get_profile(&profile.id).await?;
+
     let project_type = kable_project.project.project_type;
     let project_id = kable_project.project.project_id.clone();
 
-    let mut filenames = find_profile_project_filenames(&profile, project_type, &project_id).await?;
+    let mut filenames = find_profile_project_filenames(&current_profile, project_type, &project_id).await?;
 
     if !filenames.contains(&kable_project.filename) {
         filenames.push(kable_project.filename.clone());
     }
 
-    let mut updated_profile = profile.clone();
-
-    for filename in &filenames {
-        remove_project_from_settings(&mut updated_profile.settings, project_type, filename);
-    }
-
-    crate::features::profiles::management::modify_profile(profile, updated_profile).await?;
+    crate::features::profiles::management::modify_current_profile(&current_profile.id, |profile| {
+        for filename in &filenames {
+            remove_project_from_settings(&mut profile.settings, project_type, filename);
+        }
+    })
+    .await?;
 
     cleanup_unreferenced_project_files(project_type, &filenames).await?;
 
@@ -442,61 +356,46 @@ pub async fn remove_project(profile: KableProfile, kable_project: KableProject) 
     Ok(kable_project)
 }
 
-/// Given a profile, check all enabled projects for updates.
-///
-/// This deliberately uses the persisted KableProject metadata. It does not
-/// contact Modrinth for every installed project.
-///
-/// The metadata JSON contains the complete Project snapshot, including its
-/// available versions, so compatibility and update selection can be done
-/// locally.
 pub async fn check_for_updates(profile: KableProfile, project_type: ProjectType) -> Result<Vec<UpdateMap>, String> {
-    let mut updates = Vec::new();
+    let current_profile = crate::features::profiles::management::get_profile(&profile.id).await?;
 
-    let enabled_projects = list_profile_projects(profile.clone(), true).await?;
+    let enabled_projects = list_profile_projects(current_profile.clone(), true).await?;
+
+    let mut updates = Vec::new();
 
     if let Some(projects) = enabled_projects.get(&project_type) {
         for kable_project in projects {
-            match check_for_update(profile.clone(), kable_project.clone()).await {
-                Ok(latest_project) => {
-                    let latest_version = latest_compatible_version(&profile, &latest_project);
+            if let Ok(latest_project) = check_for_update(current_profile.clone(), kable_project.clone()).await {
+                let latest_version = latest_compatible_version(&current_profile, &latest_project);
 
-                    Logger::debug_global(
-                        format!(
-                            "Update available for {}: {} -> {} ({})",
-                            kable_project.project.project_id,
-                            kable_project.version_id,
-                            latest_version.map(|version| version.id.as_str()).unwrap_or("<unknown>"),
-                            latest_version.map(|version| { version.version_number.as_str() }).unwrap_or("<unknown>"),
-                        )
-                        .as_str(),
-                        Some(profile.id.as_str()),
-                    );
+                Logger::debug_global(
+                    format!(
+                        "Update available for {}: {} -> {} ({})",
+                        kable_project.project.project_id,
+                        kable_project.version_id,
+                        latest_version.map(|version| version.id.as_str()).unwrap_or("<unknown>"),
+                        latest_version.map(|version| version.version_number.as_str()).unwrap_or("<unknown>"),
+                    )
+                    .as_str(),
+                    Some(current_profile.id.as_str()),
+                );
 
-                    updates.push(UpdateMap { kable_project: kable_project.clone(), update: Some(latest_project) });
-                }
-
-                Err(_error) => {}
+                updates.push(UpdateMap { kable_project: kable_project.clone(), update: Some(latest_project) });
             }
         }
     }
 
-    Logger::debug_global(format!("Checked for updates: {} updates found", updates.len()).as_str(), Some(profile.id.as_str()));
+    Logger::debug_global(format!("Checked for updates: {} updates found", updates.len()).as_str(), Some(current_profile.id.as_str()));
 
     Ok(updates)
 }
 
-/// Find the newest compatible Project for an installed KableProject.
-///
-/// The persisted KableProject metadata is used directly. No Modrinth request
-/// is made when the metadata JSON exists.
-///
-/// If the metadata file has disappeared, load_project_metadata() falls back
-/// to a direct Modrinth lookup.
 pub async fn check_for_update(profile: KableProfile, kable_project: KableProject) -> Result<Project, String> {
+    let current_profile = crate::features::profiles::management::get_profile(&profile.id).await?;
+
     let project = load_project_metadata(&kable_project).await?;
 
-    let latest_version = latest_compatible_version(&profile, &project)
+    let latest_version = latest_compatible_version(&current_profile, &project)
         .ok_or_else(|| format!("No compatible version found for project {}", project.project_id))?;
 
     if latest_version.id == kable_project.version_id {
@@ -506,26 +405,17 @@ pub async fn check_for_update(profile: KableProfile, kable_project: KableProject
     Ok(project)
 }
 
-/// Update a project.
-///
-/// The persisted project metadata is used instead of fetching the project
-/// from Modrinth again. If the metadata file is missing, a direct lookup is
-/// used as a fallback.
-///
-/// If version_id is Some, that exact version is installed after verifying
-/// that it is compatible with the profile.
-///
-/// If version_id is None, the newest compatible version is selected
-/// automatically.
+/// Update a project without overwriting unrelated or newer profile settings.
 pub async fn update_project(profile: KableProfile, kable_project: KableProject, version_id: Option<&str>) -> Result<KableProject, String> {
+    let current_profile = crate::features::profiles::management::get_profile(&profile.id).await?;
+
     Logger::debug_global(
         format!("Updating project: {} to version {:?}", kable_project.filename, version_id).as_str(),
-        Some(profile.id.as_str()),
+        Some(current_profile.id.as_str()),
     );
 
     let project = load_project_metadata(&kable_project).await?;
-
-    let selected_version_id = resolve_version_id(&profile, &project, version_id)?;
+    let selected_version_id = resolve_version_id(&current_profile, &project, version_id)?.to_string();
 
     if selected_version_id == kable_project.version_id {
         return Err(format!("Project {} is already using version {}", kable_project.filename, selected_version_id));
@@ -534,98 +424,85 @@ pub async fn update_project(profile: KableProfile, kable_project: KableProject, 
     let project_type = project.project_type;
     let project_id = project.project_id.clone();
 
-    let mut old_filenames = find_profile_project_filenames(&profile, project_type, &project_id).await?;
+    let mut old_filenames = find_profile_project_filenames(&current_profile, project_type, &project_id).await?;
 
     if !old_filenames.contains(&kable_project.filename) {
         old_filenames.push(kable_project.filename.clone());
     }
 
-    let updated_project = add_project(project.clone(), Some(selected_version_id)).await?;
+    let updated_project = add_project(project, Some(&selected_version_id)).await?;
 
     let new_filename = updated_project.filename.clone();
 
-    let mut updated_profile = profile.clone();
+    crate::features::profiles::management::modify_current_profile(&current_profile.id, |profile| {
+        for old_filename in &old_filenames {
+            remove_project_from_settings(&mut profile.settings, project_type, old_filename);
+        }
 
-    for old_filename in &old_filenames {
-        remove_project_from_settings(&mut updated_profile.settings, project_type, old_filename);
-    }
-
-    enable_project_in_settings(&mut updated_profile.settings, project_type, &new_filename);
-
-    crate::features::profiles::management::modify_profile(profile.clone(), updated_profile).await?;
+        enable_project_in_settings(&mut profile.settings, project_type, &new_filename);
+    })
+    .await?;
 
     let files_to_cleanup = old_filenames.into_iter().filter(|filename| filename != &new_filename).collect::<Vec<_>>();
 
     cleanup_unreferenced_project_files(project_type, &files_to_cleanup).await?;
 
-    Logger::debug_global(format!("Updated project {} to {}", project_id, new_filename).as_str(), Some(profile.id.as_str()));
+    Logger::debug_global(format!("Updated project {} to {}", project_id, new_filename).as_str(), Some(current_profile.id.as_str()));
 
     Ok(updated_project)
 }
 
-/// Update all projects of a type using automatic version selection.
-///
-/// Updates are intentionally performed sequentially.
-///
-/// `check_for_updates()` now uses only local metadata, so this operation no
-/// longer performs a Modrinth request for every project before updating.
 pub async fn update_all_projects(profile: KableProfile, project_type: ProjectType) -> Result<Vec<KableProject>, String> {
-    let updates = check_for_updates(profile.clone(), project_type).await?;
+    let current_profile = crate::features::profiles::management::get_profile(&profile.id).await?;
+
+    let updates = check_for_updates(current_profile.clone(), project_type).await?;
 
     let mut updated_projects = Vec::with_capacity(updates.len());
 
-    let mut current_profile = profile;
-
     for update_map in updates {
-        let updated_project = update_project(current_profile.clone(), update_map.kable_project, None).await?;
+        let latest_profile = crate::features::profiles::management::get_profile(&current_profile.id).await?;
+
+        let updated_project = update_project(latest_profile, update_map.kable_project, None).await?;
 
         updated_projects.push(updated_project);
-
-        current_profile = crate::features::profiles::management::list_profiles(false)
-            .await?
-            .into_iter()
-            .find(|profile| profile.id == current_profile.id)
-            .ok_or_else(|| format!("Profile {} could not be found after updating a project", current_profile.id))?;
     }
 
     Ok(updated_projects)
 }
 
-/// Given a profile, check all enabled projects for compatibility with the
-/// current profile.
-///
-/// A project is incompatible only if NONE of its available versions supports
-/// the profile's Minecraft version and, where relevant, loader.
-///
-/// If auto_disable is true, incompatible projects are disabled.
 pub async fn check_incompatible_projects(profile: KableProfile, auto_disable: bool) -> Result<Vec<KableProject>, String> {
-    let minecraft_version = profile
+    let current_profile = crate::features::profiles::management::get_profile(&profile.id).await?;
+
+    let minecraft_version = current_profile
         .version
         .minecraft_version
         .clone()
         .ok_or_else(|| "Profile version is empty, cannot check for incompatible projects".to_string())?;
 
-    let enabled_projects = list_profile_projects(profile.clone(), true).await?;
+    let enabled_projects = list_profile_projects(current_profile.clone(), true).await?;
 
     let mut incompatible_projects = Vec::new();
 
     for (project_type, projects) in enabled_projects {
         for kable_project in projects {
-            let compatible = kable_project.project.versions.iter().any(|version| is_version_compatible(&profile, version, project_type));
+            let compatible =
+                kable_project.project.versions.iter().any(|version| is_version_compatible(&current_profile, version, project_type));
 
-            if !compatible {
-                incompatible_projects.push(kable_project.clone());
+            if compatible {
+                continue;
+            }
 
-                if auto_disable {
-                    crate::features::profiles::management::toggle_project(profile.clone(), kable_project.clone()).await?;
-                }
+            incompatible_projects.push(kable_project.clone());
+
+            if auto_disable {
+                crate::features::profiles::management::set_project_enabled(&current_profile.id, kable_project, false).await?;
             }
         }
     }
 
     Logger::debug_global(
         format!("Checked incompatible projects for Minecraft {}: {} incompatible", minecraft_version, incompatible_projects.len()).as_str(),
-        Some(profile.id.as_str()),
+        Some(current_profile.id.as_str()),
     );
 
     Ok(incompatible_projects)
@@ -633,51 +510,38 @@ pub async fn check_incompatible_projects(profile: KableProfile, auto_disable: bo
 
 /// Resolve a project's dependencies recursively without installing anything.
 ///
-/// Returns candidate KableProjects for required, optional, and other
-/// dependencies, including transitive dependencies.
-///
-/// Each candidate contains the selected compatible version ID and the
-/// primary filename for that version. The filename is only a candidate:
-/// no file is downloaded and no profile settings are modified.
-///
-/// Dependencies are deduplicated by project ID. If two dependencies require
-/// different versions of the same project, resolution fails rather than
-/// silently selecting an incorrect version.
-///
-/// Incompatible dependencies are excluded because they must not be installed
-/// as ordinary dependencies. Embedded dependencies are also excluded because
-/// they are normally bundled with their parent project.
+/// Dependencies that already exist in the profile are excluded regardless
+/// of whether they are enabled or disabled. Project identity is determined
+/// by `(ProjectType, project_id)`, never by filename or version.
 pub async fn resolve_project_dependencies(
     profile: KableProfile,
     project: Project,
     version_id: &str,
 ) -> Result<Vec<ResolvedDependency>, String> {
-    // Validate the requested root version.
+    let current_profile = crate::features::profiles::management::get_profile(&profile.id).await?;
+
     let root_version = project
         .versions
         .iter()
         .find(|version| version.id == version_id)
         .ok_or_else(|| format!("Version {} was not found for project {}", version_id, project.project_id))?;
 
-    if !is_version_compatible(&profile, root_version, project.project_type) {
+    if !is_version_compatible(&current_profile, root_version, project.project_type) {
         return Err(format!(
             "Version {} of project {} is not compatible with profile {}",
-            version_id, project.project_id, profile.metadata.name
+            version_id, project.project_id, current_profile.metadata.name
         ));
     }
 
     type VersionKey = (String, String);
+    type ProjectKey = (ProjectType, String);
 
-    // Intermediate arena node. Children are indices into `nodes`, allowing
-    // us to construct the recursive result after asynchronous traversal.
     struct DependencyNode {
         project: KableProject,
         dependency_type: DependencyType,
         children: Vec<usize>,
     }
 
-    // A work item identifies the parent node to attach dependencies to,
-    // along with the ancestry of the current traversal branch.
     struct WorkItem {
         project: Project,
         version_id: String,
@@ -685,23 +549,36 @@ pub async fn resolve_project_dependencies(
         ancestry: HashSet<VersionKey>,
     }
 
-    let root_key = (project.project_id.clone(), version_id.to_string());
+    // Build a set of all projects already referenced by this profile.
+    // Include both enabled and disabled projects so that a disabled project
+    // is not accidentally offered for installation as a dependency.
+    let mut existing_projects: HashSet<ProjectKey> = HashSet::new();
 
+    for project_type in [ProjectType::Mod, ProjectType::Resourcepack, ProjectType::Shader] {
+        let mut filenames = current_profile.settings.by_project_type(project_type, true);
+
+        filenames.extend(current_profile.settings.by_project_type(project_type, false));
+
+        for filename in filenames {
+            if let Some(installed_project) = get_installed_project(project_type, &filename).await? {
+                existing_projects.insert((installed_project.project.project_type, installed_project.project.project_id));
+            }
+        }
+    }
+
+    let root_key = (project.project_id.clone(), version_id.to_string());
     let mut root_ancestry = HashSet::new();
     root_ancestry.insert(root_key);
 
     let mut pending =
         vec![WorkItem { project: project.clone(), version_id: version_id.to_string(), parent_node: None, ancestry: root_ancestry }];
 
-    // Cache project metadata to avoid repeated Modrinth requests.
     let mut project_cache: HashMap<String, Project> = HashMap::new();
     project_cache.insert(project.project_id.clone(), project.clone());
 
-    // Enforce one selected version per project throughout the tree.
     let mut selected_versions: HashMap<String, String> = HashMap::new();
     selected_versions.insert(project.project_id.clone(), version_id.to_string());
 
-    // Store nodes separately while resolving dependencies asynchronously.
     let mut nodes: Vec<DependencyNode> = Vec::new();
     let mut root_nodes: Vec<usize> = Vec::new();
 
@@ -710,9 +587,7 @@ pub async fn resolve_project_dependencies(
             format!("Version {} was not found while resolving dependencies for {}", work.version_id, work.project.project_id)
         })?;
 
-        let dependencies = parent_version.dependencies.clone().unwrap_or_default();
-
-        for dependency in dependencies {
+        for dependency in parent_version.dependencies.clone().unwrap_or_default() {
             let dependency_type = dependency.dependency_type;
 
             match dependency_type {
@@ -726,7 +601,8 @@ pub async fn resolve_project_dependencies(
             let mut dependency_project_id =
                 dependency.project_id.as_ref().and_then(|value| value.as_deref()).filter(|id| !id.trim().is_empty()).map(str::to_owned);
 
-            // If only a version ID is provided, resolve its owning project.
+            // Some dependencies specify only a version ID. Resolve its
+            // project ID before checking whether the profile already has it.
             if dependency_project_id.is_none() {
                 let Some(exact_version_id) = dependency_version_id.as_ref() else {
                     continue;
@@ -747,7 +623,6 @@ pub async fn resolve_project_dependencies(
                 continue;
             };
 
-            // Reuse cached project metadata when possible.
             let dependency_project = if let Some(cached) = project_cache.get(&dependency_project_id) {
                 cached.clone()
             } else {
@@ -759,11 +634,29 @@ pub async fn resolve_project_dependencies(
                 fetched
             };
 
-            // An explicitly requested dependency version takes precedence.
-            let selected_version_id = resolve_version_id(&profile, &dependency_project, dependency_version_id.as_deref())?.to_string();
+            // A project already present in the profile satisfies the
+            // dependency, regardless of its enabled state or installed
+            // version. Compare only project type and project ID.
+            let project_key = (dependency_project.project_type, dependency_project.project_id.clone());
 
-            // A project cannot resolve to different versions in different
-            // branches of the same dependency tree.
+            if existing_projects.contains(&project_key) {
+                Logger::debug_global(
+                    &format!(
+                        "Skipping dependency {} ({:?}): already present in profile {}",
+                        dependency_project.project_id, dependency_project.project_type, current_profile.metadata.name
+                    ),
+                    Some(current_profile.id.as_str()),
+                );
+
+                continue;
+            }
+
+            let selected_version_id =
+                resolve_version_id(&current_profile, &dependency_project, dependency_version_id.as_deref())?.to_string();
+
+            // A project may be encountered through multiple dependency
+            // branches. Reject incompatible version requirements instead
+            // of returning duplicate entries for different versions.
             if let Some(existing_version_id) = selected_versions.get(&dependency_project_id) {
                 if existing_version_id != &selected_version_id {
                     return Err(format!(
@@ -780,7 +673,6 @@ pub async fn resolve_project_dependencies(
                     format!("Selected version {} was not found for dependency {}", selected_version_id, dependency_project.title)
                 })?;
 
-            // Match download_project(): require exactly one primary file.
             let primary_files: Vec<_> = selected_version.files.iter().filter(|file| file.primary).collect();
 
             if primary_files.len() != 1 {
@@ -798,8 +690,6 @@ pub async fn resolve_project_dependencies(
                 filename: primary_files[0].filename.clone(),
             };
 
-            // Always create a node for this parent-child relationship,
-            // even if the same project/version appears in another branch.
             let node_index = nodes.len();
 
             nodes.push(DependencyNode { project: candidate, dependency_type, children: Vec::new() });
@@ -812,16 +702,13 @@ pub async fn resolve_project_dependencies(
 
             let child_key = (dependency_project_id, selected_version_id.clone());
 
-            // Prevent cycles only within the current branch. Do not use a
-            // global visited set here: shared dependencies must appear under
-            // every parent that declares them.
             if work.ancestry.contains(&child_key) {
                 Logger::debug_global(
                     &format!(
                         "Detected dependency cycle at {} version {}; stopping expansion of this branch",
                         dependency_project.title, selected_version_id
                     ),
-                    Some(profile.id.as_str()),
+                    Some(current_profile.id.as_str()),
                 );
 
                 continue;
@@ -839,7 +726,6 @@ pub async fn resolve_project_dependencies(
         }
     }
 
-    // Convert the intermediate arena into the public recursive structure.
     fn build_tree(index: usize, nodes: &[DependencyNode]) -> ResolvedDependency {
         let node = &nodes[index];
 
@@ -860,7 +746,7 @@ pub async fn resolve_project_dependencies(
             project.project_id,
             version_id
         ),
-        Some(profile.id.as_str()),
+        Some(current_profile.id.as_str()),
     );
 
     Ok(resolved_projects)

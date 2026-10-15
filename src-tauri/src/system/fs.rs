@@ -12,6 +12,7 @@ use tokio::fs as async_fs;
 
 type FsResult<T> = Result<T, String>;
 
+// TODO: this is quite a hack, we should aim to make a `fsdb` module or crate that can do actual transactions and provide an API that takes a close to run to modify a file or smth...
 static FILE_LOCKS: Lazy<Mutex<HashMap<PathBuf, Arc<tokio::sync::Mutex<()>>>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 fn get_file_lock(path: &Path) -> Arc<tokio::sync::Mutex<()>> {

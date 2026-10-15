@@ -31,6 +31,7 @@ let nextSourceId = 1;
 let profileName = $state("");
 let profileIcon = $state("");
 let profileDescription = $state("");
+let updateProjects = $state(true);
 
 let isCreating = $state(false);
 let error = $state<string | null>(null);
@@ -302,6 +303,7 @@ function buildRequest(): CreateProfileRequest {
       icon: profileIcon.trim() || null,
       description: profileDescription.trim() || null,
     },
+    update_projects: updateProjects,
   };
 
   if (orderedSources.length === 0) {
@@ -464,17 +466,17 @@ function cancel() {
             {/if}
           </div>
         {/if}
+        <label class="update-projects-toggle">
+          <input type="checkbox" bind:checked={updateProjects} disabled={isCreating} />
 
-        <div class="version-selection-note">
-          <Icon name="info" size="sm" />
-          <span>
-            {#if sources.length === 0}
-              A fresh installation will be created from this version.
-            {:else}
-              This version will be applied after all selected sources have been merged.
-            {/if}
+          <span class="update-projects-content">
+            <span class="update-projects-title">Update installed projects</span>
+            <span class="update-projects-description">
+              The selected Minecraft version will always be set as the profile version. When enabled, Kable will also attempt to update installed mods and other projects
+              to match it. Disable this to change the version without updating projects.
+            </span>
           </span>
-        </div>
+        </label>
       </section>
     </div>
 
@@ -1040,21 +1042,56 @@ function cancel() {
     text-decoration: underline;
   }
 
-  .version-selection-note {
+  .update-projects-toggle {
     display: flex;
     align-items: flex-start;
-    gap: 0.5rem;
-    margin-top: 0.75rem;
-    padding: 0.7rem;
+    gap: 0.65rem;
+    margin-top: 0.25rem;
+    padding: 0.8rem;
+    border: 1px solid $color-border;
     border-radius: $radius-lg;
-    background: color-mix(in srgb, $color-accent 8%, transparent);
-    color: $color-text-muted;
-    font-size: 0.78rem;
-    line-height: 1.45;
+    background: $color-surface-2;
+    cursor: pointer;
 
-    :global(svg) {
+    > input {
       flex: 0 0 auto;
-      margin-top: 0.1rem;
+      width: 1rem;
+      height: 1rem;
+      margin: 0.15rem 0 0;
+      accent-color: $color-accent;
+      cursor: pointer;
+
+      &:disabled {
+        cursor: default;
+      }
+    }
+
+    .update-projects-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      min-width: 0;
+    }
+
+    .update-projects-title {
+      color: $color-text;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .update-projects-description {
+      color: $color-text-muted;
+      font-size: 0.65rem;
+      line-height: 1.45;
+    }
+
+    &:has(input:disabled) {
+      cursor: default;
+      opacity: 0.7;
+    }
+
+    &:focus-within {
+      border-color: $color-accent;
     }
   }
 
