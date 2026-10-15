@@ -1,5 +1,5 @@
 import type { Symlink, SymlinkCreateRequest } from "$lib";
-import { api } from "$lib";
+import { api, app } from "$lib";
 import type { Service } from "./app.svelte";
 
 export class SymlinkService implements Service {
@@ -40,7 +40,21 @@ export class SymlinkService implements Service {
    */
   async init(): Promise<void> {
     await this.refresh();
+    const errMessage = await api.checkSymlinkSupport();
+    if (errMessage) {
+      app.notificationService.error(`${errMessage}`, undefined,
+        false,
+        async () => {
+          try {
+            await api.openDeveloperSettings();
+          } catch (error) {
+            console.error("Failed to open developer settings:", error);
+          }
+        });
+      return;
+    }
     this.initialized = true;
+    console.log("[SymlinkService] initialized successfully.");
   }
 
   /**

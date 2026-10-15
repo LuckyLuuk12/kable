@@ -22,6 +22,122 @@ impl SymlinkManager {
         Self { enabled: false, runtime_symlinks: HashMap::new(), symlinks: Vec::new() }
     }
 
+    /// Check whether Kable can create file and directory symlinks.
+    ///
+    /// Returns `Ok(None)` when both tests succeed, `Ok(Some(message))` when
+    /// a test fails, and `Err` if the test could not be performed reliably.
+    async fn check_symlink_support() -> Result<Option<String>, String> {
+        let kable_dir = fs::kable_dir()?;
+
+        let timestamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|error| format!("Failed to generate symlink test directory name: {error}"))?
+            .as_nanos();
+
+        let test_dir = kable_dir.join(format!(".kable_symlink_test_{}_{}", std::process::id(), timestamp));
+
+        let source_dir = test_dir.join("source");
+        let source_file = source_dir.join("test.txt");
+        let file_link_path = test_dir.join("file_link.txt");
+        let dir_link_path = test_dir.join("directory_link");
+
+        tokio::fs::create_dir_all(&source_dir)
+            .await
+            .map_err(|error| format!("Could not prepare the symlink capability test at {}: {}", test_dir.display(), error))?;
+
+        if let Err(error) = tokio::fs::write(&source_file, b"").await {
+            let cleanup = tokio::fs::remove_dir_all(&test_dir).await;
+
+            return Err(match cleanup {
+                Ok(()) => format!("Could not prepare the symlink capability test file: {error}"),
+                Err(cleanup_error) => format!(
+                    "Could not prepare the symlink capability test file: {error}. \
+                 Cleanup of {} also failed: {}",
+                    test_dir.display(),
+                    cleanup_error
+                ),
+            });
+        }
+
+        // Preserve the original OS error so its code can be inspected below.
+        let result: Result<(), (&str, std::io::Error)> = async {
+            #[cfg(unix)]
+            {
+                tokio::fs::symlink(&source_file, &file_link_path).await.map_err(|error| ("file", error))?;
+
+                tokio::fs::symlink(&source_dir, &dir_link_path).await.map_err(|error| ("directory", error))?;
+            }
+
+            #[cfg(windows)]
+            {
+                tokio::fs::symlink_file(&source_file, &file_link_path).await.map_err(|error| ("file", error))?;
+
+                tokio::fs::symlink_dir(&source_dir, &dir_link_path).await.map_err(|error| ("directory", error))?;
+            }
+
+            Ok(())
+        }
+        .await;
+
+        // remove_dir_all does not follow symlinks to recursively delete their
+        // targets. Both the links and their source files are inside test_dir.
+        if let Err(error) = tokio::fs::remove_dir_all(&test_dir).await {
+            if error.kind() != ErrorKind::NotFound {
+                return Err(format!("Symlink capability test cleanup failed for {}: {}", test_dir.display(), error));
+            }
+        }
+
+        match result {
+            Ok(()) => Ok(None),
+            Err((link_type, error)) => {
+                let os_error_code = error.raw_os_error();
+
+                let mut message = format!("The {link_type} symlink capability test failed: {error}");
+
+                if let Some(code) = os_error_code {
+                    message.push_str(&format!(" (OS error code: {code})"));
+                }
+
+                #[cfg(windows)]
+                {
+                    const ERROR_PRIVILEGE_NOT_HELD: i32 = 1314;
+
+                    if os_error_code == Some(ERROR_PRIVILEGE_NOT_HELD) {
+                        message.push_str(
+                            "\n\nWindows reported that the required privilege is \
+                         unavailable. Try enabling Developer Mode in Windows \
+                         Settings under System > Advanced > For developers, \
+                         then restart Kable and try again. Running Kable as \
+                         administrator may also help. If the issue persists, \
+                         a Windows security policy may be preventing symlink \
+                         creation.",
+                        );
+
+                        return Ok(Some(message));
+                    }
+
+                    message.push_str(
+                        "\n\nKable could not create the required symlink. Check \
+                     the Windows error above. Enabling Developer Mode or \
+                     running Kable as administrator may help if this is a \
+                     permissions issue. Other causes, including filesystem \
+                     restrictions and security policies, are also possible.",
+                    );
+                }
+
+                #[cfg(not(windows))]
+                {
+                    message.push_str(
+                        "\n\nCheck the filesystem permissions and operating \
+                     system restrictions for symlink creation.",
+                    );
+                }
+
+                Ok(Some(message))
+            }
+        }
+    }
+
     // ---------------------------------------------------------------------
     // Destination resolution
     // ---------------------------------------------------------------------
@@ -856,6 +972,10 @@ async fn manager() -> Result<MutexGuard<'static, SymlinkManager>, String> {
     }
 
     Ok(manager)
+}
+
+pub async fn check_symlink_support() -> Result<Option<String>, String> {
+    SymlinkManager::check_symlink_support().await
 }
 
 // -------------------------------------------------------------------------

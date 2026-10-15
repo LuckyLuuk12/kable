@@ -63,7 +63,7 @@ pub async fn from_loader_version(
 pub async fn create_profile(request: CreateProfileRequest) -> Result<KableProfile, String> {
     Logger::debug(&format!("[create_profile] Creating profile with request: {:?}", request), None);
 
-    let CreateProfileRequest { base, additional_sources, version_override, metadata } = request;
+    let CreateProfileRequest { base, additional_sources, version_override, metadata, update_projects } = request;
 
     let mut sources = Vec::with_capacity(additional_sources.len() + usize::from(base.is_some()));
 
@@ -109,7 +109,7 @@ pub async fn create_profile(request: CreateProfileRequest) -> Result<KableProfil
     if let Some(version_id) = version_override {
         let versions = versions.ok_or_else(|| "Version metadata was not loaded for the requested version override".to_string())?;
 
-        apply_version_override(&mut profile, &version_id, versions).await?;
+        apply_version_override(&mut profile, &version_id, versions, update_projects).await?;
     }
 
     apply_metadata_overrides(&mut profile, metadata);
@@ -303,7 +303,12 @@ fn merge_project_states(first: Projects, second: Projects) -> Projects {
 /// Apply the final version override and refresh project compatibility.
 ///
 /// The cached version list is reused; this function does not fetch it again.
-async fn apply_version_override(profile: &mut KableProfile, version_id: &str, versions: &[ProfileVersion]) -> Result<(), String> {
+async fn apply_version_override(
+    profile: &mut KableProfile,
+    version_id: &str,
+    versions: &[ProfileVersion],
+    update_projects: bool,
+) -> Result<(), String> {
     profile.version = versions
         .iter()
         .find(|version| version.id == version_id)
@@ -314,16 +319,17 @@ async fn apply_version_override(profile: &mut KableProfile, version_id: &str, ve
     // storage, so make sure it has been registered before invoking them.
     ensure_profile_exists(profile).await?;
 
-    for project_type in [
-        api_types::projects::ProjectType::Mod,
-        api_types::projects::ProjectType::Resourcepack,
-        api_types::projects::ProjectType::Shader,
-    ] {
-        crate::features::projects::management::update_all_projects(profile.clone(), project_type).await?;
+    if update_projects {
+        for project_type in [
+            api_types::projects::ProjectType::Mod,
+            api_types::projects::ProjectType::Resourcepack,
+            api_types::projects::ProjectType::Shader,
+        ] {
+            crate::features::projects::management::update_all_projects(profile.clone(), project_type).await?;
+        }
+
+        crate::features::projects::management::check_incompatible_projects(profile.clone(), true).await?;
     }
-
-    crate::features::projects::management::check_incompatible_projects(profile.clone(), true).await?;
-
     // Refresh from disk in case compatibility operations changed the profile.
     *profile = super::management::get_profile(&profile.id).await?;
 

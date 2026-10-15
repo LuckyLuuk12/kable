@@ -22,6 +22,8 @@ use api_types::projects::{KableProject, ProjectType};
 use std::collections::{HashMap, HashSet};
 use std::path::{Component, Path, PathBuf};
 
+const RUNTIME_EXCLUDED_FILES: &[&str] = &["servers.dat_old"];
+
 const RUNTIME_SEED_FILES: &[&str] = &["options.txt", "optionsof.txt", "optionsshaders.txt", "servers.dat"];
 
 const RUNTIME_SEED_DIRECTORIES: &[&str] = &["config"];
@@ -175,6 +177,7 @@ fn is_shared_data_excluded(filename: &str) -> bool {
         || RUNTIME_SEED_FILES.contains(&filename)
         || RUNTIME_SEED_DIRECTORIES.contains(&filename)
         || RUNTIME_OWNED_DIRECTORIES.contains(&filename)
+        || RUNTIME_EXCLUDED_FILES.contains(&filename)
 }
 
 /// Seed known settings and configuration only when their runtime destinations

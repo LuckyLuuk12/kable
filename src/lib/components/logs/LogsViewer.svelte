@@ -1,8 +1,9 @@
 <script lang="ts">
 import { Icon } from "$lib";
 import type { LogEvent } from "$lib/services/logs.svelte";
-import { tick } from "svelte";
-import { SvelteMap } from "svelte/reactivity";
+import { createVirtualizer } from "@tanstack/svelte-virtual";
+import { onDestroy, tick, untrack } from "svelte";
+import { get } from "svelte/store";
 
 let {
   logs,
@@ -23,198 +24,126 @@ let {
   logLevelFilters?: Record<LogEvent["level"], boolean>;
 } = $props();
 
-const MIN_ITEM_HEIGHT = 28;
-const BUFFER_SIZE = 10;
+const ESTIMATED_ROW_HEIGHT = 28;
+const OVERSCAN = 8;
+const BOTTOM_THRESHOLD = 50;
 
 let container = $state<HTMLElement>();
-let scrollTop = $state(0);
-let containerHeight = $state(0);
-
-let visibleStartIndex = $state(0);
-let visibleEndIndex = $state(50);
-
-let heights = new SvelteMap<string, number>();
-let elements = new SvelteMap<string, HTMLElement>();
-
 let copyNotification = $state(false);
-let previousLogCount = 0;
-let isAutoScrolling = false;
-let updateVersion = 0;
 
-function getLogKey(log: LogEvent, index: number): string {
-  return `${log.timestamp}-${index}`;
+let previousFilteredCount = 0;
+let updateVersion = 0;
+let isAutoScrolling = false;
+let autoScrollTimeout: ReturnType<typeof setTimeout> | undefined;
+let copyNotificationTimeout: ReturnType<typeof setTimeout> | undefined;
+
+const logKeys = new WeakMap<LogEvent, number>();
+let nextLogKey = 0;
+
+function getLogKey(log: LogEvent): number {
+  let key = logKeys.get(log);
+
+  if (key === undefined) {
+    key = nextLogKey++;
+    logKeys.set(log, key);
+  }
+
+  return key;
 }
 
 function fuzzyMatch(needle: string, haystack: string): boolean {
-  if (!needle || !haystack) {
-    return false;
-  }
-
-  const search = needle.toLowerCase();
-  const value = haystack.toLowerCase();
-
-  if (value.includes(search)) {
-    return true;
-  }
+  if (!needle || !haystack) return true;
+  if (haystack.includes(needle)) return true;
 
   let searchIndex = 0;
 
-  for (let i = 0; i < value.length && searchIndex < search.length; i++) {
-    if (value[i] === search[searchIndex]) {
+  for (let i = 0; i < haystack.length && searchIndex < needle.length; i++) {
+    if (haystack[i] === needle[searchIndex]) {
       searchIndex++;
     }
   }
 
-  return searchIndex / search.length >= 0.7;
+  return searchIndex / needle.length >= 0.7;
 }
 
-function matchesSearch(message: string, search: string, mode: "normal" | "regex" | "fuzzy"): boolean {
-  if (!search) {
-    return true;
-  }
+function createSearchMatcher(search: string, mode: "normal" | "regex" | "fuzzy"): (message: string) => boolean {
+  if (!search) return () => true;
 
-  switch (mode) {
-    case "regex":
-      try {
-        return new RegExp(search, "i").test(message);
-      } catch {
-        return message.toLowerCase().includes(search.toLowerCase());
-      }
+  const needle = search.toLowerCase();
 
-    case "fuzzy":
-      return fuzzyMatch(search, message);
-
-    case "normal":
-      return message.toLowerCase().includes(search.toLowerCase());
-  }
-}
-
-const filteredLogs = $derived(
-  logs.filter((log) => {
-    if (!logLevelFilters[log.level]) {
-      return false;
+  if (mode === "regex") {
+    try {
+      const regex = new RegExp(search, "i");
+      return (message) => {
+        regex.lastIndex = 0;
+        return regex.test(message);
+      };
+    } catch {
+      return (message) => message.toLowerCase().includes(needle);
     }
-
-    return matchesSearch(log.message, searchTerm, searchMode);
-  }),
-);
-
-const visibleLogs = $derived(filteredLogs.slice(visibleStartIndex, visibleEndIndex));
-
-const totalHeight = $derived.by(() => {
-  let height = 0;
-
-  for (let index = 0; index < filteredLogs.length; index++) {
-    const log = filteredLogs[index];
-    height += heights.get(getLogKey(log, index)) ?? MIN_ITEM_HEIGHT;
   }
 
-  return height;
-});
-
-const offsetY = $derived.by(() => {
-  let height = 0;
-
-  for (let index = 0; index < visibleStartIndex; index++) {
-    const log = filteredLogs[index];
-    height += heights.get(getLogKey(log, index)) ?? MIN_ITEM_HEIGHT;
+  if (mode === "fuzzy") {
+    return (message) => fuzzyMatch(needle, message.toLowerCase());
   }
 
-  return height;
+  return (message) => message.toLowerCase().includes(needle);
+}
+
+const searchMatcher = $derived(createSearchMatcher(searchTerm, searchMode));
+
+const filteredLogs = $derived.by(() => {
+  const matcher = searchMatcher;
+  const filters = logLevelFilters;
+  const result: LogEvent[] = [];
+
+  for (const log of logs) {
+    if (!filters[log.level]) continue;
+    if (!matcher(log.message)) continue;
+
+    result.push(log);
+  }
+
+  return result;
 });
+
+const rowVirtualizer = createVirtualizer({
+  count: 0,
+  getScrollElement: () => container ?? null,
+  estimateSize: () => ESTIMATED_ROW_HEIGHT,
+  overscan: OVERSCAN,
+  getItemKey: (index) => {
+    const log = filteredLogs[index];
+    return log ? getLogKey(log) : index;
+  },
+});
+
+const virtualItems = $derived($rowVirtualizer.getVirtualItems());
+const totalHeight = $derived($rowVirtualizer.getTotalSize());
 
 const hasActiveFilters = $derived(Boolean(searchTerm) || Object.values(logLevelFilters).some((enabled) => !enabled));
 
-function updateVisibleRange(): void {
-  if (!container) {
-    return;
-  }
+function syncVirtualizerCount(count: number): void {
+  const virtualizer = get(rowVirtualizer);
 
-  scrollTop = container.scrollTop;
-  containerHeight = container.clientHeight;
+  if (virtualizer.options.count === count) return;
 
-  const bufferHeight = BUFFER_SIZE * MIN_ITEM_HEIGHT;
-
-  let accumulated = 0;
-  let start = 0;
-
-  for (let index = 0; index < filteredLogs.length; index++) {
-    const log = filteredLogs[index];
-    const height = heights.get(getLogKey(log, index)) ?? MIN_ITEM_HEIGHT;
-
-    if (accumulated + height > scrollTop - bufferHeight) {
-      start = index;
-      break;
-    }
-
-    accumulated += height;
-  }
-
-  accumulated = 0;
-
-  let end = filteredLogs.length;
-
-  for (let index = 0; index < filteredLogs.length; index++) {
-    const log = filteredLogs[index];
-    const height = heights.get(getLogKey(log, index)) ?? MIN_ITEM_HEIGHT;
-
-    accumulated += height;
-
-    if (accumulated > scrollTop + containerHeight + bufferHeight) {
-      end = index + 1;
-      break;
-    }
-  }
-
-  visibleStartIndex = Math.max(0, start);
-  visibleEndIndex = Math.max(visibleStartIndex, end);
+  virtualizer.setOptions({
+    ...virtualizer.options,
+    count,
+  });
 }
 
-function measureVisibleLogs(): void {
-  let changed = false;
-  const measured = new SvelteMap(heights);
+function measureElement(node: HTMLElement) {
+  const virtualizer = get(rowVirtualizer);
 
-  for (const [key, element] of elements) {
-    const height = element.offsetHeight;
+  virtualizer.measureElement(node);
 
-    if (height > 0 && measured.get(key) !== height) {
-      measured.set(key, height);
-      changed = true;
-    }
-  }
-
-  if (changed) {
-    heights = measured;
-  }
-}
-
-function scrollToBottom(): void {
-  if (!container) {
-    return;
-  }
-
-  isAutoScrolling = true;
-  autoScroll = true;
-
-  container.scrollTop = container.scrollHeight;
-
-  updateVisibleRange();
-
-  window.setTimeout(() => {
-    isAutoScrolling = false;
-  }, 50);
-}
-
-function handleScroll(): void {
-  if (!container || isAutoScrolling) {
-    return;
-  }
-
-  updateVisibleRange();
-
-  const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight);
-
-  autoScroll = scrollTop >= maxScroll - 50;
+  return {
+    destroy() {
+      // TanStack Virtual owns the measurement observer.
+    },
+  };
 }
 
 function formatTime(timestamp: number): string {
@@ -227,13 +156,10 @@ function getLevelIcon(level: LogEvent["level"]): string {
   switch (level) {
     case "error":
       return "alert";
-
     case "warn":
       return "warning";
-
     case "info":
       return "info";
-
     case "debug":
       return "bug";
   }
@@ -243,26 +169,13 @@ function getLevelClass(level: LogEvent["level"]): string {
   switch (level) {
     case "error":
       return "danger";
-
     case "warn":
       return "warning";
-
     case "info":
       return "info";
-
     case "debug":
       return "muted";
   }
-}
-
-function registerElement(node: HTMLElement, key: string) {
-  elements.set(key, node);
-
-  return {
-    destroy() {
-      elements.delete(key);
-    },
-  };
 }
 
 function formatLogText(log: LogEvent): string {
@@ -273,36 +186,68 @@ async function copyLog(log: LogEvent): Promise<void> {
   await navigator.clipboard.writeText(formatLogText(log));
 }
 
+function showCopyNotification(): void {
+  copyNotification = true;
+
+  if (copyNotificationTimeout) {
+    clearTimeout(copyNotificationTimeout);
+  }
+
+  copyNotificationTimeout = setTimeout(() => {
+    copyNotification = false;
+    copyNotificationTimeout = undefined;
+  }, 2000);
+}
+
 async function copyAllLogs(): Promise<void> {
   const text = filteredLogs.map(formatLogText).join("\n");
 
-  if (!text) {
-    return;
-  }
+  if (!text) return;
 
   await navigator.clipboard.writeText(text);
-
-  copyNotification = true;
-
-  window.setTimeout(() => {
-    copyNotification = false;
-  }, 2000);
+  showCopyNotification();
 }
 
 async function copyAllCurrentLogs(): Promise<void> {
   const text = logs.map(formatLogText).join("\n");
 
-  if (!text) {
-    return;
-  }
+  if (!text) return;
 
   await navigator.clipboard.writeText(text);
+  showCopyNotification();
+}
 
-  copyNotification = true;
+function scrollToBottom(): void {
+  if (!container || filteredLogs.length === 0) return;
 
-  window.setTimeout(() => {
-    copyNotification = false;
-  }, 2000);
+  autoScroll = true;
+  isAutoScrolling = true;
+
+  get(rowVirtualizer).scrollToIndex(filteredLogs.length - 1, {
+    align: "end",
+  });
+
+  if (autoScrollTimeout) {
+    clearTimeout(autoScrollTimeout);
+  }
+
+  autoScrollTimeout = setTimeout(() => {
+    isAutoScrolling = false;
+    autoScrollTimeout = undefined;
+  }, 150);
+}
+
+function handleScroll(): void {
+  if (!container || isAutoScrolling) return;
+
+  const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+
+  const shouldAutoScroll = distanceFromBottom <= BOTTOM_THRESHOLD;
+
+  // Avoid invalidating reactive state when the value has not changed.
+  if (autoScroll !== shouldAutoScroll) {
+    autoScroll = shouldAutoScroll;
+  }
 }
 
 function handleKeyDown(event: KeyboardEvent): void {
@@ -326,6 +271,62 @@ function handleKeyDown(event: KeyboardEvent): void {
   void copyAllCurrentLogs();
 }
 
+// Only log-count changes update the virtualizer's item count.
+// Scrolling and toggling auto-scroll cannot trigger this effect.
+$effect(() => {
+  const count = filteredLogs.length;
+
+  syncVirtualizerCount(count);
+
+  const previousCount = previousFilteredCount;
+  previousFilteredCount = count;
+
+  if (count <= previousCount || !untrack(() => autoScroll) || count === 0) {
+    return;
+  }
+
+  const version = ++updateVersion;
+
+  void tick().then(() => {
+    if (version !== updateVersion || !untrack(() => autoScroll) || !container || filteredLogs.length !== count) {
+      return;
+    }
+
+    scrollToBottom();
+  });
+});
+
+// Only search/filter changes reset measurements and scroll position.
+// Reading the filtered result count untracked prevents new log arrivals
+// from repeatedly triggering this effect.
+$effect(() => {
+  searchTerm;
+  searchMode;
+  logLevelFilters.error;
+  logLevelFilters.warn;
+  logLevelFilters.info;
+  logLevelFilters.debug;
+
+  const count = untrack(() => filteredLogs.length);
+  const version = ++updateVersion;
+
+  previousFilteredCount = count;
+
+  get(rowVirtualizer).measure();
+
+  if (container) {
+    container.scrollTop = 0;
+  }
+
+  void tick().then(() => {
+    if (version !== updateVersion || !container) return;
+
+    if (untrack(() => autoScroll) && filteredLogs.length > 0) {
+      scrollToBottom();
+    }
+  });
+});
+
 $effect(() => {
   window.addEventListener("keydown", handleKeyDown);
 
@@ -334,69 +335,11 @@ $effect(() => {
   };
 });
 
-$effect(() => {
-  const count = filteredLogs.length;
+onDestroy(() => {
+  updateVersion++;
 
-  if (!autoScroll || count <= previousLogCount) {
-    previousLogCount = count;
-    return;
-  }
-
-  const version = ++updateVersion;
-
-  tick().then(async () => {
-    if (version !== updateVersion || !autoScroll || filteredLogs.length !== count || !container) {
-      return;
-    }
-
-    await tick();
-
-    if (version !== updateVersion || !container) {
-      return;
-    }
-
-    measureVisibleLogs();
-    updateVisibleRange();
-    scrollToBottom();
-  });
-
-  previousLogCount = count;
-});
-
-$effect(() => {
-  filteredLogs;
-  searchTerm;
-  searchMode;
-  logLevelFilters;
-
-  const version = ++updateVersion;
-
-  heights = new SvelteMap();
-  elements.clear();
-
-  visibleStartIndex = 0;
-  visibleEndIndex = Math.min(50, filteredLogs.length);
-
-  tick().then(async () => {
-    if (version !== updateVersion || !container) {
-      return;
-    }
-
-    updateVisibleRange();
-
-    await tick();
-
-    if (version !== updateVersion || !container) {
-      return;
-    }
-
-    measureVisibleLogs();
-    updateVisibleRange();
-
-    if (autoScroll) {
-      scrollToBottom();
-    }
-  });
+  if (autoScrollTimeout) clearTimeout(autoScrollTimeout);
+  if (copyNotificationTimeout) clearTimeout(copyNotificationTimeout);
 });
 </script>
 
@@ -417,30 +360,32 @@ $effect(() => {
         </p>
       </div>
     {:else}
-      <div class="log-entries-wrapper" style={`height: ${totalHeight}px`}>
-        <div class="log-entries" style={`transform: translateY(${offsetY}px)`}>
-          {#each visibleLogs as log, index (getLogKey(log, visibleStartIndex + index))}
-            {@const absoluteIndex = visibleStartIndex + index}
-            {@const logKey = getLogKey(log, absoluteIndex)}
+      <div class="log-entries-wrapper" style={`height: ${totalHeight + 8}px`}>
+        <div class="log-entries">
+          {#each virtualItems as virtualItem (virtualItem.key)}
+            {@const index = virtualItem.index}
+            {@const log = filteredLogs[index]}
 
-            <div class="log-entry" use:registerElement={logKey}>
-              <button class="log-copy-icon" title="Copy log entry" onclick={() => copyLog(log)}>
-                <Icon name="clipboard" size="sm" />
-              </button>
+            {#if log}
+              <div class="log-entry" data-index={index} use:measureElement style={`transform: translateY(${virtualItem.start}px)`}>
+                <button class="log-copy-icon" title="Copy log entry" aria-label="Copy log entry" onclick={() => copyLog(log)}>
+                  <Icon name="clipboard" size="sm" />
+                </button>
 
-              <div class="log-timestamp">
-                {formatTime(log.timestamp)}
+                <div class="log-timestamp">
+                  {formatTime(log.timestamp)}
+                </div>
+
+                <div class="log-level badge {getLevelClass(log.level)}">
+                  <Icon name={getLevelIcon(log.level)} size="sm" />
+                  {log.level.toUpperCase()}
+                </div>
+
+                <div class="log-message">
+                  <pre class="log-message-content"><code>{log.message}</code></pre>
+                </div>
               </div>
-
-              <div class="log-level badge {getLevelClass(log.level)}">
-                <Icon name={getLevelIcon(log.level)} size="sm" />
-                {log.level.toUpperCase()}
-              </div>
-
-              <div class="log-message">
-                <pre class="log-message-content"><code>{log.message}</code></pre>
-              </div>
-            </div>
+            {/if}
           {/each}
         </div>
       </div>
@@ -451,7 +396,6 @@ $effect(() => {
     <div class="overlay-copy-notification" role="status" aria-live="polite">
       <div class="overlay-copy-content">
         <Icon name="clipboard" size="md" />
-
         <span>
           Copied {filteredLogs.length}
           {filteredLogs.length === 1 ? "log entry" : "log entries"}
@@ -552,22 +496,24 @@ $effect(() => {
 
   .log-entries {
     position: absolute;
-    top: 0;
+    top: 4px;
     left: 0;
     right: 0;
-    padding: 0.25rem;
-    will-change: transform;
+    width: 100%;
   }
 
   .log-entry {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-sizing: border-box;
     display: flex;
     align-items: flex-start;
     gap: 0.5rem;
     min-height: 28px;
     padding: 0.25rem 0.5rem;
-    box-sizing: border-box;
     border-radius: $radius-md;
-    transition: background-color 0.2s ease;
 
     &:hover {
       background: $color-surface-2;

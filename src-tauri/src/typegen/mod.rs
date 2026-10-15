@@ -106,6 +106,7 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::download_skin_from_url,
             // #endregion Skins
             // #region Symlinks
+            api::check_symlink_support,
             api::get_symlinks,
             api::runtime_symlinks,
             api::runtime_symlinks_for_profile,
@@ -121,6 +122,7 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::open_url,
             api::open_path,
             api::get_max_ram,
+            api::open_developer_settings,
             // #endregion System
             // #region Updater
             api::check_launcher_updates,

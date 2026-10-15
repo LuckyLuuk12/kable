@@ -130,3 +130,17 @@ pub fn hide_console_window() {
         }
     }
 }
+
+#[cfg(windows)]
+pub fn open_developer_settings() -> Result<(), String> {
+    std::process::Command::new("explorer.exe")
+        .arg("ms-settings:developers")
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Failed to open Windows Developer settings: {error}"))
+}
+
+#[cfg(not(windows))]
+pub fn open_developer_settings() -> Result<(), String> {
+    Err("Windows Developer settings are only available on Windows.".to_string())
+}

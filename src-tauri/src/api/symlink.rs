@@ -4,6 +4,12 @@ use std::collections::HashMap;
 
 #[tauri::command]
 #[specta::specta]
+pub async fn check_symlink_support() -> Result<Option<String>, String> {
+    symlink::check_symlink_support().await
+}
+
+#[tauri::command]
+#[specta::specta]
 pub async fn get_symlinks() -> Result<Vec<Symlink>, String> {
     symlink::symlinks().await
 }

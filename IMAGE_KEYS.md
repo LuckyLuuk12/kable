@@ -32,7 +32,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | alert | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L75) | <pre><code class="language-html">&lt;Icon name="alert" size="sm" /&gt;</code></pre> |
 | alert-circle | [CreateProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/CreateProfileModal.svelte#L363) | <pre><code class="language-html">&lt;Icon name="alert-circle" size="sm" forceType="svg" /&gt;</code></pre> |
 | archive | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L259) | <pre><code class="language-html">&lt;Icon name="archive" size="md" /&gt;</code></pre> |
-| arrow-down | [LogsViewer](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsViewer.svelte#L480) | <pre><code class="language-html">&lt;Icon name="arrow-down" size="sm" /&gt;</code></pre> |
+| arrow-down | [LogsViewer](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsViewer.svelte#L424) | <pre><code class="language-html">&lt;Icon name="arrow-down" size="sm" /&gt;</code></pre> |
 | arrow-up | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L147) | <pre><code class="language-html">&lt;Icon name="arrow-up" size="lg" forceType="svg" /&gt;</code></pre> |
 | ban | [CapeSelection](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/CapeSelection.svelte#L87) | <pre><code class="language-html">&lt;Icon name="ban" forceType="svg" size="xl" /&gt;</code></pre> |
 | calendar | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L282) | <pre><code class="language-html">&lt;Icon name="calendar" size="sm" /&gt;</code></pre> |
@@ -62,9 +62,9 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | chevron-up | [RamAllocation](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/RamAllocation.svelte#L530) | <pre><code class="language-html">&lt;Icon name="chevron-up" forceType="svg" /&gt;</code></pre> |
 | chevron-up | [InstalledProjects](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/InstalledProjects.svelte#L448) | <pre><code class="language-html">&lt;Icon name="chevron-up" size="sm" forceType="svg" /&gt;</code></pre> |
 | chevron-up | [InstalledProjects](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/InstalledProjects.svelte#L474) | <pre><code class="language-html">&lt;Icon name="chevron-up" size="sm" forceType="svg" /&gt;</code></pre> |
-| clipboard | [LogsViewer](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsViewer.svelte#L428) | <pre><code class="language-html">&lt;Icon name="clipboard" size="sm" /&gt;</code></pre> |
-| clipboard | [LogsViewer](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsViewer.svelte#L453) | <pre><code class="language-html">&lt;Icon name="clipboard" size="md" /&gt;</code></pre> |
-| clipboard | [LogsViewer](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsViewer.svelte#L474) | <pre><code class="language-html">&lt;Icon name="clipboard" size="sm" /&gt;</code></pre> |
+| clipboard | [LogsViewer](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsViewer.svelte#L372) | <pre><code class="language-html">&lt;Icon name="clipboard" size="sm" /&gt;</code></pre> |
+| clipboard | [LogsViewer](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsViewer.svelte#L398) | <pre><code class="language-html">&lt;Icon name="clipboard" size="md" /&gt;</code></pre> |
+| clipboard | [LogsViewer](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsViewer.svelte#L418) | <pre><code class="language-html">&lt;Icon name="clipboard" size="sm" /&gt;</code></pre> |
 | clock | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L272) | <pre><code class="language-html">&lt;Icon name="clock" size="sm" /&gt;</code></pre> |
 | clock | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L290) | <pre><code class="language-html">&lt;Icon name="clock" size="sm" /&gt;</code></pre> |
 | clock | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L298) | <pre><code class="language-html">&lt;Icon name="clock" size="sm" /&gt;</code></pre> |
@@ -163,7 +163,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | plus | [Profiles Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/profiles/+page.svelte#L50) | <pre><code class="language-html">&lt;Icon name="plus" size="md" forceType="svg" /&gt;</code></pre> |
 | refresh | [CacheManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/advanced/CacheManager.svelte#L240) | <pre><code class="language-html">&lt;Icon name="refresh" forceType="svg" size="sm" /&gt;</code></pre> |
 | refresh | [SymlinkManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/advanced/SymlinkManager.svelte#L141) | <pre><code class="language-html">&lt;Icon name="refresh" forceType="svg" size="sm" /&gt;</code></pre> |
-| refresh | [LogsViewer](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsViewer.svelte#L489) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
+| refresh | [LogsViewer](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsViewer.svelte#L433) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" /&gt;</code></pre> |
 | refresh | [CreateProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/CreateProfileModal.svelte#L711) | <pre><code class="language-html">&lt;Icon name="refresh" size="sm" className="spin" forceType="svg" /&gt;</code></pre> |
 | refresh | [PlayButton](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/PlayButton.svelte#L38) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" className="spin" /&gt;</code></pre> |
 | refresh | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L165) | <pre><code class="language-html">&lt;Icon name="refresh" size="md" forceType="svg" /&gt;</code></pre> |
@@ -219,4 +219,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L166) | <pre><code class="language-html">&lt;Icon name="x" size="md" forceType="svg" /&gt;</code></pre> |
 | zap | [LogsToolbar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsToolbar.svelte#L121) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2026-10-14T22:07:15.921Z_
+_Generated: 2026-10-15T20:57:09.098Z_

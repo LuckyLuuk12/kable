@@ -116,6 +116,7 @@ export const commands = {
 } | null, string>(__TAURI_INVOKE("get_active_cape")),
 	applyCape: (capeId: string | null) => typedError<null, string>(__TAURI_INVOKE("apply_cape", { capeId })),
 	downloadSkinFromUrl: (url: string) => typedError<number[], string>(__TAURI_INVOKE("download_skin_from_url", { url })),
+	checkSymlinkSupport: () => typedError<string | null, string>(__TAURI_INVOKE("check_symlink_support")),
 	getSymlinks: () => typedError<Symlink[], string>(__TAURI_INVOKE("get_symlinks")),
 	runtimeSymlinks: () => typedError<{ [key in string]: Symlink[] }, string>(__TAURI_INVOKE("runtime_symlinks")),
 	runtimeSymlinksForProfile: (profileId: string) => typedError<Symlink[], string>(__TAURI_INVOKE("runtime_symlinks_for_profile", { profileId })),
@@ -129,6 +130,7 @@ export const commands = {
 	openUrl: (url: string) => typedError<null, string>(__TAURI_INVOKE("open_url", { url })),
 	openPath: (path: string) => typedError<null, string>(__TAURI_INVOKE("open_path", { path })),
 	getMaxRam: () => typedError<number, string>(__TAURI_INVOKE("get_max_ram")),
+	openDeveloperSettings: () => typedError<null, string>(__TAURI_INVOKE("open_developer_settings")),
 	checkLauncherUpdates: (includePrerelease: boolean) => typedError<UpdateData, string>(__TAURI_INVOKE("check_launcher_updates", { includePrerelease })),
 	installLauncherUpdate: (includePrerelease: boolean) => typedError<null, string>(__TAURI_INVOKE("install_launcher_update", { includePrerelease })),
 	downloadLauncherUpdate: (includePrerelease: boolean) => typedError<string, string>(__TAURI_INVOKE("download_launcher_update", { includePrerelease })),
@@ -220,6 +222,8 @@ export type CreateProfileRequest = {
 	version_override?: string | null,
 	/**  Metadata overrides applied after source merging. */
 	metadata?: ProfileMetadataOverrides,
+	/**  Whether or not to attempt to update/downgrade "projects" (mods, resource packs, shaders) to match the final version. */
+	update_projects?: boolean,
 };
 
 export type CurrentSkin = {

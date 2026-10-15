@@ -407,6 +407,10 @@ pub struct CreateProfileRequest {
     /// Metadata overrides applied after source merging.
     #[serde(default)]
     pub metadata: ProfileMetadataOverrides,
+
+    /// Whether or not to attempt to update/downgrade "projects" (mods, resource packs, shaders) to match the final version.
+    #[serde(default)]
+    pub update_projects: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, specta::Type, Default)]
