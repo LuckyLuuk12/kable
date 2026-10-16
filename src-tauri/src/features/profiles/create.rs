@@ -89,14 +89,33 @@ pub async fn create_profile(request: CreateProfileRequest) -> Result<KableProfil
 
     let target_profile_id = generate_unique_profile_id().await?;
 
-    let mut profile = resolve_source(first_source, &target_profile_id, versions).await?;
+    let mut profile = match versions {
+        Some(versions) => {
+            let version_id = version_override
+                .clone()
+                .or_else(|| match &first_source {
+                    ProfileSource::Version { version_id } => Some(version_id.clone()),
+                    _ => None,
+                })
+                .or_else(|| versions.first().map(|version| version.id.clone()))
+                .ok_or_else(|| "No Minecraft versions are available".to_string())?;
 
-    // Keep the target identity stable if a merge copies identity fields from
-    // an incoming profile.
-    profile.id.clone_from(&target_profile_id);
+            new_profile(version_id, &target_profile_id, versions)?
+        }
+        None => {
+            return Err("Cannot initialize an empty profile without version metadata".to_string());
+        }
+    };
 
-    // Some project-management operations require the profile to be persisted.
     ensure_profile_exists(&profile).await?;
+
+    let mut incoming_profile = resolve_source(first_source, &target_profile_id, versions).await?;
+
+    incoming_profile.id.clone_from(&target_profile_id);
+
+    profile = crate::features::profiles::merge::merge_profiles(&mut profile, &mut incoming_profile)?;
+
+    profile.id.clone_from(&target_profile_id);
 
     for source in sources {
         let mut incoming_profile = resolve_source(source, &target_profile_id, versions).await?;

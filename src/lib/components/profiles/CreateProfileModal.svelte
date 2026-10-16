@@ -332,8 +332,7 @@ async function createProfile(event: SubmitEvent) {
     const request = buildRequest();
 
     await app.profilesService.createProfile(request);
-
-    modal.resolve();
+    app.dismissTop();
   } catch (e) {
     error = e instanceof Error ? e.message : "Failed to create installation.";
   } finally {
