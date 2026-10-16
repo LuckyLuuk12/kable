@@ -2,6 +2,8 @@ use api_types::updater::{GitHubRelease, UpdateData};
 use tauri_plugin_updater::UpdaterExt;
 use url::Url;
 
+use crate::Logger;
+
 // Helper function to extract version from name field
 // Strips everything until the first digit is found
 // Examples: "app-v0.1.9" -> "0.1.9", "nightly 0.1.9-12345" -> "0.1.9-12345"
@@ -134,7 +136,10 @@ pub async fn check_for_updates(include_prerelease: bool) -> Result<UpdateData, S
             Ok(info)
         }
         Ok(None) => Err("No updates available".into()),
-        Err(e) => Err(format!("Failed to check for updates: {}", e)),
+        Err(e) => {
+            Logger::error(format!("Failed to check for updates: {}", e).as_str(), None);
+            Err(format!("Failed to check for updates: {}", e))
+        }
     }
 }
 

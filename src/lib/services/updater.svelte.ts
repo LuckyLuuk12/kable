@@ -204,8 +204,9 @@ export class UpdaterService implements Service {
       }
 
       this.error = message;
-      app.notificationService.error(
-        "Failed to check for launcher updates.",
+      app.notificationService.error((includePrerelease
+        ? "Failed to check for nightly launcher updates: "
+        : "Failed to check for launcher updates: ") + message,
       );
 
       return null;
