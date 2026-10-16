@@ -16,7 +16,7 @@ use crate::{
     constants::{EXPORT_FILENAME, EXPORT_FORMAT_VERSION, RUNTIME_PREFIX},
     features::{
         launcher::runtime::ensure_runtime_dir,
-        projects::management::{ensure_profile_projects, list_profile_projects},
+        projects::management::{get_installed_project, list_profile_projects},
     },
     integrations::loaders::get_versions,
     system::fs as kable_fs,
@@ -141,6 +141,9 @@ async fn write_profile_archive(profile: &KableProfile, destination: &Path) -> Re
 
     for project_type in PROJECT_TYPES {
         let projects_dir = project_root.join(project_type_folder(project_type));
+
+        // The same filename may legitimately exist in different project-type
+        // folders, but should only be archived once within its own folder.
         let mut exported_filenames = HashSet::new();
 
         for projects_by_state in [&enabled_projects, &disabled_projects] {
@@ -206,6 +209,11 @@ async fn write_profile_archive(profile: &KableProfile, destination: &Path) -> Re
 ///
 /// Runtime files are restored beneath the target profile's runtime directory.
 /// Managed project files are restored into shared Kable project storage.
+///
+/// Project references are taken from the imported manifest. This function
+/// restores and validates those projects directly; it does not reconcile
+/// against the target profile's currently persisted settings, which may still
+/// represent the base profile rather than the imported profile.
 pub async fn import_profile(source: impl AsRef<Path>, target_profile_id: &str) -> Result<KableProfile, String> {
     let source = source.as_ref();
 
@@ -312,7 +320,11 @@ pub async fn import_profile(source: impl AsRef<Path>, target_profile_id: &str) -
 
     restore_archived_projects(&archived_projects).await?;
 
-    ensure_profile_projects(imported_profile.clone()).await?;
+    // Validate the imported profile's own enabled and disabled references.
+    // Do not call ensure_profile_projects here: it reloads the target profile
+    // from persistent storage, where the profile may still be the unmerged
+    // base profile, and therefore cannot reliably reconcile imported entries.
+    validate_profile_projects(&mut imported_profile).await?;
 
     Logger::debug_global(
         &format!("Imported profile {} with target ID {}", imported_profile.metadata.name, imported_profile.id),
@@ -434,6 +446,11 @@ fn parse_project_archive_path(path: &Path) -> Result<Option<(ProjectType, String
     Ok(Some((project_type, filename, is_metadata)))
 }
 
+/// Restore project files and metadata without changing profile settings.
+///
+/// Archive entries are validated before any project files are written.
+/// Duplicate detection is scoped to `(ProjectType, filename)`, since each
+/// project type has its own global storage directory.
 async fn restore_archived_projects(archived_projects: &[ArchivedProject]) -> Result<(), String> {
     let project_root = kable_fs::projects_dir()?;
 
@@ -472,22 +489,44 @@ async fn restore_archived_projects(archived_projects: &[ArchivedProject]) -> Res
         }
     }
 
-    // Reject duplicate archive entries instead of relying on archive order.
+    // Reject duplicate project files within the same project-type folder.
     let mut seen_files = HashSet::new();
 
-    for (_, filename, _) in &files {
-        if !seen_files.insert(filename.clone()) {
-            return Err(format!("Project archive contains duplicate project file: {filename}"));
+    for (project_type, filename, _) in &files {
+        if !seen_files.insert((*project_type, filename.clone())) {
+            return Err(format!("Project archive contains duplicate project file in {}: {}", project_type_folder(*project_type), filename));
         }
     }
 
+    // Reject duplicate metadata files within the same project-type folder.
     let mut seen_metadata = HashSet::new();
 
-    for (_, filename, _) in &metadata {
-        if !seen_metadata.insert(filename.clone()) {
-            return Err(format!("Project archive contains duplicate metadata file: {filename}"));
+    for (project_type, filename, _) in &metadata {
+        if !seen_metadata.insert((*project_type, filename.clone())) {
+            return Err(format!(
+                "Project archive contains duplicate metadata file in {}: {}",
+                project_type_folder(*project_type),
+                filename
+            ));
         }
     }
+
+    // Skip archived binaries without matching metadata instead of failing the
+    // entire import. Such files cannot be safely registered as managed projects.
+    let mut valid_files = Vec::with_capacity(files.len());
+
+    for (project_type, filename, contents) in files {
+        let has_metadata = metadata.iter().any(|(kind, _, project)| *kind == project_type && project.filename == filename);
+
+        if !has_metadata {
+            warn_skipped_project(project_type, &filename, "matching project metadata is missing from the archive");
+            continue;
+        }
+
+        valid_files.push((project_type, filename, contents));
+    }
+
+    let files = valid_files;
 
     // Validate file/metadata conflicts before writing anything.
     for (project_type, filename, _) in &files {
@@ -505,8 +544,11 @@ async fn restore_archived_projects(archived_projects: &[ArchivedProject]) -> Res
             return Err(format!("Project file {} already exists, but the archive has no matching metadata", target.display()));
         };
 
-        if let Some(existing) = crate::features::projects::management::get_installed_project(*project_type, filename).await? {
-            if existing.project.project_id != archived_metadata.project.project_id || existing.version_id != archived_metadata.version_id {
+        if let Some(existing) = get_installed_project(*project_type, filename).await? {
+            if existing.project.project_id != archived_metadata.project.project_id
+                || existing.version_id != archived_metadata.version_id
+                || existing.filename != archived_metadata.filename
+            {
                 return Err(format!("Project filename conflict: {} is already used by another project/version", filename));
             }
         } else if kable_fs::exists(&target_metadata).await? {
@@ -527,7 +569,11 @@ async fn restore_archived_projects(archived_projects: &[ArchivedProject]) -> Res
         let existing: KableProject =
             serde_json::from_slice(&existing_bytes).map_err(|e| format!("Existing project metadata is invalid: {e}"))?;
 
-        if existing.project.project_id != archived_metadata.project.project_id || existing.version_id != archived_metadata.version_id {
+        if existing.project.project_id != archived_metadata.project.project_id
+            || existing.version_id != archived_metadata.version_id
+            || existing.filename != archived_metadata.filename
+            || existing.project.project_type != archived_metadata.project.project_type
+        {
             return Err(format!("Project metadata conflict for {}", metadata_filename));
         }
     }
@@ -549,11 +595,11 @@ async fn restore_archived_projects(archived_projects: &[ArchivedProject]) -> Res
         ensure_target_is_safe_file(&target)?;
     }
 
+    // Restore binaries first, preserving matching existing installations.
     for (project_type, filename, contents) in files {
         let folder = project_root.join(project_type_folder(project_type));
         let target = folder.join(&filename);
 
-        // Preserve an already-installed matching project.
         if kable_fs::exists(&target).await? {
             continue;
         }
@@ -561,13 +607,10 @@ async fn restore_archived_projects(archived_projects: &[ArchivedProject]) -> Res
         write_managed_file(&target, &contents).await?;
     }
 
+    // Restore metadata only after ensuring its binary exists.
     for (project_type, metadata_filename, archived_metadata) in metadata {
         let folder = project_root.join(project_type_folder(project_type));
         let metadata_path = folder.join(&metadata_filename);
-
-        if kable_fs::exists(&metadata_path).await? {
-            continue;
-        }
 
         let project_path = folder.join(&archived_metadata.filename);
 
@@ -579,9 +622,76 @@ async fn restore_archived_projects(archived_projects: &[ArchivedProject]) -> Res
             ));
         }
 
+        if kable_fs::exists(&metadata_path).await? {
+            continue;
+        }
+
         let serialized = serde_json::to_vec_pretty(&archived_metadata).map_err(|e| format!("Failed to serialize project metadata: {e}"))?;
 
         write_managed_file(&metadata_path, &serialized).await?;
+    }
+
+    Ok(())
+}
+
+fn warn_skipped_project(project_type: ProjectType, filename: &str, reason: &str) {
+    Logger::warn(
+        format!("Skipping project {} in {} during profile import: {}", filename, project_type_folder(project_type), reason).as_str(),
+        None,
+    );
+}
+
+/// Remove project references that cannot be resolved to installed metadata
+/// and a regular project file. Missing projects are skipped rather than
+/// causing the entire profile import to fail.
+async fn validate_profile_projects(profile: &mut KableProfile) -> Result<(), String> {
+    let project_root = kable_fs::projects_dir()?;
+
+    for project_type in PROJECT_TYPES {
+        let mut projects = profile.settings.from(project_type);
+        let mut changed = false;
+
+        for enabled in [true, false] {
+            let filenames: Vec<String> =
+                if enabled { projects.enabled.iter().cloned().collect() } else { projects.disabled.iter().cloned().collect() };
+
+            for filename in filenames {
+                let reason = if let Err(error) = validate_filename(&filename) {
+                    Some(format!("invalid project filename: {error}"))
+                } else {
+                    match get_installed_project(project_type, &filename).await {
+                        Ok(Some(installed)) if installed.filename == filename && installed.project.project_type == project_type => {
+                            let project_path = project_root.join(project_type_folder(project_type)).join(&filename);
+
+                            match kable_fs::is_file(&project_path).await {
+                                Ok(true) => None,
+                                Ok(false) => Some(format!("project file is missing: {}", project_path.display())),
+                                Err(error) => {
+                                    return Err(format!("Failed to check project file {}: {error}", project_path.display()));
+                                }
+                            }
+                        }
+                        Ok(Some(_)) => Some("installed metadata does not match the reference".to_string()),
+                        Ok(None) => Some("project metadata is missing".to_string()),
+                        Err(error) => {
+                            return Err(format!("Failed to inspect project metadata for {}: {error}", filename));
+                        }
+                    }
+                };
+
+                if let Some(reason) = reason {
+                    warn_skipped_project(project_type, &filename, &reason);
+
+                    projects.enabled.remove(&filename);
+                    projects.disabled.remove(&filename);
+                    changed = true;
+                }
+            }
+        }
+
+        if changed {
+            profile.settings.set_projects(project_type, projects);
+        }
     }
 
     Ok(())

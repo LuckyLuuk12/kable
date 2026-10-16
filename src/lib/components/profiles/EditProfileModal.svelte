@@ -150,7 +150,7 @@ async function confirmEdit() {
 
   try {
     await app.profilesService.modify(profile, profile);
-    modal.resolve(true);
+    app.dismissTop();
   } catch (e) {
     error = e instanceof Error ? e.message : "Failed to update profile.";
   } finally {

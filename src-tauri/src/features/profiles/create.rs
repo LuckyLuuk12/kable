@@ -348,9 +348,10 @@ async fn apply_version_override(
         }
 
         crate::features::projects::management::check_incompatible_projects(profile.clone(), true).await?;
+
+        // Compatibility operations may have modified the persisted profile.
+        *profile = super::management::get_profile(&profile.id).await?;
     }
-    // Refresh from disk in case compatibility operations changed the profile.
-    *profile = super::management::get_profile(&profile.id).await?;
 
     Ok(())
 }
