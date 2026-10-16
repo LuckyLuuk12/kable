@@ -85,7 +85,9 @@ export class ProfilesService implements Service {
    * Changes to the clone do not affect the original object.
    */
   memoryClone(profile: KableProfile): KableProfile {
-    return structuredClone(profile);
+    const res = JSON.parse(JSON.stringify(profile)) as KableProfile;
+    console.log("[ProfilesService] Cloned profile", profile.id, "to memory clone", res.id);
+    return res;
   }
 
   async modify(oldProfile: KableProfile, newProfile: KableProfile): Promise<void> {
