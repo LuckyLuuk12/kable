@@ -3,6 +3,7 @@ pub const DISCORD_APP_ID: &str = "1432139549592649738";
 pub const DEFAULT_AZURE_CLIENT_ID: &str = "4c27a19f-a3d0-4cd2-8e05-9fd961f905df";
 // Trusted URLs for fetching required information
 pub const KABLE_GITHUB_RELEASES: &str = "https://api.github.com/repos/LuckyLuuk12/kable/releases";
+pub const KABLE_GITHUB_RELEASE_DOWNLOADS: &str = "https://github.com/LuckyLuuk12/kable/releases/download";
 // Mojang / Minecraft Services API
 pub const MINECRAFT_PROFILE_URL: &str = "https://api.minecraftservices.com/minecraft/profile";
 pub const MINECRAFT_PROFILE_SKINS_URL: &str = "https://api.minecraftservices.com/minecraft/profile/skins";

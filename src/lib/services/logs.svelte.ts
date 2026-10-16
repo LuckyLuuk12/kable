@@ -1,3 +1,4 @@
+
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { SvelteMap } from "svelte/reactivity";
 import { app, type Service } from "./app.svelte";
@@ -41,7 +42,11 @@ function parseLogEvent(value: unknown): LogEvent | null {
     return null;
   }
 
-  if (typeof value.message !== "string" || !isLogLevel(value.level) || typeof value.timestamp !== "number") {
+  if (
+    typeof value.message !== "string" ||
+    !isLogLevel(value.level) ||
+    typeof value.timestamp !== "number"
+  ) {
     return null;
   }
 
@@ -64,6 +69,13 @@ export class LogsService implements Service {
   private listeners: UnlistenFn[] = [];
   private initialized = false;
 
+  private get maxMemoryLogs(): number {
+    const configured = app.customizationService.settings?.logging?.max_memory_logs;
+    return typeof configured === "number" && Number.isFinite(configured)
+      ? Math.max(0, Math.floor(configured))
+      : 10_000;
+  }
+
   async init(): Promise<void> {
     if (this.initialized) {
       return;
@@ -71,31 +83,41 @@ export class LogsService implements Service {
 
     this.initialized = true;
 
-    await this.load();
+    try {
+      await this.load();
 
-    this.listeners.push(
-      await listen("game-launched", (event) => {
-        this.handleGameLaunched(event.payload);
-      }),
-    );
+      this.listeners.push(
+        await listen("game-launched", (event) => {
+          this.handleGameLaunched(event.payload);
+        }),
+      );
 
-    this.listeners.push(
-      await listen("game-process-event", (event) => {
-        this.handleGameProcessEvent(event.payload);
-      }),
-    );
+      this.listeners.push(
+        await listen("game-process-event", (event) => {
+          this.handleGameProcessEvent(event.payload);
+        }),
+      );
 
-    this.listeners.push(
-      await listen("launcher-log", (event) => {
-        this.handleLauncherLog(event.payload);
-      }),
-    );
+      this.listeners.push(
+        await listen("launcher-log", (event) => {
+          this.handleLauncherLog(event.payload);
+        }),
+      );
 
-    this.listeners.push(
-      await listen("launcher-log-batch", (event) => {
-        this.handleLauncherLogBatch(event.payload);
-      }),
-    );
+      this.listeners.push(
+        await listen("launcher-log-batch", (event) => {
+          this.handleLauncherLogBatch(event.payload);
+        }),
+      );
+    } catch (cause) {
+      for (const unlisten of this.listeners) {
+        unlisten();
+      }
+
+      this.listeners = [];
+      this.initialized = false;
+      throw cause;
+    }
   }
 
   destroy(): void {
@@ -104,16 +126,44 @@ export class LogsService implements Service {
     }
 
     this.listeners = [];
-
     this.launcherLogs = [];
     this.gameLogs = new SvelteMap();
     this.gameInstances = new SvelteMap();
-
     this.initialized = false;
   }
 
   private async load(): Promise<void> {
-    // Reserved for loading persisted launcher/game logs.
+    this.enforceMemoryLimit();
+  }
+
+  private trimLogs(logs: LogEvent[]): LogEvent[] {
+    const limit = this.maxMemoryLogs;
+
+    if (limit === 0) {
+      return [];
+    }
+
+    if (logs.length <= limit) {
+      return logs;
+    }
+
+    return logs.slice(logs.length - limit);
+  }
+
+  private enforceMemoryLimit(): void {
+    this.launcherLogs = this.trimLogs(this.launcherLogs);
+
+    const limitedGameLogs = new SvelteMap<string, LogEvent[]>();
+
+    for (const [instanceId, logs] of this.gameLogs) {
+      const trimmed = this.trimLogs(logs);
+
+      if (trimmed.length > 0) {
+        limitedGameLogs.set(instanceId, trimmed);
+      }
+    }
+
+    this.gameLogs = limitedGameLogs;
   }
 
   private handleGameLaunched(payload: unknown): void {
@@ -122,9 +172,7 @@ export class LogsService implements Service {
     }
 
     const runtimeId = typeof payload.runtimeId === "string" ? payload.runtimeId : null;
-
     const profile = isRecord(payload.profile) ? payload.profile : null;
-
     const metadata = isRecord(profile?.metadata) ? profile.metadata : null;
 
     if (runtimeId === null || profile === null || metadata === null || typeof metadata.name !== "string") {
@@ -162,9 +210,7 @@ export class LogsService implements Service {
     }
 
     const runtimeId = typeof payload.runtimeId === "string" ? payload.runtimeId : null;
-
     const type = typeof payload.type === "string" ? payload.type : null;
-
     const data = isRecord(payload.data) ? payload.data : null;
 
     if (runtimeId === null || type === null || data === null) {
@@ -183,15 +229,11 @@ export class LogsService implements Service {
       case "exit":
         this.handleProcessExit(runtimeId, data);
         break;
-
-      default:
-        break;
     }
   }
 
   private handleProcessStarted(runtimeId: string, data: Record<string, unknown>): void {
     const pid = typeof data.pid === "number" ? data.pid : undefined;
-
     const now = Date.now();
 
     this.updateGameInstance(runtimeId, {
@@ -232,7 +274,6 @@ export class LogsService implements Service {
 
   private handleProcessExit(runtimeId: string, data: Record<string, unknown>): void {
     const exitCode = typeof data.exitCode === "number" ? data.exitCode : undefined;
-
     const status = this.getExitStatus(exitCode);
     const now = Date.now();
 
@@ -243,11 +284,19 @@ export class LogsService implements Service {
       lastActivity: now,
     });
 
-    const statusMessage = status === "closed" ? "completed normally" : status === "stopped" ? "was stopped by user" : "crashed";
+    const statusMessage =
+      status === "closed"
+        ? "completed normally"
+        : status === "stopped"
+          ? "was stopped by user"
+          : "crashed";
 
     this.addLauncherLog({
       level: status === "crashed" ? "error" : "info",
-      message: exitCode === undefined ? `Game process ${statusMessage}` : `Game process ${statusMessage} (exit code: ${exitCode})`,
+      message:
+        exitCode === undefined
+          ? `Game process ${statusMessage}`
+          : `Game process ${statusMessage} (exit code: ${exitCode})`,
       fnName: null,
       instanceId: runtimeId,
       context: null,
@@ -285,24 +334,49 @@ export class LogsService implements Service {
       return;
     }
 
-    this.launcherLogs = [...this.launcherLogs, ...logs];
+    this.launcherLogs = this.trimLogs([...this.launcherLogs, ...logs]);
   }
 
   addLauncherLog(log: LogEvent): void {
-    this.launcherLogs = [...this.launcherLogs, log];
+    const limit = this.maxMemoryLogs;
+
+    if (limit === 0) {
+      this.launcherLogs = [];
+      return;
+    }
+
+    if (this.launcherLogs.length < limit) {
+      this.launcherLogs = [...this.launcherLogs, log];
+      return;
+    }
+
+    this.launcherLogs = [...this.launcherLogs.slice(-(limit - 1)), log];
   }
 
   addGameLog(runtimeId: string, log: LogEvent): void {
+    const limit = this.maxMemoryLogs;
+
+    if (limit === 0) {
+      if (this.gameLogs.has(runtimeId)) {
+        this.gameLogs.delete(runtimeId);
+        this.gameLogs = new SvelteMap(this.gameLogs);
+      }
+
+      return;
+    }
+
     const existing = this.gameLogs.get(runtimeId) ?? [];
+    const normalizedLog: LogEvent = {
+      ...log,
+      instanceId: runtimeId,
+    };
 
-    this.gameLogs.set(runtimeId, [
-      ...existing,
-      {
-        ...log,
-        instanceId: runtimeId,
-      },
-    ]);
+    const nextLogs =
+      existing.length < limit
+        ? [...existing, normalizedLog]
+        : [...existing.slice(-(limit - 1)), normalizedLog];
 
+    this.gameLogs.set(runtimeId, nextLogs);
     this.gameLogs = new SvelteMap(this.gameLogs);
   }
 
@@ -386,7 +460,9 @@ function formatConsoleArgument(value: unknown): string {
   }
 
   try {
-    return JSON.stringify(value, (_, nestedValue) => (typeof nestedValue === "bigint" ? `${nestedValue}n` : nestedValue));
+    return JSON.stringify(value, (_, nestedValue) =>
+      typeof nestedValue === "bigint" ? `${nestedValue}n` : nestedValue,
+    );
   } catch {
     return String(value);
   }
@@ -396,11 +472,22 @@ function formatConsoleMessage(args: unknown[]): string {
   return args.map(formatConsoleArgument).join(" ");
 }
 
-function writeConsoleLog(method: ConsoleLogMethod, args: unknown[], instanceId: string | null = null): void {
+function writeConsoleLog(
+  method: ConsoleLogMethod,
+  args: unknown[],
+  instanceId: string | null = null,
+): void {
   const message = formatConsoleMessage(args);
 
   const log: LogEvent = {
-    level: method === "error" ? "error" : method === "warn" ? "warn" : method === "debug" ? "debug" : "info",
+    level:
+      method === "error"
+        ? "error"
+        : method === "warn"
+          ? "warn"
+          : method === "debug"
+            ? "debug"
+            : "info",
     message,
     fnName: null,
     instanceId,

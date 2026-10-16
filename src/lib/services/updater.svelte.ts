@@ -1,9 +1,10 @@
 import type {
+  UpdateData,
   UpdateDetection,
   UpdateMode,
   UpdateNotificationStyle,
 } from "$lib";
-import { type UpdateData, api, app, UpdateModal } from "$lib";
+import { api, app, UpdateModal } from "$lib";
 import type { Service } from "./app.svelte";
 
 export class UpdaterService implements Service {
@@ -24,12 +25,16 @@ export class UpdaterService implements Service {
   private periodicTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
   private lastPresentedVersion: string | null = null;
+  private developmentBuild: boolean | null = null;
 
   async init() {
     this.destroyed = false;
 
     try {
-      const settings = await api.getSettings();
+      const [settings, currentVersion] = await Promise.all([
+        api.getSettings(),
+        api.getCurrentVersion(),
+      ]);
 
       this.updateDetection =
         settings?.general?.update_detection ?? "on_startup";
@@ -42,6 +47,14 @@ export class UpdaterService implements Service {
 
       this.includePrerelease =
         settings?.advanced?.enable_nightly_updates ?? false;
+
+      this.developmentBuild = this.isDevelopmentVersion(currentVersion);
+
+      if (this.developmentBuild) {
+        console.info(
+          `[Updater] Development build detected (${currentVersion}). Update checks are enabled; downloads and installation are disabled.`,
+        );
+      }
 
       switch (this.updateDetection) {
         case "on_startup":
@@ -58,13 +71,31 @@ export class UpdaterService implements Service {
       }
     } catch (error) {
       this.error = String(error);
+      console.error("[Updater] Failed to initialize updater service:", error);
     }
   }
 
   /**
-   * Schedule recurring checks without overlapping timers.
-   * The interval is expressed in seconds.
+   * Development versions are predicted nightly versions returned by the
+   * backend, such as 0.1.9-34. Stable packaged versions remain 0.1.9.
+   *
+   * This heuristic is only used for UI behavior. Backend guards remain
+   * authoritative for download and installation operations.
    */
+  private isDevelopmentVersion(version: string): boolean {
+    const match = version.match(/^(\d+\.\d+\.\d+)-(\d+)$/);
+
+    if (!match) return false;
+
+    const buildNumber = Number(match[2]);
+
+    return Number.isSafeInteger(buildNumber) && buildNumber > 0;
+  }
+
+  private isDevelopmentBuild(): boolean {
+    return this.developmentBuild === true;
+  }
+
   private schedulePeriodicCheck(seconds: number) {
     this.clearPeriodicTimer();
 
@@ -79,6 +110,8 @@ export class UpdaterService implements Service {
 
       try {
         await this.runDetectionCheck();
+      } catch (error) {
+        console.error("[Updater] Periodic update check failed:", error);
       } finally {
         if (!this.destroyed) {
           this.schedulePeriodicCheck(seconds);
@@ -111,102 +144,138 @@ export class UpdaterService implements Service {
         return result;
 
       case "automatic":
+        if (this.isDevelopmentBuild()) {
+          this.presentUpdate(result);
+          app.notificationService.info(
+            "Automatic launcher updates are disabled in development builds. The available update is shown for testing only.",
+          );
+          return result;
+        }
+
         await this.install(this.includePrerelease);
         return result;
     }
   }
 
   /**
-   * Present an available update using the configured UI.
+   * Show the update modal, with actions adapted to the current build.
    */
   private presentUpdate(update: UpdateData) {
     if (this.destroyed) return;
 
-    // Do not repeatedly present the same version.
     if (this.lastPresentedVersion === update.version) return;
 
     this.lastPresentedVersion = update.version;
     this.updateInfo = update;
+
+    const developmentBuild = this.isDevelopmentBuild();
+
+    const openModal = () => {
+      if (this.destroyed) return;
+
+      app.show(UpdateModal, {
+        updateInfo: update,
+        open: true,
+
+        onclose: () => {
+          this.updateInfo = null;
+        },
+
+        oninstallnow: async () => {
+          if (developmentBuild) {
+            this.notifyDevelopmentRestriction("install");
+            return;
+          }
+
+          const success = await this.install(this.includePrerelease);
+
+          if (success) {
+            this.updateInfo = null;
+          }
+        },
+
+        ondownload: async () => {
+          if (developmentBuild) {
+            this.notifyDevelopmentRestriction("download");
+            return;
+          }
+
+          await this.download(this.includePrerelease);
+        },
+      });
+    };
+
+    if (developmentBuild) {
+      app.notificationService.info(
+        `Development build: Kable ${update.version} is available for update-flow testing. Downloading and installing are disabled.`,
+        10,
+        false,
+        openModal,
+      );
+
+      return;
+    }
 
     if (this.notificationStyle === "notification") {
       app.notificationService.info(
         `Kable ${update.version} is available. Click here to view the update.`,
         10,
         false,
-        () => {
-          app.show(UpdateModal, {
-            updateInfo: update,
-            open: true,
-            onclose: () => {
-              this.updateInfo = null;
-            },
-            oninstallnow: async () => {
-              await this.install(this.includePrerelease);
-            },
-            ondownload: async () => {
-              const path = await this.download(this.includePrerelease);
-
-              if (path === null) {
-                throw new Error("Failed to download launcher update.");
-              }
-            },
-          });
-        },
+        openModal,
       );
 
       return;
     }
 
-    app.show(UpdateModal, {
-      updateInfo: update,
-      open: true,
+    openModal();
+  }
 
-      onclose: () => {
-        this.updateInfo = null;
-      },
+  private notifyDevelopmentRestriction(action: "download" | "install" | "apply") {
+    const actionText = {
+      download: "Downloading updates",
+      install: "Installing updates",
+      apply: "Applying downloaded updates",
+    }[action];
 
-      oninstallnow: async () => {
-        const success = await this.install(this.includePrerelease);
+    const message =
+      `${actionText} is disabled in development builds. ` +
+      "The update notification is shown for testing only.";
 
-        if (success) {
-          this.updateInfo = null;
-        }
-      },
-
-      ondownload: async () => {
-        await this.download(this.includePrerelease);
-      },
-    });
+    this.error = message;
+    app.notificationService.info(message);
   }
 
   /**
    * Check for launcher updates.
    */
-  async check(includePrerelease: boolean = false) {
-    if (this.checking) return null;
+  async check(includePrerelease: boolean = this.includePrerelease) {
+    if (this.checking || this.destroyed) return null;
 
     this.checking = true;
     this.error = null;
 
     try {
       const result = await api.checkLauncherUpdates(includePrerelease);
+
       this.updateInfo = result;
       return result;
-    } catch (e) {
-      const message = String(e);
+    } catch (error) {
+      const message = String(error);
 
       if (
-        message.includes("No updates available") ||
-        message.includes("Updates are disabled in development mode")
+        message.includes("No update available") ||
+        message.includes("No updates available")
       ) {
         this.updateInfo = null;
         return null;
       }
 
       this.error = message;
-      app.notificationService.error((includePrerelease
-        ? "Failed to check for nightly launcher updates: "
-        : "Failed to check for launcher updates: ") + message,
+
+      app.notificationService.error(
+        (includePrerelease
+          ? "Failed to check for nightly launcher updates: "
+          : "Failed to check for launcher updates: ") + message,
       );
 
       return null;
@@ -218,8 +287,13 @@ export class UpdaterService implements Service {
   /**
    * Download an update without applying it.
    */
-  async download(includePrerelease: boolean = false) {
-    if (this.downloading) return null;
+  async download(includePrerelease: boolean = this.includePrerelease) {
+    if (this.isDevelopmentBuild()) {
+      this.notifyDevelopmentRestriction("download");
+      return null;
+    }
+
+    if (this.downloading || this.destroyed) return null;
 
     this.downloading = true;
     this.error = null;
@@ -232,13 +306,15 @@ export class UpdaterService implements Service {
       );
 
       return path;
-    } catch (e) {
-      this.error = String(e);
+    } catch (error) {
+      const message = String(error);
+      this.error = message;
+
       app.notificationService.error(
-        "Failed to download launcher update.",
+        `Failed to download launcher update: ${message}`,
       );
 
-      throw e;
+      return null;
     } finally {
       this.downloading = false;
     }
@@ -247,8 +323,13 @@ export class UpdaterService implements Service {
   /**
    * Install an update immediately.
    */
-  async install(includePrerelease: boolean = false) {
-    if (this.installing) return false;
+  async install(includePrerelease: boolean = this.includePrerelease) {
+    if (this.isDevelopmentBuild()) {
+      this.notifyDevelopmentRestriction("install");
+      return false;
+    }
+
+    if (this.installing || this.destroyed) return false;
 
     this.installing = true;
     this.error = null;
@@ -262,10 +343,12 @@ export class UpdaterService implements Service {
 
       this.updateInfo = null;
       return true;
-    } catch (e) {
-      this.error = String(e);
+    } catch (error) {
+      const message = String(error);
+      this.error = message;
+
       app.notificationService.error(
-        "Failed to install launcher update.",
+        `Failed to install launcher update: ${message}`,
       );
 
       return false;
@@ -278,7 +361,12 @@ export class UpdaterService implements Service {
    * Apply an update that has already been downloaded.
    */
   async applyDownloaded() {
-    if (this.installing) return false;
+    if (this.isDevelopmentBuild()) {
+      this.notifyDevelopmentRestriction("apply");
+      return false;
+    }
+
+    if (this.installing || this.destroyed) return false;
 
     this.installing = true;
     this.error = null;
@@ -292,10 +380,12 @@ export class UpdaterService implements Service {
 
       this.updateInfo = null;
       return true;
-    } catch (e) {
-      this.error = String(e);
+    } catch (error) {
+      const message = String(error);
+      this.error = message;
+
       app.notificationService.error(
-        "Failed to apply downloaded update.",
+        `Failed to apply downloaded launcher update: ${message}`,
       );
 
       return false;
@@ -326,11 +416,12 @@ export class UpdaterService implements Service {
   async getCurrentVersion() {
     try {
       return await api.getCurrentVersion();
-    } catch (e) {
+    } catch (error) {
       console.error(
         "API call failed: `api.getCurrentVersion()`",
-        e,
+        error,
       );
+      return undefined;
     }
   }
 

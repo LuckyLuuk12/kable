@@ -1,3 +1,4 @@
+
 import { type KableProfile, type LaunchResult, type Versions, api, app } from "$lib";
 import type { Service } from "./app.svelte";
 
@@ -7,13 +8,15 @@ export class LauncherService implements Service {
   lastLaunch = $state<LaunchResult | null>(null);
 
   javaPath = $state<string | null>(null);
-  versions = $state<Versions | null>(null);
 
+  versions = $state<Versions | null>(null);
   loadingVersions = $state(false);
   loadingJava = $state(false);
 
+  private versionsRequest: Promise<Versions> | null = null;
+
   async init() {
-    await Promise.all([this.loadVersions(), this.autoDetectJava()]);
+    await this.autoDetectJava();
   }
 
   /**
@@ -28,19 +31,18 @@ export class LauncherService implements Service {
       this.lastLaunch = result;
 
       app.notificationService.success(
-        `Launching Minecraft with profile "${profile.metadata.name}".`
+        `Launching Minecraft with profile "${profile.metadata.name}".`,
       );
 
       return result;
     } catch (error) {
       app.notificationService.error(
-        `Failed to launch Minecraft with profile "${profile.metadata.name}".`
+        `Failed to launch Minecraft with profile "${profile.metadata.name}".`,
       );
       throw error;
     } finally {
       this.launching = false;
       this.launchingProfileId = null;
-      // TODO: execute the on_game_launch action if set in settings
     }
   }
 
@@ -90,34 +92,69 @@ export class LauncherService implements Service {
   }
 
   /**
-   * Load available Minecraft and loader versions.
+   * Load available Minecraft and loader versions on demand.
+   * Concurrent callers share the same request.
    */
-  async loadVersions(force: boolean = false) {
-    if (this.versions && !force) return this.versions;
+  async loadVersions(force = false): Promise<Versions> {
+    if (this.versions !== null && !force) {
+      return this.versions;
+    }
+
+    if (this.versionsRequest !== null && !force) {
+      return this.versionsRequest;
+    }
 
     this.loadingVersions = true;
 
+    const request = api.getVersions();
+    this.versionsRequest = request;
+
     try {
-      const versions = await api.getVersions();
-      this.versions = versions;
+      const versions = await request;
+
+      if (this.versionsRequest === request) {
+        this.versions = versions;
+      }
+
       return versions;
     } finally {
-      this.loadingVersions = false;
+      if (this.versionsRequest === request) {
+        this.versionsRequest = null;
+        this.loadingVersions = false;
+      }
     }
   }
 
   /**
    * Refresh versions explicitly.
    */
-  async refreshVersions() {
+  async refreshVersions(): Promise<Versions> {
     this.loadingVersions = true;
 
+    const request = api.refreshVersions();
+    this.versionsRequest = request;
+
     try {
-      this.versions = await api.refreshVersions();
-      return this.versions;
+      const versions = await request;
+
+      if (this.versionsRequest === request) {
+        this.versions = versions;
+      }
+
+      return versions;
     } finally {
-      this.loadingVersions = false;
+      if (this.versionsRequest === request) {
+        this.versionsRequest = null;
+        this.loadingVersions = false;
+      }
     }
+  }
+
+  /**
+   * Release the frontend version cache when it is no longer needed.
+   */
+  clearVersions(): void {
+    this.versions = null;
   }
 
   /**
@@ -131,5 +168,6 @@ export class LauncherService implements Service {
     this.versions = null;
     this.loadingVersions = false;
     this.loadingJava = false;
+    this.versionsRequest = null;
   }
 }
