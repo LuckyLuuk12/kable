@@ -90,30 +90,6 @@ async function refreshVersionManifests() {
   overflow-y: auto;
 }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-
-  .header-content {
-    text-align: center;
-    width: 100%;
-    h1 {
-      margin: 0 0 0.5rem;
-      font-size: 2rem;
-      font-weight: 700;
-      color: var(--text);
-      text-align: center;
-    }
-    p {
-      margin: 0;
-      color: var(--placeholder);
-      font-size: 1rem;
-      text-align: center;
-    }
-  }
-}
 .controls-container {
   background: $color-surface-1;
   padding: $space-md;

@@ -25,19 +25,32 @@ const selectedLogs = $derived.by(() => {
 const instances = $derived(Array.from(app.logsService.gameInstances.values()));
 </script>
 
-<div class="logs-page">
-  <LogsToolbar bind:searchTerm bind:searchMode bind:autoScroll bind:logLevelFilters {selectedInstanceId} logs={selectedLogs} />
+<div class="page">
+  <div class="page-body">
+    <LogsToolbar bind:searchTerm bind:searchMode bind:autoScroll bind:logLevelFilters {selectedInstanceId} logs={selectedLogs} />
 
-  <LogsInstanceTabs {instances} bind:selectedInstanceId />
+    <LogsInstanceTabs {instances} bind:selectedInstanceId />
 
-  <LogsViewer logs={selectedLogs} {searchTerm} {searchMode} bind:autoScroll bind:logLevelFilters />
+    <LogsViewer logs={selectedLogs} {searchTerm} {searchMode} bind:autoScroll bind:logLevelFilters />
+  </div>
 </div>
 
 <style lang="scss">
-.logs-page {
+.page {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  min-height: 100%;
-  max-height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 </style>
