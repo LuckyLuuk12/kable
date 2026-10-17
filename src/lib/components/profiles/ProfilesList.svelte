@@ -19,12 +19,12 @@ let {
   isSmall = false,
   error = null,
   limit = null,
-} = $props<{
+}: {
   isGrid?: boolean;
   isSmall?: boolean;
   error?: string | null;
   limit?: number | null;
-}>();
+} = $props();
 
 let isLoading = $derived(app.profilesService.loading || app.launcherService.loadingVersions);
 
