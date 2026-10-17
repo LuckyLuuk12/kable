@@ -1,4 +1,3 @@
-
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { SvelteMap } from "svelte/reactivity";
 import { app, type Service } from "./app.svelte";
@@ -29,12 +28,93 @@ export interface GameInstance {
   completedAt?: number;
 }
 
+const MAX_LOG_MESSAGE_CHARS = 16_384;
+const MAX_LOG_VALUE_CHARS = 4_096;
+const MAX_GAME_INSTANCES = 20;
+const MAX_LOGS_PER_GAME_INSTANCE = 2_000;
+const MAX_TOTAL_GAME_LOGS = 10_000;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
 function isLogLevel(value: unknown): value is LogLevel {
   return value === "info" || value === "warn" || value === "error" || value === "debug";
+}
+
+function truncateText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+
+  return `${value.slice(0, maxLength)}… [truncated]`;
+}
+
+/**
+ * Store detached, bounded log values rather than references to arbitrary
+ * application objects. This prevents log history from retaining large object
+ * graphs through LogEvent.value.
+ */
+function sanitizeLogValue(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return value ?? null;
+  }
+
+  if (typeof value === "string") {
+    return truncateText(value, MAX_LOG_VALUE_CHARS);
+  }
+
+  if (typeof value === "number" || typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "bigint") {
+    return truncateText(`${value}n`, MAX_LOG_VALUE_CHARS);
+  }
+
+  if (typeof value === "symbol") {
+    return truncateText(String(value), MAX_LOG_VALUE_CHARS);
+  }
+
+  if (typeof value === "function") {
+    return truncateText(`[Function ${value.name || "anonymous"}]`, MAX_LOG_VALUE_CHARS);
+  }
+
+  if (value instanceof Error) {
+    return truncateText(value.stack ?? value.message, MAX_LOG_VALUE_CHARS);
+  }
+
+  try {
+    const serialized = JSON.stringify(value, (_key, nestedValue: unknown) => {
+      if (typeof nestedValue === "bigint") {
+        return `${nestedValue}n`;
+      }
+
+      if (nestedValue instanceof Error) {
+        return {
+          name: nestedValue.name,
+          message: nestedValue.message,
+          stack: nestedValue.stack,
+        };
+      }
+
+      return nestedValue;
+    });
+
+    if (serialized === undefined) {
+      return truncateText(String(value), MAX_LOG_VALUE_CHARS);
+    }
+
+    if (serialized.length > MAX_LOG_VALUE_CHARS) {
+      return truncateText(serialized, MAX_LOG_VALUE_CHARS);
+    }
+
+    // JSON.parse creates a detached value, so the log doesn't retain the
+    // original object's references or reactive proxies.
+    return JSON.parse(serialized) as unknown;
+  } catch {
+    return truncateText(String(value), MAX_LOG_VALUE_CHARS);
+  }
 }
 
 function parseLogEvent(value: unknown): LogEvent | null {
@@ -45,18 +125,19 @@ function parseLogEvent(value: unknown): LogEvent | null {
   if (
     typeof value.message !== "string" ||
     !isLogLevel(value.level) ||
-    typeof value.timestamp !== "number"
+    typeof value.timestamp !== "number" ||
+    !Number.isFinite(value.timestamp)
   ) {
     return null;
   }
 
   return {
     level: value.level,
-    message: value.message,
-    fnName: typeof value.fnName === "string" ? value.fnName : null,
-    instanceId: typeof value.instanceId === "string" ? value.instanceId : null,
-    context: typeof value.context === "string" ? value.context : null,
-    value: value.value ?? null,
+    message: truncateText(value.message, MAX_LOG_MESSAGE_CHARS),
+    fnName: typeof value.fnName === "string" ? truncateText(value.fnName, 256) : null,
+    instanceId: typeof value.instanceId === "string" ? truncateText(value.instanceId, 256) : null,
+    context: typeof value.context === "string" ? truncateText(value.context, 512) : null,
+    value: sanitizeLogValue(value.value),
     timestamp: value.timestamp,
   };
 }
@@ -68,9 +149,11 @@ export class LogsService implements Service {
 
   private listeners: UnlistenFn[] = [];
   private initialized = false;
+  private totalGameLogCount = 0;
 
   private get maxMemoryLogs(): number {
     const configured = app.customizationService.settings?.logging?.max_memory_logs;
+
     return typeof configured === "number" && Number.isFinite(configured)
       ? Math.max(0, Math.floor(configured))
       : 10_000;
@@ -81,34 +164,30 @@ export class LogsService implements Service {
       return;
     }
 
+    // Prevent concurrent calls from registering duplicate listeners while
+    // init() is awaiting the event subscriptions.
     this.initialized = true;
 
     try {
-      await this.load();
+      this.enforceMemoryLimit();
+      this.recalculateGameLogCount();
 
-      this.listeners.push(
-        await listen("game-launched", (event) => {
+      const unlisteners = await Promise.all([
+        listen("game-launched", (event) => {
           this.handleGameLaunched(event.payload);
         }),
-      );
-
-      this.listeners.push(
-        await listen("game-process-event", (event) => {
+        listen("game-process-event", (event) => {
           this.handleGameProcessEvent(event.payload);
         }),
-      );
-
-      this.listeners.push(
-        await listen("launcher-log", (event) => {
+        listen("launcher-log", (event) => {
           this.handleLauncherLog(event.payload);
         }),
-      );
-
-      this.listeners.push(
-        await listen("launcher-log-batch", (event) => {
+        listen("launcher-log-batch", (event) => {
           this.handleLauncherLogBatch(event.payload);
         }),
-      );
+      ]);
+
+      this.listeners.push(...unlisteners);
     } catch (cause) {
       for (const unlisten of this.listeners) {
         unlisten();
@@ -129,41 +208,85 @@ export class LogsService implements Service {
     this.launcherLogs = [];
     this.gameLogs = new SvelteMap();
     this.gameInstances = new SvelteMap();
+    this.totalGameLogCount = 0;
     this.initialized = false;
   }
 
-  private async load(): Promise<void> {
-    this.enforceMemoryLimit();
+  private trimArray<T>(items: T[], limit: number): void {
+    if (limit <= 0) {
+      items.splice(0, items.length);
+      return;
+    }
+
+    const excess = items.length - limit;
+
+    if (excess > 0) {
+      items.splice(0, excess);
+    }
   }
 
-  private trimLogs(logs: LogEvent[]): LogEvent[] {
-    const limit = this.maxMemoryLogs;
-
-    if (limit === 0) {
-      return [];
-    }
-
-    if (logs.length <= limit) {
-      return logs;
-    }
-
-    return logs.slice(logs.length - limit);
+  private get maxGameLogsPerInstance(): number {
+    return Math.min(this.maxMemoryLogs, MAX_LOGS_PER_GAME_INSTANCE);
   }
 
   private enforceMemoryLimit(): void {
-    this.launcherLogs = this.trimLogs(this.launcherLogs);
-
-    const limitedGameLogs = new SvelteMap<string, LogEvent[]>();
+    this.trimArray(this.launcherLogs, this.maxMemoryLogs);
 
     for (const [instanceId, logs] of this.gameLogs) {
-      const trimmed = this.trimLogs(logs);
+      this.trimArray(logs, this.maxGameLogsPerInstance);
 
-      if (trimmed.length > 0) {
-        limitedGameLogs.set(instanceId, trimmed);
+      if (logs.length === 0) {
+        this.gameLogs.delete(instanceId);
       }
     }
 
-    this.gameLogs = limitedGameLogs;
+    this.enforceTotalGameLogLimit();
+    this.pruneGameInstances();
+  }
+
+  private recalculateGameLogCount(): void {
+    let count = 0;
+
+    for (const logs of this.gameLogs.values()) {
+      count += logs.length;
+    }
+
+    this.totalGameLogCount = count;
+  }
+
+  private enforceTotalGameLogLimit(): void {
+    while (this.totalGameLogCount > MAX_TOTAL_GAME_LOGS) {
+      let oldestInstanceId: string | null = null;
+      let oldestTimestamp = Number.POSITIVE_INFINITY;
+
+      for (const [instanceId, logs] of this.gameLogs) {
+        const firstLog = logs[0];
+
+        if (firstLog && firstLog.timestamp < oldestTimestamp) {
+          oldestTimestamp = firstLog.timestamp;
+          oldestInstanceId = instanceId;
+        }
+      }
+
+      if (oldestInstanceId === null) {
+        this.totalGameLogCount = 0;
+        break;
+      }
+
+      const logs = this.gameLogs.get(oldestInstanceId);
+
+      if (!logs || logs.length === 0) {
+        this.gameLogs.delete(oldestInstanceId);
+        continue;
+      }
+
+      logs.shift();
+      this.totalGameLogCount--;
+
+      if (logs.length === 0) {
+        this.gameLogs.delete(oldestInstanceId);
+      }
+    }
   }
 
   private handleGameLaunched(payload: unknown): void {
@@ -175,7 +298,12 @@ export class LogsService implements Service {
     const profile = isRecord(payload.profile) ? payload.profile : null;
     const metadata = isRecord(profile?.metadata) ? profile.metadata : null;
 
-    if (runtimeId === null || profile === null || metadata === null || typeof metadata.name !== "string") {
+    if (
+      runtimeId === null ||
+      profile === null ||
+      metadata === null ||
+      typeof metadata.name !== "string"
+    ) {
       return;
     }
 
@@ -183,19 +311,22 @@ export class LogsService implements Service {
 
     const instance: GameInstance = {
       id: runtimeId,
-      profileName: metadata.name,
-      installationPath: typeof profile.installationPath === "string" ? profile.installationPath : "",
+      profileName: truncateText(metadata.name, 512),
+      installationPath:
+        typeof profile.installationPath === "string"
+          ? truncateText(profile.installationPath, 2_048)
+          : "",
       status: "launching",
       launchedAt: now,
       lastActivity: now,
     };
 
     this.gameInstances.set(runtimeId, instance);
-    this.gameInstances = new SvelteMap(this.gameInstances);
+    this.pruneGameInstances();
 
     this.addLauncherLog({
       level: "info",
-      message: `Launching ${metadata.name}`,
+      message: `Launching ${instance.profileName}`,
       fnName: null,
       instanceId: runtimeId,
       context: null,
@@ -260,15 +391,13 @@ export class LogsService implements Service {
       return;
     }
 
-    const normalizedLog: LogEvent = {
+    this.addGameLog(runtimeId, {
       ...log,
       instanceId: runtimeId,
-    };
-
-    this.addGameLog(runtimeId, normalizedLog);
+    });
 
     this.updateGameInstance(runtimeId, {
-      lastActivity: normalizedLog.timestamp,
+      lastActivity: log.timestamp,
     });
   }
 
@@ -303,6 +432,8 @@ export class LogsService implements Service {
       value: null,
       timestamp: now,
     });
+
+    this.pruneGameInstances();
   }
 
   private handleLauncherLog(payload: unknown): void {
@@ -320,21 +451,22 @@ export class LogsService implements Service {
       return;
     }
 
-    const logs: LogEvent[] = [];
+    const limit = this.maxMemoryLogs;
+
+    if (limit === 0) {
+      this.launcherLogs = [];
+      return;
+    }
 
     for (const value of payload.logs) {
       const log = parseLogEvent(value);
 
       if (log !== null) {
-        logs.push(log);
+        this.launcherLogs.push(log);
       }
     }
 
-    if (logs.length === 0) {
-      return;
-    }
-
-    this.launcherLogs = this.trimLogs([...this.launcherLogs, ...logs]);
+    this.trimArray(this.launcherLogs, limit);
   }
 
   addLauncherLog(log: LogEvent): void {
@@ -345,39 +477,61 @@ export class LogsService implements Service {
       return;
     }
 
-    if (this.launcherLogs.length < limit) {
-      this.launcherLogs = [...this.launcherLogs, log];
-      return;
-    }
-
-    this.launcherLogs = [...this.launcherLogs.slice(-(limit - 1)), log];
+    const safeLog = this.normalizeLog(log);
+    this.launcherLogs.push(safeLog);
+    this.trimArray(this.launcherLogs, limit);
   }
 
   addGameLog(runtimeId: string, log: LogEvent): void {
-    const limit = this.maxMemoryLogs;
+    const perInstanceLimit = this.maxGameLogsPerInstance;
 
-    if (limit === 0) {
-      if (this.gameLogs.has(runtimeId)) {
-        this.gameLogs.delete(runtimeId);
-        this.gameLogs = new SvelteMap(this.gameLogs);
-      }
-
+    if (perInstanceLimit === 0) {
+      this.removeGameLogs(runtimeId);
       return;
     }
 
-    const existing = this.gameLogs.get(runtimeId) ?? [];
-    const normalizedLog: LogEvent = {
-      ...log,
+    const safeLog: LogEvent = {
+      ...this.normalizeLog(log),
       instanceId: runtimeId,
     };
 
-    const nextLogs =
-      existing.length < limit
-        ? [...existing, normalizedLog]
-        : [...existing.slice(-(limit - 1)), normalizedLog];
+    let logs = this.gameLogs.get(runtimeId);
 
-    this.gameLogs.set(runtimeId, nextLogs);
-    this.gameLogs = new SvelteMap(this.gameLogs);
+    if (!logs) {
+      logs = [];
+      this.gameLogs.set(runtimeId, logs);
+    }
+
+    const wasAtLimit = logs.length >= perInstanceLimit;
+
+    logs.push(safeLog);
+
+    if (wasAtLimit) {
+      logs.shift();
+    } else {
+      this.totalGameLogCount++;
+    }
+
+    this.enforceTotalGameLogLimit();
+  }
+
+  private normalizeLog(log: LogEvent): LogEvent {
+    return {
+      level: isLogLevel(log.level) ? log.level : "info",
+      message: truncateText(
+        typeof log.message === "string" ? log.message : String(log.message),
+        MAX_LOG_MESSAGE_CHARS,
+      ),
+      fnName: typeof log.fnName === "string" ? truncateText(log.fnName, 256) : null,
+      instanceId:
+        typeof log.instanceId === "string" ? truncateText(log.instanceId, 256) : null,
+      context: typeof log.context === "string" ? truncateText(log.context, 512) : null,
+      value: sanitizeLogValue(log.value),
+      timestamp:
+        typeof log.timestamp === "number" && Number.isFinite(log.timestamp)
+          ? log.timestamp
+          : Date.now(),
+    };
   }
 
   private updateGameInstance(runtimeId: string, update: Partial<GameInstance>): void {
@@ -391,8 +545,41 @@ export class LogsService implements Service {
       ...instance,
       ...update,
     });
+  }
 
-    this.gameInstances = new SvelteMap(this.gameInstances);
+  private removeGameLogs(runtimeId: string): void {
+    const logs = this.gameLogs.get(runtimeId);
+
+    if (logs) {
+      this.totalGameLogCount = Math.max(0, this.totalGameLogCount - logs.length);
+      this.gameLogs.delete(runtimeId);
+    }
+  }
+
+  private removeGameInstance(runtimeId: string): void {
+    this.removeGameLogs(runtimeId);
+    this.gameInstances.delete(runtimeId);
+  }
+
+  private pruneGameInstances(): void {
+    if (this.gameInstances.size <= MAX_GAME_INSTANCES) {
+      return;
+    }
+
+    const completed = [...this.gameInstances.values()]
+      .filter((instance) => instance.status !== "launching" && instance.status !== "running")
+      .sort((a, b) => (a.completedAt ?? a.lastActivity) - (b.completedAt ?? b.lastActivity));
+
+    while (
+      this.gameInstances.size > MAX_GAME_INSTANCES &&
+      completed.length > 0
+    ) {
+      const oldest = completed.shift();
+
+      if (oldest) {
+        this.removeGameInstance(oldest.id);
+      }
+    }
   }
 
   private getExitStatus(exitCode: number | undefined): GameInstanceStatus {
@@ -413,8 +600,7 @@ export class LogsService implements Service {
 
   clearLogs(instanceId?: string): void {
     if (instanceId !== undefined) {
-      this.gameLogs.delete(instanceId);
-      this.gameLogs = new SvelteMap(this.gameLogs);
+      this.removeGameLogs(instanceId);
       return;
     }
 
@@ -460,16 +646,21 @@ function formatConsoleArgument(value: unknown): string {
   }
 
   try {
-    return JSON.stringify(value, (_, nestedValue) =>
+    const serialized = JSON.stringify(value, (_key, nestedValue: unknown) =>
       typeof nestedValue === "bigint" ? `${nestedValue}n` : nestedValue,
     );
+
+    return serialized === undefined ? String(value) : serialized;
   } catch {
     return String(value);
   }
 }
 
 function formatConsoleMessage(args: unknown[]): string {
-  return args.map(formatConsoleArgument).join(" ");
+  return truncateText(
+    args.map(formatConsoleArgument).join(" "),
+    MAX_LOG_MESSAGE_CHARS,
+  );
 }
 
 function writeConsoleLog(
@@ -492,7 +683,7 @@ function writeConsoleLog(
     fnName: null,
     instanceId,
     context: "frontend",
-    value: args.length === 1 ? (args[0] ?? null) : args,
+    value: sanitizeLogValue(args.length === 1 ? args[0] : args),
     timestamp: Date.now(),
   };
 

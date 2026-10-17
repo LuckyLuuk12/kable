@@ -4,6 +4,7 @@ export * from "./components/";
 
 // Export organized structure
 export * from "./services/";
+export * from "./utils/metrics";
 
 // Export types & commands
 export type * from "./api"; // Only export the api types

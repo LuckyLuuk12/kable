@@ -1,9 +1,10 @@
 <script lang="ts">
 import { Icon } from "$lib";
 import CacheManager from "./CacheManager.svelte";
+import MetricsPage from "./MetricsPage.svelte";
 import SymlinkManager from "./SymlinkManager.svelte";
 
-let currentTab: "symlinks" | "cache" | "other" = $state("symlinks");
+let currentTab: "symlinks" | "cache" | "metrics" | "other" = $state("symlinks");
 </script>
 
 <div class="page">
@@ -18,6 +19,10 @@ let currentTab: "symlinks" | "cache" | "other" = $state("symlinks");
           <Icon name="database" forceType="svg" size="sm" />
           Cache Manager
         </button>
+        <button class="tab-btn" class:active={currentTab === "metrics"} type="button" onclick={() => (currentTab = "metrics")}>
+          <Icon name="chart" forceType="svg" size="sm" />
+          Metrics
+        </button>
         <button class="tab-btn" class:active={currentTab === "other"} type="button" onclick={() => (currentTab = "other")} disabled>
           <Icon name="settings" forceType="svg" size="sm" />
           Other Features
@@ -30,6 +35,8 @@ let currentTab: "symlinks" | "cache" | "other" = $state("symlinks");
         <SymlinkManager />
       {:else if currentTab === "cache"}
         <CacheManager />
+      {:else if currentTab === "metrics"}
+        <MetricsPage />
       {:else}
         <div class="placeholder">
           <Icon name="settings" size="xl" />
