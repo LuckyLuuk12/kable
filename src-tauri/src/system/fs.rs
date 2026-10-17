@@ -7,6 +7,7 @@ use std::{
     future::Future,
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
+    time::{SystemTime, UNIX_EPOCH},
 };
 use tokio::fs as async_fs;
 
@@ -184,6 +185,27 @@ async fn ensure_parent(path: &Path) -> FsResult<PathBuf> {
     async_fs::create_dir_all(parent).await.map_err(|e| format!("mkdir failed {}: {}", parent.display(), e))?;
 
     Ok(parent.to_path_buf())
+}
+
+pub fn write_startup_error(error: &str) -> Result<(), String> {
+    use std::io::Write;
+    let directory = launcher_dir()?;
+    std::fs::create_dir_all(&directory).map_err(|e| format!("Failed to create launcher directory: {e}"))?;
+
+    let path = directory.join("error.txt");
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+
+    let mut file = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&path)
+        .map_err(|e| format!("Failed to open startup error log: {e}"))?;
+
+    writeln!(file, "\n[{timestamp}] Kable startup error")
+        .and_then(|_| writeln!(file, "{error}"))
+        .map_err(|e| format!("Failed to write startup error log: {e}"))?;
+
+    Ok(())
 }
 
 async fn write_atomic(path: &Path, data: &[u8]) -> FsResult<PathBuf> {

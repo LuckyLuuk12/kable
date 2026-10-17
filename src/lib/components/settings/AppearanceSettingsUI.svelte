@@ -19,10 +19,10 @@ let cssUploadError = $state("");
 let cssUploadFile = $state<File | null>(null);
 let cssIsDragOver = $state(false);
 
-let cssThemes = $state<CssThemeEntry[]>([]);
-let cssThemesLoading = $state(false);
+const cssThemes = $derived(app.customizationService.cssThemes);
+const cssThemesLoading = $derived(app.customizationService.isCssThemesLoading);
+const selectedCssThemeId = $derived(app.customizationService.selectedCssTheme);
 let showCustomThemes = $state(false);
-let selectedCssThemeId = $state<string | null>(null);
 
 let iconTemplates = $state<IconTemplate[]>([]);
 let saveStatus = $state("");
@@ -70,33 +70,18 @@ onMount(() => {
 });
 
 async function loadCssThemes() {
-  cssThemesLoading = true;
-
   try {
-    const themes = await api.listCssThemes();
-
-    // The backend returns theme metadata, not bare filenames.
-    cssThemes = themes.map((theme) => ({
-      id: theme.id,
-      name: theme.name,
-      type: theme.type,
-    }));
+    const themes = await customization.loadCssThemes();
 
     const savedTheme = customization.settings?.appearance?.theme;
     const savedThemeId = typeof savedTheme === "string" ? savedTheme : null;
 
-    selectedCssThemeId = savedThemeId && cssThemes.some((theme) => theme.id === savedThemeId) ? savedThemeId : null;
-
-    // Clear stale selections from older versions rather than attempting
-    // to load obsolete files such as dark.css or light.css.
-    if (savedThemeId && !selectedCssThemeId) {
+    if (savedThemeId && !themes.some((theme) => theme.id === savedThemeId)) {
       await customization.setTheme(null);
     }
   } catch (error) {
     console.error("Failed to load CSS themes:", error);
     setStatus("Failed to load CSS themes");
-  } finally {
-    cssThemesLoading = false;
   }
 }
 
@@ -119,7 +104,7 @@ async function selectTheme(themeId: string) {
 
   try {
     await customization.setTheme(nextThemeId);
-    selectedCssThemeId = nextThemeId;
+
     setStatus(nextThemeId ? "CSS theme updated successfully" : "Default appearance restored");
   } catch (error) {
     console.error("Failed to update CSS theme:", error);
@@ -141,19 +126,12 @@ async function handleCssUpload() {
       throw new Error("The CSS filename must contain a theme name");
     }
 
-    const themeId = await api.saveCssTheme(themeName, content);
-
-    await loadCssThemes();
+    await customization.saveCssTheme(themeName, content);
 
     showCssUpload = false;
     cssUploadFile = null;
 
-    // Saving a theme installs it; selecting it remains an explicit action.
     setStatus(`CSS theme "${themeName}" installed successfully`, 3000);
-
-    if (typeof themeId === "string" && !cssThemes.some((theme) => theme.id === themeId)) {
-      await loadCssThemes();
-    }
   } catch (error) {
     console.error("Failed to upload CSS theme:", error);
     cssUploadError = `Upload failed: ${String(error)}`;
@@ -208,14 +186,7 @@ async function removeCssTheme(themeId: string) {
   }
 
   try {
-    await api.deleteCssTheme(themeId);
-
-    if (selectedCssThemeId === themeId) {
-      await customization.setTheme(null);
-      selectedCssThemeId = null;
-    }
-
-    await loadCssThemes();
+    await customization.deleteCssTheme(themeId);
     setStatus("CSS theme removed successfully");
   } catch (error) {
     console.error("Failed to remove CSS theme:", error);

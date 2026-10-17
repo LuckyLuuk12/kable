@@ -37,7 +37,8 @@ pub fn run() {
     tauri::async_runtime::block_on(async {
         if let Err(e) = crate::features::cli::args::handle_args(crate::features::cli::args::parse_args()).await {
             eprintln!("Error handling CLI arguments: {}", e);
-            std::process::exit(1);
+            // std::process::exit(1);
+            crate::system::fs::write_startup_error(&e.to_string()).unwrap_or_else(|e| eprintln!("Error writing startup error: {}", e));
         }
     });
     tauri::Builder::default()

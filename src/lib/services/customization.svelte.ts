@@ -36,6 +36,7 @@ export class CustomizationService implements Service {
 
   cssThemes = $state<CssTheme[]>([]);
   selectedCssTheme = $state<string | null>(null);
+  private cssThemesRequestId = 0;
   isCssThemesLoading = $state(false);
   cssThemeError = $state<string | null>(null);
 
@@ -217,30 +218,55 @@ export class CustomizationService implements Service {
    * Retrieve built-in and custom CSS theme metadata.
    * Concurrent requests share a single promise.
    */
-  async loadCssThemes(): Promise<CssTheme[]> {
-    if (this.cssThemesRequest) {
+  async loadCssThemes(forceRefresh = false): Promise<CssTheme[]> {
+    if (!forceRefresh && this.cssThemesRequest) {
       return this.cssThemesRequest;
     }
 
     this.isCssThemesLoading = true;
     this.cssThemeError = null;
 
-    this.cssThemesRequest = (async () => {
+    const requestId = ++this.cssThemesRequestId;
+
+    const request = (async (): Promise<CssTheme[]> => {
       try {
         const themes = await api.listCssThemes();
-        this.cssThemes = themes;
+
+        if (requestId === this.cssThemesRequestId) {
+          this.cssThemes = themes;
+        }
+
         return themes;
       } catch (error) {
-        this.cssThemeError = String(error);
-        console.error("[CustomizationService] Failed to load CSS themes:", error);
+        if (requestId === this.cssThemesRequestId) {
+          this.cssThemeError = String(error);
+          console.error(
+            "[CustomizationService] Failed to load CSS themes:",
+            error,
+          );
+        }
+
         throw error;
       } finally {
-        this.isCssThemesLoading = false;
-        this.cssThemesRequest = null;
+        if (requestId === this.cssThemesRequestId) {
+          this.isCssThemesLoading = false;
+          this.cssThemesRequest = null;
+        }
       }
     })();
 
-    return this.cssThemesRequest;
+    this.cssThemesRequest = request;
+    return request;
+  }
+
+  /**
+     * Save a custom theme and refresh the available theme list.
+     * Returns the stable ID produced by the backend.
+     */
+  async saveCssTheme(name: string, css: string): Promise<string> {
+    const themeId = await api.saveCssTheme(name, css);
+    await this.loadCssThemes(true);
+    return themeId;
   }
 
   /**
@@ -277,24 +303,40 @@ export class CustomizationService implements Service {
       return;
     }
 
-    const themes = this.cssThemes.length > 0
-      ? this.cssThemes
-      : await this.loadCssThemes();
+    let themes = this.cssThemes;
+
+    if (!themes.some((entry) => entry.id === themeId)) {
+      themes = await this.loadCssThemes(true);
+    }
 
     if (revision !== this.cssThemeRevision) return;
 
     const theme = themes.find((entry) => entry.id === themeId);
 
     if (!theme) {
+      console.error("[CustomizationService] Unknown CSS theme ID:", themeId);
       throw new Error(`Unknown CSS theme ID: ${themeId}`);
     }
 
     // Keep the old stylesheet until the new CSS is successfully fetched.
+    console.debug("[CustomizationService] Loading CSS theme:", themeId);
+
     const cssContent = await api.loadCss(themeId);
+
+    console.debug("[CustomizationService] CSS loaded:", {
+      themeId,
+      length: cssContent.length,
+      preview: cssContent.slice(0, 150),
+    });
 
     if (revision !== this.cssThemeRevision) return;
 
     this.injectCustomCSS(cssContent);
+
+    console.debug(
+      "[CustomizationService] Style injected:",
+      document.getElementById("user-custom-css") !== null,
+    );
     this.selectedCssTheme = themeId;
 
     this.settings = {
@@ -322,15 +364,8 @@ export class CustomizationService implements Service {
     this.selectedCssTheme = themeId;
   }
 
-  /**
-   * Save a custom theme and refresh the available theme list.
-   * Returns the stable ID produced by the backend.
-   */
-  async saveCssTheme(name: string, css: string): Promise<string> {
-    const themeId = await api.saveCssTheme(name, css);
-    await this.loadCssThemes();
-    return themeId;
-  }
+
+
 
   /**
    * Delete a custom theme by stable ID.
