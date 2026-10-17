@@ -22,15 +22,25 @@ impl SymlinkManager {
         Self { enabled: false, runtime_symlinks: HashMap::new(), symlinks: Vec::new() }
     }
 
-    /// Check whether Kable can create file and directory symlinks.
+    /// Check whether Kable can create and use file and directory symlinks.
     ///
     /// Returns `Ok(None)` when both tests succeed, `Ok(Some(message))` when
-    /// a test fails, and `Err` if the test could not be performed reliably.
+    /// symlink creation or verification fails, and `Err` if the test could not
+    /// be performed reliably.
     async fn check_symlink_support() -> Result<Option<String>, String> {
+        use std::io::ErrorKind;
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        enum TestFailure {
+            Setup(&'static str, std::io::Error),
+            Symlink(&'static str, std::io::Error),
+            Verification(&'static str, String),
+        }
+
         let kable_dir = fs::kable_dir()?;
 
-        let timestamp = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
             .map_err(|error| format!("Failed to generate symlink test directory name: {error}"))?
             .as_nanos();
 
@@ -41,60 +51,122 @@ impl SymlinkManager {
         let file_link_path = test_dir.join("file_link.txt");
         let dir_link_path = test_dir.join("directory_link");
 
-        tokio::fs::create_dir_all(&source_dir)
+        const TEST_CONTENT: &[u8] = b"kable-symlink-capability-test";
+
+        // Create the test directory exclusively so we never reuse or delete
+        // another test's directory.
+        tokio::fs::create_dir(&test_dir)
             .await
-            .map_err(|error| format!("Could not prepare the symlink capability test at {}: {}", test_dir.display(), error))?;
+            .map_err(|error| format!("Could not create the symlink capability test directory at {}: {}", test_dir.display(), error))?;
 
-        if let Err(error) = tokio::fs::write(&source_file, b"").await {
-            let cleanup = tokio::fs::remove_dir_all(&test_dir).await;
+        let result: Result<(), TestFailure> = async {
+            tokio::fs::create_dir(&source_dir).await.map_err(|error| TestFailure::Setup("source directory", error))?;
 
-            return Err(match cleanup {
-                Ok(()) => format!("Could not prepare the symlink capability test file: {error}"),
-                Err(cleanup_error) => format!(
-                    "Could not prepare the symlink capability test file: {error}. \
-                 Cleanup of {} also failed: {}",
-                    test_dir.display(),
-                    cleanup_error
-                ),
-            });
-        }
+            tokio::fs::write(&source_file, TEST_CONTENT).await.map_err(|error| TestFailure::Setup("source file", error))?;
 
-        // Preserve the original OS error so its code can be inspected below.
-        let result: Result<(), (&str, std::io::Error)> = async {
+            // Use canonical paths for the link targets to avoid ambiguity
+            // caused by relative paths.
+            let source_file_absolute =
+                tokio::fs::canonicalize(&source_file).await.map_err(|error| TestFailure::Setup("canonical file path", error))?;
+
+            let source_dir_absolute =
+                tokio::fs::canonicalize(&source_dir).await.map_err(|error| TestFailure::Setup("canonical directory path", error))?;
+
             #[cfg(unix)]
             {
-                tokio::fs::symlink(&source_file, &file_link_path).await.map_err(|error| ("file", error))?;
+                tokio::fs::symlink(&source_file_absolute, &file_link_path).await.map_err(|error| TestFailure::Symlink("file", error))?;
 
-                tokio::fs::symlink(&source_dir, &dir_link_path).await.map_err(|error| ("directory", error))?;
+                tokio::fs::symlink(&source_dir_absolute, &dir_link_path)
+                    .await
+                    .map_err(|error| TestFailure::Symlink("directory", error))?;
             }
 
             #[cfg(windows)]
             {
-                tokio::fs::symlink_file(&source_file, &file_link_path).await.map_err(|error| ("file", error))?;
+                tokio::fs::symlink_file(&source_file_absolute, &file_link_path)
+                    .await
+                    .map_err(|error| TestFailure::Symlink("file", error))?;
 
-                tokio::fs::symlink_dir(&source_dir, &dir_link_path).await.map_err(|error| ("directory", error))?;
+                tokio::fs::symlink_dir(&source_dir_absolute, &dir_link_path)
+                    .await
+                    .map_err(|error| TestFailure::Symlink("directory", error))?;
+            }
+
+            // Verify that both paths are actually symlinks, not just that
+            // the creation calls returned successfully.
+            let file_link_metadata = tokio::fs::symlink_metadata(&file_link_path)
+                .await
+                .map_err(|error| TestFailure::Verification("file", format!("Could not inspect the file symlink: {error}")))?;
+
+            if !file_link_metadata.file_type().is_symlink() {
+                return Err(TestFailure::Verification("file", "The created file link is not recognized as a symlink.".to_string()));
+            }
+
+            let dir_link_metadata = tokio::fs::symlink_metadata(&dir_link_path)
+                .await
+                .map_err(|error| TestFailure::Verification("directory", format!("Could not inspect the directory symlink: {error}")))?;
+
+            if !dir_link_metadata.file_type().is_symlink() {
+                return Err(TestFailure::Verification(
+                    "directory",
+                    "The created directory link is not recognized as a symlink.".to_string(),
+                ));
+            }
+
+            // Verify that the file link resolves to the expected content.
+            let linked_content = tokio::fs::read(&file_link_path)
+                .await
+                .map_err(|error| TestFailure::Verification("file", format!("Could not read the file through its symlink: {error}")))?;
+
+            if linked_content != TEST_CONTENT {
+                return Err(TestFailure::Verification("file", "The file symlink resolved to unexpected content.".to_string()));
+            }
+
+            // Verify that the directory link resolves and exposes its contents.
+            let linked_file = dir_link_path.join("test.txt");
+
+            let linked_file_metadata = tokio::fs::metadata(&linked_file).await.map_err(|error| {
+                TestFailure::Verification("directory", format!("Could not access a file through the directory symlink: {error}"))
+            })?;
+
+            if !linked_file_metadata.is_file() {
+                return Err(TestFailure::Verification(
+                    "directory",
+                    "The directory symlink did not resolve to the expected file.".to_string(),
+                ));
             }
 
             Ok(())
         }
         .await;
 
-        // remove_dir_all does not follow symlinks to recursively delete their
-        // targets. Both the links and their source files are inside test_dir.
-        if let Err(error) = tokio::fs::remove_dir_all(&test_dir).await {
-            if error.kind() != ErrorKind::NotFound {
-                return Err(format!("Symlink capability test cleanup failed for {}: {}", test_dir.display(), error));
+        // Cleanup is attempted regardless of whether setup, creation, or
+        // verification failed. Preserve both errors if cleanup also fails.
+        let cleanup_result = tokio::fs::remove_dir_all(&test_dir).await;
+
+        let cleanup_error = match cleanup_result {
+            Ok(()) => None,
+            Err(error) if error.kind() == ErrorKind::NotFound => None,
+            Err(error) => Some(error),
+        };
+
+        let failure_message = match result {
+            Ok(()) => None,
+
+            Err(TestFailure::Setup(stage, error)) => {
+                let mut message = format!("Could not prepare the symlink capability test ({stage}): {error}");
+
+                if let Some(cleanup_error) = &cleanup_error {
+                    message.push_str(&format!("\nCleanup of {} also failed: {}", test_dir.display(), cleanup_error));
+                }
+
+                return Err(message);
             }
-        }
 
-        match result {
-            Ok(()) => Ok(None),
-            Err((link_type, error)) => {
-                let os_error_code = error.raw_os_error();
-
+            Err(TestFailure::Symlink(link_type, error)) => {
                 let mut message = format!("The {link_type} symlink capability test failed: {error}");
 
-                if let Some(code) = os_error_code {
+                if let Some(code) = error.raw_os_error() {
                     message.push_str(&format!(" (OS error code: {code})"));
                 }
 
@@ -102,7 +174,7 @@ impl SymlinkManager {
                 {
                     const ERROR_PRIVILEGE_NOT_HELD: i32 = 1314;
 
-                    if os_error_code == Some(ERROR_PRIVILEGE_NOT_HELD) {
+                    if error.raw_os_error() == Some(ERROR_PRIVILEGE_NOT_HELD) {
                         message.push_str(
                             "\n\nWindows reported that the required privilege is \
                          unavailable. Try enabling Developer Mode in Windows \
@@ -112,17 +184,16 @@ impl SymlinkManager {
                          a Windows security policy may be preventing symlink \
                          creation.",
                         );
-
-                        return Ok(Some(message));
+                    } else {
+                        message.push_str(
+                            "\n\nKable could not create the required symlink. Check \
+                         the Windows error above. Enabling Developer Mode or \
+                         running Kable as administrator may help if this is \
+                         a permissions issue. Other causes, including \
+                         filesystem restrictions and security policies, \
+                         are also possible.",
+                        );
                     }
-
-                    message.push_str(
-                        "\n\nKable could not create the required symlink. Check \
-                     the Windows error above. Enabling Developer Mode or \
-                     running Kable as administrator may help if this is a \
-                     permissions issue. Other causes, including filesystem \
-                     restrictions and security policies, are also possible.",
-                    );
                 }
 
                 #[cfg(not(windows))]
@@ -133,8 +204,27 @@ impl SymlinkManager {
                     );
                 }
 
-                Ok(Some(message))
+                Some(message)
             }
+
+            Err(TestFailure::Verification(link_type, details)) => Some(format!(
+                "The {link_type} symlink capability test could not verify \
+                 that the created link works: {details}"
+            )),
+        };
+
+        if let Some(cleanup_error) = cleanup_error {
+            return Err(format!(
+                "{}\nCleanup of {} also failed: {}",
+                failure_message.as_deref().unwrap_or("The symlink capability test succeeded."),
+                test_dir.display(),
+                cleanup_error
+            ));
+        }
+
+        match failure_message {
+            Some(message) => Ok(Some(message)),
+            None => Ok(None),
         }
     }
 
