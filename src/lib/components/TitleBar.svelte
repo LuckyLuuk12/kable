@@ -2,21 +2,22 @@
 TitleBar - Custom window title bar with minimize, maximize, and close controls
 
 Provides window controls for the Tauri application window with custom styling.
-Handles window state changes and provides standard window management functionality.
+Displays a DEV badge when running a development build.
 
 @example
 ```svelte
-◄TitleBar /►
+<TitleBar />
 ```
 -->
 <script lang="ts">
-import { NotificationContainer, NotificationTray, clickSound } from "$lib";
+import { NotificationContainer, NotificationTray, app, clickSound } from "$lib";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { onMount, type Snippet } from "svelte";
 
 let { children }: { children?: Snippet } = $props();
 
 let isMaximized = $state(false);
+let isDev = $state(false);
 
 const appWindow = getCurrentWindow();
 
@@ -42,6 +43,7 @@ onMount(() => {
   let unlisten: (() => void) | undefined;
 
   void (async () => {
+    isDev = await app.isDev();
     isMaximized = await appWindow.isMaximized();
 
     unlisten = await appWindow.onResized(async () => {
@@ -59,7 +61,12 @@ onMount(() => {
   <div class="titlebar">
     <div class="titlebar-left">
       <img src="/favicon.png" alt="Kable Launcher" class="app-icon" width="24" height="24" />
+
       <span class="app-title">Kable Launcher</span>
+
+      {#if isDev}
+        <span class="dev-badge" title="Development build">DEV</span>
+      {/if}
     </div>
 
     <div class="titlebar-right">
@@ -76,8 +83,7 @@ onMount(() => {
         class="titlebar-btn maximize"
         title={isMaximized ? "Restore" : "Maximize"}
         aria-label={isMaximized ? "Restore" : "Maximize"}
-        onclick={maximize}
-      >
+        onclick={maximize}>
         {#if isMaximized}
           <svg width="16" height="16" viewBox="0 0 16 16">
             <rect x="4" y="3" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
@@ -99,45 +105,59 @@ onMount(() => {
     </div>
   </div>
 
-  <NotificationContainer />
+  <div class="window-content">
+    <NotificationContainer />
 
-  {#if children}
-    {@render children()}
-  {/if}
+    {#if children}
+      {@render children()}
+    {/if}
+  </div>
 </div>
 
 <style lang="scss">
 .window {
   display: flex;
   flex-direction: column;
+  width: 100%;
   height: 100vh;
-  max-height: 100vh;
-  max-width: 100vw;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .titlebar {
   display: flex;
+  flex: 0 0 2rem;
   align-items: center;
   justify-content: space-between;
   height: 2rem;
+  flex-shrink: 0;
   background: $color-surface-1;
   color: $color-text;
   -webkit-app-region: drag;
   user-select: none;
   padding: 0 0 0 1rem;
-  border-bottom: 1px solid #{"color-mix(in srgb, var(--dark-700), 50%, transparent)"};
+  border-bottom: 1px solid $color-border-muted;
 }
 
+.window-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
 .titlebar-left {
   display: flex;
   align-items: center;
   gap: 1rem;
+  min-width: 0;
 
   .app-icon {
     width: 24px;
     height: 24px;
+    flex-shrink: 0;
     border-radius: 6px;
-    box-shadow: 0 2px 8px #{"color-mix(in srgb, $color-accent, 8%, transparent)"};
   }
 
   .app-title {
@@ -146,13 +166,33 @@ onMount(() => {
     color: $color-text;
     letter-spacing: 0.02em;
     margin-left: 0.25rem;
+    white-space: nowrap;
   }
+}
+
+.dev-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.125rem 0.375rem;
+  border: 1px solid $color-info;
+  border-radius: $radius-sm;
+  background: $color-info-muted;
+  color: var(--tertiary-500);
+  font-size: 0.625rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: default;
+  -webkit-app-region: no-drag;
 }
 
 .titlebar-right {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
   -webkit-app-region: no-drag;
 }
 
@@ -172,15 +212,8 @@ onMount(() => {
   }
 
   &.close:hover {
-    background: #{"color-mix(in srgb, var(--red), 50%, transparent)"};
-  }
-
-  &.minimize:hover {
-    background: color-mix(in srgb, var(--tertiary-500), 5%, transparent);
-  }
-
-  &.maximize:hover {
-    background: color-mix(in srgb, var(--secondary-500), 5%, transparent);
+    color: $color-error;
+    background: transparent;
   }
 }
 </style>

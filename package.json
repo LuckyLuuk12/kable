@@ -58,6 +58,7 @@
     "vite": "^7.3.1"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.3.1",
     "@tanstack/svelte-virtual": "^3.13.46",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-clipboard-manager": "^2.3.2",

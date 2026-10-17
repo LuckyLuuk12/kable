@@ -23,3 +23,9 @@ pub async fn get_max_ram() -> Result<u32, String> {
 pub fn open_developer_settings() -> Result<(), String> {
     processes::open_developer_settings()
 }
+
+#[tauri::command]
+#[specta::specta]
+pub async fn is_dev() -> Result<bool, String> {
+    Ok(cfg!(debug_assertions))
+}

@@ -113,6 +113,16 @@ export class AppService {
     }
   }
 
+  async isDev(): Promise<boolean> {
+    try {
+      const result = await api.isDev();
+      return result;
+    } catch (e) {
+      console.error("API call failed: `await api.isDev();`", e);
+      return false;
+    }
+  }
+
   // ? We also put some "app generic" api methods here like opening urls, etc. that are not specific to any service
   async openUrl(url: string) {
     try {

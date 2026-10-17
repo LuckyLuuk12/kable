@@ -49,6 +49,7 @@
     "targets": "all",
     "resources": {
       "../static/icons/*": "icons/",
+      "../static/themes/*": "themes/",
       "../static/*": ""
     },
     "icon": [

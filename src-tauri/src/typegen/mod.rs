@@ -123,6 +123,7 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::open_path,
             api::get_max_ram,
             api::open_developer_settings,
+            api::is_dev,
             // #endregion System
             // #region Updater
             api::check_launcher_updates,

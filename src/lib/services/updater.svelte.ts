@@ -21,19 +21,19 @@ export class UpdaterService implements Service {
 
   private updateDetection: UpdateDetection = "on_startup";
   private includePrerelease = false;
+  private developmentBuild = false;
 
   private periodicTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
   private lastPresentedVersion: string | null = null;
-  private developmentBuild: boolean | null = null;
 
   async init() {
     this.destroyed = false;
 
     try {
-      const [settings, currentVersion] = await Promise.all([
+      const [settings, developmentBuild] = await Promise.all([
         api.getSettings(),
-        api.getCurrentVersion(),
+        app.isDev(),
       ]);
 
       this.updateDetection =
@@ -48,11 +48,11 @@ export class UpdaterService implements Service {
       this.includePrerelease =
         settings?.advanced?.enable_nightly_updates ?? false;
 
-      this.developmentBuild = this.isDevelopmentVersion(currentVersion);
+      this.developmentBuild = developmentBuild;
 
       if (this.developmentBuild) {
         console.info(
-          `[Updater] Development build detected (${currentVersion}). Update checks are enabled; downloads and installation are disabled.`,
+          "[Updater] Development build detected. Update checks are enabled; downloads and installation are disabled.",
         );
       }
 
@@ -75,25 +75,8 @@ export class UpdaterService implements Service {
     }
   }
 
-  /**
-   * Development versions are predicted nightly versions returned by the
-   * backend, such as 0.1.9-34. Stable packaged versions remain 0.1.9.
-   *
-   * This heuristic is only used for UI behavior. Backend guards remain
-   * authoritative for download and installation operations.
-   */
-  private isDevelopmentVersion(version: string): boolean {
-    const match = version.match(/^(\d+\.\d+\.\d+)-(\d+)$/);
-
-    if (!match) return false;
-
-    const buildNumber = Number(match[2]);
-
-    return Number.isSafeInteger(buildNumber) && buildNumber > 0;
-  }
-
   private isDevelopmentBuild(): boolean {
-    return this.developmentBuild === true;
+    return this.developmentBuild;
   }
 
   private schedulePeriodicCheck(seconds: number) {
@@ -146,9 +129,6 @@ export class UpdaterService implements Service {
       case "automatic":
         if (this.isDevelopmentBuild()) {
           this.presentUpdate(result);
-          app.notificationService.info(
-            "Automatic launcher updates are disabled in development builds. The available update is shown for testing only.",
-          );
           return result;
         }
 
@@ -230,7 +210,9 @@ export class UpdaterService implements Service {
     openModal();
   }
 
-  private notifyDevelopmentRestriction(action: "download" | "install" | "apply") {
+  private notifyDevelopmentRestriction(
+    action: "download" | "install" | "apply",
+  ) {
     const actionText = {
       download: "Downloading updates",
       install: "Installing updates",
@@ -385,7 +367,7 @@ export class UpdaterService implements Service {
       this.error = message;
 
       app.notificationService.error(
-        `Failed to apply downloaded launcher update: ${message}`,
+        `Failed to apply downloaded update: ${message}`,
       );
 
       return false;
@@ -421,6 +403,7 @@ export class UpdaterService implements Service {
         "API call failed: `api.getCurrentVersion()`",
         error,
       );
+
       return undefined;
     }
   }

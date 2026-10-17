@@ -1,4 +1,13 @@
-import { type AppearanceSettings, type CategorizedLauncherSettings, type IconTemplate, type SoundSettings, api } from "$lib";
+
+import {
+  type AppearanceSettings,
+  type CategorizedLauncherSettings,
+  type CssTheme,
+  type IconTemplate,
+  type SoundSettings,
+  api,
+  app,
+} from "$lib";
 import { SvelteMap } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
 
@@ -16,20 +25,6 @@ type SoundpackManifest = {
   music?: Record<string, string[]>;
 };
 
-/**
- * Service for managing customization settings, including appearance, content, and sound settings as defined in the CategorizedLauncherSettings type:
- * ```ts
- * export type CategorizedLauncherSettings = {
- *   general?: GeneralSettings;
- *   appearance?: AppearanceSettings;
- *   content?: ContentSettings;
- *   logging?: LoggingSettings;
- *   network?: NetworkSettings;
- *   advanced?: AdvancedSettings;
- *   misc?: MiscSettings;
- * };
- * ```
- */
 export class CustomizationService implements Service {
   settings = $state<CategorizedLauncherSettings | null>(null);
 
@@ -38,6 +33,11 @@ export class CustomizationService implements Service {
 
   iconTemplates = $state<IconTemplate[]>([]);
   selectedIconTemplate = $state<string | null>(null);
+
+  cssThemes = $state<CssTheme[]>([]);
+  selectedCssTheme = $state<string | null>(null);
+  isCssThemesLoading = $state(false);
+  cssThemeError = $state<string | null>(null);
 
   selectedSoundpack = $state("default");
   availableSoundpacks = $state<SoundpackListEntry[]>([]);
@@ -63,7 +63,6 @@ export class CustomizationService implements Service {
   private musicLoop = true;
   private musicShuffle = false;
 
-  // TODO: Similar as with icons: move this into static/sounds/default.json and let backend handle loading it and such
   private readonly defaultSoundpack: SoundpackManifest = {
     name: "default",
     version: "1.0.0",
@@ -81,6 +80,16 @@ export class CustomizationService implements Service {
 
   private saveTimer: ReturnType<typeof setTimeout> | undefined;
 
+  private iconTemplatesRequest: Promise<IconTemplate[]> | null = null;
+  private cssThemesRequest: Promise<CssTheme[]> | null = null;
+
+  /**
+   * Each new selection invalidates pending theme loads.
+   * This prevents a slow response from an earlier selection from replacing
+   * the CSS belonging to a newer selection.
+   */
+  private cssThemeRevision = 0;
+
   scheduleSave(delay = 300) {
     if (this.saveTimer) {
       clearTimeout(this.saveTimer);
@@ -93,34 +102,86 @@ export class CustomizationService implements Service {
   }
 
   /**
-   * Load full settings bundle once
+   * Load settings and initialize the persisted appearance.
    */
   async init() {
     if (!this.settings) {
       this.loading = true;
+
       try {
         this.settings = await api.getSettings();
-        this.initializeSoundSystem();
         console.log("[CustomizationService] Loaded customization settings");
       } catch (error) {
-        console.error("Failed to load customization settings:", error);
+        console.error("[CustomizationService] Failed to load customization settings:", error);
+        return;
       } finally {
         this.loading = false;
       }
     }
 
-    if (!this.soundInitialized) {
-      await this.initializeSoundSystem();
+    await Promise.allSettled([
+      this.initializeAppearance(),
+      this.initializeSoundSystem(),
+    ]);
+  }
+
+  private async initializeAppearance(): Promise<void> {
+    await Promise.allSettled([
+      this.getIconTemplates(),
+      this.loadCssThemes(),
+    ]);
+
+    const appearance = this.settings?.appearance;
+    if (!appearance) return;
+
+    this.selectedIconTemplate = appearance.icon_template ?? null;
+
+    // Prefer the new setting. Only accept legacy values if they correspond
+    // to an actual discovered theme ID.
+    const savedThemeId = appearance.theme ?? null;
+
+    if (!savedThemeId) {
+      this.selectedCssTheme = null;
+      this.removeCustomCSS();
+      return;
+    }
+
+    const themeExists = this.cssThemes.some((theme) => theme.id === savedThemeId);
+
+    if (!themeExists) {
+      // Old values such as "light", "dark", or "system" are not CSS theme IDs.
+      this.selectedCssTheme = null;
+      this.removeCustomCSS();
+
+      this.settings = {
+        ...this.settings!,
+        appearance: {
+          ...this.settings!.appearance,
+          theme: null,
+        },
+      };
+
+      this.scheduleSave();
+      return;
+    }
+
+    try {
+      await this.applyCssTheme(savedThemeId);
+    } catch (error) {
+      console.error("[CustomizationService] Failed to apply saved CSS theme:", error);
+      this.selectedCssTheme = null;
+      this.removeCustomCSS();
     }
   }
 
   /**
-   * Persist full settings object
+   * Persist the full settings object.
    */
   async save() {
     if (!this.settings) return;
 
     this.saving = true;
+
     try {
       await api.setSettings(this.settings);
     } finally {
@@ -128,20 +189,14 @@ export class CustomizationService implements Service {
     }
   }
 
-  /// A sync method that makes a async callback to save settings, used in setters to persist changes without blocking the UI
   private saveSettingsAsync() {
-    (async () => await this.save())().catch((error) => {
-      console.error("Failed to save customization settings:", error);
+    void this.save().catch((error) => {
+      console.error("[CustomizationService] Failed to save customization settings:", error);
     });
   }
 
-  // #region GENERAL
-
-  // #endregion GENERAL
-
   // #region APPEARANCE
 
-  // #region language
   setLanguage(language: AppearanceSettings["language"]) {
     if (!this.settings?.appearance) return;
 
@@ -152,69 +207,186 @@ export class CustomizationService implements Service {
         language,
       },
     };
+
+    this.scheduleSave();
   }
 
-  // #endregion language
+  // #region CSS themes
 
-  // #region themes
+  /**
+   * Retrieve built-in and custom CSS theme metadata.
+   * Concurrent requests share a single promise.
+   */
+  async loadCssThemes(): Promise<CssTheme[]> {
+    if (this.cssThemesRequest) {
+      return this.cssThemesRequest;
+    }
 
-  async setTheme(theme: AppearanceSettings["theme"]) {
+    this.isCssThemesLoading = true;
+    this.cssThemeError = null;
+
+    this.cssThemesRequest = (async () => {
+      try {
+        const themes = await api.listCssThemes();
+        this.cssThemes = themes;
+        return themes;
+      } catch (error) {
+        this.cssThemeError = String(error);
+        console.error("[CustomizationService] Failed to load CSS themes:", error);
+        throw error;
+      } finally {
+        this.isCssThemesLoading = false;
+        this.cssThemesRequest = null;
+      }
+    })();
+
+    return this.cssThemesRequest;
+  }
+
+  /**
+   * Alias for callers that use the previous load* naming convention.
+   */
+  async getCssThemes(): Promise<CssTheme[]> {
+    return this.loadCssThemes();
+  }
+
+  /**
+   * Apply a theme by stable ID, or clear the custom stylesheet when null.
+   *
+   * Selection is persisted only after a valid ID is supplied. A null
+   * selection means Kable's default styling, not a CSS file.
+   */
+  async setTheme(themeId: string | null): Promise<void> {
     if (!this.settings?.appearance) return;
+
+    const revision = ++this.cssThemeRevision;
+
+    if (themeId === null || themeId.trim() === "") {
+      this.selectedCssTheme = null;
+      this.removeCustomCSS();
+
+      this.settings = {
+        ...this.settings,
+        appearance: {
+          ...this.settings.appearance,
+          theme: null,
+        },
+      };
+
+      this.scheduleSave();
+      return;
+    }
+
+    const themes = this.cssThemes.length > 0
+      ? this.cssThemes
+      : await this.loadCssThemes();
+
+    if (revision !== this.cssThemeRevision) return;
+
+    const theme = themes.find((entry) => entry.id === themeId);
+
+    if (!theme) {
+      throw new Error(`Unknown CSS theme ID: ${themeId}`);
+    }
+
+    // Keep the old stylesheet until the new CSS is successfully fetched.
+    const cssContent = await api.loadCss(themeId);
+
+    if (revision !== this.cssThemeRevision) return;
+
+    this.injectCustomCSS(cssContent);
+    this.selectedCssTheme = themeId;
 
     this.settings = {
       ...this.settings,
       appearance: {
         ...this.settings.appearance,
-        theme,
-        selected_css_theme: theme ? theme : undefined,
+        theme: themeId,
       },
     };
 
-    // Get the css content from backend and inject it or remove injected css if theme is null or empty
-    if (theme) {
-      await this.removeCustomCSS();
-      await api.loadCss(theme).then((cssContent) => {
-        this.injectCustomCSS(cssContent);
-      });
+    this.scheduleSave();
+  }
+
+  /**
+   * Load and apply a CSS theme without changing the selected ID.
+   * Used when restoring persisted settings during initialization.
+   */
+  private async applyCssTheme(themeId: string): Promise<void> {
+    const revision = ++this.cssThemeRevision;
+    const cssContent = await api.loadCss(themeId);
+
+    if (revision !== this.cssThemeRevision) return;
+
+    this.injectCustomCSS(cssContent);
+    this.selectedCssTheme = themeId;
+  }
+
+  /**
+   * Save a custom theme and refresh the available theme list.
+   * Returns the stable ID produced by the backend.
+   */
+  async saveCssTheme(name: string, css: string): Promise<string> {
+    const themeId = await api.saveCssTheme(name, css);
+    await this.loadCssThemes();
+    return themeId;
+  }
+
+  /**
+   * Delete a custom theme by stable ID.
+   * If it is currently selected, return to the default appearance first.
+   */
+  async deleteCssTheme(themeId: string): Promise<void> {
+    const theme = this.cssThemes.find((entry) => entry.id === themeId);
+
+    if (theme?.type === "builtin" || themeId.startsWith("builtin:")) {
+      throw new Error("Built-in CSS themes cannot be deleted.");
+    }
+
+    if (this.selectedCssTheme === themeId) {
+      await this.setTheme(null);
+    }
+
+    try {
+      await api.deleteCssTheme(themeId);
+      await this.loadCssThemes();
+    } catch (e) {
+      app.notificationService.error(`Failed to delete CSS theme: ${e}`);
     }
   }
 
-  private injectCustomCSS(cssContent: string = "") {
-    // First, remove any existing custom CSS
+  async openCssThemesDirectory(): Promise<void> {
+    try {
+      await api.openCssThemesDirectory();
+    } catch (e) {
+      app.notificationService.error(`Failed to open CSS themes directory: ${e}`);
+    }
+  }
+
+  /**
+   * Inject CSS after removing the previously injected stylesheet.
+   */
+  private injectCustomCSS(cssContent: string): void {
     this.removeCustomCSS();
 
-    // Create a new style element
     const styleElement = document.createElement("style");
     styleElement.type = "text/css";
     styleElement.id = "user-custom-css";
-    styleElement.innerHTML = cssContent;
+    styleElement.textContent = cssContent;
 
-    // Append to head (this ensures it comes after our compiled SCSS)
     document.head.appendChild(styleElement);
-
-    // Force font loading and DOM reflow
-    setTimeout(() => {
-      // Trigger a reflow to ensure fonts are applied
-      document.body.style.fontFamily = document.body.style.fontFamily ?? '"Open Sans", Tahoma, Geneva, sans-serif';
-      console.log("Font loading triggered: ", document.body.style.fontFamily);
-    }, 100);
   }
 
-  private removeCustomCSS() {
-    // Remove existing custom CSS
-    const existingStyle = document.getElementById("user-custom-css");
-    if (existingStyle) {
-      existingStyle.remove();
-      // Trigger a reflow to ensure fonts are applied
-      document.body.style.fontFamily = document.body.style.fontFamily ?? '"Open Sans", Tahoma, Geneva, sans-serif';
-      console.log("Previous custom CSS removed: ", document.body.style.fontFamily);
-    }
+  /**
+   * Remove the injected stylesheet and restore the application's default CSS.
+   */
+  private removeCustomCSS(): void {
+    document.getElementById("user-custom-css")?.remove();
   }
 
-  // #endregion themes
+  // #endregion CSS themes
 
   // #region icons
-  private iconTemplatesRequest: Promise<IconTemplate[]> | null = null;
 
   async getIconTemplates(): Promise<IconTemplate[]> {
     if (this.iconTemplatesRequest) {
@@ -255,6 +427,7 @@ export class CustomizationService implements Service {
       throw error;
     }
   }
+
   async openIconsDirectory() {
     try {
       return await api.openIconsDirectory();
@@ -264,26 +437,42 @@ export class CustomizationService implements Service {
     }
   }
 
-  // Handle getting icons by key/name in current template, if there is no selected template, we use "windows" by default with support of overriding icons with optional parameter:
+  /**
+   * Resolve an icon from the selected template.
+   *
+   * When no template is explicitly selected, the default template is "emoji".
+   * The optional override selects a built-in template only when the current
+   * selection is absent or is itself a built-in template.
+   */
   async getIcon(key: string, overrideTemplate?: string) {
-    // If the type of the selected template is not "builtin" we NEVER use the override template, override template is only used if a builtin is used as builtins match my personal design opinions
-    const selectedTemplateId = this.settings?.appearance?.icon_template ?? overrideTemplate ?? "emoji";
-    if (this.iconTemplates?.length === 0) {
-      console.log("[CustomizationService] Icon templates not loaded, fetching...");
-      this.iconTemplates = await this.getIconTemplates();
+    if (this.iconTemplates.length === 0) {
+      await this.getIconTemplates();
     }
-    const templates = this.iconTemplates;
-    const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
-    const res = selectedTemplate?.icons[key] ?? selectedTemplate?.icons[selectedTemplate?.fallback_icon];
-    return res;
+
+    const selectedTemplateId = this.settings?.appearance?.icon_template ?? null;
+    const selectedTemplate = this.iconTemplates.find((template) => template.id === selectedTemplateId);
+
+    const isBuiltin = selectedTemplate?.type === "builtin";
+    const templateId = selectedTemplateId
+      ? (isBuiltin && overrideTemplate ? overrideTemplate : selectedTemplateId)
+      : (overrideTemplate ?? "emoji");
+
+    const template = this.iconTemplates.find((entry) => entry.id === templateId)
+      ?? this.iconTemplates.find((entry) => entry.id === "emoji");
+
+    if (!template) return undefined;
+
+    return template.icons[key] ?? template.icons[template.fallback_icon];
   }
 
   // #endregion icons
 
-  // #region sounds
-  // We handle sound settings and soundpack management here, including loading, playing, and managing soundpacks and music tracks.
+  // #endregion APPEARANCE
+
+  // #region SOUNDS
+
   private async initializeSoundSystem(): Promise<void> {
-    if (this.soundInitialized) return;
+    if (this.soundInitialized || this.isSoundsLoading) return;
 
     this.isSoundsLoading = true;
     this.soundError = null;
@@ -298,7 +487,10 @@ export class CustomizationService implements Service {
       try {
         await this.loadSoundpack(this.currentSoundpack);
       } catch (error) {
-        console.warn(`[CustomizationService] Failed to load soundpack "${this.currentSoundpack}", falling back to default:`, error);
+        console.warn(
+          `[CustomizationService] Failed to load soundpack "${this.currentSoundpack}", falling back to default:`,
+          error,
+        );
 
         if (this.currentSoundpack !== "default") {
           await this.loadSoundpack("default");
@@ -351,9 +543,6 @@ export class CustomizationService implements Service {
       return this.defaultSoundpack;
     }
 
-    // Backend metadata exists, but it does not yet carry sound/music maps.
-    // const metadata = await api.getSoundpackMetadata(packName);
-
     try {
       const fileData = await api.loadSoundpackFile(packName, "soundpack.json");
       const manifestText = new TextDecoder().decode(new Uint8Array(fileData));
@@ -382,13 +571,13 @@ export class CustomizationService implements Service {
 
       if (packName === "default") {
         const response = await fetch(`/sounds/${filename}`);
+
         if (!response.ok) {
           console.warn(`[CustomizationService] Default sound not found: ${filename}, skipping`);
           return;
         }
 
-        const arrayBuffer = await response.arrayBuffer();
-        audioData = new Uint8Array(arrayBuffer);
+        audioData = new Uint8Array(await response.arrayBuffer());
       } else {
         const fileData = await api.loadSoundpackFile(packName, filename);
         audioData = new Uint8Array(fileData);
@@ -438,7 +627,6 @@ export class CustomizationService implements Service {
       };
 
       source.start(0);
-
       console.log(`[CustomizationService] Playing music track: ${trackPath}`);
     } catch (error) {
       console.error(`[CustomizationService] Failed to play music track ${trackPath}:`, error);
@@ -453,6 +641,7 @@ export class CustomizationService implements Service {
       } catch {
         // Ignore disconnect errors.
       }
+
       this.currentMusicSource = null;
     }
 
@@ -462,6 +651,7 @@ export class CustomizationService implements Service {
       } catch {
         // Ignore disconnect errors.
       }
+
       this.currentMusicGainNode = null;
     }
 
@@ -470,6 +660,7 @@ export class CustomizationService implements Service {
     if (this.currentMusicIndex >= this.musicPlaylist.length) {
       if (this.musicLoop) {
         this.currentMusicIndex = 0;
+
         if (this.musicShuffle) {
           this.shufflePlaylist();
         }
@@ -489,7 +680,10 @@ export class CustomizationService implements Service {
   private shufflePlaylist(): void {
     for (let index = this.musicPlaylist.length - 1; index > 0; index--) {
       const randomIndex = Math.floor(Math.random() * (index + 1));
-      [this.musicPlaylist[index], this.musicPlaylist[randomIndex]] = [this.musicPlaylist[randomIndex], this.musicPlaylist[index]];
+      [this.musicPlaylist[index], this.musicPlaylist[randomIndex]] = [
+        this.musicPlaylist[randomIndex],
+        this.musicPlaylist[index],
+      ];
     }
   }
 
@@ -508,7 +702,7 @@ export class CustomizationService implements Service {
       },
     };
 
-    this.saveSettingsAsync();
+    this.scheduleSave();
   }
 
   async listSoundpacks() {
@@ -526,7 +720,6 @@ export class CustomizationService implements Service {
 
       const metadata = await this.loadSoundpackManifest(packName);
       this.soundpackMetadata = metadata;
-
       this.soundBuffers.clear();
 
       for (const [key, filename] of Object.entries(metadata.sounds)) {
@@ -551,6 +744,7 @@ export class CustomizationService implements Service {
     if (!this.isSoundEnabled || !this.audioContext) return;
 
     const buffer = this.soundBuffers.get(key);
+
     if (!buffer) {
       console.warn(`[CustomizationService] Sound not found: ${key}`);
       return;
@@ -585,7 +779,10 @@ export class CustomizationService implements Service {
     }
   }
 
-  async playBackgroundMusic(playlistKey: string, options: { shuffle?: boolean; loop?: boolean; volume?: number } = {}): Promise<void> {
+  async playBackgroundMusic(
+    playlistKey: string,
+    options: { shuffle?: boolean; loop?: boolean; volume?: number } = {},
+  ): Promise<void> {
     if (!this.isMusicEnabled || !this.audioContext || !this.soundpackMetadata) {
       return;
     }
@@ -593,6 +790,7 @@ export class CustomizationService implements Service {
     this.stopBackgroundMusic();
 
     const playlist = this.soundpackMetadata.music?.[playlistKey];
+
     if (!playlist || playlist.length === 0) {
       console.warn(`[CustomizationService] Music playlist not found: ${playlistKey}`);
       return;
@@ -618,6 +816,7 @@ export class CustomizationService implements Service {
       } catch {
         // Ignore stop/disconnect errors.
       }
+
       this.currentMusicSource = null;
     }
 
@@ -627,6 +826,7 @@ export class CustomizationService implements Service {
       } catch {
         // Ignore disconnect errors.
       }
+
       this.currentMusicGainNode = null;
     }
 
@@ -668,6 +868,8 @@ export class CustomizationService implements Service {
           },
         },
       };
+
+      this.scheduleSave();
     }
   }
 
@@ -685,6 +887,8 @@ export class CustomizationService implements Service {
           },
         },
       };
+
+      this.scheduleSave();
     }
 
     if (!enabled) {
@@ -711,34 +915,22 @@ export class CustomizationService implements Service {
       throw error;
     }
   }
-  // #endregion sounds
 
-  // #endregion APPEARANCE
-
-  // #region CONTENT
-
-  // #endregion CONTENT
-
-  // #region LOGGING
-
-  // #endregion LOGGING
-
-  // #region NETWORK
-
-  // #endregion NETWORK
-
-  // #region ADVANCED
-
-  // #endregion ADVANCED
-
-  // #region MISC
-
-  // #endregion MISC
+  // #endregion SOUNDS
 
   /**
-   * ! Cleanup
+   * Clean up service-owned resources.
    */
   async destroy() {
+    if (this.saveTimer) {
+      clearTimeout(this.saveTimer);
+      this.saveTimer = undefined;
+    }
+
+    // Invalidate outstanding CSS requests.
+    this.cssThemeRevision++;
+    this.removeCustomCSS();
+
     this.stopBackgroundMusic();
 
     if (this.audioContext) {
@@ -747,6 +939,7 @@ export class CustomizationService implements Service {
       } catch (error) {
         console.warn("[CustomizationService] Error closing AudioContext:", error);
       }
+
       this.audioContext = null;
     }
 
@@ -760,6 +953,12 @@ export class CustomizationService implements Service {
     this.soundError = null;
     this.isSoundEnabled = true;
     this.isMusicEnabled = true;
+
+    this.iconTemplates = [];
+    this.selectedIconTemplate = null;
+    this.cssThemes = [];
+    this.selectedCssTheme = null;
+    this.cssThemeError = null;
 
     this.settings = null;
     this.loading = false;

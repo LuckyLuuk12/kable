@@ -28,7 +28,7 @@ let navItems = $derived([
   { path: "/shaders", label: "Shaders", icon: "shaders" },
   // { path: '/resources', label: 'Resources', icon: 'resources' },
   { path: "/worlds", label: "Worlds", icon: "world" },
-  { path: "/skins", label: "Skins", icon: "palette" },
+  { path: "/skins", label: "Skins", icon: "profile" },
   // Only show logs if enabled in settings (default: true for developers)
   ...(app.customizationService.settings?.advanced?.enable_advanced_features !== false ? [{ path: "/logs", label: "Logs", icon: "terminal" }] : []),
   // Only show advanced page if enabled in settings (default: false)
@@ -164,8 +164,7 @@ onDestroy(() => {
         class="user-profile"
         class:active={currentPath === "/accounts"}
         data-title="Account Settings"
-        aria-label="Account Settings"
-      >
+        aria-label="Account Settings">
         <div class="user-avatar">
           <PlayerHead account={activeAccount} size={40} />
         </div>
@@ -183,8 +182,7 @@ onDestroy(() => {
         class="hamburger-btn"
         onclick={toggleNavigation}
         aria-label={isNavCollapsed ? "Expand navigation" : "Collapse navigation"}
-        data-title={isNavCollapsed ? "Expand navigation (Ctrl+B)" : "Collapse navigation (Ctrl+B)"}
-      >
+        data-title={isNavCollapsed ? "Expand navigation (Ctrl+B)" : "Collapse navigation (Ctrl+B)"}>
         <Icon name={isNavCollapsed ? "arrow-right" : "arrow-left"} size="lg" forceType="svg" />
       </button>
     </div>
@@ -207,30 +205,34 @@ onDestroy(() => {
         class="nav-item settings-item"
         class:active={currentPath === "/settings"}
         data-title="Settings"
-        aria-label="Settings"
-      >
+        aria-label="Settings">
         <Icon name="settings" size="md" className="nav-icon" />
         <span class="label" class:collapsed={isNavCollapsed}>Settings</span>
       </a>
     </div>
   </nav>
 
-  <main class="content">
+  <div class="content">
     {@render children()}
-  </main>
+  </div>
 </div>
 
 <style lang="scss">
 .app-layout {
   display: flex;
-  height: 100%;
+  flex: 1;
   width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
   background: $color-background;
   color: $color-text;
 }
 
 .sidebar {
+  flex-shrink: 0;
+  min-height: 0;
   min-width: calc(fit-content + 2rem);
   background: $color-surface-1;
   border-right: 1px solid $color-border;
@@ -399,8 +401,12 @@ onDestroy(() => {
 }
 
 .content {
+  display: flex;
   flex: 1;
-  overflow-y: auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   transition: margin-left 0.3s ease;
 }
 

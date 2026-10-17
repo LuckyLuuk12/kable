@@ -463,10 +463,10 @@ function formatLastUsed(date: string | null | undefined) {
 
 <style lang="scss">
 .profiles-list {
-  min-height: 100%;
+  height: 100%;
   padding: 2rem;
   border-radius: $radius-md;
-  border: 1px solid $color-surface-3;
+  border: 1px solid $color-border;
   background: $color-surface-1;
   box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08);
   overflow: visible;
@@ -481,7 +481,6 @@ function formatLastUsed(date: string | null | undefined) {
 }
 
 .profiles-grid {
-  min-height: 100%;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(20.5rem, 1fr));
   gap: 1.25rem;

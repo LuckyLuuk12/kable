@@ -3,9 +3,9 @@ use crate::features::customization::images;
 use crate::features::customization::settings;
 use crate::features::customization::sounds;
 use crate::features::customization::themes;
+
 use api_types::icons::IconTemplate;
-use api_types::settings::CategorizedLauncherSettings;
-use api_types::settings::Theme;
+use api_types::settings::{CategorizedLauncherSettings, CssTheme};
 use api_types::sounds::SoundpackMetadata;
 
 #[tauri::command]
@@ -86,28 +86,42 @@ pub async fn open_sounds_directory() -> Result<(), String> {
     sounds::open_sounds_directory().await
 }
 
+/// List built-in and custom CSS themes.
+///
+/// Each theme has a stable ID, display name, and source type.
 #[tauri::command]
 #[specta::specta]
-pub async fn list_css_themes() -> Result<Vec<Theme>, String> {
+pub async fn list_css_themes() -> Result<Vec<CssTheme>, String> {
     themes::list_css_themes().await
 }
 
+/// Load CSS for a theme by its stable ID.
+///
+/// Examples:
+/// - `builtin:kasai-sora`
+/// - `builtin:modrinth`
+/// - `builtin:official`
+/// - `custom:my-theme`
 #[tauri::command]
 #[specta::specta]
-pub async fn load_css(theme: Theme) -> Result<String, String> {
-    themes::load_css(theme).await
+pub async fn load_css(theme_id: String) -> Result<String, String> {
+    themes::load_css(theme_id).await
 }
 
+/// Save a custom CSS theme and return its stable ID.
 #[tauri::command]
 #[specta::specta]
 pub async fn save_css_theme(name: String, css: String) -> Result<String, String> {
     themes::save_css_theme(name, css).await
 }
 
+/// Delete a custom CSS theme by its stable ID.
+///
+/// Built-in themes cannot be deleted.
 #[tauri::command]
 #[specta::specta]
-pub async fn delete_css_theme(name: String) -> Result<(), String> {
-    themes::delete_css_theme(name).await
+pub async fn delete_css_theme(theme_id: String) -> Result<(), String> {
+    themes::delete_css_theme(theme_id).await
 }
 
 #[tauri::command]

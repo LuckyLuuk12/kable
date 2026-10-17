@@ -31,59 +31,63 @@ async function refreshVersionManifests() {
 }
 </script>
 
-<div class="profiles-page">
-  <div class="page-header">
-    <div class="header-content">
-      <h1>Profiles</h1>
-      <p>Manage your Minecraft profiles, versions, and mod loaders</p>
+<div class="page">
+  <div class="page-body">
+    <div class="controls-container">
+      <div class="left-controls">
+        <button
+          class="btn new-profiles-btn"
+          onclick={openCreateModal}
+          title="Create from version, existing, imported or modpack a new profile"
+          disabled={isRefreshing || isRefreshingVersions}>
+          <Icon name="plus" size="md" forceType="svg" />
+          New Profile
+        </button>
+      </div>
+      <div class="view-controls">
+        <button class="btn" class:spinning={isRefreshing} onclick={refreshProfiles} disabled={isRefreshing || isRefreshingVersions} title="Refresh profiles list">
+          <Icon name="refresh" size="md" forceType="svg" />
+          Refresh Profiles
+        </button>
+        <button
+          class="btn"
+          class:spinning={isRefreshingVersions}
+          onclick={refreshVersionManifests}
+          disabled={isRefreshingVersions || isRefreshing}
+          title="WARNING: This will clear cache and is very slow, use only if necessary!">
+          <Icon name="sync" size="md" forceType="svg" />
+          Refresh Versions
+        </button>
+        <button class="btn" onclick={() => (isGrid = !isGrid)} class:is-active={isGrid} title={isGrid ? "Switch to list view" : "Switch to grid view"}>
+          <Icon name={isGrid ? "list" : "grid"} size="md" />
+        </button>
+        <button class="btn" onclick={() => (isSmall = !isSmall)} class:is-active={isSmall} title={"Turn compact mode " + (isSmall ? "off" : "on")}>
+          <Icon name="minimize" size="md" />
+        </button>
+      </div>
     </div>
-  </div>
 
-  <div class="controls-container">
-    <div class="left-controls">
-      <button
-        class="btn new-profiles-btn"
-        onclick={openCreateModal}
-        title="Create from version, existing, imported or modpack a new profile"
-        disabled={isRefreshing || isRefreshingVersions}
-      >
-        <Icon name="plus" size="md" forceType="svg" />
-        New Profile
-      </button>
-    </div>
-    <div class="view-controls">
-      <button class="btn" class:spinning={isRefreshing} onclick={refreshProfiles} disabled={isRefreshing || isRefreshingVersions} title="Refresh profiles list">
-        <Icon name="refresh" size="md" forceType="svg" />
-        Refresh Profiles
-      </button>
-      <button
-        class="btn"
-        class:spinning={isRefreshingVersions}
-        onclick={refreshVersionManifests}
-        disabled={isRefreshingVersions || isRefreshing}
-        title="WARNING: This will clear cache and is very slow, use only if necessary!"
-      >
-        <Icon name="sync" size="md" forceType="svg" />
-        Refresh Versions
-      </button>
-      <button class="btn" onclick={() => (isGrid = !isGrid)} class:is-active={isGrid} title={isGrid ? "Switch to list view" : "Switch to grid view"}>
-        <Icon name={isGrid ? "list" : "grid"} size="md" />
-      </button>
-      <button class="btn" onclick={() => (isSmall = !isSmall)} class:is-active={isSmall} title={"Turn compact mode " + (isSmall ? "off" : "on")}>
-        <Icon name="minimize" size="md" />
-      </button>
-    </div>
+    <ProfilesList {isGrid} {isSmall} />
   </div>
-
-  <ProfilesList {isGrid} {isSmall} />
 </div>
 
 <style lang="scss">
-.profiles-page {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 0 2vw;
+.page {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.page-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .page-header {
@@ -111,11 +115,14 @@ async function refreshVersionManifests() {
   }
 }
 .controls-container {
+  background: $color-surface-1;
+  padding: $space-md;
+  margin: $space-md 0;
+  border: 1px solid $color-border;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.5rem;
   flex-wrap: wrap;
   .new-profiles-btn {
     display: flex;

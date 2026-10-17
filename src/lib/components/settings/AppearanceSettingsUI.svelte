@@ -2,6 +2,12 @@
 import { Icon, api, app, type IconTemplate } from "$lib";
 import { onMount } from "svelte";
 
+interface CssThemeEntry {
+  id: string;
+  name: string;
+  type: "builtin" | "custom" | string;
+}
+
 let showCustomTemplates = $state(false);
 let showIconUpload = $state(false);
 let uploadError = $state("");
@@ -13,70 +19,108 @@ let cssUploadError = $state("");
 let cssUploadFile = $state<File | null>(null);
 let cssIsDragOver = $state(false);
 
-let cssThemes = $state<string[]>(["default"]);
+let cssThemes = $state<CssThemeEntry[]>([]);
+let cssThemesLoading = $state(false);
 let showCustomThemes = $state(false);
+let selectedCssThemeId = $state<string | null>(null);
 
 let iconTemplates = $state<IconTemplate[]>([]);
-
 let saveStatus = $state("");
+let uploadCssInProgress = $state(false);
+let uploadIconInProgress = $state(false);
 
-const builtInThemes = ["default", "KasaiSora-Theme", "Modrinth-Theme"];
+let statusTimeout: ReturnType<typeof setTimeout> | undefined;
 
-const customThemes = $derived(cssThemes.filter((theme) => !builtInThemes.includes(theme)));
+const builtInThemeIds = new Set(["builtin:kasai-sora", "builtin:modrinth", "builtin:official"]);
 
+const customThemes = $derived(cssThemes.filter((theme) => theme.type === "custom" || theme.id.startsWith("custom:")));
+const builtInThemes = $derived(cssThemes.filter((theme) => theme.type === "builtin" || builtInThemeIds.has(theme.id)));
 const hasCustomThemes = $derived(customThemes.length > 0);
-
 const customIconTemplates = $derived(iconTemplates.filter((template) => template.type === "custom"));
 
+const customization = $derived(app.customizationService);
+const appearance = $derived(customization.settings?.appearance ?? null);
+
 function scheduleSave() {
-  app.customizationService.scheduleSave();
+  customization.scheduleSave();
 }
 
-function setStatus(message: string, duration = 2000) {
+function setStatus(message: string, duration = 2500) {
   saveStatus = message;
 
-  setTimeout(() => {
+  if (statusTimeout) {
+    clearTimeout(statusTimeout);
+  }
+
+  statusTimeout = setTimeout(() => {
     if (saveStatus === message) {
       saveStatus = "";
     }
   }, duration);
 }
 
-onMount(async () => {
-  await Promise.all([loadCssThemes()]);
+onMount(() => {
+  void Promise.allSettled([loadCssThemes(), loadIconTemplates()]);
+
+  return () => {
+    if (statusTimeout) {
+      clearTimeout(statusTimeout);
+    }
+  };
 });
 
 async function loadCssThemes() {
+  cssThemesLoading = true;
+
   try {
-    cssThemes = (await api.listCssThemes()).map((t) => (typeof t === "string" ? t : t.custom));
+    const themes = await api.listCssThemes();
+
+    // The backend returns theme metadata, not bare filenames.
+    cssThemes = themes.map((theme) => ({
+      id: theme.id,
+      name: theme.name,
+      type: theme.type,
+    }));
+
+    const savedTheme = customization.settings?.appearance?.theme;
+    const savedThemeId = typeof savedTheme === "string" ? savedTheme : null;
+
+    selectedCssThemeId = savedThemeId && cssThemes.some((theme) => theme.id === savedThemeId) ? savedThemeId : null;
+
+    // Clear stale selections from older versions rather than attempting
+    // to load obsolete files such as dark.css or light.css.
+    if (savedThemeId && !selectedCssThemeId) {
+      await customization.setTheme(null);
+    }
   } catch (error) {
     console.error("Failed to load CSS themes:", error);
-    cssThemes = ["default"];
+    setStatus("Failed to load CSS themes");
+  } finally {
+    cssThemesLoading = false;
   }
 }
 
 async function loadIconTemplates() {
   try {
-    iconTemplates = await app.customizationService.getIconTemplates();
+    iconTemplates = await customization.getIconTemplates();
   } catch (error) {
     console.error("Failed to load icon templates:", error);
-    iconTemplates = [];
+    setStatus("Failed to load icon templates");
   }
 }
 
-async function selectTheme(themeName: string) {
+async function selectTheme(themeId: string) {
+  const nextThemeId = themeId || null;
+
+  if (nextThemeId && !cssThemes.some((theme) => theme.id === nextThemeId)) {
+    setStatus("The selected CSS theme is unavailable");
+    return;
+  }
+
   try {
-    if (themeName === "default") {
-      await app.customizationService.setTheme("system");
-      return;
-    }
-
-    await app.customizationService.setTheme({
-      custom: themeName,
-    });
-
-    app.customizationService.scheduleSave();
-    setStatus("CSS theme updated successfully");
+    await customization.setTheme(nextThemeId);
+    selectedCssThemeId = nextThemeId;
+    setStatus(nextThemeId ? "CSS theme updated successfully" : "Default appearance restored");
   } catch (error) {
     console.error("Failed to update CSS theme:", error);
     setStatus("Failed to update CSS theme");
@@ -84,24 +128,37 @@ async function selectTheme(themeName: string) {
 }
 
 async function handleCssUpload() {
-  if (!cssUploadFile) return;
+  if (!cssUploadFile || uploadCssInProgress) return;
+
+  uploadCssInProgress = true;
+  cssUploadError = "";
 
   try {
-    cssUploadError = "";
-
     const content = await cssUploadFile.text();
-    const themeName = cssUploadFile.name.replace(/\.css$/i, "");
+    const themeName = cssUploadFile.name.replace(/\.css$/i, "").trim();
 
-    await api.saveCssTheme(themeName, content);
+    if (!themeName) {
+      throw new Error("The CSS filename must contain a theme name");
+    }
+
+    const themeId = await api.saveCssTheme(themeName, content);
+
     await loadCssThemes();
 
     showCssUpload = false;
     cssUploadFile = null;
 
-    setStatus(`CSS theme "${themeName}" uploaded successfully`, 3000);
+    // Saving a theme installs it; selecting it remains an explicit action.
+    setStatus(`CSS theme "${themeName}" installed successfully`, 3000);
+
+    if (typeof themeId === "string" && !cssThemes.some((theme) => theme.id === themeId)) {
+      await loadCssThemes();
+    }
   } catch (error) {
     console.error("Failed to upload CSS theme:", error);
-    cssUploadError = `Upload failed: ${error}`;
+    cssUploadError = `Upload failed: ${String(error)}`;
+  } finally {
+    uploadCssInProgress = false;
   }
 }
 
@@ -119,25 +176,18 @@ function handleCssDrop(event: DragEvent) {
   cssIsDragOver = false;
 
   const file = event.dataTransfer?.files?.[0];
-
-  if (!file) return;
-
-  if (!file.name.toLowerCase().endsWith(".css")) {
-    cssUploadError = "Please select a .css file";
-    return;
-  }
-
-  cssUploadFile = file;
-  cssUploadError = "";
+  if (file) setCssUploadFile(file);
 }
 
 function handleCssFileSelect(event: Event) {
   const file = (event.currentTarget as HTMLInputElement).files?.[0];
+  if (file) setCssUploadFile(file);
+}
 
-  if (!file) return;
-
+function setCssUploadFile(file: File) {
   if (!file.name.toLowerCase().endsWith(".css")) {
     cssUploadError = "Please select a .css file";
+    cssUploadFile = null;
     return;
   }
 
@@ -145,20 +195,27 @@ function handleCssFileSelect(event: Event) {
   cssUploadError = "";
 }
 
-async function removeCssTheme(themeName: string) {
-  if (builtInThemes.includes(themeName)) {
-    setStatus("Cannot remove built-in themes");
+async function removeCssTheme(themeId: string) {
+  const theme = cssThemes.find((entry) => entry.id === themeId);
+
+  if (!theme || (theme.type !== "custom" && !theme.id.startsWith("custom:"))) {
+    setStatus("Built-in themes cannot be removed");
     return;
   }
 
-  if (!confirm(`Are you sure you want to remove the "${themeName}" CSS theme?`)) {
+  if (!confirm(`Are you sure you want to remove the "${theme.name}" CSS theme?`)) {
     return;
   }
 
   try {
-    await api.deleteCssTheme(themeName);
-    await loadCssThemes();
+    await api.deleteCssTheme(themeId);
 
+    if (selectedCssThemeId === themeId) {
+      await customization.setTheme(null);
+      selectedCssThemeId = null;
+    }
+
+    await loadCssThemes();
     setStatus("CSS theme removed successfully");
   } catch (error) {
     console.error("Failed to remove CSS theme:", error);
@@ -175,16 +232,20 @@ async function openCssThemesDirectory() {
   }
 }
 
-async function selectIconTemplate(templateId: string) {
+async function selectIconTemplate(templateId: string | null) {
+  if (!appearance) return;
+
+  if (templateId && !iconTemplates.some((template) => template.id === templateId)) {
+    setStatus("The selected icon template is unavailable");
+    return;
+  }
+
   try {
-    if (!app.customizationService.settings?.appearance) return;
+    appearance.icon_template = templateId;
+    customization.selectedIconTemplate = templateId;
+    scheduleSave();
 
-    app.customizationService.settings.appearance.icon_template = templateId;
-
-    app.customizationService.selectedIconTemplate = templateId;
-    app.customizationService.scheduleSave();
-
-    setStatus("Icon template updated successfully");
+    setStatus(templateId ? "Icon template updated successfully" : "Default icon template restored");
   } catch (error) {
     console.error("Failed to update icon template:", error);
     setStatus("Failed to update icon template");
@@ -192,24 +253,30 @@ async function selectIconTemplate(templateId: string) {
 }
 
 async function handleIconUpload() {
-  if (!uploadFile) return;
+  if (!uploadFile || uploadIconInProgress) return;
+
+  uploadIconInProgress = true;
+  uploadError = "";
 
   try {
-    uploadError = "";
-
     const content = await uploadFile.text();
+    const extension = uploadFile.name.split(".").pop()?.toLowerCase();
 
-    const format = uploadFile.name.endsWith(".yml") || uploadFile.name.endsWith(".yaml") ? "yaml" : "json";
-
-    // Keep validation/install logic in the service if you add it there.
-    // For now the service expects an already parsed IconTemplate.
-    const template = JSON.parse(content) as IconTemplate;
-
-    if (format === "yaml") {
-      throw new Error("YAML icon template importing is not implemented");
+    if (extension === "yml" || extension === "yaml") {
+      throw new Error("YAML icon template importing is not implemented. Use a JSON template.");
     }
 
-    await app.customizationService.saveCustomIconTemplate(template);
+    if (extension !== "json") {
+      throw new Error("Please select a .json file");
+    }
+
+    const template = JSON.parse(content) as IconTemplate;
+
+    if (!template || typeof template !== "object" || !template.name || !template.id || !template.icons) {
+      throw new Error("Invalid icon template: expected an object containing id, name, and icons");
+    }
+
+    await customization.saveCustomIconTemplate(template);
     await loadIconTemplates();
 
     showIconUpload = false;
@@ -218,7 +285,9 @@ async function handleIconUpload() {
     setStatus(`Template "${template.name}" installed successfully`, 3000);
   } catch (error) {
     console.error("Failed to upload icon template:", error);
-    uploadError = `Upload failed: ${error}`;
+    uploadError = `Upload failed: ${String(error)}`;
+  } finally {
+    uploadIconInProgress = false;
   }
 }
 
@@ -236,24 +305,22 @@ function handleDrop(event: DragEvent) {
   isDragOver = false;
 
   const file = event.dataTransfer?.files?.[0];
-
-  if (!file) return;
-
-  const name = file.name.toLowerCase();
-
-  if (!name.endsWith(".json") && !name.endsWith(".yml") && !name.endsWith(".yaml")) {
-    uploadError = "Please select a .json, .yml, or .yaml file";
-    return;
-  }
-
-  uploadFile = file;
-  uploadError = "";
+  if (file) setIconUploadFile(file);
 }
 
 function handleFileSelect(event: Event) {
   const file = (event.currentTarget as HTMLInputElement).files?.[0];
+  if (file) setIconUploadFile(file);
+}
 
-  if (!file) return;
+function setIconUploadFile(file: File) {
+  const name = file.name.toLowerCase();
+
+  if (!name.endsWith(".json") && !name.endsWith(".yml") && !name.endsWith(".yaml")) {
+    uploadError = "Please select a .json, .yml, or .yaml file";
+    uploadFile = null;
+    return;
+  }
 
   uploadFile = file;
   uploadError = "";
@@ -265,9 +332,8 @@ async function removeCustomTemplate(templateId: string) {
   }
 
   try {
-    await app.customizationService.deleteCustomIconTemplate(templateId);
+    await customization.deleteCustomIconTemplate(templateId);
     await loadIconTemplates();
-
     setStatus("Template removed successfully");
   } catch (error) {
     console.error("Failed to remove icon template:", error);
@@ -277,7 +343,7 @@ async function removeCustomTemplate(templateId: string) {
 
 async function openIconsDirectory() {
   try {
-    await app.customizationService.openIconsDirectory();
+    await customization.openIconsDirectory();
   } catch (error) {
     console.error("Failed to open icons directory:", error);
     setStatus("Failed to open icons directory");
@@ -285,54 +351,50 @@ async function openIconsDirectory() {
 }
 
 function updateSoundEnabled(enabled: boolean) {
-  app.customizationService.setSoundEnabled(enabled);
-  app.customizationService.scheduleSave();
+  customization.setSoundEnabled(enabled);
+  scheduleSave();
 }
 
 function updateMusicEnabled(enabled: boolean) {
-  app.customizationService.setMusicEnabled(enabled);
-  app.customizationService.scheduleSave();
+  customization.setMusicEnabled(enabled);
+  scheduleSave();
 }
 
 function updateMasterVolume(volume: number) {
-  const sound = app.customizationService.settings?.appearance?.sound_settings;
+  const sound = appearance?.sound_settings;
   if (!sound) return;
 
   sound.master_volume = volume;
-
-  app.customizationService.setMasterVolume(volume);
-  app.customizationService.scheduleSave();
+  customization.setMasterVolume(volume);
+  scheduleSave();
 }
 
 function updateSoundVolume(volume: number) {
-  const sound = app.customizationService.settings?.appearance?.sound_settings;
+  const sound = appearance?.sound_settings;
   if (!sound) return;
 
   sound.sound_volume = volume;
-
-  app.customizationService.setSoundVolume(volume);
-  app.customizationService.scheduleSave();
+  customization.setSoundVolume(volume);
+  scheduleSave();
 }
 
 function updateMusicVolume(volume: number) {
-  const sound = app.customizationService.settings?.appearance?.sound_settings;
+  const sound = appearance?.sound_settings;
   if (!sound) return;
 
   sound.music_volume = volume;
-
-  app.customizationService.setMusicVolume(volume);
-  app.customizationService.scheduleSave();
+  customization.setMusicVolume(volume);
+  scheduleSave();
 }
 
 async function selectSoundpack(packName: string) {
+  const sound = appearance?.sound_settings;
+  if (!sound) return;
+
   try {
-    const sound = app.customizationService.settings?.appearance?.sound_settings;
-    if (!sound) return;
-
+    await customization.loadSoundpack(packName);
     sound.selected_soundpack = packName;
-
-    await app.customizationService.loadSoundpack(packName);
-    app.customizationService.scheduleSave();
+    scheduleSave();
 
     setStatus("Soundpack changed successfully");
   } catch (error) {
@@ -342,49 +404,42 @@ async function selectSoundpack(packName: string) {
 }
 </script>
 
-{#if app.customizationService.settings?.appearance}
-  {@const appearance = app.customizationService.settings.appearance}
-
+{#if appearance}
   <div class="settings-tab">
-    <h2>Appearance Settings</h2>
-    <p>Customize the look and feel of the launcher.</p>
+    <header class="settings-header">
+      <h2>Appearance Settings</h2>
+      <p>Customize the look and feel of the launcher.</p>
+    </header>
 
-    <form>
-      <!-- Theme -->
+    <form onsubmit={(event) => event.preventDefault()}>
+      <!-- CSS Theme Selection -->
 
       <div class="setting-item">
         <div class="setting-info">
-          <label for="theme">Theme</label>
-          <p class="setting-description">Choose the launcher appearance.</p>
+          <label for="css-theme">CSS Theme</label>
+          <p class="setting-description">Select a built-in or custom stylesheet. Choose Default to use the launcher's standard appearance.</p>
         </div>
 
         <div class="setting-control">
           <select
-            id="theme"
-            value={typeof appearance.theme === "object" ? `custom:${appearance.theme.custom}` : (appearance.theme ?? "system")}
-            onchange={(event) => {
-              const value = (event.currentTarget as HTMLSelectElement).value;
+            id="css-theme"
+            value={selectedCssThemeId ?? ""}
+            disabled={cssThemesLoading}
+            onchange={(event) => void selectTheme((event.currentTarget as HTMLSelectElement).value)}>
+            <option value="">Default</option>
 
-              if (value === "light" || value === "dark" || value === "system") {
-                app.customizationService.setTheme(value);
-              } else if (value.startsWith("custom:")) {
-                app.customizationService.setTheme({
-                  custom: value.substring("custom:".length),
-                });
-              }
-
-              app.customizationService.scheduleSave();
-            }}>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="system">System</option>
+            {#if builtInThemes.length > 0}
+              <optgroup label="Built-in Themes">
+                {#each builtInThemes as theme (theme.id)}
+                  <option value={theme.id}>{theme.name}</option>
+                {/each}
+              </optgroup>
+            {/if}
 
             {#if hasCustomThemes}
               <optgroup label="Custom Themes">
-                {#each customThemes as theme (theme)}
-                  <option value={`custom:${theme}`}>
-                    {theme}
-                  </option>
+                {#each customThemes as theme (theme.id)}
+                  <option value={theme.id}>{theme.name}</option>
                 {/each}
               </optgroup>
             {/if}
@@ -396,8 +451,8 @@ async function selectSoundpack(packName: string) {
 
       <div class="setting-item">
         <div class="setting-info">
-          <label for="css-theme-mangement">CSS Theme Management</label>
-          <p class="setting-description">Upload, remove, or open the CSS themes folder.</p>
+          <label>CSS Theme Management</label>
+          <p class="setting-description">Install custom CSS files, manage installed themes, or open the themes directory.</p>
         </div>
 
         <div class="setting-control">
@@ -405,40 +460,59 @@ async function selectSoundpack(packName: string) {
             {showCssUpload ? "Cancel Upload" : "Upload Custom Theme"}
           </button>
 
-          <button type="button" onclick={openCssThemesDirectory}> Open Themes Directory </button>
+          <button type="button" onclick={() => void openCssThemesDirectory()}> Open Themes Directory </button>
         </div>
       </div>
 
       {#if showCssUpload}
         <div class="setting-item">
           <div class="setting-info">
-            <label for="css-file-input">Upload Zone</label>
-            <p class="setting-description">Drag & drop or click to select a CSS theme file (.css).</p>
+            <label for="css-file-input">Upload CSS Theme</label>
+            <p class="setting-description">Drag and drop a .css file or select one from your computer.</p>
           </div>
 
           <div class="setting-control">
             <label
               for="css-file-input"
-              class:drag-over={cssIsDragOver}
-              class:error={cssUploadError}
               class="upload-zone"
+              class:drag-over={cssIsDragOver}
+              class:error={!!cssUploadError}
               ondragover={handleCssDragOver}
               ondragleave={handleCssDragLeave}
               ondrop={handleCssDrop}>
-              <input type="file" id="css-file-input" accept=".css" onchange={handleCssFileSelect} hidden />
+              <input type="file" id="css-file-input" accept=".css,text/css" onchange={handleCssFileSelect} hidden />
 
               <div class="upload-placeholder">
-                <h4>Drag & drop or click to select a CSS file</h4>
-                <p>Accepted: .css</p>
+                <h4>Drag and drop or click to select a CSS file</h4>
+                <p>Accepted format: .css</p>
 
                 {#if cssUploadFile}
                   <div class="file-info">
                     <span class="file-name">{cssUploadFile.name}</span>
 
                     <div class="file-actions">
-                      <button type="button" onclick={handleCssUpload}> Upload </button>
+                      <button
+                        type="button"
+                        disabled={uploadCssInProgress}
+                        onclick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void handleCssUpload();
+                        }}>
+                        {uploadCssInProgress ? "Uploading…" : "Upload"}
+                      </button>
 
-                      <button type="button" onclick={() => (cssUploadFile = null)}> Remove </button>
+                      <button
+                        type="button"
+                        disabled={uploadCssInProgress}
+                        onclick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          cssUploadFile = null;
+                          cssUploadError = "";
+                        }}>
+                        Remove
+                      </button>
                     </div>
                   </div>
                 {/if}
@@ -455,8 +529,8 @@ async function selectSoundpack(packName: string) {
       {#if hasCustomThemes}
         <div class="setting-item">
           <div class="setting-info">
-            <label for="custom-css-themes">Custom CSS Themes</label>
-            <p class="setting-description">Manage custom CSS themes. Built-in themes cannot be removed.</p>
+            <label>Custom CSS Themes</label>
+            <p class="setting-description">Remove custom themes you no longer need. Built-in themes cannot be deleted.</p>
           </div>
 
           <div class="setting-control custom-templates-list">
@@ -466,11 +540,16 @@ async function selectSoundpack(packName: string) {
 
             {#if showCustomThemes}
               <div class="custom-templates-rows">
-                {#each customThemes as theme (theme)}
+                {#each customThemes as theme (theme.id)}
                   <div class="custom-template-row">
-                    <span class="template-name">{theme}</span>
+                    <span class="template-name">{theme.name}</span>
 
-                    <button type="button" class="icon-btn btn-danger" title="Remove Custom Theme" onclick={() => removeCssTheme(theme)}>
+                    <button
+                      type="button"
+                      class="icon-btn btn-danger"
+                      title={`Remove ${theme.name}`}
+                      aria-label={`Remove ${theme.name}`}
+                      onclick={() => void removeCssTheme(theme.id)}>
                       <Icon name="delete" />
                     </button>
                   </div>
@@ -486,7 +565,7 @@ async function selectSoundpack(packName: string) {
       <div class="setting-item">
         <div class="setting-info">
           <label for="language">Language</label>
-          <p class="setting-description">Currently available language.</p>
+          <p class="setting-description">Choose the launcher interface language.</p>
         </div>
 
         <div class="setting-control">
@@ -501,18 +580,21 @@ async function selectSoundpack(packName: string) {
       <div class="setting-item">
         <div class="setting-info">
           <label for="selected-icon-template">Icon Template</label>
-          <p class="setting-description">Choose the icon template used by the launcher.</p>
+          <p class="setting-description">Choose an icon template or use the launcher's default icons.</p>
         </div>
 
         <div class="setting-control">
           <select
             id="selected-icon-template"
             value={appearance.icon_template ?? ""}
-            onchange={(event) => selectIconTemplate((event.currentTarget as HTMLSelectElement).value)}>
+            onchange={(event) => {
+              const value = (event.currentTarget as HTMLSelectElement).value;
+              void selectIconTemplate(value || null);
+            }}>
+            <option value="">Default</option>
+
             {#each iconTemplates as template (template.id)}
-              <option value={template.id}>
-                {template.name}
-              </option>
+              <option value={template.id}>{template.name}</option>
             {/each}
           </select>
         </div>
@@ -522,8 +604,8 @@ async function selectSoundpack(packName: string) {
 
       <div class="setting-item">
         <div class="setting-info">
-          <label for="icon-template-management">Icon Template Management</label>
-          <p class="setting-description">Upload, remove, or open the icon templates folder.</p>
+          <label>Icon Template Management</label>
+          <p class="setting-description">Install custom icon templates, remove them, or open the templates directory.</p>
         </div>
 
         <div class="setting-control template-management">
@@ -531,40 +613,59 @@ async function selectSoundpack(packName: string) {
             {showIconUpload ? "Cancel Upload" : "Upload Custom Template"}
           </button>
 
-          <button type="button" onclick={openIconsDirectory}> Open Icons Directory </button>
+          <button type="button" onclick={() => void openIconsDirectory()}> Open Icons Directory </button>
         </div>
       </div>
 
       {#if showIconUpload}
         <div class="setting-item">
           <div class="setting-info">
-            <h4>Upload Zone</h4>
-            <p class="setting-description">Drag & drop or click to select a template (.json, .yml, .yaml).</p>
+            <h4>Upload Icon Template</h4>
+            <p class="setting-description">Select a .json template. YAML importing is not currently supported.</p>
           </div>
 
           <div class="setting-control">
             <label
               for="template-file-input"
-              class:drag-over={isDragOver}
-              class:error={uploadError}
               class="upload-zone"
+              class:drag-over={isDragOver}
+              class:error={!!uploadError}
               ondragover={handleDragOver}
               ondragleave={handleDragLeave}
               ondrop={handleDrop}>
-              <input type="file" id="template-file-input" accept=".json,.yml,.yaml" onchange={handleFileSelect} hidden />
+              <input type="file" id="template-file-input" accept=".json,.yml,.yaml,application/json" onchange={handleFileSelect} hidden />
 
               <div class="upload-placeholder">
-                <h4>Drag & drop or click to select a template</h4>
-                <p>Accepted: .json, .yml, .yaml</p>
+                <h4>Drag and drop or click to select a template</h4>
+                <p>Accepted formats: .json, .yml, .yaml (JSON only can currently be imported)</p>
 
                 {#if uploadFile}
                   <div class="file-info">
                     <span class="file-name">{uploadFile.name}</span>
 
                     <div class="file-actions">
-                      <button type="button" onclick={handleIconUpload}> Upload </button>
+                      <button
+                        type="button"
+                        disabled={uploadIconInProgress}
+                        onclick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void handleIconUpload();
+                        }}>
+                        {uploadIconInProgress ? "Uploading…" : "Upload"}
+                      </button>
 
-                      <button type="button" onclick={() => (uploadFile = null)}> Remove </button>
+                      <button
+                        type="button"
+                        disabled={uploadIconInProgress}
+                        onclick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          uploadFile = null;
+                          uploadError = "";
+                        }}>
+                        Remove
+                      </button>
                     </div>
                   </div>
                 {/if}
@@ -583,8 +684,8 @@ async function selectSoundpack(packName: string) {
       {#if customIconTemplates.length > 0}
         <div class="setting-item">
           <div class="setting-info">
-            <label for="custom-icon-templates">Custom Icon Templates</label>
-            <p class="setting-description">Manage your custom icon templates.</p>
+            <label>Custom Icon Templates</label>
+            <p class="setting-description">Manage installed custom icon templates.</p>
           </div>
 
           <div class="setting-control custom-templates-list">
@@ -596,11 +697,14 @@ async function selectSoundpack(packName: string) {
               <div class="custom-templates-rows">
                 {#each customIconTemplates as template (template.id)}
                   <div class="custom-template-row">
-                    <span class="template-name">
-                      {template.name}
-                    </span>
+                    <span class="template-name">{template.name}</span>
 
-                    <button type="button" class="icon-btn btn-danger" title="Remove" onclick={() => removeCustomTemplate(template.id)}>
+                    <button
+                      type="button"
+                      class="icon-btn btn-danger"
+                      title={`Remove ${template.name}`}
+                      aria-label={`Remove ${template.name}`}
+                      onclick={() => void removeCustomTemplate(template.id)}>
                       <Icon name="delete" />
                     </button>
                   </div>
@@ -619,7 +723,7 @@ async function selectSoundpack(packName: string) {
         <div class="setting-item">
           <div class="setting-info">
             <label for="sound-enabled">Sound Effects</label>
-            <p class="setting-description">Enable UI sound effects.</p>
+            <p class="setting-description">Enable or disable interface sound effects.</p>
           </div>
 
           <div class="setting-control">
@@ -634,7 +738,7 @@ async function selectSoundpack(packName: string) {
         <div class="setting-item">
           <div class="setting-info">
             <label for="music-enabled">Background Music</label>
-            <p class="setting-description">Enable background music.</p>
+            <p class="setting-description">Enable or disable background music.</p>
           </div>
 
           <div class="setting-control">
@@ -649,10 +753,8 @@ async function selectSoundpack(packName: string) {
         {#if sound.enabled || sound.music_enabled}
           <div class="setting-item">
             <div class="setting-info">
-              <label for="master-volume"> Master Volume </label>
-              <p class="setting-description">
-                Overall volume: {sound.master_volume ?? 100}%
-              </p>
+              <label for="master-volume">Master Volume</label>
+              <p class="setting-description">Overall sound level: {sound.master_volume ?? 100}%</p>
             </div>
 
             <div class="setting-control slider-control">
@@ -670,10 +772,8 @@ async function selectSoundpack(packName: string) {
           {#if sound.enabled}
             <div class="setting-item">
               <div class="setting-info">
-                <label for="sound-volume"> Sound Effects Volume </label>
-                <p class="setting-description">
-                  Volume for UI sounds: {sound.sound_volume ?? 100}%
-                </p>
+                <label for="sound-volume">Sound Effects Volume</label>
+                <p class="setting-description">Interface sound level: {sound.sound_volume ?? 100}%</p>
               </div>
 
               <div class="setting-control slider-control">
@@ -692,10 +792,8 @@ async function selectSoundpack(packName: string) {
           {#if sound.music_enabled}
             <div class="setting-item">
               <div class="setting-info">
-                <label for="music-volume"> Music Volume </label>
-                <p class="setting-description">
-                  Volume for background music: {sound.music_volume ?? 50}%
-                </p>
+                <label for="music-volume">Music Volume</label>
+                <p class="setting-description">Background music level: {sound.music_volume ?? 50}%</p>
               </div>
 
               <div class="setting-control slider-control">
@@ -721,11 +819,9 @@ async function selectSoundpack(packName: string) {
               <select
                 id="soundpack"
                 value={sound.selected_soundpack ?? "default"}
-                onchange={(event) => selectSoundpack((event.currentTarget as HTMLSelectElement).value)}>
-                {#each app.customizationService.availableSoundpacks as pack (pack.name)}
-                  <option value={pack.name}>
-                    {pack.displayName}
-                  </option>
+                onchange={(event) => void selectSoundpack((event.currentTarget as HTMLSelectElement).value)}>
+                {#each customization.availableSoundpacks as pack (pack.name)}
+                  <option value={pack.name}>{pack.displayName}</option>
                 {/each}
               </select>
             </div>
@@ -735,49 +831,53 @@ async function selectSoundpack(packName: string) {
     </form>
 
     {#if saveStatus}
-      <div class="warning-card" class:success={saveStatus.includes("successfully")} class:error={saveStatus.includes("Failed")}>
+      <div
+        class="warning-card"
+        class:success={saveStatus.toLowerCase().includes("successfully") || saveStatus.toLowerCase().includes("restored")}
+        class:error={saveStatus.toLowerCase().includes("failed")}
+        role="status"
+        aria-live="polite">
         {saveStatus}
       </div>
     {/if}
   </div>
 {/if}
 
-<!-- svelte-ignore css_unused_selector -->
 <style lang="scss">
 .settings-tab {
   width: 100%;
   display: flex;
   flex-direction: column;
   gap: 1.75rem;
-
   padding: 2rem 2.5rem;
   margin-bottom: 2rem;
-
   background: $color-surface-1;
   border: 1px solid $color-border-muted;
   border-radius: $radius-2xl;
   box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
 }
 
-.settings-tab h2 {
-  margin: 0;
+.settings-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
 
+.settings-header h2 {
+  margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: 0.02em;
-
   color: $color-text;
-
   background: linear-gradient(to right, $color-accent, $color-accent-secondary);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.settings-tab > p {
-  margin: -1rem 0 0;
-
+.settings-header p {
+  margin: 0;
   color: $color-text-muted;
   font-size: 0.95rem;
   line-height: 1.5;
@@ -793,10 +893,8 @@ form {
   display: flex;
   align-items: center;
   gap: 2.5rem;
-
   min-width: 0;
   padding: 1.25rem 0;
-
   border-bottom: 1px solid $color-border-muted;
 
   &:last-child {
@@ -807,7 +905,6 @@ form {
 .setting-info {
   flex: 1 1 16rem;
   min-width: 13rem;
-
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -816,7 +913,6 @@ form {
 .setting-info label,
 .setting-info > h4 {
   margin: 0;
-
   color: $color-text;
   font-size: 1rem;
   font-weight: 500;
@@ -825,7 +921,6 @@ form {
 
 .setting-description {
   margin: 0;
-
   color: $color-text-muted;
   font-size: 0.875rem;
   line-height: 1.45;
@@ -834,10 +929,10 @@ form {
 .setting-control {
   flex: 1 1 18rem;
   min-width: 12rem;
-
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  flex-wrap: wrap;
   gap: 0.75rem;
 }
 
@@ -851,26 +946,20 @@ select,
 input[type="text"] {
   width: 100%;
   max-width: 20rem;
-
   padding: 0.55rem 0.8rem;
-
   border: 1px solid $color-border;
   border-radius: $radius-md;
-
   background: $color-surface-2;
   color: $color-text;
-
   font: inherit;
   font-size: 0.9rem;
-
   outline: none;
-
   transition:
     border-color 0.2s ease,
     background 0.2s ease,
     box-shadow 0.2s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     border-color: $color-accent-muted;
     background: $color-surface-3;
   }
@@ -878,6 +967,11 @@ input[type="text"] {
   &:focus {
     border-color: $color-focus;
     box-shadow: 0 0 0 3px color-mix(in srgb, $color-focus 20%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
   }
 }
 
@@ -890,9 +984,7 @@ select {
 input[type="checkbox"] {
   width: 1.1rem;
   height: 1.1rem;
-
   margin: 0;
-
   accent-color: $color-accent;
   cursor: pointer;
 }
@@ -902,112 +994,13 @@ input[type="checkbox"] {
 .slider-control {
   gap: 0.75rem;
 
-  /* Range sliders */
-
   input[type="range"] {
-    --range-progress: 50%;
-
     flex: 1 1 auto;
     width: 100%;
     min-width: 8rem;
     max-width: none;
-    height: 0.35rem;
-    margin: 0;
-
-    appearance: none;
-    -webkit-appearance: none;
-
-    border-radius: 999px;
-
-    background: linear-gradient(to right, $color-accent 0%, $color-accent var(--range-progress), $color-surface-3 var(--range-progress), $color-surface-3 100%);
-
+    accent-color: $color-accent;
     cursor: pointer;
-    outline: none;
-  }
-
-  /* Chromium / WebKit */
-
-  input[type="range"]::-webkit-slider-runnable-track {
-    height: 0.35rem;
-    border-radius: 999px;
-    background: transparent;
-  }
-
-  input[type="range"]::-webkit-slider-thumb {
-    appearance: none;
-    -webkit-appearance: none;
-
-    width: 1rem;
-    height: 1rem;
-
-    margin-top: -0.325rem;
-
-    border: 2px solid $color-surface-1;
-    border-radius: 50%;
-
-    background: $color-accent;
-    box-shadow: 0 0 0 1px $color-accent;
-
-    transition:
-      transform 0.15s ease,
-      box-shadow 0.2s ease;
-  }
-
-  input[type="range"]:hover::-webkit-slider-thumb {
-    transform: scale(1.15);
-
-    box-shadow:
-      0 0 0 1px $color-accent,
-      0 0 0 4px color-mix(in srgb, $color-accent 15%, transparent);
-  }
-
-  input[type="range"]:focus-visible::-webkit-slider-thumb {
-    box-shadow:
-      0 0 0 1px $color-focus,
-      0 0 0 4px color-mix(in srgb, $color-focus 20%, transparent);
-  }
-
-  /* Firefox */
-
-  input[type="range"]::-moz-range-track {
-    height: 0.35rem;
-    border-radius: 999px;
-    background: $color-surface-3;
-  }
-
-  input[type="range"]::-moz-range-progress {
-    height: 0.35rem;
-    border-radius: 999px;
-    background: $color-accent;
-  }
-
-  input[type="range"]::-moz-range-thumb {
-    width: 1rem;
-    height: 1rem;
-
-    border: 2px solid $color-surface-1;
-    border-radius: 50%;
-
-    background: $color-accent;
-    box-shadow: 0 0 0 1px $color-accent;
-
-    transition:
-      transform 0.15s ease,
-      box-shadow 0.2s ease;
-  }
-
-  input[type="range"]:hover::-moz-range-thumb {
-    transform: scale(1.15);
-
-    box-shadow:
-      0 0 0 1px $color-accent,
-      0 0 0 4px color-mix(in srgb, $color-accent 15%, transparent);
-  }
-
-  input[type="range"]:focus-visible::-moz-range-thumb {
-    box-shadow:
-      0 0 0 1px $color-focus,
-      0 0 0 4px color-mix(in srgb, $color-focus 20%, transparent);
   }
 }
 
@@ -1015,32 +1008,28 @@ input[type="checkbox"] {
 
 button {
   padding: 0.55rem 0.9rem;
-
   border: 1px solid $color-border;
   border-radius: $radius-md;
-
   background: $color-surface-2;
   color: $color-text;
-
   font: inherit;
   font-size: 0.875rem;
   font-weight: 500;
-
   cursor: pointer;
-
   transition:
     background 0.2s ease,
     border-color 0.2s ease,
     color 0.2s ease,
-    transform 0.15s ease;
+    transform 0.15s ease,
+    opacity 0.2s ease;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: $color-surface-3;
     border-color: $color-accent;
     color: $color-accent;
   }
 
-  &:active {
+  &:active:not(:disabled) {
     transform: translateY(1px);
   }
 
@@ -1049,6 +1038,11 @@ button {
     border-color: $color-focus;
     box-shadow: 0 0 0 3px color-mix(in srgb, $color-focus 20%, transparent);
   }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 }
 
 /* Upload */
@@ -1056,20 +1050,14 @@ button {
 .upload-zone {
   width: 100%;
   min-height: 9rem;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   padding: 1.5rem;
-
   border: 1px dashed $color-border;
   border-radius: $radius-xl;
-
   background: $color-surface-2;
-
   cursor: pointer;
-
   transition:
     border-color 0.2s ease,
     background 0.2s ease;
@@ -1088,16 +1076,13 @@ button {
 
 .upload-placeholder {
   width: 100%;
-
   display: flex;
   flex-direction: column;
   align-items: center;
-
   text-align: center;
 
   h4 {
     margin: 0 0 0.35rem;
-
     color: $color-text;
     font-size: 0.95rem;
     font-weight: 500;
@@ -1105,7 +1090,6 @@ button {
 
   > p {
     margin: 0 0 1rem;
-
     color: $color-text-muted;
     font-size: 0.8rem;
   }
@@ -1113,26 +1097,22 @@ button {
 
 .file-info {
   width: 100%;
-
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 1rem;
-
   padding: 0.75rem 1rem;
-
   border: 1px solid $color-border;
   border-radius: $radius-md;
-
   background: $color-surface-3;
 
   .file-name {
+    flex: 1 1 8rem;
     min-width: 0;
-
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-
     color: $color-text;
     font-size: 0.875rem;
     font-weight: 500;
@@ -1141,22 +1121,22 @@ button {
   .file-actions {
     display: flex;
     flex-shrink: 0;
+    flex-wrap: wrap;
     gap: 0.5rem;
   }
 }
 
 .error-message {
   margin-top: 0.75rem;
-
   color: $color-error;
   font-size: 0.8rem;
+  overflow-wrap: anywhere;
 }
 
 /* Custom templates */
 
 .custom-templates-list {
   width: 100%;
-
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -1170,7 +1150,6 @@ button {
 
 .custom-templates-rows {
   width: 100%;
-
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -1180,15 +1159,11 @@ button {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-
   width: 100%;
   padding: 0.65rem 0.75rem 0.65rem 1rem;
-
   border: 1px solid $color-border-muted;
   border-radius: $radius-lg;
-
   background: $color-surface-3;
-
   transition:
     border-color 0.2s ease,
     background 0.2s ease;
@@ -1201,41 +1176,31 @@ button {
   .template-name {
     flex: 1;
     min-width: 0;
-
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-
     color: $color-text;
     font-size: 0.875rem;
     font-weight: 500;
   }
-}
 
-.custom-template-row .icon-btn {
-  width: 2rem;
-  height: 2rem;
-
-  flex-shrink: 0;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  padding: 0;
-
-  border-color: color-mix(in srgb, $color-error 40%, $color-border);
-
-  background: color-mix(in srgb, $color-error 12%, $color-surface-2);
-
-  color: $color-error;
-
-  &:hover {
-    border-color: $color-error;
-
-    background: color-mix(in srgb, $color-error 20%, $color-surface-2);
-
+  .icon-btn {
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-color: color-mix(in srgb, $color-error 40%, $color-border);
+    background: color-mix(in srgb, $color-error 12%, $color-surface-2);
     color: $color-error;
+
+    &:hover:not(:disabled) {
+      border-color: $color-error;
+      background: color-mix(in srgb, $color-error 20%, $color-surface-2);
+      color: $color-error;
+    }
   }
 }
 
@@ -1243,28 +1208,22 @@ button {
 
 .warning-card {
   padding: 0.75rem 1rem;
-
   border: 1px solid $color-warning;
   border-radius: $radius-md;
-
   background: color-mix(in srgb, $color-warning 10%, $color-surface-2);
-
   color: $color-warning;
   font-size: 0.875rem;
+  overflow-wrap: anywhere;
 
   &.success {
     border-color: $color-success;
-
     background: color-mix(in srgb, $color-success 10%, $color-surface-2);
-
     color: $color-success;
   }
 
   &.error {
     border-color: $color-error;
-
     background: color-mix(in srgb, $color-error 10%, $color-surface-2);
-
     color: $color-error;
   }
 }
@@ -1289,7 +1248,6 @@ button {
   .setting-control {
     width: 100%;
     min-width: 0;
-
     justify-content: flex-start;
   }
 

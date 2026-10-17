@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use specta::Type;
 
 use crate::icons::IconTemplate;
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone, Default, Type)]
 #[serde(default)]
 pub struct CategorizedLauncherSettings {
     pub general: GeneralSettings,
@@ -16,7 +17,7 @@ pub struct CategorizedLauncherSettings {
     pub misc: MiscSettings,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
+#[derive(Debug, Serialize, Deserialize, Clone, Type)]
 #[serde(default)]
 pub struct GeneralSettings {
     pub java_path: Option<String>,
@@ -29,7 +30,7 @@ pub struct GeneralSettings {
     pub update_notification_style: UpdateNotificationStyle,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(default)]
 pub struct SoundSettings {
     pub enabled: bool,
@@ -40,18 +41,47 @@ pub struct SoundSettings {
     pub selected_soundpack: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(default)]
 pub struct AppearanceSettings {
-    pub theme: Theme,
+    /// Optional selected CSS theme ID.
+    ///
+    /// `None` means the application default styling should be used.
+    /// Built-in IDs: `builtin:kasai-sora`, `builtin:modrinth`, `builtin:official`.
+    /// Custom IDs: `custom:<filename>`.
+    pub theme: Option<String>,
     pub language: Language,
+
+    /// Selected icon template ID. `None` uses the default icon template.
     pub icon_template: Option<String>,
     pub custom_icon_templates: Vec<IconTemplate>,
-    pub selected_css_theme: Option<Theme>,
     pub sound_settings: SoundSettings,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+/// The origin of a CSS theme.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum CssThemeType {
+    Builtin,
+    Custom,
+}
+
+/// Metadata for a CSS theme available to Kable.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct CssTheme {
+    /// Stable identifier, e.g. `builtin:official` or `custom:my-theme`.
+    pub id: String,
+
+    /// Human-readable name shown in the appearance settings.
+    pub name: String,
+
+    /// Whether this theme ships with Kable or was added by the user.
+    #[serde(rename = "type")]
+    pub theme_type: CssThemeType,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(default)]
 pub struct LoggingSettings {
     pub enabled: bool,
@@ -70,7 +100,7 @@ pub struct LoggingSettings {
     pub dedupe_window_size: u32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(default)]
 pub struct NetworkSettings {
     pub max_download_threads: Option<u32>,
@@ -78,7 +108,7 @@ pub struct NetworkSettings {
     pub max_requests_per_second: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(default)]
 pub struct ContentSettings {
     pub allow_adult_content: bool,
@@ -87,7 +117,7 @@ pub struct ContentSettings {
     pub enable_notifications: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(default)]
 pub struct AdvancedSettings {
     pub enable_advanced_features: bool,
@@ -96,7 +126,7 @@ pub struct AdvancedSettings {
     pub extra: HashMap<String, String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(default)]
 pub struct MiscSettings {
     /// I keep this mostly undocumented because it is open-source and I don't want to spoil the fun features (:
@@ -107,9 +137,8 @@ pub struct MiscSettings {
 //? custom enums to avoid using strings
 //?---------------------------------------------------------------------
 
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
-#[repr(u8)]
 pub enum OnGameAction {
     Ask,
     Exit,
@@ -122,68 +151,49 @@ pub enum OnGameAction {
 }
 
 /// This determines HOW, once checked, to perform the update.
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
-#[repr(u8)]
 pub enum UpdateMode {
-    /// After a check the user gets prompted to confirm, skip/cancel or only download and wait for restart
+    /// After a check the user gets prompted to confirm, skip/cancel or only download and wait for restart.
     OnConfirm,
-    /// Download + install automatically, without asking the user
+
+    /// Download and install automatically, without asking the user.
     Automatic,
-    /// No checks, no prompts, nothing. Users have to go to settings and do everything manually.
+
+    /// No automatic checks or prompts. Users must manage updates manually.
     Manual,
 }
-/// This determines WHEN to check for updates
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+
+/// This determines WHEN to check for updates.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
-#[repr(u8)]
 pub enum UpdateDetection {
     OnStartup,
     OnClose,
-    /// Checks for updates every N seconds
+
+    /// Checks for updates every N seconds.
     Periodically(u32),
+
     Manual,
 }
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
+
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
-#[repr(u8)]
 pub enum UpdateNotificationStyle {
     Notification,
     Modal,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
-#[repr(u8)]
-pub enum Theme {
-    Light,
-    Dark,
-    System,
-    /// Custom theme, specified by a path/name to a CSS file
-    Custom(String),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, specta::Type)]
-#[serde(rename_all = "snake_case")]
-#[repr(u8)]
 pub enum Language {
     English,
-    // TODO: if we got some cool system for localization we could add more here
+    // TODO: add more languages when a localization system exists.
 }
 
 //?---------------------------------------------------------------------
 //? impl blocks, default, etc.
 //?---------------------------------------------------------------------
-
-// pub struct CategorizedLauncherSettings {
-//     pub general: GeneralSettings,
-//     pub appearance: AppearanceSettings,
-//     pub content: ContentSettings,
-//     pub logging: LoggingSettings,
-//     pub network: NetworkSettings,
-//     pub advanced: AdvancedSettings,
-//     pub misc: MiscSettings,
-// }
 
 impl Default for GeneralSettings {
     fn default() -> Self {
@@ -205,7 +215,7 @@ impl Default for SoundSettings {
         Self {
             enabled: true,
             music_enabled: true,
-            // let's not blast people's ears off as games tend to do...
+            // Avoid blasting users' ears when the game starts.
             master_volume: 25,
             sound_volume: 100,
             music_volume: 100,
@@ -217,11 +227,10 @@ impl Default for SoundSettings {
 impl Default for AppearanceSettings {
     fn default() -> Self {
         Self {
-            theme: Theme::System,
-            icon_template: None,
+            theme: None,
             language: Language::English,
+            icon_template: None,
             custom_icon_templates: vec![],
-            selected_css_theme: None,
             sound_settings: SoundSettings::default(),
         }
     }

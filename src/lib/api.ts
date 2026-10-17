@@ -51,10 +51,30 @@ export const commands = {
 	importSoundpackZip: (path: string) => typedError<string, string>(__TAURI_INVOKE("import_soundpack_zip", { path })),
 	getSoundsDirectoryPath: () => typedError<string, string>(__TAURI_INVOKE("get_sounds_directory_path")),
 	openSoundsDirectory: () => typedError<null, string>(__TAURI_INVOKE("open_sounds_directory")),
-	listCssThemes: () => typedError<Theme[], string>(__TAURI_INVOKE("list_css_themes")),
-	loadCss: (theme: Theme) => typedError<string, string>(__TAURI_INVOKE("load_css", { theme })),
+	/**
+	 *  List built-in and custom CSS themes.
+	 * 
+	 *  Each theme has a stable ID, display name, and source type.
+	 */
+	listCssThemes: () => typedError<CssTheme[], string>(__TAURI_INVOKE("list_css_themes")),
+	/**
+	 *  Load CSS for a theme by its stable ID.
+	 * 
+	 *  Examples:
+	 *  - `builtin:kasai-sora`
+	 *  - `builtin:modrinth`
+	 *  - `builtin:official`
+	 *  - `custom:my-theme`
+	 */
+	loadCss: (themeId: string) => typedError<string, string>(__TAURI_INVOKE("load_css", { themeId })),
+	/**  Save a custom CSS theme and return its stable ID. */
 	saveCssTheme: (name: string, css: string) => typedError<string, string>(__TAURI_INVOKE("save_css_theme", { name, css })),
-	deleteCssTheme: (name: string) => typedError<null, string>(__TAURI_INVOKE("delete_css_theme", { name })),
+	/**
+	 *  Delete a custom CSS theme by its stable ID.
+	 * 
+	 *  Built-in themes cannot be deleted.
+	 */
+	deleteCssTheme: (themeId: string) => typedError<null, string>(__TAURI_INVOKE("delete_css_theme", { themeId })),
 	openCssThemesDirectory: () => typedError<null, string>(__TAURI_INVOKE("open_css_themes_directory")),
 	/**  Initialize Discord Rich Presence */
 	initializeDiscordRpc: () => typedError<null, string>(__TAURI_INVOKE("initialize_discord_rpc")),
@@ -131,6 +151,7 @@ export const commands = {
 	openPath: (path: string) => typedError<null, string>(__TAURI_INVOKE("open_path", { path })),
 	getMaxRam: () => typedError<number, string>(__TAURI_INVOKE("get_max_ram")),
 	openDeveloperSettings: () => typedError<null, string>(__TAURI_INVOKE("open_developer_settings")),
+	isDev: () => typedError<boolean, string>(__TAURI_INVOKE("is_dev")),
 	checkLauncherUpdates: (includePrerelease: boolean) => typedError<UpdateData, string>(__TAURI_INVOKE("check_launcher_updates", { includePrerelease })),
 	installLauncherUpdate: (includePrerelease: boolean) => typedError<null, string>(__TAURI_INVOKE("install_launcher_update", { includePrerelease })),
 	downloadLauncherUpdate: (includePrerelease: boolean) => typedError<string, string>(__TAURI_INVOKE("download_launcher_update", { includePrerelease })),
@@ -172,11 +193,18 @@ export type AdvancedSettings = {
 };
 
 export type AppearanceSettings = {
-	theme?: Theme,
+	/**
+	 *  Optional selected CSS theme ID.
+	 * 
+	 *  `None` means the application default styling should be used.
+	 *  Built-in IDs: `builtin:kasai-sora`, `builtin:modrinth`, `builtin:official`.
+	 *  Custom IDs: `custom:<filename>`.
+	 */
+	theme?: string | null,
 	language?: Language,
+	/**  Selected icon template ID. `None` uses the default icon template. */
 	icon_template?: string | null,
 	custom_icon_templates?: IconTemplate[],
-	selected_css_theme?: Theme | null,
 	sound_settings?: SoundSettings,
 };
 
@@ -225,6 +253,19 @@ export type CreateProfileRequest = {
 	/**  Whether or not to attempt to update/downgrade "projects" (mods, resource packs, shaders) to match the final version. */
 	update_projects?: boolean,
 };
+
+/**  Metadata for a CSS theme available to Kable. */
+export type CssTheme = {
+	/**  Stable identifier, e.g. `builtin:official` or `custom:my-theme`. */
+	id: string,
+	/**  Human-readable name shown in the appearance settings. */
+	name: string,
+	/**  Whether this theme ships with Kable or was added by the user. */
+	type: CssThemeType,
+};
+
+/**  The origin of a CSS theme. */
+export type CssThemeType = "builtin" | "custom";
 
 export type CurrentSkin = {
 	model: SkinModel,
@@ -682,10 +723,6 @@ export type SymlinkCreateRequest = {
 	destination: string,
 };
 
-export type Theme = "light" | "dark" | "system" | 
-/**  Custom theme, specified by a path/name to a CSS file */
-{ custom: string };
-
 export type UpdateData = {
 	version: string,
 	date: string | null,
@@ -693,9 +730,9 @@ export type UpdateData = {
 	current_version: string,
 };
 
-/**  This determines WHEN to check for updates */
+/**  This determines WHEN to check for updates. */
 export type UpdateDetection = "on_startup" | "on_close" | 
-/**  Checks for updates every N seconds */
+/**  Checks for updates every N seconds. */
 { periodically: number } | "manual";
 
 export type UpdateMap = {
@@ -705,11 +742,11 @@ export type UpdateMap = {
 
 /**  This determines HOW, once checked, to perform the update. */
 export type UpdateMode = 
-/**  After a check the user gets prompted to confirm, skip/cancel or only download and wait for restart */
+/**  After a check the user gets prompted to confirm, skip/cancel or only download and wait for restart. */
 "on_confirm" | 
-/**  Download + install automatically, without asking the user */
+/**  Download and install automatically, without asking the user. */
 "automatic" | 
-/**  No checks, no prompts, nothing. Users have to go to settings and do everything manually. */
+/**  No automatic checks or prompts. Users must manage updates manually. */
 "manual";
 
 export type UpdateNotificationStyle = "notification" | "modal";

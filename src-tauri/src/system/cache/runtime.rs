@@ -28,9 +28,6 @@ const MEMORY_CACHE_IDLE_SECS: u64 = 600;
 static MEMORY_CACHE: OnceLock<Cache<String, Vec<u8>>> = OnceLock::new();
 
 /// Coordinates cache operations with invalidation and cache inspection.
-///
-/// Normal operations hold a shared lock. Invalidation and listing hold an
-/// exclusive lock to prevent concurrent writes while they operate.
 static CACHE_OPERATION_LOCK: OnceLock<RwLock<()>> = OnceLock::new();
 
 fn memory_cache() -> &'static Cache<String, Vec<u8>> {
@@ -66,7 +63,7 @@ fn validate_namespace(parent: &str) -> Result<(), String> {
 
 /// Decodes and validates a serialized cache entry.
 ///
-/// Expired or outdated entries are treated as cache misses.
+/// An incompatible, expired, or outdated entry is treated as a cache miss.
 fn decode_valid_entry<T: DeserializeOwned>(raw: &[u8]) -> Result<Option<T>, String> {
     let (entry, _): (CacheEntry<T>, usize) =
         bincode::serde::decode_from_slice(raw, bincode::config::standard()).map_err(|e| format!("Failed to decode cache entry: {e}"))?;
@@ -100,9 +97,9 @@ pub struct CacheEntryInfo {
 /// 2. Persistent `.bin` cache.
 /// 3. Compute the value and write both cache levels.
 ///
-/// Shared operation locking permits concurrent requests for different
-/// entries. The per-entry lock prevents duplicate computation for the
-/// same cache path.
+/// Invalid cache data is discarded and recomputed instead of propagating
+/// deserialization errors. Per-entry locking prevents duplicate computation
+/// for the same cache path.
 pub async fn get_or_compute<T, F, Fut>(
     root: PathBuf,
     parent: &str,
@@ -115,6 +112,8 @@ where
     F: FnOnce() -> Fut,
     Fut: Future<Output = Result<T, String>>,
 {
+    validate_namespace(parent)?;
+
     let _operation_guard = operation_lock().read().await;
 
     let hash = hash_args(&args);
@@ -134,19 +133,21 @@ where
                 return Ok(value);
             }
             Ok(None) => {
+                Logger::debug_global(&format!("Invalidating expired or outdated memory cache entry: {path_str}"), None);
+
                 memory_cache().invalidate(&memory_key).await;
             }
             Err(error) => {
-                memory_cache().invalidate(&memory_key).await;
+                Logger::warn_global(&format!("Invalid memory cache entry for {path_str}; discarding and rebuilding: {error}"), None);
 
-                Logger::warn_global(&format!("Invalid in-memory cache entry for {path_str}: {error}"), None);
+                memory_cache().invalidate(&memory_key).await;
             }
         }
     }
 
     // L2: persistent cache.
-    if let Ok(raw) = read(&path).await {
-        match decode_valid_entry::<T>(&raw) {
+    match read(&path).await {
+        Ok(raw) => match decode_valid_entry::<T>(&raw) {
             Ok(Some(value)) => {
                 Logger::debug_global(&format!("Persistent cache hit for key: {path_str}"), None);
 
@@ -154,12 +155,30 @@ where
 
                 return Ok(value);
             }
-            Ok(None) => {}
-            Err(error) => return Err(error),
+            Ok(None) => {
+                Logger::debug_global(&format!("Persistent cache entry is expired or outdated: {path_str}"), None);
+
+                remove_file_if_exists(&path).await?;
+            }
+            Err(error) => {
+                Logger::warn_global(&format!("Invalid persistent cache entry for {path_str}; discarding and rebuilding: {error}"), None);
+
+                remove_file_if_exists(&path).await?;
+            }
+        },
+        Err(error) => {
+            // A failed read can mean the entry is missing, unreadable, or
+            // otherwise inaccessible. Attempt to remove it if it exists.
+            //
+            // If removal fails, return the filesystem error rather than
+            // repeatedly attempting to read a broken entry.
+            Logger::debug_global(&format!("Could not read persistent cache entry {path_str}; treating as a cache miss: {error}"), None);
+
+            remove_file_if_exists(&path).await?;
         }
     }
 
-    // Cache miss: compute the value.
+    // Cache miss or invalid entry: compute a fresh value.
     let result = compute().await?;
 
     let entry = CacheEntry::new(&result, ttl_secs, Utc::now().timestamp() as u64);
@@ -235,19 +254,14 @@ pub async fn invalidate_no_args(parent: &str, fn_name: &str) -> Result<(), Strin
 }
 
 /// Invalidates every cached entry in a namespace.
-///
-/// The namespace directory is removed recursively. Its in-memory entries
-/// are invalidated using a path prefix with a trailing separator.
 pub async fn invalidate_group(parent: &str) -> Result<(), String> {
     validate_namespace(parent)?;
 
     let _operation_guard = operation_lock().write().await;
 
     let root = cache_root().map_err(|e| format!("Failed to get cache root: {e}"))?;
-
     let dir = root.join(parent);
 
-    // Remove persistent entries, including nested directories.
     match tokio::fs::remove_dir_all(&dir).await {
         Ok(()) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -256,7 +270,8 @@ pub async fn invalidate_group(parent: &str) -> Result<(), String> {
         }
     }
 
-    // Keep unrelated namespaces, such as "foobar", untouched.
+    // Use a trailing separator to avoid invalidating similarly named
+    // namespaces, such as "foobar" when invalidating "foo".
     let mut prefix = cache_key(&dir);
 
     if !prefix.ends_with(std::path::MAIN_SEPARATOR) {
@@ -318,9 +333,6 @@ pub async fn invalidate_memory() {
 ///
 /// The returned paths are relative to the configured cache root.
 /// Entries are sorted by relative path.
-///
-/// An exclusive operation lock ensures that application cache operations
-/// cannot modify the persistent cache while this listing is in progress.
 pub async fn list_entries() -> Result<Vec<CacheEntryInfo>, String> {
     let _operation_guard = operation_lock().write().await;
 
@@ -371,10 +383,22 @@ pub async fn list_entries() -> Result<Vec<CacheEntryInfo>, String> {
     Ok(result)
 }
 
+/// Invalidates a cache entry by its relative path.
 pub async fn invalidate_entry(path: &str) -> Result<(), String> {
+    let relative_path = Path::new(path);
+
+    // Reject traversal and absolute paths explicitly.
+    if relative_path.is_absolute()
+        || relative_path
+            .components()
+            .any(|component| matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_)))
+    {
+        return Err(format!("Invalid cache entry path: {path}"));
+    }
+
     let root = cache_root().map_err(|e| format!("Failed to get cache root: {e}"))?.to_path_buf();
 
-    let full_path = root.join(path);
+    let full_path = root.join(relative_path);
 
     if !full_path.starts_with(&root) {
         return Err(format!("Invalid cache entry path: {path}"));

@@ -17,29 +17,11 @@ let {
 const RAM_STEP = 256;
 const RESERVED_SYSTEM_RAM = 4096;
 const MIN_RAM = 512;
-const MAX_RAM = 262144; // 256 GiB in MiB
+const MAX_RAM = 262144;
 const SNAP_THRESHOLD_PX = 10;
 const SLIDER_THUMB_WIDTH_REM = 0.875;
 
-const SNAP_POINTS = [
-  512, // 512 MiB
-  1024, // 1 GiB
-  2048, // 2 GiB
-  4096, // 4 GiB
-  6144, // 6 GiB
-  8192, // 8 GiB
-  12288, // 12 GiB
-  16384, // 16 GiB
-  24576, // 24 GiB
-  32768, // 32 GiB
-  40960, // 40 GiB
-  49152, // 48 GiB
-  65536, // 64 GiB
-  98304, // 96 GiB
-  131072, // 128 GiB
-  196608, // 192 GiB
-  262144, // 256 GiB
-];
+const SNAP_POINTS = [512, 1024, 2048, 4096, 6144, 8192, 12288, 16384, 24576, 32768, 40960, 49152, 65536, 98304, 131072, 196608, 262144];
 
 let minRamAllocation = $state(512);
 let maxRamAllocation = $state(4096);
@@ -49,6 +31,7 @@ let maxRamInputValue = $state("4096");
 
 let isMinExpanded = $state(false);
 let isMaxExpanded = $state(true);
+let isRamPanelExpanded = $state(false);
 
 let isEditingMinRam = $state(false);
 let isEditingMaxRam = $state(false);
@@ -99,11 +82,8 @@ function roundRam(value: number): number {
 }
 
 /**
- * Snaps to a predefined marker only when it is visually close to the
- * current thumb position. Otherwise, the value remains on the 256 MiB grid.
- *
- * Marker distance is measured in pixels so the interaction remains
- * consistent across different slider ranges and rendered widths.
+ * Snap to a marker only when the thumb is within 10 rendered pixels.
+ * Values otherwise remain on the 256 MiB grid.
  */
 function snapRam(value: number, min: number, max: number, slider: HTMLInputElement): number {
   const normalizedValue = clampRam(roundRam(value), min, max);
@@ -289,18 +269,12 @@ function snapMaxRam(slider: HTMLInputElement) {
   maxRamInputValue = String(maxRamAllocation);
 }
 
-/**
- * Aligns marker centers with the slider thumb's travel range.
- * The thumb occupies 0.875rem, so its center starts and ends half a
- * thumb-width inside the slider's bounds.
- */
 function getMarkerPosition(ram: number, min: number, max: number): string {
   if (max <= min) {
     return "50%";
   }
 
   const ratio = clampRam((ram - min) / (max - min), 0, 1);
-
   const percentage = ratio * 100;
   const remOffset = SLIDER_THUMB_WIDTH_REM / 2 - ratio * SLIDER_THUMB_WIDTH_REM;
 
@@ -318,7 +292,6 @@ async function commitRamChange() {
   }
 
   const args = currentProfile.settings.java_args;
-
   const existingMin = parseRamFlag(args, "Xms");
   const existingMax = parseRamFlag(args, "Xmx");
 
@@ -344,242 +317,279 @@ async function commitRamChange() {
     isSaving = false;
   }
 }
+
+function handleMinInputBlur() {
+  if (updateMinRamFromInput()) {
+    void commitRamChange();
+  }
+}
+
+function handleMaxInputBlur() {
+  if (updateMaxRamFromInput()) {
+    void commitRamChange();
+  }
+}
+
+function handleMinInputKeydown(event: KeyboardEvent) {
+  if (event.key === "Enter") {
+    (event.currentTarget as HTMLInputElement).blur();
+  } else if (event.key === "Escape") {
+    minRamInputValue = String(minRamAllocation);
+    isEditingMinRam = false;
+    (event.currentTarget as HTMLInputElement).blur();
+  }
+}
+
+function handleMaxInputKeydown(event: KeyboardEvent) {
+  if (event.key === "Enter") {
+    (event.currentTarget as HTMLInputElement).blur();
+  } else if (event.key === "Escape") {
+    maxRamInputValue = String(maxRamAllocation);
+    isEditingMaxRam = false;
+    (event.currentTarget as HTMLInputElement).blur();
+  }
+}
 </script>
 
-<div class="ram-controls" class:embedded>
-  <div class="ram-header">
-    <div class="profile-info">
-      <span class="installation-name">
-        {profile ? (profile.metadata.name !== "" ? profile.metadata.name : profile.version.id) : "No Profile"}
-      </span>
+<div class="ram-controls" class:embedded class:collapsed={!isRamPanelExpanded}>
+  {#if isRamPanelExpanded}
+    <div class="ram-header">
+      <div class="profile-info">
+        <span class="installation-name">
+          {profile ? (profile.metadata.name !== "" ? profile.metadata.name : profile.version.id) : "No Profile"}
+        </span>
 
-      <span class="system-ram">
-        <Icon name="memory" forceType="svg" />
-        {formatRamDisplay(systemRam)} system RAM
-      </span>
+        <span class="system-ram">
+          <Icon name="memory" forceType="svg" />
+          {formatRamDisplay(systemRam)} system RAM
+        </span>
+      </div>
+
+      <div class="ram-header-right">
+        <span class="ram-display">
+          {formatRamDisplay(minRamAllocation)} -
+          {formatRamDisplay(maxRamAllocation)}
+        </span>
+
+        <button
+          type="button"
+          class="panel-toggle"
+          aria-label="Collapse RAM settings"
+          title="Collapse RAM settings"
+          aria-expanded={isRamPanelExpanded}
+          onclick={() => (isRamPanelExpanded = false)}>
+          <Icon name="chevron-down" forceType="svg" />
+        </button>
+      </div>
     </div>
 
-    <span class="ram-display">
-      {formatRamDisplay(minRamAllocation)} -
-      {formatRamDisplay(maxRamAllocation)}
-    </span>
-  </div>
+    <!-- Minimum RAM -->
+    <section class="ram-setting">
+      <button type="button" class="setting-toggle" aria-expanded={isMinExpanded} onclick={() => (isMinExpanded = !isMinExpanded)}>
+        <span class="setting-title">
+          <Icon name={isMinExpanded ? "chevron-down" : "chevron-right"} forceType="svg" />
+          <span class="setting-name">Minimum RAM</span>
+        </span>
 
-  <section class="ram-setting">
-    <button type="button" class="setting-toggle" aria-expanded={isMinExpanded} onclick={() => (isMinExpanded = !isMinExpanded)}>
-      <span class="setting-title">
-        <span class="setting-name">Minimum heap</span>
         <span class="setting-summary">
           {formatRamDisplay(minRamAllocation)}
         </span>
-      </span>
+      </button>
 
-      <Icon name={isMinExpanded ? "chevron-up" : "chevron-down"} forceType="svg" />
-    </button>
+      {#if isMinExpanded}
+        <div class="setting-content">
+          <div class="setting-header">
+            <label for="min-ram-input">Minimum memory allocation</label>
 
-    {#if isMinExpanded}
-      <div class="setting-content">
-        <div class="setting-header">
-          <label for="min-ram-slider">Initial heap allocation</label>
+            <div class="ram-input-group">
+              <input
+                id="min-ram-input"
+                class="ram-input"
+                type="number"
+                min={MIN_RAM}
+                max={maxRamAllocation}
+                step={RAM_STEP}
+                value={minRamInputValue}
+                disabled={isSaving}
+                onfocus={() => (isEditingMinRam = true)}
+                oninput={(event) => {
+                  minRamInputValue = event.currentTarget.value;
+                }}
+                onblur={handleMinInputBlur}
+                onkeydown={handleMinInputKeydown} />
 
-          <div class="ram-input-group">
+              <div class="input-arrows">
+                <button
+                  type="button"
+                  aria-label="Increase minimum RAM"
+                  title="Increase minimum RAM"
+                  disabled={isSaving || minRamAllocation + RAM_STEP > maxRamAllocation}
+                  onclick={() => adjustMinRam(RAM_STEP)}>
+                  <Icon name="chevron-up" forceType="svg" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Decrease minimum RAM"
+                  title="Decrease minimum RAM"
+                  disabled={isSaving || minRamAllocation - RAM_STEP < MIN_RAM}
+                  onclick={() => adjustMinRam(-RAM_STEP)}>
+                  <Icon name="chevron-down" forceType="svg" />
+                </button>
+              </div>
+
+              <span class="ram-unit">MiB</span>
+            </div>
+          </div>
+
+          <div class="ram-slider-container">
             <input
-              id="min-ram-input"
-              type="number"
-              class="ram-input"
-              bind:value={minRamInputValue}
-              onfocus={() => (isEditingMinRam = true)}
-              onblur={() => {
-                if (updateMinRamFromInput()) {
-                  void commitRamChange();
-                } else {
-                  isEditingMinRam = false;
-                }
-              }}
-              onkeydown={(event) => {
-                if (event.key === "Enter") {
-                  if (updateMinRamFromInput()) {
-                    void commitRamChange();
-                  } else {
-                    isEditingMinRam = false;
-                  }
-
-                  event.currentTarget.blur();
-                } else if (event.key === "Escape") {
-                  minRamInputValue = String(minRamAllocation);
-                  isEditingMinRam = false;
-                  event.currentTarget.blur();
-                }
-              }}
+              class="ram-slider"
+              type="range"
               min={MIN_RAM}
               max={maxRamAllocation}
               step={RAM_STEP}
-              disabled={!profile || isSaving}
-              aria-label="Minimum heap in megabytes" />
+              value={minRamAllocation}
+              disabled={isSaving || maxRamAllocation <= MIN_RAM}
+              aria-label="Minimum RAM allocation"
+              oninput={(event) => {
+                minRamAllocation = Number(event.currentTarget.value);
+                updateMinRamFromSlider();
+              }}
+              onchange={(event) => {
+                snapMinRam(event.currentTarget);
+                void commitRamChange();
+              }} />
 
-            <div class="input-arrows">
-              <button
-                type="button"
-                aria-label="Increase minimum heap by 256 MB"
-                disabled={!profile || isSaving || minRamAllocation >= maxRamAllocation}
-                onclick={() => adjustMinRam(RAM_STEP)}>
-                <Icon name="chevron-up" forceType="svg" />
-              </button>
-
-              <button
-                type="button"
-                aria-label="Decrease minimum heap by 256 MB"
-                disabled={!profile || isSaving || minRamAllocation <= MIN_RAM}
-                onclick={() => adjustMinRam(-RAM_STEP)}>
-                <Icon name="chevron-down" forceType="svg" />
-              </button>
+            <div class="slider-markers">
+              {#each availableSnapPoints.filter((point) => point <= maxRamAllocation) as point (point)}
+                <div class="slider-marker" style:left={getMarkerPosition(point, MIN_RAM, maxRamAllocation)}>
+                  <span class="marker-label">{formatSnapLabel(point)}</span>
+                </div>
+              {/each}
             </div>
-
-            <span class="ram-unit">MB</span>
           </div>
+
+          <p class="setting-description">
+            The minimum heap size allocated to Java. Higher values can reduce heap resizing, but reserve more memory even when it is not needed.
+          </p>
         </div>
+      {/if}
+    </section>
 
-        <div class="ram-slider-container">
-          <input
-            id="min-ram-slider"
-            type="range"
-            class="ram-slider"
-            bind:value={minRamAllocation}
-            oninput={updateMinRamFromSlider}
-            onchange={(event) => {
-              snapMinRam(event.currentTarget);
-              void commitRamChange();
-            }}
-            min={MIN_RAM}
-            max={maxRamAllocation}
-            step={RAM_STEP}
-            disabled={!profile || isSaving} />
+    <!-- Maximum RAM -->
+    <section class="ram-setting">
+      <button type="button" class="setting-toggle" aria-expanded={isMaxExpanded} onclick={() => (isMaxExpanded = !isMaxExpanded)}>
+        <span class="setting-title">
+          <Icon name={isMaxExpanded ? "chevron-down" : "chevron-right"} forceType="svg" />
+          <span class="setting-name">Maximum RAM</span>
+        </span>
 
-          <div class="slider-markers">
-            {#each availableSnapPoints.filter((point) => point >= MIN_RAM && point <= maxRamAllocation) as point (point)}
-              <span class="slider-marker" style:left={getMarkerPosition(point, MIN_RAM, maxRamAllocation)}>
-                <span class="marker-label">{formatSnapLabel(point)}</span>
-              </span>
-            {/each}
-          </div>
-        </div>
-
-        <p class="setting-description">Memory allocated when Java starts. Keeping this lower than the maximum lets Java grow its heap when needed.</p>
-      </div>
-    {/if}
-  </section>
-
-  <section class="ram-setting">
-    <button type="button" class="setting-toggle" aria-expanded={isMaxExpanded} onclick={() => (isMaxExpanded = !isMaxExpanded)}>
-      <span class="setting-title">
-        <span class="setting-name">Maximum heap</span>
         <span class="setting-summary">
           {formatRamDisplay(maxRamAllocation)}
         </span>
-      </span>
+      </button>
 
-      <Icon name={isMaxExpanded ? "chevron-up" : "chevron-down"} forceType="svg" />
-    </button>
+      {#if isMaxExpanded}
+        <div class="setting-content">
+          <div class="setting-header">
+            <label for="max-ram-input">Maximum memory allocation</label>
 
-    {#if isMaxExpanded}
-      <div class="setting-content">
-        <div class="setting-header">
-          <label for="max-ram-slider">Maximum allocation</label>
+            <div class="ram-input-group">
+              <input
+                id="max-ram-input"
+                class="ram-input"
+                type="number"
+                min={minRamAllocation}
+                max={maxRamLimit}
+                step={RAM_STEP}
+                value={maxRamInputValue}
+                disabled={isSaving}
+                onfocus={() => (isEditingMaxRam = true)}
+                oninput={(event) => {
+                  maxRamInputValue = event.currentTarget.value;
+                }}
+                onblur={handleMaxInputBlur}
+                onkeydown={handleMaxInputKeydown} />
 
-          <div class="ram-input-group">
+              <div class="input-arrows">
+                <button
+                  type="button"
+                  aria-label="Increase maximum RAM"
+                  title="Increase maximum RAM"
+                  disabled={isSaving || maxRamAllocation + RAM_STEP > maxRamLimit}
+                  onclick={() => adjustMaxRam(RAM_STEP)}>
+                  <Icon name="chevron-up" forceType="svg" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Decrease maximum RAM"
+                  title="Decrease maximum RAM"
+                  disabled={isSaving || maxRamAllocation - RAM_STEP < minRamAllocation}
+                  onclick={() => adjustMaxRam(-RAM_STEP)}>
+                  <Icon name="chevron-down" forceType="svg" />
+                </button>
+              </div>
+
+              <span class="ram-unit">MiB</span>
+            </div>
+          </div>
+
+          <div class="ram-slider-container">
             <input
-              id="max-ram-input"
-              type="number"
-              class="ram-input"
-              bind:value={maxRamInputValue}
-              onfocus={() => (isEditingMaxRam = true)}
-              onblur={() => {
-                if (updateMaxRamFromInput()) {
-                  void commitRamChange();
-                } else {
-                  isEditingMaxRam = false;
-                }
-              }}
-              onkeydown={(event) => {
-                if (event.key === "Enter") {
-                  if (updateMaxRamFromInput()) {
-                    void commitRamChange();
-                  } else {
-                    isEditingMaxRam = false;
-                  }
-
-                  event.currentTarget.blur();
-                } else if (event.key === "Escape") {
-                  maxRamInputValue = String(maxRamAllocation);
-                  isEditingMaxRam = false;
-                  event.currentTarget.blur();
-                }
-              }}
+              class="ram-slider"
+              type="range"
               min={minRamAllocation}
               max={maxRamLimit}
               step={RAM_STEP}
-              disabled={!profile || isSaving}
-              aria-label="Maximum heap in megabytes" />
+              value={maxRamAllocation}
+              disabled={isSaving || maxRamLimit <= minRamAllocation}
+              aria-label="Maximum RAM allocation"
+              oninput={(event) => {
+                maxRamAllocation = Number(event.currentTarget.value);
+                updateMaxRamFromSlider();
+              }}
+              onchange={(event) => {
+                snapMaxRam(event.currentTarget);
+                void commitRamChange();
+              }} />
 
-            <div class="input-arrows">
-              <button
-                type="button"
-                aria-label="Increase maximum heap by 256 MB"
-                disabled={!profile || isSaving || maxRamAllocation >= maxRamLimit}
-                onclick={() => adjustMaxRam(RAM_STEP)}>
-                <Icon name="chevron-up" forceType="svg" />
-              </button>
-
-              <button
-                type="button"
-                aria-label="Decrease maximum heap by 256 MB"
-                disabled={!profile || isSaving || maxRamAllocation <= minRamAllocation}
-                onclick={() => adjustMaxRam(-RAM_STEP)}>
-                <Icon name="chevron-down" forceType="svg" />
-              </button>
+            <div class="slider-markers">
+              {#each availableSnapPoints.filter((point) => point >= minRamAllocation) as point (point)}
+                <div class="slider-marker" style:left={getMarkerPosition(point, minRamAllocation, maxRamLimit)}>
+                  <span class="marker-label">{formatSnapLabel(point)}</span>
+                </div>
+              {/each}
             </div>
-
-            <span class="ram-unit">MB</span>
           </div>
+
+          <p class="setting-description">
+            The maximum Java heap size. Leave enough memory for Windows and other applications; this limit reserves memory for Java to use, not memory that is always
+            consumed.
+          </p>
         </div>
+      {/if}
+    </section>
 
-        <div class="ram-slider-container">
-          <input
-            id="max-ram-slider"
-            type="range"
-            class="ram-slider"
-            bind:value={maxRamAllocation}
-            oninput={updateMaxRamFromSlider}
-            onchange={(event) => {
-              snapMaxRam(event.currentTarget);
-              void commitRamChange();
-            }}
-            min={minRamAllocation}
-            max={maxRamLimit}
-            step={RAM_STEP}
-            disabled={!profile || isSaving} />
-
-          <div class="slider-markers">
-            {#each availableSnapPoints.filter((point) => point >= minRamAllocation) as point (point)}
-              <span class="slider-marker" style:left={getMarkerPosition(point, minRamAllocation, maxRamLimit)}>
-                <span class="marker-label">{formatSnapLabel(point)}</span>
-              </span>
-            {/each}
-          </div>
-        </div>
-
-        <p class="setting-description">
-          Maximum Java heap allocation. Up to ~{formatRamDisplay(maxRamLimit)} is available after reserving system memory.
-        </p>
+    {#if isSaving}
+      <div class="saving-indicator">
+        <span class="saving-spinner"></span>
+        Saving RAM settings...
       </div>
     {/if}
-  </section>
-
-  {#if isSaving}
-    <div class="saving-indicator">
-      <span class="saving-spinner"></span>
-      Saving RAM settings...
-    </div>
+  {:else}
+    <button
+      type="button"
+      class="collapsed-toggle"
+      aria-label="Expand RAM settings"
+      title="Expand RAM settings"
+      aria-expanded={isRamPanelExpanded}
+      onclick={() => (isRamPanelExpanded = true)}>
+      <Icon name="memory" forceType="svg" />
+      <span>RAM</span>
+      <span class="collapsed-ram-value">
+        {formatRamDisplay(maxRamAllocation)}
+      </span>
+    </button>
   {/if}
 </div>
 
@@ -598,6 +608,80 @@ async function commitRamChange() {
   background: $color-surface-2;
   border: 1px solid $color-border;
   border-radius: 0.625rem;
+
+  &.collapsed {
+    width: auto;
+    min-width: 0;
+    padding: 0;
+    overflow: hidden;
+  }
+
+  &.embedded.collapsed {
+    width: fit-content;
+    max-width: 100%;
+  }
+
+  .ram-header-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .panel-toggle,
+  .collapsed-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+
+    background: transparent;
+    border: none;
+    border-radius: $radius-sm;
+    color: $color-text-muted;
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
+
+    &:hover {
+      background: $color-surface-3;
+      color: $color-text;
+    }
+
+    &:focus-visible {
+      outline: 1px solid $color-accent;
+      outline-offset: 2px;
+    }
+
+    :global(svg) {
+      width: 1rem;
+      height: 1rem;
+      flex-shrink: 0;
+    }
+  }
+
+  .panel-toggle {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex-shrink: 0;
+  }
+
+  .collapsed-toggle {
+    min-height: 2.5rem;
+    padding: 0.625rem 0.75rem;
+    color: $color-text;
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+
+  .collapsed-ram-value {
+    padding-left: 0.5rem;
+    border-left: 1px solid $color-border;
+    color: $color-accent;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+  }
 
   &.embedded {
     position: relative;
