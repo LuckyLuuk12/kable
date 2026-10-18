@@ -8,6 +8,27 @@ import { onMount } from "svelte";
 
 let { children } = $props();
 
+onMount(() => {
+  const observer = new MutationObserver(() => {
+    const style = document.getElementById("user-custom-css");
+
+    console.debug("[CSS DEBUG] DOM state", {
+      exists: style !== null,
+      length: style?.textContent.length ?? 0,
+      selectedTheme: app.customizationService.selectedCssTheme,
+      savedTheme: app.customizationService.settings?.appearance?.theme,
+    });
+  });
+
+  observer.observe(document.head, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+  });
+
+  return () => observer.disconnect();
+});
+
 onMount(async () => {
   console.log("Starting layout initialization...");
 

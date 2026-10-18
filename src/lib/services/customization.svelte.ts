@@ -143,7 +143,7 @@ export class CustomizationService implements Service {
 
     if (!savedThemeId) {
       this.selectedCssTheme = null;
-      this.removeCustomCSS();
+      this.removeCustomCSS("No saved theme");
       return;
     }
 
@@ -152,7 +152,7 @@ export class CustomizationService implements Service {
     if (!themeExists) {
       // Old values such as "light", "dark", or "system" are not CSS theme IDs.
       this.selectedCssTheme = null;
-      this.removeCustomCSS();
+      this.removeCustomCSS("Saved theme not found");
 
       this.settings = {
         ...this.settings!,
@@ -171,7 +171,7 @@ export class CustomizationService implements Service {
     } catch (error) {
       console.error("[CustomizationService] Failed to apply saved CSS theme:", error);
       this.selectedCssTheme = null;
-      this.removeCustomCSS();
+      this.removeCustomCSS("Failed to apply saved CSS theme");
     }
   }
 
@@ -289,7 +289,7 @@ export class CustomizationService implements Service {
 
     if (themeId === null || themeId.trim() === "") {
       this.selectedCssTheme = null;
-      this.removeCustomCSS();
+      this.removeCustomCSS("No theme selected");
 
       this.settings = {
         ...this.settings,
@@ -398,25 +398,59 @@ export class CustomizationService implements Service {
     }
   }
 
+  private customCssObserver: MutationObserver | null = null;
   /**
    * Inject CSS after removing the previously injected stylesheet.
    */
   private injectCustomCSS(cssContent: string): void {
-    this.removeCustomCSS();
+    let styleElement = document.getElementById(
+      "user-custom-css",
+    ) as HTMLStyleElement | null;
 
-    const styleElement = document.createElement("style");
-    styleElement.type = "text/css";
-    styleElement.id = "user-custom-css";
+    if (!styleElement) {
+      styleElement = document.createElement("style");
+      styleElement.id = "user-custom-css";
+      styleElement.type = "text/css";
+    }
+
     styleElement.textContent = cssContent;
-
     document.head.appendChild(styleElement);
+
+    this.customCssObserver?.disconnect();
+
+    this.customCssObserver = new MutationObserver(() => {
+      const currentStyle = document.getElementById("user-custom-css");
+
+      if (
+        currentStyle &&
+        currentStyle.parentElement === document.head &&
+        document.head.lastElementChild !== currentStyle
+      ) {
+        document.head.appendChild(currentStyle);
+      }
+    });
+
+    this.customCssObserver.observe(document.head, {
+      childList: true,
+    });
   }
 
   /**
    * Remove the injected stylesheet and restore the application's default CSS.
    */
-  private removeCustomCSS(): void {
-    document.getElementById("user-custom-css")?.remove();
+  private removeCustomCSS(reason: string = "Irrelevant"): void {
+    this.customCssObserver?.disconnect();
+    this.customCssObserver = null;
+    const existingStyle = document.getElementById("user-custom-css");
+
+    console.trace("[CustomizationService] Removing custom CSS", {
+      reason,
+      exists: existingStyle !== null,
+      selectedTheme: this.selectedCssTheme,
+      savedTheme: this.settings?.appearance?.theme,
+    });
+
+    existingStyle?.remove();
   }
 
   // #endregion CSS themes
@@ -964,7 +998,7 @@ export class CustomizationService implements Service {
 
     // Invalidate outstanding CSS requests.
     this.cssThemeRevision++;
-    this.removeCustomCSS();
+    this.removeCustomCSS("Service destroy");
 
     this.stopBackgroundMusic();
 

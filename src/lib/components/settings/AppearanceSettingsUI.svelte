@@ -60,7 +60,7 @@ function setStatus(message: string, duration = 2500) {
 }
 
 onMount(() => {
-  void Promise.allSettled([loadCssThemes(), loadIconTemplates()]);
+  void Promise.allSettled([app.customizationService.loadCssThemes(), loadIconTemplates()]);
 
   return () => {
     if (statusTimeout) {
@@ -68,22 +68,6 @@ onMount(() => {
     }
   };
 });
-
-async function loadCssThemes() {
-  try {
-    const themes = await customization.loadCssThemes();
-
-    const savedTheme = customization.settings?.appearance?.theme;
-    const savedThemeId = typeof savedTheme === "string" ? savedTheme : null;
-
-    if (savedThemeId && !themes.some((theme) => theme.id === savedThemeId)) {
-      await customization.setTheme(null);
-    }
-  } catch (error) {
-    console.error("Failed to load CSS themes:", error);
-    setStatus("Failed to load CSS themes");
-  }
-}
 
 async function loadIconTemplates() {
   try {
