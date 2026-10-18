@@ -43,20 +43,22 @@ pub fn run() {
     });
     tauri::Builder::default()
         .setup(|app| {
-            // Initialize global logger with the app handle so modules that
-            // use GLOBAL_APP_HANDLE (e.g. launcher utils) can emit events.
             set_app_handle(app.handle());
             Logger::init();
 
-            // On startup: if a pending update was downloaded previously,
-            // try to launch the installer and exit so the installer can run.
-            crate::features::updater::launch_pending_update()?;
+            if let Err(error) = crate::features::updater::launch_pending_update() {
+                Logger::error_global(&format!("[STARTUP] Failed to launch pending update: {error}"), None);
+            }
 
-            // Initialize Discord Rich Presence
-            crate::features::discord::initialize()?;
+            if let Err(error) = crate::features::discord::initialize() {
+                Logger::warn_global(&format!("[STARTUP] Discord initialization failed: {error}"), None);
+            }
 
-            // Clean up any leftover symlinks from previous crashes/exits
-            tauri::async_runtime::spawn(async { crate::features::advanced::symlink::cleanup().await });
+            tauri::async_runtime::spawn(async {
+                if let Err(error) = crate::features::advanced::symlink::cleanup().await {
+                    Logger::warn_global(&format!("[STARTUP] Symlink cleanup failed: {error}"), None);
+                }
+            });
 
             Ok(())
         })
