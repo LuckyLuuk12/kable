@@ -1,5 +1,5 @@
 <script lang="ts">
-import { getJsHeapMetrics, Icon } from "$lib";
+import { error, getJsHeapMetrics, Icon } from "$lib";
 import { onMount } from "svelte";
 
 interface MemorySample {
@@ -221,8 +221,8 @@ async function copyCurrentMetrics(): Promise<void> {
       copiedReport = false;
       copyTimeout = null;
     }, 2000);
-  } catch (error) {
-    console.error("Failed to copy memory metrics:", error);
+  } catch (err) {
+    error("Failed to copy memory metrics:", err);
   }
 }
 

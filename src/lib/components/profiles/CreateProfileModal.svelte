@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Icon, Image, app, clickSound, successSound, type CreateProfileRequest, type LoaderKind, type ProfileSource, type ProfileVersion } from "$lib";
+import { Icon, Image, app, clickSound, error, successSound, type CreateProfileRequest, type LoaderKind, type ProfileSource, type ProfileVersion } from "$lib";
 import { MODAL_CONTEXT, type ModalContext } from "$lib/utils/modal";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getContext } from "svelte";
@@ -34,7 +34,7 @@ let profileDescription = $state("");
 let updateProjects = $state(true);
 
 let isCreating = $state(false);
-let error = $state<string | null>(null);
+let errorMessage = $state<string | null>(null);
 
 let versionListElement = $state<HTMLDivElement | null>(null);
 let versionListHeight = $state(360);
@@ -55,12 +55,12 @@ async function loadVersions() {
   if (isLoading) return;
 
   isLoading = true;
-  error = null;
+  errorMessage = null;
 
   try {
     await app.launcherService.loadVersions();
   } catch (e) {
-    error = e instanceof Error ? e.message : "Failed to load versions.";
+    errorMessage = e instanceof Error ? e.message : "Failed to load versions.";
   } finally {
     isLoading = false;
   }
@@ -179,12 +179,12 @@ function addSource(type: SourceKind = "profile") {
     path: null,
   });
 
-  error = null;
+  errorMessage = null;
 }
 
 function removeSource(sourceId: number) {
   sources = sources.filter((source) => source.id !== sourceId);
-  error = null;
+  errorMessage = null;
 }
 
 function moveSource(sourceId: number, offset: -1 | 1) {
@@ -199,7 +199,7 @@ function moveSource(sourceId: number, offset: -1 | 1) {
   [reordered[index], reordered[targetIndex]] = [reordered[targetIndex], reordered[index]];
 
   sources = reordered;
-  error = null;
+  errorMessage = null;
 }
 
 function changeSourceType(sourceId: number, type: SourceKind) {
@@ -210,7 +210,7 @@ function changeSourceType(sourceId: number, type: SourceKind) {
   source.type = type;
   source.profileId = "";
   source.path = null;
-  error = null;
+  errorMessage = null;
 }
 
 function selectProfile(sourceId: number, profileId: string) {
@@ -219,11 +219,11 @@ function selectProfile(sourceId: number, profileId: string) {
   if (!source) return;
 
   source.profileId = profileId;
-  error = null;
+  errorMessage = null;
 }
 
 async function selectSourceFile(sourceId: number, type: "zip" | "mrpack") {
-  error = null;
+  errorMessage = null;
 
   try {
     const path = await open({
@@ -245,8 +245,8 @@ async function selectSourceFile(sourceId: number, type: "zip" | "mrpack") {
 
     source.path = path;
   } catch (e) {
-    console.error(`Failed to select ${type} file:`, e);
-    error = e instanceof Error ? e.message : `Failed to select ${type === "zip" ? "ZIP file" : "Modrinth pack"}.`;
+    error(`Failed to select ${type} file:`, e);
+    errorMessage = e instanceof Error ? e.message : `Failed to select ${type === "zip" ? "ZIP file" : "Modrinth pack"}.`;
   }
 }
 
@@ -326,7 +326,7 @@ async function createProfile(event: SubmitEvent) {
   if (!canCreate) return;
 
   isCreating = true;
-  error = null;
+  errorMessage = null;
 
   try {
     const request = buildRequest();
@@ -334,7 +334,7 @@ async function createProfile(event: SubmitEvent) {
     await app.profilesService.createProfile(request);
     app.dismissTop();
   } catch (e) {
-    error = e instanceof Error ? e.message : "Failed to create installation.";
+    errorMessage = e instanceof Error ? e.message : "Failed to create installation.";
   } finally {
     isCreating = false;
   }
@@ -359,10 +359,10 @@ function cancel() {
     </button>
   </header>
 
-  {#if error}
+  {#if errorMessage}
     <div class="error-message" role="alert">
       <Icon name="alert-circle" size="sm" forceType="svg" />
-      <span>{error}</span>
+      <span>{errorMessage}</span>
     </div>
   {/if}
 

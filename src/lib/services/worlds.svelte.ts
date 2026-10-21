@@ -1,4 +1,4 @@
-import { type NbtValue, type World, type WorldDatapack, type WorldDimension, type WorldPlayer, type WorldRegionStorage, type WorldSummary, api } from "$lib";
+import { type NbtValue, type World, type WorldDatapack, type WorldDimension, type WorldPlayer, type WorldRegionStorage, type WorldSummary, api, debug, error } from "$lib";
 import type { Service } from "./app.svelte";
 
 export class WorldsService implements Service {
@@ -37,16 +37,16 @@ export class WorldsService implements Service {
     this.loading = true;
 
     try {
-      console.debug("[WorldsService] Loading world summaries...");
+      debug("[WorldsService] Loading world summaries...");
 
       const worlds = await api.loadWorlds();
 
-      console.debug(`[WorldsService] Loaded ${worlds.length} world summaries`);
+      debug(`[WorldsService] Loaded ${worlds.length} world summaries`);
 
       this.worlds = worlds;
       this.loaded = true;
     } catch (e) {
-      console.error("[WorldsService] Failed to load world summaries", e);
+      error("[WorldsService] Failed to load world summaries", e);
     } finally {
       this.loading = false;
     }
@@ -54,22 +54,22 @@ export class WorldsService implements Service {
 
   async loadWorld(path: string): Promise<World | null> {
     try {
-      console.debug(`[WorldsService] Loading full world from path: ${path}`);
+      debug(`[WorldsService] Loading full world from path: ${path}`);
 
       return await api.loadWorld(path);
     } catch (e) {
-      console.error(`[WorldsService] Failed to load world ${path}`, e);
+      error(`[WorldsService] Failed to load world ${path}`, e);
       return null;
     }
   }
 
   async loadLevel(path: string) {
     try {
-      console.debug(`[WorldsService] Loading world level from path: ${path}`);
+      debug(`[WorldsService] Loading world level from path: ${path}`);
 
       return await api.loadWorldLevel(path);
     } catch (e) {
-      console.error(`[WorldsService] Failed to load world level ${path}`, e);
+      error(`[WorldsService] Failed to load world level ${path}`, e);
 
       return null;
     }
@@ -77,11 +77,11 @@ export class WorldsService implements Service {
 
   async loadPlayers(path: string): Promise<WorldPlayer[]> {
     try {
-      console.debug(`[WorldsService] Loading world players from path: ${path}`);
+      debug(`[WorldsService] Loading world players from path: ${path}`);
 
       return await api.loadWorldPlayers(path);
     } catch (e) {
-      console.error(`[WorldsService] Failed to load world players ${path}`, e);
+      error(`[WorldsService] Failed to load world players ${path}`, e);
 
       return [];
     }
@@ -89,11 +89,11 @@ export class WorldsService implements Service {
 
   async loadPlayer(path: string, uuid: string): Promise<WorldPlayer | null> {
     try {
-      console.debug(`[WorldsService] Loading world player from path: ${path}, UUID: ${uuid}`);
+      debug(`[WorldsService] Loading world player from path: ${path}, UUID: ${uuid}`);
 
       return await api.loadWorldPlayer(path, uuid);
     } catch (e) {
-      console.error(`[WorldsService] Failed to load player ${uuid} from world ${path}`, e);
+      error(`[WorldsService] Failed to load player ${uuid} from world ${path}`, e);
 
       return null;
     }
@@ -101,11 +101,11 @@ export class WorldsService implements Service {
 
   async loadDimensions(path: string): Promise<WorldDimension[]> {
     try {
-      console.debug(`[WorldsService] Loading world dimensions from path: ${path}`);
+      debug(`[WorldsService] Loading world dimensions from path: ${path}`);
 
       return await api.loadWorldDimensions(path);
     } catch (e) {
-      console.error(`[WorldsService] Failed to load world dimensions ${path}`, e);
+      error(`[WorldsService] Failed to load world dimensions ${path}`, e);
 
       return [];
     }
@@ -113,11 +113,11 @@ export class WorldsService implements Service {
 
   async loadRegionStorage(path: string): Promise<WorldRegionStorage[]> {
     try {
-      console.debug(`[WorldsService] Loading world region storage from path: ${path}`);
+      debug(`[WorldsService] Loading world region storage from path: ${path}`);
 
       return await api.loadWorldRegionStorage(path);
     } catch (e) {
-      console.error(`[WorldsService] Failed to load world region storage ${path}`, e);
+      error(`[WorldsService] Failed to load world region storage ${path}`, e);
 
       return [];
     }
@@ -125,11 +125,11 @@ export class WorldsService implements Service {
 
   async loadDatapacks(path: string): Promise<WorldDatapack[]> {
     try {
-      console.debug(`[WorldsService] Loading world datapacks from path: ${path}`);
+      debug(`[WorldsService] Loading world datapacks from path: ${path}`);
 
       return await api.loadWorldDatapacks(path);
     } catch (e) {
-      console.error(`[WorldsService] Failed to load world datapacks ${path}`, e);
+      error(`[WorldsService] Failed to load world datapacks ${path}`, e);
 
       return [];
     }
@@ -137,11 +137,11 @@ export class WorldsService implements Service {
 
   async loadNbt(path: string): Promise<NbtValue | null> {
     try {
-      console.debug(`[WorldsService] Loading NBT from path: ${path}`);
+      debug(`[WorldsService] Loading NBT from path: ${path}`);
 
       return await api.loadWorldNbt(path);
     } catch (e) {
-      console.error(`[WorldsService] Failed to load NBT ${path}`, e);
+      error(`[WorldsService] Failed to load NBT ${path}`, e);
 
       return null;
     }

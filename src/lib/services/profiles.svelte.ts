@@ -1,5 +1,5 @@
 
-import { type CreateProfileRequest, type KableProfile, type LoaderKind, api } from "$lib";
+import { type CreateProfileRequest, type KableProfile, type LoaderKind, api, error, log } from "$lib";
 import { SvelteDate } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
 import { app } from "./app.svelte";
@@ -56,9 +56,9 @@ export class ProfilesService implements Service {
       }
 
       this.loaded = true;
-    } catch (error) {
-      console.error("[ProfilesService] Failed to refresh profiles", error);
-      throw error;
+    } catch (err) {
+      error("[ProfilesService] Failed to refresh profiles", err);
+      throw err;
     } finally {
       if (request === this.refreshRequest && generation === this.loadGeneration) {
         this.loading = false;
@@ -86,7 +86,7 @@ export class ProfilesService implements Service {
    */
   memoryClone(profile: KableProfile): KableProfile {
     const res = JSON.parse(JSON.stringify(profile)) as KableProfile;
-    console.log("[ProfilesService] Cloned profile", profile.id, "to memory clone", res.id);
+    log("[ProfilesService] Cloned profile", profile.id, "to memory clone", res.id);
     return res;
   }
 
@@ -96,10 +96,10 @@ export class ProfilesService implements Service {
       await this.refreshAfterMutation();
 
       app.notificationService.success("Profile updated successfully.");
-    } catch (error) {
-      console.error("[ProfilesService] Failed to modify profile", error);
+    } catch (err) {
+      error("[ProfilesService] Failed to modify profile", err);
       app.notificationService.error("Failed to update profile.");
-      throw error;
+      throw err;
     }
   }
 
@@ -130,15 +130,15 @@ export class ProfilesService implements Service {
     try {
       await api.toggleFavorite(target);
       await this.refreshAfterMutation();
-    } catch (error) {
+    } catch (err) {
       // Restore only if no later state update has replaced our optimistic
       // state. Otherwise refresh from the backend to avoid clobbering it.
-      console.error("[ProfilesService] Failed to toggle favorite status for profile", error);
+      error("[ProfilesService] Failed to toggle favorite status for profile", err);
 
       try {
         await this.refreshProfiles(true);
       } catch (refreshError) {
-        console.error("[ProfilesService] Failed to recover profiles after favorite update", refreshError);
+        error("[ProfilesService] Failed to recover profiles after favorite update", refreshError);
 
         if (this.profiles === optimisticProfiles) {
           this.profiles = previousProfiles;
@@ -146,7 +146,7 @@ export class ProfilesService implements Service {
       }
 
       app.notificationService.error("Failed to update profile favorite status.");
-      throw error;
+      throw err;
     }
   }
 
@@ -211,12 +211,13 @@ export class ProfilesService implements Service {
     try {
       await api.deleteProfile(id);
       await this.refreshAfterMutation();
+      log("[ProfilesService] Profile deleted successfully.");
 
       app.notificationService.success("Profile deleted successfully.");
-    } catch (error) {
-      console.error("[ProfilesService] Failed to delete profile", error);
+    } catch (err) {
+      error("[ProfilesService] Failed to delete profile", err);
       app.notificationService.error("Failed to delete profile.");
-      throw error;
+      throw err;
     }
   }
 
@@ -224,12 +225,13 @@ export class ProfilesService implements Service {
     try {
       await api.createProfile(request);
       await this.refreshAfterMutation();
+      log("[ProfilesService] Profile created successfully.");
 
       app.notificationService.success("Profile created successfully.");
-    } catch (error) {
-      console.error("[ProfilesService] Failed to create profile", error);
+    } catch (err) {
+      error("[ProfilesService] Failed to create profile", err);
       app.notificationService.error("Failed to create profile.");
-      throw error;
+      throw err;
     }
   }
 
@@ -238,10 +240,10 @@ export class ProfilesService implements Service {
       await api.createDesktopShortcut(profile);
 
       app.notificationService.success("Desktop shortcut created successfully.");
-    } catch (error) {
-      console.error("[ProfilesService] Failed to create shortcut for profile", error);
+    } catch (err) {
+      error("[ProfilesService] Failed to create shortcut for profile", err);
       app.notificationService.error("Failed to create desktop shortcut.");
-      throw error;
+      throw err;
     }
   }
 
@@ -250,10 +252,10 @@ export class ProfilesService implements Service {
       await api.exportProfile(profile, destination);
 
       app.notificationService.success("Profile exported successfully.");
-    } catch (error) {
-      console.error("[ProfilesService] Failed to export profile", error);
+    } catch (err) {
+      error("[ProfilesService] Failed to export profile", err);
       app.notificationService.error("Failed to export profile.");
-      throw error;
+      throw err;
     }
   }
 

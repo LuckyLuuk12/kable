@@ -11,7 +11,7 @@ Respects user's update mode preference.
 @prop {(() => void) | undefined} ondownload - Callback to download update for later
 -->
 <script lang="ts">
-import { Icon } from "$lib";
+import { Icon, error } from "$lib";
 import { clickSound, successSound } from "$lib/actions";
 import { marked } from "marked";
 
@@ -65,10 +65,10 @@ $effect(() => {
       if (!cancelled) {
         releaseNotesHtml = html;
       }
-    } catch (error) {
+    } catch (err) {
       if (!cancelled) {
         releaseNotesHtml = "";
-        console.error("Failed to parse update release notes:", error);
+        error("Failed to parse update release notes:", err);
       }
     }
   }
@@ -94,8 +94,8 @@ async function handleInstallNow(): Promise<void> {
 
   try {
     await oninstallnow();
-  } catch (error) {
-    console.error("Failed to install update:", error);
+  } catch (err) {
+    error("Failed to install update:", err);
   } finally {
     isProcessing = false;
   }
@@ -109,8 +109,8 @@ async function handleDownload(): Promise<void> {
   try {
     await ondownload();
     handleClose();
-  } catch (error) {
-    console.error("Failed to download update:", error);
+  } catch (err) {
+    error("Failed to download update:", err);
   } finally {
     isProcessing = false;
   }

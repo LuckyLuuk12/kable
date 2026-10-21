@@ -1,8 +1,8 @@
 <script lang="ts">
-import { AccountManager, app, Icon, type LoaderKind } from "$lib";
+import { AccountManager, app, error, Icon, type LoaderKind } from "$lib";
 import { onMount } from "svelte";
 
-let error: string | null = null;
+let errorMessage: string | null = $state(null);
 
 let stats = $derived(app.profilesService.getStatistics());
 
@@ -13,7 +13,8 @@ onMount(async () => {
   try {
     // worldStats = await app.mapsService.getStatistics();
   } catch (err) {
-    console.error("Failed to load world statistics:", err);
+    errorMessage = "Failed to load world statistics.";
+    error("Failed to load world statistics:", err);
   }
 });
 
@@ -70,10 +71,10 @@ function formatSize(sizeMB: number): string {
     </div>
   </header>
 
-  {#if error}
+  {#if errorMessage}
     <div class="error-message">
       <Icon name="alert" size="sm" />
-      <span>{error}</span>
+      <span>{errorMessage}</span>
     </div>
   {/if}
 

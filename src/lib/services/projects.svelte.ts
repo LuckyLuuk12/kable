@@ -10,6 +10,8 @@ import {
   type UpdateMap,
   api,
   app,
+  error,
+  log,
 } from "$lib";
 import { SvelteSet } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
@@ -222,12 +224,12 @@ export class ProjectsService implements Service {
           projectType,
         ]);
         this.notifyEnabledStateChanged();
-      } catch (error) {
-        console.error(
+      } catch (err) {
+        error(
           `[ProjectsService] Failed to load ${projectType} projects`,
-          error,
+          err,
         );
-        throw error;
+        throw err;
       } finally {
         if (this.pendingLoads.get(key) === request) {
           this.pendingLoads.delete(key);
@@ -293,9 +295,9 @@ export class ProjectsService implements Service {
   ) {
     try {
       return await api.browse(profile, search, smartFilter, projectType);
-    } catch (error) {
-      console.error("Failed to browse projects", error);
-      throw error;
+    } catch (err) {
+      error("Failed to browse projects", err);
+      throw err;
     }
   }
 
@@ -363,21 +365,21 @@ export class ProjectsService implements Service {
             }
 
             await this.download(profile, project, versionId);
-          } catch (error) {
-            console.error(
+          } catch (err) {
+            error(
               "Failed to install project and dependencies",
-              error,
+              err,
             );
             app.notificationService.error(
               "Failed to install project or one of its dependencies.",
             );
-            throw error;
+            throw err;
           }
         },
       });
-    } catch (error) {
-      console.error("Failed to install project", error);
-      throw error;
+    } catch (err) {
+      error("Failed to install project", err);
+      throw err;
     }
   }
 
@@ -410,10 +412,10 @@ export class ProjectsService implements Service {
       );
 
       return result;
-    } catch (error) {
-      console.error("Failed to download project", error);
+    } catch (err) {
+      error("Failed to download project", err);
       app.notificationService.error(`Failed to install ${project.title}.`);
-      throw error;
+      throw err;
     }
   }
 
@@ -443,12 +445,12 @@ export class ProjectsService implements Service {
       );
 
       return result;
-    } catch (error) {
-      console.error("Failed to remove project", error);
+    } catch (err) {
+      error("Failed to remove project", err);
       app.notificationService.error(
         `Failed to remove ${project.project.title}.`,
       );
-      throw error;
+      throw err;
     }
   }
 
@@ -458,9 +460,9 @@ export class ProjectsService implements Service {
   ): Promise<boolean> {
     try {
       return await api.isProjectEnabled(profile, project);
-    } catch (error) {
-      console.error("Failed to check project state", error);
-      throw error;
+    } catch (err) {
+      error("Failed to check project state", err);
+      throw err;
     }
   }
 
@@ -497,12 +499,12 @@ export class ProjectsService implements Service {
 
         return project;
       });
-    } catch (error) {
-      console.error("Failed to enable project", error);
+    } catch (err) {
+      error("Failed to enable project", err);
       app.notificationService.error(
         `Failed to enable ${project.project.title}.`,
       );
-      throw error;
+      throw err;
     }
   }
 
@@ -539,12 +541,12 @@ export class ProjectsService implements Service {
 
         return project;
       });
-    } catch (error) {
-      console.error("Failed to disable project", error);
+    } catch (err) {
+      error("Failed to disable project", err);
       app.notificationService.error(
         `Failed to disable ${project.project.title}.`,
       );
-      throw error;
+      throw err;
     }
   }
 
@@ -571,12 +573,12 @@ export class ProjectsService implements Service {
 
         return project;
       });
-    } catch (error) {
-      console.error("Failed to toggle project", error);
+    } catch (err) {
+      error("Failed to toggle project", err);
       app.notificationService.error(
         `Failed to change the enabled state of ${project.project.title}.`,
       );
-      throw error;
+      throw err;
     }
   }
 
@@ -586,16 +588,16 @@ export class ProjectsService implements Service {
   ): Promise<Project | null> {
     try {
       return await api.checkForUpdate(profile, project);
-    } catch (error) {
+    } catch (err) {
       if (
-        typeof error === "string" &&
-        error.includes("No update available")
+        typeof err === "string" &&
+        err.includes("No update available")
       ) {
         return null;
       }
 
-      console.error("Failed to check project update", error);
-      throw error;
+      error("Failed to check project update", err);
+      throw err;
     }
   }
 
@@ -605,9 +607,9 @@ export class ProjectsService implements Service {
   ): Promise<UpdateMap[]> {
     try {
       return await api.checkForUpdates(profile, projectType);
-    } catch (error) {
-      console.error("Failed to check project updates", error);
-      throw error;
+    } catch (err) {
+      error("Failed to check project updates", err);
+      throw err;
     }
   }
 
@@ -640,12 +642,12 @@ export class ProjectsService implements Service {
       );
 
       return updated;
-    } catch (error) {
-      console.error("Failed to update project", error);
+    } catch (err) {
+      error("Failed to update project", err);
       app.notificationService.error(
         `Failed to update ${project.project.title}.`,
       );
-      throw error;
+      throw err;
     }
   }
 
@@ -671,12 +673,12 @@ export class ProjectsService implements Service {
       );
 
       return updated;
-    } catch (error) {
-      console.error("Failed to update all projects", error);
+    } catch (err) {
+      error("Failed to update all projects", err);
       app.notificationService.error(
         `Failed to update ${projectType} projects.`,
       );
-      throw error;
+      throw err;
     }
   }
 
@@ -743,9 +745,7 @@ export class ProjectsService implements Service {
     this.resetProfile(profile?.id ?? null);
 
     if (!profile) {
-      console.log(
-        "[ProjectsService] selected profile changed to null with 0 projects loaded",
-      );
+      log("[ProjectsService] selected profile changed to null with 0 projects loaded");
       return;
     }
 
@@ -761,7 +761,7 @@ export class ProjectsService implements Service {
       return;
     }
 
-    console.log(
+    log(
       "[ProjectsService] selected profile changed to",
       profile.metadata.name,
       "with",
@@ -773,45 +773,45 @@ export class ProjectsService implements Service {
   async getModrinthCategories(): Promise<string[]> {
     try {
       return await api.getModrinthCategories();
-    } catch (error) {
-      console.error("Failed to get Modrinth categories", error);
-      throw error;
+    } catch (err) {
+      error("Failed to get Modrinth categories", err);
+      throw err;
     }
   }
 
   async getModrinthLoaders(): Promise<string[]> {
     try {
       return await api.getModrinthLoaders();
-    } catch (error) {
-      console.error("Failed to get Modrinth loaders", error);
-      throw error;
+    } catch (err) {
+      error("Failed to get Modrinth loaders", err);
+      throw err;
     }
   }
 
   async getModrinthGameVersions(): Promise<string[]> {
     try {
       return await api.getModrinthGameVersions();
-    } catch (error) {
-      console.error("Failed to get Modrinth game versions", error);
-      throw error;
+    } catch (err) {
+      error("Failed to get Modrinth game versions", err);
+      throw err;
     }
   }
 
   async getModrinthProjectTypes(): Promise<string[]> {
     try {
       return await api.getModrinthProjectTypes();
-    } catch (error) {
-      console.error("Failed to get Modrinth project types", error);
-      throw error;
+    } catch (err) {
+      error("Failed to get Modrinth project types", err);
+      throw err;
     }
   }
 
   async getModrinthSideTypes(): Promise<string[]> {
     try {
       return await api.getModrinthSideTypes();
-    } catch (error) {
-      console.error("Failed to get Modrinth side types", error);
-      throw error;
+    } catch (err) {
+      error("Failed to get Modrinth side types", err);
+      throw err;
     }
   }
 }

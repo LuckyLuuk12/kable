@@ -4,7 +4,7 @@ import type {
   UpdateMode,
   UpdateNotificationStyle,
 } from "$lib";
-import { api, app, UpdateModal } from "$lib";
+import { api, app, error, info, UpdateModal } from "$lib";
 import type { Service } from "./app.svelte";
 
 export class UpdaterService implements Service {
@@ -51,9 +51,7 @@ export class UpdaterService implements Service {
       this.developmentBuild = developmentBuild;
 
       if (this.developmentBuild) {
-        console.info(
-          "[Updater] Development build detected. Update checks are enabled; downloads and installation are disabled.",
-        );
+        info("[Updater] Development build detected. Update checks are enabled; downloads and installation are disabled.");
       }
 
       switch (this.updateDetection) {
@@ -69,9 +67,9 @@ export class UpdaterService implements Service {
           this.schedulePeriodicCheck(this.updateDetection.periodically);
           break;
       }
-    } catch (error) {
-      this.error = String(error);
-      console.error("[Updater] Failed to initialize updater service:", error);
+    } catch (err) {
+      this.error = String(err);
+      error("[Updater] Failed to initialize updater service:", err);
     }
   }
 
@@ -93,8 +91,8 @@ export class UpdaterService implements Service {
 
       try {
         await this.runDetectionCheck();
-      } catch (error) {
-        console.error("[Updater] Periodic update check failed:", error);
+      } catch (err) {
+        error("[Updater] Periodic update check failed:", err);
       } finally {
         if (!this.destroyed) {
           this.schedulePeriodicCheck(seconds);
@@ -241,8 +239,8 @@ export class UpdaterService implements Service {
 
       this.updateInfo = result;
       return result;
-    } catch (error) {
-      const message = String(error);
+    } catch (err) {
+      const message = String(err);
 
       if (
         message.includes("No update available") ||
@@ -288,8 +286,8 @@ export class UpdaterService implements Service {
       );
 
       return path;
-    } catch (error) {
-      const message = String(error);
+    } catch (err) {
+      const message = String(err);
       this.error = message;
 
       app.notificationService.error(
@@ -398,10 +396,10 @@ export class UpdaterService implements Service {
   async getCurrentVersion() {
     try {
       return await api.getCurrentVersion();
-    } catch (error) {
-      console.error(
+    } catch (err) {
+      error(
         "API call failed: `api.getCurrentVersion()`",
-        error,
+        err,
       );
 
       return undefined;

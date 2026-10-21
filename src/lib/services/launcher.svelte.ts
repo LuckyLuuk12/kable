@@ -1,5 +1,5 @@
 
-import { type KableProfile, type LaunchResult, type Versions, api, app } from "$lib";
+import { type KableProfile, type LaunchResult, type Versions, api, app, error } from "$lib";
 import type { Service } from "./app.svelte";
 
 export class LauncherService implements Service {
@@ -35,11 +35,12 @@ export class LauncherService implements Service {
       );
 
       return result;
-    } catch (error) {
+    } catch (err) {
+      error("[LauncherService] Failed to launch Minecraft:", err);
       app.notificationService.error(
         `Failed to launch Minecraft with profile "${profile.metadata.name}".`,
       );
-      throw error;
+      throw err;
     } finally {
       this.launching = false;
       this.launchingProfileId = null;
@@ -55,12 +56,13 @@ export class LauncherService implements Service {
       }
 
       return await this.launch(profiles[0]);
-    } catch (error) {
-      if (error instanceof Error && error.message === "No profiles found to launch.") {
-        app.notificationService.warning(error.message);
+    } catch (err) {
+      error("[LauncherService] Failed to launch latest profile:", err);
+      if (err instanceof Error && err.message === "No profiles found to launch.") {
+        app.notificationService.warning(err.message);
       }
 
-      throw error;
+      throw err;
     }
   }
 
@@ -85,8 +87,8 @@ export class LauncherService implements Service {
   async getJavaPath(javaPath: string | null) {
     try {
       return await api.getJavaPath(javaPath);
-    } catch (error) {
-      console.error("API call failed: `return await api.getJavaPath(javaPath);`", error);
+    } catch (err) {
+      error("API call failed: `return await api.getJavaPath(javaPath);`", err);
       return null;
     }
   }

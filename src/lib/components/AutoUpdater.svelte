@@ -10,7 +10,7 @@ Displays update information including version numbers and allows users to instal
 ```
 -->
 <script lang="ts">
-import { app, clickSound, successSound } from "$lib";
+import { app, clickSound, error, log, successSound } from "$lib";
 // import { settings } from "$lib/stores";
 import { marked } from "marked";
 import { onMount } from "svelte";
@@ -21,7 +21,7 @@ let isChecking = false;
 let isInstalling = false;
 let isDownloading = false;
 let isApplying = false;
-let error = "";
+let errorMessage = "";
 let releaseNotesHtml = "";
 let downloadedPath: string | null = null;
 
@@ -29,19 +29,19 @@ onMount(async () => {
   try {
     currentVersion = (await app.updaterService.getCurrentVersion()) ?? "Unknown";
   } catch (e) {
-    console.error("Failed to get current version:", e);
+    error("Failed to get current version:", e);
   }
 });
 
 async function handleCheckForUpdates() {
   isChecking = true;
-  error = "";
+  errorMessage = "";
 
   try {
     // Respect the user's nightly update preference
     const checkNightly = app.customizationService.settings?.advanced?.enable_nightly_updates ?? false;
-    console.log("[AutoUpdater] Checking for updates with checkNightly:", checkNightly);
-    console.log("[AutoUpdater] Full settings.advanced:", app.customizationService.settings?.advanced);
+    log("[AutoUpdater] Checking for updates with checkNightly:", checkNightly);
+    log("[AutoUpdater] Full settings.advanced:", app.customizationService.settings?.advanced);
     updateInfo = await app.updaterService.check(checkNightly);
 
     if (updateInfo?.body) {
@@ -51,7 +51,7 @@ async function handleCheckForUpdates() {
       });
     }
   } catch (e) {
-    error = `Failed to check for updates: ${e}`;
+    errorMessage = `Failed to check for updates: ${e}`;
   } finally {
     isChecking = false;
   }
@@ -61,14 +61,14 @@ async function handleInstallUpdate() {
   if (!updateInfo) return;
 
   isInstalling = true;
-  error = "";
+  errorMessage = "";
 
   try {
     const checkNightly = app.customizationService.settings?.advanced?.enable_nightly_updates ?? false;
     await app.updaterService.install(checkNightly);
     // App will restart automatically after update
   } catch (e) {
-    error = `Failed to install update: ${e}`;
+    errorMessage = `Failed to install update: ${e}`;
     isInstalling = false;
   }
 }
@@ -76,12 +76,12 @@ async function handleInstallUpdate() {
 async function handleDownloadUpdate() {
   if (!updateInfo) return;
   isDownloading = true;
-  error = "";
+  errorMessage = "";
   try {
     const checkNightly = app.customizationService.settings?.advanced?.enable_nightly_updates ?? false;
     downloadedPath = await app.updaterService.download(checkNightly);
   } catch (e) {
-    error = `Failed to download update: ${e}`;
+    errorMessage = `Failed to download update: ${e}`;
   } finally {
     isDownloading = false;
   }
@@ -89,11 +89,11 @@ async function handleDownloadUpdate() {
 
 async function handleInstallDownloaded() {
   isApplying = true;
-  error = "";
+  errorMessage = "";
   try {
     await app.updaterService.applyDownloaded();
   } catch (e) {
-    error = `Failed to apply downloaded update: ${e}`;
+    errorMessage = `Failed to apply downloaded update: ${e}`;
     isApplying = false;
   }
 }
@@ -172,9 +172,9 @@ async function handleInstallDownloaded() {
       <p class="up-to-date">You're running the latest version</p>
     {/if}
 
-    {#if error}
+    {#if errorMessage}
       <div class="error">
-        {error}
+        {errorMessage}
       </div>
     {/if}
   </div>

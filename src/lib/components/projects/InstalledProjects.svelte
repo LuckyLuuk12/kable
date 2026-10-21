@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, Icon, type KableProfile, type KableProject, type ProjectType } from "$lib";
+import { app, error, Icon, type KableProfile, type KableProject, type ProjectType } from "$lib";
 import { untrack } from "svelte";
 import InstalledProjectCard from "./InstalledProjectCard.svelte";
 
@@ -157,7 +157,7 @@ $effect(() => {
 
   untrack(() => {
     void app.projectsService.load(selectedProfile, selectedType).catch((error) => {
-      console.error("[InstalledProjects] Failed to load installed projects", error);
+      error("[InstalledProjects] Failed to load installed projects", error);
     });
   });
 });
@@ -217,8 +217,8 @@ $effect(() => {
               const enabled = await app.projectsService.isEnabled(selectedProfile, project);
 
               return { id, enabled };
-            } catch (error) {
-              console.error(`[InstalledProjects] Failed to resolve enabled state for ${id}`, error);
+            } catch (err) {
+              error(`[InstalledProjects] Failed to resolve enabled state for ${id}`, err);
 
               return null;
             }
@@ -254,8 +254,8 @@ $effect(() => {
         }
 
         enabledById = next;
-      } catch (error) {
-        console.error("[InstalledProjects] Failed to resolve enabled states", error);
+      } catch (err) {
+        error("[InstalledProjects] Failed to resolve enabled states", err);
       } finally {
         if (generation === requestGeneration) {
           statusLoading = false;

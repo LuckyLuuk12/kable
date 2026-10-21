@@ -15,13 +15,11 @@ pub async fn launch_game(
     // _settings: &api_types::settings::CategorizedLauncherSettings,
 ) -> Result<LaunchResult, String> {
     let launch_started = Instant::now();
+
     // Ensure the version manifest and its parent manifests are installed.
     version_manifests::ensure_version_installed(&profile.version).await?;
+
     // Prepare the isolated filesystem environment for this profile.
-    //
-    // This must happen before resolving the Minecraft command because
-    // ${game_directory} needs to point at the profile runtime rather than
-    // the user's original .minecraft directory.
     let runtime = runtime::prepare(&profile).await?;
 
     // Resolve the Minecraft command against the prepared runtime.
@@ -46,7 +44,6 @@ pub async fn launch_game(
         Ok(child) => child,
         Err(error) => {
             let _ = crate::features::advanced::symlink::cleanup_profile(&profile.id).await;
-
             return Err(format!("Failed to launch: {error}"));
         }
     };
@@ -55,12 +52,18 @@ pub async fn launch_game(
 
     crate::system::processes::track_process(pid);
 
+    // Update profile metadata after a successful process spawn.
+    if let Err(error) = crate::features::profiles::management::update_last_used(profile.clone()).await {
+        Logger::error_global(format!("Failed to update last-used timestamp: {error}").as_str(), Some(profile.id.as_str()));
+    }
+
+    if let Err(error) = crate::features::profiles::management::increment_times_launched(profile.clone()).await {
+        Logger::error_global(format!("Failed to increment times launched: {error}").as_str(), Some(profile.id.as_str()));
+    }
+
     let (runtime_id, runtime_process, pipeline) = runtime_inject::handle_injections(profile.clone(), child);
 
     runtime_process.run(pipeline).await?;
-
-    // Update last used timestamp for the profile.
-    let _ = crate::features::profiles::management::update_last_used(profile.clone()).await?;
 
     Logger::debug_global(format!("Game launched with PID: {}, Runtime ID: {}", pid, runtime_id).as_str(), Some(profile.id.as_str()));
 

@@ -12,7 +12,7 @@ Provides:
 -->
 
 <script lang="ts">
-import { type KableProfile, type ProjectType, app, Icon } from "$lib";
+import { type KableProfile, type ProjectType, app, debug, error, Icon, warn } from "$lib";
 import { untrack } from "svelte";
 
 import InstalledProjects from "./InstalledProjects.svelte";
@@ -106,9 +106,9 @@ async function checkForUpdates(): Promise<void> {
   try {
     await refreshUpdateCount(currentProfile, requestedType);
 
-    console.debug("[ProjectsPage] Checked for updates for profile:", currentProfile.id);
-  } catch (error) {
-    console.error("[ProjectsPage] Failed to check for updates for profile:", currentProfile.id, error);
+    debug("[ProjectsPage] Checked for updates for profile:", currentProfile.id);
+  } catch (err) {
+    error("[ProjectsPage] Failed to check for updates for profile:", currentProfile.id, err);
   } finally {
     checkingUpdates = false;
   }
@@ -140,7 +140,7 @@ async function refresh(): Promise<void> {
     if (!refreshedProfile) {
       availableUpdates = 0;
 
-      console.warn("[ProjectsPage] Selected profile no longer exists:", requestedProfileId);
+      warn("[ProjectsPage] Selected profile no longer exists:", requestedProfileId);
 
       return;
     }
@@ -154,9 +154,9 @@ async function refresh(): Promise<void> {
 
     await refreshUpdateCount(refreshedProfile, requestedType);
 
-    console.debug("[ProjectsPage] Refreshed projects for profile:", requestedProfileId);
-  } catch (error) {
-    console.error("[ProjectsPage] Failed to refresh projects for profile:", requestedProfileId, error);
+    debug("[ProjectsPage] Refreshed projects for profile:", requestedProfileId);
+  } catch (err) {
+    error("[ProjectsPage] Failed to refresh projects for profile:", requestedProfileId, err);
   } finally {
     refreshing = false;
   }
@@ -196,9 +196,9 @@ async function updateAll(): Promise<void> {
 
     await refreshUpdateCount(currentProfile, requestedType);
 
-    console.debug("[ProjectsPage] Updated all projects for profile:", requestedProfileId);
-  } catch (error) {
-    console.error("[ProjectsPage] Failed to update all projects for profile:", requestedProfileId, error);
+    debug("[ProjectsPage] Updated all projects for profile:", requestedProfileId);
+  } catch (err) {
+    error("[ProjectsPage] Failed to update all projects for profile:", requestedProfileId, err);
   } finally {
     updatingAll = false;
   }
@@ -265,12 +265,12 @@ $effect(() => {
 
         // Share the same in-flight request as manual checks and refreshes.
         await refreshUpdateCount(selectedProfile, selectedType);
-      } catch (error) {
+      } catch (err) {
         if (generation !== updateEffectGeneration) {
           return;
         }
 
-        console.error("[ProjectsPage] Failed to synchronize project state:", selectedProfileId, error);
+        error("[ProjectsPage] Failed to synchronize project state:", selectedProfileId, err);
 
         availableUpdates = 0;
       }

@@ -12,7 +12,7 @@ the profile/project state after an install or update.
 -->
 
 <script lang="ts">
-import { app, type KableProfile, type KableProject, type Project, type ProjectVersion } from "$lib";
+import { app, warn, type KableProfile, type KableProject, type Project, type ProjectVersion } from "$lib";
 
 let {
   profile = null,
@@ -204,7 +204,7 @@ async function installVersion(version: ProjectVersion): Promise<void> {
   }
 
   if (!isVersionCompatible(version)) {
-    console.warn("[ProjectVersionsModal] Refusing to install incompatible version", {
+    warn("[ProjectVersionsModal] Refusing to install incompatible version", {
       project: projectData.project_id,
       version: version.id,
       profile: profile.id,

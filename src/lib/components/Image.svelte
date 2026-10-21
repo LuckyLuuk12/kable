@@ -13,6 +13,7 @@ A component that attempts to find the key with backend on the file system and di
 ```
 -->
 <script lang="ts">
+import { error, log, warn } from "$lib";
 import { invoke } from "@tauri-apps/api/core";
 import { onMount } from "svelte";
 
@@ -40,11 +41,11 @@ onMount(async () => {
     resolvedSrc = key;
     // Log abbreviated version for data URLs to avoid console spam
     const logKey = key.startsWith("data:") ? `data:${key.substring(5, 30)}...` : key;
-    console.log(`[Image] Image component using direct URL: ${logKey}`);
+    log(`[Image] Image component using direct URL: ${logKey}`);
     setTimeout(() => {
       if (imgElement && imgElement.complete && imgElement.naturalHeight !== 0) {
         isVisible = true;
-        console.log(`[Image] Image loaded successfully from direct URL: ${logKey}`);
+        log(`[Image] Image loaded successfully from direct URL: ${logKey}`);
       }
     }, 0);
     return;
@@ -72,11 +73,11 @@ onMount(async () => {
     setTimeout(() => {
       if (imgElement && imgElement.complete && imgElement.naturalHeight !== 0) {
         isVisible = true;
-        console.log(`[Image] Image already loaded from cache: ${key}`);
+        log(`[Image] Image already loaded from cache: ${key}`);
       }
     }, 0);
   } catch (err) {
-    console.error("[Image] resolve_image_path failed", err);
+    error("[Image] resolve_image_path failed", err);
     resolvedSrc = "/favicon.png";
   }
 });
@@ -86,7 +87,7 @@ function handleImgError() {
   isVisible = false;
   // Prevent infinite loops - stop after MAX_RETRIES attempts
   if (retryCount >= MAX_RETRIES) {
-    console.warn(`[Image] Image load failed after ${MAX_RETRIES} retries for key: ${key}`);
+    warn(`[Image] Image load failed after ${MAX_RETRIES} retries for key: ${key}`);
     loadError = true;
     resolvedSrc = "/favicon.png";
     return;
@@ -151,7 +152,7 @@ function handleMouseEnter() {
     const RETRY_COOLDOWN = 5 * 60 * 1000; // 5 minutes
 
     if (timeSinceLastError > RETRY_COOLDOWN) {
-      console.log(`[Image] Retrying image load for key: ${key} after cooldown`);
+      warn(`[Image] Retrying image load for key: ${key} after cooldown`);
       retryCount = 0;
       loadError = false;
       isVisible = false; // Hide while retrying
@@ -163,7 +164,7 @@ function handleMouseEnter() {
 function handleImgLoad() {
   // Show image when it successfully loads
   isVisible = true;
-  console.log(`[Image] Image loaded successfully: ${key}, src: ${resolvedSrc}`);
+  log(`[Image] Image loaded successfully: ${key}, src: ${resolvedSrc}`);
 }
 
 // Bind to img element and check after each src change
@@ -173,7 +174,7 @@ $: if (imgElement && resolvedSrc) {
     if (imgElement.complete && imgElement.naturalHeight !== 0) {
       if (!isVisible) {
         isVisible = true;
-        console.log(`[Image] Image became visible for: ${key}, src: ${resolvedSrc}`);
+        log(`[Image] Image became visible for: ${key}, src: ${resolvedSrc}`);
       }
     }
   }, 10);
@@ -189,8 +190,7 @@ $: if (imgElement && resolvedSrc) {
   style="width: {width}; height: {height};"
   on:error={handleImgError}
   on:load={handleImgLoad}
-  on:mouseenter={handleMouseEnter}
-/>
+  on:mouseenter={handleMouseEnter} />
 
 <style>
 img {

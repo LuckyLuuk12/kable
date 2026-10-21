@@ -55,10 +55,12 @@ impl Default for ProcessPipeline {
     }
 }
 
+#[derive(Debug)]
 pub struct ProcessRuntime {
     pub id: RuntimeId,
     pub child: Child,
     pub profile: KableProfile,
+    pub started_at: std::time::Instant,
 }
 
 impl ProcessRuntime {
@@ -77,10 +79,9 @@ impl ProcessRuntime {
         let stderr = child.stderr.take().ok_or("missing stderr")?;
 
         tokio::spawn(Self::pipe_stdout(stdout, id, pipeline.clone()));
-
         tokio::spawn(Self::pipe_stderr(stderr, id, pipeline.clone()));
 
-        tokio::spawn(Self::wait_exit(child, id, pipeline.clone()));
+        tokio::spawn(Self::wait_exit(child, id, pipeline, self.profile, self.started_at));
 
         Ok(())
     }
@@ -109,10 +110,16 @@ impl ProcessRuntime {
         }
     }
 
-    async fn wait_exit(mut child: Child, id: RuntimeId, pipeline: ProcessPipeline) {
+    async fn wait_exit(mut child: Child, id: RuntimeId, pipeline: ProcessPipeline, profile: KableProfile, started_at: std::time::Instant) {
         let status = child.wait().await;
 
         let code = status.map(|status| status.code().unwrap_or(-1)).unwrap_or(-1);
+
+        let duration_ms = started_at.elapsed().as_millis().min(u32::MAX as u128) as u32;
+
+        if let Err(error) = crate::features::profiles::management::add_play_time(profile.clone(), duration_ms).await {
+            Logger::error_global(format!("Failed to update total play time: {error}").as_str(), Some(profile.id.as_str()));
+        }
 
         pipeline.emit(id, ProcessEvent::Exit(code));
     }
@@ -180,7 +187,7 @@ pub fn handle_injections(profile: KableProfile, child: Child) -> (RuntimeId, Pro
 
     let pipeline = ProcessPipeline::new().with_sink(Arc::new(TauriSink));
 
-    let runtime = ProcessRuntime { id: runtime_id, child, profile };
+    let runtime = ProcessRuntime { id: runtime_id, child, profile, started_at: std::time::Instant::now() };
 
     (runtime_id, runtime, pipeline)
 }

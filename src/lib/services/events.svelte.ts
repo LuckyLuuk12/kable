@@ -1,3 +1,4 @@
+import { warn } from "$lib";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { AppService, Service } from "./app.svelte";
@@ -17,7 +18,7 @@ export class EventsService implements Service {
   private initialized = false;
   private unlisteners: UnlistenFn[] = [];
 
-  constructor(private app: AppService) {}
+  constructor(private app: AppService) { }
 
   async init() {
     if (this.initialized) return;
@@ -57,7 +58,7 @@ export class EventsService implements Service {
     });
 
     const restartRequested = await listen<GameRestartEventPayload>("game-restart-requested", (event) => {
-      // this.app.logsService.emitLauncherEvent(`Game restart requested due to crash (exit code: ${event.payload.exit_code})`, "warn");
+      warn(`Game restart requested due to crash (exit code: ${event.payload.exit_code})`);
       alert("Game restart feature is not implemented yet. Please launch manually.");
     });
 
@@ -133,7 +134,7 @@ export class EventsService implements Service {
         // this.app.logsService.emitLauncherEvent("Keeping launcher open as requested", "info");
         break;
       default:
-        console.warn(`Unknown choice: ${choice}`);
+        warn(`Unknown choice: ${choice}`);
     }
   }
 

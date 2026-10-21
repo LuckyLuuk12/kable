@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, Icon, launchSound } from "$lib";
+import { app, error, Icon, launchSound } from "$lib";
 
 let isLaunching = $derived(app.launcherService.launching);
 
@@ -12,9 +12,9 @@ async function launch() {
     await app.launcherService.launchLatest();
 
     launchStatus = "Launched Minecraft!";
-  } catch (error) {
-    console.error("Launch error:", error);
-    launchStatus = `Launch failed: ${error}`;
+  } catch (err) {
+    error("Launch error:", err);
+    launchStatus = `Launch failed: ${err}`;
   } finally {
     setTimeout(() => {
       launchStatus = "";

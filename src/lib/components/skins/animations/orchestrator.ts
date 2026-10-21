@@ -1,5 +1,6 @@
 import * as skinview3d from "skinview3d";
 
+import { log } from "$lib";
 import { brushShoeGesture } from "./brushShoe";
 import { danceGesture } from "./dance";
 import { lookAroundGesture } from "./lookAround";
@@ -356,7 +357,7 @@ export class IdleOrchestrator {
     });
 
     this.lastInteractionAt.set(interaction, this.currentTime);
-    console.log(`Queued gesture "${gesture.name}" for interaction "${interaction}"`);
+    log(`Queued gesture "${gesture.name}" for interaction "${interaction}"`);
     return true;
   }
 

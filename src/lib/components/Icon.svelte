@@ -11,7 +11,7 @@ custom icon types.
 @prop {string} [forceType] - Optional icon type override
 -->
 <script lang="ts">
-import { app, type IconData, type IconType } from "$lib";
+import { app, error, type IconData, type IconType, warn } from "$lib";
 
 let {
   name,
@@ -140,10 +140,10 @@ $effect(() => {
         icon: "❓",
         type: "emoji",
       };
-    } catch (error) {
+    } catch (errorMessage) {
       if (version !== requestVersion) return;
 
-      console.error(`Failed to resolve icon "${currentName}":`, error);
+      error(`Failed to resolve icon "${currentName}":`, errorMessage);
 
       iconData = {
         icon: "❓",
@@ -170,7 +170,7 @@ let validSvg = $derived(type === "svg" && isValidSvg(icon));
 
 $effect(() => {
   if (type === "svg" && !validSvg) {
-    console.warn(`Icon "${name}" contains invalid SVG markup; rendering it as text instead.`);
+    warn(`Icon "${name}" contains invalid SVG markup; rendering it as text instead.`);
   }
 });
 </script>

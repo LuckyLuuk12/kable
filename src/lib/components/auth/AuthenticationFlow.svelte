@@ -9,11 +9,11 @@ Provides interface for authenticating with Microsoft using Device Code Flow
 ```
 -->
 <script lang="ts">
-import { app, Icon, Image } from "$lib";
+import { app, error, Icon, Image } from "$lib";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { onDestroy } from "svelte";
 
-let error = $state<string | null>(null);
+let errorMessage = $state<string | null>(null);
 let deviceCodeData = $state<Awaited<ReturnType<typeof app.authService.startAuth>> | null>(null);
 let isPollingDeviceCode = $state(false);
 
@@ -29,7 +29,7 @@ onDestroy(clearAuthenticationState);
 async function signInWithDeviceCode() {
   if (isAuthenticating || isPollingDeviceCode) return;
 
-  error = null;
+  errorMessage = null;
   isPollingDeviceCode = true;
 
   try {
@@ -43,9 +43,8 @@ async function signInWithDeviceCode() {
 
     clearAuthenticationState();
   } catch (err) {
-    console.error("Device Code authentication failed:", err);
-
-    error = err instanceof Error ? err.message : String(err);
+    error("Device Code authentication failed:", err);
+    errorMessage = err instanceof Error ? err.message : String(err);
 
     clearAuthenticationState();
   }
@@ -57,8 +56,8 @@ async function openVerificationUrl() {
   try {
     await app.openUrl(deviceCodeData.verification_uri);
   } catch (err) {
-    console.error("Failed to open verification URL:", err);
-    error = "Failed to open the Microsoft authentication page.";
+    error("Failed to open verification URL:", err);
+    errorMessage = "Failed to open the Microsoft authentication page.";
   }
 }
 
@@ -68,8 +67,8 @@ async function copyUserCode() {
   try {
     await writeText(deviceCodeData.user_code);
   } catch (err) {
-    console.error("Failed to copy device code:", err);
-    error = "Failed to copy the authentication code.";
+    error("Failed to copy device code:", err);
+    errorMessage = "Failed to copy the authentication code.";
   }
 }
 
@@ -79,10 +78,10 @@ function cancelDeviceCode() {
 </script>
 
 <div class="auth-flow">
-  {#if error}
+  {#if errorMessage}
     <div class="error-message">
       <Icon name="alert" size="sm" />
-      <span>{error}</span>
+      <span>{errorMessage}</span>
     </div>
   {/if}
 

@@ -1,5 +1,5 @@
 import type { Symlink, SymlinkCreateRequest } from "$lib";
-import { api, app } from "$lib";
+import { api, app, error, log } from "$lib";
 import type { Service } from "./app.svelte";
 
 export class SymlinkService implements Service {
@@ -47,14 +47,14 @@ export class SymlinkService implements Service {
         async () => {
           try {
             await api.openDeveloperSettings();
-          } catch (error) {
-            console.error("Failed to open developer settings:", error);
+          } catch (err) {
+            error("Failed to open developer settings:", err);
           }
         });
       return;
     }
     this.initialized = true;
-    console.log("[SymlinkService] initialized successfully.");
+    log("[SymlinkService] initialized successfully.");
   }
 
   /**

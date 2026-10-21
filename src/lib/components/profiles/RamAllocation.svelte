@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, Icon, type KableProfile } from "$lib";
+import { app, error, Icon, type KableProfile } from "$lib";
 import { onMount } from "svelte";
 
 let {
@@ -57,8 +57,8 @@ onMount(() => {
       if (!cancelled && Number.isFinite(result) && result >= MIN_RAM) {
         systemRam = result;
       }
-    } catch (error) {
-      console.error("[RamAllocation] Failed to detect system RAM", error);
+    } catch (err) {
+      error("[RamAllocation] Failed to detect system RAM", err);
     } finally {
       if (!cancelled) {
         systemRamLoaded = true;

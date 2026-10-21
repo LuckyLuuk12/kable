@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, Icon, type Symlink, type SymlinkCreateRequest } from "$lib";
+import { app, error, Icon, type Symlink, type SymlinkCreateRequest } from "$lib";
 import { onMount } from "svelte";
 import SymlinkModal from "./SymlinkModal.svelte";
 
@@ -86,8 +86,8 @@ async function copyPath(path: string): Promise<void> {
       copiedPath = null;
       copyTimeout = null;
     }, 2000);
-  } catch (error) {
-    console.error("Failed to copy path:", error);
+  } catch (err) {
+    error("Failed to copy path:", err);
   }
 }
 

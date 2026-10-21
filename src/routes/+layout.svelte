@@ -1,10 +1,10 @@
 <script lang="ts">
 import { page } from "$app/state";
-import { app, NavBar, TitleBar } from "$lib";
+import { app, debug, error, log, NavBar, TitleBar } from "$lib";
 import ModalHost from "$lib/components/ModalHost.svelte";
 import "$lib/styles/global.scss";
 import "@fortawesome/fontawesome-free/css/all.min.css";
-import { onMount } from "svelte";
+import { onMount, untrack } from "svelte";
 
 let { children } = $props();
 
@@ -12,7 +12,7 @@ onMount(() => {
   const observer = new MutationObserver(() => {
     const style = document.getElementById("user-custom-css");
 
-    console.debug("[CSS DEBUG] DOM state", {
+    debug("[CSS DEBUG] DOM state", {
       exists: style !== null,
       length: style?.textContent.length ?? 0,
       selectedTheme: app.customizationService.selectedCssTheme,
@@ -30,13 +30,13 @@ onMount(() => {
 });
 
 onMount(async () => {
-  console.log("Starting layout initialization...");
+  log("Starting layout initialization...");
 
   try {
     await app.initAll();
-    console.log("Layout initialization complete");
-  } catch (error) {
-    console.error("Tauri initialization error:", error);
+    log("Layout initialization complete");
+  } catch (err) {
+    error("Tauri initialization error:", err);
   }
 });
 
@@ -44,8 +44,10 @@ onMount(async () => {
 $effect(() => {
   const pathname = page?.url?.pathname;
   if (!pathname) return;
-
-  app.discordService.setBrowsing(pathname).catch((error) => console.error("Failed to update Discord status:", error));
+  untrack(() => {
+    debug("Updating Discord status for path:", pathname);
+    app.discordService.setBrowsing(pathname).catch((err) => error("Failed to update Discord status:", err));
+  });
 });
 </script>
 

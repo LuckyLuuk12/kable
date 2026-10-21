@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, Icon, type CacheEntryInfo } from "$lib";
+import { app, error, Icon, type CacheEntryInfo } from "$lib";
 import { onMount } from "svelte";
 
 let searchQuery = $state("");
@@ -53,8 +53,8 @@ const filteredEntries = $derived.by(() => {
 });
 
 onMount(() => {
-  void app.cacheService.loadEntries().catch((error) => {
-    console.error("Failed to load cache entries:", error);
+  void app.cacheService.loadEntries().catch((err) => {
+    error("Failed to load cache entries:", err);
   });
 
   return () => {
@@ -109,16 +109,16 @@ async function copyPath(path: string): Promise<void> {
       copiedPath = null;
       copyTimeout = null;
     }, 2000);
-  } catch (error) {
-    console.error("Failed to copy cache path:", error);
+  } catch (err) {
+    error("Failed to copy cache path:", err);
   }
 }
 
 async function refresh(): Promise<void> {
   try {
     await app.cacheService.refreshEntries();
-  } catch (error) {
-    console.error("Failed to refresh cache entries:", error);
+  } catch (err) {
+    error("Failed to refresh cache entries:", err);
   }
 }
 
@@ -133,8 +133,8 @@ async function invalidateEntry(entry: CacheEntryInfo): Promise<void> {
 
   try {
     await app.cacheService.invalidateEntry(entry.path);
-  } catch (error) {
-    console.error("Failed to invalidate cache entry:", error);
+  } catch (err) {
+    error("Failed to invalidate cache entry:", err);
   }
 }
 
@@ -155,8 +155,8 @@ async function invalidateNamespace(namespace: string): Promise<void> {
 
   try {
     await app.cacheService.invalidateNamespace(namespace);
-  } catch (error) {
-    console.error("Failed to invalidate cache namespace:", error);
+  } catch (err) {
+    error("Failed to invalidate cache namespace:", err);
   }
 }
 
@@ -169,8 +169,8 @@ async function invalidateMemory(): Promise<void> {
 
   try {
     await app.cacheService.invalidateMemory();
-  } catch (error) {
-    console.error("Failed to clear memory cache:", error);
+  } catch (err) {
+    error("Failed to clear memory cache:", err);
   }
 }
 
@@ -187,8 +187,8 @@ async function invalidateAll(): Promise<void> {
     await app.cacheService.invalidateAll();
     searchQuery = "";
     expandedNamespaces = new Set();
-  } catch (error) {
-    console.error("Failed to clear entire cache:", error);
+  } catch (err) {
+    error("Failed to clear entire cache:", err);
   }
 }
 

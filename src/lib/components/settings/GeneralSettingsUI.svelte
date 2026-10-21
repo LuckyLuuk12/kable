@@ -21,7 +21,7 @@ export type GeneralSettings = {
 ```
 -->
 <script lang="ts">
-import { AutoUpdater, app, type GeneralSettings, type OnGameAction, type UpdateDetection, type UpdateMode, type UpdateNotificationStyle } from "$lib";
+import { AutoUpdater, app, warn, type GeneralSettings, type OnGameAction, type UpdateDetection, type UpdateMode, type UpdateNotificationStyle } from "$lib";
 import { onMount } from "svelte";
 
 let isWideScreen = $state(true);
@@ -90,7 +90,7 @@ onMount(() => {
       detectedJavaPath = path;
     })
     .catch((error) => {
-      console.warn("Failed to auto-detect Java:", error);
+      warn("Failed to auto-detect Java:", error);
       detectedJavaPath = "Java not found";
     });
 

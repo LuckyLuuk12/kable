@@ -10,19 +10,19 @@ create shortcuts, and favorite. Clicking a card opens its edit modal.
 @prop {number | null} [limit=null] - Maximum number of profiles to display
 -->
 <script lang="ts">
-import { app, clickSound, errorSound, Icon, Image, launchSound, type KableProfile } from "$lib";
+import { app, clickSound, error, errorSound, Icon, Image, launchSound, log, type KableProfile } from "$lib";
 import { save } from "@tauri-apps/plugin-dialog";
 import EditProfileModal from "./EditProfileModal.svelte";
 
 let {
   isGrid = false,
   isSmall = false,
-  error = null,
+  errorMessage = null,
   limit = null,
 }: {
   isGrid?: boolean;
   isSmall?: boolean;
-  error?: string | null;
+  errorMessage?: string | null;
   limit?: number | null;
 } = $props();
 
@@ -98,18 +98,18 @@ async function exportProfile(profile: KableProfile) {
     }
 
     const exportedPath = await app.profilesService.exportProfile(profile, destination);
-    console.log("Profile exported to:", exportedPath);
+    log("Profile exported to:", exportedPath);
   } catch (err) {
-    console.error("Failed to export profile:", err);
+    error("Failed to export profile:", err);
   }
 }
 
 async function createShortcut(profile: KableProfile) {
   try {
     const path = await app.profilesService.createShortcut(profile);
-    console.log("Shortcut created at:", path);
+    log("Shortcut created at:", path);
   } catch (err) {
-    console.error("Failed to create shortcut:", err);
+    error("Failed to create shortcut:", err);
   }
 }
 
@@ -153,10 +153,10 @@ function formatLastUsed(date: string | null | undefined) {
 </script>
 
 <div class="profiles-list" class:compact={isSmall && !isGrid}>
-  {#if error}
+  {#if errorMessage}
     <div class="error-message">
       <Icon name="alert" size="sm" />
-      <span>{error}</span>
+      <span>{errorMessage}</span>
     </div>
   {/if}
 

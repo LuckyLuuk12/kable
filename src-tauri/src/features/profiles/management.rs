@@ -169,3 +169,17 @@ pub async fn list_profiles(force: bool) -> Result<Vec<KableProfile>, String> {
 
     load_profiles().await
 }
+
+pub async fn increment_times_launched(profile: KableProfile) -> Result<KableProfile, String> {
+    modify_current_profile(&profile.id, |current_profile| {
+        current_profile.metadata.times_launched = current_profile.metadata.times_launched.saturating_add(1);
+    })
+    .await
+}
+
+pub async fn add_play_time(profile: KableProfile, duration_ms: u32) -> Result<KableProfile, String> {
+    modify_current_profile(&profile.id, |current_profile| {
+        current_profile.metadata.total_time_played_ms = current_profile.metadata.total_time_played_ms.saturating_add(duration_ms);
+    })
+    .await
+}

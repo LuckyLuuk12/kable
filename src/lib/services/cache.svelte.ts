@@ -1,4 +1,4 @@
-import { api, app, type CacheEntryInfo } from "$lib";
+import { api, app, log, type CacheEntryInfo } from "$lib";
 import type { Service } from "./app.svelte";
 
 export class CacheService implements Service {
@@ -22,7 +22,7 @@ export class CacheService implements Service {
 
   init(): Promise<void> {
     return this.loadEntries().then(() => {
-      console.log("Cache service initialized.");
+      log("[CacheService] initialized.");
     });
   }
 

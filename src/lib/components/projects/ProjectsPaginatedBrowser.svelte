@@ -11,7 +11,7 @@ Provides:
 - Visibility-aware loading
 -->
 <script lang="ts">
-import { app, type FacetGroup, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "$lib";
+import { app, debug, type FacetGroup, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "$lib";
 import { untrack } from "svelte";
 import Icon from "../Icon.svelte";
 import ProjectCard from "./ProjectCard.svelte";
@@ -286,7 +286,7 @@ function updateVisibility(): void {
 
   isVisible = visible;
 
-  console.debug("[ProjectsPaginatedBrowser] Visibility changed:", visible);
+  debug("[ProjectsPaginatedBrowser] Visibility changed:", visible);
 
   if (!visible) {
     return;

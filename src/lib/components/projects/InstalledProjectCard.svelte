@@ -4,7 +4,7 @@ This card displays an already-installed project and allows it to be
 enabled, disabled, inspected, or uninstalled.
 -->
 <script lang="ts">
-import { app, Icon, type KableProfile, type KableProject } from "$lib";
+import { app, error, Icon, type KableProfile, type KableProject } from "$lib";
 import ProjectGalleryModal from "./ProjectGalleryModal.svelte";
 import ProjectModal from "./ProjectModal.svelte";
 import ProjectVersionsModal from "./ProjectVersionsModal.svelte";
@@ -78,8 +78,8 @@ async function toggle(): Promise<void> {
     // That moves the card immediately and preserves pending state across
     // the card's destruction and recreation.
     await onToggled?.(nextEnabled);
-  } catch (error) {
-    console.error("[InstalledProjectCard] Failed to toggle project:", currentProject.filename, error);
+  } catch (err) {
+    error("[InstalledProjectCard] Failed to toggle project:", currentProject.filename, err);
   }
 }
 
@@ -95,8 +95,8 @@ async function remove(): Promise<void> {
 
   try {
     await app.projectsService.remove(currentProfile, currentProject);
-  } catch (error) {
-    console.error("[InstalledProjectCard] Failed to uninstall project:", currentProject.filename, error);
+  } catch (err) {
+    error("[InstalledProjectCard] Failed to uninstall project:", currentProject.filename, err);
   } finally {
     loading = false;
   }

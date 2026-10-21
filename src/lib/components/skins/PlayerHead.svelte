@@ -13,7 +13,7 @@ Falls back to user icon if no skin is available.
 ```
 -->
 <script lang="ts">
-import { type KableAccount, Icon } from "$lib";
+import { type KableAccount, error, Icon } from "$lib";
 import * as skinview3d from "skinview3d";
 import { onDestroy } from "svelte";
 
@@ -64,8 +64,8 @@ async function loadSkin(uuid: string) {
 
     skinUrl = url;
     isLoading = false;
-  } catch (error) {
-    console.error("Failed to load skin for UUID:", uuid, error);
+  } catch (err) {
+    error("Failed to load skin for UUID:", uuid, err);
 
     hasError = true;
     isLoading = false;
@@ -99,8 +99,8 @@ function initSkinViewer() {
 
     hasError = false;
     isLoading = false;
-  } catch (error) {
-    console.error("Failed to initialize skin viewer:", error);
+  } catch (err) {
+    error("Failed to initialize skin viewer:", err);
 
     hasError = true;
     isLoading = false;

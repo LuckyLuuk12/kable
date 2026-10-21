@@ -13,7 +13,7 @@ Initializes all required services on mount.
 <script lang="ts">
 import { resolve } from "$app/paths";
 import { page } from "$app/state";
-import { app, buttonSound, Icon, PlayerHead } from "$lib";
+import { app, buttonSound, error, Icon, PlayerHead } from "$lib";
 import "$lib/styles/global.scss";
 import { onDestroy, onMount, type Snippet } from "svelte";
 
@@ -39,7 +39,6 @@ let navItems = $derived([
 let activeAccount = $derived(app.authService.activeAccount);
 let isNavCollapsed = $state(true);
 let currentPath = $derived(page.url.pathname);
-$effect(() => console.log(currentPath));
 
 function toggleNavigation() {
   isNavCollapsed = !isNavCollapsed;
@@ -148,7 +147,7 @@ onDestroy(() => {
 
   // Cleanup all services on destroy (e.g., when app is closed)
   app.destroyAll().catch((err) => {
-    console.error("Failed to destroy all services:", err);
+    error("Failed to destroy all services:", err);
   });
 });
 </script>

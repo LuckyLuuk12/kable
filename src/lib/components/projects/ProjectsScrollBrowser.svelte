@@ -12,7 +12,7 @@ Provides:
 - Project details navigation
 -->
 <script lang="ts">
-import { app, type FacetGroup, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "$lib";
+import { app, debug, type FacetGroup, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "$lib";
 import { tick, untrack } from "svelte";
 import ProjectCard from "./ProjectCard.svelte";
 
@@ -79,7 +79,7 @@ let projectResults = $derived.by(() => {
   for (const page of pages) {
     for (const project of page.hits) {
       if (uniqueProjects.has(project.project_id)) {
-        console.debug("[ProjectsScrollBrowser] Duplicate project across pages:", project.project_id);
+        debug("[ProjectsScrollBrowser] Duplicate project across pages:", project.project_id);
 
         continue;
       }
@@ -164,7 +164,7 @@ function updateVisibility(): void {
 
   isVisible = visible;
 
-  console.debug("[ProjectsScrollBrowser] Visibility changed:", visible);
+  debug("[ProjectsScrollBrowser] Visibility changed:", visible);
 
   if (!visible) {
     return;
@@ -193,7 +193,7 @@ async function fetchPage(targetOffset: number, requestGeneration: number): Promi
   const cached = pageCache.get(targetOffset);
 
   if (cached) {
-    console.debug("[ProjectsScrollBrowser] Cache hit:", targetOffset);
+    debug("[ProjectsScrollBrowser] Cache hit:", targetOffset);
 
     return cached;
   }
@@ -201,30 +201,30 @@ async function fetchPage(targetOffset: number, requestGeneration: number): Promi
   const existingRequest = inFlight.get(targetOffset);
 
   if (existingRequest) {
-    console.debug("[ProjectsScrollBrowser] Awaiting in-flight page:", targetOffset);
+    debug("[ProjectsScrollBrowser] Awaiting in-flight page:", targetOffset);
 
     return existingRequest;
   }
 
-  console.debug("[ProjectsScrollBrowser] Fetching page:", targetOffset);
+  debug("[ProjectsScrollBrowser] Fetching page:", targetOffset);
 
   const request = app.projectsService
     .browse(profile, createRequest(targetOffset), smartFilter, projectType)
     .then((result) => {
       if (requestGeneration !== generation) {
-        console.debug("[ProjectsScrollBrowser] Ignoring stale page:", targetOffset);
+        debug("[ProjectsScrollBrowser] Ignoring stale page:", targetOffset);
 
         return null;
       }
 
       pageCache.set(targetOffset, result);
 
-      console.debug("[ProjectsScrollBrowser] Fetched page:", targetOffset, result.hits.length, "results");
+      debug("[ProjectsScrollBrowser] Fetched page:", targetOffset, result.hits.length, "results");
 
       return result;
     })
     .catch((e) => {
-      console.debug("[ProjectsScrollBrowser] Failed page:", targetOffset, e);
+      debug("[ProjectsScrollBrowser] Failed page:", targetOffset, e);
 
       return null;
     });
@@ -257,7 +257,7 @@ async function prefetchPage(targetOffset: number, requestGeneration: number = ge
     return;
   }
 
-  console.debug("[ProjectsScrollBrowser] Prefetching:", targetOffset);
+  debug("[ProjectsScrollBrowser] Prefetching:", targetOffset);
 
   await fetchPage(targetOffset, requestGeneration);
 }
@@ -331,7 +331,7 @@ async function appendNextPage(): Promise<void> {
 
       pages = [...pages, nextPage];
 
-      console.debug("[ProjectsScrollBrowser] Appended page:", nextPage.offset);
+      debug("[ProjectsScrollBrowser] Appended page:", nextPage.offset);
 
       prefetchAdjacentPages();
 
@@ -370,7 +370,7 @@ async function ensureScrollable(): Promise<void> {
   await tick();
 
   while (currentGeneration === generation && isVisible && canLoadNextPage() && scrollContainer && scrollContainer.scrollHeight <= scrollContainer.clientHeight) {
-    console.debug("[ProjectsScrollBrowser] Content does not fill container, loading next page");
+    debug("[ProjectsScrollBrowser] Content does not fill container, loading next page");
 
     await appendNextPage();
     await tick();
@@ -388,7 +388,7 @@ async function loadInitialPage(): Promise<void> {
   loadingMore = false;
   error = null;
 
-  console.debug("[ProjectsScrollBrowser] Loading initial page");
+  debug("[ProjectsScrollBrowser] Loading initial page");
 
   try {
     const firstPage = await fetchPage(0, currentGeneration);
@@ -403,7 +403,7 @@ async function loadInitialPage(): Promise<void> {
 
     pages = [firstPage];
 
-    console.debug("[ProjectsScrollBrowser] Initial page loaded");
+    debug("[ProjectsScrollBrowser] Initial page loaded");
 
     prefetchAdjacentPages();
 
@@ -439,7 +439,7 @@ function resetState(): void {
     scrollContainer.scrollTop = 0;
   }
 
-  console.debug("[ProjectsScrollBrowser] State reset. Generation:", generation);
+  debug("[ProjectsScrollBrowser] State reset. Generation:", generation);
 }
 
 function retry(): void {
@@ -469,7 +469,7 @@ function handleScroll(event: Event): void {
 
   const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
 
-  console.debug("[ProjectsScrollBrowser] Scroll:", {
+  debug("[ProjectsScrollBrowser] Scroll:", {
     scrollTop: target.scrollTop,
     scrollHeight: target.scrollHeight,
     clientHeight: target.clientHeight,
@@ -480,7 +480,7 @@ function handleScroll(event: Event): void {
     return;
   }
 
-  console.debug("[ProjectsScrollBrowser] Near bottom, loading next page");
+  debug("[ProjectsScrollBrowser] Near bottom, loading next page");
 
   void appendNextPage();
 }
@@ -496,7 +496,7 @@ function setupIntersectionObserver(node: HTMLDivElement): void {
         return;
       }
 
-      console.debug("[ProjectsScrollBrowser] Bottom sentinel intersected");
+      debug("[ProjectsScrollBrowser] Bottom sentinel intersected");
 
       if (isVisible && !loading && !loadingMore && hasNextPage) {
         void appendNextPage();
@@ -599,7 +599,7 @@ $effect(() => {
 
   resizeObserver = new ResizeObserver(() => {
     if (isVisible && !loading && !loadingMore && hasNextPage && container.scrollHeight <= container.clientHeight) {
-      console.debug("[ProjectsScrollBrowser] Resize observer detected non-scrollable content");
+      debug("[ProjectsScrollBrowser] Resize observer detected non-scrollable content");
 
       void appendNextPage();
     }

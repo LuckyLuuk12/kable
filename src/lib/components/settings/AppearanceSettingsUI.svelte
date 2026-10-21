@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Icon, api, app, type IconTemplate } from "$lib";
+import { Icon, api, app, error, type IconTemplate } from "$lib";
 import { onMount } from "svelte";
 
 interface CssThemeEntry {
@@ -72,8 +72,8 @@ onMount(() => {
 async function loadIconTemplates() {
   try {
     iconTemplates = await customization.getIconTemplates();
-  } catch (error) {
-    console.error("Failed to load icon templates:", error);
+  } catch (err) {
+    error("Failed to load icon templates:", err);
     setStatus("Failed to load icon templates");
   }
 }
@@ -90,8 +90,8 @@ async function selectTheme(themeId: string) {
     await customization.setTheme(nextThemeId);
 
     setStatus(nextThemeId ? "CSS theme updated successfully" : "Default appearance restored");
-  } catch (error) {
-    console.error("Failed to update CSS theme:", error);
+  } catch (err) {
+    error("Failed to update CSS theme:", err);
     setStatus("Failed to update CSS theme");
   }
 }
@@ -116,9 +116,9 @@ async function handleCssUpload() {
     cssUploadFile = null;
 
     setStatus(`CSS theme "${themeName}" installed successfully`, 3000);
-  } catch (error) {
-    console.error("Failed to upload CSS theme:", error);
-    cssUploadError = `Upload failed: ${String(error)}`;
+  } catch (err) {
+    error("Failed to upload CSS theme:", err);
+    cssUploadError = `Upload failed: ${String(err)}`;
   } finally {
     uploadCssInProgress = false;
   }
@@ -172,8 +172,8 @@ async function removeCssTheme(themeId: string) {
   try {
     await customization.deleteCssTheme(themeId);
     setStatus("CSS theme removed successfully");
-  } catch (error) {
-    console.error("Failed to remove CSS theme:", error);
+  } catch (err) {
+    error("Failed to remove CSS theme:", err);
     setStatus("Failed to remove CSS theme");
   }
 }
@@ -181,8 +181,8 @@ async function removeCssTheme(themeId: string) {
 async function openCssThemesDirectory() {
   try {
     await api.openCssThemesDirectory();
-  } catch (error) {
-    console.error("Failed to open CSS themes directory:", error);
+  } catch (err) {
+    error("Failed to open CSS themes directory:", err);
     setStatus("Failed to open CSS themes directory");
   }
 }
@@ -201,8 +201,8 @@ async function selectIconTemplate(templateId: string | null) {
     scheduleSave();
 
     setStatus(templateId ? "Icon template updated successfully" : "Default icon template restored");
-  } catch (error) {
-    console.error("Failed to update icon template:", error);
+  } catch (err) {
+    error("Failed to update icon template:", err);
     setStatus("Failed to update icon template");
   }
 }
@@ -238,9 +238,9 @@ async function handleIconUpload() {
     uploadFile = null;
 
     setStatus(`Template "${template.name}" installed successfully`, 3000);
-  } catch (error) {
-    console.error("Failed to upload icon template:", error);
-    uploadError = `Upload failed: ${String(error)}`;
+  } catch (err) {
+    error("Failed to upload icon template:", err);
+    uploadError = `Upload failed: ${String(err)}`;
   } finally {
     uploadIconInProgress = false;
   }
@@ -290,8 +290,8 @@ async function removeCustomTemplate(templateId: string) {
     await customization.deleteCustomIconTemplate(templateId);
     await loadIconTemplates();
     setStatus("Template removed successfully");
-  } catch (error) {
-    console.error("Failed to remove icon template:", error);
+  } catch (err) {
+    error("Failed to remove icon template:", err);
     setStatus("Failed to remove icon template");
   }
 }
@@ -299,8 +299,8 @@ async function removeCustomTemplate(templateId: string) {
 async function openIconsDirectory() {
   try {
     await customization.openIconsDirectory();
-  } catch (error) {
-    console.error("Failed to open icons directory:", error);
+  } catch (err) {
+    error("Failed to open icons directory:", err);
     setStatus("Failed to open icons directory");
   }
 }
@@ -352,8 +352,8 @@ async function selectSoundpack(packName: string) {
     scheduleSave();
 
     setStatus("Soundpack changed successfully");
-  } catch (error) {
-    console.error("Failed to change soundpack:", error);
+  } catch (err) {
+    error("Failed to change soundpack:", err);
     setStatus("Failed to change soundpack");
   }
 }

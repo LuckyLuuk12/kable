@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Icon, type Symlink, type SymlinkCreateRequest } from "$lib";
+import { error, Icon, type Symlink, type SymlinkCreateRequest } from "$lib";
 import { open } from "@tauri-apps/plugin-dialog";
 
 interface Props {
@@ -38,8 +38,8 @@ async function pickSourceFile(): Promise<void> {
 
     source = path;
     validationError = null;
-  } catch (error) {
-    console.error("Failed to select source file:", error);
+  } catch (err) {
+    error("Failed to select source file:", err);
     validationError = "Failed to select source file.";
   }
 }
@@ -56,8 +56,8 @@ async function pickSourceFolder(): Promise<void> {
 
     source = path;
     validationError = null;
-  } catch (error) {
-    console.error("Failed to select source folder:", error);
+  } catch (err) {
+    error("Failed to select source folder:", err);
     validationError = "Failed to select source folder.";
   }
 }
@@ -74,8 +74,8 @@ async function pickDestinationFolder(): Promise<void> {
 
     destination = path;
     validationError = null;
-  } catch (error) {
-    console.error("Failed to select destination folder:", error);
+  } catch (err) {
+    error("Failed to select destination folder:", err);
     validationError = "Failed to select destination folder.";
   }
 }

@@ -16,6 +16,7 @@ Animation modes:
 import * as skinview3d from "skinview3d";
 import { onDestroy, onMount } from "svelte";
 
+import { error } from "$lib";
 import { DEFAULT_GESTURES, DEFAULT_INTERACTION_GESTURES, IdleOrchestrator } from "./animations/orchestrator";
 
 type AnimationMode = "all" | "idle-only" | "interaction-only" | "none";
@@ -185,8 +186,8 @@ function applyZoom() {
 
   try {
     skinViewer.zoom = zoom;
-  } catch (error) {
-    console.error("Failed to update skin viewer zoom:", error);
+  } catch (err) {
+    error("Failed to update skin viewer zoom:", err);
   }
 }
 
@@ -229,8 +230,8 @@ function initSkinViewer() {
 
     applyZoom();
     configureAnimationMode();
-  } catch (error) {
-    console.error("Failed to initialize SkinViewer3D:", error);
+  } catch (err) {
+    error("Failed to initialize SkinViewer3D:", err);
 
     disposeIdleOrchestrator();
 
@@ -273,8 +274,8 @@ function updateViewerSize() {
         skinViewer.height = dimensions.height;
       }
     }
-  } catch (error) {
-    console.error("Failed to resize SkinViewer3D:", error);
+  } catch (err) {
+    error("Failed to resize SkinViewer3D:", err);
   }
 }
 
@@ -415,8 +416,8 @@ $effect(() => {
   try {
     currentViewer.loadSkin(nextSkinUrl);
     loadedSkinUrl = nextSkinUrl;
-  } catch (error) {
-    console.error("Failed to load skin:", error);
+  } catch (err) {
+    error("Failed to load skin:", err);
   }
 });
 
@@ -440,8 +441,8 @@ $effect(() => {
 
     initializedModel = nextModel;
     loadedSkinUrl = skinUrl;
-  } catch (error) {
-    console.error("Failed to update skin model:", error);
+  } catch (err) {
+    error("Failed to update skin model:", err);
   }
 });
 
