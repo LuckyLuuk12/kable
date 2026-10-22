@@ -24,23 +24,27 @@ pub fn parse_args() -> Args {
  */
 pub async fn handle_args(args: Args) -> Result<(), String> {
     crate::system::cache::initialize(crate::system::fs::cache_dir()?).await?;
-    // 1. First, we load app settings
+
+    // 1. Load app settings
     let _settings = load_settings().await?;
-    // 2. Then we refresh auth for default account if possible
+
+    // 2. Refresh authentication
     refresh_accounts().await?;
 
-    // 3. Now we check for args, if any present that prevent UI this here should end process as well
+    // 3. Handle launch arguments
     if let Some(profile_id) = args.launch_profile {
-        // Find profile by id, launch with loaded settings and active account.
         let profile = get_profile(&profile_id).await?;
-        // let account = get_active_account().await?.expect("No active account found!");
         launch_game(profile).await?;
-        std::process::exit(0); // Exit after launching the game, no UI needed
+        std::process::exit(0);
     }
 
-    // 4. If no args we first clean up any leftover files that are unused like deleted profile runtime folders and unused projects.
-    cleanup_orphaned_resources().await?;
+    // 4. Schedule cleanup in the background
+    tokio::spawn(async {
+        if let Err(error) = cleanup_orphaned_resources().await {
+            print!("[STARTUP] Cleanup of orphaned resources failed: {error}");
+        }
+    });
 
-    // 5. If we reached this point we assume the lib.rs run() will continue and open UI.
+    // 5. Continue startup without waiting for cleanup
     Ok(())
 }

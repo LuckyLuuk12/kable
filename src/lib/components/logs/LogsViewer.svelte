@@ -421,7 +421,7 @@ onDestroy(() => {
 
       {#if !autoScroll}
         <button class="btn btn-link btn-sm" onclick={scrollToBottom}>
-          <Icon name="arrow-down" size="sm" />
+          <Icon name="arrow-down" size="sm" forceType="svg" />
           Jump to bottom
         </button>
       {/if}
@@ -430,7 +430,7 @@ onDestroy(() => {
     <div class="status-right">
       {#if autoScroll}
         <span class="auto-scroll-indicator">
-          <Icon name="refresh" size="sm" />
+          <Icon name="refresh" size="sm" forceType="svg" />
           Auto-scroll
         </span>
       {/if}
@@ -444,7 +444,8 @@ onDestroy(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 0;
+  // height: 100%;
   max-height: 100%;
 
   .log-container {

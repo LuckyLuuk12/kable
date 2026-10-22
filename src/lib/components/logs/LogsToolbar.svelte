@@ -109,8 +109,7 @@ $effect(() => {
       type="text"
       bind:value={searchTerm}
       class="search-input"
-      placeholder={searchMode === "regex" ? "Search with regex..." : searchMode === "fuzzy" ? 'Fuzzy search (try "frge" for "forge")...' : "Search logs..."}
-    />
+      placeholder={searchMode === "regex" ? "Search with regex..." : searchMode === "fuzzy" ? 'Fuzzy search (try "frge" for "forge")...' : "Search logs..."} />
 
     <div class="search-mode-selector">
       <button class:active={searchMode === "normal"} class="search-mode-button" title="Normal text search" onclick={() => (searchMode = "normal")}>
@@ -131,7 +130,7 @@ $effect(() => {
     <div class="log-level-dropdown">
       <button type="button" class="dropdown-trigger" onclick={() => (showLogLevelDropdown = !showLogLevelDropdown)}>
         <span>Log Levels ({enabledLogLevelsCount}/4)</span>
-        <Icon name={showLogLevelDropdown ? "chevron-up" : "chevron-down"} size="sm" />
+        <Icon name={showLogLevelDropdown ? "chevron-up" : "chevron-down"} size="sm" forceType="svg" />
       </button>
 
       {#if showLogLevelDropdown}
@@ -163,7 +162,7 @@ $effect(() => {
     </label>
 
     <button class="btn btn-danger btn-sm" onclick={clearLogs} title="Clear current logs">
-      <Icon name="trash" size="sm" />
+      <Icon name="trash" size="sm" forceType="svg" />
       Clear
     </button>
   </div>

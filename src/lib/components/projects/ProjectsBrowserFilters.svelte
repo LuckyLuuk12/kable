@@ -658,6 +658,11 @@ $effect(() => {
   justify-content: center;
 
   gap: $space-xs;
+
+  &.active {
+    background: $color-surface-3;
+    color: $color-success;
+  }
 }
 
 /*

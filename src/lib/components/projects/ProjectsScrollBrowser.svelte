@@ -78,12 +78,7 @@ let projectResults = $derived.by(() => {
 
   for (const page of pages) {
     for (const project of page.hits) {
-      if (uniqueProjects.has(project.project_id)) {
-        debug("[ProjectsScrollBrowser] Duplicate project across pages:", project.project_id);
-
-        continue;
-      }
-
+      if (uniqueProjects.has(project.project_id)) continue;
       uniqueProjects.set(project.project_id, project);
     }
   }

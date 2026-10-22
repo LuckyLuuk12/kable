@@ -19,13 +19,13 @@ use crate::{
 };
 
 /// Maximum total weight of serialized entries retained in memory.
-const MEMORY_CACHE_MAX_BYTES: u64 = 128 * 1024 * 1024; // 128 MB
+const MEMORY_CACHE_MAX_BYTES: u64 = 256 * 1024 * 1024; // 256 MB
 
 /// Maximum size of a single entry retained in memory.
-const MEMORY_CACHE_MAX_ENTRY_BYTES: usize = 8 * 1024 * 1024; // 8 MB
+const MEMORY_CACHE_MAX_ENTRY_BYTES: usize = 32 * 1024 * 1024; // 32 MB
 
 /// Maximum size of a persistent cache entry accepted for reading.
-const PERSISTENT_CACHE_MAX_ENTRY_BYTES: u64 = 32 * 1024 * 1024; // 32 MB
+const PERSISTENT_CACHE_MAX_ENTRY_BYTES: u64 = 64 * 1024 * 1024; // 64 MB
 
 /// Maximum time an unused entry remains in the memory cache.
 const MEMORY_CACHE_IDLE_SECS: u64 = 600; // 10 minutes
