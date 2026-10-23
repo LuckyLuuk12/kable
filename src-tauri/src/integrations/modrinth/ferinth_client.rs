@@ -537,7 +537,7 @@ pub async fn download_project(project: &Project, version_id: Option<&str>, paren
                 &format!(
                     "Processed {} files for project {} version {} ({})",
                     filenames.len(),
-                    project.project_id,
+                    project.title,
                     version.version_number,
                     version_id
                 ),

@@ -100,16 +100,33 @@ pub fn latest_compatible_version<'a>(profile: &KableProfile, project: &'a Projec
 /// Explicitly requested versions are validated rather than silently replaced.
 pub fn resolve_version_id<'a>(profile: &KableProfile, project: &'a Project, version_id: Option<&str>) -> Result<&'a str, String> {
     if let Some(version_id) = version_id {
-        let version = project
-            .versions
-            .iter()
-            .find(|version| version.id == version_id)
-            .ok_or_else(|| format!("Version {} was not found for project {}", version_id, project.project_id))?;
+        let version = project.versions.iter().find(|version| version.id == version_id).ok_or_else(|| {
+            format!(
+                "Version {} was not found for project {} ({} versions supplied)",
+                version_id,
+                project.project_id,
+                project.versions.len(),
+            )
+        })?;
 
         if !is_version_compatible(profile, version, project.project_type) {
+            let profile_mc = profile.version.minecraft_version.as_deref();
+            let profile_loader = normalize_loader(&profile.version.loader.to_string());
+
+            let normalized_loaders: Vec<String> = version.loaders.iter().map(|loader| normalize_loader(loader)).collect();
+
             return Err(format!(
-                "Version {} of project {} is not compatible with profile {}",
-                version_id, project.project_id, profile.metadata.name
+                "Version {} ({}) is incompatible with profile '{}': \
+                 profile_mc={:?}, version_game_versions={:?}, \
+                 profile_loader={}, version_loaders={:?}, project_type={:?}",
+                version.id,
+                version.version_number,
+                profile.metadata.name,
+                profile_mc,
+                version.game_versions,
+                profile_loader,
+                normalized_loaders,
+                project.project_type,
             ));
         }
 
@@ -118,5 +135,5 @@ pub fn resolve_version_id<'a>(profile: &KableProfile, project: &'a Project, vers
 
     latest_compatible_version(profile, project)
         .map(|version| version.id.as_str())
-        .ok_or_else(|| format!("No compatible version found for project {} and profile {}", project.project_id, profile.metadata.name))
+        .ok_or_else(|| format!("No compatible version found for project {} and profile {}", project.title, profile.metadata.name,))
 }

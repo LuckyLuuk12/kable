@@ -189,6 +189,7 @@ async fn load_project_metadata(kable_project: &KableProject) -> Result<Project, 
     fetch_project_from_modrinth(&kable_project.project.project_id).await
 }
 
+// TODO: Installing projects that are compatible said by browser still fail here because of incompatability, incorrectly!
 /// Download/install the selected version, then add its filename to the
 /// current persisted profile. Profile settings are never replaced from the
 /// caller's potentially stale snapshot.

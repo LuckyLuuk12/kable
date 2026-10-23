@@ -143,7 +143,7 @@ pub async fn resolve_project_dependencies(
                 Logger::debug_global(
                     &format!(
                         "Skipping dependency {} ({:?}): already present in profile {}",
-                        dependency_project.project_id, dependency_project.project_type, current_profile.metadata.name
+                        dependency_project.title, dependency_project.project_type, current_profile.metadata.name
                     ),
                     Some(current_profile.id.as_str()),
                 );
@@ -151,8 +151,35 @@ pub async fn resolve_project_dependencies(
                 continue;
             }
 
-            let selected_version_id =
-                resolve_version_id(&current_profile, &dependency_project, dependency_version_id.as_deref())?.to_string();
+            let selected_version_id = match resolve_version_id(&current_profile, &dependency_project, dependency_version_id.as_deref()) {
+                Ok(version_id) => version_id.to_string(),
+
+                Err(err) if dependency_type == DependencyType::Optional => {
+                    Logger::debug_global(
+                        &format!(
+                            "Skipping unavailable optional dependency {} ({}) required by {}: {}",
+                            dependency_project.title, dependency_project.project_id, work.project.title, err,
+                        ),
+                        Some(current_profile.id.as_str()),
+                    );
+
+                    continue;
+                }
+
+                Err(err) => {
+                    return Err(format!(
+                        "Failed to resolve {} dependency {} required by {}: {}",
+                        match dependency_type {
+                            DependencyType::Required => "required",
+                            DependencyType::Other => "unknown-type",
+                            _ => "other",
+                        },
+                        dependency_project.title,
+                        work.project.title,
+                        err,
+                    ));
+                }
+            };
 
             // Reject conflicting version requirements reached through
             // different dependency branches.
@@ -242,7 +269,7 @@ pub async fn resolve_project_dependencies(
             "Resolved {} top-level dependencies ({} dependency occurrences) for project {} version {}",
             resolved_projects.len(),
             nodes.len(),
-            project.project_id,
+            project.title,
             version_id
         ),
         Some(current_profile.id.as_str()),
