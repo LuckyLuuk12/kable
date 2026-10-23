@@ -1,4 +1,5 @@
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { untrack } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
 import { app, type Service } from "./app.svelte";
 
@@ -668,56 +669,58 @@ function writeConsoleLog(
   args: unknown[],
   instanceId: string | null = null,
 ): void {
-  const message = formatConsoleMessage(args);
+  untrack(() => {
+    const message = formatConsoleMessage(args);
 
-  const log: LogEvent = {
-    level:
-      method === "error"
-        ? "error"
-        : method === "warn"
-          ? "warn"
-          : method === "debug"
-            ? "debug"
-            : "info",
-    message,
-    fnName: null,
-    instanceId,
-    context: "frontend",
-    value: sanitizeLogValue(args.length === 1 ? args[0] : args),
-    timestamp: Date.now(),
-  };
+    const log: LogEvent = {
+      level:
+        method === "error"
+          ? "error"
+          : method === "warn"
+            ? "warn"
+            : method === "debug"
+              ? "debug"
+              : "info",
+      message,
+      fnName: null,
+      instanceId,
+      context: "frontend",
+      value: sanitizeLogValue(args.length === 1 ? args[0] : args),
+      timestamp: Date.now(),
+    };
 
-  const logsService = app.logsService;
+    const logsService = app.logsService;
 
-  if (logsService !== undefined) {
-    if (instanceId !== null) {
-      logsService.addGameLog(instanceId, log);
-    } else {
-      logsService.addLauncherLog(log);
+    if (logsService !== undefined) {
+      if (instanceId !== null) {
+        logsService.addGameLog(instanceId, log);
+      } else {
+        logsService.addLauncherLog(log);
+      }
     }
-  }
 
-  switch (method) {
-    case "log":
-      console.log(...args);
-      break;
+    switch (method) {
+      case "log":
+        console.log(...args);
+        break;
 
-    case "info":
-      console.info(...args);
-      break;
+      case "info":
+        console.info(...args);
+        break;
 
-    case "warn":
-      console.warn(...args);
-      break;
+      case "warn":
+        console.warn(...args);
+        break;
 
-    case "error":
-      console.error(...args);
-      break;
+      case "error":
+        console.error(...args);
+        break;
 
-    case "debug":
-      console.debug(...args);
-      break;
-  }
+      case "debug":
+        console.debug(...args);
+        break;
+    }
+  });
 }
 
 export function log(...args: unknown[]): void {
