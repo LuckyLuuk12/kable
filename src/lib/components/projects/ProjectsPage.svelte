@@ -333,10 +333,6 @@ $effect(() => {
             disabled={updatingAll || checkingUpdates || refreshing}
             aria-label={availableUpdates > 0 ? `Update all ${projectLabel.toLowerCase()} (${availableUpdates})` : `Check for ${projectLabel.toLowerCase()} updates`}
             title={availableUpdates > 0 ? `Update all ${availableUpdates} ${projectLabel.toLowerCase()}` : `Check for ${projectLabel.toLowerCase()} updates`}>
-            <span class="update-all-icon">
-              <Icon name="refresh" forceType="svg" size="sm" />
-            </span>
-
             {#if availableUpdates > 0}
               <span>Update all</span>
 
@@ -344,6 +340,9 @@ $effect(() => {
                 ({availableUpdates})
               </span>
             {:else}
+              <span class="update-all-icon">
+                <Icon name="refresh" forceType="svg" size="sm" />
+              </span>
               <span>Check for updates</span>
             {/if}
 

@@ -5,7 +5,7 @@ use api_types::{
     projects::{KableProject, ModrinthResults, Project, ProjectSearch, ProjectType, ResolvedDependency, UpdateMap},
 };
 
-use crate::features::projects::{browser, management};
+use crate::features::projects::{browser, dependencies, management};
 
 #[tauri::command]
 #[specta::specta]
@@ -97,5 +97,5 @@ pub async fn resolve_project_dependencies(
     project: Project,
     version_id: &str,
 ) -> Result<Vec<ResolvedDependency>, String> {
-    management::resolve_project_dependencies(profile, project, version_id).await
+    dependencies::resolve_project_dependencies(profile, project, version_id).await
 }

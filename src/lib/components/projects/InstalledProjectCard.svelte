@@ -46,15 +46,16 @@ $effect(() => {
   }
 
   void app.projectsService
-    .checkUpdate(currentProfile, currentProject)
-    .then(() => {
+    .hasUpdate(currentProfile, currentProject)
+    .then((result) => {
       if (!cancelled) {
-        hasUpdate = true;
+        hasUpdate = result;
       }
     })
-    .catch(() => {
+    .catch((err) => {
       if (!cancelled) {
         hasUpdate = false;
+        error("[InstalledProjectCard] Failed to check for updates:", currentProject.filename, err);
       }
     });
 

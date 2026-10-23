@@ -383,6 +383,19 @@ export class ProjectsService implements Service {
     }
   }
 
+  async hasUpdate(
+    profile: KableProfile,
+    project: KableProject,
+  ): Promise<boolean> {
+    try {
+      await this.checkUpdate(profile, project);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+
   async download(
     profile: KableProfile,
     project: Project,

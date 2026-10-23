@@ -32,7 +32,7 @@ fn client() -> Ferinth<()> {
 
 fn convert_facet(facet: &Facet) -> Option<FerinthFacet> {
     let operation = match facet.operator {
-        FacetOperator::Eq => "=",
+        FacetOperator::Eq => ":",
         FacetOperator::NotEq => "!=",
         FacetOperator::Greater => ">",
         FacetOperator::GreaterEq => ">=",
@@ -97,7 +97,11 @@ async fn search(project_type: Option<String>, project_search: ProjectSearch) -> 
     let offset = project_search.offset.unwrap_or(0);
     let limit = project_search.limit.unwrap_or(20);
 
-    Logger::debug_global(&format!("Searching on Modrinth for {project_type:?} with sort {sort:?}, limit {limit}, offset {offset}"), None);
+    Logger::info(
+        &format!("Searching on Modrinth for {project_type:?} with sort {sort:?}, limit {limit}, offset {offset}, facets: {facets:?}"),
+        None,
+    );
+    println!("[Modrinth] Searching for {project_type:?} with sort {sort:?}, limit {limit}, offset {offset}, facets: {facets:?}");
 
     let response = client()
         .search_paged(query, sort, usize::try_from(limit).unwrap_or(20), usize::try_from(offset).unwrap_or(0), facets)
@@ -120,7 +124,7 @@ pub async fn get_project(project_id: &str) -> Result<Project, String> {
         .await
         .map_err(|e| format!("Failed to get versions for Modrinth project {}: {}", project_id, e))?;
 
-    Logger::debug_global(&format!("Fetched Modrinth project {} directly with {} versions", project_id, versions.len()), None);
+    Logger::debug(&format!("Fetched Modrinth project {} directly with {} versions", project_id, versions.len()), None);
 
     Ok(convert_project(project, versions.into_iter().map(convert_version).collect()))
 }
@@ -171,7 +175,7 @@ fn extract_facet_values(search: &ProjectSearch, field: FacetField) -> Vec<String
         .iter()
         .flat_map(|group| group.facets.iter())
         .filter(|facet| facet.field == field)
-        .filter_map(|facet| facet.value.split(':').nth(1).map(str::to_owned))
+        .map(|facet| facet.value.clone())
         .collect()
 }
 
@@ -197,12 +201,12 @@ async fn add_version_data(projects: Vec<Project>, project_search: ProjectSearch)
 
         project.versions = versions.into_iter().map(convert_version).collect();
 
-        Logger::debug_global(&format!("Added version data for project {}: {} versions", project.project_id, project.versions.len()), None);
+        Logger::debug(&format!("Added version data for project {}: {} versions", project.project_id, project.versions.len()), None);
 
         results.push(project);
     }
 
-    Logger::debug_global(&format!("Added version data for {} projects", results.len()), None);
+    Logger::debug(&format!("Added version data for {} projects", results.len()), None);
 
     Ok(results)
 }

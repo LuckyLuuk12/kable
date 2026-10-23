@@ -1,3 +1,4 @@
+use crate::features::projects::smart::normalize_loader;
 // Placeholder: mod browser backend - searching, next page, filtering, etc.
 use crate::integrations::modrinth::ferinth_client::{search_mods, search_resourcepacks, search_shaderpacks};
 use api_types::profiles::KableProfile;
@@ -23,15 +24,15 @@ async fn browse_cached(
     minecraft_version: Option<String>,
 ) -> Result<ModrinthResults, String> {
     if smart_filter {
-        let mut facets = Vec::new();
-
-        facets.push(Facet { field: FacetField::Categories, operator: FacetOperator::Eq, value: loader });
+        search.facets.push(FacetGroup {
+            facets: vec![Facet { field: FacetField::Categories, operator: FacetOperator::Eq, value: normalize_loader(&loader) }],
+        });
 
         if let Some(minecraft_version) = minecraft_version {
-            facets.push(Facet { field: FacetField::Version, operator: FacetOperator::GreaterEq, value: minecraft_version });
+            search.facets.push(FacetGroup {
+                facets: vec![Facet { field: FacetField::Version, operator: FacetOperator::Eq, value: minecraft_version }],
+            });
         }
-
-        search.facets.push(FacetGroup { facets });
     }
 
     match project_type {

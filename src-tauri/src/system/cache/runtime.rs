@@ -229,7 +229,6 @@ where
     if let Some(raw) = memory_cache().get(&memory_key).await {
         match decode_valid_entry::<T>(&raw) {
             Ok(Some(value)) => {
-                log_cache_debug(&format!("Memory cache hit for key: {path_str}"));
                 return Ok(value);
             }
             Ok(None) => {
@@ -247,8 +246,6 @@ where
     match read_cache_file(&path).await {
         Ok(raw) => match decode_valid_entry::<T>(&raw) {
             Ok(Some(value)) => {
-                log_cache_debug(&format!("Persistent cache hit for key: {path_str}"));
-
                 insert_memory_cache(memory_key, raw).await;
                 return Ok(value);
             }
@@ -262,8 +259,6 @@ where
             }
         },
         Err(error) => {
-            log_cache_debug(&format!("Could not read persistent cache entry {path_str}; treating as a cache miss: {error}"));
-
             // Missing files need no cleanup. For other errors, removal is
             // best-effort because the computation can proceed without the cache.
             if tokio::fs::metadata(&path).await.is_ok() {

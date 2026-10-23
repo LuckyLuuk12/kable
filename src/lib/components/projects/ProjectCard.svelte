@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, ProjectGalleryModal, ProjectModal, ProjectVersionsModal, type KableProfile, type Project, type ProjectVersion } from "$lib";
+import { app, ProjectGalleryModal, ProjectModal, ProjectVersionsModal, type KableProfile, type Project } from "$lib";
 
 let {
   profile = null,
@@ -11,6 +11,8 @@ let {
 
 let installing = $state(false);
 let liking = $state(false);
+let isUpdateAvailable = $state(false);
+let updateCheckPending = $state(false);
 
 /*
  * The installed project comes from ProjectsService, which is the
@@ -36,46 +38,7 @@ let installedVersion = $derived.by(() => {
   );
 });
 
-/*
- * IMPORTANT:
- *
- * Do not use project.latest_version here.
- *
- * That field represents Modrinth's globally latest version and can be
- * for another loader, such as NeoForge, while this profile uses Fabric.
- *
- * ProjectsService.isVersionCompatible() mirrors the backend's
- * compatibility rules:
- *   - Minecraft version must match
- *   - mods/modpacks must use the profile's loader
- *   - resourcepacks/shaders do not require loader matching
- */
-let compatibleVersions = $derived.by(() => {
-  if (!profile) return [];
-
-  return project.versions.filter((version) => app.projectsService.isVersionCompatible(profile, version, project.project_type));
-});
-
-/*
- * Match the backend's latest_compatible_version() behavior:
- * newest compatible version by publication date.
- */
-let latestCompatibleVersion = $derived.by<ProjectVersion | null>(() => {
-  return [...compatibleVersions].sort((a, b) => new Date(b.date_published).getTime() - new Date(a.date_published).getTime())[0] ?? null;
-});
-
-/*
- * The backend considers a project updated when the newest compatible
- * version has a different ID from the installed version.
- *
- * We deliberately do not compare against project.latest_version,
- * because that can be a version for another loader.
- */
-let isUpdateAvailable = $derived.by(() => {
-  if (!installed || !latestCompatibleVersion) return false;
-
-  return installed.version_id !== latestCompatibleVersion.id;
-});
+let latestCompatibleVersion = $derived(profile ? app.projectsService.getLatestCompatibleVersion(profile, project) : null);
 
 let hasGallery = $derived((project.gallery?.length ?? 0) > 0);
 
@@ -163,6 +126,47 @@ function showGallery() {
     project,
   });
 }
+
+$effect(() => {
+  const currentProfile = profile;
+  const currentInstalled = installed;
+
+  if (!currentProfile || !currentInstalled) {
+    isUpdateAvailable = false;
+    updateCheckPending = false;
+    return;
+  }
+
+  let cancelled = false;
+
+  updateCheckPending = true;
+  isUpdateAvailable = false;
+
+  app.projectsService
+    .hasUpdate(currentProfile, currentInstalled)
+    .then((hasUpdate) => {
+      if (!cancelled) {
+        isUpdateAvailable = hasUpdate;
+      }
+    })
+    .catch((error) => {
+      if (!cancelled) {
+        // An unexpected check failure must not be treated as proof
+        // that the project is up to date.
+        console.error("Failed to check project update:", error);
+        isUpdateAvailable = false;
+      }
+    })
+    .finally(() => {
+      if (!cancelled) {
+        updateCheckPending = false;
+      }
+    });
+
+  return () => {
+    cancelled = true;
+  };
+});
 </script>
 
 <article class:installed class="project-card">
@@ -231,7 +235,12 @@ function showGallery() {
     <button class="action-button" type="button" onclick={showVersions}> Versions </button>
 
     {#if profile && (canInstall || canUpdate)}
-      <button class="action-button primary" type="button" disabled={installing} onclick={install}>
+      <button
+        class="action-button primary"
+        type="button"
+        disabled={installing}
+        onclick={install}
+        title={canUpdate ? `Update to ${project.latest_version}` : `Install ${latestCompatibleVersion?.version_number ?? "unknown version"}`}>
         {#if installing}
           {canUpdate ? "Updating..." : "Installing..."}
         {:else if canUpdate}
