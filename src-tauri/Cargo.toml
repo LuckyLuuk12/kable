@@ -6,7 +6,7 @@ license = ""
 name = "kable"
 repository = "https://github.com/LuckyLuuk12/kable"
 rust-version = "1.96.0"
-version = "0.1.9"
+version = "0.2.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
