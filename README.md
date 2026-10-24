@@ -1,144 +1,120 @@
 # Kable
 ### An Unofficial Minecraft Launcher
 
-Kable is a modern, developer-friendly Minecraft launcher built with Tauri and Svelte. Designed for power users and modders, it provides extensive customization options, transparent operation, and advanced debugging tools. Unlike traditional launchers, Kable emphasizes **modifiability** and **transparency** - offering comprehensive logging, detailed configuration options, and open-source architecture that lets you understand and modify every aspect of your Minecraft experience.
+Kable is a customizable, developer-friendly Minecraft launcher built with **Tauri, Svelte, and Rust**. Designed for modders and power users, it combines mod management, installation profiles, detailed logging, and extensive customization in one desktop application.
 
+Rather than hiding complexity, Kable gives you the tools to understand, configure, and manage your Minecraft installations on your own terms.
+
+[![wakatime](https://wakatime.com/badge/user/8521d65d-1c6b-41ba-b570-372359980d5f/project/b62f37c7-03f9-4bc5-849e-307f65bd8b3d.svg?style=flat-square&color=5a20f2)](https://wakatime.com/badge/user/8521d65d-1c6b-41ba-b570-372359980d5f/project/b62f37c7-03f9-4bc5-849e-307f65bd8b3d)
 ![Latest Release](https://img.shields.io/github/v/release/LuckyLuuk12/kable?style=flat-square&color=blue)
 ![Downloads](https://img.shields.io/github/downloads/LuckyLuuk12/kable/total?style=flat-square&color=green)
 ![License](https://img.shields.io/badge/license-Proprietary-red.svg?style=flat-square)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg?style=flat-square)
 ![GitHub Stars](https://img.shields.io/github/stars/LuckyLuuk12/kable?style=flat-square&color=yellow)
 ![Issues](https://img.shields.io/github/issues/LuckyLuuk12/kable?style=flat-square&color=orange)
-![Last Commit](https://img.shields.io/github/last-commit/LuckyLuuk12/kable?style=flat-square&color=purple)
 
-## 🚀 Features
+## ✨ Features
 
-### ✨ Current Features
-- **Multi-Account Management**: Support for Microsoft/Mojang accounts with automatic token refresh
-- **Mod Loader Support**: Native support for Fabric, Forge, Quilt, and NeoForge
-- **Installation Management**: Create and manage multiple Minecraft installations with different configurations
-- **Advanced Mod Management**: Per-installation mod directories with automatic linking
-- **Memory Allocation**: Custom JVM memory settings per installation
-- **Version Detection**: Automatic detection of mod loaders and versions
-- **Quick Launch**: Launch recent installations with one click
-- **Comprehensive Logging**: Detailed launch logs and process monitoring
-- **Clean UI**: Modern, intuitive interface built with Svelte
+### Modding Made Easier
+Browse, install, and manage mods, resource packs, and shader packs directly from Kable. Automatic dependency resolution helps ensure that required projects are installed and compatible with your Minecraft installation.
 
-### 🎯 Mod Loader Detection
-Kable automatically detects and supports:
-- **Vanilla Minecraft** - Standard Minecraft installations
-- **Fabric** - Lightweight modding platform
-- **Forge** - Traditional modding framework
-- **Quilt** - Fork of Fabric with additional features
-- **NeoForge** - Modern fork of Minecraft Forge
-- **OptiFine** - Performance and visual enhancement mod
-- **Iris** - Shader mod for Fabric
+### Powerful Profile Management
+Import and export profiles, merge existing installations, manage their contents, and create shortcuts for quick access. Advanced merging capabilities help bring different configurations together without requiring you to rebuild everything manually.
 
-### 🔧 Advanced Features
-- **Custom Game Directories**: Separate game directories per installation
-- **JVM Arguments**: Custom Java arguments and memory allocation
-- **Native Libraries**: Automatic extraction and management of native dependencies
-- **Profile Management**: Import and manage existing Minecraft launcher profiles
-- **Cross-Platform**: Works on Windows, macOS, and Linux
+### Advanced Logging & Debugging
+Inspect Minecraft launch output and application logs through an integrated logs panel. Smart filtering, fuzzy search, and other tools make it easier to find relevant information and diagnose problems without digging through log files manually.
 
-## 🎮 Getting Started
+### Skins & Worlds
+Manage your Minecraft skins and worlds directly within Kable, keeping important parts of your Minecraft experience accessible from one place.
+
+### Extensive Customization
+Make Kable your own with custom CSS, icons, themes, and other configuration options. Fine-tune the launcher to suit your workflow instead of being limited to a fixed interface.
+
+### More Than a Launcher
+Kable combines installation management, modding tools, diagnostics, and customization in a single application. Additional functionality is available throughout the interface for users who want more control over their Minecraft setup.
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Java 8 or higher installed on your system
-- A valid Minecraft account (Java Edition)
-- Windows 10+, macOS 10.15+, or a modern Linux distribution
+
+Before installing Kable, make sure you have:
+
+- **An existing Minecraft Java Edition installation.** You must have launched Minecraft at least once through the official Minecraft Launcher on your system so that your `.minecraft` directory exists.
+- **A valid Minecraft account** with access to Java Edition.
+- **A supported operating system:** Windows 10 or later, macOS, or a compatible Linux distribution.
+
+Kable manages your existing Minecraft environment. It is not intended to replace the initial setup performed by the official launcher.
 
 ### Installation
-1. Download the latest release from the [Releases](../../releases) page
-2. Install the application for your platform:
-   - **Windows**: Run the `.msi` installer
-   - **macOS**: Open the `.dmg` file and drag Kable to Applications
-   - **Linux**: Install the `.deb` package or extract the `.tar.gz` archive
 
-### ⚠️ Antivirus & Security Notice
+1. If you haven't already, install the [official Minecraft Launcher](https://www.minecraft.net/download) and launch Minecraft Java Edition at least once.
+2. Download Kable from the [latest releases](../../releases) page or from the [official website](https://kable.kablan.nl/).
+3. Install the appropriate package for your operating system:
+   - **Windows:** Run the `.msi` installer.
+   - **macOS:** Open the `.dmg` file and install the application.
+   - **Linux:** Install the available `.deb` package or use another supported distribution format.
 
-**Windows Users**: You may encounter antivirus warnings when downloading or running Kable. This is common for new, unsigned applications and does **not** indicate malware.
-
-**Why this happens:**
-- Kable is currently unsigned (code signing certificates cost hundreds of dollars annually)
-- New applications haven't built reputation with antivirus vendors yet
-- Windows SmartScreen may show "Windows protected your PC" warnings
-
-**What you can do:**
-1. **Windows Defender/SmartScreen**: Click "More info" → "Run anyway"
-2. **Other Antivirus**: Add Kable to your antivirus whitelist/exclusions
-3. **Verify Download**: Check that you downloaded from the official [GitHub Releases](../../releases) page
-4. **Source Code**: Review the open-source code for transparency
-
-**Our commitment to security:**
-- ✅ All code is open source and publicly auditable
-- ✅ Builds are automated through GitHub Actions
-- ✅ No telemetry or data collection (by us)
-- ✅ Network requests only for legitimate purposes: Minecraft authentication, mod browsing (Modrinth), version manifests, and mod downloads
-- ✅ Builds are reproducible and verifiable
-
-As Kable gains popularity and reputation, these warnings will naturally decrease. We're working on alternative solutions like Microsoft Store distribution to improve trust.
+**Nightly builds:** I primarily use nightly builds, which may include the latest features and fixes before they reach a stable release. They can also contain regressions or unfinished functionality, so use them at your own risk.
 
 ### First Launch
-1. Open Kable
-2. Sign in with your Microsoft account
-3. Set your Minecraft installation directory (if different from default)
-4. Browse or create installations
-5. Launch and enjoy!
+
+1. Open Kable.
+2. Sign in with your Microsoft account.
+3. Verify your Minecraft installation directory if necessary.
+4. Import an existing profile or create an installation configuration.
+5. Browse content, customize your setup, and launch Minecraft.
+
+## ⚠️ Security & Antivirus Notice
+
+Kable may trigger antivirus warnings or Windows SmartScreen prompts, particularly because it is not currently code-signed. Such warnings do not, by themselves, establish whether an application is safe or malicious.
+
+If you encounter a warning:
+
+1. Verify that you downloaded Kable from the official [GitHub Releases](../../releases) page.
+2. Review the [source code](../../) and the relevant [GitHub Actions workflows](../../actions) if you want to inspect how builds are produced.
+3. Investigate the specific detection before deciding whether to run the application.
+
+**Do not blindly disable antivirus protection or add exclusions simply to bypass a warning.** An unsigned application can be legitimate, but unsigned builds also lack the additional identity verification provided by code signing.
+
+### Privacy & Transparency
+
+Kable is open source and designed to provide transparency into its operation. It does not intentionally collect telemetry or usage analytics for the developer. The application communicates with external services as needed for functionality such as Microsoft authentication, Minecraft metadata, and mod discovery and downloads.
+
+See the [Privacy Policy](PRIVACY.md) for further details.
 
 ## 🛠️ Development
+
+Kable is built with:
+
+- **Frontend:** Svelte and TypeScript
+- **Desktop framework:** Tauri
+- **Backend:** Rust
 
 ### Building from Source
 
 #### Prerequisites
-- Node.js 18+ and npm
-- Rust (latest stable version)
-- Platform-specific build tools
+
+- Node.js and npm
+- Rust and Cargo
+- Platform-specific Tauri build dependencies
 
 #### Setup
+
 ```bash
-# Clone the repository
 git clone https://github.com/LuckyLuuk12/kable.git
 cd kable
-
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
 ```
 
-#### Building for Production
-```bash
-# Build the application
-npm run build
+#### Production Build
 
-# Build Tauri app
+```bash
+npm run build
 npm run tauri build
 ```
 
-## 🌟 Future Goals
-
-### Short-term (v0.2-0.3)
-- [ ] **Mod Marketplace Integration**: Browse and install mods directly from CurseForge and Modrinth
-- [ ] **Shader Pack Management**: Built-in shader pack installation and management
-- [ ] **Resource Pack Manager**: Easy resource pack installation and switching
-- [ ] **Instance Export/Import**: Share configurations with friends
-- [ ] **Auto-Updater**: Automatic application updates
-
-### Medium-term (v0.4-0.6)
-- [ ] **Mod Dependency Resolution**: Automatic mod dependency management
-- [ ] **Version Installer**: Install any Minecraft version directly from the launcher
-- [ ] **Backup System**: Automatic world and configuration backups
-- [ ] **Performance Monitoring**: Built-in FPS and performance tracking
-- [ ] **Server Integration**: Quick connect to favorite servers
-
-### Long-term (v0.7+)
-- [ ] **Plugin System**: Extensible architecture for community plugins
-- [ ] **Cloud Sync**: Synchronize configurations across devices
-- [ ] **Mod Development Tools**: Integrated development environment for mod creators
-- [ ] **Advanced Analytics**: Detailed performance and usage analytics
-- [ ] **Community Features**: Share configurations and discover new content
+Refer to the [Tauri documentation](https://v2.tauri.app/start/prerequisites/) for platform-specific build requirements.
 
 ## 📚 Documentation
 
@@ -147,41 +123,25 @@ npm run tauri build
 - [Privacy Policy](PRIVACY.md)
 - [Terms of Service](TERMS.md)
 
-## 🤝 Contributing
+## 🤝 Contributing & Support
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details on how to:
-- Report bugs and request features
-- Submit pull requests
-- Set up your development environment
-- Follow our code style and conventions
+Contributions, bug reports, and feature suggestions are welcome.
+
+- **Bug reports:** [GitHub Issues](../../issues)
+- **Feature requests and discussions:** [GitHub Discussions](../../discussions)
+- **Contributing:** [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Source code:** [GitHub Repository](../../)
 
 ## ⚖️ Legal
 
-### Important Notice
-Kable is an **unofficial** Minecraft launcher and is not affiliated with or endorsed by Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios.
+### Minecraft Disclaimer
+
+Kable is an unofficial Minecraft launcher and is not affiliated with, endorsed by, or associated with Mojang Studios or Microsoft. Minecraft is a trademark of Mojang Studios.
 
 ### License
-This project is proprietary software. While the source code is publicly available for transparency and community contributions, **no license is granted to copy, modify, or distribute this software**. See [LICENSE.md](LICENSE.md) for full details.
 
-### Privacy
-Kable respects your privacy. We do not collect, store, or transmit any personal data. All authentication is handled directly between your device and Microsoft/Mojang servers. See our [Privacy Policy](PRIVACY.md) for details.
-
-## 📞 Support
-
-- **Bug Reports**: [GitHub Issues](../../issues)
-- **Feature Requests**: [GitHub Discussions](../../discussions)
-- **Documentation**: Check the docs folder or GitHub Wiki
-
-## 🙏 Acknowledgments
-
-- **Mojang Studios** - For creating Minecraft
-- **Tauri Team** - For the excellent desktop app framework
-- **Svelte Team** - For the reactive UI framework
-- **Rust Community** - For the amazing ecosystem
-- **Mod Loader Teams** - Fabric, Forge, Quilt, and NeoForge developers
+This project uses a proprietary license. Public source-code availability does not grant permission to copy, modify, or redistribute the software except where expressly permitted by the applicable license. See [LICENSE.md](LICENSE.md) for the full terms.
 
 ---
 
 **Made with ❤️ by Luuk Kablan**
-
-*Kable is not affiliated with Mojang Studios, Microsoft, or any mod loader development teams.*

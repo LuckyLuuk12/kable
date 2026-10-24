@@ -1,0 +1,122 @@
+// ======================================================
+// COLOR TOKENS (CSS VARIABLES BASE)
+// ======================================================
+
+:root {
+  // ------------------------------------------------------
+  // Base surfaces
+  // ------------------------------------------------------
+  --color-background: #0a0a0f;
+  --color-surface-0: #0a0a0f;
+  --color-surface-1: #15151d;
+  --color-surface-2: #1c1c26;
+  --color-surface-3: #272732;
+
+  // ------------------------------------------------------
+  // Text
+  // ------------------------------------------------------
+  --color-text: #ffffff;
+  --color-text-muted: #a0a0aa;
+  --color-placeholder: #6b6b75;
+
+  // ------------------------------------------------------
+  // Borders
+  // ------------------------------------------------------
+  --color-border: #35353a;
+  --color-border-muted: #26262a;
+
+  // ------------------------------------------------------
+  // Accent (Kable identity: purple/pink/blue blend)
+  // ------------------------------------------------------
+  --color-accent: #8b5cf6; // primary purple
+  --color-accent-hover: #a78bfa;
+  --color-accent-active: #7c3aed;
+  --color-accent-muted: #c4b5fd;
+
+  // additional accents (pink-ish, blue-ish, green-ish)
+  --color-accent-secondary: #ec4899;
+  --color-accent-tertiary: #3b82f6;
+  --color-accent-quaternary: #22c55e;
+  --temp: #695530; // super ugly brown to quickly replace old variables to this temp variable, should never be found in final app.
+
+  // ------------------------------------------------------
+  // Status colors
+  // ------------------------------------------------------
+  --color-success: #22c55e;
+  --color-success-muted: #1d4331;
+  --color-warning: #eab308;
+  --color-warning-muted: #78350f;
+  --color-error: #ef4444;
+  --color-error-muted: #4d1212;
+  --color-info: #3b82f6;
+  --color-info-muted: #1e3a8a;
+
+  // ------------------------------------------------------
+  // Interaction states
+  // ------------------------------------------------------
+  --color-hover: rgba(255, 255, 255, 0.06);
+  --color-active: rgba(255, 255, 255, 0.12);
+  --color-selected: rgba(139, 92, 246, 0.18);
+  --color-disabled: rgba(255, 255, 255, 0.25);
+
+  // ------------------------------------------------------
+  // Overlays
+  // ------------------------------------------------------
+  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-backdrop: rgba(0, 0, 0, 0.75);
+
+  // ------------------------------------------------------
+  // Highlighting (search, selection, etc.)
+  // ------------------------------------------------------
+  --color-highlight: rgba(139, 92, 246, 0.25);
+  --color-focus: #8b5cf6;
+}
+
+// ===============================================================================================================
+// SCSS ALIASES - this allows to use the variables in SCSS and also have them available in CSS for runtime changes
+// ===============================================================================================================
+
+// region Colors
+$color-background: var(--color-background) !default;
+$color-surface-0: var(--color-surface-0) !default;
+$color-surface-1: var(--color-surface-1) !default;
+$color-surface-2: var(--color-surface-2) !default;
+$color-surface-3: var(--color-surface-3) !default;
+$color-text: var(--color-text) !default;
+$color-text-muted: var(--color-text-muted) !default;
+$color-placeholder: var(--color-placeholder) !default;
+$color-border: var(--color-border) !default;
+$color-border-muted: var(--color-border-muted) !default;
+
+// Accent colors
+$color-accent: var(--color-accent) !default;
+$color-accent-hover: var(--color-accent-hover) !default;
+$color-accent-active: var(--color-accent-active) !default;
+$color-accent-muted: var(--color-accent-muted) !default;
+$color-accent-secondary: var(--color-accent-secondary) !default;
+$color-accent-tertiary: var(--color-accent-tertiary) !default;
+$color-accent-quaternary: var(--color-accent-quaternary) !default;
+
+// Status colors
+$color-success: var(--color-success) !default;
+$color-success-muted: var(--color-success-muted) !default;
+$color-warning: var(--color-warning) !default;
+$color-warning-muted: var(--color-warning-muted) !default;
+$color-error: var(--color-error) !default;
+$color-error-muted: var(--color-error-muted) !default;
+$color-info: var(--color-info) !default;
+$color-info-muted: var(--color-info-muted) !default;
+
+// Interaction states
+$color-hover: var(--color-hover) !default;
+$color-active: var(--color-active) !default;
+$color-selected: var(--color-selected) !default;
+$color-disabled: var(--color-disabled) !default;
+
+// Overlays
+$color-overlay: var(--color-overlay) !default;
+$color-backdrop: var(--color-backdrop) !default;
+
+// Highlighting
+$color-highlight: var(--color-highlight) !default;
+$color-focus: var(--color-focus) !default;

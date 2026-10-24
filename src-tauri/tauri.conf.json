@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Kable",
-  "version": "0.1.9",
+  "version": "0.2.0",
   "identifier": "com.kable.launcher",
   "build": {
     "frontendDist": "../build",
@@ -47,9 +47,11 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "targets": "all",
-    "resources": [
-      "../static/*"
-    ],
+    "resources": {
+      "../static/icons/*": "icons/",
+      "../static/themes/*": "themes/",
+      "../static/*": ""
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

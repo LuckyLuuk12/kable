@@ -10,256 +10,230 @@ navigation and responsive mini-nav sidebar.
 ```
 -->
 <script lang="ts">
-import { onDestroy, onMount } from "svelte";
-import {
-  GeneralSettingsUI,
-  AppearanceSettingsUI,
-  ContentSettingsUI,
-  LoggingSettingsUI,
-  AdvancedSettingsUI,
-  MiscSettingsUI,
-  NetworkSettingsUI,
-} from ".";
-import { settings, SettingsService } from "$lib";
-import { writable } from "svelte/store";
+import { AdvancedSettingsUI, AppearanceSettingsUI, ContentSettingsUI, GeneralSettingsUI, LoggingSettingsUI, MiscSettingsUI, NetworkSettingsUI } from ".";
 
-const sections = [
-  "general",
-  "appearance",
-  "logging",
-  "content",
-  "network",
-  "advanced",
-  "misc",
-];
-let currentSection = writable("general");
-currentSection.subscribe((val) => ($currentSection = val));
+const sections = ["general", "appearance", "logging", "content", "network", "advanced", "misc"] as const;
 
-// Dynamic layout variables
-let miniNavElement: HTMLElement;
-let miniNavWidth = 0;
+type Section = (typeof sections)[number];
 
-// Reactive statement to update width when mini-nav changes
-$: if (miniNavElement) {
-  miniNavWidth = miniNavElement.offsetWidth;
-}
+let currentSection = $state<Section>("general");
+let settingsElement = $state<HTMLDivElement | null>(null);
 
-function updateCurrentSection() {
-  let found = false;
-  for (const id of sections) {
-    const el = document.getElementById(id);
-    if (el) {
-      const rect = el.getBoundingClientRect();
-      if (rect.top <= 200 && rect.bottom > 200) {
-        currentSection.set(id);
-        found = true;
-        break;
-      }
-    }
-  }
-  if (!found) currentSection.set(sections[0]);
-}
+function scrollToSection(section: Section) {
+  const element = document.getElementById(section);
+  if (!element || !settingsElement) return;
 
-// Local validation functions
-export function validateMemory(value: string): number | null {
-  const num = parseInt(value);
-  if (isNaN(num) || num < 512 || num > 262144) return null;
-  return Math.floor(num / 512) * 512; // Round to nearest 512MB
-}
-export function validateNumber(
-  value: string,
-  min: number,
-  max: number,
-): number | null {
-  const num = parseInt(value);
-  if (isNaN(num) || num < min || num > max) return null;
-  return num;
-}
-export function validatePath(value: string): string {
-  return value.trim();
-}
+  currentSection = section;
 
-// Periodic save logic
-import { get } from "svelte/store";
-let lastSettings: any = null;
+  const top = element.getBoundingClientRect().top - settingsElement.getBoundingClientRect().top + settingsElement.scrollTop;
 
-// Validate memory settings before saving
-function getValidatedSettings() {
-  const snapshot = get(settings);
-  snapshot.advanced.default_memory =
-    validateMemory(snapshot.advanced.default_memory.toString()) || 1024;
-  return snapshot;
-}
-
-let saveInterval: ReturnType<typeof setInterval> | null = null;
-let unsubscribeSettings: (() => void) | null = null;
-
-if (typeof window !== "undefined") {
-  // Save settings on page unload
-  window.addEventListener("beforeunload", () => {
-    lastSettings = getValidatedSettings();
-    SettingsService.saveSettings(lastSettings);
+  settingsElement.scrollTo({
+    top,
+    behavior: "smooth",
   });
 }
 
-let sectionInterval: ReturnType<typeof setInterval> | null = null;
-let resizeObserver: ResizeObserver | null = null;
+$effect(() => {
+  const element = settingsElement;
+  if (!element) return;
 
-onMount(() => {
-  sectionInterval = setInterval(updateCurrentSection, 1000);
+  const updateCurrentSection = () => {
+    const containerTop = element.getBoundingClientRect().top;
 
-  // Set up ResizeObserver for mini-nav width changes
-  if (typeof window !== "undefined" && "ResizeObserver" in window) {
-    resizeObserver = new ResizeObserver(() => {
-      if (miniNavElement) {
-        miniNavWidth = miniNavElement.offsetWidth;
+    let closestSection: Section = sections[0];
+    let closestDistance = Infinity;
+
+    for (const section of sections) {
+      const sectionElement = document.getElementById(section);
+      if (!sectionElement) continue;
+
+      const distance = Math.abs(sectionElement.getBoundingClientRect().top - containerTop);
+
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestSection = section;
       }
-    });
-
-    if (miniNavElement) {
-      resizeObserver.observe(miniNavElement);
     }
-  }
 
-  // Auto-save interval logic
-  if (typeof window !== "undefined") {
-    let prevIntervalSetting: number | null = null;
-    unsubscribeSettings = settings.subscribe(($settings) => {
-      let intervalSetting = $settings.advanced.auto_save_interval;
-      const isEnabled =
-        typeof intervalSetting === "number" && intervalSetting > 0;
-      intervalSetting =
-        validateNumber(intervalSetting.toString(), 5000, 3600000) || 30000; // Default to 30 seconds if invalid
-      if (isEnabled) {
-        if (saveInterval) {
-          clearInterval(saveInterval);
-          saveInterval = null;
-        }
-        saveInterval = setInterval(() => {
-          lastSettings = getValidatedSettings();
-          SettingsService.saveSettings(lastSettings);
-        }, intervalSetting);
-        prevIntervalSetting = intervalSetting;
-      } else {
-        if (saveInterval) {
-          clearInterval(saveInterval);
-          saveInterval = null;
-        }
-      }
-    });
-  }
-});
-onDestroy(() => {
-  if (saveInterval) {
-    clearInterval(saveInterval);
-    saveInterval = null;
-  }
-  if (sectionInterval) {
-    clearInterval(sectionInterval);
-    sectionInterval = null;
-  }
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-    resizeObserver = null;
-  }
-  if (unsubscribeSettings) {
-    unsubscribeSettings();
-    unsubscribeSettings = null;
-  }
-  window.removeEventListener("beforeunload", () => {
-    lastSettings = getValidatedSettings();
-    SettingsService.saveSettings(lastSettings);
+    currentSection = closestSection;
+  };
+
+  element.addEventListener("scroll", updateCurrentSection, {
+    passive: true,
   });
-  SettingsService.saveSettings(getValidatedSettings());
+
+  updateCurrentSection();
+
+  return () => {
+    element.removeEventListener("scroll", updateCurrentSection);
+  };
 });
 </script>
 
-<!-- a small fixed nav on the left side with links to specific tabs -->
-<div class="settings-content" style="--mini-nav-width: {miniNavWidth}px;">
-  <div class="mini-nav" bind:this={miniNavElement}>
-    {#each sections as section}
+<div class="settings-content">
+  <nav class="mini-nav" aria-label="Settings sections">
+    {#each sections as section (section)}
       <a
         href={`#${section}`}
-        class:active={$currentSection === section}
-        on:click={() => currentSection.set(section)}
-        >{section.charAt(0).toUpperCase() + section.slice(1)}</a
+        class:active={currentSection === section}
+        aria-current={currentSection === section ? "page" : undefined}
+        onclick={(event) => {
+          event.preventDefault();
+          scrollToSection(section);
+        }}
       >
+        {section.charAt(0).toUpperCase() + section.slice(1)}
+      </a>
     {/each}
-  </div>
-  <div class="settings">
-    <div id="general"><GeneralSettingsUI /></div>
-    <div id="appearance"><AppearanceSettingsUI /></div>
-    <div id="logging"><LoggingSettingsUI /></div>
-    <div id="content"><ContentSettingsUI /></div>
-    <div id="network"><NetworkSettingsUI /></div>
-    <div id="advanced"><AdvancedSettingsUI /></div>
-    <div id="misc"><MiscSettingsUI /></div>
+  </nav>
+
+  <div class="settings" bind:this={settingsElement}>
+    <section id="general">
+      <GeneralSettingsUI />
+    </section>
+
+    <section id="appearance">
+      <AppearanceSettingsUI />
+    </section>
+
+    <section id="logging">
+      <LoggingSettingsUI />
+    </section>
+
+    <section id="content">
+      <ContentSettingsUI />
+    </section>
+
+    <section id="network">
+      <NetworkSettingsUI />
+    </section>
+
+    <section id="advanced">
+      <AdvancedSettingsUI />
+    </section>
+
+    <section id="misc">
+      <MiscSettingsUI />
+    </section>
   </div>
 </div>
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
-
 .settings-content {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
   gap: 2rem;
+
   width: 100%;
-  max-height: 80vh;
+  height: calc(100vh - 3 * $space-md);
   min-height: 0;
+  padding: $space-md;
+
+  overflow: hidden;
 }
+
 .mini-nav {
-  position: fixed;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  flex: 0 0 auto;
-  min-width: fit-content;
+  gap: 0.35rem;
+
   align-self: center;
-  transform: translateY(-40%);
+
+  min-width: 9rem;
+  padding: 0.5rem;
+
+  border: 1px solid $color-border-muted;
+  border-radius: $radius-xl;
+
+  background: color-mix(in srgb, $color-surface-1 70%, transparent);
+  box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.06);
 }
+
 .mini-nav a {
-  color: var(--tertiary);
-  &.active {
-    color: var(--primary);
-  }
-  text-decoration: none;
   position: relative;
-  padding-bottom: 2px;
-  transition: all 0.4s ease;
-  &:hover {
-    transform: scale(1.15) translateY(-0.15rem) translateX(0.15rem);
-  }
+
+  display: flex;
+  align-items: center;
+
+  min-height: 2.25rem;
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
+
+  border-radius: $radius-md;
+
+  color: $color-text-muted;
+  text-decoration: none;
+
+  font-size: 0.875rem;
+  font-weight: 500;
+
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+
   &::before {
     content: "";
+
     position: absolute;
-    left: 0;
-    bottom: 0;
-    width: 100%;
-    height: 2px;
-    background: var(--tertiary);
-    border-radius: 2px;
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 1;
+    left: 0.35rem;
+    top: 50%;
+
+    width: 0.2rem;
+    height: 0.4rem;
+
+    border-radius: 999px;
+
+    background: $color-accent;
+
+    opacity: 0;
+    transform: translateY(-50%) scaleY(0.5);
+
+    transition:
+      opacity 0.2s ease,
+      height 0.2s ease,
+      transform 0.2s ease;
   }
-  &:hover::before {
-    transform: scaleX(1);
+
+  &:hover {
+    color: $color-text;
+    background: $color-surface-2;
+    transform: translateX(0.15rem);
   }
-  &.active::before {
-    background: var(--primary);
+
+  &.active {
+    color: $color-accent;
+
+    background: color-mix(in srgb, $color-accent 10%, $color-surface-1);
+
+    &::before {
+      height: 1.25rem;
+      opacity: 1;
+      transform: translateY(-50%) scaleY(1);
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+
+    box-shadow:
+      0 0 0 2px $color-focus,
+      0 0 0 4px color-mix(in srgb, $color-focus 20%, transparent);
   }
 }
+
 .settings {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  flex: 1 1 0;
+
   min-width: 0;
-  max-height: 100%;
+  min-height: 0;
+
   overflow-y: auto;
-  margin-left: calc(var(--mini-nav-width, 120px) + 2rem);
+  overflow-x: hidden;
+}
+
+.settings > section {
+  scroll-margin-top: 1rem;
 }
 </style>

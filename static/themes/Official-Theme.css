@@ -1,0 +1,141 @@
+/*
+ * Kable — Official Minecraft Launcher Theme
+ *
+ * Recreates the classic Minecraft Launcher aesthetic using
+ * Kable's current design tokens.
+ */
+
+@font-face {
+  font-family: "Minecraft";
+  src:
+    url("./themes/Minecraft-Regular.woff2") format("woff2"),
+    url("/themes/Minecraft-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* ======================================================
+     SURFACES — CHARCOAL / STONE
+     ====================================================== */
+
+  --color-background: #171615;
+  --color-surface-0: #171615;
+  --color-surface-1: #262423;
+  --color-surface-2: #312d2c;
+  --color-surface-3: #44403c;
+
+  /* ======================================================
+     TEXT
+     ====================================================== */
+
+  --color-text: #e7e5e4;
+  --color-text-muted: #a8a29e;
+  --color-placeholder: #78716c;
+
+  /* ======================================================
+     BORDERS
+     ====================================================== */
+
+  --color-border: #514d4c;
+  --color-border-muted: #312d2c;
+
+  /* ======================================================
+     BRAND ACCENTS — MINECRAFT GREEN
+     ====================================================== */
+
+  --color-accent: #3c8527;
+  --color-accent-hover: #4a9c2f;
+  --color-accent-active: #2a641c;
+  --color-accent-muted: #6cc349;
+
+  /* Supporting accents */
+  --color-accent-secondary: #6b6562;
+  --color-accent-tertiary: #3b82f6;
+  --color-accent-quaternary: #f97316;
+
+  /* ======================================================
+     STATUS COLORS
+     ====================================================== */
+
+  --color-success: #6cc349;
+  --color-success-muted: #1b4c12;
+
+  --color-warning: #eab308;
+  --color-warning-muted: #713f12;
+
+  --color-error: #ef4444;
+  --color-error-muted: #7f1d1d;
+
+  --color-info: #3b82f6;
+  --color-info-muted: #1e3a8a;
+
+  /* ======================================================
+     INTERACTION STATES
+     ====================================================== */
+
+  --color-hover: rgba(231, 229, 228, 0.06);
+  --color-active: rgba(231, 229, 228, 0.12);
+  --color-selected: rgba(108, 195, 73, 0.16);
+  --color-disabled: rgba(231, 229, 228, 0.25);
+
+  /* ======================================================
+     OVERLAYS
+     ====================================================== */
+
+  --color-overlay: rgba(0, 0, 0, 0.6);
+  --color-backdrop: rgba(0, 0, 0, 0.75);
+
+  /* ======================================================
+     HIGHLIGHTING & FOCUS
+     ====================================================== */
+
+  --color-highlight: rgba(108, 195, 73, 0.2);
+  --color-focus: #6cc349;
+
+  /* ======================================================
+     TYPOGRAPHY
+     ====================================================== */
+
+  --font-sans: "Minecraft", "Courier New", "Monaco", "Consolas", monospace;
+  --font-mono: "Minecraft", "Courier New", "Monaco", "Consolas", monospace;
+  --font-display: "Minecraft", "Impact", "Arial Black", sans-serif;
+
+  /* Base sizes */
+  --font-1: 12px;
+  --font-2: 14px;
+  --font-3: 16px;
+  --font-4: 18px;
+  --font-5: 20px;
+  --font-6: 24px;
+  --font-7: 32px;
+
+  --font-scale: 1;
+
+  /* Semantic sizes */
+  --font-xs: calc(var(--font-1) * var(--font-scale));
+  --font-sm: calc(var(--font-2) * var(--font-scale));
+  --font-md: calc(var(--font-3) * var(--font-scale));
+  --font-lg: calc(var(--font-4) * var(--font-scale));
+  --font-xl: calc(var(--font-5) * var(--font-scale));
+  --font-2xl: calc(var(--font-6) * var(--font-scale));
+  --font-3xl: calc(var(--font-7) * var(--font-scale));
+
+  /* Weights */
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* Line heights */
+  --font-line-tight: 1.2;
+  --font-line-normal: 1.5;
+  --font-line-relaxed: 1.75;
+
+  /* Letter spacing */
+  --font-tracking-tight: -0.02em;
+  --font-tracking-normal: 0em;
+  --font-tracking-wide: 0.02em;
+}

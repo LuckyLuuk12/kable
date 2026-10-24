@@ -1,5 +1,5 @@
 import fs from "fs";
-import { inc, rcompare, parse } from "semver";
+import { inc, parse, rcompare } from "semver";
 
 const explicitBumpType = process.argv[2];
 
@@ -12,9 +12,11 @@ const readJson = (file) => {
 const readTomlVersion = (file) => {
   try {
     const content = fs.readFileSync(file, "utf8");
-    const match = content.match(/version\s*=\s*"([^"]+)"/);
+    const match = content.match(/^version\s*=\s*"([^"]+)"/m);
     return match ? match[1] : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 };
 
 const writeJson = (file, updater) => {
@@ -27,9 +29,12 @@ const writeJson = (file, updater) => {
 const writeTomlVersion = (file, newVersion) => {
   try {
     let content = fs.readFileSync(file, "utf8");
-    content = content.replace(/version\s*=\s*"[^"]+"/, `version = "${newVersion}"`);
+    content = content.replace(
+      /^version\s*=\s*"[^"]+"/m,
+      `version = "${newVersion}"`
+    );
     fs.writeFileSync(file, content);
-  } catch {}
+  } catch { }
 };
 
 // read versions 

@@ -1,0 +1,452 @@
+<!--
+@component
+This card displays an already-installed project and allows it to be
+enabled, disabled, inspected, or uninstalled.
+-->
+<script lang="ts">
+import { app, error, Icon, type KableProfile, type KableProject } from "$lib";
+import ProjectGalleryModal from "./ProjectGalleryModal.svelte";
+import ProjectModal from "./ProjectModal.svelte";
+import ProjectVersionsModal from "./ProjectVersionsModal.svelte";
+
+let {
+  profile,
+  project,
+  enabled,
+  togglePending,
+  onToggled,
+}: {
+  profile: KableProfile | null;
+  project: KableProject;
+  enabled: boolean;
+  togglePending: boolean;
+  onToggled?: (enabled: boolean) => Promise<void>;
+} = $props();
+
+let loading = $state(false);
+let hasUpdate = $state(false);
+
+let installedVersion = $derived(project.project.versions.find((version) => version.id === project.version_id) ?? null);
+
+let versionLabel = $derived(installedVersion?.version_number ?? project.version_id);
+
+let releaseDate = $derived(installedVersion?.date_published ? new Date(installedVersion.date_published).toLocaleDateString() : null);
+
+let hasGallery = $derived((project.project.gallery?.length ?? 0) > 0);
+
+// Update availability is independent of enabled state.
+$effect(() => {
+  const currentProfile = profile;
+  const currentProject = project;
+  let cancelled = false;
+
+  if (!currentProfile) {
+    hasUpdate = false;
+    return;
+  }
+
+  void app.projectsService
+    .hasUpdate(currentProfile, currentProject)
+    .then((result) => {
+      if (!cancelled) {
+        hasUpdate = result;
+      }
+    })
+    .catch((err) => {
+      if (!cancelled) {
+        hasUpdate = false;
+        error("[InstalledProjectCard] Failed to check for updates:", currentProject.filename, err);
+      }
+    });
+
+  return () => {
+    cancelled = true;
+  };
+});
+
+async function toggle(): Promise<void> {
+  const currentProfile = profile;
+  const currentProject = project;
+
+  if (!currentProfile || loading || togglePending) {
+    return;
+  }
+
+  const nextEnabled = !enabled;
+
+  try {
+    // The parent updates its state synchronously before awaiting the backend.
+    // That moves the card immediately and preserves pending state across
+    // the card's destruction and recreation.
+    await onToggled?.(nextEnabled);
+  } catch (err) {
+    error("[InstalledProjectCard] Failed to toggle project:", currentProject.filename, err);
+  }
+}
+
+async function remove(): Promise<void> {
+  const currentProfile = profile;
+  const currentProject = project;
+
+  if (!currentProfile || loading || togglePending) {
+    return;
+  }
+
+  loading = true;
+
+  try {
+    await app.projectsService.remove(currentProfile, currentProject);
+  } catch (err) {
+    error("[InstalledProjectCard] Failed to uninstall project:", currentProject.filename, err);
+  } finally {
+    loading = false;
+  }
+}
+
+function showDetails(): void {
+  app.show(ProjectModal, {
+    profile,
+    project: project.project,
+  });
+}
+
+function showVersions(): void {
+  app.show(ProjectVersionsModal, {
+    profile,
+    project,
+  });
+}
+
+function showGallery(): void {
+  if (!hasGallery) {
+    return;
+  }
+
+  app.show(ProjectGalleryModal, {
+    project: project.project,
+  });
+}
+</script>
+
+<!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
+<article
+  class="installed-project-card"
+  class:enabled
+  class:has-update={hasUpdate && !enabled}
+  class:loading={loading || togglePending}
+  role="button"
+  tabindex="0"
+  aria-label={`Open details for ${project.project.title}`}
+  onclick={showDetails}
+  onkeydown={(event) => {
+    if (event.target !== event.currentTarget) return;
+
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      showDetails();
+    }
+  }}>
+  <div class="project-icon">
+    {#if project.project.icon_url}
+      <img src={project.project.icon_url} alt="" loading="lazy" />
+    {:else}
+      <div class="icon-placeholder">
+        {project.project.title.charAt(0).toUpperCase()}
+      </div>
+    {/if}
+  </div>
+
+  <div class="project-content">
+    <div class="project-header">
+      <h3>{project.project.title}</h3>
+    </div>
+
+    <div class="project-meta">
+      <span>{versionLabel}</span>
+
+      {#if releaseDate}
+        <span>{releaseDate}</span>
+      {/if}
+    </div>
+  </div>
+
+  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+  <div
+    class="project-actions"
+    onclick={(event) => event.stopPropagation()}
+    onkeydown={(event) => event.stopPropagation()}
+    role="group"
+    aria-label={`Actions for ${project.project.title}`}>
+    <button
+      class:active={enabled}
+      class="action-button toggle"
+      type="button"
+      disabled={!profile || loading || togglePending}
+      title={togglePending ? "Updating project..." : enabled ? "Disable project" : "Enable project"}
+      aria-label={togglePending ? `Updating ${project.project.title}` : enabled ? `Disable ${project.project.title}` : `Enable ${project.project.title}`}
+      aria-busy={togglePending}
+      onclick={toggle}>
+      <Icon name={enabled ? "error" : "success"} forceType="svg" />
+    </button>
+
+    <button
+      class="action-button"
+      type="button"
+      disabled={loading || togglePending}
+      title="Versions"
+      aria-label={`Versions for ${project.project.title}`}
+      onclick={showVersions}>
+      <Icon name="list" forceType="svg" />
+    </button>
+
+    <button
+      class="action-button danger"
+      type="button"
+      disabled={!profile || loading || togglePending}
+      title="Uninstall"
+      aria-label={`Uninstall ${project.project.title}`}
+      onclick={remove}>
+      <Icon name="trash" forceType="svg" />
+    </button>
+
+    {#if hasGallery}
+      <button
+        class="action-button"
+        type="button"
+        disabled={loading || togglePending}
+        title="Gallery"
+        aria-label={`Gallery for ${project.project.title}`}
+        onclick={showGallery}>
+        <Icon name="image" forceType="svg" />
+      </button>
+    {/if}
+  </div>
+</article>
+
+<style lang="scss">
+.installed-project-card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 44px;
+  grid-template-areas: "icon content actions";
+  align-items: center;
+  gap: $space-md;
+
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: $space-md;
+
+  background: $color-surface-1;
+  border: 1px solid $color-border-muted;
+  border-radius: $radius-lg;
+
+  cursor: pointer;
+
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease,
+    opacity 120ms ease;
+
+  &:hover {
+    background: $color-surface-2;
+    border-color: $color-border;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-focus;
+    outline-offset: 2px;
+  }
+
+  &.enabled {
+    border-color: $color-success-muted;
+
+    &:hover {
+      border-color: $color-success;
+    }
+  }
+
+  &.has-update {
+    border-color: $color-warning;
+
+    &:hover {
+      border-color: $color-warning;
+    }
+  }
+
+  &.loading {
+    border-color: $color-highlight;
+    background: $color-surface-2;
+
+    animation: pulse-border 1.5s infinite;
+
+    @keyframes pulse-border {
+      0% {
+        border-color: $color-highlight;
+      }
+
+      50% {
+        border-color: $color-focus;
+      }
+
+      100% {
+        border-color: $color-highlight;
+      }
+    }
+  }
+}
+
+.project-icon {
+  grid-area: icon;
+
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+
+  border-radius: $radius-md;
+  background: $color-surface-3;
+
+  img,
+  .icon-placeholder {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  img {
+    object-fit: cover;
+  }
+}
+
+.icon-placeholder {
+  display: grid;
+  place-items: center;
+
+  color: $color-text-muted;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.project-content {
+  grid-area: content;
+  min-width: 0;
+}
+
+.project-header {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+
+  h3 {
+    min-width: 0;
+    margin: 0;
+
+    overflow: hidden;
+
+    color: $color-text;
+    font-size: 0.95rem;
+    font-weight: 600;
+    line-height: 1.3;
+
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.project-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+
+  margin-top: 3px;
+
+  overflow: hidden;
+
+  color: $color-text-muted;
+  font-size: 0.72rem;
+  line-height: 1.4;
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.project-actions {
+  grid-area: actions;
+
+  display: grid;
+  grid-template-columns: repeat(2, 20px);
+  grid-auto-rows: 20px;
+  justify-content: end;
+  gap: $space-md;
+
+  width: 43px;
+}
+
+.action-button {
+  display: grid;
+  place-items: center;
+
+  width: 20px;
+  height: 20px;
+  padding: 0;
+
+  border: 1px solid transparent;
+  border-radius: $radius-sm;
+
+  background: transparent;
+  color: $color-text-muted;
+
+  cursor: pointer;
+
+  transition:
+    background-color 100ms ease,
+    border-color 100ms ease,
+    color 100ms ease;
+
+  :global(svg) {
+    width: 12px;
+    height: 12px;
+  }
+
+  &:hover:not(:disabled) {
+    background: $color-surface-3;
+    border-color: $color-border-muted;
+    color: $color-text;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $color-focus;
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  &.toggle {
+    color: $color-accent;
+
+    &:hover:not(:disabled) {
+      background: $color-selected;
+      color: $color-accent-hover;
+    }
+
+    &.active {
+      color: $color-text-muted;
+    }
+  }
+
+  &.danger {
+    &:hover:not(:disabled) {
+      background: rgba(239, 68, 68, 0.08);
+      border-color: rgba(239, 68, 68, 0.2);
+      color: $color-error;
+    }
+  }
+}
+</style>

@@ -10,40 +10,39 @@ Displays update information including version numbers and allows users to instal
 ```
 -->
 <script lang="ts">
-import { onMount } from "svelte";
-import { checkForUpdates, installUpdate, getCurrentVersion } from "$lib";
+import { app, clickSound, error, log, successSound } from "$lib";
+// import { settings } from "$lib/stores";
 import { marked } from "marked";
-import { settings } from "$lib/stores";
-import { clickSound, successSound } from "$lib/actions";
+import { onMount } from "svelte";
 
 let currentVersion = "";
 let updateInfo: any = null;
 let isChecking = false;
 let isInstalling = false;
-let error = "";
+let isDownloading = false;
+let isApplying = false;
+let errorMessage = "";
 let releaseNotesHtml = "";
+let downloadedPath: string | null = null;
 
 onMount(async () => {
   try {
-    currentVersion = await getCurrentVersion();
+    currentVersion = (await app.updaterService.getCurrentVersion()) ?? "Unknown";
   } catch (e) {
-    console.error("Failed to get current version:", e);
+    error("Failed to get current version:", e);
   }
 });
 
 async function handleCheckForUpdates() {
   isChecking = true;
-  error = "";
+  errorMessage = "";
 
   try {
     // Respect the user's nightly update preference
-    const checkNightly = $settings?.advanced?.check_nightly_updates ?? false;
-    console.log(
-      "[AutoUpdater] Checking for updates with checkNightly:",
-      checkNightly,
-    );
-    console.log("[AutoUpdater] Full settings.advanced:", $settings?.advanced);
-    updateInfo = await checkForUpdates(checkNightly);
+    const checkNightly = app.customizationService.settings?.advanced?.enable_nightly_updates ?? false;
+    log("[AutoUpdater] Checking for updates with checkNightly:", checkNightly);
+    log("[AutoUpdater] Full settings.advanced:", app.customizationService.settings?.advanced);
+    updateInfo = await app.updaterService.check(checkNightly);
 
     if (updateInfo?.body) {
       releaseNotesHtml = await marked.parse(updateInfo.body, {
@@ -52,7 +51,7 @@ async function handleCheckForUpdates() {
       });
     }
   } catch (e) {
-    error = `Failed to check for updates: ${e}`;
+    errorMessage = `Failed to check for updates: ${e}`;
   } finally {
     isChecking = false;
   }
@@ -62,15 +61,40 @@ async function handleInstallUpdate() {
   if (!updateInfo) return;
 
   isInstalling = true;
-  error = "";
+  errorMessage = "";
 
   try {
-    const checkNightly = $settings?.advanced?.check_nightly_updates ?? false;
-    await installUpdate(checkNightly);
+    const checkNightly = app.customizationService.settings?.advanced?.enable_nightly_updates ?? false;
+    await app.updaterService.install(checkNightly);
     // App will restart automatically after update
   } catch (e) {
-    error = `Failed to install update: ${e}`;
+    errorMessage = `Failed to install update: ${e}`;
     isInstalling = false;
+  }
+}
+
+async function handleDownloadUpdate() {
+  if (!updateInfo) return;
+  isDownloading = true;
+  errorMessage = "";
+  try {
+    const checkNightly = app.customizationService.settings?.advanced?.enable_nightly_updates ?? false;
+    downloadedPath = await app.updaterService.download(checkNightly);
+  } catch (e) {
+    errorMessage = `Failed to download update: ${e}`;
+  } finally {
+    isDownloading = false;
+  }
+}
+
+async function handleInstallDownloaded() {
+  isApplying = true;
+  errorMessage = "";
+  try {
+    await app.updaterService.applyDownloaded();
+  } catch (e) {
+    errorMessage = `Failed to apply downloaded update: ${e}`;
+    isApplying = false;
   }
 }
 </script>
@@ -82,12 +106,7 @@ async function handleInstallUpdate() {
   </div>
 
   <div class="update-controls">
-    <button
-      class="check-button"
-      on:click={handleCheckForUpdates}
-      use:clickSound
-      disabled={isChecking || isInstalling}
-    >
+    <button class="check-button" on:click={handleCheckForUpdates} use:clickSound disabled={isChecking || isInstalling}>
       {#if isChecking}
         Checking...
       {:else}
@@ -102,30 +121,60 @@ async function handleInstallUpdate() {
           <div class="update-notes">
             <p><strong>Release Notes:</strong></p>
             <div class="notes-content markdown-content">
+              <!-- TODO: Add proper escaping -->
+              <!-- eslint-disable-next-line svelte/no-at-html-tags -->
               {@html releaseNotesHtml}
             </div>
           </div>
         {/if}
-        <button
-          class="install-button"
-          on:click={handleInstallUpdate}
-          use:successSound
-          disabled={isInstalling}
-        >
-          {#if isInstalling}
-            Installing...
-          {:else}
-            Install Update
-          {/if}
-        </button>
+        <div class="update-actions">
+          <button
+            class="download-button"
+            on:click={handleDownloadUpdate}
+            use:clickSound
+            disabled={isDownloading || isInstalling}
+            title="Download installer now; will be applied on restart or when you click 'Install downloaded'">
+            {#if isDownloading}
+              Downloading...
+            {:else}
+              Download Update
+            {/if}
+            <span class="small-version">v{updateInfo.version}</span>
+          </button>
+
+          <button class="install-button" on:click={handleInstallUpdate} use:successSound disabled={isInstalling} title="App will restart to complete installation">
+            {#if isInstalling}
+              Installing...
+            {:else}
+              Install Now
+            {/if}
+            <span class="small-version">v{updateInfo.version}</span>
+          </button>
+
+          <button
+            class="install-downloaded-button"
+            on:click={handleInstallDownloaded}
+            use:successSound
+            disabled={!downloadedPath || isApplying}
+            title="Install the previously downloaded update and restart the app">
+            {#if isApplying}
+              Installing...
+            {:else}
+              Install Downloaded
+            {/if}
+            {#if downloadedPath}
+              <span class="small-version">({downloadedPath})</span>
+            {/if}
+          </button>
+        </div>
       </div>
     {:else if !isChecking && currentVersion}
       <p class="up-to-date">You're running the latest version</p>
     {/if}
 
-    {#if error}
+    {#if errorMessage}
       <div class="error">
-        {error}
+        {errorMessage}
       </div>
     {/if}
   </div>
@@ -156,7 +205,7 @@ async function handleInstallUpdate() {
   }
 
   .version {
-    color: var(--primary);
+    color: $color-accent;
     font-weight: 500;
   }
 }
@@ -168,7 +217,7 @@ async function handleInstallUpdate() {
 }
 
 .check-button {
-  background: var(--primary);
+  background: $color-accent;
   color: white;
   border: none;
   border-radius: 0.375rem;
@@ -180,10 +229,7 @@ async function handleInstallUpdate() {
   align-self: flex-start;
 
   &:hover:not(:disabled) {
-    background: var(
-      --primary-hover,
-      #{"color-mix(in srgb, var(--primary) 90%, black)"}
-    );
+    background: var(--primary-hover, #{"color-mix(in srgb, $color-accent 90%, black)"});
   }
 
   &:disabled {
@@ -194,13 +240,13 @@ async function handleInstallUpdate() {
 
 .update-available {
   background: var(--container);
-  border: 2px solid var(--primary);
+  border: 2px solid $color-accent;
   border-radius: 0.5rem;
   padding: 1rem;
 
   h4 {
     margin: 0 0 0.75rem 0;
-    color: var(--primary);
+    color: $color-accent;
     font-size: 1rem;
     font-weight: 600;
   }
@@ -223,7 +269,6 @@ async function handleInstallUpdate() {
     color: var(--text-muted);
     font-size: 0.875rem;
     line-height: 1.5;
-    max-height: 10rem;
     overflow-y: auto;
 
     &.markdown-content {
@@ -240,7 +285,7 @@ async function handleInstallUpdate() {
       }
 
       :global(a) {
-        color: var(--primary);
+        color: $color-accent;
         text-decoration: underline;
         transition: opacity 0.15s;
 
@@ -264,7 +309,7 @@ async function handleInstallUpdate() {
         border-radius: 0.25rem;
         font-family: "Courier New", monospace;
         font-size: 0.85em;
-        color: var(--primary);
+        color: $color-accent;
       }
 
       :global(pre) {
@@ -333,7 +378,7 @@ async function handleInstallUpdate() {
       }
 
       :global(blockquote) {
-        border-left: 3px solid var(--primary);
+        border-left: 3px solid $color-accent;
         padding-left: 0.75rem;
         margin: 0.5rem 0;
         color: var(--text-muted);
@@ -372,6 +417,39 @@ async function handleInstallUpdate() {
       }
     }
   }
+}
+
+.update-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.download-button {
+  background: $color-accent;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.install-downloaded-button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.small-version {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-left: 0.5rem;
 }
 
 .install-button {

@@ -1,0 +1,44 @@
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
+pub struct WorldDownload {
+    pub name: String,
+    pub url: String,
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum WorldSource {
+    Local,
+    Remote,
+    Other(String),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
+pub struct LocalWorld {
+    pub name: String,
+    pub path: String,
+    pub source: WorldSource,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum GameMode {
+    Survival,
+    Creative,
+    Adventure,
+    Spectator,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, specta::Type)]
+#[serde(rename_all = "snake_case")]
+#[repr(u8)]
+pub enum Difficulty {
+    Peaceful,
+    Easy,
+    Normal,
+    Hard,
+}

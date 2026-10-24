@@ -1,0 +1,1 @@
+// Placeholder: curseforge client functions

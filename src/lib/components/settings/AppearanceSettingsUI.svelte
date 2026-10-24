@@ -1,89 +1,126 @@
-<!-- @component
-AppearanceSettingsUI - Appearance and theming settings panel
-
-Manages visual customization including icon templates, CSS themes,
-UI scaling, and color schemes. Supports custom theme uploads.
-
-@example
-```svelte
-◄AppearanceSettingsUI /►
-```
--->
 <script lang="ts">
-import { settings } from "$lib/stores";
-import { Icon, IconService, availableTemplates, SettingsService } from "$lib";
-import { soundService, availableSoundpacks } from "$lib/services/SoundService";
-import { clickSound, errorSound, successSound } from "$lib/actions";
+import { Icon, api, app, error, type IconTemplate } from "$lib";
 import { onMount } from "svelte";
 
-let showCustomTemplates = false;
-let showIconUpload = false;
-let uploadError = "";
-let uploadFile: File | null = null;
-let isDragOver = false;
-let saveStatus = "";
+interface CssThemeEntry {
+  id: string;
+  name: string;
+  type: "builtin" | "custom" | string;
+}
 
-// CSS themes functionality
-let showCssUpload = false;
-let cssUploadError = "";
-let cssUploadFile: File | null = null;
-let cssIsDragOver = false;
-let cssThemes: string[] = ["default"];
-let showCustomThemes = false;
+let showCustomTemplates = $state(false);
+let showIconUpload = $state(false);
+let uploadError = $state("");
+let uploadFile = $state<File | null>(null);
+let isDragOver = $state(false);
 
-// Built-in themes that shouldn't be removable
-const builtInThemes = ["default", "KasaiSora-Theme", "Modrinth-Theme"];
+let showCssUpload = $state(false);
+let cssUploadError = $state("");
+let cssUploadFile = $state<File | null>(null);
+let cssIsDragOver = $state(false);
 
-// Helper function to get only custom (user-uploaded) themes
-$: customThemes = cssThemes.filter((theme) => !builtInThemes.includes(theme));
-$: hasCustomThemes = customThemes.length > 0;
+const cssThemes = $derived(app.customizationService.cssThemes);
+const cssThemesLoading = $derived(app.customizationService.isCssThemesLoading);
+const selectedCssThemeId = $derived(app.customizationService.selectedCssTheme);
+let showCustomThemes = $state(false);
 
-// Load available CSS themes on mount
-onMount(async () => {
-  await loadCssThemes();
+let iconTemplates = $state<IconTemplate[]>([]);
+let saveStatus = $state("");
+let uploadCssInProgress = $state(false);
+let uploadIconInProgress = $state(false);
+
+let statusTimeout: ReturnType<typeof setTimeout> | undefined;
+
+const builtInThemeIds = new Set(["builtin:kasai-sora", "builtin:modrinth", "builtin:official"]);
+
+const customThemes = $derived(cssThemes.filter((theme) => theme.type === "custom" || theme.id.startsWith("custom:")));
+const builtInThemes = $derived(cssThemes.filter((theme) => theme.type === "builtin" || builtInThemeIds.has(theme.id)));
+const hasCustomThemes = $derived(customThemes.length > 0);
+const customIconTemplates = $derived(iconTemplates.filter((template) => template.type === "custom"));
+
+const customization = $derived(app.customizationService);
+const appearance = $derived(customization.settings?.appearance ?? null);
+
+function scheduleSave() {
+  customization.scheduleSave();
+}
+
+function setStatus(message: string, duration = 2500) {
+  saveStatus = message;
+
+  if (statusTimeout) {
+    clearTimeout(statusTimeout);
+  }
+
+  statusTimeout = setTimeout(() => {
+    if (saveStatus === message) {
+      saveStatus = "";
+    }
+  }, duration);
+}
+
+onMount(() => {
+  void Promise.allSettled([app.customizationService.loadCssThemes(), loadIconTemplates()]);
+
+  return () => {
+    if (statusTimeout) {
+      clearTimeout(statusTimeout);
+    }
+  };
 });
 
-async function loadCssThemes() {
+async function loadIconTemplates() {
   try {
-    cssThemes = await SettingsService.getCssThemes();
-  } catch (error) {
-    console.error("Failed to load CSS themes:", error);
-    cssThemes = ["default"];
+    iconTemplates = await customization.getIconTemplates();
+  } catch (err) {
+    error("Failed to load icon templates:", err);
+    setStatus("Failed to load icon templates");
   }
 }
 
-async function selectCssTheme(themeName: string) {
+async function selectTheme(themeId: string) {
+  const nextThemeId = themeId || null;
+
+  if (nextThemeId && !cssThemes.some((theme) => theme.id === nextThemeId)) {
+    setStatus("The selected CSS theme is unavailable");
+    return;
+  }
+
   try {
-    await SettingsService.setSelectedCssTheme(themeName);
-    $settings.appearance.selected_css_theme = themeName;
+    await customization.setTheme(nextThemeId);
 
-    // Trigger theme reload in the layout
-    if (typeof window !== "undefined" && (window as any).reloadCustomCSS) {
-      await (window as any).reloadCustomCSS();
-    }
-
-    saveStatus = "CSS theme updated successfully";
-    setTimeout(() => (saveStatus = ""), 2000);
-  } catch (error) {
-    saveStatus = "Failed to update CSS theme";
-    setTimeout(() => (saveStatus = ""), 2000);
+    setStatus(nextThemeId ? "CSS theme updated successfully" : "Default appearance restored");
+  } catch (err) {
+    error("Failed to update CSS theme:", err);
+    setStatus("Failed to update CSS theme");
   }
 }
 
 async function handleCssUpload() {
-  if (!cssUploadFile) return;
+  if (!cssUploadFile || uploadCssInProgress) return;
+
+  uploadCssInProgress = true;
+  cssUploadError = "";
+
   try {
-    cssUploadError = "";
     const content = await cssUploadFile.text();
-    const themeName = cssUploadFile.name.replace(".css", "");
-    await SettingsService.saveCssTheme(themeName, content);
-    await loadCssThemes(); // Refresh the themes list
+    const themeName = cssUploadFile.name.replace(/\.css$/i, "").trim();
+
+    if (!themeName) {
+      throw new Error("The CSS filename must contain a theme name");
+    }
+
+    await customization.saveCssTheme(themeName, content);
+
     showCssUpload = false;
-    saveStatus = `CSS theme "${themeName}" uploaded successfully`;
-    setTimeout(() => (saveStatus = ""), 3000);
     cssUploadFile = null;
-  } catch (error) {
-    cssUploadError = `Upload failed: ${error}`;
+
+    setStatus(`CSS theme "${themeName}" installed successfully`, 3000);
+  } catch (err) {
+    error("Failed to upload CSS theme:", err);
+    cssUploadError = `Upload failed: ${String(err)}`;
+  } finally {
+    uploadCssInProgress = false;
   }
 }
 
@@ -91,873 +128,1095 @@ function handleCssDragOver(event: DragEvent) {
   event.preventDefault();
   cssIsDragOver = true;
 }
+
 function handleCssDragLeave() {
   cssIsDragOver = false;
 }
+
 function handleCssDrop(event: DragEvent) {
   event.preventDefault();
   cssIsDragOver = false;
-  const files = event.dataTransfer?.files;
-  if (files && files.length > 0) {
-    const file = files[0];
-    if (file.name.endsWith(".css")) {
-      cssUploadFile = file;
-      cssUploadError = "";
-    } else {
-      cssUploadError = "Please select a .css file";
-    }
-  }
+
+  const file = event.dataTransfer?.files?.[0];
+  if (file) setCssUploadFile(file);
 }
+
 function handleCssFileSelect(event: Event) {
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if (file) {
-    if (file.name.endsWith(".css")) {
-      cssUploadFile = file;
-      cssUploadError = "";
-    } else {
-      cssUploadError = "Please select a .css file";
-    }
-  }
+  const file = (event.currentTarget as HTMLInputElement).files?.[0];
+  if (file) setCssUploadFile(file);
 }
 
-async function removeCssTheme(themeName: string) {
-  // Prevent removal of built-in themes
-  if (builtInThemes.includes(themeName)) {
-    saveStatus = "Cannot remove built-in themes";
-    setTimeout(() => (saveStatus = ""), 2000);
+function setCssUploadFile(file: File) {
+  if (!file.name.toLowerCase().endsWith(".css")) {
+    cssUploadError = "Please select a .css file";
+    cssUploadFile = null;
     return;
   }
 
-  if (!confirm(`Are you sure you want to remove the "${themeName}" CSS theme?`))
+  cssUploadFile = file;
+  cssUploadError = "";
+}
+
+async function removeCssTheme(themeId: string) {
+  const theme = cssThemes.find((entry) => entry.id === themeId);
+
+  if (!theme || (theme.type !== "custom" && !theme.id.startsWith("custom:"))) {
+    setStatus("Built-in themes cannot be removed");
     return;
+  }
+
+  if (!confirm(`Are you sure you want to remove the "${theme.name}" CSS theme?`)) {
+    return;
+  }
+
   try {
-    await SettingsService.deleteCssTheme(themeName);
-    await loadCssThemes(); // Refresh the themes list
-    saveStatus = "CSS theme removed successfully";
-    setTimeout(() => (saveStatus = ""), 2000);
-  } catch (error) {
-    saveStatus = "Failed to remove CSS theme";
-    setTimeout(() => (saveStatus = ""), 2000);
+    await customization.deleteCssTheme(themeId);
+    setStatus("CSS theme removed successfully");
+  } catch (err) {
+    error("Failed to remove CSS theme:", err);
+    setStatus("Failed to remove CSS theme");
   }
 }
 
 async function openCssThemesDirectory() {
   try {
-    await SettingsService.openCssThemesDirectory();
-  } catch (error) {
-    saveStatus = "Failed to open CSS themes directory";
-    setTimeout(() => (saveStatus = ""), 2000);
+    await api.openCssThemesDirectory();
+  } catch (err) {
+    error("Failed to open CSS themes directory:", err);
+    setStatus("Failed to open CSS themes directory");
   }
 }
 
-async function selectIconTemplate(templateName: string) {
+async function selectIconTemplate(templateId: string | null) {
+  if (!appearance) return;
+
+  if (templateId && !iconTemplates.some((template) => template.id === templateId)) {
+    setStatus("The selected icon template is unavailable");
+    return;
+  }
+
   try {
-    await IconService.setActiveTemplate?.(templateName);
-    $settings.appearance.selected_icon_template = templateName;
-    saveStatus = "Icon template updated successfully";
-    setTimeout(() => (saveStatus = ""), 2000);
-  } catch (error) {
-    saveStatus = "Failed to update template";
-    setTimeout(() => (saveStatus = ""), 2000);
+    appearance.icon_template = templateId;
+    customization.selectedIconTemplate = templateId;
+    scheduleSave();
+
+    setStatus(templateId ? "Icon template updated successfully" : "Default icon template restored");
+  } catch (err) {
+    error("Failed to update icon template:", err);
+    setStatus("Failed to update icon template");
   }
 }
+
 async function handleIconUpload() {
-  if (!uploadFile) return;
+  if (!uploadFile || uploadIconInProgress) return;
+
+  uploadIconInProgress = true;
+  uploadError = "";
+
   try {
-    uploadError = "";
     const content = await uploadFile.text();
-    const format =
-      uploadFile.name.endsWith(".yml") || uploadFile.name.endsWith(".yaml")
-        ? "yaml"
-        : "json";
-    const template = await IconService.validateTemplate?.(content, format);
-    await IconService.installCustomTemplate?.(template);
+    const extension = uploadFile.name.split(".").pop()?.toLowerCase();
+
+    if (extension === "yml" || extension === "yaml") {
+      throw new Error("YAML icon template importing is not implemented. Use a JSON template.");
+    }
+
+    if (extension !== "json") {
+      throw new Error("Please select a .json file");
+    }
+
+    const template = JSON.parse(content) as IconTemplate;
+
+    if (!template || typeof template !== "object" || !template.name || !template.id || !template.icons) {
+      throw new Error("Invalid icon template: expected an object containing id, name, and icons");
+    }
+
+    await customization.saveCustomIconTemplate(template);
+    await loadIconTemplates();
+
     showIconUpload = false;
-    saveStatus = `Template "${template.displayName || uploadFile.name}" installed successfully`;
-    setTimeout(() => (saveStatus = ""), 3000);
     uploadFile = null;
-  } catch (error) {
-    uploadError = `Upload failed: ${error}`;
+
+    setStatus(`Template "${template.name}" installed successfully`, 3000);
+  } catch (err) {
+    error("Failed to upload icon template:", err);
+    uploadError = `Upload failed: ${String(err)}`;
+  } finally {
+    uploadIconInProgress = false;
   }
 }
-// ...existing code...
 
 function handleDragOver(event: DragEvent) {
   event.preventDefault();
   isDragOver = true;
 }
+
 function handleDragLeave() {
   isDragOver = false;
 }
+
 function handleDrop(event: DragEvent) {
   event.preventDefault();
   isDragOver = false;
-  const files = event.dataTransfer?.files;
-  if (files && files.length > 0) {
-    const file = files[0];
-    if (
-      file.name.endsWith(".json") ||
-      file.name.endsWith(".yml") ||
-      file.name.endsWith(".yaml")
-    ) {
-    }
-  }
+
+  const file = event.dataTransfer?.files?.[0];
+  if (file) setIconUploadFile(file);
 }
+
 function handleFileSelect(event: Event) {
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if (file) {
-    uploadFile = file;
-    uploadError = "";
-  }
+  const file = (event.currentTarget as HTMLInputElement).files?.[0];
+  if (file) setIconUploadFile(file);
 }
-async function removeCustomTemplate(templateName: string) {
-  if (!confirm("Are you sure you want to remove this icon template?")) return;
+
+function setIconUploadFile(file: File) {
+  const name = file.name.toLowerCase();
+
+  if (!name.endsWith(".json") && !name.endsWith(".yml") && !name.endsWith(".yaml")) {
+    uploadError = "Please select a .json, .yml, or .yaml file";
+    uploadFile = null;
+    return;
+  }
+
+  uploadFile = file;
+  uploadError = "";
+}
+
+async function removeCustomTemplate(templateId: string) {
+  if (!confirm("Are you sure you want to remove this icon template?")) {
+    return;
+  }
+
   try {
-    await IconService.removeCustomTemplate?.(templateName);
-    saveStatus = "Template removed successfully";
-    setTimeout(() => (saveStatus = ""), 2000);
-  } catch (error) {
-    saveStatus = "Failed to remove template";
-    setTimeout(() => (saveStatus = ""), 2000);
+    await customization.deleteCustomIconTemplate(templateId);
+    await loadIconTemplates();
+    setStatus("Template removed successfully");
+  } catch (err) {
+    error("Failed to remove icon template:", err);
+    setStatus("Failed to remove icon template");
   }
 }
 
 async function openIconsDirectory() {
   try {
-    await IconService.openIconsDirectory?.();
-  } catch (error) {
-    saveStatus = "Failed to open icons directory";
-    setTimeout(() => (saveStatus = ""), 2000);
+    await customization.openIconsDirectory();
+  } catch (err) {
+    error("Failed to open icons directory:", err);
+    setStatus("Failed to open icons directory");
+  }
+}
+
+function updateSoundEnabled(enabled: boolean) {
+  customization.setSoundEnabled(enabled);
+  scheduleSave();
+}
+
+function updateMusicEnabled(enabled: boolean) {
+  customization.setMusicEnabled(enabled);
+  scheduleSave();
+}
+
+function updateMasterVolume(volume: number) {
+  const sound = appearance?.sound_settings;
+  if (!sound) return;
+
+  sound.master_volume = volume;
+  customization.setMasterVolume(volume);
+  scheduleSave();
+}
+
+function updateSoundVolume(volume: number) {
+  const sound = appearance?.sound_settings;
+  if (!sound) return;
+
+  sound.sound_volume = volume;
+  customization.setSoundVolume(volume);
+  scheduleSave();
+}
+
+function updateMusicVolume(volume: number) {
+  const sound = appearance?.sound_settings;
+  if (!sound) return;
+
+  sound.music_volume = volume;
+  customization.setMusicVolume(volume);
+  scheduleSave();
+}
+
+async function selectSoundpack(packName: string) {
+  const sound = appearance?.sound_settings;
+  if (!sound) return;
+
+  try {
+    await customization.loadSoundpack(packName);
+    sound.selected_soundpack = packName;
+    scheduleSave();
+
+    setStatus("Soundpack changed successfully");
+  } catch (err) {
+    error("Failed to change soundpack:", err);
+    setStatus("Failed to change soundpack");
   }
 }
 </script>
 
-<div class="settings-tab">
-  <h2>Appearance Settings</h2>
-  <p>Customize the look and feel of the launcher.</p>
-  <form>
-    <!-- CSS Theme Section -->
-    <div class="setting-item">
-      <div class="setting-info">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label>CSS Theme</label>
-        <p class="setting-description">Choose or upload a custom CSS theme</p>
-      </div>
-      <div class="setting-control">
-        <select
-          bind:value={$settings.appearance.selected_css_theme}
-          on:change={(e) =>
-            selectCssTheme((e.target as HTMLSelectElement).value)}
-        >
-          {#each cssThemes as theme}
-            <option value={theme}
-              >{theme === "default" ? "Default (No Custom CSS)" : theme}</option
-            >
-          {/each}
-        </select>
-      </div>
-    </div>
+{#if appearance}
+  <div class="settings-tab">
+    <header class="settings-header">
+      <h2>Appearance Settings</h2>
+      <p>Customize the look and feel of the launcher.</p>
+    </header>
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label>CSS Theme Management</label>
-        <p class="setting-description">
-          Upload, remove, or open CSS themes folder
-        </p>
-      </div>
-      <div class="setting-control">
-        <button
-          use:clickSound
-          type="button"
-          on:click={() => (showCssUpload = !showCssUpload)}
-        >
-          {showCssUpload ? "Cancel Upload" : "Upload Custom Theme"}
-        </button>
-        <button use:clickSound type="button" on:click={openCssThemesDirectory}>
-          Open Themes Directory
-        </button>
-      </div>
-    </div>
+    <form onsubmit={(event) => event.preventDefault()}>
+      <!-- CSS Theme Selection -->
 
-    {#if showCssUpload}
       <div class="setting-item">
         <div class="setting-info">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label>Upload Zone</label>
-          <p class="setting-description">
-            Drag & drop or click to select a CSS theme file (.css)
-          </p>
+          <label for="css-theme">CSS Theme</label>
+          <p class="setting-description">Select a built-in or custom stylesheet. Choose Default to use the launcher's standard appearance.</p>
         </div>
+
         <div class="setting-control">
-          <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-          <div
-            class="upload-zone {cssIsDragOver
-              ? 'drag-over'
-              : ''} {cssUploadError ? 'error' : ''}"
-            role="form"
-            tabindex="-1"
-            on:dragover={handleCssDragOver}
-            on:dragleave={handleCssDragLeave}
-            on:drop={handleCssDrop}
-            on:keydown={(e) =>
-              e.key === "Enter" &&
-              document.getElementById("css-file-input")?.click()}
-            on:click={() => document.getElementById("css-file-input")?.click()}
-          >
-            <input
-              type="file"
-              id="css-file-input"
-              accept=".css"
-              on:change={handleCssFileSelect}
-              style="display:none;"
-            />
-            <div class="upload-placeholder">
-              <h4>Drag & drop or click to select a CSS file</h4>
-              <p>Accepted: .css</p>
-              {#if cssUploadFile}
-                <div class="file-info">
-                  <span class="file-name">{cssUploadFile.name}</span>
-                  <div class="file-actions">
-                    <button
-                      use:successSound
-                      type="button"
-                      on:click={handleCssUpload}>Upload</button
-                    >
-                    <button
-                      use:clickSound
-                      type="button"
-                      on:click={() => (cssUploadFile = null)}>Remove</button
-                    >
-                  </div>
-                </div>
-              {/if}
-              {#if cssUploadError}
-                <div class="error-message">{cssUploadError}</div>
-              {/if}
-            </div>
-          </div>
-        </div>
-      </div>
-    {/if}
+          <select
+            id="css-theme"
+            value={selectedCssThemeId ?? ""}
+            disabled={cssThemesLoading}
+            onchange={(event) => void selectTheme((event.currentTarget as HTMLSelectElement).value)}>
+            <option value="">Default</option>
 
-    {#if hasCustomThemes}
-      <div class="setting-item">
-        <div class="setting-info">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label>Custom CSS Themes</label>
-          <p class="setting-description">
-            Manage your custom CSS themes (built-in themes cannot be removed)
-          </p>
-        </div>
-        <div class="setting-control custom-templates-list">
-          <button
-            use:clickSound
-            type="button"
-            class="dropdown-toggle"
-            on:click={() => (showCustomThemes = !showCustomThemes)}
-          >
-            {showCustomThemes ? "Hide Custom Themes" : "Manage Custom Themes"}
-          </button>
-          {#if showCustomThemes}
-            <div class="custom-templates-rows">
-              {#each customThemes as theme}
-                <div class="custom-template-row">
-                  <span class="template-name">{theme}</span>
-                  <button
-                    use:errorSound
-                    type="button"
-                    class="icon-btn btn-danger"
-                    title="Remove Custom Theme"
-                    on:click={() => removeCssTheme(theme)}
-                  >
-                    <Icon name="delete" />
-                  </button>
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      </div>
-    {/if}
-    <!-- TODO: OUDATED THEME SELECTION 
-    <div class="setting-item">
-      <div class="setting-info">
-        <!-- svelte-ignore a11y_label_has_associated_control ->
-        <label>Theme</label>
-        <p class="setting-description">Choose your preferred theme</p>
-      </div>
-      <div class="setting-control">
-        {#if isWideScreen}
-          <div class="radio-group">
-            <label><input type="radio" name="theme" value="light" bind:group={$settings.appearance.theme} /> Light</label>
-            <label><input type="radio" name="theme" value="dark" bind:group={$settings.appearance.theme} /> Dark</label>
-            <label><input type="radio" name="theme" value="system" bind:group={$settings.appearance.theme} /> System</label>
-          </div>
-        {:else}
-          <select id="theme" bind:value={$settings.appearance.theme}>
-            <option value="light">Light</option>
-            <option value="dark">Dark</option>
-            <option value="system">System</option>
+            {#if builtInThemes.length > 0}
+              <optgroup label="Built-in Themes">
+                {#each builtInThemes as theme (theme.id)}
+                  <option value={theme.id}>{theme.name}</option>
+                {/each}
+              </optgroup>
+            {/if}
+
+            {#if hasCustomThemes}
+              <optgroup label="Custom Themes">
+                {#each customThemes as theme (theme.id)}
+                  <option value={theme.id}>{theme.name}</option>
+                {/each}
+              </optgroup>
+            {/if}
           </select>
-        {/if}
+        </div>
       </div>
-    </div>-->
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="language">Language</label>
-        <p class="setting-description">e.g. en, nl, fr</p>
-      </div>
-      <div class="setting-control">
-        <input
-          type="text"
-          id="language"
-          bind:value={$settings.appearance.language}
-          placeholder="e.g. en, nl, fr"
-        />
-      </div>
-    </div>
+      <!-- CSS Theme Management -->
 
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="extra-spacing">Extra Spacing (px)</label>
-        <p class="setting-description">Adjust spacing in UI elements</p>
-      </div>
-      <div class="setting-control slider-control">
-        <input
-          type="range"
-          id="extra-spacing-slider"
-          min="0"
-          max="128"
-          bind:value={$settings.appearance.extra_spacing}
-        />
-        <input
-          type="number"
-          id="extra-spacing"
-          min="0"
-          max="128"
-          bind:value={$settings.appearance.extra_spacing}
-        />
-      </div>
-    </div>
-
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="sidebar-width">Sidebar Width (px)</label>
-        <p class="setting-description">Width of the sidebar in pixels</p>
-      </div>
-      <div class="setting-control slider-control">
-        <input
-          type="range"
-          id="sidebar-width-slider"
-          min="200"
-          max="1000"
-          bind:value={$settings.appearance.sidebar_width}
-        />
-        <input
-          type="number"
-          id="sidebar-width"
-          min="200"
-          max="1000"
-          bind:value={$settings.appearance.sidebar_width}
-        />
-      </div>
-    </div>
-
-    <div class="setting-item">
-      <div class="setting-info">
-        <label for="selected-icon-template">Icon Template</label>
-        <p class="setting-description">
-          Choose or upload a custom icon template
-        </p>
-      </div>
-      <div class="setting-control">
-        <select
-          id="selected-icon-template"
-          bind:value={$settings.appearance.selected_icon_template}
-          on:change={(e) =>
-            selectIconTemplate((e.target as HTMLSelectElement).value)}
-        >
-          {#each $availableTemplates as template}
-            <option value={template.name}
-              >{template.displayName || template.name}</option
-            >
-          {/each}
-        </select>
-      </div>
-    </div>
-
-    <div class="setting-item">
-      <div class="setting-info">
-        <!-- svelte-ignore a11y_label_has_associated_control -->
-        <label>Icon Template Management</label>
-        <p class="setting-description">
-          Upload, remove, or open icon templates folder
-        </p>
-      </div>
-      <div class="setting-control template-management">
-        <button
-          use:clickSound
-          type="button"
-          on:click={() => (showIconUpload = !showIconUpload)}
-        >
-          {showIconUpload ? "Cancel Upload" : "Upload Custom Template"}
-        </button>
-        <button use:clickSound type="button" on:click={openIconsDirectory}>
-          Open Icons Directory
-        </button>
-      </div>
-    </div>
-
-    {#if showIconUpload}
       <div class="setting-item">
         <div class="setting-info">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label>Upload Zone</label>
-          <p class="setting-description">
-            Drag & drop or click to select a template file (.json, .yml, .yaml)
-          </p>
+          <label>CSS Theme Management</label>
+          <p class="setting-description">Install custom CSS files, manage installed themes, or open the themes directory.</p>
         </div>
+
         <div class="setting-control">
-          <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-          <div
-            class="upload-zone {isDragOver ? 'drag-over' : ''} {uploadError
-              ? 'error'
-              : ''}"
-            role="form"
-            tabindex="-1"
-            on:dragover={handleDragOver}
-            on:dragleave={handleDragLeave}
-            on:drop={handleDrop}
-            on:keydown={(e) =>
-              e.key === "Enter" &&
-              document.getElementById("template-file-input")?.click()}
-            on:click={() =>
-              document.getElementById("template-file-input")?.click()}
-          >
-            <input
-              type="file"
-              id="template-file-input"
-              accept=".json,.yml,.yaml"
-              on:change={handleFileSelect}
-              style="display:none;"
-            />
-            <div class="upload-placeholder">
-              <h4>Drag & drop or click to select a template file</h4>
-              <p>Accepted: .json, .yml, .yaml</p>
-              {#if uploadFile}
-                <div class="file-info">
-                  <span class="file-name">{uploadFile.name}</span>
-                  <div class="file-actions">
-                    <button
-                      use:successSound
-                      type="button"
-                      on:click={handleIconUpload}>Upload</button
-                    >
-                    <button
-                      use:clickSound
-                      type="button"
-                      on:click={() => (uploadFile = null)}>Remove</button
-                    >
-                  </div>
-                </div>
-              {/if}
-              {#if uploadError}
-                <div class="error-message">{uploadError}</div>
-              {/if}
-            </div>
-          </div>
-        </div>
-      </div>
-    {/if}
-
-    {#if $availableTemplates.some((t) => t.type === "custom")}
-      <div class="setting-item">
-        <div class="setting-info">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label>Custom Icon Templates</label>
-          <p class="setting-description">Manage your custom icon templates</p>
-        </div>
-        <div class="setting-control custom-templates-list">
-          <button
-            use:clickSound
-            type="button"
-            class="dropdown-toggle"
-            on:click={() => (showCustomTemplates = !showCustomTemplates)}
-          >
-            {showCustomTemplates
-              ? "Hide Custom Templates"
-              : "Manage Custom Templates"}
+          <button type="button" onclick={() => (showCssUpload = !showCssUpload)}>
+            {showCssUpload ? "Cancel Upload" : "Upload Custom Theme"}
           </button>
-          {#if showCustomTemplates}
-            <div class="custom-templates-rows">
-              {#each $availableTemplates.filter((t) => t.type === "custom") as template}
-                <div class="custom-template-row">
-                  <span class="template-name"
-                    >{template.displayName || template.name}</span
-                  >
-                  <button
-                    use:errorSound
-                    type="button"
-                    class="icon-btn btn-danger"
-                    title="Remove"
-                    on:click={() => removeCustomTemplate(template.name)}
-                  >
-                    <Icon name="delete" />
-                  </button>
-                </div>
-              {/each}
-            </div>
-          {/if}
-        </div>
-      </div>
-    {/if}
 
-    <!-- Sound Settings Section -->
-    {#if $settings.appearance.sound}
-      <div class="setting-item">
-        <div class="setting-info">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label>Sound Effects</label>
-          <p class="setting-description">Enable UI sound effects</p>
-        </div>
-        <div class="setting-control">
-          <input
-            type="checkbox"
-            bind:checked={$settings.appearance.sound.enabled}
-            on:change={() => {
-              soundService.setSoundEnabled(
-                $settings.appearance.sound?.enabled ?? true,
-              );
-            }}
-          />
+          <button type="button" onclick={() => void openCssThemesDirectory()}> Open Themes Directory </button>
         </div>
       </div>
 
-      <div class="setting-item">
-        <div class="setting-info">
-          <!-- svelte-ignore a11y_label_has_associated_control -->
-          <label>Background Music</label>
-          <p class="setting-description">Enable background music</p>
-        </div>
-        <div class="setting-control">
-          <input
-            type="checkbox"
-            bind:checked={$settings.appearance.sound.music_enabled}
-            on:change={() => {
-              soundService.setMusicEnabled(
-                $settings.appearance.sound?.music_enabled ?? true,
-              );
-            }}
-          />
-        </div>
-      </div>
-
-      {#if $settings.appearance.sound.enabled || $settings.appearance.sound.music_enabled}
+      {#if showCssUpload}
         <div class="setting-item">
           <div class="setting-info">
-            <!-- svelte-ignore a11y_label_has_associated_control -->
-            <label>Master Volume</label>
-            <p class="setting-description">
-              Overall volume: {$settings.appearance.sound.master_volume}%
-            </p>
+            <label for="css-file-input">Upload CSS Theme</label>
+            <p class="setting-description">Drag and drop a .css file or select one from your computer.</p>
           </div>
-          <div class="setting-control slider-control">
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="5"
-              bind:value={$settings.appearance.sound.master_volume}
-              on:input={(e) => {
-                soundService.setMasterVolume(
-                  parseInt((e.target as HTMLInputElement).value),
-                );
-              }}
-            />
-          </div>
-        </div>
 
-        {#if $settings.appearance.sound.enabled}
-          <div class="setting-item">
-            <div class="setting-info">
-              <!-- svelte-ignore a11y_label_has_associated_control -->
-              <label>Sound Effects Volume</label>
-              <p class="setting-description">
-                Volume for UI sounds: {$settings.appearance.sound.sound_volume}%
-              </p>
-            </div>
-            <div class="setting-control slider-control">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="5"
-                bind:value={$settings.appearance.sound.sound_volume}
-                on:input={(e) => {
-                  soundService.setSoundVolume(
-                    parseInt((e.target as HTMLInputElement).value),
-                  );
-                }}
-              />
-            </div>
-          </div>
-        {/if}
-
-        {#if $settings.appearance.sound.music_enabled}
-          <div class="setting-item">
-            <div class="setting-info">
-              <!-- svelte-ignore a11y_label_has_associated_control -->
-              <label>Music Volume</label>
-              <p class="setting-description">
-                Volume for background music: {$settings.appearance.sound
-                  .music_volume}%
-              </p>
-            </div>
-            <div class="setting-control slider-control">
-              <input
-                type="range"
-                min="0"
-                max="100"
-                step="5"
-                bind:value={$settings.appearance.sound.music_volume}
-                on:input={(e) => {
-                  soundService.setMusicVolume(
-                    parseInt((e.target as HTMLInputElement).value),
-                  );
-                }}
-              />
-            </div>
-          </div>
-        {/if}
-
-        <div class="setting-item">
-          <div class="setting-info">
-            <!-- svelte-ignore a11y_label_has_associated_control -->
-            <label>Soundpack</label>
-            <p class="setting-description">Select a soundpack theme</p>
-          </div>
           <div class="setting-control">
-            <select
-              bind:value={$settings.appearance.sound.selected_soundpack}
-              on:change={async (e) => {
-                const pack = (e.target as HTMLSelectElement).value;
-                await soundService.loadSoundpack(pack);
-                saveStatus = "Soundpack changed successfully";
-                setTimeout(() => (saveStatus = ""), 2000);
-              }}
-            >
-              {#each $availableSoundpacks as pack}
-                <option value={pack.name}>{pack.displayName}</option>
-              {/each}
-            </select>
+            <label
+              for="css-file-input"
+              class="upload-zone"
+              class:drag-over={cssIsDragOver}
+              class:error={!!cssUploadError}
+              ondragover={handleCssDragOver}
+              ondragleave={handleCssDragLeave}
+              ondrop={handleCssDrop}>
+              <input type="file" id="css-file-input" accept=".css,text/css" onchange={handleCssFileSelect} hidden />
+
+              <div class="upload-placeholder">
+                <h4>Drag and drop or click to select a CSS file</h4>
+                <p>Accepted format: .css</p>
+
+                {#if cssUploadFile}
+                  <div class="file-info">
+                    <span class="file-name">{cssUploadFile.name}</span>
+
+                    <div class="file-actions">
+                      <button
+                        type="button"
+                        disabled={uploadCssInProgress}
+                        onclick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void handleCssUpload();
+                        }}>
+                        {uploadCssInProgress ? "Uploading…" : "Upload"}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={uploadCssInProgress}
+                        onclick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          cssUploadFile = null;
+                          cssUploadError = "";
+                        }}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                {/if}
+
+                {#if cssUploadError}
+                  <div class="error-message">{cssUploadError}</div>
+                {/if}
+              </div>
+            </label>
           </div>
         </div>
       {/if}
+
+      {#if hasCustomThemes}
+        <div class="setting-item">
+          <div class="setting-info">
+            <label>Custom CSS Themes</label>
+            <p class="setting-description">Remove custom themes you no longer need. Built-in themes cannot be deleted.</p>
+          </div>
+
+          <div class="setting-control custom-templates-list">
+            <button type="button" class="dropdown-toggle" onclick={() => (showCustomThemes = !showCustomThemes)}>
+              {showCustomThemes ? "Hide Custom Themes" : "Manage Custom Themes"}
+            </button>
+
+            {#if showCustomThemes}
+              <div class="custom-templates-rows">
+                {#each customThemes as theme (theme.id)}
+                  <div class="custom-template-row">
+                    <span class="template-name">{theme.name}</span>
+
+                    <button
+                      type="button"
+                      class="icon-btn btn-danger"
+                      title={`Remove ${theme.name}`}
+                      aria-label={`Remove ${theme.name}`}
+                      onclick={() => void removeCssTheme(theme.id)}>
+                      <Icon name="delete" />
+                    </button>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      <!-- Language -->
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="language">Language</label>
+          <p class="setting-description">Choose the launcher interface language.</p>
+        </div>
+
+        <div class="setting-control">
+          <select id="language" bind:value={appearance.language} onchange={scheduleSave}>
+            <option value="english">English</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Icon Template -->
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label for="selected-icon-template">Icon Template</label>
+          <p class="setting-description">Choose an icon template or use the launcher's default icons.</p>
+        </div>
+
+        <div class="setting-control">
+          <select
+            id="selected-icon-template"
+            value={appearance.icon_template ?? ""}
+            onchange={(event) => {
+              const value = (event.currentTarget as HTMLSelectElement).value;
+              void selectIconTemplate(value || null);
+            }}>
+            <option value="">Default</option>
+
+            {#each iconTemplates as template (template.id)}
+              <option value={template.id}>{template.name}</option>
+            {/each}
+          </select>
+        </div>
+      </div>
+
+      <!-- Icon Template Management -->
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <label>Icon Template Management</label>
+          <p class="setting-description">Install custom icon templates, remove them, or open the templates directory.</p>
+        </div>
+
+        <div class="setting-control template-management">
+          <button type="button" onclick={() => (showIconUpload = !showIconUpload)}>
+            {showIconUpload ? "Cancel Upload" : "Upload Custom Template"}
+          </button>
+
+          <button type="button" onclick={() => void openIconsDirectory()}> Open Icons Directory </button>
+        </div>
+      </div>
+
+      {#if showIconUpload}
+        <div class="setting-item">
+          <div class="setting-info">
+            <h4>Upload Icon Template</h4>
+            <p class="setting-description">Select a .json template. YAML importing is not currently supported.</p>
+          </div>
+
+          <div class="setting-control">
+            <label
+              for="template-file-input"
+              class="upload-zone"
+              class:drag-over={isDragOver}
+              class:error={!!uploadError}
+              ondragover={handleDragOver}
+              ondragleave={handleDragLeave}
+              ondrop={handleDrop}>
+              <input type="file" id="template-file-input" accept=".json,.yml,.yaml,application/json" onchange={handleFileSelect} hidden />
+
+              <div class="upload-placeholder">
+                <h4>Drag and drop or click to select a template</h4>
+                <p>Accepted formats: .json, .yml, .yaml (JSON only can currently be imported)</p>
+
+                {#if uploadFile}
+                  <div class="file-info">
+                    <span class="file-name">{uploadFile.name}</span>
+
+                    <div class="file-actions">
+                      <button
+                        type="button"
+                        disabled={uploadIconInProgress}
+                        onclick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void handleIconUpload();
+                        }}>
+                        {uploadIconInProgress ? "Uploading…" : "Upload"}
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={uploadIconInProgress}
+                        onclick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          uploadFile = null;
+                          uploadError = "";
+                        }}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                {/if}
+
+                {#if uploadError}
+                  <div class="error-message">{uploadError}</div>
+                {/if}
+              </div>
+            </label>
+          </div>
+        </div>
+      {/if}
+
+      <!-- Custom Icon Templates -->
+
+      {#if customIconTemplates.length > 0}
+        <div class="setting-item">
+          <div class="setting-info">
+            <label>Custom Icon Templates</label>
+            <p class="setting-description">Manage installed custom icon templates.</p>
+          </div>
+
+          <div class="setting-control custom-templates-list">
+            <button type="button" class="dropdown-toggle" onclick={() => (showCustomTemplates = !showCustomTemplates)}>
+              {showCustomTemplates ? "Hide Custom Templates" : "Manage Custom Templates"}
+            </button>
+
+            {#if showCustomTemplates}
+              <div class="custom-templates-rows">
+                {#each customIconTemplates as template (template.id)}
+                  <div class="custom-template-row">
+                    <span class="template-name">{template.name}</span>
+
+                    <button
+                      type="button"
+                      class="icon-btn btn-danger"
+                      title={`Remove ${template.name}`}
+                      aria-label={`Remove ${template.name}`}
+                      onclick={() => void removeCustomTemplate(template.id)}>
+                      <Icon name="delete" />
+                    </button>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        </div>
+      {/if}
+
+      <!-- Sound -->
+
+      {#if appearance.sound_settings}
+        {@const sound = appearance.sound_settings}
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="sound-enabled">Sound Effects</label>
+            <p class="setting-description">Enable or disable interface sound effects.</p>
+          </div>
+
+          <div class="setting-control">
+            <input
+              id="sound-enabled"
+              type="checkbox"
+              bind:checked={sound.enabled}
+              onchange={(event) => updateSoundEnabled((event.currentTarget as HTMLInputElement).checked)} />
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <label for="music-enabled">Background Music</label>
+            <p class="setting-description">Enable or disable background music.</p>
+          </div>
+
+          <div class="setting-control">
+            <input
+              id="music-enabled"
+              type="checkbox"
+              bind:checked={sound.music_enabled}
+              onchange={(event) => updateMusicEnabled((event.currentTarget as HTMLInputElement).checked)} />
+          </div>
+        </div>
+
+        {#if sound.enabled || sound.music_enabled}
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="master-volume">Master Volume</label>
+              <p class="setting-description">Overall sound level: {sound.master_volume ?? 100}%</p>
+            </div>
+
+            <div class="setting-control slider-control">
+              <input
+                id="master-volume"
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={sound.master_volume ?? 100}
+                oninput={(event) => updateMasterVolume(Number((event.currentTarget as HTMLInputElement).value))} />
+            </div>
+          </div>
+
+          {#if sound.enabled}
+            <div class="setting-item">
+              <div class="setting-info">
+                <label for="sound-volume">Sound Effects Volume</label>
+                <p class="setting-description">Interface sound level: {sound.sound_volume ?? 100}%</p>
+              </div>
+
+              <div class="setting-control slider-control">
+                <input
+                  id="sound-volume"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={sound.sound_volume ?? 100}
+                  oninput={(event) => updateSoundVolume(Number((event.currentTarget as HTMLInputElement).value))} />
+              </div>
+            </div>
+          {/if}
+
+          {#if sound.music_enabled}
+            <div class="setting-item">
+              <div class="setting-info">
+                <label for="music-volume">Music Volume</label>
+                <p class="setting-description">Background music level: {sound.music_volume ?? 50}%</p>
+              </div>
+
+              <div class="setting-control slider-control">
+                <input
+                  id="music-volume"
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={sound.music_volume ?? 50}
+                  oninput={(event) => updateMusicVolume(Number((event.currentTarget as HTMLInputElement).value))} />
+              </div>
+            </div>
+          {/if}
+
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="soundpack">Soundpack</label>
+              <p class="setting-description">Select the soundpack used by the launcher.</p>
+            </div>
+
+            <div class="setting-control">
+              <select
+                id="soundpack"
+                value={sound.selected_soundpack ?? "default"}
+                onchange={(event) => void selectSoundpack((event.currentTarget as HTMLSelectElement).value)}>
+                {#each customization.availableSoundpacks as pack (pack.name)}
+                  <option value={pack.name}>{pack.displayName}</option>
+                {/each}
+              </select>
+            </div>
+          </div>
+        {/if}
+      {/if}
+    </form>
+
+    {#if saveStatus}
+      <div
+        class="warning-card"
+        class:success={saveStatus.toLowerCase().includes("successfully") || saveStatus.toLowerCase().includes("restored")}
+        class:error={saveStatus.toLowerCase().includes("failed")}
+        role="status"
+        aria-live="polite">
+        {saveStatus}
+      </div>
     {/if}
-  </form>
-  {#if saveStatus}
-    <div
-      class="warning-card"
-      class:success={saveStatus.includes("success")}
-      class:error={saveStatus.includes("Failed")}
-    >
-      {saveStatus}
-    </div>
-  {/if}
-</div>
+  </div>
+{/if}
 
 <style lang="scss">
-@use "@kablan/clean-ui/scss/_variables.scss" as *;
-
 .settings-tab {
-  background: var(--container);
-  border-radius: var(--border-radius-large);
-  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
-  padding: 2rem 2.5rem;
-  margin-bottom: 2rem;
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.75rem;
+  padding: 2rem 2.5rem;
+  margin-bottom: 2rem;
+  background: $color-surface-1;
+  border: 1px solid $color-border-muted;
+  border-radius: $radius-2xl;
+  box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.08);
 }
-.settings-tab h2 {
+
+.settings-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.settings-header h2 {
+  margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
-  margin-bottom: 0.5rem;
-  background: linear-gradient(to right, $primary, $secondary);
-  color: var(--text-transparent);
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  color: $color-text;
+  background: linear-gradient(to right, $color-accent, $color-accent-secondary);
   background-clip: text;
   -webkit-background-clip: text;
-  -moz-background-clip: text;
-  letter-spacing: 0.02em;
+  -webkit-text-fill-color: transparent;
 }
+
+.settings-header p {
+  margin: 0;
+  color: $color-text-muted;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
 form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-}
-.setting-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 2rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--dark-200);
-}
-.setting-item:last-child {
-  border-bottom: none;
-}
-.setting-info {
-  flex: 1 1 16.25rem;
-  min-width: 13.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-.setting-info label {
-  font-size: 1.08rem;
-  font-weight: 500;
-  color: var(--text);
-  margin-bottom: 0.1rem;
-}
-.setting-description {
-  font-size: 0.95rem;
-  color: var(--placeholder);
-  margin-bottom: 0.2rem;
-  line-height: 1.4;
-}
-.setting-control {
-  flex: 1 1 11.25rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  min-width: 10rem;
-}
-.slider-control {
-  gap: 0.7rem;
+  gap: 0;
 }
 
+.setting-item {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+  min-width: 0;
+  padding: 1.25rem 0;
+  border-bottom: 1px solid $color-border-muted;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.setting-info {
+  flex: 1 1 16rem;
+  min-width: 13rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.setting-info label,
+.setting-info > h4 {
+  margin: 0;
+  color: $color-text;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.setting-description {
+  margin: 0;
+  color: $color-text-muted;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.setting-control {
+  flex: 1 1 18rem;
+  min-width: 12rem;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.template-management {
+  gap: 0.75rem;
+}
+
+/* Inputs */
+
+select,
 input[type="text"] {
   width: 100%;
-  font-size: 1rem;
-  padding: 0.4em 0.8em;
-  border-radius: var(--border-radius);
-  border: 1px solid var(--dark-200);
-  color: var(--text);
+  max-width: 20rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface-2;
+  color: $color-text;
+  font: inherit;
+  font-size: 0.9rem;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &:hover:not(:disabled) {
+    border-color: $color-accent-muted;
+    background: $color-surface-3;
+  }
+
+  &:focus {
+    border-color: $color-focus;
+    box-shadow: 0 0 0 3px color-mix(in srgb, $color-focus 20%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 }
+
 select {
-  font-size: 1rem;
-  padding: 0.4em 0.8em;
-  border-radius: var(--border-radius);
-  border: 1px solid var(--dark-200);
-  color: var(--text);
-}
-.template-management {
-  display: flex;
-  gap: 1rem;
-}
-.upload-zone {
-  border: 2px dashed var(--primary);
-  border-radius: var(--border-radius-large);
-  padding: 1.5rem;
-  text-align: center;
   cursor: pointer;
-  transition: border-color 0.2s;
+}
+
+/* Checkboxes */
+
+input[type="checkbox"] {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  accent-color: $color-accent;
+  cursor: pointer;
+}
+
+/* Range sliders */
+
+.slider-control {
+  gap: 0.75rem;
+
+  input[type="range"] {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 8rem;
+    max-width: none;
+    accent-color: $color-accent;
+    cursor: pointer;
+  }
+}
+
+/* Buttons */
+
+button {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface-2;
+  color: $color-text;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.15s ease,
+    opacity 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: $color-surface-3;
+    border-color: $color-accent;
+    color: $color-accent;
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: $color-focus;
+    box-shadow: 0 0 0 3px color-mix(in srgb, $color-focus 20%, transparent);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+/* Upload */
+
+.upload-zone {
+  width: 100%;
+  min-height: 9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  border: 1px dashed $color-border;
+  border-radius: $radius-xl;
+  background: $color-surface-2;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+
+  &:hover,
   &.drag-over {
-    border-color: var(--secondary);
+    border-color: $color-accent;
+    background: color-mix(in srgb, $color-accent 5%, $color-surface-2);
   }
+
   &.error {
-    border-color: var(--red);
+    border-color: $color-error;
+    background: color-mix(in srgb, $color-error 5%, $color-surface-2);
   }
 }
+
 .upload-placeholder {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+
   h4 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1.1rem;
-    color: var(--primary);
-  }
-  p {
-    margin: 0 0 1rem 0;
-    color: var(--placeholder);
-  }
-  .file-info {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    margin-bottom: 0.5rem;
-    .file-name {
-      font-weight: 500;
-      color: var(--text);
-    }
-    .file-actions {
-      display: flex;
-      gap: 0.5rem;
-    }
-  }
-  .error-message {
-    color: var(--red);
+    margin: 0 0 0.35rem;
+    color: $color-text;
     font-size: 0.95rem;
-    margin-top: 0.5rem;
+    font-weight: 500;
+  }
+
+  > p {
+    margin: 0 0 1rem;
+    color: $color-text-muted;
+    font-size: 0.8rem;
   }
 }
+
+.file-info {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid $color-border;
+  border-radius: $radius-md;
+  background: $color-surface-3;
+
+  .file-name {
+    flex: 1 1 8rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: $color-text;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .file-actions {
+    display: flex;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+}
+
+.error-message {
+  margin-top: 0.75rem;
+  color: $color-error;
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+/* Custom templates */
+
 .custom-templates-list {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  align-items: flex-start;
+  gap: 0.75rem;
 }
+
 .dropdown-toggle {
-  font-size: 1rem;
-  padding: 0.4em 0.8em;
-  border-radius: var(--border-radius);
-  border: 1px solid var(--primary);
-  color: var(--primary);
-  margin-bottom: 0.5rem;
-  width: 100%;
-  max-width: 320px;
-  cursor: pointer;
-  transition:
-    background 0.2s,
-    border-color 0.2s;
-  &:hover {
-    border-color: var(--secondary);
-    color: var(--secondary);
-  }
+  width: auto;
+  max-width: 20rem;
 }
+
 .custom-templates-rows {
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  width: 100%;
 }
+
 .custom-template-row {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  background: var(--card);
-  border: 1px solid var(--dark-200);
-  border-radius: var(--border-radius-large);
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.65rem 0.75rem 0.65rem 1rem;
+  border: 1px solid $color-border-muted;
+  border-radius: $radius-lg;
+  background: $color-surface-3;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease;
+
+  &:hover {
+    border-color: $color-border;
+    background: $color-surface-2;
+  }
+
+  .template-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: $color-text;
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .icon-btn {
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border-color: color-mix(in srgb, $color-error 40%, $color-border);
+    background: color-mix(in srgb, $color-error 12%, $color-surface-2);
+    color: $color-error;
+
+    &:hover:not(:disabled) {
+      border-color: $color-error;
+      background: color-mix(in srgb, $color-error 20%, $color-surface-2);
+      color: $color-error;
+    }
+  }
+}
+
+/* Status */
+
+.warning-card {
   padding: 0.75rem 1rem;
+  border: 1px solid $color-warning;
+  border-radius: $radius-md;
+  background: color-mix(in srgb, $color-warning 10%, $color-surface-2);
+  color: $color-warning;
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+
+  &.success {
+    border-color: $color-success;
+    background: color-mix(in srgb, $color-success 10%, $color-surface-2);
+    color: $color-success;
+  }
+
+  &.error {
+    border-color: $color-error;
+    background: color-mix(in srgb, $color-error 10%, $color-surface-2);
+    color: $color-error;
+  }
 }
-.custom-template-row .template-name {
-  font-weight: 500;
-  color: var(--primary);
-  flex: 1;
-}
-.custom-template-row .icon-btn {
-  background: var(--red);
-  border: none;
-  border-radius: var(--border-radius);
-  padding: 0.3em 0.7em;
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-.custom-template-row .icon-btn:hover {
-  background: var(--red-600);
+
+/* Responsive */
+
+@media (max-width: 700px) {
+  .settings-tab {
+    padding: 1.5rem;
+  }
+
+  .setting-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .setting-info {
+    min-width: 0;
+  }
+
+  .setting-control {
+    width: 100%;
+    min-width: 0;
+    justify-content: flex-start;
+  }
+
+  select,
+  input[type="text"] {
+    max-width: none;
+  }
+
+  .custom-templates-list {
+    align-items: stretch;
+  }
+
+  .dropdown-toggle {
+    max-width: none;
+  }
 }
 </style>
