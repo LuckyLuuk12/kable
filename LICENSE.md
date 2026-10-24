@@ -2,7 +2,7 @@
 
 ## Proprietary Software License
 
-**Copyright (c) 2024-2025 Luuk Kablan. All rights reserved.**
+**Copyright (c) 2024-2034 Luuk Kablan. All rights reserved.**
 
 ### Important Notice
 
@@ -46,9 +46,8 @@ By contributing to this project, you agree that:
 ### Official Releases
 - Only releases distributed through official channels are authorized
 - Official releases are available through:
-  - GitHub Releases page
-  - Official project website (if applicable)
-  - Authorized distribution partners (if any)
+  - [GitHub Releases page](https://github.com/luckyluuk12/kable/releases)
+  - [Official project website](https://kable.kablan.nl/)
 
 ### Unauthorized Distribution
 - Any redistribution of this software outside official channels is prohibited
