@@ -1,0 +1,130 @@
+
+name: 'publish'
+
+on:
+  push:
+    branches:
+      - release
+
+# Prevent separate release workflow runs from publishing concurrently.
+concurrency:
+  group: kable-stable-release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish-tauri:
+    strategy:
+      fail-fast: false
+
+      # Critical: only one job may publish to the release at a time.
+      max-parallel: 1
+
+      matrix:
+        include:
+          - platform: 'windows-latest'
+            args: ''
+
+          - platform: 'ubuntu-22.04'
+            args: ''
+
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+
+          - platform: 'macos-latest'
+            args: '--target x86_64-apple-darwin'
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Get version and commit information
+        id: version_info
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Error: Invalid stable version: $VERSION"
+            exit 1
+          fi
+
+          LAST_STABLE=$(git describe \
+            --tags \
+            --match 'Kable-v*' \
+            --abbrev=0 2>/dev/null || true)
+
+          if [[ -z "$LAST_STABLE" ]]; then
+            COMMITS=$(git log -10 --pretty=format:"- %s (%h)")
+          else
+            COMMITS=$(git log "${LAST_STABLE}..HEAD" \
+              --pretty=format:"- %s (%h)")
+          fi
+
+          {
+            echo "release_body<<EOF"
+            echo "See the [Wiki](https://github.com/LuckyLuuk12/kable/wiki) for installation guides or download directly from the [Official Website](https://kable.kablan.nl)."
+            echo
+            echo "### What's Changed:"
+            if [[ -n "$COMMITS" ]]; then
+              echo "$COMMITS"
+            else
+              echo "- No new commits since the previous stable release."
+            fi
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Building stable release: $VERSION"
+
+      - name: Build and publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: Kable-v__VERSION__
+          releaseName: 'v__VERSION__'
+          releaseBody: ${{ steps.version_info.outputs.release_body }}
+          releaseDraft: false
+          prerelease: false
+          includeUpdaterJson: true
+          retryAttempts: 3
+          args: ${{ matrix.args }}
