@@ -3,6 +3,8 @@ import * as skinview3d from "skinview3d";
 import { log } from "$lib";
 import { brushShoeGesture } from "./brushShoe";
 import { danceGesture } from "./dance";
+import { infectiousGesture } from "./infectious";
+import { justiceGesture } from "./justice";
 import { lookAroundGesture } from "./lookAround";
 import { pointGesture } from "./point";
 import { stretchGesture } from "./stretch";
@@ -13,6 +15,8 @@ export const DEFAULT_GESTURES = [
   stretchGesture,
   brushShoeGesture,
   danceGesture,
+  justiceGesture,
+  infectiousGesture,
 ];
 
 /**

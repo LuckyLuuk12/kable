@@ -59,7 +59,7 @@ function dismissError(): void {
         class:active={currentTab === "skins"}
         aria-current={currentTab === "skins" ? "page" : undefined}
         onclick={() => (currentTab = "skins")}>
-        <Icon name="shirt" forceType="svg" size="sm" />
+        <Icon name="user" forceType="svg" size="sm" />
         <span>Skins</span>
         <span class="tab-count">{accountSkins.length}</span>
       </button>

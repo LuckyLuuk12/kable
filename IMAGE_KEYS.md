@@ -153,7 +153,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | load | [CacheManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/advanced/CacheManager.svelte#L279) | <pre><code class="language-html">&lt;Icon name="load" forceType="svg" /&gt;</code></pre> |
 | load | [SymlinkManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/advanced/SymlinkManager.svelte#L123) | <pre><code class="language-html">&lt;Icon name="load" forceType="svg" size="sm" /&gt;</code></pre> |
 | load | [SymlinkManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/advanced/SymlinkManager.svelte#L160) | <pre><code class="language-html">&lt;Icon name="load" forceType="svg" /&gt;</code></pre> |
-| loader | [PlayerHead](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/PlayerHead.svelte#L127) | <pre><code class="language-html">&lt;Icon name="loader" size="sm" /&gt;</code></pre> |
+| loader | [PlayerHead](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/PlayerHead.svelte#L117) | <pre><code class="language-html">&lt;Icon name="loader" size="sm" /&gt;</code></pre> |
 | lock | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L172) | <pre><code class="language-html">&lt;Icon name="lock" size="sm" /&gt;</code></pre> |
 | map | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L139) | <pre><code class="language-html">&lt;Icon name="map" size="md" /&gt;</code></pre> |
 | maximize | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L216) | <pre><code class="language-html">&lt;Icon name="maximize" size="md" /&gt;</code></pre> |
@@ -194,7 +194,6 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | settings | [AdvancedPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/advanced/AdvancedPage.svelte#L42) | <pre><code class="language-html">&lt;Icon name="settings" size="xl" /&gt;</code></pre> |
 | settings | [MetricsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/advanced/MetricsPage.svelte#L265) | <pre><code class="language-html">&lt;Icon name="settings" forceType="svg" size="sm" /&gt;</code></pre> |
 | settings | [NavBar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/NavBar.svelte#L208) | <pre><code class="language-html">&lt;Icon name="settings" size="md" className="nav-icon" /&gt;</code></pre> |
-| shirt | [SkinsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinsPage.svelte#L62) | <pre><code class="language-html">&lt;Icon name="shirt" forceType="svg" size="sm" /&gt;</code></pre> |
 | skull | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L335) | <pre><code class="language-html">&lt;Icon name="skull" size="md" /&gt;</code></pre> |
 | star | [EditProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/EditProfileModal.svelte#L209) | <pre><code class="language-html">&lt;Icon name="star" size="md" /&gt;</code></pre> |
 | star | [EditProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/EditProfileModal.svelte#L211) | <pre><code class="language-html">&lt;Icon name="star" forceType="svg" size="md" /&gt;</code></pre> |
@@ -220,10 +219,11 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | upload | [SkinSelection](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelection.svelte#L541) | <pre><code class="language-html">&lt;Icon name="upload" forceType="svg" size="sm" /&gt;</code></pre> |
 | upload | [SkinsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinsPage.svelte#L100) | <pre><code class="language-html">&lt;Icon name="upload" forceType="svg" size="sm" /&gt;</code></pre> |
 | user | [AccountManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AccountManager.svelte#L133) | <pre><code class="language-html">&lt;Icon name="user" size="sm" forceType="svg" /&gt;</code></pre> |
-| user | [PlayerHead](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/PlayerHead.svelte#L131) | <pre><code class="language-html">&lt;Icon name="user" size="sm" /&gt;</code></pre> |
+| user | [PlayerHead](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/PlayerHead.svelte#L121) | <pre><code class="language-html">&lt;Icon name="user" size="sm" /&gt;</code></pre> |
 | user | [SkinSelection](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelection.svelte#L302) | <pre><code class="language-html">&lt;Icon name="user" forceType="svg" size="xl" /&gt;</code></pre> |
 | user | [SkinSelection](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelection.svelte#L363) | <pre><code class="language-html">&lt;Icon name="user" forceType="svg" size="xl" /&gt;</code></pre> |
 | user | [SkinSelection](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelection.svelte#L402) | <pre><code class="language-html">&lt;Icon name="user" forceType="svg" size="md" /&gt;</code></pre> |
+| user | [SkinsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinsPage.svelte#L62) | <pre><code class="language-html">&lt;Icon name="user" forceType="svg" size="sm" /&gt;</code></pre> |
 | user-plus | [AccountManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AccountManager.svelte#L238) | <pre><code class="language-html">&lt;Icon name="user-plus" size="lg" /&gt;</code></pre> |
 | user-plus | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L85) | <pre><code class="language-html">&lt;Icon name="user-plus" forceType="svg" /&gt;</code></pre> |
 | wrench | [MetricsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/advanced/MetricsPage.svelte#L308) | <pre><code class="language-html">&lt;Icon name="wrench" forceType="svg" size="sm" /&gt;</code></pre> |
@@ -234,4 +234,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L166) | <pre><code class="language-html">&lt;Icon name="x" size="md" forceType="svg" /&gt;</code></pre> |
 | zap | [LogsToolbar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsToolbar.svelte#L120) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2026-10-23T14:23:52.872Z_
+_Generated: 2026-10-24T14:28:38.298Z_

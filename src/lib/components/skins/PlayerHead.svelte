@@ -1,127 +1,114 @@
 <!-- @component
-PlayerHead - Renders a player's Minecraft head from their current skin
+PlayerHead - Renders a player's head from their active Minecraft skin.
 
-Uses skinview3d to render just the head portion of a player's skin.
-Falls back to user icon if no skin is available.
+Uses the active skin provided by the skins service.
+Falls back to a user icon if no skin is available.
 
-@prop {KableAccount | null} account - The account to display the head for
 @prop {number} [size=40] - Size of the head in pixels
-
-@example
-```svelte
-◄PlayerHead account={$currentAccount} size={64} /►
-```
 -->
 <script lang="ts">
-import { type KableAccount, error, Icon } from "$lib";
+import { Icon, app, error } from "$lib";
 import * as skinview3d from "skinview3d";
 import { onDestroy } from "svelte";
 
-let { account = null, size = 40 }: { account?: KableAccount | null; size?: number } = $props();
+let {
+  size = 40,
+}: {
+  size?: number;
+} = $props();
+
+const skinsService = app.skinsService;
 
 let canvas: HTMLCanvasElement | undefined = $state();
-let skinViewer: skinview3d.SkinViewer | null = $state(null);
-let skinUrl = $state("");
-let isLoading = $state(true);
+let skinViewer: skinview3d.SkinViewer | null = null;
+let isLoading = $state(false);
 let hasError = $state(false);
-let currentUuid = $state("");
 
-$effect(() => {
-  const uuid = account?.minecraft_profile?.id;
+let skinUrl = $derived(skinsService.currentSkin?.url ?? skinsService.allSkins.find((skin) => skin.is_current)?.url ?? null);
 
-  if (!uuid) {
-    currentUuid = "";
-    skinUrl = "";
-    hasError = true;
-    isLoading = false;
-    return;
-  }
-
-  if (uuid === currentUuid) {
-    return;
-  }
-
-  disposeSkinViewer();
-
-  currentUuid = uuid;
-  loadSkin(uuid);
-});
-
-$effect(() => {
-  if (!canvas || !skinUrl || skinViewer) {
-    return;
-  }
-
-  initSkinViewer();
-});
-
-async function loadSkin(uuid: string) {
-  isLoading = true;
-  hasError = false;
-
-  try {
-    const url = `https://crafatar.com/skins/${uuid}`;
-
-    skinUrl = url;
-    isLoading = false;
-  } catch (err) {
-    error("Failed to load skin for UUID:", uuid, err);
-
-    hasError = true;
-    isLoading = false;
-  }
-}
-
-function initSkinViewer() {
-  if (!canvas || !skinUrl) {
-    return;
-  }
-
-  disposeSkinViewer();
-
-  try {
-    skinViewer = new skinview3d.SkinViewer({
-      canvas,
-      width: size,
-      height: size,
-      skin: skinUrl,
-    });
-
-    skinViewer.camera.setViewOffset(215, 500, 5, -5, 210, 200);
-
-    if (skinViewer.controls) {
-      skinViewer.controls.enableRotate = false;
-      skinViewer.controls.enableZoom = false;
-      skinViewer.controls.enablePan = false;
-    }
-
-    skinViewer.animation = new skinview3d.IdleAnimation();
-
-    hasError = false;
-    isLoading = false;
-  } catch (err) {
-    error("Failed to initialize skin viewer:", err);
-
-    hasError = true;
-    isLoading = false;
-  }
-}
-
-function disposeSkinViewer() {
-  if (!skinViewer) {
-    return;
-  }
+function disposeSkinViewer(): void {
+  if (!skinViewer) return;
 
   skinViewer.dispose();
   skinViewer = null;
 }
+
+$effect(() => {
+  const element = canvas;
+  const url = skinUrl;
+  const viewerSize = size;
+
+  if (!element) return;
+
+  let cancelled = false;
+
+  disposeSkinViewer();
+  hasError = false;
+
+  if (!url) {
+    isLoading = false;
+    return;
+  }
+
+  isLoading = true;
+
+  try {
+    const viewer = new skinview3d.SkinViewer({
+      canvas: element,
+      width: viewerSize,
+      height: viewerSize,
+      skin: url,
+    });
+
+    skinViewer = viewer;
+
+    // Preserve the original head framing.
+    viewer.camera.setViewOffset(215, 500, 5, -5, 210, 200);
+
+    if (viewer.controls) {
+      viewer.controls.enableRotate = false;
+      viewer.controls.enableZoom = false;
+      viewer.controls.enablePan = false;
+    }
+
+    viewer.animation = new skinview3d.IdleAnimation();
+
+    viewer
+      .loadSkin(url)
+      .then(() => {
+        if (cancelled) return;
+        isLoading = false;
+        hasError = false;
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+
+        error("Failed to load player skin:", err);
+        isLoading = false;
+        hasError = true;
+      });
+  } catch (err) {
+    error("Failed to initialize player skin viewer:", err);
+    isLoading = false;
+    hasError = true;
+  }
+
+  return () => {
+    cancelled = true;
+    disposeSkinViewer();
+  };
+});
 
 onDestroy(() => {
   disposeSkinViewer();
 });
 </script>
 
-<div class="player-head" style="width: {size}px; height: {size}px;">
+<div class="player-head" style:width="{size}px" style:height="{size}px">
+  {#if skinUrl}
+    <canvas bind:this={canvas} width={size} height={size} class:canvas-hidden={isLoading || hasError}></canvas>
+  {/if}
+
   {#if isLoading}
     <div class="loading">
       <Icon name="loader" size="sm" />
@@ -130,15 +117,14 @@ onDestroy(() => {
     <div class="fallback">
       <Icon name="user" size="sm" />
     </div>
-  {:else}
-    <canvas bind:this={canvas} width={size} height={size}></canvas>
   {/if}
 </div>
 
-<style>
+<style lang="scss">
 .player-head {
   position: relative;
   display: inline-block;
+  flex-shrink: 0;
   border-radius: 50%;
   overflow: hidden;
 }
@@ -150,10 +136,14 @@ canvas {
   border-radius: 50%;
 }
 
+canvas.canvas-hidden {
+  visibility: hidden;
+}
+
 .loading,
 .fallback {
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;

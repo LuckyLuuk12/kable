@@ -165,7 +165,7 @@ onDestroy(() => {
         data-title="Account Settings"
         aria-label="Account Settings">
         <div class="user-avatar">
-          <PlayerHead account={activeAccount} size={40} />
+          <PlayerHead size={40} />
         </div>
         <div class="header-content" class:collapsed={isNavCollapsed}>
           <h1 class="app-title">{activeAccount?.username}</h1>
