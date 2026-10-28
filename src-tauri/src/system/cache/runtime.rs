@@ -258,7 +258,7 @@ where
                 discard_cache_file(&path).await;
             }
         },
-        Err(error) => {
+        Err(_error) => {
             // Missing files need no cleanup. For other errors, removal is
             // best-effort because the computation can proceed without the cache.
             if tokio::fs::metadata(&path).await.is_ok() {

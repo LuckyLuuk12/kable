@@ -29,7 +29,20 @@ let {
 let isLoading = $derived(app.profilesService.loading || app.launcherService.loadingVersions);
 
 let profiles = $derived.by(() => {
-  const availableProfiles = app.profilesService.profiles;
+  const availableProfiles = [...app.profilesService.profiles];
+
+  availableProfiles.sort((a, b) => {
+    if (a.metadata.favorite !== b.metadata.favorite) {
+      return a.metadata.favorite ? -1 : 1;
+    }
+
+    const aLastPlayed = a.metadata.last_used ? new Date(a.metadata.last_used).getTime() : 0;
+
+    const bLastPlayed = b.metadata.last_used ? new Date(b.metadata.last_used).getTime() : 0;
+
+    return bLastPlayed - aLastPlayed;
+  });
+
   return limit == null ? availableProfiles : availableProfiles.slice(0, limit);
 });
 
@@ -465,10 +478,6 @@ function formatLastUsed(date: string | null | undefined) {
 .profiles-list {
   height: 100%;
   padding: 2rem;
-  border-radius: $radius-md;
-  border: 1px solid $color-border;
-  background: $color-surface-1;
-  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.08);
   overflow: visible;
 }
 

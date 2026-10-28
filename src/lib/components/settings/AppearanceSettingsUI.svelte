@@ -34,7 +34,11 @@ let statusTimeout: ReturnType<typeof setTimeout> | undefined;
 const builtInThemeIds = new Set(["builtin:kasai-sora", "builtin:modrinth", "builtin:official"]);
 
 const customThemes = $derived(cssThemes.filter((theme) => theme.type === "custom" || theme.id.startsWith("custom:")));
-const builtInThemes = $derived(cssThemes.filter((theme) => theme.type === "builtin" || builtInThemeIds.has(theme.id)));
+const builtInThemes = $derived(
+  cssThemes
+    .filter((theme) => theme.type === "builtin" || builtInThemeIds.has(theme.id))
+    .filter((theme) => !["builtin:crstms", "builtin:nwyr", "builtin:hlwn", "builtin:est", "builtin:apfl", "builtin:brtd"].includes(theme.id)),
+);
 const hasCustomThemes = $derived(customThemes.length > 0);
 const customIconTemplates = $derived(iconTemplates.filter((template) => template.type === "custom"));
 
@@ -79,6 +83,10 @@ async function loadIconTemplates() {
 }
 
 async function selectTheme(themeId: string) {
+  if (app.customizationService.isEventActive()) {
+    setStatus("Cannot change CSS theme while an event theme is active");
+    return;
+  }
   const nextThemeId = themeId || null;
 
   if (nextThemeId && !cssThemes.some((theme) => theme.id === nextThemeId)) {

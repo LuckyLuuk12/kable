@@ -14,6 +14,11 @@ const BUILTIN_THEMES: &[(&str, &str, &str)] = &[
     ("builtin:kasai-sora", "Kasai Sora", "themes/KasaiSora-Theme.css"),
     ("builtin:modrinth", "Modrinth", "themes/Modrinth-Theme.css"),
     ("builtin:official", "Official", "themes/Official-Theme.css"),
+    ("builtin:est", "EST", "themes/est.css"),
+    ("builtin:brtd", "BRTD", "themes/brtd.css"),
+    ("builtin:hlwn", "HLWN", "themes/hlwn.css"),
+    ("builtin:crstms", "CRSTMS", "themes/crstms.css"),
+    ("builtin:nwyr", "NWYR", "themes/nwyr.css"),
 ];
 
 /// Get the directory containing user-created CSS themes.

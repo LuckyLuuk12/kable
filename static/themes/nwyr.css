@@ -1,0 +1,240 @@
+:root {
+  --color-background: #080d1b;
+  --color-surface-0: #080d1b;
+  --color-surface-1: #101a30;
+  --color-surface-2: #1a2943;
+  --color-surface-3: #293b58;
+
+  --color-text: #f7f8ff;
+  --color-text-muted: #b6c2d8;
+  --color-placeholder: #7e8da8;
+
+  --color-border: #465675;
+  --color-border-muted: #293750;
+
+  --color-accent: #f5c451;
+  --color-accent-hover: #ffda79;
+  --color-accent-active: #d6a32c;
+  --color-accent-muted: #ffe7a6;
+
+  --color-accent-secondary: #53d6c5;
+  --color-accent-tertiary: #7e9fff;
+  --color-accent-quaternary: #e9a8ff;
+
+  --color-success: #53d6a0;
+  --color-success-muted: #205e4b;
+
+  --color-warning: #ffd166;
+  --color-warning-muted: #725526;
+
+  --color-error: #ff657a;
+  --color-error-muted: #762d40;
+
+  --color-info: #76c7ff;
+  --color-info-muted: #244d77;
+
+  --color-hover: rgba(220, 231, 255, 0.08);
+  --color-active: rgba(220, 231, 255, 0.15);
+  --color-selected: rgba(83, 214, 197, 0.18);
+  --color-disabled: rgba(220, 231, 255, 0.25);
+
+  --color-overlay: rgba(3, 6, 16, 0.65);
+  --color-backdrop: rgba(3, 6, 16, 0.85);
+
+  --color-highlight: rgba(245, 196, 81, 0.22);
+  --color-focus: #f5c451;
+
+  --font-sans: 'Minecraft', 'Courier New', 'Monaco', 'Menlo',
+    'Consolas', monospace;
+
+  --font-mono: 'Minecraft', 'Courier New', 'Monaco', 'Menlo',
+    'Consolas', monospace;
+
+  --font-display: 'Minecraft', 'Impact', 'Arial Black', sans-serif;
+
+  --font-1: 12px;
+  --font-2: 14px;
+  --font-3: 16px;
+  --font-4: 18px;
+  --font-5: 20px;
+  --font-6: 24px;
+  --font-7: 32px;
+
+  --font-scale: 1;
+
+  --font-xs: calc(var(--font-1) * var(--font-scale));
+  --font-sm: calc(var(--font-2) * var(--font-scale));
+  --font-md: calc(var(--font-3) * var(--font-scale));
+  --font-lg: calc(var(--font-4) * var(--font-scale));
+  --font-xl: calc(var(--font-5) * var(--font-scale));
+  --font-2xl: calc(var(--font-6) * var(--font-scale));
+  --font-3xl: calc(var(--font-7) * var(--font-scale));
+
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --font-line-tight: 1.2;
+  --font-line-normal: 1.5;
+  --font-line-relaxed: 1.75;
+
+  --font-tracking-tight: -0.02em;
+  --font-tracking-normal: 0em;
+  --font-tracking-wide: 0.02em;
+}
+
+.content {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background-color: #080d1b;
+  background-image:
+    radial-gradient(circle at 15% 17%,
+      rgba(245, 196, 81, 0.95) 0 1px,
+      transparent 2px),
+    radial-gradient(circle at 75% 25%,
+      rgba(126, 159, 255, 0.9) 0 1px,
+      transparent 2px),
+    radial-gradient(circle at 45% 65%,
+      rgba(233, 168, 255, 0.8) 0 1px,
+      transparent 2px),
+    radial-gradient(circle at 88% 78%,
+      rgba(83, 214, 197, 0.8) 0 1px,
+      transparent 2px),
+    radial-gradient(ellipse at 15% 10%,
+      rgba(45, 70, 130, 0.28),
+      transparent 48%),
+    linear-gradient(145deg,
+      #080d1b 0%,
+      #101a30 50%,
+      #080d1b 100%);
+
+  background-size:
+    170px 170px,
+    230px 230px,
+    190px 190px,
+    260px 260px,
+    100% 100%,
+    100% 100%;
+
+  background-attachment: fixed;
+}
+
+.content::before,
+.content::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-repeat: no-repeat;
+}
+
+.content::before {
+  background-image:
+    radial-gradient(circle, #ffe8a0 0 1px, transparent 2px),
+    radial-gradient(circle, #ffe8a0 0 1px, transparent 2px),
+    radial-gradient(circle, #ffe8a0 0 1px, transparent 2px),
+    radial-gradient(circle, #ffe8a0 0 1px, transparent 2px),
+    radial-gradient(circle, #ffe8a0 0 1px, transparent 2px),
+    radial-gradient(circle, #ffe8a0 0 1px, transparent 2px),
+    radial-gradient(circle, #ffe8a0 0 1px, transparent 2px),
+    radial-gradient(circle, #ffe8a0 0 1px, transparent 2px),
+    radial-gradient(circle, #ffe8a0 0 1px, transparent 2px),
+    radial-gradient(circle, #ffe8a0 0 1px, transparent 2px),
+    radial-gradient(circle, #ffe8a0 0 1px, transparent 2px),
+    radial-gradient(circle, #ffe8a0 0 1px, transparent 2px);
+  background-size:
+    3px 3px, 3px 3px, 3px 3px, 3px 3px,
+    3px 3px, 3px 3px, 3px 3px, 3px 3px,
+    3px 3px, 3px 3px, 3px 3px, 3px 3px;
+  background-position:
+    18% 20%, 20% 15%, 24% 18%, 21% 25%,
+    72% 17%, 76% 13%, 80% 18%, 77% 24%,
+    49% 48%, 53% 44%, 56% 49%, 52% 55%;
+  animation: nwyr-sparkle 4s ease-in-out infinite alternate;
+}
+
+.content::after {
+  background-image:
+    radial-gradient(circle, #f5c451 0 2px, transparent 3px),
+    radial-gradient(circle, #f5c451 0 2px, transparent 3px),
+    radial-gradient(circle, #f5c451 0 2px, transparent 3px),
+    radial-gradient(circle, #f5c451 0 2px, transparent 3px),
+    radial-gradient(circle, #7e9fff 0 2px, transparent 3px),
+    radial-gradient(circle, #7e9fff 0 2px, transparent 3px),
+    radial-gradient(circle, #7e9fff 0 2px, transparent 3px),
+    radial-gradient(circle, #7e9fff 0 2px, transparent 3px),
+    radial-gradient(circle, #e9a8ff 0 2px, transparent 3px),
+    radial-gradient(circle, #e9a8ff 0 2px, transparent 3px),
+    radial-gradient(circle, #e9a8ff 0 2px, transparent 3px),
+    radial-gradient(circle, #e9a8ff 0 2px, transparent 3px);
+  background-size:
+    5px 5px, 5px 5px, 5px 5px, 5px 5px,
+    5px 5px, 5px 5px, 5px 5px, 5px 5px,
+    5px 5px, 5px 5px, 5px 5px, 5px 5px;
+  background-position:
+    18% 20%, 20% 15%, 24% 18%, 21% 25%,
+    72% 17%, 76% 13%, 80% 18%, 77% 24%,
+    49% 48%, 53% 44%, 56% 49%, 52% 55%;
+  opacity: 0;
+  animation: nwyr-burst 5s ease-out infinite;
+}
+
+@keyframes nwyr-sparkle {
+  0% {
+    opacity: 0.25;
+    filter: brightness(0.8);
+  }
+
+  100% {
+    opacity: 0.9;
+    filter: brightness(1.5);
+  }
+}
+
+@keyframes nwyr-burst {
+
+  0%,
+  100% {
+    opacity: 0;
+    filter: brightness(0.8);
+    transform: scale(0.7);
+  }
+
+  15% {
+    opacity: 0.8;
+    filter: brightness(1.8);
+    transform: scale(1);
+  }
+
+  35% {
+    opacity: 0.2;
+    filter: brightness(1.2);
+    transform: scale(1.15);
+  }
+
+  45%,
+  90% {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  .content::before,
+  .content::after {
+    animation: none;
+  }
+
+  .content::before {
+    opacity: 0.65;
+  }
+
+  .content::after {
+    opacity: 0.25;
+  }
+}

@@ -7,8 +7,9 @@ import {
   type SoundSettings,
   api,
   app,
+  debug
 } from "$lib";
-import { SvelteMap } from "svelte/reactivity";
+import { SvelteDate, SvelteMap } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
 
 type SoundpackListEntry = {
@@ -102,6 +103,57 @@ export class CustomizationService implements Service {
     }, delay);
   }
 
+  /* Events & Fun */
+  isCRSTMS(): boolean {
+    const now = new SvelteDate();
+    return (now.getMonth() === 11 && now.getDate() >= 20 && now.getDate() <= 28) && (this.settings?.misc?.enable_fun ?? true);
+  }
+  isAPFL(): boolean {
+    const now = new SvelteDate();
+    return (now.getMonth() === 3 && now.getDate() >= 1 && now.getDate() <= 10) && (this.settings?.misc?.enable_fun ?? true);
+  }
+  isHLWN(): boolean {
+    const now = new SvelteDate();
+    return (now.getMonth() === 9 && now.getDate() >= 25 && now.getDate() <= 31) && (this.settings?.misc?.enable_fun ?? true);
+  }
+  isEST(): boolean {
+    const now = new SvelteDate();
+    const start = new SvelteDate(now.getFullYear(), 2, 20);
+    const end = new SvelteDate(now.getFullYear(), 3, 10);
+    return (now >= start && now <= end) && (this.settings?.misc?.enable_fun ?? true);
+  }
+  isNWYR(): boolean {
+    const now = new SvelteDate();
+    const start = new SvelteDate(now.getFullYear(), 11, 31);
+    const end = new SvelteDate(now.getFullYear() + 1, 0, 10);
+    return (now >= start && now <= end) && (this.settings?.misc?.enable_fun ?? true);
+  }
+  isBRTD(): boolean {
+    const now = new SvelteDate();
+    const start = new SvelteDate(now.getFullYear(), 6, 13);
+    const end = new SvelteDate(now.getFullYear(), 6, 14);
+    return (now >= start && now <= end) && (this.settings?.misc?.enable_fun ?? true);
+  }
+  isEventActive() {
+    return this.isCRSTMS() || this.isNWYR() || this.isHLWN() || this.isEST() || this.isAPFL() || this.isBRTD();
+  }
+  private getActiveEventTheme(): string | null {
+    if (!(this.settings?.misc?.enable_fun ?? true)) {
+      return null;
+    }
+    const fun = this.settings?.advanced?.extra?.["fun"];
+    debug("[CustomizationService] Checking for active event theme:", fun, "CRSTMS:", this.isCRSTMS(), "NWYR:", this.isNWYR(), "HLWN:", this.isHLWN(), "EST:", this.isEST(), "APFL:", this.isAPFL(), "BRTD:", this.isBRTD());
+    if (fun == 'crstms' || this.isCRSTMS()) return "builtin:crstms";
+    if (fun == 'nwyr' || this.isNWYR()) return "builtin:nwyr";
+    if (fun == 'hlwn' || this.isHLWN()) return "builtin:hlwn";
+    if (fun == 'est' || this.isEST()) return "builtin:est";
+    if (fun == 'apfl' || this.isAPFL()) return "builtin:apfl";
+    if (fun == 'brtd' || this.isBRTD()) return "builtin:brtd";
+
+    return null;
+  }
+
+
   /**
    * Load settings and initialize the persisted appearance.
    */
@@ -126,6 +178,14 @@ export class CustomizationService implements Service {
     ]);
   }
 
+  async restart() {
+    await Promise.allSettled([
+      this.initializeAppearance(),
+      this.initializeSoundSystem(),
+    ]);
+  }
+
+
   private async initializeAppearance(): Promise<void> {
     await Promise.allSettled([
       this.getIconTemplates(),
@@ -137,43 +197,63 @@ export class CustomizationService implements Service {
 
     this.selectedIconTemplate = appearance.icon_template ?? null;
 
-    // Prefer the new setting. Only accept legacy values if they correspond
-    // to an actual discovered theme ID.
     const savedThemeId = appearance.theme ?? null;
+    const eventThemeId = this.getActiveEventTheme();
 
-    if (!savedThemeId) {
+    // Event themes temporarily override the user's preferred theme.
+    const effectiveThemeId = eventThemeId ?? savedThemeId;
+
+    if (!effectiveThemeId) {
       this.selectedCssTheme = null;
-      this.removeCustomCSS("No saved theme");
+      this.removeCustomCSS("No saved theme or active event");
       return;
     }
 
-    const themeExists = this.cssThemes.some((theme) => theme.id === savedThemeId);
+    const themeExists = this.cssThemes.some(
+      (theme) => theme.id === effectiveThemeId,
+    );
 
     if (!themeExists) {
-      // Old values such as "light", "dark", or "system" are not CSS theme IDs.
+      if (eventThemeId) {
+        console.error(
+          "[CustomizationService] Event theme not found:",
+          eventThemeId,
+        );
+      } else {
+        console.warn(
+          "[CustomizationService] Saved theme not found:",
+          savedThemeId,
+        );
+
+        this.settings = {
+          ...this.settings!,
+          appearance: {
+            ...this.settings!.appearance,
+            theme: null,
+          },
+        };
+
+        this.scheduleSave();
+      }
+
       this.selectedCssTheme = null;
-      this.removeCustomCSS("Saved theme not found");
-
-      this.settings = {
-        ...this.settings!,
-        appearance: {
-          ...this.settings!.appearance,
-          theme: null,
-        },
-      };
-
-      this.scheduleSave();
+      this.removeCustomCSS("Theme not found");
       return;
     }
 
     try {
-      await this.applyCssTheme(savedThemeId);
+      await this.applyCssTheme(effectiveThemeId);
     } catch (error) {
-      console.error("[CustomizationService] Failed to apply saved CSS theme:", error);
+      console.error(
+        "[CustomizationService] Failed to apply CSS theme:",
+        error,
+      );
+
       this.selectedCssTheme = null;
-      this.removeCustomCSS("Failed to apply saved CSS theme");
+      this.removeCustomCSS("Failed to apply CSS theme");
     }
   }
+
 
   /**
    * Persist the full settings object.
@@ -356,12 +436,17 @@ export class CustomizationService implements Service {
    */
   private async applyCssTheme(themeId: string): Promise<void> {
     const revision = ++this.cssThemeRevision;
-    const cssContent = await api.loadCss(themeId);
+    const effectiveThemeId = this.getActiveEventTheme() ?? themeId;
 
+    debug("[CustomizationService] Applying CSS theme:", effectiveThemeId);
+
+    const cssContent = await api.loadCss(effectiveThemeId);
+    debug("[CustomizationService] CSS theme loaded:", effectiveThemeId, "length:", cssContent.length);
     if (revision !== this.cssThemeRevision) return;
 
     this.injectCustomCSS(cssContent);
-    this.selectedCssTheme = themeId;
+    debug("[CustomizationService] Applied CSS theme:", effectiveThemeId);
+    this.selectedCssTheme = effectiveThemeId;
   }
 
 

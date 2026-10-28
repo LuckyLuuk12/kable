@@ -65,7 +65,7 @@ onMount(() => {
       <span class="app-title">Kable Launcher</span>
 
       {#if isDev}
-        <span class="dev-badge" title="Development build">DEV</span>
+        <button onclick={app.restartAll} class="dev-badge" title="Development build">DEV</button>
       {/if}
     </div>
 

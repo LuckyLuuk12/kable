@@ -1,0 +1,120 @@
+:root {
+  --color-background: #0b0a0a;
+  --color-surface-0: #0b0a0a;
+  --color-surface-1: #151212;
+  --color-surface-2: #211a1a;
+  --color-surface-3: #302626;
+
+  --color-text: #f8f4f2;
+  --color-text-muted: #b5a5a5;
+  --color-placeholder: #786b6b;
+
+  --color-border: #493737;
+  --color-border-muted: #302424;
+
+  --color-accent: #ff6500;
+  --color-accent-hover: #ff8533;
+  --color-accent-active: #cc4b00;
+  --color-accent-muted: #ffb380;
+
+  --color-accent-secondary: #347d32;
+  --color-accent-tertiary: #b83232;
+  --color-accent-quaternary: #d9a441;
+
+  --color-success: #65b85a;
+  --color-success-muted: #254d25;
+
+  --color-warning: #ffad42;
+  --color-warning-muted: #70431d;
+
+  --color-error: #ff4545;
+  --color-error-muted: #702424;
+
+  --color-info: #b08cba;
+  --color-info-muted: #49304f;
+
+  --color-hover: rgba(255, 140, 0, 0.08);
+  --color-active: rgba(255, 140, 0, 0.16);
+  --color-selected: rgba(52, 125, 50, 0.20);
+  --color-disabled: rgba(255, 255, 255, 0.25);
+
+  --color-overlay: rgba(0, 0, 0, 0.65);
+  --color-backdrop: rgba(0, 0, 0, 0.85);
+
+  --color-highlight: rgba(255, 101, 0, 0.22);
+  --color-focus: #ff6500;
+
+  --font-sans: 'Minecraft', 'Courier New', 'Monaco', 'Menlo',
+    'Consolas', monospace;
+
+  --font-mono: 'Minecraft', 'Courier New', 'Monaco', 'Menlo',
+    'Consolas', monospace;
+
+  --font-display: 'Minecraft', 'Impact', 'Arial Black', sans-serif;
+
+  --font-1: 12px;
+  --font-2: 14px;
+  --font-3: 16px;
+  --font-4: 18px;
+  --font-5: 20px;
+  --font-6: 24px;
+  --font-7: 32px;
+
+  --font-scale: 1;
+
+  --font-xs: calc(var(--font-1) * var(--font-scale));
+  --font-sm: calc(var(--font-2) * var(--font-scale));
+  --font-md: calc(var(--font-3) * var(--font-scale));
+  --font-lg: calc(var(--font-4) * var(--font-scale));
+  --font-xl: calc(var(--font-5) * var(--font-scale));
+  --font-2xl: calc(var(--font-6) * var(--font-scale));
+  --font-3xl: calc(var(--font-7) * var(--font-scale));
+
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --font-line-tight: 1.2;
+  --font-line-normal: 1.5;
+  --font-line-relaxed: 1.75;
+
+  --font-tracking-tight: -0.02em;
+  --font-tracking-normal: 0em;
+  --font-tracking-wide: 0.02em;
+}
+
+.content {
+  background-color: #0b0a0a;
+  background-image:
+    radial-gradient(circle at 15% 20%,
+      rgba(255, 101, 0, 0.12) 0 1px,
+      transparent 2px),
+    radial-gradient(circle at 78% 32%,
+      rgba(184, 50, 50, 0.12) 0 1px,
+      transparent 2px),
+    radial-gradient(circle at 42% 72%,
+      rgba(52, 125, 50, 0.09) 0 1.5px,
+      transparent 2.5px),
+    radial-gradient(circle at 88% 84%,
+      rgba(255, 140, 0, 0.10) 0 1px,
+      transparent 2px),
+    radial-gradient(ellipse at 85% 5%,
+      rgba(115, 25, 15, 0.20) 0%,
+      transparent 48%),
+    linear-gradient(135deg,
+      #0b0a0a 0%,
+      #140e0e 50%,
+      #0b0a0a 100%);
+
+  background-size:
+    180px 180px,
+    240px 240px,
+    210px 210px,
+    280px 280px,
+    100% 100%,
+    100% 100%;
+
+  background-attachment: fixed;
+}

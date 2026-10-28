@@ -7,7 +7,7 @@ use crate::Logger;
 use api_types::profiles::LauncherProfiles;
 use api_types::profiles::{KableProfile, Projects};
 use kable_macros::persistent_cache;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 /// A way to convert a official launcher profile into a KableProfile, which is the internal representation of a profile in Kable
 fn into(launcher_profiles: LauncherProfiles, all_versions: &[api_types::profiles::ProfileVersion]) -> Result<Vec<KableProfile>, String> {
@@ -102,10 +102,9 @@ async fn merge_profiles(
         kable_profiles_map.insert(profile.id.clone(), profile);
     }
 
-    merged_profiles.extend(kable_profiles_map.into_values());
+    merged_profiles.retain(|profile| !kable_profiles_map.contains_key(&profile.id));
 
-    let mut seen = HashSet::new();
-    merged_profiles.retain(|profile| seen.insert(profile.id.clone()));
+    merged_profiles.extend(kable_profiles_map.into_values());
 
     Ok(merged_profiles)
 }
