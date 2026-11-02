@@ -24,9 +24,11 @@ async fn browse_cached(
     minecraft_version: Option<String>,
 ) -> Result<ModrinthResults, String> {
     if smart_filter {
-        search.facets.push(FacetGroup {
-            facets: vec![Facet { field: FacetField::Categories, operator: FacetOperator::Eq, value: normalize_loader(&loader) }],
-        });
+        if project_type == ProjectType::Mod || project_type == ProjectType::Modpack {
+            search.facets.push(FacetGroup {
+                facets: vec![Facet { field: FacetField::Categories, operator: FacetOperator::Eq, value: normalize_loader(&loader) }],
+            });
+        }
 
         if let Some(minecraft_version) = minecraft_version {
             search.facets.push(FacetGroup {

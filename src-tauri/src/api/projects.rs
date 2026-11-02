@@ -38,7 +38,7 @@ pub async fn add_project_to_profile(profile: KableProfile, project: Project, ver
 
 #[tauri::command]
 #[specta::specta]
-pub async fn check_for_update(kable_profile: KableProfile, kable_project: KableProject) -> Result<Project, String> {
+pub async fn check_for_update(kable_profile: KableProfile, kable_project: KableProject) -> Result<Vec<UpdateMap>, String> {
     management::check_for_update(kable_profile, kable_project).await
 }
 

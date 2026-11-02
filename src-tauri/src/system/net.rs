@@ -88,23 +88,35 @@ pub async fn download_bytes(url: &str) -> NetResult<Vec<u8>> {
 }
 
 pub async fn open_url(url: String) -> Result<(), String> {
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("cmd")
-            .args(["/C", "start", "", &url])
-            .spawn()
-            .map_err(|e| format!("Failed to open URL on Windows: {}", e))?;
+    // #[cfg(target_os = "windows")]
+    // {
+    //     std::process::Command::new("cmd")
+    //         .args(["/C", "start", "", &url])
+    //         .spawn()
+    //         .map_err(|e| format!("Failed to open URL on Windows: {}", e))?;
+    // }
+
+    // #[cfg(target_os = "macos")]
+    // {
+    //     std::process::Command::new("open").arg(&url).spawn().map_err(|e| format!("Failed to open URL on macOS: {}", e))?;
+    // }
+
+    // #[cfg(target_os = "linux")]
+    // {
+    //     std::process::Command::new("xdg-open").arg(&url).spawn().map_err(|e| format!("Failed to open URL on Linux: {}", e))?;
+    // }
+
+    // Ok(())
+    use tauri_plugin_opener::OpenerExt;
+
+    let parsed_url = url::Url::parse(&url).map_err(|e| format!("Invalid URL: {}", e))?;
+
+    match parsed_url.scheme() {
+        "http" | "https" | "mailto" | "tel" => {}
+        scheme => {
+            return Err(format!("Unsupported URL scheme: {}", scheme));
+        }
     }
 
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open").arg(&url).spawn().map_err(|e| format!("Failed to open URL on macOS: {}", e))?;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open").arg(&url).spawn().map_err(|e| format!("Failed to open URL on Linux: {}", e))?;
-    }
-
-    Ok(())
+    crate::app_handle()?.opener().open_url(url, None::<&str>).map_err(|e| format!("Failed to open URL: {}", e))
 }

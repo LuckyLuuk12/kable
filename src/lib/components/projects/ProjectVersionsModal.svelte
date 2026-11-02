@@ -12,7 +12,7 @@ the profile/project state after an install or update.
 -->
 
 <script lang="ts">
-import { app, warn, type KableProfile, type KableProject, type Project, type ProjectVersion } from "$lib";
+import { app, type KableProfile, type KableProject, type Project, type ProjectVersion } from "$lib";
 
 let {
   profile = null,
@@ -144,6 +144,21 @@ function isVersionCompatible(version: ProjectVersion): boolean {
   return app.projectsService.isVersionCompatible(profile, version, projectData.project_type);
 }
 
+function getProjectTypeLabel(): string {
+  switch (projectData.project_type) {
+    case "mod":
+      return "mod";
+    case "resourcepack":
+      return "resource pack";
+    case "shader":
+      return "shader";
+    case "modpack":
+      return "modpack";
+    default:
+      return "project";
+  }
+}
+
 /**
  * Returns the relationship between the installed version and the selected
  * version based on publication date.
@@ -200,16 +215,6 @@ let selectedVersionActionLabel = $derived.by(() => {
 
 async function installVersion(version: ProjectVersion): Promise<void> {
   if (!profile || loading) {
-    return;
-  }
-
-  if (!isVersionCompatible(version)) {
-    warn("[ProjectVersionsModal] Refusing to install incompatible version", {
-      project: projectData.project_id,
-      version: version.id,
-      profile: profile.id,
-    });
-
     return;
   }
 
@@ -489,14 +494,14 @@ $effect(() => {
           <button
             class="install"
             type="button"
-            disabled={loading || !isVersionCompatible(selectedVersion) || (isKableProject(project) && selectedVersion.id === project.version_id)}
+            disabled={loading || (isKableProject(project) && selectedVersion.id === project.version_id)}
             onclick={() => installVersion(selectedVersion)}>
             {#if loading}
               {isKableProject(project) ? "Updating..." : "Installing..."}
             {:else if isKableProject(project) && selectedVersion.id === project.version_id}
               Installed
             {:else if !isVersionCompatible(selectedVersion)}
-              Incompatible with profile
+              Install incompatible {getProjectTypeLabel()}
             {:else}
               {selectedVersionActionLabel}
             {/if}

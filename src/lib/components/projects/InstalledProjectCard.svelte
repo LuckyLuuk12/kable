@@ -130,9 +130,10 @@ function showGallery(): void {
 
 <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
 <article
+  title={`Open details for ${project.project.title}`}
   class="installed-project-card"
   class:enabled
-  class:has-update={hasUpdate && !enabled}
+  class:has-update={hasUpdate && enabled}
   class:loading={loading || togglePending}
   role="button"
   tabindex="0"

@@ -119,9 +119,10 @@ let projectSupportsProfile = $derived(latestCompatibleVersion !== null);
  * Check update availability through the backend.
  *
  * ProjectsService.checkUpdate() invokes the backend's check_for_update()
- * command. The backend returns Ok(Project) when an update exists and Err when
- * no update is available or no compatible version exists.
+ * command. It returns an UpdateMap when an update exists, or null when
+ * no update is available.
  *
+ * Actual errors are propagated by ProjectsService.
  * No version comparison is performed here.
  */
 $effect(() => {
@@ -140,12 +141,12 @@ $effect(() => {
 
   void app.projectsService
     .checkUpdate(currentProfile, currentInstalledProject)
-    .then(() => {
+    .then((result) => {
       if (cancelled) {
         return;
       }
 
-      updateAvailable = true;
+      updateAvailable = result !== null;
     })
     .catch(() => {
       if (cancelled) {

@@ -135,7 +135,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | hard-drive | [Accounts Page](https://github.com/LuckyLuuk12/kable/blob/main/src/routes/accounts/+page.svelte#L236) | <pre><code class="language-html">&lt;Icon name="hard-drive" size="md" /&gt;</code></pre> |
 | help | [NotificationTray](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/notifications/NotificationTray.svelte#L78) | <pre><code class="language-html">&lt;Icon name="help" size="sm" /&gt;</code></pre> |
 | image | [EditProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/EditProfileModal.svelte#L190) | <pre><code class="language-html">&lt;Icon name="image" forceType="svg" size="md" /&gt;</code></pre> |
-| image | [InstalledProjectCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/InstalledProjectCard.svelte#L220) | <pre><code class="language-html">&lt;Icon name="image" forceType="svg" /&gt;</code></pre> |
+| image | [InstalledProjectCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/InstalledProjectCard.svelte#L221) | <pre><code class="language-html">&lt;Icon name="image" forceType="svg" /&gt;</code></pre> |
 | image | [CapeSelection](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/CapeSelection.svelte#L112) | <pre><code class="language-html">&lt;Icon name="image" forceType="svg" size="xl" /&gt;</code></pre> |
 | image | [CapeSelection](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/CapeSelection.svelte#L132) | <pre><code class="language-html">&lt;Icon name="image" forceType="svg" size="xl" /&gt;</code></pre> |
 | image | [SkinSelection](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelection.svelte#L385) | <pre><code class="language-html">&lt;Icon name="image" forceType="svg" size="xl" /&gt;</code></pre> |
@@ -148,7 +148,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | link | [AuthenticationFlow](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/auth/AuthenticationFlow.svelte#L109) | <pre><code class="language-html">&lt;Icon name="link" size="sm" /&gt;</code></pre> |
 | link | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L333) | <pre><code class="language-html">&lt;Icon name="link" size="sm" /&gt;</code></pre> |
 | link | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L435) | <pre><code class="language-html">&lt;Icon name="link" size="sm" /&gt;</code></pre> |
-| list | [InstalledProjectCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/InstalledProjectCard.svelte#L199) | <pre><code class="language-html">&lt;Icon name="list" forceType="svg" /&gt;</code></pre> |
+| list | [InstalledProjectCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/InstalledProjectCard.svelte#L200) | <pre><code class="language-html">&lt;Icon name="list" forceType="svg" /&gt;</code></pre> |
 | load | [CacheManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/advanced/CacheManager.svelte#L228) | <pre><code class="language-html">&lt;Icon name="load" forceType="svg" size="sm" /&gt;</code></pre> |
 | load | [CacheManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/advanced/CacheManager.svelte#L279) | <pre><code class="language-html">&lt;Icon name="load" forceType="svg" /&gt;</code></pre> |
 | load | [SymlinkManager](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/advanced/SymlinkManager.svelte#L123) | <pre><code class="language-html">&lt;Icon name="load" forceType="svg" size="sm" /&gt;</code></pre> |
@@ -213,7 +213,7 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | trash | [NotificationTray](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/notifications/NotificationTray.svelte#L92) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" /&gt;</code></pre> |
 | trash | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L338) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" forceType="svg" /&gt;</code></pre> |
 | trash | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L440) | <pre><code class="language-html">&lt;Icon name="trash" size="sm" forceType="svg" /&gt;</code></pre> |
-| trash | [InstalledProjectCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/InstalledProjectCard.svelte#L209) | <pre><code class="language-html">&lt;Icon name="trash" forceType="svg" /&gt;</code></pre> |
+| trash | [InstalledProjectCard](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/InstalledProjectCard.svelte#L210) | <pre><code class="language-html">&lt;Icon name="trash" forceType="svg" /&gt;</code></pre> |
 | trash | [SkinSelection](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelection.svelte#L354) | <pre><code class="language-html">&lt;Icon name="trash" forceType="svg" size="sm" /&gt;</code></pre> |
 | upload | [SkinSelection](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelection.svelte#L367) | <pre><code class="language-html">&lt;Icon name="upload" forceType="svg" size="sm" /&gt;</code></pre> |
 | upload | [SkinSelection](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/skins/SkinSelection.svelte#L541) | <pre><code class="language-html">&lt;Icon name="upload" forceType="svg" size="sm" /&gt;</code></pre> |
@@ -234,4 +234,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L166) | <pre><code class="language-html">&lt;Icon name="x" size="md" forceType="svg" /&gt;</code></pre> |
 | zap | [LogsToolbar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsToolbar.svelte#L120) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2026-10-28T01:49:25.886Z_
+_Generated: 2026-11-02T02:18:36.529Z_

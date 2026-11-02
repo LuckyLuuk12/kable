@@ -18,6 +18,7 @@ let { children }: { children?: Snippet } = $props();
 
 let isMaximized = $state(false);
 let isDev = $state(false);
+let title = $derived(!app.customizationService.isAPFL ? "Kable Launcher" : Math.random() <= 0.5 ? "Cursle Launcher" : "Bugle Launcher");
 
 const appWindow = getCurrentWindow();
 
@@ -62,7 +63,7 @@ onMount(() => {
     <div class="titlebar-left">
       <img src="/favicon.png" alt="Kable Launcher" class="app-icon" width="24" height="24" />
 
-      <span class="app-title">Kable Launcher</span>
+      <span class="app-title">{title}</span>
 
       {#if isDev}
         <button onclick={app.restartAll} class="dev-badge" title="Development build">DEV</button>

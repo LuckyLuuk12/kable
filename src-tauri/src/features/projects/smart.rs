@@ -97,7 +97,10 @@ pub fn latest_compatible_version<'a>(profile: &KableProfile, project: &'a Projec
 /// Resolve an explicitly requested version or select the latest compatible
 /// version when no version ID was provided.
 ///
-/// Explicitly requested versions are validated rather than silently replaced.
+/// An explicit version ID represents a deliberate user selection and is
+/// therefore accepted even when Modrinth's compatibility metadata does not
+/// list the profile's Minecraft version or loader. Automatic selection
+/// remains restricted to compatible versions.
 pub fn resolve_version_id<'a>(profile: &KableProfile, project: &'a Project, version_id: Option<&str>) -> Result<&'a str, String> {
     if let Some(version_id) = version_id {
         let version = project.versions.iter().find(|version| version.id == version_id).ok_or_else(|| {
@@ -108,27 +111,6 @@ pub fn resolve_version_id<'a>(profile: &KableProfile, project: &'a Project, vers
                 project.versions.len(),
             )
         })?;
-
-        if !is_version_compatible(profile, version, project.project_type) {
-            let profile_mc = profile.version.minecraft_version.as_deref();
-            let profile_loader = normalize_loader(&profile.version.loader.to_string());
-
-            let normalized_loaders: Vec<String> = version.loaders.iter().map(|loader| normalize_loader(loader)).collect();
-
-            return Err(format!(
-                "Version {} ({}) is incompatible with profile '{}': \
-                 profile_mc={:?}, version_game_versions={:?}, \
-                 profile_loader={}, version_loaders={:?}, project_type={:?}",
-                version.id,
-                version.version_number,
-                profile.metadata.name,
-                profile_mc,
-                version.game_versions,
-                profile_loader,
-                normalized_loaders,
-                project.project_type,
-            ));
-        }
 
         return Ok(version.id.as_str());
     }

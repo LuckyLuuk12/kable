@@ -297,29 +297,9 @@ pub async fn check_for_updates(profile: KableProfile, project_type: ProjectType)
 
     if let Some(projects) = enabled_projects.get(&project_type) {
         for kable_project in projects {
-            if let Ok(latest_project) = check_for_update(current_profile.clone(), kable_project.clone()).await {
-                let latest_version = latest_compatible_version(&current_profile, &latest_project);
+            let project_updates = check_for_update(current_profile.clone(), kable_project.clone()).await?;
 
-                Logger::debug_global(
-                    format!(
-                        "Update available for {}: {} -> {} ({})",
-                        kable_project.project.title,
-                        kable_project
-                            .project
-                            .versions
-                            .iter()
-                            .find(|v| v.id == kable_project.version_id)
-                            .map(|v| v.version_number.as_str())
-                            .unwrap_or("<unknown>"),
-                        latest_version.map(|version| version.id.as_str()).unwrap_or("<unknown>"),
-                        latest_version.map(|version| version.version_number.as_str()).unwrap_or("<unknown>"),
-                    )
-                    .as_str(),
-                    Some(current_profile.id.as_str()),
-                );
-
-                updates.push(UpdateMap { kable_project: kable_project.clone(), update: Some(latest_project) });
-            }
+            updates.extend(project_updates);
         }
     }
 
@@ -328,17 +308,19 @@ pub async fn check_for_updates(profile: KableProfile, project_type: ProjectType)
     Ok(updates)
 }
 
-pub async fn check_for_update(profile: KableProfile, kable_project: KableProject) -> Result<Project, String> {
+pub async fn check_for_update(profile: KableProfile, kable_project: KableProject) -> Result<Vec<UpdateMap>, String> {
     let current_profile = crate::features::profiles::management::get_profile(&profile.id).await?;
 
     let project = load_project_metadata(&kable_project).await?;
 
-    let latest_version = latest_compatible_version(&current_profile, &project)
-        .ok_or_else(|| format!("No compatible version found for project {}", project.project_id))?;
+    let Some(latest_version) = latest_compatible_version(&current_profile, &project) else {
+        return Ok(Vec::new());
+    };
 
     if latest_version.id == kable_project.version_id {
-        return Err(format!("No update available for project {}", kable_project.filename));
+        return Ok(Vec::new());
     }
+
     Logger::debug_global(
         format!(
             "Update available for {}: {} -> {} ({})",
@@ -350,13 +332,14 @@ pub async fn check_for_update(profile: KableProfile, kable_project: KableProject
                 .find(|v| v.id == kable_project.version_id)
                 .map(|v| v.version_number.as_str())
                 .unwrap_or("<unknown>"),
-            latest_version.id.as_str(),
-            latest_version.version_number.as_str()
+            latest_version.id,
+            latest_version.version_number,
         )
         .as_str(),
         Some(current_profile.id.as_str()),
     );
-    Ok(project)
+
+    Ok(vec![UpdateMap { kable_project, update: Some(project) }])
 }
 
 /// Update a project without overwriting unrelated or newer profile settings.

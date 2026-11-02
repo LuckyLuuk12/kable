@@ -7,9 +7,16 @@ use api_types::profiles::KableProfile;
 use api_types::projects::{DependencyType, KableProject, Project, ProjectType, ResolvedDependency};
 
 use crate::features::projects::management::get_installed_project;
-use crate::features::projects::smart::{is_version_compatible, resolve_version_id};
+use crate::features::projects::smart::resolve_version_id;
 
 /// Resolve a project's dependencies recursively without installing anything.
+///
+/// The root version is already an explicit user selection, so compatibility
+/// metadata must not prevent dependency resolution for that version.
+///
+/// Dependencies with an exact version ID use that exact version. Dependencies
+/// without an exact version ID select the latest version compatible with the
+/// profile.
 ///
 /// Dependencies that already exist in the profile are excluded regardless
 /// of whether they are enabled or disabled. Project identity is determined
@@ -21,18 +28,11 @@ pub async fn resolve_project_dependencies(
 ) -> Result<Vec<ResolvedDependency>, String> {
     let current_profile = crate::features::profiles::management::get_profile(&profile.id).await?;
 
-    let root_version = project
+    project
         .versions
         .iter()
         .find(|version| version.id == version_id)
         .ok_or_else(|| format!("Version {} was not found for project {}", version_id, project.project_id))?;
-
-    if !is_version_compatible(&current_profile, root_version, project.project_type) {
-        return Err(format!(
-            "Version {} of project {} is not compatible with profile {}",
-            version_id, project.project_id, current_profile.metadata.name
-        ));
-    }
 
     type VersionKey = (String, String);
     type ProjectKey = (ProjectType, String);
@@ -151,6 +151,9 @@ pub async fn resolve_project_dependencies(
                 continue;
             }
 
+            // Exact dependency versions are explicit requirements from the
+            // parent version. Dependencies without an exact version ID use
+            // the latest compatible version through resolve_version_id().
             let selected_version_id = match resolve_version_id(&current_profile, &dependency_project, dependency_version_id.as_deref()) {
                 Ok(version_id) => version_id.to_string(),
 

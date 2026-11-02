@@ -10,6 +10,7 @@ import {
   type UpdateMap,
   api,
   app,
+  debug,
   error,
   log,
 } from "$lib";
@@ -348,8 +349,8 @@ export class ProjectsService implements Service {
       if (dependencies.length === 0) {
         return await this.download(profile, project, versionId);
       }
-
-      app.show(ProjectDependenciesModal, {
+      debug(`Project ${project.title} has ${dependencies.length} dependencies, prompting user for confirmation...`);
+      await app.show(ProjectDependenciesModal, {
         profile,
         project,
         versionId,
@@ -387,12 +388,7 @@ export class ProjectsService implements Service {
     profile: KableProfile,
     project: KableProject,
   ): Promise<boolean> {
-    try {
-      await this.checkUpdate(profile, project);
-      return true;
-    } catch (err) {
-      return false;
-    }
+    return (await this.checkUpdate(profile, project)) !== null;
   }
 
   async download(
@@ -597,17 +593,11 @@ export class ProjectsService implements Service {
   async checkUpdate(
     profile: KableProfile,
     project: KableProject,
-  ): Promise<Project | null> {
+  ): Promise<UpdateMap | null> {
     try {
-      return await api.checkForUpdate(profile, project);
+      const updates = await api.checkForUpdate(profile, project);
+      return updates[0] ?? null;
     } catch (err) {
-      if (
-        typeof err === "string" &&
-        err.includes("No update available")
-      ) {
-        return null;
-      }
-
       error("Failed to check project update", err);
       throw err;
     }
