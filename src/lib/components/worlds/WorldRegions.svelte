@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, type World, type WorldChunk, type WorldRegion, type WorldRegionStorage } from "$lib";
+import { app, type World, type WorldChunk, type WorldRegion, type WorldRegionStorage } from "#lib";
 
 let { world }: { world: World } = $props();
 

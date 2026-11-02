@@ -1,21 +1,41 @@
+import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  plugins: [sveltekit()],
+  plugins: [
+    sveltekit({
+      // Consult https://svelte.dev/docs/kit/integrations
+      // for more information about preprocessors
+      preprocess: vitePreprocess(),
+
+      // adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
+      // If your environment is not supported, or you settled on a specific environment, switch out the adapter.
+      // See https://svelte.dev/docs/kit/adapters for more information about adapters.
+      adapter: adapter()
+    })
+  ],
   css: {
     preprocessorOptions: {
       scss: {
         api: 'modern',
-        additionalData: `
-          @use "$lib/styles/_inject.scss" as *;
-        `,
+        additionalData: (source, filename) => {
+          const normalized = filename.replace(/\\/g, '/');
+
+          if (
+            normalized.endsWith('/_inject.scss') ||
+            normalized.endsWith('/global.scss')
+          ) {
+            return source;
+          }
+
+          return `@use "#lib/styles/_inject.scss" as *;\n${source}`;
+        },
         includePaths: [
           'src/lib/styles',
-          'node_modules',
-          'node_modules/@kablan/clean-ui/scss'
+          'node_modules'
         ],
-        // Force Vite to use regular sass instead of sass-embedded
         implementation: 'sass'
       }
     }

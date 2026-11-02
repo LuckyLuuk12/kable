@@ -1,5 +1,5 @@
 <script lang="ts">
-import { error, getJsHeapMetrics, Icon } from "$lib";
+import { error, getJsHeapMetrics, Icon } from "#lib";
 import { onMount } from "svelte";
 
 interface MemorySample {
@@ -316,7 +316,8 @@ const chartPoints = $derived(samples.map((sample, index) => `${chartX(index)},${
           aria-label="JavaScript heap utilization"
           aria-valuemin={0}
           aria-valuemax={100}
-          aria-valuenow={currentMetrics?.usedPercent ?? 0}>
+          aria-valuenow={currentMetrics?.usedPercent ?? 0}
+        >
           <div class={`progress-fill ${heapStatus}`} style={`width: ${Math.min(100, currentMetrics?.usedPercent ?? 0)}%`}></div>
         </div>
 

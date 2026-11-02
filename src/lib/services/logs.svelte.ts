@@ -123,12 +123,7 @@ function parseLogEvent(value: unknown): LogEvent | null {
     return null;
   }
 
-  if (
-    typeof value.message !== "string" ||
-    !isLogLevel(value.level) ||
-    typeof value.timestamp !== "number" ||
-    !Number.isFinite(value.timestamp)
-  ) {
+  if (typeof value.message !== "string" || !isLogLevel(value.level) || typeof value.timestamp !== "number" || !Number.isFinite(value.timestamp)) {
     return null;
   }
 
@@ -155,9 +150,7 @@ export class LogsService implements Service {
   private get maxMemoryLogs(): number {
     const configured = app.customizationService.settings?.logging?.max_memory_logs;
 
-    return typeof configured === "number" && Number.isFinite(configured)
-      ? Math.max(0, Math.floor(configured))
-      : 10_000;
+    return typeof configured === "number" && Number.isFinite(configured) ? Math.max(0, Math.floor(configured)) : 10_000;
   }
 
   async init(): Promise<void> {
@@ -299,12 +292,7 @@ export class LogsService implements Service {
     const profile = isRecord(payload.profile) ? payload.profile : null;
     const metadata = isRecord(profile?.metadata) ? profile.metadata : null;
 
-    if (
-      runtimeId === null ||
-      profile === null ||
-      metadata === null ||
-      typeof metadata.name !== "string"
-    ) {
+    if (runtimeId === null || profile === null || metadata === null || typeof metadata.name !== "string") {
       return;
     }
 
@@ -313,10 +301,7 @@ export class LogsService implements Service {
     const instance: GameInstance = {
       id: runtimeId,
       profileName: truncateText(metadata.name, 512),
-      installationPath:
-        typeof profile.installationPath === "string"
-          ? truncateText(profile.installationPath, 2_048)
-          : "",
+      installationPath: typeof profile.installationPath === "string" ? truncateText(profile.installationPath, 2_048) : "",
       status: "launching",
       launchedAt: now,
       lastActivity: now,
@@ -414,19 +399,11 @@ export class LogsService implements Service {
       lastActivity: now,
     });
 
-    const statusMessage =
-      status === "closed"
-        ? "completed normally"
-        : status === "stopped"
-          ? "was stopped by user"
-          : "crashed";
+    const statusMessage = status === "closed" ? "completed normally" : status === "stopped" ? "was stopped by user" : "crashed";
 
     this.addLauncherLog({
       level: status === "crashed" ? "error" : "info",
-      message:
-        exitCode === undefined
-          ? `Game process ${statusMessage}`
-          : `Game process ${statusMessage} (exit code: ${exitCode})`,
+      message: exitCode === undefined ? `Game process ${statusMessage}` : `Game process ${statusMessage} (exit code: ${exitCode})`,
       fnName: null,
       instanceId: runtimeId,
       context: null,
@@ -519,19 +496,12 @@ export class LogsService implements Service {
   private normalizeLog(log: LogEvent): LogEvent {
     return {
       level: isLogLevel(log.level) ? log.level : "info",
-      message: truncateText(
-        typeof log.message === "string" ? log.message : String(log.message),
-        MAX_LOG_MESSAGE_CHARS,
-      ),
+      message: truncateText(typeof log.message === "string" ? log.message : String(log.message), MAX_LOG_MESSAGE_CHARS),
       fnName: typeof log.fnName === "string" ? truncateText(log.fnName, 256) : null,
-      instanceId:
-        typeof log.instanceId === "string" ? truncateText(log.instanceId, 256) : null,
+      instanceId: typeof log.instanceId === "string" ? truncateText(log.instanceId, 256) : null,
       context: typeof log.context === "string" ? truncateText(log.context, 512) : null,
       value: sanitizeLogValue(log.value),
-      timestamp:
-        typeof log.timestamp === "number" && Number.isFinite(log.timestamp)
-          ? log.timestamp
-          : Date.now(),
+      timestamp: typeof log.timestamp === "number" && Number.isFinite(log.timestamp) ? log.timestamp : Date.now(),
     };
   }
 
@@ -571,10 +541,7 @@ export class LogsService implements Service {
       .filter((instance) => instance.status !== "launching" && instance.status !== "running")
       .sort((a, b) => (a.completedAt ?? a.lastActivity) - (b.completedAt ?? b.lastActivity));
 
-    while (
-      this.gameInstances.size > MAX_GAME_INSTANCES &&
-      completed.length > 0
-    ) {
+    while (this.gameInstances.size > MAX_GAME_INSTANCES && completed.length > 0) {
       const oldest = completed.shift();
 
       if (oldest) {
@@ -647,9 +614,7 @@ function formatConsoleArgument(value: unknown): string {
   }
 
   try {
-    const serialized = JSON.stringify(value, (_key, nestedValue: unknown) =>
-      typeof nestedValue === "bigint" ? `${nestedValue}n` : nestedValue,
-    );
+    const serialized = JSON.stringify(value, (_key, nestedValue: unknown) => (typeof nestedValue === "bigint" ? `${nestedValue}n` : nestedValue));
 
     return serialized === undefined ? String(value) : serialized;
   } catch {
@@ -658,29 +623,15 @@ function formatConsoleArgument(value: unknown): string {
 }
 
 function formatConsoleMessage(args: unknown[]): string {
-  return truncateText(
-    args.map(formatConsoleArgument).join(" "),
-    MAX_LOG_MESSAGE_CHARS,
-  );
+  return truncateText(args.map(formatConsoleArgument).join(" "), MAX_LOG_MESSAGE_CHARS);
 }
 
-function writeConsoleLog(
-  method: ConsoleLogMethod,
-  args: unknown[],
-  instanceId: string | null = null,
-): void {
+function writeConsoleLog(method: ConsoleLogMethod, args: unknown[], instanceId: string | null = null): void {
   untrack(() => {
     const message = formatConsoleMessage(args);
 
     const log: LogEvent = {
-      level:
-        method === "error"
-          ? "error"
-          : method === "warn"
-            ? "warn"
-            : method === "debug"
-              ? "debug"
-              : "info",
+      level: method === "error" ? "error" : method === "warn" ? "warn" : method === "debug" ? "debug" : "info",
       message,
       fnName: null,
       instanceId,

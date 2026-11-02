@@ -1,6 +1,6 @@
 import * as skinview3d from "skinview3d";
 
-import { log } from "$lib";
+import { log } from "#lib";
 import { brushShoeGesture } from "./brushShoe";
 import { danceGesture } from "./dance";
 import { infectiousGesture } from "./infectious";
@@ -9,31 +9,14 @@ import { lookAroundGesture } from "./lookAround";
 import { pointGesture } from "./point";
 import { stretchGesture } from "./stretch";
 
-export const DEFAULT_GESTURES = [
-  lookAroundGesture,
-  pointGesture,
-  stretchGesture,
-  brushShoeGesture,
-  danceGesture,
-  justiceGesture,
-  infectiousGesture,
-];
+export const DEFAULT_GESTURES = [lookAroundGesture, pointGesture, stretchGesture, brushShoeGesture, danceGesture, justiceGesture, infectiousGesture];
 
 /**
  * The player type is inferred from skinview3d's FunctionAnimation API.
  */
-export type AnimatedPlayer = Parameters<
-  InstanceType<typeof skinview3d.FunctionAnimation>["fn"]
->[0];
+export type AnimatedPlayer = Parameters<InstanceType<typeof skinview3d.FunctionAnimation>["fn"]>[0];
 
-export type AnimationTrigger =
-  | "idle"
-  | "hover"
-  | "click"
-  | "drag-start"
-  | "drag"
-  | "drag-end"
-  | "keybind";
+export type AnimationTrigger = "idle" | "hover" | "click" | "drag-start" | "drag" | "drag-end" | "keybind";
 
 export interface IdleGesture {
   name: string;
@@ -49,13 +32,7 @@ export interface IdleGesture {
   apply(player: AnimatedPlayer, progress: number): void;
 }
 
-export type ViewerInteraction =
-  | "hover"
-  | "click"
-  | "drag-start"
-  | "drag"
-  | "drag-end"
-  | "leave";
+export type ViewerInteraction = "hover" | "click" | "drag-start" | "drag" | "drag-end" | "leave";
 
 export interface InteractionGesture {
   /** Interaction that triggers this reaction. */
@@ -159,13 +136,7 @@ export class IdleOrchestrator {
     interactions: InteractionGesture[] = DEFAULT_INTERACTION_GESTURES,
   ) {
     this.animation = animation;
-    this.gestures = gestures.filter(
-      (gesture) =>
-        Number.isFinite(gesture.duration) &&
-        gesture.duration > 0 &&
-        Number.isFinite(gesture.weight) &&
-        gesture.weight > 0,
-    );
+    this.gestures = gestures.filter((gesture) => Number.isFinite(gesture.duration) && gesture.duration > 0 && Number.isFinite(gesture.weight) && gesture.weight > 0);
     this.interactions = [...interactions];
 
     this.options = {
@@ -176,10 +147,7 @@ export class IdleOrchestrator {
     this.validateOptions();
 
     this.enabled = this.options.enabled;
-    this.nextGestureAt = this.randomBetween(
-      this.options.initialDelayMin,
-      this.options.initialDelayMax,
-    );
+    this.nextGestureAt = this.randomBetween(this.options.initialDelayMin, this.options.initialDelayMax);
 
     this.animationId = this.animation.addAnimation((player, elapsed) => {
       this.update(player, elapsed);
@@ -187,24 +155,10 @@ export class IdleOrchestrator {
   }
 
   private validateOptions(): void {
-    const {
-      initialDelayMin,
-      initialDelayMax,
-      cooldownMin,
-      cooldownMax,
-      interactionCooldown,
-    } = this.options;
+    const { initialDelayMin, initialDelayMax, cooldownMin, cooldownMax, interactionCooldown } = this.options;
 
-    if (
-      initialDelayMin < 0 ||
-      initialDelayMax < initialDelayMin ||
-      cooldownMin < 0 ||
-      cooldownMax < cooldownMin ||
-      interactionCooldown < 0
-    ) {
-      throw new RangeError(
-        "Invalid orchestrator timing options: delays and cooldowns must be non-negative, with maximums >= minimums.",
-      );
+    if (initialDelayMin < 0 || initialDelayMax < initialDelayMin || cooldownMin < 0 || cooldownMax < cooldownMin || interactionCooldown < 0) {
+      throw new RangeError("Invalid orchestrator timing options: delays and cooldowns must be non-negative, with maximums >= minimums.");
     }
   }
 
@@ -221,14 +175,8 @@ export class IdleOrchestrator {
 
     if (this.activeGesture) {
       const gesture = this.activeGesture;
-      const gestureElapsed = Math.max(
-        0,
-        this.currentTime - this.activeGestureStartedAt,
-      );
-      const progress = Math.min(
-        1,
-        gestureElapsed / gesture.duration,
-      );
+      const gestureElapsed = Math.max(0, this.currentTime - this.activeGestureStartedAt);
+      const progress = Math.min(1, gestureElapsed / gesture.duration);
 
       gesture.apply(player, progress);
 
@@ -271,19 +219,13 @@ export class IdleOrchestrator {
     if (this.dragging && !this.options.ambientDuringDrag) return false;
     if (this.hovered && !this.options.ambientWhileHovered) return false;
 
-    return this.gestures.some((gesture) =>
-      gesture.triggers.includes("idle"),
-    );
+    return this.gestures.some((gesture) => gesture.triggers.includes("idle"));
   }
 
   /**
    * Start a gesture. This is only called by the centralized scheduler.
    */
-  private startGesture(
-    gesture: IdleGesture,
-    time: number,
-    priority: number,
-  ): boolean {
+  private startGesture(gesture: IdleGesture, time: number, priority: number): boolean {
     if (this.disposed || this.activeGesture) return false;
 
     this.activeGesture = gesture;
@@ -311,46 +253,28 @@ export class IdleOrchestrator {
       .filter((item) => item.interaction === interaction)
       .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
       .find((item) => {
-        const gesture = this.gestures.find(
-          (candidate) => candidate.name === item.gesture,
-        );
+        const gesture = this.gestures.find((candidate) => candidate.name === item.gesture);
 
         const requiredTrigger = this.triggerForInteraction(interaction);
 
-        return (
-          gesture !== undefined &&
-          requiredTrigger !== undefined &&
-          gesture.triggers.includes(requiredTrigger)
-        );
+        return gesture !== undefined && requiredTrigger !== undefined && gesture.triggers.includes(requiredTrigger);
       });
 
     if (!mapping) return false;
 
-    const gesture = this.gestures.find(
-      (item) => item.name === mapping.gesture,
-    );
+    const gesture = this.gestures.find((item) => item.name === mapping.gesture);
 
     if (!gesture) return false;
 
     const lastTime = this.lastInteractionAt.get(interaction);
-    const cooldown = Math.max(
-      this.options.interactionCooldown,
-      mapping.cooldown ?? 0,
-    );
+    const cooldown = Math.max(this.options.interactionCooldown, mapping.cooldown ?? 0);
 
-    if (
-      lastTime !== undefined &&
-      this.currentTime - lastTime < cooldown
-    ) {
+    if (lastTime !== undefined && this.currentTime - lastTime < cooldown) {
       return false;
     }
 
     // Do not flood the queue with repeated hover/drag events.
-    if (
-      this.pendingGestures.some(
-        (item) => item.interaction === interaction,
-      )
-    ) {
+    if (this.pendingGestures.some((item) => item.interaction === interaction)) {
       return false;
     }
 
@@ -365,9 +289,7 @@ export class IdleOrchestrator {
     return true;
   }
 
-  private triggerForInteraction(
-    interaction: ViewerInteraction,
-  ): AnimationTrigger | undefined {
+  private triggerForInteraction(interaction: ViewerInteraction): AnimationTrigger | undefined {
     switch (interaction) {
       case "hover":
         return "hover";
@@ -419,10 +341,7 @@ export class IdleOrchestrator {
     let bestIndex = 0;
 
     for (let i = 1; i < this.pendingGestures.length; i++) {
-      if (
-        this.pendingGestures[i].priority >
-        this.pendingGestures[bestIndex].priority
-      ) {
+      if (this.pendingGestures[i].priority > this.pendingGestures[bestIndex].priority) {
         bestIndex = i;
       }
     }
@@ -434,14 +353,9 @@ export class IdleOrchestrator {
    * Select an ambient gesture using weighted random selection.
    */
   private chooseGesture(): IdleGesture | null {
-    const eligible = this.gestures.filter((gesture) =>
-      gesture.triggers.includes("idle"),
-    );
+    const eligible = this.gestures.filter((gesture) => gesture.triggers.includes("idle"));
 
-    const totalWeight = eligible.reduce(
-      (sum, gesture) => sum + gesture.weight,
-      0,
-    );
+    const totalWeight = eligible.reduce((sum, gesture) => sum + gesture.weight, 0);
 
     if (totalWeight <= 0) return null;
 
@@ -457,12 +371,7 @@ export class IdleOrchestrator {
   }
 
   private scheduleNextGesture(time: number): void {
-    this.nextGestureAt =
-      time +
-      this.randomBetween(
-        this.options.cooldownMin,
-        this.options.cooldownMax,
-      );
+    this.nextGestureAt = time + this.randomBetween(this.options.cooldownMin, this.options.cooldownMax);
   }
 
   private randomBetween(min: number, max: number): number {
@@ -479,18 +388,11 @@ export class IdleOrchestrator {
     this.enabled = enabled;
 
     if (enabled) {
-      this.nextGestureAt = this.currentTime + this.randomBetween(
-        this.options.initialDelayMin,
-        this.options.initialDelayMax,
-      );
+      this.nextGestureAt = this.currentTime + this.randomBetween(this.options.initialDelayMin, this.options.initialDelayMax);
     } else {
       // Remove queued ambient work; interaction requests remain queued.
       // The active gesture is allowed to finish normally.
-      this.pendingGestures.splice(
-        0,
-        this.pendingGestures.length,
-        ...this.pendingGestures.filter((item) => item.interaction !== undefined),
-      );
+      this.pendingGestures.splice(0, this.pendingGestures.length, ...this.pendingGestures.filter((item) => item.interaction !== undefined));
     }
   }
 
@@ -529,11 +431,7 @@ export class IdleOrchestrator {
 
     const normalizedKey = key.toLowerCase();
 
-    const gesture = this.gestures.find(
-      (item) =>
-        item.triggers.includes("keybind") &&
-        item.keybind?.toLowerCase() === normalizedKey,
-    );
+    const gesture = this.gestures.find((item) => item.triggers.includes("keybind") && item.keybind?.toLowerCase() === normalizedKey);
 
     if (!gesture) return false;
 

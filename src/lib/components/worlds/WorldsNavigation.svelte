@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, Image, type WorldSummary } from "$lib";
+import { app, Image, type WorldSummary } from "#lib";
 
 type Section = "overview" | "players" | "dimensions" | "datapacks" | "regions" | "advancements" | "statistics" | "nbt";
 
@@ -77,7 +77,8 @@ async function refreshWorlds() {
         value={world?.id ?? ""}
         disabled={worlds.length === 0 || refreshing}
         aria-label="Select world"
-        onchange={(event) => selectWorld((event.currentTarget as HTMLSelectElement).value)}>
+        onchange={(event) => selectWorld((event.currentTarget as HTMLSelectElement).value)}
+      >
         {#if worlds.length === 0}
           <option value="">No worlds available</option>
         {:else}
@@ -115,7 +116,7 @@ async function refreshWorlds() {
 </nav>
 
 <style lang="scss">
-@use "$lib/styles/variables" as *;
+@use "../../styles/variables" as *;
 
 .navigation {
   display: flex;

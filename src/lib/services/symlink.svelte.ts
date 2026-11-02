@@ -1,5 +1,5 @@
-import type { Symlink, SymlinkCreateRequest } from "$lib";
-import { api, app, error, log } from "$lib";
+import type { Symlink, SymlinkCreateRequest } from "#lib";
+import { api, app, error, log } from "#lib";
 import type { Service } from "./app.svelte";
 
 export class SymlinkService implements Service {
@@ -21,9 +21,7 @@ export class SymlinkService implements Service {
   /**
    * Run an operation while maintaining the shared modification state.
    */
-  private async withModification<T>(
-    operation: () => Promise<T>,
-  ): Promise<T> {
+  private async withModification<T>(operation: () => Promise<T>): Promise<T> {
     this.modificationCount++;
     this.modifying = true;
 
@@ -42,15 +40,13 @@ export class SymlinkService implements Service {
     await this.refresh();
     const errMessage = await api.checkSymlinkSupport();
     if (errMessage) {
-      app.notificationService.error(`${errMessage}`, undefined,
-        false,
-        async () => {
-          try {
-            await api.openDeveloperSettings();
-          } catch (err) {
-            error("Failed to open developer settings:", err);
-          }
-        });
+      app.notificationService.error(`${errMessage}`, undefined, false, async () => {
+        try {
+          await api.openDeveloperSettings();
+        } catch (err) {
+          error("Failed to open developer settings:", err);
+        }
+      });
       return;
     }
     this.initialized = true;
@@ -65,10 +61,7 @@ export class SymlinkService implements Service {
     this.error = null;
 
     try {
-      const [persistentSymlinks, runtimeSymlinks] = await Promise.all([
-        api.getSymlinks(),
-        api.runtimeSymlinks(),
-      ]);
+      const [persistentSymlinks, runtimeSymlinks] = await Promise.all([api.getSymlinks(), api.runtimeSymlinks()]);
 
       this.persistentSymlinks = persistentSymlinks;
       this.runtimeSymlinks = runtimeSymlinks;
@@ -201,20 +194,12 @@ export class SymlinkService implements Service {
   /**
    * Create a runtime symlink for a profile.
    */
-  async createRuntime(
-    profileId: string,
-    source: string,
-    destination: string,
-  ): Promise<Symlink | null> {
+  async createRuntime(profileId: string, source: string, destination: string): Promise<Symlink | null> {
     this.error = null;
 
     return this.withModification(async () => {
       try {
-        const created = await api.createRuntimeSymlink(
-          profileId,
-          source,
-          destination,
-        );
+        const created = await api.createRuntimeSymlink(profileId, source, destination);
 
         await this.refreshRuntimeForProfile(profileId);
         return created;
@@ -228,10 +213,7 @@ export class SymlinkService implements Service {
   /**
    * Reconcile runtime symlinks with the complete desired set for a profile.
    */
-  async reconcileRuntime(
-    profileId: string,
-    desired: Array<[string, string]>,
-  ): Promise<boolean> {
+  async reconcileRuntime(profileId: string, desired: Array<[string, string]>): Promise<boolean> {
     this.error = null;
 
     return this.withModification(async () => {

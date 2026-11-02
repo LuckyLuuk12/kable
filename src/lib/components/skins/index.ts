@@ -4,4 +4,3 @@ export { default as SkinEditor } from "./SkinEditor.svelte";
 export { default as SkinSelection } from "./SkinSelection.svelte";
 export { default as SkinsPage } from "./SkinsPage.svelte";
 export { default as SkinViewer3D } from "./SkinViewer3D.svelte";
-

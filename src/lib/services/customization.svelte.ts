@@ -1,14 +1,4 @@
-
-import {
-  type AppearanceSettings,
-  type CategorizedLauncherSettings,
-  type CssTheme,
-  type IconTemplate,
-  type SoundSettings,
-  api,
-  app,
-  debug
-} from "$lib";
+import { type AppearanceSettings, type CategorizedLauncherSettings, type CssTheme, type IconTemplate, type SoundSettings, api, app, debug } from "#lib";
 import { SvelteDate, SvelteMap } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
 
@@ -106,33 +96,33 @@ export class CustomizationService implements Service {
   /* Events & Fun */
   isCRSTMS(): boolean {
     const now = new SvelteDate();
-    return (now.getMonth() === 11 && now.getDate() >= 20 && now.getDate() <= 28) && (this.settings?.misc?.enable_fun ?? true);
+    return now.getMonth() === 11 && now.getDate() >= 20 && now.getDate() <= 28 && (this.settings?.misc?.enable_fun ?? true);
   }
   isAPFL(): boolean {
     const now = new SvelteDate();
-    return (now.getMonth() === 3 && now.getDate() >= 1 && now.getDate() <= 10) && (this.settings?.misc?.enable_fun ?? true);
+    return now.getMonth() === 3 && now.getDate() >= 1 && now.getDate() <= 10 && (this.settings?.misc?.enable_fun ?? true);
   }
   isHLWN(): boolean {
     const now = new SvelteDate();
-    return (now.getMonth() === 9 && now.getDate() >= 25 && now.getDate() <= 31) && (this.settings?.misc?.enable_fun ?? true);
+    return now.getMonth() === 9 && now.getDate() >= 25 && now.getDate() <= 31 && (this.settings?.misc?.enable_fun ?? true);
   }
   isEST(): boolean {
     const now = new SvelteDate();
     const start = new SvelteDate(now.getFullYear(), 2, 20);
     const end = new SvelteDate(now.getFullYear(), 3, 10);
-    return (now >= start && now <= end) && (this.settings?.misc?.enable_fun ?? true);
+    return now >= start && now <= end && (this.settings?.misc?.enable_fun ?? true);
   }
   isNWYR(): boolean {
     const now = new SvelteDate();
     const start = new SvelteDate(now.getFullYear(), 11, 31);
     const end = new SvelteDate(now.getFullYear() + 1, 0, 10);
-    return (now >= start && now <= end) && (this.settings?.misc?.enable_fun ?? true);
+    return now >= start && now <= end && (this.settings?.misc?.enable_fun ?? true);
   }
   isBRTD(): boolean {
     const now = new SvelteDate();
     const start = new SvelteDate(now.getFullYear(), 6, 13);
     const end = new SvelteDate(now.getFullYear(), 6, 14);
-    return (now >= start && now <= end) && (this.settings?.misc?.enable_fun ?? true);
+    return now >= start && now <= end && (this.settings?.misc?.enable_fun ?? true);
   }
   isEventActive() {
     return this.isCRSTMS() || this.isNWYR() || this.isHLWN() || this.isEST() || this.isAPFL() || this.isBRTD();
@@ -142,17 +132,31 @@ export class CustomizationService implements Service {
       return null;
     }
     const fun = this.settings?.advanced?.extra?.["fun"];
-    debug("[CustomizationService] Checking for active event theme:", fun, "CRSTMS:", this.isCRSTMS(), "NWYR:", this.isNWYR(), "HLWN:", this.isHLWN(), "EST:", this.isEST(), "APFL:", this.isAPFL(), "BRTD:", this.isBRTD());
-    if (fun == 'crstms' || this.isCRSTMS()) return "builtin:crstms";
-    if (fun == 'nwyr' || this.isNWYR()) return "builtin:nwyr";
-    if (fun == 'hlwn' || this.isHLWN()) return "builtin:hlwn";
-    if (fun == 'est' || this.isEST()) return "builtin:est";
-    if (fun == 'apfl' || this.isAPFL()) return "builtin:apfl";
-    if (fun == 'brtd' || this.isBRTD()) return "builtin:brtd";
+    debug(
+      "[CustomizationService] Checking for active event theme:",
+      fun,
+      "CRSTMS:",
+      this.isCRSTMS(),
+      "NWYR:",
+      this.isNWYR(),
+      "HLWN:",
+      this.isHLWN(),
+      "EST:",
+      this.isEST(),
+      "APFL:",
+      this.isAPFL(),
+      "BRTD:",
+      this.isBRTD(),
+    );
+    if (fun == "crstms" || this.isCRSTMS()) return "builtin:crstms";
+    if (fun == "nwyr" || this.isNWYR()) return "builtin:nwyr";
+    if (fun == "hlwn" || this.isHLWN()) return "builtin:hlwn";
+    if (fun == "est" || this.isEST()) return "builtin:est";
+    if (fun == "apfl" || this.isAPFL()) return "builtin:apfl";
+    if (fun == "brtd" || this.isBRTD()) return "builtin:brtd";
 
     return null;
   }
-
 
   /**
    * Load settings and initialize the persisted appearance.
@@ -172,25 +176,15 @@ export class CustomizationService implements Service {
       }
     }
 
-    await Promise.allSettled([
-      this.initializeAppearance(),
-      this.initializeSoundSystem(),
-    ]);
+    await Promise.allSettled([this.initializeAppearance(), this.initializeSoundSystem()]);
   }
 
   async restart() {
-    await Promise.allSettled([
-      this.initializeAppearance(),
-      this.initializeSoundSystem(),
-    ]);
+    await Promise.allSettled([this.initializeAppearance(), this.initializeSoundSystem()]);
   }
 
-
   private async initializeAppearance(): Promise<void> {
-    await Promise.allSettled([
-      this.getIconTemplates(),
-      this.loadCssThemes(),
-    ]);
+    await Promise.allSettled([this.getIconTemplates(), this.loadCssThemes()]);
 
     const appearance = this.settings?.appearance;
     if (!appearance) return;
@@ -209,21 +203,13 @@ export class CustomizationService implements Service {
       return;
     }
 
-    const themeExists = this.cssThemes.some(
-      (theme) => theme.id === effectiveThemeId,
-    );
+    const themeExists = this.cssThemes.some((theme) => theme.id === effectiveThemeId);
 
     if (!themeExists) {
       if (eventThemeId) {
-        console.error(
-          "[CustomizationService] Event theme not found:",
-          eventThemeId,
-        );
+        console.error("[CustomizationService] Event theme not found:", eventThemeId);
       } else {
-        console.warn(
-          "[CustomizationService] Saved theme not found:",
-          savedThemeId,
-        );
+        console.warn("[CustomizationService] Saved theme not found:", savedThemeId);
 
         this.settings = {
           ...this.settings!,
@@ -244,16 +230,12 @@ export class CustomizationService implements Service {
     try {
       await this.applyCssTheme(effectiveThemeId);
     } catch (error) {
-      console.error(
-        "[CustomizationService] Failed to apply CSS theme:",
-        error,
-      );
+      console.error("[CustomizationService] Failed to apply CSS theme:", error);
 
       this.selectedCssTheme = null;
       this.removeCustomCSS("Failed to apply CSS theme");
     }
   }
-
 
   /**
    * Persist the full settings object.
@@ -320,10 +302,7 @@ export class CustomizationService implements Service {
       } catch (error) {
         if (requestId === this.cssThemesRequestId) {
           this.cssThemeError = String(error);
-          console.error(
-            "[CustomizationService] Failed to load CSS themes:",
-            error,
-          );
+          console.error("[CustomizationService] Failed to load CSS themes:", error);
         }
 
         throw error;
@@ -340,9 +319,9 @@ export class CustomizationService implements Service {
   }
 
   /**
-     * Save a custom theme and refresh the available theme list.
-     * Returns the stable ID produced by the backend.
-     */
+   * Save a custom theme and refresh the available theme list.
+   * Returns the stable ID produced by the backend.
+   */
   async saveCssTheme(name: string, css: string): Promise<string> {
     const themeId = await api.saveCssTheme(name, css);
     await this.loadCssThemes(true);
@@ -413,10 +392,7 @@ export class CustomizationService implements Service {
 
     this.injectCustomCSS(cssContent);
 
-    console.debug(
-      "[CustomizationService] Style injected:",
-      document.getElementById("user-custom-css") !== null,
-    );
+    console.debug("[CustomizationService] Style injected:", document.getElementById("user-custom-css") !== null);
     this.selectedCssTheme = themeId;
 
     this.settings = {
@@ -448,9 +424,6 @@ export class CustomizationService implements Service {
     debug("[CustomizationService] Applied CSS theme:", effectiveThemeId);
     this.selectedCssTheme = effectiveThemeId;
   }
-
-
-
 
   /**
    * Delete a custom theme by stable ID.
@@ -488,9 +461,7 @@ export class CustomizationService implements Service {
    * Inject CSS after removing the previously injected stylesheet.
    */
   private injectCustomCSS(cssContent: string): void {
-    let styleElement = document.getElementById(
-      "user-custom-css",
-    ) as HTMLStyleElement | null;
+    let styleElement = document.getElementById("user-custom-css") as HTMLStyleElement | null;
 
     if (!styleElement) {
       styleElement = document.createElement("style");
@@ -506,11 +477,7 @@ export class CustomizationService implements Service {
     this.customCssObserver = new MutationObserver(() => {
       const currentStyle = document.getElementById("user-custom-css");
 
-      if (
-        currentStyle &&
-        currentStyle.parentElement === document.head &&
-        document.head.lastElementChild !== currentStyle
-      ) {
+      if (currentStyle && currentStyle.parentElement === document.head && document.head.lastElementChild !== currentStyle) {
         document.head.appendChild(currentStyle);
       }
     });
@@ -607,12 +574,9 @@ export class CustomizationService implements Service {
     const selectedTemplate = this.iconTemplates.find((template) => template.id === selectedTemplateId);
 
     const isBuiltin = selectedTemplate?.type === "builtin";
-    const templateId = selectedTemplateId
-      ? (isBuiltin && overrideTemplate ? overrideTemplate : selectedTemplateId)
-      : (overrideTemplate ?? "emoji");
+    const templateId = selectedTemplateId ? (isBuiltin && overrideTemplate ? overrideTemplate : selectedTemplateId) : (overrideTemplate ?? "emoji");
 
-    const template = this.iconTemplates.find((entry) => entry.id === templateId)
-      ?? this.iconTemplates.find((entry) => entry.id === "emoji");
+    const template = this.iconTemplates.find((entry) => entry.id === templateId) ?? this.iconTemplates.find((entry) => entry.id === "emoji");
 
     if (!template) return undefined;
 
@@ -641,10 +605,7 @@ export class CustomizationService implements Service {
       try {
         await this.loadSoundpack(this.currentSoundpack);
       } catch (error) {
-        console.warn(
-          `[CustomizationService] Failed to load soundpack "${this.currentSoundpack}", falling back to default:`,
-          error,
-        );
+        console.warn(`[CustomizationService] Failed to load soundpack "${this.currentSoundpack}", falling back to default:`, error);
 
         if (this.currentSoundpack !== "default") {
           await this.loadSoundpack("default");
@@ -834,10 +795,7 @@ export class CustomizationService implements Service {
   private shufflePlaylist(): void {
     for (let index = this.musicPlaylist.length - 1; index > 0; index--) {
       const randomIndex = Math.floor(Math.random() * (index + 1));
-      [this.musicPlaylist[index], this.musicPlaylist[randomIndex]] = [
-        this.musicPlaylist[randomIndex],
-        this.musicPlaylist[index],
-      ];
+      [this.musicPlaylist[index], this.musicPlaylist[randomIndex]] = [this.musicPlaylist[randomIndex], this.musicPlaylist[index]];
     }
   }
 
@@ -933,10 +891,7 @@ export class CustomizationService implements Service {
     }
   }
 
-  async playBackgroundMusic(
-    playlistKey: string,
-    options: { shuffle?: boolean; loop?: boolean; volume?: number } = {},
-  ): Promise<void> {
+  async playBackgroundMusic(playlistKey: string, options: { shuffle?: boolean; loop?: boolean; volume?: number } = {}): Promise<void> {
     if (!this.isMusicEnabled || !this.audioContext || !this.soundpackMetadata) {
       return;
     }

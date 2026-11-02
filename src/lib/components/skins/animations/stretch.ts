@@ -22,11 +22,7 @@ function easeInOut(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
-function interpolateRotation(
-  from: Rotation,
-  to: Rotation,
-  progress: number,
-): Rotation {
+function interpolateRotation(from: Rotation, to: Rotation, progress: number): Rotation {
   const t = easeInOut(progress);
 
   return {
@@ -36,12 +32,7 @@ function interpolateRotation(
   };
 }
 
-function applyRotation(
-  target: { rotation: Rotation },
-  from: Rotation,
-  to: Rotation,
-  progress: number,
-): void {
+function applyRotation(target: { rotation: Rotation }, from: Rotation, to: Rotation, progress: number): void {
   const rotation = interpolateRotation(from, to, progress);
 
   target.rotation.x = rotation.x;
@@ -114,10 +105,7 @@ export const stretchGesture: IdleGesture = {
     }
 
     // Subtle motion while holding the stretch.
-    const holdProgress =
-      t >= 0.25 && t < 0.65
-        ? Math.sin(((t - 0.25) / 0.4) * Math.PI)
-        : 0;
+    const holdProgress = t >= 0.25 && t < 0.65 ? Math.sin(((t - 0.25) / 0.4) * Math.PI) : 0;
 
     const bodyPose: Rotation = {
       x: bodyTarget.x - 0.025 * holdProgress,

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { type Project } from "$lib";
+import { type Project } from "#lib";
 
 let { project }: { project: Project } = $props();
 
@@ -188,7 +188,8 @@ $effect(() => {
           onclick={() => {
             zoom = Math.max(MIN_ZOOM, zoom - ZOOM_STEP);
             if (zoom === 1) resetZoom();
-          }}>
+          }}
+        >
           −
         </button>
 
@@ -219,12 +220,14 @@ $effect(() => {
         onlostpointercapture={stopDrag}
         class:zoomed={zoom > 1}
         class:dragging={isDragging}
-        role="img">
+        role="img"
+      >
         <img
           src={selectedImage}
           alt={`${project.title} gallery image ${selectedIndex + 1}`}
           draggable="false"
-          style:transform={`translate(${panX}px, ${panY}px) scale(${zoom})`} />
+          style:transform={`translate(${panX}px, ${panY}px) scale(${zoom})`}
+        />
       </div>
 
       <button class="navigation next" type="button" aria-label="Next image" disabled={gallery.length <= 1} onclick={next}> › </button>
@@ -238,7 +241,8 @@ $effect(() => {
             type="button"
             aria-label={`View image ${index + 1}`}
             aria-current={index === selectedIndex ? "true" : undefined}
-            onclick={() => select(index)}>
+            onclick={() => select(index)}
+          >
             <img src={image} alt="" draggable="false" />
           </button>
         {/each}

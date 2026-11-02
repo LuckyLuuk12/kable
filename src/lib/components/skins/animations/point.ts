@@ -18,11 +18,7 @@ function smoothstep(t: number): number {
 /**
  * Interpolate a joint from its starting rotation to its target rotation.
  */
-function interpolatePose(
-  from: { x: number; y: number; z: number },
-  to: { x: number; y: number; z: number },
-  progress: number,
-) {
+function interpolatePose(from: { x: number; y: number; z: number }, to: { x: number; y: number; z: number }, progress: number) {
   const t = smoothstep(progress);
 
   return {
@@ -86,17 +82,9 @@ export const pointGesture: IdleGesture = {
       poseProgress = 1 - (t - 0.7) / 0.3;
     }
 
-    const armPose = interpolatePose(
-      neutral.rightArm,
-      pointPose.rightArm,
-      poseProgress,
-    );
+    const armPose = interpolatePose(neutral.rightArm, pointPose.rightArm, poseProgress);
 
-    const headPose = interpolatePose(
-      neutral.head,
-      pointPose.head,
-      poseProgress,
-    );
+    const headPose = interpolatePose(neutral.head, pointPose.head, poseProgress);
 
     skin.rightArm.rotation.x = armPose.x;
     skin.rightArm.rotation.y = armPose.y;

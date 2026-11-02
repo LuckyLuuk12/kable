@@ -10,8 +10,8 @@ Displays update information including version numbers and allows users to instal
 ```
 -->
 <script lang="ts">
-import { app, clickSound, error, log, successSound } from "$lib";
-// import { settings } from "$lib/stores";
+import { app, clickSound, error, log, successSound } from "#lib";
+// import { settings } from "#lib/stores";
 import { marked } from "marked";
 import { onMount } from "svelte";
 
@@ -133,7 +133,8 @@ async function handleInstallDownloaded() {
             on:click={handleDownloadUpdate}
             use:clickSound
             disabled={isDownloading || isInstalling}
-            title="Download installer now; will be applied on restart or when you click 'Install downloaded'">
+            title="Download installer now; will be applied on restart or when you click 'Install downloaded'"
+          >
             {#if isDownloading}
               Downloading...
             {:else}
@@ -156,7 +157,8 @@ async function handleInstallDownloaded() {
             on:click={handleInstallDownloaded}
             use:successSound
             disabled={!downloadedPath || isApplying}
-            title="Install the previously downloaded update and restart the app">
+            title="Install the previously downloaded update and restart the app"
+          >
             {#if isApplying}
               Installing...
             {:else}

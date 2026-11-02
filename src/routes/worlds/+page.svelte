@@ -11,7 +11,7 @@ import {
   WorldsNavigation,
   WorldStatistics,
   type World,
-} from "$lib";
+} from "#lib";
 
 type Section = "overview" | "players" | "dimensions" | "datapacks" | "regions" | "advancements" | "statistics" | "nbt";
 
@@ -104,7 +104,7 @@ $effect(() => {
 </div>
 
 <style lang="scss">
-@use "$lib/styles/variables" as *;
+@use "../../lib/styles/variables" as *;
 
 .world-page {
   display: flex;

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { AdvertisementBanner, PlayButton, ProfilesList, RamAllocation } from "$lib";
+import { AdvertisementBanner, PlayButton, ProfilesList, RamAllocation } from "#lib";
 </script>
 
 <div class="page">

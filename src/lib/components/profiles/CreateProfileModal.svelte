@@ -1,6 +1,6 @@
 <script lang="ts">
-import { Icon, Image, app, clickSound, error, successSound, type CreateProfileRequest, type LoaderKind, type ProfileSource, type ProfileVersion } from "$lib";
-import { MODAL_CONTEXT, type ModalContext } from "$lib/utils/modal";
+import { Icon, Image, app, clickSound, error, successSound, type CreateProfileRequest, type LoaderKind, type ProfileSource, type ProfileVersion } from "#lib";
+import { MODAL_CONTEXT, type ModalContext } from "#lib/utils/modal.js";
 import { open } from "@tauri-apps/plugin-dialog";
 import { getContext } from "svelte";
 import { SvelteSet } from "svelte/reactivity";
@@ -383,7 +383,8 @@ function cancel() {
               style:background={`${app.profilesService.getLoaderColor(loader)}20`}
               style:color={app.profilesService.getLoaderColor(loader)}
               aria-pressed={selectedLoader === loader}
-              onclick={() => selectLoader(loader)}>
+              onclick={() => selectLoader(loader)}
+            >
               <span class="loader-icon">
                 <Image key={loader} />
               </span>
@@ -415,7 +416,8 @@ function cancel() {
           placeholder="Search versions..."
           aria-label="Search Minecraft versions"
           oninput={resetVersionScroll}
-          disabled={isCreating} />
+          disabled={isCreating}
+        />
 
         {#if filteredVersions.length > 0}
           <div
@@ -425,7 +427,8 @@ function cancel() {
             tabindex="0"
             aria-label="Minecraft versions"
             onscroll={handleVersionScroll}
-            onresize={handleVersionResize}>
+            onresize={handleVersionResize}
+          >
             <div class="version-list-content" style:height={`${totalVersionHeight}px`}>
               <div class="version-list-items" style:transform={`translateY(${visibleOffset}px)`}>
                 {#each visibleVersions as version (version.id)}
@@ -436,7 +439,8 @@ function cancel() {
                     class:selected={selectedVersionId === version.id}
                     class="version-option"
                     disabled={isCreating}
-                    onclick={() => selectVersion(version)}>
+                    onclick={() => selectVersion(version)}
+                  >
                     <span>{version.id}</span>
                     {#if selectedVersionId === version.id}
                       <Icon name="check" size="sm" forceType="svg" />
@@ -526,7 +530,8 @@ function cancel() {
                       aria-label={`Move source ${index + 1} up`}
                       title="Move up"
                       disabled={isCreating || index === 0}
-                      onclick={() => moveSource(source.id, -1)}>
+                      onclick={() => moveSource(source.id, -1)}
+                    >
                       <Icon name="chevron-up" size="sm" forceType="svg" />
                     </button>
 
@@ -537,7 +542,8 @@ function cancel() {
                       aria-label={`Move source ${index + 1} down`}
                       title="Move down"
                       disabled={isCreating || index === sources.length - 1}
-                      onclick={() => moveSource(source.id, 1)}>
+                      onclick={() => moveSource(source.id, 1)}
+                    >
                       <Icon name="chevron-down" size="sm" forceType="svg" />
                     </button>
 
@@ -548,7 +554,8 @@ function cancel() {
                       aria-label={`Remove source ${index + 1}`}
                       title="Remove source"
                       disabled={isCreating}
-                      onclick={() => removeSource(source.id)}>
+                      onclick={() => removeSource(source.id)}
+                    >
                       <Icon name="delete" size="sm" forceType="svg" />
                     </button>
                   </div>
@@ -562,7 +569,8 @@ function cancel() {
                     class="source-select"
                     value={source.type}
                     disabled={isCreating}
-                    onchange={(event) => changeSourceType(source.id, event.currentTarget.value as SourceKind)}>
+                    onchange={(event) => changeSourceType(source.id, event.currentTarget.value as SourceKind)}
+                  >
                     <option value="profile">Existing profile</option>
                     <option value="zip">Exported profile ZIP</option>
                     <option value="mrpack">Modrinth modpack</option>
@@ -576,7 +584,8 @@ function cancel() {
                       class="source-select"
                       value={source.profileId}
                       disabled={isCreating}
-                      onchange={(event) => selectProfile(source.id, event.currentTarget.value)}>
+                      onchange={(event) => selectProfile(source.id, event.currentTarget.value)}
+                    >
                       <option value="">Select a profile...</option>
 
                       {#each availableProfiles as profile (profile.id)}
@@ -605,7 +614,8 @@ function cancel() {
                         type="button"
                         class="btn btn-secondary file-picker-button"
                         onclick={() => selectSourceFile(source.id, source.type as "zip" | "mrpack")}
-                        disabled={isCreating}>
+                        disabled={isCreating}
+                      >
                         <Icon name="folder" size="sm" />
                         Browse
                       </button>
@@ -618,7 +628,8 @@ function cancel() {
                           aria-label="Clear selected file"
                           title="Clear selected file"
                           disabled={isCreating}
-                          onclick={() => (source.path = null)}>
+                          onclick={() => (source.path = null)}
+                        >
                           <Icon name="x" size="sm" forceType="svg" />
                         </button>
                       {/if}
@@ -671,7 +682,8 @@ function cancel() {
               bind:value={profileName}
               placeholder="Use the default name"
               maxlength="100"
-              disabled={isCreating} />
+              disabled={isCreating}
+            />
           </div>
 
           <div class="metadata-field">

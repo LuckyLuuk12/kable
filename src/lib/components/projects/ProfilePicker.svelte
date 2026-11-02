@@ -11,7 +11,7 @@ KableProfile object. This keeps profile selection stable when ProfilesService
 refreshes its profile objects.
 -->
 <script lang="ts">
-import { Image, app, warn } from "$lib";
+import { Image, app, warn } from "#lib";
 
 let {
   profileId = $bindable<string | null>(null),
@@ -274,7 +274,8 @@ $effect(() => {
           }}
           tabindex="0"
           role="option"
-          aria-selected={item.id === profileId}>
+          aria-selected={item.id === profileId}
+        >
           <div class="profile-icon">
             <Image key={loaderImage[item.id]} />
           </div>

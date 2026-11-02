@@ -1,4 +1,15 @@
-import { type NbtValue, type World, type WorldDatapack, type WorldDimension, type WorldPlayer, type WorldRegionStorage, type WorldSummary, api, debug, error } from "$lib";
+import {
+  type NbtValue,
+  type World,
+  type WorldDatapack,
+  type WorldDimension,
+  type WorldPlayer,
+  type WorldRegionStorage,
+  type WorldSummary,
+  api,
+  debug,
+  error,
+} from "#lib";
 import type { Service } from "./app.svelte";
 
 export class WorldsService implements Service {

@@ -5,7 +5,7 @@ Displays notification history in a dropdown tray accessible from a bell icon.
 Shows recent notifications and allows clearing history.
 -->
 <script lang="ts">
-import { Icon, app, clickSound, error } from "$lib";
+import { Icon, app, clickSound, error } from "#lib";
 import { onDestroy, onMount } from "svelte";
 
 let isOpen = $state(false);

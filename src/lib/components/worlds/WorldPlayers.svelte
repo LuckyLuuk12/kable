@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { World, WorldPlayer } from "$lib";
+import type { World, WorldPlayer } from "#lib";
 
 interface Props {
   world: World;
@@ -125,7 +125,7 @@ const sortedPlayers = $derived([...world.players].sort((a, b) => getPlayerName(a
 </div>
 
 <style lang="scss">
-@use "$lib/styles/variables" as *;
+@use "../../styles/variables" as *;
 
 .players {
   display: flex;

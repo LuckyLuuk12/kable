@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Icon, api, app, error, type IconTemplate } from "$lib";
+import { Icon, api, app, error, type IconTemplate } from "#lib";
 import { onMount } from "svelte";
 
 interface CssThemeEntry {
@@ -388,7 +388,8 @@ async function selectSoundpack(packName: string) {
             id="css-theme"
             value={selectedCssThemeId ?? ""}
             disabled={cssThemesLoading}
-            onchange={(event) => void selectTheme((event.currentTarget as HTMLSelectElement).value)}>
+            onchange={(event) => void selectTheme((event.currentTarget as HTMLSelectElement).value)}
+          >
             <option value="">Default</option>
 
             {#if builtInThemes.length > 0}
@@ -442,7 +443,8 @@ async function selectSoundpack(packName: string) {
               class:error={!!cssUploadError}
               ondragover={handleCssDragOver}
               ondragleave={handleCssDragLeave}
-              ondrop={handleCssDrop}>
+              ondrop={handleCssDrop}
+            >
               <input type="file" id="css-file-input" accept=".css,text/css" onchange={handleCssFileSelect} hidden />
 
               <div class="upload-placeholder">
@@ -461,7 +463,8 @@ async function selectSoundpack(packName: string) {
                           event.preventDefault();
                           event.stopPropagation();
                           void handleCssUpload();
-                        }}>
+                        }}
+                      >
                         {uploadCssInProgress ? "Uploading…" : "Upload"}
                       </button>
 
@@ -473,7 +476,8 @@ async function selectSoundpack(packName: string) {
                           event.stopPropagation();
                           cssUploadFile = null;
                           cssUploadError = "";
-                        }}>
+                        }}
+                      >
                         Remove
                       </button>
                     </div>
@@ -512,7 +516,8 @@ async function selectSoundpack(packName: string) {
                       class="icon-btn btn-danger"
                       title={`Remove ${theme.name}`}
                       aria-label={`Remove ${theme.name}`}
-                      onclick={() => void removeCssTheme(theme.id)}>
+                      onclick={() => void removeCssTheme(theme.id)}
+                    >
                       <Icon name="delete" />
                     </button>
                   </div>
@@ -553,7 +558,8 @@ async function selectSoundpack(packName: string) {
             onchange={(event) => {
               const value = (event.currentTarget as HTMLSelectElement).value;
               void selectIconTemplate(value || null);
-            }}>
+            }}
+          >
             <option value="">Default</option>
 
             {#each iconTemplates as template (template.id)}
@@ -595,7 +601,8 @@ async function selectSoundpack(packName: string) {
               class:error={!!uploadError}
               ondragover={handleDragOver}
               ondragleave={handleDragLeave}
-              ondrop={handleDrop}>
+              ondrop={handleDrop}
+            >
               <input type="file" id="template-file-input" accept=".json,.yml,.yaml,application/json" onchange={handleFileSelect} hidden />
 
               <div class="upload-placeholder">
@@ -614,7 +621,8 @@ async function selectSoundpack(packName: string) {
                           event.preventDefault();
                           event.stopPropagation();
                           void handleIconUpload();
-                        }}>
+                        }}
+                      >
                         {uploadIconInProgress ? "Uploading…" : "Upload"}
                       </button>
 
@@ -626,7 +634,8 @@ async function selectSoundpack(packName: string) {
                           event.stopPropagation();
                           uploadFile = null;
                           uploadError = "";
-                        }}>
+                        }}
+                      >
                         Remove
                       </button>
                     </div>
@@ -667,7 +676,8 @@ async function selectSoundpack(packName: string) {
                       class="icon-btn btn-danger"
                       title={`Remove ${template.name}`}
                       aria-label={`Remove ${template.name}`}
-                      onclick={() => void removeCustomTemplate(template.id)}>
+                      onclick={() => void removeCustomTemplate(template.id)}
+                    >
                       <Icon name="delete" />
                     </button>
                   </div>
@@ -694,7 +704,8 @@ async function selectSoundpack(packName: string) {
               id="sound-enabled"
               type="checkbox"
               bind:checked={sound.enabled}
-              onchange={(event) => updateSoundEnabled((event.currentTarget as HTMLInputElement).checked)} />
+              onchange={(event) => updateSoundEnabled((event.currentTarget as HTMLInputElement).checked)}
+            />
           </div>
         </div>
 
@@ -709,7 +720,8 @@ async function selectSoundpack(packName: string) {
               id="music-enabled"
               type="checkbox"
               bind:checked={sound.music_enabled}
-              onchange={(event) => updateMusicEnabled((event.currentTarget as HTMLInputElement).checked)} />
+              onchange={(event) => updateMusicEnabled((event.currentTarget as HTMLInputElement).checked)}
+            />
           </div>
         </div>
 
@@ -728,7 +740,8 @@ async function selectSoundpack(packName: string) {
                 max="100"
                 step="5"
                 value={sound.master_volume ?? 100}
-                oninput={(event) => updateMasterVolume(Number((event.currentTarget as HTMLInputElement).value))} />
+                oninput={(event) => updateMasterVolume(Number((event.currentTarget as HTMLInputElement).value))}
+              />
             </div>
           </div>
 
@@ -747,7 +760,8 @@ async function selectSoundpack(packName: string) {
                   max="100"
                   step="5"
                   value={sound.sound_volume ?? 100}
-                  oninput={(event) => updateSoundVolume(Number((event.currentTarget as HTMLInputElement).value))} />
+                  oninput={(event) => updateSoundVolume(Number((event.currentTarget as HTMLInputElement).value))}
+                />
               </div>
             </div>
           {/if}
@@ -767,7 +781,8 @@ async function selectSoundpack(packName: string) {
                   max="100"
                   step="5"
                   value={sound.music_volume ?? 50}
-                  oninput={(event) => updateMusicVolume(Number((event.currentTarget as HTMLInputElement).value))} />
+                  oninput={(event) => updateMusicVolume(Number((event.currentTarget as HTMLInputElement).value))}
+                />
               </div>
             </div>
           {/if}
@@ -782,7 +797,8 @@ async function selectSoundpack(packName: string) {
               <select
                 id="soundpack"
                 value={sound.selected_soundpack ?? "default"}
-                onchange={(event) => void selectSoundpack((event.currentTarget as HTMLSelectElement).value)}>
+                onchange={(event) => void selectSoundpack((event.currentTarget as HTMLSelectElement).value)}
+              >
                 {#each customization.availableSoundpacks as pack (pack.name)}
                   <option value={pack.name}>{pack.displayName}</option>
                 {/each}
@@ -799,7 +815,8 @@ async function selectSoundpack(packName: string) {
         class:success={saveStatus.toLowerCase().includes("successfully") || saveStatus.toLowerCase().includes("restored")}
         class:error={saveStatus.toLowerCase().includes("failed")}
         role="status"
-        aria-live="polite">
+        aria-live="polite"
+      >
         {saveStatus}
       </div>
     {/if}

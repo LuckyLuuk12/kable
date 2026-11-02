@@ -1,4 +1,4 @@
-import { app } from "$lib/services";
+import { app } from "#lib/services/index.js";
 
 /**
  * Action to add sound effects to interactive elements (buttons, links, etc.)

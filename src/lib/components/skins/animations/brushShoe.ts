@@ -35,11 +35,7 @@ function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
-function interpolateVector(
-  from: Vector3,
-  to: Vector3,
-  progress: number,
-): Vector3 {
+function interpolateVector(from: Vector3, to: Vector3, progress: number): Vector3 {
   const t = smoothstep(progress);
 
   return {
@@ -49,32 +45,21 @@ function interpolateVector(
   };
 }
 
-function interpolateTransform(
-  from: Transform,
-  to: Transform,
-  progress: number,
-): Transform {
+function interpolateTransform(from: Transform, to: Transform, progress: number): Transform {
   return {
     rotation: interpolateVector(from.rotation, to.rotation, progress),
     position: interpolateVector(from.position, to.position, progress),
   };
 }
 
-function transform(
-  rotation: Partial<Vector3> = {},
-  position: Partial<Vector3> = {},
-): Transform {
+function transform(rotation: Partial<Vector3> = {}, position: Partial<Vector3> = {}): Transform {
   return {
     rotation: { ...ZERO, ...rotation },
     position: { ...ZERO, ...position },
   };
 }
 
-function interpolatePose(
-  from: Pose,
-  to: Pose,
-  progress: number,
-): Pose {
+function interpolatePose(from: Pose, to: Pose, progress: number): Pose {
   return {
     body: interpolateTransform(from.body, to.body, progress),
     head: interpolateTransform(from.head, to.head, progress),
@@ -133,9 +118,7 @@ function captureTransform(joint: Joint): Transform {
   };
 }
 
-function getSnapshot(
-  skin: NonNullable<AnimatedPlayer["skin"]>,
-): JointSnapshot {
+function getSnapshot(skin: NonNullable<AnimatedPlayer["skin"]>): JointSnapshot {
   const key = skin as object;
   const existing = snapshots.get(key);
 
@@ -154,10 +137,7 @@ function getSnapshot(
   return snapshot;
 }
 
-function applyPose(
-  skin: NonNullable<AnimatedPlayer["skin"]>,
-  pose: Pose,
-): void {
+function applyPose(skin: NonNullable<AnimatedPlayer["skin"]>, pose: Pose): void {
   const base = getSnapshot(skin);
 
   applyTransform(skin.body, base.body, pose.body);
@@ -199,48 +179,21 @@ export const brushShoeGesture: IdleGesture = {
     const t = clamp(progress);
 
     const bent: Pose = {
-      body: transform(
-        { x: 0.42, z: -0.035 },
-        { x: 0.03, y: -0.42, z: 0.2 },
-      ),
-      head: transform(
-        { x: 0.32, y: -0.06, z: 0.025 },
-        { x: 0.02, y: -0.12, z: 0.3 },
-      ),
+      body: transform({ x: 0.42, z: -0.035 }, { x: 0.03, y: -0.42, z: 0.2 }),
+      head: transform({ x: 0.32, y: -0.06, z: 0.025 }, { x: 0.02, y: -0.12, z: 0.3 }),
       rightArm: transform({ x: -0.18, z: -0.08 }),
-      leftArm: transform(
-        { x: -0.12, z: 0.42 },
-        { x: -0.04, y: 0.02, z: -0.02 },
-      ),
+      leftArm: transform({ x: -0.12, z: 0.42 }, { x: -0.04, y: 0.02, z: -0.02 }),
       rightLeg: transform({ x: 0.05 }),
       leftLeg: transform({ x: -0.08, z: 0.04 }),
     };
 
     const reaching: Pose = {
-      body: transform(
-        { x: 0.5, z: -0.045 },
-        { x: 0.04, y: -0.62, z: 0.32 },
-      ),
-      head: transform(
-        { x: 0.58, y: -0.12, z: 0.04 },
-        { x: 0.04, y: -0.22, z: 0.52 },
-      ),
-      rightArm: transform(
-        { x: -1.05, y: -0.12, z: -0.22 },
-        { x: 0.02, y: -0.08, z: 0.04 },
-      ),
-      leftArm: transform(
-        { x: -0.18, y: 0.04, z: 0.72 },
-        { x: -0.06, y: 0.02, z: -0.04 },
-      ),
-      rightLeg: transform(
-        { x: 0.12, z: 0.05 },
-        { x: -0.04, y: -0.08, z: -0.02 },
-      ),
-      leftLeg: transform(
-        { x: -0.42, y: 0.08, z: 0.24 },
-        { x: -0.16, y: 0.42, z: 0.16 },
-      ),
+      body: transform({ x: 0.5, z: -0.045 }, { x: 0.04, y: -0.62, z: 0.32 }),
+      head: transform({ x: 0.58, y: -0.12, z: 0.04 }, { x: 0.04, y: -0.22, z: 0.52 }),
+      rightArm: transform({ x: -1.05, y: -0.12, z: -0.22 }, { x: 0.02, y: -0.08, z: 0.04 }),
+      leftArm: transform({ x: -0.18, y: 0.04, z: 0.72 }, { x: -0.06, y: 0.02, z: -0.04 }),
+      rightLeg: transform({ x: 0.12, z: 0.05 }, { x: -0.04, y: -0.08, z: -0.02 }),
+      leftLeg: transform({ x: -0.42, y: 0.08, z: 0.24 }, { x: -0.16, y: 0.42, z: 0.16 }),
     };
 
     let pose: Pose;
@@ -306,11 +259,7 @@ export const brushShoeGesture: IdleGesture = {
         ),
       };
     } else {
-      pose = interpolatePose(
-        reaching,
-        NEUTRAL,
-        (t - 0.65) / 0.35,
-      );
+      pose = interpolatePose(reaching, NEUTRAL, (t - 0.65) / 0.35);
     }
 
     applyPose(skin, pose);

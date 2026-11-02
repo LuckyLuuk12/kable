@@ -12,7 +12,7 @@ the profile/project state after an install or update.
 -->
 
 <script lang="ts">
-import { app, type KableProfile, type KableProject, type Project, type ProjectVersion } from "$lib";
+import { app, type KableProfile, type KableProject, type Project, type ProjectVersion } from "#lib";
 
 let {
   profile = null,
@@ -495,7 +495,8 @@ $effect(() => {
             class="install"
             type="button"
             disabled={loading || (isKableProject(project) && selectedVersion.id === project.version_id)}
-            onclick={() => installVersion(selectedVersion)}>
+            onclick={() => installVersion(selectedVersion)}
+          >
             {#if loading}
               {isKableProject(project) ? "Updating..." : "Installing..."}
             {:else if isKableProject(project) && selectedVersion.id === project.version_id}

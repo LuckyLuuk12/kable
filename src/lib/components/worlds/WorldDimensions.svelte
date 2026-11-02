@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { World, WorldDimension, WorldDimensionKind } from "$lib";
+import type { World, WorldDimension, WorldDimensionKind } from "#lib";
 
 interface Props {
   world: World;
@@ -95,7 +95,7 @@ const dimensions = $derived([...world.dimensions].sort((a, b) => a.id.localeComp
 </div>
 
 <style lang="scss">
-@use "$lib/styles/variables" as *;
+@use "../../styles/variables" as *;
 
 .dimensions {
   display: flex;

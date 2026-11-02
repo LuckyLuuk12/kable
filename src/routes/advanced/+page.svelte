@@ -1,5 +1,5 @@
 <script lang="ts">
-import { AdvancedPage } from "$lib";
+import { AdvancedPage } from "#lib";
 </script>
 
 <AdvancedPage />

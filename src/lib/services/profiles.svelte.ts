@@ -1,5 +1,4 @@
-
-import { type CreateProfileRequest, type KableProfile, type LoaderKind, api, error, log } from "$lib";
+import { type CreateProfileRequest, type KableProfile, type LoaderKind, api, error, log } from "#lib";
 import { SvelteDate } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
 import { app } from "./app.svelte";
@@ -116,12 +115,12 @@ export class ProfilesService implements Service {
     const optimisticProfiles = previousProfiles.map((item) =>
       item.id === profile.id
         ? {
-          ...item,
-          metadata: {
-            ...item.metadata,
-            favorite: !previousFavorite,
-          },
-        }
+            ...item,
+            metadata: {
+              ...item.metadata,
+              favorite: !previousFavorite,
+            },
+          }
         : item,
     );
 
@@ -264,15 +263,9 @@ export class ProfilesService implements Service {
 
     const totalProfiles = profiles.length;
 
-    const totalPlaytimeMs = profiles.reduce(
-      (total, profile) => total + profile.metadata.total_time_played_ms,
-      0,
-    );
+    const totalPlaytimeMs = profiles.reduce((total, profile) => total + profile.metadata.total_time_played_ms, 0);
 
-    const totalLaunches = profiles.reduce(
-      (total, profile) => total + profile.metadata.times_launched,
-      0,
-    );
+    const totalLaunches = profiles.reduce((total, profile) => total + profile.metadata.times_launched, 0);
 
     const favoriteCount = profiles.filter((profile) => profile.metadata.favorite).length;
 
@@ -285,30 +278,20 @@ export class ProfilesService implements Service {
       const candidateDate = new SvelteDate(candidate);
       const latestDate = new SvelteDate(latest);
 
-      if (
-        Number.isNaN(candidateDate.getTime()) ||
-        Number.isNaN(latestDate.getTime())
-      ) {
+      if (Number.isNaN(candidateDate.getTime()) || Number.isNaN(latestDate.getTime())) {
         return latest;
       }
 
       return candidateDate.getTime() > latestDate.getTime() ? candidate : latest;
     }, null);
 
-    const mostPlayedProfile = profiles.reduce<KableProfile | null>(
-      (mostPlayed, profile) => {
-        if (
-          !mostPlayed ||
-          profile.metadata.total_time_played_ms >
-          mostPlayed.metadata.total_time_played_ms
-        ) {
-          return profile;
-        }
+    const mostPlayedProfile = profiles.reduce<KableProfile | null>((mostPlayed, profile) => {
+      if (!mostPlayed || profile.metadata.total_time_played_ms > mostPlayed.metadata.total_time_played_ms) {
+        return profile;
+      }
 
-        return mostPlayed;
-      },
-      null,
-    );
+      return mostPlayed;
+    }, null);
 
     const loaderCounts: Record<string, number> = {};
 
@@ -320,16 +303,13 @@ export class ProfilesService implements Service {
       loaderCounts[loader] = (loaderCounts[loader] ?? 0) + 1;
     }
 
-    const mostUsedLoader = Object.entries(loaderCounts).reduce<string | null>(
-      (mostUsed, [loader, count]) => {
-        if (!mostUsed || count > (loaderCounts[mostUsed] ?? 0)) {
-          return loader;
-        }
+    const mostUsedLoader = Object.entries(loaderCounts).reduce<string | null>((mostUsed, [loader, count]) => {
+      if (!mostUsed || count > (loaderCounts[mostUsed] ?? 0)) {
+        return loader;
+      }
 
-        return mostUsed;
-      },
-      null,
-    );
+      return mostUsed;
+    }, null);
 
     return {
       profiles: {
@@ -338,8 +318,7 @@ export class ProfilesService implements Service {
         lastPlayedDate,
         totalLaunches,
         favoriteCount,
-        averageLaunchesPerProfile:
-          totalProfiles > 0 ? totalLaunches / totalProfiles : 0,
+        averageLaunchesPerProfile: totalProfiles > 0 ? totalLaunches / totalProfiles : 0,
         mostPlayedProfile,
         mostUsedLoader,
         loaderCounts,

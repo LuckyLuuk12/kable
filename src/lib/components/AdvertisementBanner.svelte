@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, Image } from "$lib";
+import { app, Image } from "#lib";
 
 let showAds = $derived(app.customizationService.settings?.content?.allow_ads ?? true);
 

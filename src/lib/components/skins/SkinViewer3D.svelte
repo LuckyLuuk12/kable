@@ -16,7 +16,7 @@ Animation modes:
 import * as skinview3d from "skinview3d";
 import { onDestroy, onMount } from "svelte";
 
-import { error } from "$lib";
+import { error } from "#lib";
 import { DEFAULT_GESTURES, DEFAULT_INTERACTION_GESTURES, IdleOrchestrator } from "./animations/orchestrator";
 
 type AnimationMode = "all" | "idle-only" | "interaction-only" | "none";
@@ -481,7 +481,8 @@ $effect(() => {
   onpointerup={handlePointerUp}
   onpointercancel={handlePointerCancel}
   onpointerleave={handlePointerLeave}
-  onclick={handleClick}></canvas>
+  onclick={handleClick}
+></canvas>
 
 <style>
 .skin-viewer-canvas {

@@ -1,4 +1,4 @@
-import { warn } from "$lib";
+import { warn } from "#lib";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { AppService, Service } from "./app.svelte";
@@ -18,7 +18,7 @@ export class EventsService implements Service {
   private initialized = false;
   private unlisteners: UnlistenFn[] = [];
 
-  constructor(private app: AppService) { }
+  constructor(private app: AppService) {}
 
   async init() {
     if (this.initialized) return;

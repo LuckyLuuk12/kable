@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, type KableProfile, type KableProject, type Project, type ResolvedDependency } from "$lib";
+import { app, type KableProfile, type KableProject, type Project, type ResolvedDependency } from "#lib";
 
 interface Props {
   profile: KableProfile;
@@ -199,7 +199,8 @@ function cancel(): void {
           checked={selected}
           disabled={!canToggle}
           aria-label={`${dependency.project.project.title}, ${required ? "required" : displayDependencyType(dependency)}`}
-          onchange={(event) => toggleDependency(dependency, event.currentTarget.checked, parentActive)} />
+          onchange={(event) => toggleDependency(dependency, event.currentTarget.checked, parentActive)}
+        />
       </div>
 
       <div class="dependency-details">

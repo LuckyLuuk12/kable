@@ -1,10 +1,5 @@
-import type {
-  UpdateData,
-  UpdateDetection,
-  UpdateMode,
-  UpdateNotificationStyle,
-} from "$lib";
-import { api, app, error, info, UpdateModal } from "$lib";
+import type { UpdateData, UpdateDetection, UpdateMode, UpdateNotificationStyle } from "#lib";
+import { api, app, error, info, UpdateModal } from "#lib";
 import type { Service } from "./app.svelte";
 
 export class UpdaterService implements Service {
@@ -31,22 +26,15 @@ export class UpdaterService implements Service {
     this.destroyed = false;
 
     try {
-      const [settings, developmentBuild] = await Promise.all([
-        api.getSettings(),
-        app.isDev(),
-      ]);
+      const [settings, developmentBuild] = await Promise.all([api.getSettings(), app.isDev()]);
 
-      this.updateDetection =
-        settings?.general?.update_detection ?? "on_startup";
+      this.updateDetection = settings?.general?.update_detection ?? "on_startup";
 
-      this.updateMode =
-        settings?.general?.update_mode ?? "on_confirm";
+      this.updateMode = settings?.general?.update_mode ?? "on_confirm";
 
-      this.notificationStyle =
-        settings?.general?.update_notification_style ?? "notification";
+      this.notificationStyle = settings?.general?.update_notification_style ?? "notification";
 
-      this.includePrerelease =
-        settings?.advanced?.enable_nightly_updates ?? false;
+      this.includePrerelease = settings?.advanced?.enable_nightly_updates ?? false;
 
       this.developmentBuild = developmentBuild;
 
@@ -195,12 +183,7 @@ export class UpdaterService implements Service {
     }
 
     if (this.notificationStyle === "notification") {
-      app.notificationService.info(
-        `Kable ${update.version} is available. Click here to view the update.`,
-        10,
-        false,
-        openModal,
-      );
+      app.notificationService.info(`Kable ${update.version} is available. Click here to view the update.`, 10, false, openModal);
 
       return;
     }
@@ -208,18 +191,14 @@ export class UpdaterService implements Service {
     openModal();
   }
 
-  private notifyDevelopmentRestriction(
-    action: "download" | "install" | "apply",
-  ) {
+  private notifyDevelopmentRestriction(action: "download" | "install" | "apply") {
     const actionText = {
       download: "Downloading updates",
       install: "Installing updates",
       apply: "Applying downloaded updates",
     }[action];
 
-    const message =
-      `${actionText} is disabled in development builds. ` +
-      "The update notification is shown for testing only.";
+    const message = `${actionText} is disabled in development builds. ` + "The update notification is shown for testing only.";
 
     this.error = message;
     app.notificationService.info(message);
@@ -242,21 +221,14 @@ export class UpdaterService implements Service {
     } catch (err) {
       const message = String(err);
 
-      if (
-        message.includes("No update available") ||
-        message.includes("No updates available")
-      ) {
+      if (message.includes("No update available") || message.includes("No updates available")) {
         this.updateInfo = null;
         return null;
       }
 
       this.error = message;
 
-      app.notificationService.error(
-        (includePrerelease
-          ? "Failed to check for nightly launcher updates: "
-          : "Failed to check for launcher updates: ") + message,
-      );
+      app.notificationService.error((includePrerelease ? "Failed to check for nightly launcher updates: " : "Failed to check for launcher updates: ") + message);
 
       return null;
     } finally {
@@ -281,18 +253,14 @@ export class UpdaterService implements Service {
     try {
       const path = await api.downloadLauncherUpdate(includePrerelease);
 
-      app.notificationService.success(
-        "Launcher update downloaded successfully.",
-      );
+      app.notificationService.success("Launcher update downloaded successfully.");
 
       return path;
     } catch (err) {
       const message = String(err);
       this.error = message;
 
-      app.notificationService.error(
-        `Failed to download launcher update: ${message}`,
-      );
+      app.notificationService.error(`Failed to download launcher update: ${message}`);
 
       return null;
     } finally {
@@ -317,9 +285,7 @@ export class UpdaterService implements Service {
     try {
       await api.installLauncherUpdate(includePrerelease);
 
-      app.notificationService.success(
-        "Launcher update installed successfully.",
-      );
+      app.notificationService.success("Launcher update installed successfully.");
 
       this.updateInfo = null;
       return true;
@@ -327,9 +293,7 @@ export class UpdaterService implements Service {
       const message = String(error);
       this.error = message;
 
-      app.notificationService.error(
-        `Failed to install launcher update: ${message}`,
-      );
+      app.notificationService.error(`Failed to install launcher update: ${message}`);
 
       return false;
     } finally {
@@ -354,9 +318,7 @@ export class UpdaterService implements Service {
     try {
       await api.applyDownloadedUpdate();
 
-      app.notificationService.success(
-        "Downloaded launcher update applied successfully.",
-      );
+      app.notificationService.success("Downloaded launcher update applied successfully.");
 
       this.updateInfo = null;
       return true;
@@ -364,9 +326,7 @@ export class UpdaterService implements Service {
       const message = String(error);
       this.error = message;
 
-      app.notificationService.error(
-        `Failed to apply downloaded update: ${message}`,
-      );
+      app.notificationService.error(`Failed to apply downloaded update: ${message}`);
 
       return false;
     } finally {
@@ -397,10 +357,7 @@ export class UpdaterService implements Service {
     try {
       return await api.getCurrentVersion();
     } catch (err) {
-      error(
-        "API call failed: `api.getCurrentVersion()`",
-        err,
-      );
+      error("API call failed: `api.getCurrentVersion()`", err);
 
       return undefined;
     }

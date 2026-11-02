@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app } from "$lib";
+import { app } from "#lib";
 import WorldsNavigation from "./WorldsNavigation.svelte";
 
 let {
@@ -73,7 +73,7 @@ let world = $derived(worldId ? app.worldsService.getWorld(worldId) : (app.worlds
 </div>
 
 <style lang="scss">
-@use "$lib/styles/variables" as *;
+@use "../../styles/variables" as *;
 
 .worlds-browser {
   display: flex;

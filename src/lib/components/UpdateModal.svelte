@@ -11,8 +11,8 @@ Respects user's update mode preference.
 @prop {(() => void) | undefined} ondownload - Callback to download update for later
 -->
 <script lang="ts">
-import { Icon, error } from "$lib";
-import { clickSound, successSound } from "$lib/actions";
+import { Icon, error } from "#lib";
+import { clickSound, successSound } from "#lib/actions/index.js";
 import { marked } from "marked";
 
 type UpdateInfo = {
@@ -140,7 +140,8 @@ function handleKeydown(event: KeyboardEvent): void {
       aria-modal="true"
       aria-labelledby="update-modal-title"
       tabindex="-1"
-      onkeydown={(event) => event.stopPropagation()}>
+      onkeydown={(event) => event.stopPropagation()}
+    >
       <div class="modal-header">
         <div class="header-content">
           <div class="update-icon">

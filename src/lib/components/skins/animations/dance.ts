@@ -76,11 +76,7 @@ function wave(t: number, cycles: number, phase = 0): number {
   return Math.sin(t * TAU * cycles + phase);
 }
 
-function interpolatePose(
-  from: Pose,
-  to: Pose,
-  progress: number,
-): Pose {
+function interpolatePose(from: Pose, to: Pose, progress: number): Pose {
   const t = smootherStep(progress);
   const result = {} as Pose;
 
@@ -317,18 +313,14 @@ export const danceGesture: IdleGesture = {
 
     let segment = 0;
 
-    while (
-      segment < keyframes.length - 2 &&
-      p > keyframes[segment + 1].at
-    ) {
+    while (segment < keyframes.length - 2 && p > keyframes[segment + 1].at) {
       segment++;
     }
 
     const fromFrame = keyframes[segment];
     const toFrame = keyframes[segment + 1];
 
-    const segmentProgress =
-      (p - fromFrame.at) / (toFrame.at - fromFrame.at);
+    const segmentProgress = (p - fromFrame.at) / (toFrame.at - fromFrame.at);
 
     const fromPose: Pose = {
       ...NEUTRAL,
@@ -340,19 +332,14 @@ export const danceGesture: IdleGesture = {
       ...toFrame.pose,
     };
 
-    const pose = interpolatePose(
-      fromPose,
-      toPose,
-      segmentProgress,
-    );
+    const pose = interpolatePose(fromPose, toPose, segmentProgress);
 
     // Continuous groove layered over the interpolated poses.
     // Fade it in and out so the beginning and ending remain neutral.
-    const envelope = smootherStep(Math.min(p / 0.08, 1)) *
-      (1 - smootherStep(Math.max(0, (p - 0.9) / 0.1)));
+    const envelope = smootherStep(Math.min(p / 0.08, 1)) * (1 - smootherStep(Math.max(0, (p - 0.9) / 0.1)));
 
     const groove = wave(time / 7.2, 1.7);
-    const bounce = (1 - Math.cos(time * TAU * 1.7 / 2)) / 2;
+    const bounce = (1 - Math.cos((time * TAU * 1.7) / 2)) / 2;
 
     pose.bodyY += -0.045 * bounce * envelope;
     pose.bodyZ += 0.035 * groove * envelope;

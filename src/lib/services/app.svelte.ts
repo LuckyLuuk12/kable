@@ -1,5 +1,5 @@
-import { api } from "$lib";
-import { type ModalInstance } from "$lib/utils/modal";
+import { api } from "#lib";
+import { type ModalInstance } from "#lib/utils/modal.js";
 import type { Component } from "svelte";
 import { AuthService } from "./auth.svelte";
 import { CacheService } from "./cache.svelte";

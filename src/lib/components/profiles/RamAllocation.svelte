@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, error, Icon, type KableProfile } from "$lib";
+import { app, error, Icon, type KableProfile } from "#lib";
 import { onMount } from "svelte";
 
 let {
@@ -377,7 +377,8 @@ function handleMaxInputKeydown(event: KeyboardEvent) {
           aria-label="Collapse RAM settings"
           title="Collapse RAM settings"
           aria-expanded={isRamPanelExpanded}
-          onclick={() => (isRamPanelExpanded = false)}>
+          onclick={() => (isRamPanelExpanded = false)}
+        >
           <Icon name="chevron-down" forceType="svg" />
         </button>
       </div>
@@ -416,7 +417,8 @@ function handleMaxInputKeydown(event: KeyboardEvent) {
                   minRamInputValue = event.currentTarget.value;
                 }}
                 onblur={handleMinInputBlur}
-                onkeydown={handleMinInputKeydown} />
+                onkeydown={handleMinInputKeydown}
+              />
 
               <div class="input-arrows">
                 <button
@@ -424,7 +426,8 @@ function handleMaxInputKeydown(event: KeyboardEvent) {
                   aria-label="Increase minimum RAM"
                   title="Increase minimum RAM"
                   disabled={isSaving || minRamAllocation + RAM_STEP > maxRamAllocation}
-                  onclick={() => adjustMinRam(RAM_STEP)}>
+                  onclick={() => adjustMinRam(RAM_STEP)}
+                >
                   <Icon name="chevron-up" forceType="svg" />
                 </button>
                 <button
@@ -432,7 +435,8 @@ function handleMaxInputKeydown(event: KeyboardEvent) {
                   aria-label="Decrease minimum RAM"
                   title="Decrease minimum RAM"
                   disabled={isSaving || minRamAllocation - RAM_STEP < MIN_RAM}
-                  onclick={() => adjustMinRam(-RAM_STEP)}>
+                  onclick={() => adjustMinRam(-RAM_STEP)}
+                >
                   <Icon name="chevron-down" forceType="svg" />
                 </button>
               </div>
@@ -458,7 +462,8 @@ function handleMaxInputKeydown(event: KeyboardEvent) {
               onchange={(event) => {
                 snapMinRam(event.currentTarget);
                 void commitRamChange();
-              }} />
+              }}
+            />
 
             <div class="slider-markers">
               {#each availableSnapPoints.filter((point) => point <= maxRamAllocation) as point (point)}
@@ -509,7 +514,8 @@ function handleMaxInputKeydown(event: KeyboardEvent) {
                   maxRamInputValue = event.currentTarget.value;
                 }}
                 onblur={handleMaxInputBlur}
-                onkeydown={handleMaxInputKeydown} />
+                onkeydown={handleMaxInputKeydown}
+              />
 
               <div class="input-arrows">
                 <button
@@ -517,7 +523,8 @@ function handleMaxInputKeydown(event: KeyboardEvent) {
                   aria-label="Increase maximum RAM"
                   title="Increase maximum RAM"
                   disabled={isSaving || maxRamAllocation + RAM_STEP > maxRamLimit}
-                  onclick={() => adjustMaxRam(RAM_STEP)}>
+                  onclick={() => adjustMaxRam(RAM_STEP)}
+                >
                   <Icon name="chevron-up" forceType="svg" />
                 </button>
                 <button
@@ -525,7 +532,8 @@ function handleMaxInputKeydown(event: KeyboardEvent) {
                   aria-label="Decrease maximum RAM"
                   title="Decrease maximum RAM"
                   disabled={isSaving || maxRamAllocation - RAM_STEP < minRamAllocation}
-                  onclick={() => adjustMaxRam(-RAM_STEP)}>
+                  onclick={() => adjustMaxRam(-RAM_STEP)}
+                >
                   <Icon name="chevron-down" forceType="svg" />
                 </button>
               </div>
@@ -551,7 +559,8 @@ function handleMaxInputKeydown(event: KeyboardEvent) {
               onchange={(event) => {
                 snapMaxRam(event.currentTarget);
                 void commitRamChange();
-              }} />
+              }}
+            />
 
             <div class="slider-markers">
               {#each availableSnapPoints.filter((point) => point >= minRamAllocation) as point (point)}
@@ -583,7 +592,8 @@ function handleMaxInputKeydown(event: KeyboardEvent) {
       aria-label="Expand RAM settings"
       title="Expand RAM settings"
       aria-expanded={isRamPanelExpanded}
-      onclick={() => (isRamPanelExpanded = true)}>
+      onclick={() => (isRamPanelExpanded = true)}
+    >
       <Icon name="memory" forceType="svg" />
       <span>RAM</span>
       <span class="collapsed-ram-value">

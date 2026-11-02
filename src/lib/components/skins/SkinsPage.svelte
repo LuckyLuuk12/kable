@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, Icon } from "$lib";
+import { app, Icon } from "#lib";
 import { onMount } from "svelte";
 import CapeSelection from "./CapeSelection.svelte";
 import SkinEditor from "./SkinEditor.svelte";
@@ -58,7 +58,8 @@ function dismissError(): void {
         class="tab-btn"
         class:active={currentTab === "skins"}
         aria-current={currentTab === "skins" ? "page" : undefined}
-        onclick={() => (currentTab = "skins")}>
+        onclick={() => (currentTab = "skins")}
+      >
         <Icon name="user" forceType="svg" size="sm" />
         <span>Skins</span>
         <span class="tab-count">{accountSkins.length}</span>
@@ -69,7 +70,8 @@ function dismissError(): void {
         class="tab-btn"
         class:active={currentTab === "capes"}
         aria-current={currentTab === "capes" ? "page" : undefined}
-        onclick={() => (currentTab = "capes")}>
+        onclick={() => (currentTab = "capes")}
+      >
         <Icon name="cape" forceType="svg" size="sm" />
         <span>Capes</span>
         <span class="tab-count">{capes.length}</span>
@@ -80,7 +82,8 @@ function dismissError(): void {
         class="tab-btn"
         class:active={currentTab === "editor"}
         aria-current={currentTab === "editor" ? "page" : undefined}
-        onclick={() => (currentTab = "editor")}>
+        onclick={() => (currentTab = "editor")}
+      >
         <Icon name="edit" forceType="svg" size="sm" />
         <span>Editor</span>
       </button>

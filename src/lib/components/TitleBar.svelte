@@ -10,7 +10,7 @@ Displays a DEV badge when running a development build.
 ```
 -->
 <script lang="ts">
-import { NotificationContainer, NotificationTray, app, clickSound } from "$lib";
+import { NotificationContainer, NotificationTray, app, clickSound } from "#lib";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { onMount, type Snippet } from "svelte";
 
@@ -84,7 +84,8 @@ onMount(() => {
         class="titlebar-btn maximize"
         title={isMaximized ? "Restore" : "Maximize"}
         aria-label={isMaximized ? "Restore" : "Maximize"}
-        onclick={maximize}>
+        onclick={maximize}
+      >
         {#if isMaximized}
           <svg width="16" height="16" viewBox="0 0 16 16">
             <rect x="4" y="3" width="7" height="7" rx="2" fill="none" stroke="currentColor" stroke-width="2" />

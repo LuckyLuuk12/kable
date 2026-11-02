@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, error, Icon, type CacheEntryInfo } from "$lib";
+import { app, error, Icon, type CacheEntryInfo } from "#lib";
 import { onMount } from "svelte";
 
 let searchQuery = $state("");
@@ -236,7 +236,8 @@ function namespaceEntries(namespace: string): CacheEntryInfo[] {
         onclick={refresh}
         disabled={app.cacheService.loading || app.cacheService.invalidating}
         title="Refresh cache listing"
-        aria-label="Refresh cache listing">
+        aria-label="Refresh cache listing"
+      >
         <Icon name="refresh" forceType="svg" size="sm" />
       </button>
 
@@ -250,7 +251,8 @@ function namespaceEntries(namespace: string): CacheEntryInfo[] {
       type="button"
       onclick={invalidateMemory}
       disabled={app.cacheService.loading || app.cacheService.invalidating}
-      title="Clear in-memory entries without deleting persistent files">
+      title="Clear in-memory entries without deleting persistent files"
+    >
       <Icon name="trash" forceType="svg" size="sm" />
       Clear memory
     </button>
@@ -323,7 +325,8 @@ function namespaceEntries(namespace: string): CacheEntryInfo[] {
                   onclick={() => invalidateNamespace(namespace.name)}
                   disabled={app.cacheService.loading || app.cacheService.invalidating}
                   title={`Invalidate namespace ${namespace.name}`}
-                  aria-label={`Invalidate namespace ${namespace.name}`}>
+                  aria-label={`Invalidate namespace ${namespace.name}`}
+                >
                   <Icon name="delete" forceType="svg" size="sm" />
                 </button>
               {/if}
@@ -348,7 +351,8 @@ function namespaceEntries(namespace: string): CacheEntryInfo[] {
                       onclick={() => invalidateEntry(entry)}
                       disabled={app.cacheService.loading || app.cacheService.invalidating}
                       title="Invalidate entry"
-                      aria-label={`Invalidate ${entry.path}`}>
+                      aria-label={`Invalidate ${entry.path}`}
+                    >
                       <Icon name="delete" forceType="svg" size="sm" />
                     </button>
                   </div>

@@ -11,7 +11,7 @@ Provides:
 - Visibility-aware loading
 -->
 <script lang="ts">
-import { app, debug, type FacetGroup, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "$lib";
+import { app, debug, type FacetGroup, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "#lib";
 import { untrack } from "svelte";
 import Icon from "../Icon.svelte";
 import ProjectCard from "./ProjectCard.svelte";
@@ -642,7 +642,8 @@ $effect(() => {
         value={limit}
         aria-label="Projects per page"
         title="Projects per page"
-        onchange={handleLimitInput} />
+        onchange={handleLimitInput}
+      />
 
       <span>
         of {results?.total_hits.toLocaleString() ?? "0"}
@@ -666,7 +667,8 @@ $effect(() => {
               disabled={loading}
               aria-label={`Page ${item}`}
               aria-current={item === currentPage ? "page" : undefined}
-              onclick={() => goToPage(item)}>
+              onclick={() => goToPage(item)}
+            >
               {item}
             </button>
           {/if}

@@ -10,7 +10,7 @@ create shortcuts, and favorite. Clicking a card opens its edit modal.
 @prop {number | null} [limit=null] - Maximum number of profiles to display
 -->
 <script lang="ts">
-import { app, clickSound, error, errorSound, Icon, Image, launchSound, log, type KableProfile } from "$lib";
+import { app, clickSound, error, errorSound, Icon, Image, launchSound, log, type KableProfile } from "#lib";
 import { save } from "@tauri-apps/plugin-dialog";
 import EditProfileModal from "./EditProfileModal.svelte";
 
@@ -212,14 +212,16 @@ function formatLastUsed(date: string | null | undefined) {
                 );
               --loader-color: {loaderColor}55;
               z-index: {profiles.length - i};
-            ">
+            "
+          >
             <div class="card-top-actions">
               {#if !isSmall}
                 <button
                   class="star-btn"
                   title={profile.metadata.favorite ? "Unfavorite" : "Favorite"}
                   aria-label={profile.metadata.favorite ? "Unfavorite profile" : "Favorite profile"}
-                  onclick={(event) => toggleFavorite(event, profile)}>
+                  onclick={(event) => toggleFavorite(event, profile)}
+                >
                   {#key profile.metadata.favorite}
                     <Icon name="star" forceType={profile.metadata.favorite ? "emoji" : "svg"} size="md" />
                   {/key}
@@ -254,7 +256,8 @@ function formatLastUsed(date: string | null | undefined) {
                   onclick={async () => {
                     await app.launcherService.launch(profile);
                   }}
-                  disabled={app.launcherService.launching}>
+                  disabled={app.launcherService.launching}
+                >
                   {#if app.launcherService.launchingProfileId === profile.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
                     <span>Launching...</span>
@@ -358,7 +361,8 @@ function formatLastUsed(date: string | null | undefined) {
                   {loaderColor}05 40%
                 );
               --loader-color: {loaderColor}55;
-            ">
+            "
+          >
             <div class="list-item-main">
               <div class="list-item-icon-section">
                 <div class="profile-icon icon-tooltip-wrapper" style="color: {loaderColor};">
@@ -386,7 +390,8 @@ function formatLastUsed(date: string | null | undefined) {
                   onclick={async () => {
                     await app.launcherService.launch(profile);
                   }}
-                  disabled={app.launcherService.launching}>
+                  disabled={app.launcherService.launching}
+                >
                   {#if app.launcherService.launchingProfileId === profile.id}
                     <Icon name="refresh" size="sm" className="spin" forceType="svg" />
                     <span>Launching...</span>
@@ -414,7 +419,8 @@ function formatLastUsed(date: string | null | undefined) {
                         class="star-btn"
                         title={profile.metadata.favorite ? "Unfavorite" : "Favorite"}
                         aria-label={profile.metadata.favorite ? "Unfavorite profile" : "Favorite profile"}
-                        onclick={(event) => toggleFavorite(event, profile)}>
+                        onclick={(event) => toggleFavorite(event, profile)}
+                      >
                         {#key profile.metadata.favorite}
                           <Icon name="star" forceType={profile.metadata.favorite ? "emoji" : "svg"} size="sm" />
                         {/key}

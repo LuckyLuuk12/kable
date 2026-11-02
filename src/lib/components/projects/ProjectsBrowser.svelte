@@ -14,7 +14,7 @@ Provides:
 - Project details navigation
 -->
 <script lang="ts">
-import { type FacetGroup, type KableProfile, type ProjectType, type SearchIndex } from "$lib";
+import { type FacetGroup, type KableProfile, type ProjectType, type SearchIndex } from "#lib";
 import ProjectsBrowserFilters from "./ProjectsBrowserFilters.svelte";
 import ProjectsPaginatedBrowser from "./ProjectsPaginatedBrowser.svelte";
 import ProjectsScrollBrowser from "./ProjectsScrollBrowser.svelte";

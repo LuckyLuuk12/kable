@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, error, Icon, launchSound } from "$lib";
+import { app, error, Icon, launchSound } from "#lib";
 
 let isLaunching = $derived(app.launcherService.launching);
 

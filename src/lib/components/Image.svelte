@@ -13,7 +13,7 @@ A component that attempts to find the key with backend on the file system and di
 ```
 -->
 <script lang="ts">
-import { error, log, warn } from "$lib";
+import { error, log, warn } from "#lib";
 import { invoke } from "@tauri-apps/api/core";
 import { onMount } from "svelte";
 
@@ -190,7 +190,8 @@ $: if (imgElement && resolvedSrc) {
   style="width: {width}; height: {height};"
   on:error={handleImgError}
   on:load={handleImgLoad}
-  on:mouseenter={handleMouseEnter} />
+  on:mouseenter={handleMouseEnter}
+/>
 
 <style>
 img {

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Icon, type GameInstance, type GameInstanceStatus } from "$lib";
+import { Icon, type GameInstance, type GameInstanceStatus } from "#lib";
 
 let {
   instances,

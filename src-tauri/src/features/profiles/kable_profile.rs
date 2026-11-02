@@ -89,44 +89,46 @@ async fn parse_kable_profiles() -> Result<Vec<KableProfile>, String> {
 
 /// This will take the official launcher profiles and the, if existing, kable profiles and merge them into a single list of KableProfiles
 /// with the kable profiles taking precedence over the official launcher profiles in case of duplicate profile IDs
-async fn merge_profiles(
-    launcher_profiles: LauncherProfiles,
-    kable_profiles: Vec<KableProfile>,
-    all_versions: &[api_types::profiles::ProfileVersion],
-) -> Result<Vec<KableProfile>, String> {
-    let mut merged_profiles = into(launcher_profiles, all_versions)?;
+async fn merge_profiles(launcher_profiles: LauncherProfiles, kable_profiles: Vec<KableProfile>) -> Result<Vec<KableProfile>, String> {
+    let kable_profile_ids: std::collections::HashSet<&str> = kable_profiles.iter().map(|profile| profile.id.as_str()).collect();
 
-    let mut kable_profiles_map: HashMap<String, KableProfile> = HashMap::new();
+    let new_launcher_profiles: HashMap<_, _> =
+        launcher_profiles.profiles.into_iter().filter(|(id, _)| !kable_profile_ids.contains(id.as_str())).collect();
 
-    for profile in kable_profiles {
-        kable_profiles_map.insert(profile.id.clone(), profile);
+    if new_launcher_profiles.is_empty() {
+        return Ok(kable_profiles);
     }
 
-    merged_profiles.retain(|profile| !kable_profiles_map.contains_key(&profile.id));
+    let all_versions = get_versions().await?.0;
 
-    merged_profiles.extend(kable_profiles_map.into_values());
+    let mut merged_profiles = into(LauncherProfiles { profiles: new_launcher_profiles, ..launcher_profiles }, &all_versions)?;
+
+    merged_profiles.extend(kable_profiles);
 
     Ok(merged_profiles)
 }
 
 /// async execute loading of the 2 different profile sources then join / await completion of both in async, save the profiles, and return the merged result
 /// After sorting by lastUsed such that the most recently used profile is first in the list
-#[persistent_cache(parent = "profiles", ttl_secs = 3600)] // cache for 1 hour
+#[persistent_cache(parent = "profiles", ttl_secs = 3600)]
 pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
     let launcher_profiles_future = parse_launcher_profiles();
     let kable_profiles_future = parse_kable_profiles();
-    let versions_future = get_versions();
 
-    let (launcher_profiles_result, kable_profiles_result, versions_result) =
-        tokio::join!(launcher_profiles_future, kable_profiles_future, versions_future);
+    let (launcher_profiles_result, kable_profiles_result) = tokio::join!(launcher_profiles_future, kable_profiles_future);
 
     let launcher_profiles = launcher_profiles_result?;
     let kable_profiles = kable_profiles_result?;
-    let all_versions = versions_result?.0;
 
-    let mut profiles = merge_profiles(launcher_profiles, kable_profiles, &all_versions).await?;
+    let mut profiles = merge_profiles(launcher_profiles, kable_profiles).await?;
 
-    update_latest_version_profiles(&mut profiles, &all_versions);
+    if !profiles.is_empty() {
+        let all_versions = get_versions().await;
+
+        if let Ok(versions) = all_versions {
+            update_latest_version_profiles(&mut profiles, &versions.0);
+        }
+    }
 
     profiles.sort_by(|a, b| b.metadata.last_used.cmp(&a.metadata.last_used));
 

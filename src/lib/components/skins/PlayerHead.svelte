@@ -7,7 +7,7 @@ Falls back to a user icon if no skin is available.
 @prop {number} [size=40] - Size of the head in pixels
 -->
 <script lang="ts">
-import { Icon, app, error } from "$lib";
+import { Icon, app, error } from "#lib";
 import * as skinview3d from "skinview3d";
 import { onDestroy } from "svelte";
 

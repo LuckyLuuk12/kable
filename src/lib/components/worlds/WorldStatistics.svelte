@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, type WorldPlayerStatistics } from "$lib";
+import { app, type WorldPlayerStatistics } from "#lib";
 import { SvelteMap } from "svelte/reactivity";
 
 let { world }: { world: { path: string } } = $props();
@@ -163,7 +163,7 @@ $effect(() => {
 </section>
 
 <style lang="scss">
-@use "$lib/styles/variables" as *;
+@use "../../styles/variables" as *;
 
 .statistics {
   display: flex;

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, Icon, SkinViewer3D, type AccountSkin, type SkinModel, type SkinUploadConfig } from "$lib";
+import { app, Icon, SkinViewer3D, type AccountSkin, type SkinModel, type SkinUploadConfig } from "#lib";
 import { open } from "@tauri-apps/plugin-dialog";
 import { onMount } from "svelte";
 
@@ -328,7 +328,8 @@ function handleModalKeydown(event: KeyboardEvent): void {
                   class="action-button"
                   onclick={applySelectedSkin}
                   disabled={loading || !accountAvailable}
-                  title={!accountAvailable ? "Sign in to apply a skin" : "Apply this skin"}>
+                  title={!accountAvailable ? "Sign in to apply a skin" : "Apply this skin"}
+                >
                   <Icon name="check" forceType="svg" size="sm" />
                   Apply skin
                 </button>
@@ -350,7 +351,8 @@ function handleModalKeydown(event: KeyboardEvent): void {
                 onclick={(event) => removeSkin(selectedSkin!, event)}
                 disabled={loading}
                 aria-label="Remove selected skin"
-                title="Remove skin">
+                title="Remove skin"
+              >
                 <Icon name="trash" forceType="svg" size="sm" />
               </button>
             {:else}
@@ -394,7 +396,8 @@ function handleModalKeydown(event: KeyboardEvent): void {
               class:selected={selectedSkin?.id === skin.id}
               onclick={() => selectSkin(skin)}
               disabled={loading}
-              aria-pressed={selectedSkin?.id === skin.id}>
+              aria-pressed={selectedSkin?.id === skin.id}
+            >
               <div class="skin-thumbnail">
                 {#if skin.url}
                   <SkinViewer3D skinUrl={skin.url} height={76} model={skinModel(skin.model)} animationMode="idle-only" />
@@ -430,7 +433,8 @@ function handleModalKeydown(event: KeyboardEvent): void {
     onclick={(event) => {
       if (event.target === event.currentTarget) closeModals();
     }}
-    onkeydown={handleModalKeydown}>
+    onkeydown={handleModalKeydown}
+  >
     <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-skin-title">
       <header class="modal-header">
@@ -484,7 +488,8 @@ function handleModalKeydown(event: KeyboardEvent): void {
     onclick={(event) => {
       if (event.target === event.currentTarget) closeModals();
     }}
-    onkeydown={handleModalKeydown}>
+    onkeydown={handleModalKeydown}
+  >
     <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="add-skin-title">
       <header class="modal-header">

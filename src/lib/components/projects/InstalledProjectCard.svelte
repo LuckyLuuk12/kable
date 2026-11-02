@@ -4,7 +4,7 @@ This card displays an already-installed project and allows it to be
 enabled, disabled, inspected, or uninstalled.
 -->
 <script lang="ts">
-import { app, error, Icon, type KableProfile, type KableProject } from "$lib";
+import { app, error, Icon, type KableProfile, type KableProject } from "#lib";
 import ProjectGalleryModal from "./ProjectGalleryModal.svelte";
 import ProjectModal from "./ProjectModal.svelte";
 import ProjectVersionsModal from "./ProjectVersionsModal.svelte";
@@ -146,7 +146,8 @@ function showGallery(): void {
       event.preventDefault();
       showDetails();
     }
-  }}>
+  }}
+>
   <div class="project-icon">
     {#if project.project.icon_url}
       <img src={project.project.icon_url} alt="" loading="lazy" />
@@ -177,7 +178,8 @@ function showGallery(): void {
     onclick={(event) => event.stopPropagation()}
     onkeydown={(event) => event.stopPropagation()}
     role="group"
-    aria-label={`Actions for ${project.project.title}`}>
+    aria-label={`Actions for ${project.project.title}`}
+  >
     <button
       class:active={enabled}
       class="action-button toggle"
@@ -186,7 +188,8 @@ function showGallery(): void {
       title={togglePending ? "Updating project..." : enabled ? "Disable project" : "Enable project"}
       aria-label={togglePending ? `Updating ${project.project.title}` : enabled ? `Disable ${project.project.title}` : `Enable ${project.project.title}`}
       aria-busy={togglePending}
-      onclick={toggle}>
+      onclick={toggle}
+    >
       <Icon name={enabled ? "error" : "success"} forceType="svg" />
     </button>
 
@@ -196,7 +199,8 @@ function showGallery(): void {
       disabled={loading || togglePending}
       title="Versions"
       aria-label={`Versions for ${project.project.title}`}
-      onclick={showVersions}>
+      onclick={showVersions}
+    >
       <Icon name="list" forceType="svg" />
     </button>
 
@@ -206,7 +210,8 @@ function showGallery(): void {
       disabled={!profile || loading || togglePending}
       title="Uninstall"
       aria-label={`Uninstall ${project.project.title}`}
-      onclick={remove}>
+      onclick={remove}
+    >
       <Icon name="trash" forceType="svg" />
     </button>
 
@@ -217,7 +222,8 @@ function showGallery(): void {
         disabled={loading || togglePending}
         title="Gallery"
         aria-label={`Gallery for ${project.project.title}`}
-        onclick={showGallery}>
+        onclick={showGallery}
+      >
         <Icon name="image" forceType="svg" />
       </button>
     {/if}

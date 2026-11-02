@@ -12,7 +12,7 @@ Provides:
 - Project details navigation
 -->
 <script lang="ts">
-import { app, debug, type FacetGroup, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "$lib";
+import { app, debug, type FacetGroup, type KableProfile, type ModrinthResults, type ProjectSearch, type ProjectType, type SearchIndex } from "#lib";
 import { tick, untrack } from "svelte";
 import ProjectCard from "./ProjectCard.svelte";
 

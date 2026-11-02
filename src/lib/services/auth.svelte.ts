@@ -1,4 +1,4 @@
-import { type DeviceCodeResponse, type KableAccount, type MicrosoftToken, api } from "$lib";
+import { type DeviceCodeResponse, type KableAccount, type MicrosoftToken, api } from "#lib";
 import { SvelteDate } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { AccountManager, app, error, Icon, type LoaderKind } from "$lib";
+import { AccountManager, app, error, Icon, type LoaderKind } from "#lib";
 import { onMount } from "svelte";
 
 let errorMessage: string | null = $state(null);

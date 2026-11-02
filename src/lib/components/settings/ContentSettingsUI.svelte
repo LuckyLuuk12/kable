@@ -10,7 +10,7 @@ and other content-related settings.
 ```
 -->
 <script lang="ts">
-import { app } from "$lib";
+import { app } from "#lib";
 </script>
 
 <div class="settings-tab">
@@ -31,7 +31,8 @@ import { app } from "$lib";
               type="checkbox"
               id="allow-adult-content"
               bind:checked={app.customizationService.settings.content!.allow_adult_content}
-              onchange={() => app.customizationService.scheduleSave()} />
+              onchange={() => app.customizationService.scheduleSave()}
+            />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -49,7 +50,8 @@ import { app } from "$lib";
               type="checkbox"
               id="allow-ads"
               bind:checked={app.customizationService.settings.content!.allow_ads}
-              onchange={() => app.customizationService.scheduleSave()} />
+              onchange={() => app.customizationService.scheduleSave()}
+            />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -67,7 +69,8 @@ import { app } from "$lib";
               type="checkbox"
               id="enable-recommendations"
               bind:checked={app.customizationService.settings.content!.enable_recommendations}
-              onchange={() => app.customizationService.scheduleSave()} />
+              onchange={() => app.customizationService.scheduleSave()}
+            />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -85,7 +88,8 @@ import { app } from "$lib";
               type="checkbox"
               id="enable-notifications"
               bind:checked={app.customizationService.settings.content!.enable_notifications}
-              onchange={() => app.customizationService.scheduleSave()} />
+              onchange={() => app.customizationService.scheduleSave()}
+            />
             <span class="toggle-slider"></span>
           </label>
         </div>

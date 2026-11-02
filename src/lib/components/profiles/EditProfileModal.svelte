@@ -1,7 +1,7 @@
 <script lang="ts">
-import { app, Icon, type KableProfile } from "$lib";
-import { clickSound, successSound } from "$lib/actions";
-import { MODAL_CONTEXT, type ModalContext } from "$lib/utils/modal";
+import { app, Icon, type KableProfile } from "#lib";
+import { clickSound, successSound } from "#lib/actions/index.js";
+import { MODAL_CONTEXT, type ModalContext } from "#lib/utils/modal.js";
 import { getContext, onMount } from "svelte";
 import RamAllocation from "./RamAllocation.svelte";
 
@@ -179,7 +179,8 @@ function cancelEdit() {
     onsubmit={(e) => {
       e.preventDefault();
       void confirmEdit();
-    }}>
+    }}
+  >
     <section class="basic-settings panel">
       <div class="profile-identity">
         <label class="icon-picker" title="Choose profile icon">
@@ -204,7 +205,8 @@ function cancelEdit() {
             profile.metadata.favorite = !profile.metadata.favorite;
           }}
           aria-label={profile.metadata.favorite ? "Remove from favorites" : "Add to favorites"}
-          title={profile.metadata.favorite ? "Remove from favorites" : "Add to favorites"}>
+          title={profile.metadata.favorite ? "Remove from favorites" : "Add to favorites"}
+        >
           {#if profile.metadata.favorite}
             <Icon name="star" size="md" />
           {:else}
@@ -286,7 +288,8 @@ function cancelEdit() {
         onJavaArgsChange={(args) => {
           profile.settings.java_args = args;
           javaArgsString = args.join(" ");
-        }} />
+        }}
+      />
     </section>
 
     <section class="preview-column panel">
@@ -299,7 +302,8 @@ function cancelEdit() {
           use:clickSound
           onclick={() => void copyJson()}
           title="Copy the current JSON preview"
-          aria-label="Copy profile JSON">
+          aria-label="Copy profile JSON"
+        >
           <Icon name={copiedJson ? "check" : "copy"} forceType="svg" size="sm" />
           <span>{copiedJson ? "Copied" : "Copy JSON"}</span>
         </button>

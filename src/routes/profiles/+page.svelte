@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, CreateProfileModal, Icon, ProfilesList } from "$lib";
+import { app, CreateProfileModal, Icon, ProfilesList } from "#lib";
 
 let isSmall = false;
 let isGrid = true;
@@ -39,7 +39,8 @@ async function refreshVersionManifests() {
           class="btn new-profiles-btn"
           onclick={openCreateModal}
           title="Create from version, existing, imported or modpack a new profile"
-          disabled={isRefreshing || isRefreshingVersions}>
+          disabled={isRefreshing || isRefreshingVersions}
+        >
           <Icon name="plus" size="md" forceType="svg" />
           New Profile
         </button>
@@ -54,7 +55,8 @@ async function refreshVersionManifests() {
           class:spinning={isRefreshingVersions}
           onclick={refreshVersionManifests}
           disabled={isRefreshingVersions || isRefreshing}
-          title="WARNING: This will clear cache and is very slow, use only if necessary!">
+          title="WARNING: This will clear cache and is very slow, use only if necessary!"
+        >
           <Icon name="sync" size="md" forceType="svg" />
           Refresh Versions
         </button>

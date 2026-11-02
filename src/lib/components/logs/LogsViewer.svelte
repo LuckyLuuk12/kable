@@ -1,6 +1,6 @@
 <script lang="ts">
-import { Icon } from "$lib";
-import type { LogEvent } from "$lib/services/logs.svelte";
+import { Icon } from "#lib";
+import type { LogEvent } from "#lib/services/logs.svelte.js";
 import { createVirtualizer } from "@tanstack/svelte-virtual";
 import { onDestroy, tick, untrack } from "svelte";
 import { get } from "svelte/store";

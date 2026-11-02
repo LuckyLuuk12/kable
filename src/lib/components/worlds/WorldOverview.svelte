@@ -1,5 +1,5 @@
 <script lang="ts">
-import { type World, Image } from "$lib";
+import { type World, Image } from "#lib";
 
 interface Props {
   world: World;
@@ -196,7 +196,7 @@ const formatGameMode = (mode: World["level"] extends infer T ? (T extends { game
 </div>
 
 <style lang="scss">
-@use "$lib/styles/variables" as *;
+@use "../../styles/variables" as *;
 
 .overview {
   display: flex;

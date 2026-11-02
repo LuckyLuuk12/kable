@@ -1,5 +1,5 @@
 <script lang="ts">
-import { error, Icon, type Symlink, type SymlinkCreateRequest } from "$lib";
+import { error, Icon, type Symlink, type SymlinkCreateRequest } from "#lib";
 import { open } from "@tauri-apps/plugin-dialog";
 
 interface Props {
@@ -115,7 +115,8 @@ async function submit(): Promise<void> {
     }}
     onkeydown={(event) => {
       if (event.key === "Escape" && !busy) onClose();
-    }}>
+    }}
+  >
     <!-- svelte-ignore a11y_no_noninteractive_element_to_interactive_role -->
     <section class="modal" role="dialog" aria-modal="true" aria-labelledby="symlink-modal-title">
       <header class="modal-header">
@@ -135,7 +136,8 @@ async function submit(): Promise<void> {
         onsubmit={(event) => {
           event.preventDefault();
           void submit();
-        }}>
+        }}
+      >
         <div class="form-field">
           <label for="symlink-source">Source path</label>
 
@@ -148,7 +150,8 @@ async function submit(): Promise<void> {
               autocomplete="off"
               spellcheck="false"
               required
-              disabled={busy} />
+              disabled={busy}
+            />
             <button class="picker-button" type="button" title="Select source file" aria-label="Select source file" disabled={busy} onclick={() => void pickSourceFile()}>
               <Icon name="file" forceType="svg" />
             </button>
@@ -158,7 +161,8 @@ async function submit(): Promise<void> {
               title="Select source folder"
               aria-label="Select source folder"
               disabled={busy}
-              onclick={() => void pickSourceFolder()}>
+              onclick={() => void pickSourceFolder()}
+            >
               <Icon name="folder" forceType="svg" />
             </button>
           </div>
@@ -178,7 +182,8 @@ async function submit(): Promise<void> {
               autocomplete="off"
               spellcheck="false"
               required
-              disabled={busy} />
+              disabled={busy}
+            />
 
             <button
               class="picker-button"
@@ -186,7 +191,8 @@ async function submit(): Promise<void> {
               title="Select destination folder"
               aria-label="Select destination folder"
               disabled={busy}
-              onclick={() => void pickDestinationFolder()}>
+              onclick={() => void pickDestinationFolder()}
+            >
               <Icon name="folder" forceType="svg" />
             </button>
           </div>

@@ -10,7 +10,7 @@ and other general launcher features.
 ```
 -->
 <script lang="ts">
-import { app, error } from "$lib";
+import { app, error } from "#lib";
 
 function setEnableFun(enabled: boolean) {
   const settings = app.customizationService.settings;
@@ -52,7 +52,8 @@ function setEnableFun(enabled: boolean) {
               type="checkbox"
               id="enable-fun"
               checked={app.customizationService.settings.misc?.enable_fun ?? false}
-              onchange={(event) => setEnableFun((event.currentTarget as HTMLInputElement).checked)} />
+              onchange={(event) => setEnableFun((event.currentTarget as HTMLInputElement).checked)}
+            />
             <span class="toggle-slider"></span>
           </label>
         </div>

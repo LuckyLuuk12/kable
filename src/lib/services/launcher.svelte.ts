@@ -1,5 +1,4 @@
-
-import { type KableProfile, type LaunchResult, type Versions, api, app, error } from "$lib";
+import { type KableProfile, type LaunchResult, type Versions, api, app, error } from "#lib";
 import type { Service } from "./app.svelte";
 
 export class LauncherService implements Service {
@@ -30,16 +29,12 @@ export class LauncherService implements Service {
       const result = await api.launchGame(profile);
       this.lastLaunch = result;
 
-      app.notificationService.success(
-        `Launching Minecraft with profile "${profile.metadata.name}".`,
-      );
+      app.notificationService.success(`Launching Minecraft with profile "${profile.metadata.name}".`);
 
       return result;
     } catch (err) {
       error("[LauncherService] Failed to launch Minecraft:", err);
-      app.notificationService.error(
-        `Failed to launch Minecraft with profile "${profile.metadata.name}".`,
-      );
+      app.notificationService.error(`Failed to launch Minecraft with profile "${profile.metadata.name}".`);
       throw err;
     } finally {
       this.launching = false;

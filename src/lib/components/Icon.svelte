@@ -11,7 +11,7 @@ custom icon types.
 @prop {string} [forceType] - Optional icon type override
 -->
 <script lang="ts">
-import { app, error, type IconData, type IconType, warn } from "$lib";
+import { app, error, type IconData, type IconType, warn } from "#lib";
 
 let {
   name,

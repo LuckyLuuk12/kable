@@ -24,12 +24,7 @@ export function getJsHeapMetrics(): JsHeapMetrics | null {
 
   const { usedJSHeapSize, totalJSHeapSize, jsHeapSizeLimit } = memory;
 
-  if (
-    !Number.isFinite(usedJSHeapSize) ||
-    !Number.isFinite(totalJSHeapSize) ||
-    !Number.isFinite(jsHeapSizeLimit) ||
-    jsHeapSizeLimit <= 0
-  ) {
+  if (!Number.isFinite(usedJSHeapSize) || !Number.isFinite(totalJSHeapSize) || !Number.isFinite(jsHeapSizeLimit) || jsHeapSizeLimit <= 0) {
     return null;
   }
 

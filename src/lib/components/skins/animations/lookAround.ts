@@ -19,11 +19,7 @@ function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
 }
 
-function interpolate(
-  from: Rotation,
-  to: Rotation,
-  progress: number,
-): Rotation {
+function interpolate(from: Rotation, to: Rotation, progress: number): Rotation {
   const t = smoothstep(progress);
 
   return {
@@ -33,12 +29,7 @@ function interpolate(
   };
 }
 
-function applyRotation(
-  joint: { rotation: Rotation },
-  from: Rotation,
-  to: Rotation,
-  progress: number,
-): void {
+function applyRotation(joint: { rotation: Rotation }, from: Rotation, to: Rotation, progress: number): void {
   const pose = interpolate(from, to, progress);
 
   joint.rotation.x = pose.x;

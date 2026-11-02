@@ -10,7 +10,7 @@ and log visibility in the navigation.
 ```
 -->
 <script lang="ts">
-import { app, type LoggingSettings } from "$lib";
+import { app, type LoggingSettings } from "#lib";
 
 const logLevels = ["debug", "info", "warn", "error"] as const;
 
@@ -67,7 +67,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
               type="checkbox"
               id="logging-enabled"
               checked={app.customizationService.settings.logging?.enabled ?? true}
-              onchange={(event) => updateLogging("enabled", (event.currentTarget as HTMLInputElement).checked)} />
+              onchange={(event) => updateLogging("enabled", (event.currentTarget as HTMLInputElement).checked)}
+            />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -85,7 +86,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
               type="checkbox"
               id="persistent-logging"
               checked={app.customizationService.settings.logging?.persistent ?? true}
-              onchange={(event) => updateLogging("persistent", (event.currentTarget as HTMLInputElement).checked)} />
+              onchange={(event) => updateLogging("persistent", (event.currentTarget as HTMLInputElement).checked)}
+            />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -103,7 +105,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
               type="checkbox"
               id="log-compression"
               checked={app.customizationService.settings.logging?.compression ?? true}
-              onchange={(event) => updateLogging("compression", (event.currentTarget as HTMLInputElement).checked)} />
+              onchange={(event) => updateLogging("compression", (event.currentTarget as HTMLInputElement).checked)}
+            />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -122,7 +125,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             min="1"
             max="365"
             value={app.customizationService.settings.logging?.retention_days ?? 30}
-            onchange={(event) => updateNumber(event, "retention_days", 1, 365)} />
+            onchange={(event) => updateNumber(event, "retention_days", 1, 365)}
+          />
 
           <input
             type="number"
@@ -130,7 +134,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             min="1"
             max="365"
             value={app.customizationService.settings.logging?.retention_days ?? 30}
-            onchange={(event) => updateNumber(event, "retention_days", 1, 365)} />
+            onchange={(event) => updateNumber(event, "retention_days", 1, 365)}
+          />
 
           <span>days</span>
         </div>
@@ -149,7 +154,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             min="1"
             max="1024"
             value={app.customizationService.settings.logging?.max_file_size_mb ?? 50}
-            onchange={(event) => updateNumber(event, "max_file_size_mb", 1, 1024)} />
+            onchange={(event) => updateNumber(event, "max_file_size_mb", 1, 1024)}
+          />
 
           <input
             type="number"
@@ -157,7 +163,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             min="1"
             max="1024"
             value={app.customizationService.settings.logging?.max_file_size_mb ?? 50}
-            onchange={(event) => updateNumber(event, "max_file_size_mb", 1, 1024)} />
+            onchange={(event) => updateNumber(event, "max_file_size_mb", 1, 1024)}
+          />
 
           <span>MB</span>
         </div>
@@ -177,7 +184,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             max="1000"
             step="1"
             value={app.customizationService.settings.logging?.frontend_batch_size ?? 100}
-            onchange={(event) => updateNumber(event, "frontend_batch_size", 1, 1000)} />
+            onchange={(event) => updateNumber(event, "frontend_batch_size", 1, 1000)}
+          />
 
           <input
             type="number"
@@ -185,7 +193,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             min="1"
             max="1000"
             value={app.customizationService.settings.logging?.frontend_batch_size ?? 100}
-            onchange={(event) => updateNumber(event, "frontend_batch_size", 1, 1000)} />
+            onchange={(event) => updateNumber(event, "frontend_batch_size", 1, 1000)}
+          />
         </div>
       </div>
 
@@ -203,7 +212,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             max="5000"
             step="10"
             value={app.customizationService.settings.logging?.frontend_batch_interval_ms ?? 250}
-            onchange={(event) => updateNumber(event, "frontend_batch_interval_ms", 10, 5000)} />
+            onchange={(event) => updateNumber(event, "frontend_batch_interval_ms", 10, 5000)}
+          />
 
           <input
             type="number"
@@ -212,7 +222,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             max="5000"
             step="10"
             value={app.customizationService.settings.logging?.frontend_batch_interval_ms ?? 250}
-            onchange={(event) => updateNumber(event, "frontend_batch_interval_ms", 10, 5000)} />
+            onchange={(event) => updateNumber(event, "frontend_batch_interval_ms", 10, 5000)}
+          />
 
           <span>ms</span>
         </div>
@@ -232,7 +243,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             max="10000"
             step="10"
             value={app.customizationService.settings.logging?.frontend_max_per_second ?? 1000}
-            onchange={(event) => updateNumber(event, "frontend_max_per_second", 1, 10000)} />
+            onchange={(event) => updateNumber(event, "frontend_max_per_second", 1, 10000)}
+          />
 
           <input
             type="number"
@@ -241,7 +253,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             max="10000"
             step="10"
             value={app.customizationService.settings.logging?.frontend_max_per_second ?? 1000}
-            onchange={(event) => updateNumber(event, "frontend_max_per_second", 1, 10000)} />
+            onchange={(event) => updateNumber(event, "frontend_max_per_second", 1, 10000)}
+          />
 
           <span>/sec</span>
         </div>
@@ -261,7 +274,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             max="20000"
             step="500"
             value={app.customizationService.settings.logging?.max_memory_logs ?? 5000}
-            onchange={(event) => updateNumber(event, "max_memory_logs", 1000, 20000)} />
+            onchange={(event) => updateNumber(event, "max_memory_logs", 1000, 20000)}
+          />
 
           <input
             type="number"
@@ -270,7 +284,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             max="20000"
             step="500"
             value={app.customizationService.settings.logging?.max_memory_logs ?? 5000}
-            onchange={(event) => updateNumber(event, "max_memory_logs", 1000, 20000)} />
+            onchange={(event) => updateNumber(event, "max_memory_logs", 1000, 20000)}
+          />
         </div>
       </div>
 
@@ -286,7 +301,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
               type="checkbox"
               id="dedupe-enabled"
               checked={app.customizationService.settings.logging?.dedupe_enabled ?? true}
-              onchange={(event) => updateLogging("dedupe_enabled", (event.currentTarget as HTMLInputElement).checked)} />
+              onchange={(event) => updateLogging("dedupe_enabled", (event.currentTarget as HTMLInputElement).checked)}
+            />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -307,7 +323,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             step="10"
             value={app.customizationService.settings.logging?.dedupe_window_size ?? 50}
             disabled={!(app.customizationService.settings.logging?.dedupe_enabled ?? true)}
-            onchange={(event) => updateNumber(event, "dedupe_window_size", 10, 200)} />
+            onchange={(event) => updateNumber(event, "dedupe_window_size", 10, 200)}
+          />
 
           <input
             type="number"
@@ -317,7 +334,8 @@ function updateNumber(event: Event, field: keyof LoggingSettings, min: number, m
             step="10"
             value={app.customizationService.settings.logging?.dedupe_window_size ?? 50}
             disabled={!(app.customizationService.settings.logging?.dedupe_enabled ?? true)}
-            onchange={(event) => updateNumber(event, "dedupe_window_size", 10, 200)} />
+            onchange={(event) => updateNumber(event, "dedupe_window_size", 10, 200)}
+          />
         </div>
       </div>
 

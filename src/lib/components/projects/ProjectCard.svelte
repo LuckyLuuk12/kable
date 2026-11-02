@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, ProjectGalleryModal, ProjectModal, ProjectVersionsModal, type KableProfile, type Project } from "$lib";
+import { app, ProjectGalleryModal, ProjectModal, ProjectVersionsModal, type KableProfile, type Project } from "#lib";
 
 let {
   profile = null,
@@ -240,7 +240,8 @@ $effect(() => {
         type="button"
         disabled={installing}
         onclick={install}
-        title={canUpdate ? `Update to ${project.latest_version}` : `Install ${latestCompatibleVersion?.version_number ?? "unknown version"}`}>
+        title={canUpdate ? `Update to ${project.latest_version}` : `Install ${latestCompatibleVersion?.version_number ?? "unknown version"}`}
+      >
         {#if installing}
           {canUpdate ? "Updating..." : "Installing..."}
         {:else if canUpdate}

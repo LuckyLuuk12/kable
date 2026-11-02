@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, error, Icon, type KableProfile, type KableProject, type ProjectType } from "$lib";
+import { app, error, Icon, type KableProfile, type KableProject, type ProjectType } from "#lib";
 import { untrack } from "svelte";
 import InstalledProjectCard from "./InstalledProjectCard.svelte";
 
@@ -403,7 +403,8 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
           placeholder="Search by name or description..."
           bind:value={searchInput}
           autocomplete="off"
-          spellcheck="false" />
+          spellcheck="false"
+        />
       </div>
 
       <div class="sort">
@@ -458,7 +459,8 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
                 {project}
                 enabled={true}
                 togglePending={pendingById[revisionKey(profile.id, projectId(project))] === true}
-                onToggled={(enabled) => toggleProject(project, enabled)} />
+                onToggled={(enabled) => toggleProject(project, enabled)}
+              />
             {/each}
           </div>
         </section>
@@ -484,7 +486,8 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
                 {project}
                 enabled={false}
                 togglePending={pendingById[revisionKey(profile.id, projectId(project))] === true}
-                onToggled={(enabled) => toggleProject(project, enabled)} />
+                onToggled={(enabled) => toggleProject(project, enabled)}
+              />
             {/each}
           </div>
         </section>

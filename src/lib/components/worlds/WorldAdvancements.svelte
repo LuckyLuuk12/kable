@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, type WorldAdvancement } from "$lib";
+import { app, type WorldAdvancement } from "#lib";
 import { SvelteSet } from "svelte/reactivity";
 
 let { path }: { path: string } = $props();
@@ -155,7 +155,7 @@ $effect(() => {
 </section>
 
 <style lang="scss">
-@use "$lib/styles/variables" as *;
+@use "../../styles/variables" as *;
 
 .advancements {
   display: flex;

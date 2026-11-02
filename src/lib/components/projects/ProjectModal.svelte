@@ -15,7 +15,7 @@ which invokes the backend compatibility/update logic. The frontend does not
 independently decide whether a newer compatible version exists.
 -->
 <script lang="ts">
-import { app, ProjectVersionsModal, type KableProfile, type Project, type ProjectVersion } from "$lib";
+import { app, ProjectVersionsModal, type KableProfile, type Project, type ProjectVersion } from "#lib";
 
 let {
   profile = null,

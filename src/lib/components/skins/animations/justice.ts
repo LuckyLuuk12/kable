@@ -68,11 +68,7 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-function interpolatePose(
-  from: Pose,
-  to: Pose,
-  progress: number,
-): Pose {
+function interpolatePose(from: Pose, to: Pose, progress: number): Pose {
   const t = smootherStep(progress);
   const result = {} as Pose;
 
@@ -126,86 +122,51 @@ function createOrangeJusticePose(time: number): Pose {
 
     // BODY
     // Forward lean and lateral rocking.
-    bodyX:
-      -0.10 +
-      0.055 * pulse,
+    bodyX: -0.1 + 0.055 * pulse,
 
-    bodyY:
-      0.065 * sway,
+    bodyY: 0.065 * sway,
 
-    bodyZ:
-      0.115 * sway +
-      0.035 * quick,
+    bodyZ: 0.115 * sway + 0.035 * quick,
 
     // HEAD
     // Small counter-movement against the torso.
-    headX:
-      0.035 -
-      0.035 * pulse,
+    headX: 0.035 - 0.035 * pulse,
 
-    headY:
-      -0.10 * sway,
+    headY: -0.1 * sway,
 
-    headZ:
-      -0.075 * sway,
+    headZ: -0.075 * sway,
 
     // LEFT ARM
     // Spread outward, then sweep across the chest.
-    leftArmX:
-      -0.35 -
-      0.53 * crossed -
-      0.12 * quick,
+    leftArmX: -0.35 - 0.53 * crossed - 0.12 * quick,
 
-    leftArmY:
-      0.08 +
-      0.15 * sway,
+    leftArmY: 0.08 + 0.15 * sway,
 
-    leftArmZ:
-      0.16 +
-      0.80 * openClose +
-      0.18 * sway,
+    leftArmZ: 0.16 + 0.8 * openClose + 0.18 * sway,
 
     // RIGHT ARM
     // Opposite movement creates the crossing action.
-    rightArmX:
-      -0.35 -
-      0.53 * crossed +
-      0.12 * quick,
+    rightArmX: -0.35 - 0.53 * crossed + 0.12 * quick,
 
-    rightArmY:
-      -0.08 +
-      0.15 * sway,
+    rightArmY: -0.08 + 0.15 * sway,
 
-    rightArmZ:
-      -0.16 -
-      0.80 * openClose +
-      0.18 * sway,
+    rightArmZ: -0.16 - 0.8 * openClose + 0.18 * sway,
 
     // LEFT LEG
     // Swing inward/outward with the arm rhythm.
-    leftLegX:
-      -0.10 -
-      0.20 * sway +
-      0.05 * crossed,
+    leftLegX: -0.1 - 0.2 * sway + 0.05 * crossed,
 
     leftLegY: 0,
 
-    leftLegZ:
-      0.14 * openClose +
-      0.15 * quick,
+    leftLegZ: 0.14 * openClose + 0.15 * quick,
 
     // RIGHT LEG
     // Opposite inward/outward movement.
-    rightLegX:
-      -0.10 +
-      0.20 * sway +
-      0.05 * crossed,
+    rightLegX: -0.1 + 0.2 * sway + 0.05 * crossed,
 
     rightLegY: 0,
 
-    rightLegZ:
-      -0.14 * openClose +
-      0.15 * quick,
+    rightLegZ: -0.14 * openClose + 0.15 * quick,
   };
 }
 
@@ -244,11 +205,11 @@ function createFinishPose(time: number): Pose {
         leftArmX: -0.45,
         rightArmX: -0.45,
 
-        leftArmZ: 1.30,
-        rightArmZ: -1.30,
+        leftArmZ: 1.3,
+        rightArmZ: -1.3,
 
-        leftLegX: -0.10,
-        rightLegX: 0.10,
+        leftLegX: -0.1,
+        rightLegX: 0.1,
 
         leftLegZ: 0.12,
         rightLegZ: -0.12,
@@ -266,8 +227,8 @@ function createFinishPose(time: number): Pose {
         leftArmX: -0.15,
         rightArmX: -0.15,
 
-        leftArmZ: 2.80,
-        rightArmZ: -2.80,
+        leftArmZ: 2.8,
+        rightArmZ: -2.8,
 
         leftLegZ: 0.13,
         rightLegZ: -0.13,
@@ -301,14 +262,9 @@ function createFinishPose(time: number): Pose {
     const to = frames[i + 1];
 
     if (time <= to.at) {
-      const progress =
-        (time - from.at) / (to.at - from.at);
+      const progress = (time - from.at) / (to.at - from.at);
 
-      return interpolatePose(
-        from.pose,
-        to.pose,
-        progress,
-      );
+      return interpolatePose(from.pose, to.pose, progress);
     }
   }
 
@@ -348,11 +304,7 @@ export const justiceGesture: IdleGesture = {
     // Smooth introduction.
     // Keeps the first frame exactly neutral.
     if (time < 0.28) {
-      pose = interpolatePose(
-        NEUTRAL,
-        pose,
-        time / 0.28,
-      );
+      pose = interpolatePose(NEUTRAL, pose, time / 0.28);
     }
 
     const skin = player.skin;

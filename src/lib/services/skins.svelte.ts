@@ -1,14 +1,5 @@
-import type {
-  AccountCape,
-  AccountSkin,
-  CurrentSkin,
-  KableAccount,
-  PlayerProfile,
-  SkinModel,
-  SkinUploadConfig,
-  SkinUploadResponse,
-} from "$lib";
-import { api, app } from "$lib";
+import type { AccountCape, AccountSkin, CurrentSkin, KableAccount, PlayerProfile, SkinModel, SkinUploadConfig, SkinUploadResponse } from "#lib";
+import { api, app } from "#lib";
 import type { Service } from "./app.svelte";
 
 export class SkinsService implements Service {
@@ -73,19 +64,13 @@ export class SkinsService implements Service {
     this.error = null;
 
     try {
-      const [profile, currentSkin, localSkins] = await Promise.all([
-        api.getPlayerProfile(this.account),
-        api.getCurrentSkinInfo(this.account),
-        api.getLocalSkins(),
-      ]);
+      const [profile, currentSkin, localSkins] = await Promise.all([api.getPlayerProfile(this.account), api.getCurrentSkinInfo(this.account), api.getLocalSkins()]);
 
       this.profile = profile;
       this.currentSkin = currentSkin;
       this.onlineSkins = profile.skins;
       this.localSkins = localSkins;
-      this.activeCape =
-        profile.capes.find((cape) => cape.state.toUpperCase() === "ACTIVE") ??
-        null;
+      this.activeCape = profile.capes.find((cape) => cape.state.toUpperCase() === "ACTIVE") ?? null;
     } catch (e) {
       this.error = String(e);
     } finally {
@@ -120,17 +105,12 @@ export class SkinsService implements Service {
     this.error = null;
 
     try {
-      const [profile, currentSkin] = await Promise.all([
-        api.getPlayerProfile(this.account),
-        api.getCurrentSkinInfo(this.account),
-      ]);
+      const [profile, currentSkin] = await Promise.all([api.getPlayerProfile(this.account), api.getCurrentSkinInfo(this.account)]);
 
       this.profile = profile;
       this.currentSkin = currentSkin;
       this.onlineSkins = profile.skins;
-      this.activeCape =
-        profile.capes.find((cape) => cape.state.toUpperCase() === "ACTIVE") ??
-        null;
+      this.activeCape = profile.capes.find((cape) => cape.state.toUpperCase() === "ACTIVE") ?? null;
     } catch (e) {
       this.error = String(e);
     }
@@ -184,12 +164,7 @@ export class SkinsService implements Service {
     this.error = null;
 
     try {
-      await api.modifySkinById(
-        skinId,
-        options.name ?? null,
-        options.capeId ?? null,
-        options.slim ?? null,
-      );
+      await api.modifySkinById(skinId, options.name ?? null, options.capeId ?? null, options.slim ?? null);
 
       await this.refreshLocal();
       return true;
@@ -278,8 +253,8 @@ export class SkinsService implements Service {
   }
 
   /**
- * Download skin image data from a URL.
- */
+   * Download skin image data from a URL.
+   */
   async downloadSkin(url: string): Promise<Uint8Array | null> {
     this.error = null;
 

@@ -1,6 +1,6 @@
 <script lang="ts">
-import { app, LogsInstanceTabs, LogsToolbar, LogsViewer } from "$lib";
-import type { LogEvent } from "$lib/services/logs.svelte";
+import { app, LogsInstanceTabs, LogsToolbar, LogsViewer } from "#lib";
+import type { LogEvent } from "#lib/services/logs.svelte.js";
 
 let selectedInstanceId = $state<string | null>(null);
 let searchTerm = $state("");

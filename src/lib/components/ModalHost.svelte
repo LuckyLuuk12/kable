@@ -1,6 +1,6 @@
 <script lang="ts">
-import { app } from "$lib";
-import { type ModalContext, MODAL_CONTEXT } from "$lib/utils/modal";
+import { app } from "#lib";
+import { type ModalContext, MODAL_CONTEXT } from "#lib/utils/modal.js";
 import { setContext } from "svelte";
 
 function createContext(id: string): ModalContext {

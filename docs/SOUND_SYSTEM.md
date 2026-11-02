@@ -44,7 +44,7 @@ Complete sound system with configurable sound effects, background music, and cus
 
 ```svelte
 <script>
-  import { buttonSound, launchSound } from "$lib/services/soundActions";
+  import { buttonSound, launchSound } from "#lib/services/soundActions";
 </script>
 
 <!-- Auto sound on click/hover -->
@@ -60,7 +60,7 @@ Complete sound system with configurable sound effects, background music, and cus
 ### 2. Direct Sound Playback
 
 ```typescript
-import { soundService } from "$lib/services/SoundService";
+import { soundService } from "#lib/services/SoundService";
 
 // Play a sound effect
 soundService.playSound("click");
@@ -225,7 +225,7 @@ onMount(async () => {
 
 ```svelte
 <script>
-  import { buttonSound, successSound } from "$lib/services/soundActions";
+  import { buttonSound, successSound } from "#lib/services/soundActions";
 </script>
 
 <!-- Basic button with sound -->

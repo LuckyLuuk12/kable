@@ -1,12 +1,24 @@
 import type { AnimatedPlayer, IdleGesture } from "./orchestrator";
 
 interface Pose {
-  bodyX: number; bodyY: number; bodyZ: number;
-  headX: number; headY: number; headZ: number;
-  leftArmX: number; leftArmY: number; leftArmZ: number;
-  rightArmX: number; rightArmY: number; rightArmZ: number;
-  leftLegX: number; leftLegY: number; leftLegZ: number;
-  rightLegX: number; rightLegY: number; rightLegZ: number;
+  bodyX: number;
+  bodyY: number;
+  bodyZ: number;
+  headX: number;
+  headY: number;
+  headZ: number;
+  leftArmX: number;
+  leftArmY: number;
+  leftArmZ: number;
+  rightArmX: number;
+  rightArmY: number;
+  rightArmZ: number;
+  leftLegX: number;
+  leftLegY: number;
+  leftLegZ: number;
+  rightLegX: number;
+  rightLegY: number;
+  rightLegZ: number;
   crouch: number;
 }
 
@@ -20,12 +32,24 @@ const DURATION = 8.4;
 const CROUCH_DROP = 2.6;
 
 const NEUTRAL: Pose = {
-  bodyX: 0, bodyY: 0, bodyZ: 0,
-  headX: 0, headY: 0, headZ: 0,
-  leftArmX: 0, leftArmY: 0, leftArmZ: 0,
-  rightArmX: 0, rightArmY: 0, rightArmZ: 0,
-  leftLegX: 0, leftLegY: 0, leftLegZ: 0,
-  rightLegX: 0, rightLegY: 0, rightLegZ: 0,
+  bodyX: 0,
+  bodyY: 0,
+  bodyZ: 0,
+  headX: 0,
+  headY: 0,
+  headZ: 0,
+  leftArmX: 0,
+  leftArmY: 0,
+  leftArmZ: 0,
+  rightArmX: 0,
+  rightArmY: 0,
+  rightArmZ: 0,
+  leftLegX: 0,
+  leftLegY: 0,
+  leftLegZ: 0,
+  rightLegX: 0,
+  rightLegY: 0,
+  rightLegZ: 0,
   crouch: 0,
 };
 
@@ -42,11 +66,7 @@ function smootherStep(t: number): number {
   return x * x * x * (x * (x * 6 - 15) + 10);
 }
 
-function interpolatePose(
-  from: Pose,
-  to: Pose,
-  progress: number,
-): Pose {
+function interpolatePose(from: Pose, to: Pose, progress: number): Pose {
   const t = smootherStep(progress);
   const result = {} as Pose;
 
@@ -83,11 +103,11 @@ const KEYFRAMES: Keyframe[] = [
       headX: 0.12,
       leftArmX: -0.75,
       rightArmX: -0.75,
-      leftArmZ: 0.50,
-      rightArmZ: -0.50,
+      leftArmZ: 0.5,
+      rightArmZ: -0.5,
       leftLegZ: 0.22,
       rightLegZ: -0.22,
-      crouch: 0.20,
+      crouch: 0.2,
     },
   },
 
@@ -95,14 +115,14 @@ const KEYFRAMES: Keyframe[] = [
   {
     at: 0.53,
     pose: {
-      bodyX: -0.30,
+      bodyX: -0.3,
       bodyY: 0.18,
       bodyZ: 0.13,
       headY: -0.18,
       rightArmX: -0.35,
       rightArmZ: -2.55,
       leftArmX: -1.15,
-      leftArmZ: -0.40,
+      leftArmZ: -0.4,
       leftLegX: -0.35,
       rightLegX: 0.25,
       crouch: 0.35,
@@ -113,14 +133,14 @@ const KEYFRAMES: Keyframe[] = [
   {
     at: 0.86,
     pose: {
-      bodyX: -0.30,
+      bodyX: -0.3,
       bodyY: -0.18,
       bodyZ: -0.13,
       headY: 0.18,
       leftArmX: -0.35,
       leftArmZ: 2.55,
       rightArmX: -1.15,
-      rightArmZ: 0.40,
+      rightArmZ: 0.4,
       leftLegX: 0.25,
       rightLegX: -0.35,
       crouch: 0.35,
@@ -150,11 +170,11 @@ const KEYFRAMES: Keyframe[] = [
     at: 1.49,
     pose: {
       bodyX: -0.12,
-      headX: -0.20,
-      leftArmX: -0.30,
-      rightArmX: -0.30,
-      leftArmZ: 2.80,
-      rightArmZ: -2.80,
+      headX: -0.2,
+      leftArmX: -0.3,
+      rightArmX: -0.3,
+      leftArmZ: 2.8,
+      rightArmZ: -2.8,
       leftLegZ: 0.18,
       rightLegZ: -0.18,
       crouch: 0.05,
@@ -170,9 +190,9 @@ const KEYFRAMES: Keyframe[] = [
       bodyZ: 0.15,
       rightArmX: -0.25,
       rightArmZ: -2.65,
-      leftArmX: -1.20,
+      leftArmX: -1.2,
       leftArmZ: -0.65,
-      leftLegX: -0.30,
+      leftLegX: -0.3,
       rightLegX: 0.25,
       crouch: 0.28,
     },
@@ -184,16 +204,16 @@ const KEYFRAMES: Keyframe[] = [
     pose: {
       bodyX: -0.52,
       bodyY: -0.12,
-      bodyZ: -0.10,
-      headX: 0.30,
-      leftArmX: -0.80,
-      rightArmX: -0.80,
+      bodyZ: -0.1,
+      headX: 0.3,
+      leftArmX: -0.8,
+      rightArmX: -0.8,
       leftArmZ: 1.55,
       rightArmZ: -1.55,
-      leftLegX: 0.90,
-      rightLegX: -0.90,
-      leftLegZ: 0.40,
-      rightLegZ: -0.40,
+      leftLegX: 0.9,
+      rightLegX: -0.9,
+      leftLegZ: 0.4,
+      rightLegZ: -0.4,
       crouch: 0.95,
     },
   },
@@ -205,12 +225,12 @@ const KEYFRAMES: Keyframe[] = [
       bodyX: -0.22,
       bodyY: -0.22,
       headY: 0.15,
-      leftArmX: -0.40,
+      leftArmX: -0.4,
       leftArmZ: 2.65,
-      rightArmX: -1.10,
-      rightArmZ: 0.70,
+      rightArmX: -1.1,
+      rightArmZ: 0.7,
       leftLegX: -0.25,
-      rightLegX: 0.20,
+      rightLegX: 0.2,
       crouch: 0.18,
     },
   },
@@ -222,11 +242,11 @@ const KEYFRAMES: Keyframe[] = [
       bodyX: -0.22,
       bodyY: 0.22,
       headY: -0.15,
-      leftArmX: -1.10,
-      leftArmZ: -0.70,
-      rightArmX: -0.40,
+      leftArmX: -1.1,
+      leftArmZ: -0.7,
+      rightArmX: -0.4,
       rightArmZ: -2.65,
-      leftLegX: 0.20,
+      leftLegX: 0.2,
       rightLegX: -0.25,
       crouch: 0.18,
     },
@@ -234,32 +254,32 @@ const KEYFRAMES: Keyframe[] = [
 
   // Both arms overhead again.
   {
-    at: 3.10,
+    at: 3.1,
     pose: {
-      bodyX: -0.20,
+      bodyX: -0.2,
       headX: -0.18,
-      leftArmX: -0.20,
-      rightArmX: -0.20,
+      leftArmX: -0.2,
+      rightArmX: -0.2,
       leftArmZ: 2.95,
       rightArmZ: -2.95,
-      crouch: 0.10,
+      crouch: 0.1,
     },
   },
 
   // DROP: fast low crossed-arm strike.
   {
-    at: 3.40,
+    at: 3.4,
     pose: {
       bodyX: -0.55,
       headX: 0.35,
-      leftArmX: -1.40,
-      rightArmX: -1.40,
-      leftArmZ: -0.70,
-      rightArmZ: 0.70,
+      leftArmX: -1.4,
+      rightArmX: -1.4,
+      leftArmZ: -0.7,
+      rightArmZ: 0.7,
       leftLegX: -0.95,
       rightLegX: 0.95,
-      leftLegZ: 0.40,
-      rightLegZ: -0.40,
+      leftLegZ: 0.4,
+      rightLegZ: -0.4,
       crouch: 1.0,
     },
   },
@@ -273,8 +293,8 @@ const KEYFRAMES: Keyframe[] = [
       bodyZ: -0.16,
       leftArmX: -0.28,
       leftArmZ: 2.75,
-      rightArmX: -1.20,
-      rightArmZ: 0.40,
+      rightArmX: -1.2,
+      rightArmZ: 0.4,
       leftLegX: 0.25,
       rightLegX: -0.25,
       crouch: 0.25,
@@ -290,8 +310,8 @@ const KEYFRAMES: Keyframe[] = [
       bodyZ: 0.16,
       rightArmX: -0.28,
       rightArmZ: -2.75,
-      leftArmX: -1.20,
-      leftArmZ: -0.40,
+      leftArmX: -1.2,
+      leftArmZ: -0.4,
       leftLegX: -0.25,
       rightLegX: 0.25,
       crouch: 0.25,
@@ -302,11 +322,11 @@ const KEYFRAMES: Keyframe[] = [
   {
     at: 4.35,
     pose: {
-      bodyX: -0.20,
+      bodyX: -0.2,
       headX: -0.15,
       leftArmX: -0.35,
       leftArmZ: 2.85,
-      rightArmX: -0.50,
+      rightArmX: -0.5,
       rightArmZ: -2.25,
       crouch: 0.08,
     },
@@ -316,16 +336,16 @@ const KEYFRAMES: Keyframe[] = [
   {
     at: 4.66,
     pose: {
-      bodyX: -0.50,
-      headX: 0.30,
+      bodyX: -0.5,
+      headX: 0.3,
       leftArmX: -1.35,
-      leftArmZ: -0.60,
+      leftArmZ: -0.6,
       rightArmX: -1.35,
-      rightArmZ: 0.60,
+      rightArmZ: 0.6,
       leftLegX: 0.88,
       rightLegX: -0.88,
-      leftLegZ: 0.40,
-      rightLegZ: -0.40,
+      leftLegZ: 0.4,
+      rightLegZ: -0.4,
       crouch: 0.95,
     },
   },
@@ -338,25 +358,25 @@ const KEYFRAMES: Keyframe[] = [
       bodyY: -0.23,
       headZ: 0.13,
       leftArmX: -0.25,
-      leftArmZ: 2.70,
-      rightArmX: -1.10,
-      rightArmZ: 0.20,
-      crouch: 0.20,
+      leftArmZ: 2.7,
+      rightArmX: -1.1,
+      rightArmZ: 0.2,
+      crouch: 0.2,
     },
   },
 
   // Right overhead, left downward.
   {
-    at: 5.30,
+    at: 5.3,
     pose: {
       bodyX: -0.24,
       bodyY: 0.23,
       headZ: -0.13,
-      leftArmX: -1.10,
-      leftArmZ: -0.20,
+      leftArmX: -1.1,
+      leftArmZ: -0.2,
       rightArmX: -0.25,
-      rightArmZ: -2.70,
-      crouch: 0.20,
+      rightArmZ: -2.7,
+      crouch: 0.2,
     },
   },
 
@@ -364,9 +384,9 @@ const KEYFRAMES: Keyframe[] = [
   {
     at: 5.62,
     pose: {
-      bodyX: -0.30,
-      leftArmX: -0.60,
-      rightArmX: -0.60,
+      bodyX: -0.3,
+      leftArmX: -0.6,
+      rightArmX: -0.6,
       leftArmZ: 1.65,
       rightArmZ: -1.65,
       leftLegZ: 0.28,
@@ -381,12 +401,12 @@ const KEYFRAMES: Keyframe[] = [
     pose: {
       bodyX: -0.55,
       headX: 0.35,
-      leftArmX: -1.30,
-      rightArmX: -1.30,
+      leftArmX: -1.3,
+      rightArmX: -1.3,
       leftArmZ: -0.75,
       rightArmZ: 0.75,
-      leftLegX: -0.90,
-      rightLegX: 0.90,
+      leftLegX: -0.9,
+      rightLegX: 0.9,
       leftLegZ: 0.38,
       rightLegZ: -0.38,
       crouch: 1.0,
@@ -398,11 +418,11 @@ const KEYFRAMES: Keyframe[] = [
     at: 6.26,
     pose: {
       bodyX: -0.18,
-      bodyY: -0.20,
+      bodyY: -0.2,
       leftArmX: -0.25,
       leftArmZ: 2.85,
-      rightArmX: -1.10,
-      rightArmZ: 0.50,
+      rightArmX: -1.1,
+      rightArmZ: 0.5,
       crouch: 0.08,
     },
   },
@@ -412,18 +432,18 @@ const KEYFRAMES: Keyframe[] = [
     at: 6.58,
     pose: {
       bodyX: -0.18,
-      bodyY: 0.20,
+      bodyY: 0.2,
       rightArmX: -0.25,
       rightArmZ: -2.85,
-      leftArmX: -1.10,
-      leftArmZ: -0.50,
+      leftArmX: -1.1,
+      leftArmZ: -0.5,
       crouch: 0.08,
     },
   },
 
   // Final aggressive crouch.
   {
-    at: 6.90,
+    at: 6.9,
     pose: {
       bodyX: -0.52,
       headX: 0.32,
@@ -444,11 +464,11 @@ const KEYFRAMES: Keyframe[] = [
     at: 7.23,
     pose: {
       bodyX: -0.15,
-      headX: -0.20,
+      headX: -0.2,
       leftArmX: -0.22,
       rightArmX: -0.22,
-      leftArmZ: 2.90,
-      rightArmZ: -2.90,
+      leftArmZ: 2.9,
+      rightArmZ: -2.9,
       crouch: 0.05,
     },
   },
@@ -457,11 +477,11 @@ const KEYFRAMES: Keyframe[] = [
   {
     at: 7.62,
     pose: {
-      bodyX: -0.10,
-      leftArmX: -0.40,
-      rightArmX: -0.40,
-      leftArmZ: 1.10,
-      rightArmZ: -1.10,
+      bodyX: -0.1,
+      leftArmX: -0.4,
+      rightArmX: -0.4,
+      leftArmZ: 1.1,
+      rightArmZ: -1.1,
       crouch: 0.05,
     },
   },
@@ -476,24 +496,16 @@ const KEYFRAMES: Keyframe[] = [
 function getPose(time: number): Pose {
   let segment = 0;
 
-  while (
-    segment < KEYFRAMES.length - 2 &&
-    time > KEYFRAMES[segment + 1].at
-  ) {
+  while (segment < KEYFRAMES.length - 2 && time > KEYFRAMES[segment + 1].at) {
     segment++;
   }
 
   const from = KEYFRAMES[segment];
   const to = KEYFRAMES[segment + 1];
 
-  const progress =
-    (time - from.at) / (to.at - from.at);
+  const progress = (time - from.at) / (to.at - from.at);
 
-  return interpolatePose(
-    { ...BASE, ...from.pose },
-    { ...BASE, ...to.pose },
-    progress,
-  );
+  return interpolatePose({ ...BASE, ...from.pose }, { ...BASE, ...to.pose }, progress);
 }
 
 /**
@@ -503,10 +515,7 @@ function getPose(time: number): Pose {
  */
 const appliedOffsets = new WeakMap<object, number>();
 
-function setCrouchHeight(
-  skin: AnimatedPlayer["skin"],
-  offset: number,
-): void {
+function setCrouchHeight(skin: AnimatedPlayer["skin"], offset: number): void {
   const movable = skin as typeof skin & {
     position?: { y: number };
   };
@@ -525,9 +534,7 @@ function setCrouchHeight(
  * Call this when the orchestrator interrupts
  * Infectious before its normal ending.
  */
-export function resetInfectiousHeight(
-  player: AnimatedPlayer,
-): void {
+export function resetInfectiousHeight(player: AnimatedPlayer): void {
   setCrouchHeight(player.skin, 0);
 }
 
@@ -544,48 +551,30 @@ export const infectiousGesture: IdleGesture = {
 
     const pose = getPose(time);
 
-    const envelope =
-      smootherStep(time / 0.25) *
-      (1 - smootherStep((time - 7.85) / 0.55));
+    const envelope = smootherStep(time / 0.25) * (1 - smootherStep((time - 7.85) / 0.55));
 
     // Rapid alternating foot strikes.
     const stomp = Math.sin(time * TAU * 2.6);
 
-    pose.leftLegX +=
-      -0.15 * Math.max(0, stomp) * envelope;
+    pose.leftLegX += -0.15 * Math.max(0, stomp) * envelope;
 
-    pose.rightLegX +=
-      -0.15 * Math.max(0, -stomp) * envelope;
+    pose.rightLegX += -0.15 * Math.max(0, -stomp) * envelope;
 
     // Additional rhythmic ducking.
-    const pulse =
-      (1 - Math.cos(time * TAU * 2.6)) * 0.5;
+    const pulse = (1 - Math.cos(time * TAU * 2.6)) * 0.5;
 
-    pose.crouch = Math.min(
-      1,
-      pose.crouch + pulse * 0.18 * envelope,
-    );
+    pose.crouch = Math.min(1, pose.crouch + pulse * 0.18 * envelope);
 
     // Headbanging.
-    pose.headX +=
-      0.14 *
-      Math.sin(time * TAU * 2.6 + 0.5) *
-      envelope;
+    pose.headX += 0.14 * Math.sin(time * TAU * 2.6 + 0.5) * envelope;
 
     // Rapid torso movement.
-    pose.bodyY +=
-      0.09 *
-      Math.sin(time * TAU * 1.3) *
-      envelope;
+    pose.bodyY += 0.09 * Math.sin(time * TAU * 1.3) * envelope;
 
-    pose.bodyZ +=
-      0.055 *
-      Math.sin(time * TAU * 2.6) *
-      envelope;
+    pose.bodyZ += 0.055 * Math.sin(time * TAU * 2.6) * envelope;
 
     // Mechanical arm shake between major strikes.
-    const armShake =
-      Math.sin(time * TAU * 5.2) * envelope;
+    const armShake = Math.sin(time * TAU * 5.2) * envelope;
 
     pose.leftArmX += armShake * 0.075;
     pose.rightArmX -= armShake * 0.075;
@@ -617,9 +606,6 @@ export const infectiousGesture: IdleGesture = {
     skin.rightLeg.rotation.z = pose.rightLegZ;
 
     // Lower the entire model during deep crouches.
-    setCrouchHeight(
-      skin,
-      CROUCH_DROP * pose.crouch,
-    );
+    setCrouchHeight(skin, CROUCH_DROP * pose.crouch);
   },
 };

@@ -1,4 +1,4 @@
-import { api, app, log, type CacheEntryInfo } from "$lib";
+import { api, app, log, type CacheEntryInfo } from "#lib";
 import type { Service } from "./app.svelte";
 
 export class CacheService implements Service {
@@ -25,7 +25,6 @@ export class CacheService implements Service {
       log("[CacheService] initialized.");
     });
   }
-
 
   /**
    * Load persistent cache entries.
@@ -78,19 +77,11 @@ export class CacheService implements Service {
 
     try {
       await api.invalidateNamespace(namespace);
-      this.entries = this.entries.filter(
-        (entry) =>
-          entry.namespace !== namespace &&
-          !entry.namespace.startsWith(`${namespace}/`)
-      );
+      this.entries = this.entries.filter((entry) => entry.namespace !== namespace && !entry.namespace.startsWith(`${namespace}/`));
 
-      app.notificationService.success(
-        `Cache namespace "${namespace}" invalidated.`
-      );
+      app.notificationService.success(`Cache namespace "${namespace}" invalidated.`);
     } catch (error) {
-      app.notificationService.error(
-        `Failed to invalidate cache namespace "${namespace}".`
-      );
+      app.notificationService.error(`Failed to invalidate cache namespace "${namespace}".`);
       throw error;
     } finally {
       this.invalidating = false;

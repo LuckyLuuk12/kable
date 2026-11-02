@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, Icon, type AccountCape } from "$lib";
+import { app, Icon, type AccountCape } from "#lib";
 
 const skinsService = app.skinsService;
 
@@ -104,7 +104,8 @@ async function applyCape(capeId: string | null): Promise<void> {
         class:active={isCapeActive(cape)}
         onclick={() => applyCape(cape.id)}
         disabled={loading || !accountAvailable}
-        aria-pressed={isCapeActive(cape)}>
+        aria-pressed={isCapeActive(cape)}
+      >
         <div class="cape-image">
           {#if cape.url}
             <img src={cape.url} alt={capeName(cape)} loading="lazy" />

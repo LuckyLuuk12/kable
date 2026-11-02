@@ -2,7 +2,7 @@
 AdvancedSettingsUI - Advanced configuration settings panel
 -->
 <script lang="ts">
-import { Icon, app } from "$lib";
+import { Icon, app } from "#lib";
 
 type LocalExtra = {
   key: string;
@@ -119,7 +119,8 @@ function scheduleSave() {
               type="checkbox"
               id="check-nightly-updates"
               bind:checked={app.customizationService.settings!.advanced!.enable_nightly_updates}
-              onchange={scheduleSave} />
+              onchange={scheduleSave}
+            />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -170,7 +171,8 @@ function scheduleSave() {
                     value={entry.key}
                     oninput={(event) => handleKeyChange(i, (event.currentTarget as HTMLInputElement).value)}
                     placeholder="Key"
-                    autocomplete="off" />
+                    autocomplete="off"
+                  />
 
                   <textarea
                     class="extra-value"

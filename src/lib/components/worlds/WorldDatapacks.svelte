@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { World, WorldDatapack } from "$lib";
+import type { World, WorldDatapack } from "#lib";
 
 interface Props {
   world: World;
@@ -109,7 +109,7 @@ const datapacks = $derived(
 </div>
 
 <style lang="scss">
-@use "$lib/styles/variables" as *;
+@use "../../styles/variables" as *;
 
 .datapacks {
   display: flex;

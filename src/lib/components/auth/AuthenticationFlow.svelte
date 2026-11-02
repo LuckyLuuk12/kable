@@ -9,7 +9,7 @@ Provides interface for authenticating with Microsoft using Device Code Flow
 ```
 -->
 <script lang="ts">
-import { app, error, Icon, Image } from "$lib";
+import { app, error, Icon, Image } from "#lib";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { onDestroy } from "svelte";
 

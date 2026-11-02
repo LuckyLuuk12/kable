@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, error, Icon, type Symlink, type SymlinkCreateRequest } from "$lib";
+import { app, error, Icon, type Symlink, type SymlinkCreateRequest } from "#lib";
 import { onMount } from "svelte";
 import SymlinkModal from "./SymlinkModal.svelte";
 
@@ -137,7 +137,8 @@ function getToggleTitle(symlink: Symlink): string {
         onclick={() => app.symlinkService.refreshPersistent()}
         disabled={app.symlinkService.loading || app.symlinkService.modifying}
         title="Refresh symlinks"
-        aria-label="Refresh symlinks">
+        aria-label="Refresh symlinks"
+      >
         <Icon name="refresh" forceType="svg" size="sm" />
       </button>
 
@@ -233,7 +234,8 @@ function getToggleTitle(symlink: Symlink): string {
                     onclick={() => openEditModal(symlink)}
                     title={disabledReason ?? "Edit symlink"}
                     aria-label="Edit symlink"
-                    disabled={disabledReason !== null}>
+                    disabled={disabledReason !== null}
+                  >
                     <Icon name="edit" forceType="svg" />
                   </button>
 
@@ -243,7 +245,8 @@ function getToggleTitle(symlink: Symlink): string {
                     onclick={() => toggleSymlink(symlink)}
                     title={getToggleTitle(symlink)}
                     aria-label={symlink.enabled ? "Disable symlink" : "Enable symlink"}
-                    disabled={disabledReason !== null}>
+                    disabled={disabledReason !== null}
+                  >
                     <Icon name={symlink.enabled ? "eye-off" : "eye"} forceType="svg" />
                   </button>
 
@@ -253,7 +256,8 @@ function getToggleTitle(symlink: Symlink): string {
                     onclick={() => removeSymlink(symlink)}
                     title={disabledReason ?? "Remove symlink"}
                     aria-label="Remove symlink"
-                    disabled={disabledReason !== null}>
+                    disabled={disabledReason !== null}
+                  >
                     <Icon name="delete" forceType="svg" />
                   </button>
                 </div>

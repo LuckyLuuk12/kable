@@ -1,5 +1,5 @@
 <script lang="ts">
-import { app, SettingsUI } from "$lib";
+import { app, SettingsUI } from "#lib";
 
 let saveStatus = "";
 </script>

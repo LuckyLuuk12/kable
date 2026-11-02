@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Icon } from "$lib";
+import { Icon } from "#lib";
 import CacheManager from "./CacheManager.svelte";
 import MetricsPage from "./MetricsPage.svelte";
 import SymlinkManager from "./SymlinkManager.svelte";
