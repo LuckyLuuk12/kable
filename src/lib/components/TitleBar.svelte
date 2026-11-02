@@ -18,7 +18,7 @@ let { children }: { children?: Snippet } = $props();
 
 let isMaximized = $state(false);
 let isDev = $state(false);
-let title = $derived(!app.customizationService.isAPFL ? "Kable Launcher" : Math.random() <= 0.5 ? "Cursle Launcher" : "Bugle Launcher");
+let title = $derived(!app.customizationService.isAPFL() ? "Kable Launcher" : Math.random() <= 0.5 ? "Cursle Launcher" : "Bugle Launcher");
 
 const appWindow = getCurrentWindow();
 
