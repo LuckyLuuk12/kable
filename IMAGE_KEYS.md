@@ -234,4 +234,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L167) | <pre><code class="language-html">&lt;Icon name="x" size="md" forceType="svg" /&gt;</code></pre> |
 | zap | [LogsToolbar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsToolbar.svelte#L121) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2026-11-02T02:46:20.621Z_
+_Generated: 2026-11-02T02:51:11.730Z_
