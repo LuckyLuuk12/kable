@@ -33,25 +33,34 @@ pub fn app_handle() -> Result<AppHandle, String> {
 /// ? This starts the Tauri application
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Handle CLI arguments before building Tauri app
-    let should_start_ui =
-        tauri::async_runtime::block_on(async { crate::features::cli::args::handle_args(crate::features::cli::args::parse_args()).await });
-
-    match should_start_ui {
-        Ok(true) => {}
-        Ok(false) => return,
-        Err(error) => {
-            eprintln!("Error handling CLI arguments: {error}");
-            crate::system::fs::write_startup_error(&error.to_string())
-                .unwrap_or_else(|error| eprintln!("Error writing startup error: {error}"));
-            return;
-        }
-    }
+    let cli_args = crate::features::cli::args::parse_args();
+    let is_cli_launch = cli_args.launch_profile.is_some();
 
     tauri::Builder::default()
-        .setup(|app| {
+        .setup(move |app| {
             set_app_handle(app.handle());
             Logger::init();
+
+            if is_cli_launch {
+                let app_handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    match crate::features::cli::args::handle_args(cli_args).await {
+                        Ok(true) => {}
+                        Ok(false) => app_handle.exit(0),
+                        Err(error) => {
+                            eprintln!("Error handling CLI arguments: {error}");
+                            crate::system::fs::write_startup_error(&error.to_string())
+                                .unwrap_or_else(|error| eprintln!("Error writing startup error: {error}"));
+                            app_handle.exit(1);
+                        }
+                    }
+                });
+            } else if let Err(error) = tauri::async_runtime::block_on(crate::features::cli::args::handle_args(cli_args)) {
+                eprintln!("Error handling CLI arguments: {error}");
+                crate::system::fs::write_startup_error(&error.to_string())
+                    .unwrap_or_else(|error| eprintln!("Error writing startup error: {error}"));
+                app.handle().exit(1);
+            }
 
             if let Err(error) = crate::features::updater::launch_pending_update() {
                 Logger::error_global(&format!("[STARTUP] Failed to launch pending update: {error}"), None);
