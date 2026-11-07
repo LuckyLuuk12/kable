@@ -34,13 +34,20 @@ pub fn app_handle() -> Result<AppHandle, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Handle CLI arguments before building Tauri app
-    tauri::async_runtime::block_on(async {
-        if let Err(e) = crate::features::cli::args::handle_args(crate::features::cli::args::parse_args()).await {
-            eprintln!("Error handling CLI arguments: {}", e);
-            // std::process::exit(1);
-            crate::system::fs::write_startup_error(&e.to_string()).unwrap_or_else(|e| eprintln!("Error writing startup error: {}", e));
+    let should_start_ui =
+        tauri::async_runtime::block_on(async { crate::features::cli::args::handle_args(crate::features::cli::args::parse_args()).await });
+
+    match should_start_ui {
+        Ok(true) => {}
+        Ok(false) => return,
+        Err(error) => {
+            eprintln!("Error handling CLI arguments: {error}");
+            crate::system::fs::write_startup_error(&error.to_string())
+                .unwrap_or_else(|error| eprintln!("Error writing startup error: {error}"));
+            return;
         }
-    });
+    }
+
     tauri::Builder::default()
         .setup(|app| {
             set_app_handle(app.handle());

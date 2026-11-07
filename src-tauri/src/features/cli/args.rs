@@ -22,7 +22,7 @@ pub fn parse_args() -> Args {
  * This is called in lib.rs run() before any UI is initialized, we should preload settings and required data here and
  * based on args maybe skip UI, or work as a CLI launcher.
  */
-pub async fn handle_args(args: Args) -> Result<(), String> {
+pub async fn handle_args(args: Args) -> Result<bool, String> {
     crate::system::cache::initialize(crate::system::fs::cache_dir()?).await?;
 
     // 1. Load app settings
@@ -35,7 +35,7 @@ pub async fn handle_args(args: Args) -> Result<(), String> {
     if let Some(profile_id) = args.launch_profile {
         let profile = get_profile(&profile_id).await?;
         launch_game(profile).await?;
-        std::process::exit(0);
+        return Ok(false);
     }
 
     // 4. Schedule cleanup in the background
@@ -46,5 +46,5 @@ pub async fn handle_args(args: Args) -> Result<(), String> {
     });
 
     // 5. Continue startup without waiting for cleanup
-    Ok(())
+    Ok(true)
 }

@@ -1,5 +1,5 @@
 use crate::constants::KABLE_PROFILES_FILE;
-use crate::integrations::loaders::get_versions;
+use crate::integrations::loaders::{get_versions, get_versions_of};
 use crate::integrations::minecraft::profiles::parse_launcher_profiles;
 use crate::system::cache::invalidate_no_args;
 use crate::system::fs::{launcher_dir, read_str, write_str};
@@ -89,14 +89,17 @@ async fn parse_kable_profiles() -> Result<Vec<KableProfile>, String> {
 
 /// This will take the official launcher profiles and the, if existing, kable profiles and merge them into a single list of KableProfiles
 /// with the kable profiles taking precedence over the official launcher profiles in case of duplicate profile IDs
-async fn merge_profiles(launcher_profiles: LauncherProfiles, kable_profiles: Vec<KableProfile>) -> Result<Vec<KableProfile>, String> {
+async fn merge_profiles(
+    launcher_profiles: LauncherProfiles,
+    kable_profiles: Vec<KableProfile>,
+) -> Result<(Vec<KableProfile>, Option<Vec<api_types::profiles::ProfileVersion>>), String> {
     let kable_profile_ids: std::collections::HashSet<&str> = kable_profiles.iter().map(|profile| profile.id.as_str()).collect();
 
     let new_launcher_profiles: HashMap<_, _> =
         launcher_profiles.profiles.into_iter().filter(|(id, _)| !kable_profile_ids.contains(id.as_str())).collect();
 
     if new_launcher_profiles.is_empty() {
-        return Ok(kable_profiles);
+        return Ok((kable_profiles, None));
     }
 
     let all_versions = get_versions().await?.0;
@@ -105,7 +108,7 @@ async fn merge_profiles(launcher_profiles: LauncherProfiles, kable_profiles: Vec
 
     merged_profiles.extend(kable_profiles);
 
-    Ok(merged_profiles)
+    Ok((merged_profiles, Some(all_versions)))
 }
 
 /// async execute loading of the 2 different profile sources then join / await completion of both in async, save the profiles, and return the merged result
@@ -120,14 +123,17 @@ pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
     let launcher_profiles = launcher_profiles_result?;
     let kable_profiles = kable_profiles_result?;
 
-    let mut profiles = merge_profiles(launcher_profiles, kable_profiles).await?;
+    let (mut profiles, all_versions) = merge_profiles(launcher_profiles, kable_profiles).await?;
 
-    if !profiles.is_empty() {
-        let all_versions = get_versions().await;
+    let has_latest_profile = profiles.iter().any(|profile| matches!(profile.version.id.as_str(), "latest-release" | "latest-snapshot"));
 
-        if let Ok(versions) = all_versions {
-            update_latest_version_profiles(&mut profiles, &versions.0);
-        }
+    if has_latest_profile {
+        let vanilla_versions = match all_versions {
+            Some(versions) => versions,
+            None => get_versions_of(api_types::profiles::LoaderKind::Vanilla).await?.0,
+        };
+
+        update_latest_version_profiles(&mut profiles, &vanilla_versions);
     }
 
     profiles.sort_by(|a, b| b.metadata.last_used.cmp(&a.metadata.last_used));
