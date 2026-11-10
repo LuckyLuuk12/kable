@@ -400,7 +400,7 @@ function handleModalKeydown(event: KeyboardEvent): void {
             >
               <div class="skin-thumbnail">
                 {#if skin.url}
-                  <SkinViewer3D skinUrl={skin.url} height={76} model={skinModel(skin.model)} animationMode="idle-only" />
+                  <SkinViewer3D skinUrl={skin.url} height={76} model={skinModel(skin.model)} animationMode="none" />
                 {:else}
                   <Icon name="user" forceType="svg" size="md" />
                 {/if}

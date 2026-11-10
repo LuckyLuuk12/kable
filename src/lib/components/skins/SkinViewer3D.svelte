@@ -9,7 +9,7 @@ Animation modes:
 - all: Ambient gestures and interaction reactions.
 - idle-only: Ambient gestures without interaction reactions.
 - interaction-only: Interaction reactions without ambient gestures.
-- none: No animation or gesture orchestration.
+- none: Static rendering without animation or interaction.
 -->
 
 <script lang="ts">
@@ -41,18 +41,16 @@ let resizeObserver: ResizeObserver | null = null;
 
 let containerWidth = $state(0);
 let containerHeight = $state(0);
-let loadedSkinUrl = $state<string | null>(null);
-let initializedModel = $state<string | null>(null);
 
 let pointerDownPosition: { x: number; y: number } | null = null;
 let pointerIsDragging = false;
 let pointerDidDrag = false;
 
+let skinLoadVersion = 0;
+let skinLoadQueue: Promise<void> = Promise.resolve();
+
 const DRAG_THRESHOLD = 4;
 
-/**
- * Resolve explicit dimensions first, falling back to the parent's size.
- */
 function getDimensions() {
   return {
     width: width ?? containerWidth,
@@ -65,11 +63,12 @@ function disposeIdleOrchestrator() {
   idleOrchestrator = null;
 }
 
+function isStaticMode(): boolean {
+  return animationMode === "none";
+}
+
 /**
- * Set up the base idle animation and its gesture orchestrator.
- *
- * skinview3d retains ownership of camera rotation and zoom controls.
- * The orchestrator adds gesture animations to the same IdleAnimation.
+ * Configure rendering, animation and camera interaction.
  */
 function configureAnimationMode() {
   if (!skinViewer) return;
@@ -80,10 +79,22 @@ function configureAnimationMode() {
   pointerIsDragging = false;
   pointerDidDrag = false;
 
-  if (animationMode === "none") {
+  const isStatic = isStaticMode();
+
+  if (skinViewer.controls) {
+    skinViewer.controls.enableRotate = !isStatic;
+    skinViewer.controls.enableZoom = !isStatic;
+    skinViewer.controls.enablePan = false;
+  }
+
+  if (isStatic) {
+    skinViewer.renderPaused = true;
     skinViewer.animation = null;
+    skinViewer.render();
     return;
   }
+
+  skinViewer.renderPaused = false;
 
   const idle = new skinview3d.IdleAnimation();
   skinViewer.animation = idle;
@@ -118,17 +129,8 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 /**
  * Normalize a keyboard event into a keybind string.
- *
- * Examples:
- *   D                 -> d
- *   Ctrl+Alt+D        -> ctrl+alt+d
- *   Shift+F           -> shift+f
- *   Escape            -> escape
- *
- * Modifier order is deterministic.
  */
 function normalizeKeybind(event: KeyboardEvent): string | null {
-  // Modifier keys alone are not actionable shortcuts.
   if (event.key === "Control" || event.key === "Alt" || event.key === "Shift" || event.key === "Meta" || event.key === "Dead" || event.isComposing) {
     return null;
   }
@@ -143,7 +145,6 @@ function normalizeKeybind(event: KeyboardEvent): string | null {
   if (event.shiftKey) modifiers.push("shift");
   if (event.metaKey) modifiers.push("meta");
 
-  // Avoid duplicate modifier names if the key itself is a modifier.
   if (modifiers.includes(key)) return null;
 
   return [...modifiers, key].join("+");
@@ -151,23 +152,15 @@ function normalizeKeybind(event: KeyboardEvent): string | null {
 
 /**
  * Forward global keyboard events to the registered gestures.
- *
- * This handler does not contain gesture-specific knowledge. The
- * orchestrator decides whether a normalized keybind is registered.
  */
 function handleGlobalKeyDown(event: KeyboardEvent) {
-  if (event.repeat || isEditableTarget(event.target)) return;
+  if (isStaticMode() || event.repeat || isEditableTarget(event.target)) return;
 
-  // Do not take over browser, OS, or application shortcuts.
-  // Unmodified keys and explicit Ctrl+Alt combinations are permitted.
-  const hasCtrlAlt = event.ctrlKey && event.altKey;
   const hasOtherModifier = event.shiftKey || event.metaKey;
   const hasOnlyCtrl = event.ctrlKey && !event.altKey;
 
   if (hasOtherModifier || hasOnlyCtrl) return;
 
-  // Require focus within this viewer so multiple viewers do not all
-  // react to the same global key event.
   if (!canvas?.matches(":focus")) return;
 
   const keybind = normalizeKeybind(event);
@@ -179,13 +172,17 @@ function handleGlobalKeyDown(event: KeyboardEvent) {
 }
 
 /**
- * Apply the requested zoom without changing the viewer dimensions.
+ * Apply the requested zoom.
  */
 function applyZoom() {
   if (!skinViewer || !Number.isFinite(zoom) || zoom <= 0) return;
 
   try {
     skinViewer.zoom = zoom;
+
+    if (skinViewer.renderPaused) {
+      skinViewer.render();
+    }
   } catch (err) {
     error("Failed to update skin viewer zoom:", err);
   }
@@ -193,9 +190,12 @@ function applyZoom() {
 
 /**
  * Create the viewer once its canvas has usable dimensions.
+ *
+ * Skin loading is handled separately so that model and URL changes
+ * use the same asynchronous loading path.
  */
 function initSkinViewer() {
-  if (!canvas || !skinUrl || skinViewer) return;
+  if (!canvas || skinViewer) return;
 
   const dimensions = getDimensions();
 
@@ -206,27 +206,14 @@ function initSkinViewer() {
       canvas,
       width: dimensions.width,
       height: dimensions.height,
-      skin: skinUrl,
+      pixelRatio: 1,
+      renderPaused: animationMode === "none",
     };
 
-    if (model === "classic") {
-      options.model = "default";
-    } else if (model === "slim") {
-      options.model = "slim";
-    }
-
     skinViewer = new skinview3d.SkinViewer(options as any);
-    loadedSkinUrl = skinUrl;
-    initializedModel = model;
 
     skinViewer.camera.position.set(30, 20, 50);
     skinViewer.camera.lookAt(0, 10, 0);
-
-    if (skinViewer.controls) {
-      skinViewer.controls.enableRotate = true;
-      skinViewer.controls.enableZoom = true;
-      skinViewer.controls.enablePan = false;
-    }
 
     applyZoom();
     configureAnimationMode();
@@ -237,8 +224,6 @@ function initSkinViewer() {
 
     skinViewer?.dispose();
     skinViewer = null;
-    loadedSkinUrl = null;
-    initializedModel = null;
   }
 }
 
@@ -267,11 +252,10 @@ function updateViewerSize() {
 
   try {
     if (skinViewer.width !== dimensions.width || skinViewer.height !== dimensions.height) {
-      if (typeof skinViewer.setSize === "function") {
-        skinViewer.setSize(dimensions.width, dimensions.height);
-      } else {
-        skinViewer.width = dimensions.width;
-        skinViewer.height = dimensions.height;
+      skinViewer.setSize(dimensions.width, dimensions.height);
+
+      if (skinViewer.renderPaused) {
+        skinViewer.render();
       }
     }
   } catch (err) {
@@ -293,7 +277,7 @@ function handlePointerEnter() {
 }
 
 function handlePointerDown(event: PointerEvent) {
-  if (event.button !== 0) return;
+  if (isStaticMode() || event.button !== 0) return;
 
   pointerDownPosition = {
     x: event.clientX,
@@ -314,7 +298,6 @@ function handlePointerMove(event: PointerEvent) {
     pointerIsDragging = true;
     pointerDidDrag = true;
 
-    // Trigger the gesture once. skinview3d still handles camera rotation.
     if (acceptsInteractions()) {
       idleOrchestrator?.onDrag();
     }
@@ -376,15 +359,15 @@ onDestroy(() => {
   resizeObserver?.disconnect();
   resizeObserver = null;
 
+  // Invalidate any pending skin-load completion.
+  skinLoadVersion++;
+
   disposeIdleOrchestrator();
 
   if (skinViewer) {
     skinViewer.dispose();
     skinViewer = null;
   }
-
-  loadedSkinUrl = null;
-  initializedModel = null;
 });
 
 /**
@@ -403,47 +386,50 @@ $effect(() => {
 });
 
 /**
- * Load a new skin texture without recreating the viewer.
+ * Load the current skin and model.
+ *
+ * Loads are serialized so an older asynchronous request cannot finish
+ * after a newer request and overwrite the currently requested skin.
  */
 $effect(() => {
   const currentViewer = skinViewer;
   const nextSkinUrl = skinUrl;
-
-  if (!currentViewer || !nextSkinUrl || loadedSkinUrl === nextSkinUrl) {
-    return;
-  }
-
-  try {
-    currentViewer.loadSkin(nextSkinUrl);
-    loadedSkinUrl = nextSkinUrl;
-  } catch (err) {
-    error("Failed to load skin:", err);
-  }
-});
-
-/**
- * Reapply the model if the requested model changes.
- */
-$effect(() => {
-  const currentViewer = skinViewer;
   const nextModel = model;
 
-  if (!currentViewer || initializedModel === nextModel) return;
+  if (!currentViewer || !nextSkinUrl) return;
 
-  try {
-    if (nextModel === "classic") {
-      currentViewer.loadSkin(skinUrl, { model: "default" });
-    } else if (nextModel === "slim") {
-      currentViewer.loadSkin(skinUrl, { model: "slim" });
-    } else {
-      currentViewer.loadSkin(skinUrl);
-    }
+  const requestVersion = ++skinLoadVersion;
 
-    initializedModel = nextModel;
-    loadedSkinUrl = skinUrl;
-  } catch (err) {
-    error("Failed to update skin model:", err);
-  }
+  const loadOptions: skinview3d.SkinViewer["playerObject"]["skin"] extends never ? never : skinview3d.SkinLoadOptions = {
+    model: nextModel === "classic" ? "default" : nextModel === "slim" ? "slim" : "auto-detect",
+    makeVisible: false,
+  };
+
+  skinLoadQueue = skinLoadQueue
+    .catch(() => undefined)
+    .then(async () => {
+      if (requestVersion !== skinLoadVersion || currentViewer !== skinViewer) {
+        return;
+      }
+
+      try {
+        await currentViewer.loadSkin(nextSkinUrl, loadOptions);
+
+        if (requestVersion !== skinLoadVersion || currentViewer !== skinViewer) {
+          return;
+        }
+
+        currentViewer.playerObject.skin.visible = true;
+
+        if (currentViewer.renderPaused) {
+          currentViewer.render();
+        }
+      } catch (err) {
+        if (requestVersion === skinLoadVersion) {
+          error("Failed to load skin:", err);
+        }
+      }
+    });
 });
 
 /**
@@ -458,12 +444,13 @@ $effect(() => {
 });
 
 /**
- * Reconfigure the animation controller when the mode changes.
+ * Reconfigure rendering and animation when the mode changes.
  */
 $effect(() => {
   const nextMode = animationMode;
 
   if (skinViewer) {
+    void nextMode;
     configureAnimationMode();
   }
 });

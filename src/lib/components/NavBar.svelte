@@ -11,10 +11,10 @@ Initializes all required services on mount.
 ```
 -->
 <script lang="ts">
-import { resolve } from "$app/paths";
-import { page } from "$app/state";
 import { app, buttonSound, error, Icon, PlayerHead } from "#lib";
 import "#lib/styles/global.scss";
+import { resolve } from "$app/paths";
+import { page } from "$app/state";
 import { onDestroy, onMount, type Snippet } from "svelte";
 
 let { children }: { children: Snippet } = $props();
@@ -166,7 +166,13 @@ onDestroy(() => {
         aria-label="Account Settings"
       >
         <div class="user-avatar">
-          <PlayerHead size={40} />
+          {#if activeAccount}
+            {#key activeAccount.local_id}
+              <PlayerHead size={40} account={activeAccount} />
+            {/key}
+          {:else}
+            <Icon name="user" size="md" forceType="svg" />
+          {/if}
         </div>
         <div class="header-content" class:collapsed={isNavCollapsed}>
           <h1 class="app-title">{activeAccount?.username}</h1>

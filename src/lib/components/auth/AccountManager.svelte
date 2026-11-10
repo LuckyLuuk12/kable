@@ -88,7 +88,9 @@ async function removeCurrentAccount() {
     <div class="account-content">
       <div class="account-main">
         <div class="account-avatar">
-          <PlayerHead size={72} />
+          {#key currentAccount.local_id}
+            <PlayerHead size={72} account={currentAccount} />
+          {/key}
 
           <span
             class="status-dot"
@@ -150,7 +152,7 @@ async function removeCurrentAccount() {
                     aria-selected={account.local_id === currentAccount.local_id}
                   >
                     <div class="option-avatar">
-                      <PlayerHead size={36} />
+                      <PlayerHead size={36} {account} />
 
                       <span
                         class="option-status"

@@ -1,119 +1,105 @@
-<!-- @component
-PlayerHead - Renders a player's head from their active Minecraft skin.
-
-Uses the active skin provided by the skins service.
-Falls back to a user icon if no skin is available.
-
-@prop {number} [size=40] - Size of the head in pixels
--->
 <script lang="ts">
-import { Icon, app, error } from "#lib";
+import type { KableAccount } from "#lib";
+import { Icon, api, app, error } from "#lib";
 import * as skinview3d from "skinview3d";
-import { onDestroy } from "svelte";
 
 let {
   size = 40,
+  account,
 }: {
   size?: number;
+  account?: KableAccount;
 } = $props();
 
 const skinsService = app.skinsService;
 
 let canvas: HTMLCanvasElement | undefined = $state();
-let skinViewer: skinview3d.SkinViewer | null = null;
 let isLoading = $state(false);
 let hasError = $state(false);
 
-let skinUrl = $derived(skinsService.currentSkin?.url ?? skinsService.allSkins.find((skin) => skin.is_current)?.url ?? null);
-
-function disposeSkinViewer(): void {
-  if (!skinViewer) return;
-
-  skinViewer.dispose();
-  skinViewer = null;
-}
+let activeSkinUrl = $derived(skinsService.currentSkin?.url ?? skinsService.allSkins.find((skin) => skin.is_current)?.url ?? null);
 
 $effect(() => {
   const element = canvas;
-  const url = skinUrl;
+  const targetAccount = account;
+  const fallbackUrl = targetAccount ? null : activeSkinUrl;
   const viewerSize = size;
 
   if (!element) return;
 
   let cancelled = false;
+  let viewer: skinview3d.SkinViewer | null = null;
 
-  disposeSkinViewer();
   hasError = false;
-
-  if (!url) {
-    isLoading = false;
-    return;
-  }
-
   isLoading = true;
 
-  try {
-    const viewer = new skinview3d.SkinViewer({
+  async function initialize() {
+    let url = fallbackUrl;
+
+    if (targetAccount) {
+      const currentSkin = await api.getCurrentSkinInfo(targetAccount);
+      url = currentSkin.url;
+    }
+
+    if (cancelled) return;
+
+    if (!url) {
+      isLoading = false;
+      return;
+    }
+
+    viewer = new skinview3d.SkinViewer({
       canvas: element,
       width: viewerSize,
       height: viewerSize,
-      skin: url,
+      pixelRatio: 1,
+      renderPaused: true,
     });
-
-    skinViewer = viewer;
-
-    // Preserve the original head framing.
-    viewer.camera.setViewOffset(215, 500, 5, -5, 210, 200);
-
+    try {
+      viewer.camera.setViewOffset(215, 500, 5, -5, 210, 200);
+    } catch (err) {
+      error("Failed to set camera view offset:", err);
+    }
     if (viewer.controls) {
       viewer.controls.enableRotate = false;
       viewer.controls.enableZoom = false;
       viewer.controls.enablePan = false;
     }
 
-    viewer.animation = new skinview3d.IdleAnimation();
+    await viewer.loadSkin(url);
 
-    viewer
-      .loadSkin(url)
-      .then(() => {
-        if (cancelled) return;
-        isLoading = false;
-        hasError = false;
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
+    if (cancelled) return;
 
-        error("Failed to load player skin:", err);
-        isLoading = false;
-        hasError = true;
-      });
-  } catch (err) {
-    error("Failed to initialize player skin viewer:", err);
+    viewer.render();
+
+    isLoading = false;
+    hasError = false;
+  }
+
+  void initialize().catch((err: unknown) => {
+    if (cancelled) return;
+
+    error("Failed to load player skin:", err);
     isLoading = false;
     hasError = true;
-  }
+  });
 
   return () => {
     cancelled = true;
-    disposeSkinViewer();
+    viewer?.dispose();
+    viewer = null;
   };
-});
-
-onDestroy(() => {
-  disposeSkinViewer();
 });
 </script>
 
 <div class="player-head" style:width="{size}px" style:height="{size}px">
-  {#if skinUrl}
-    <canvas bind:this={canvas} width={size} height={size} class:canvas-hidden={isLoading || hasError}></canvas>
-  {/if}
+  <canvas bind:this={canvas} width={size} height={size} class:canvas-hidden={isLoading || hasError}></canvas>
 
   {#if isLoading}
     <div class="loading">
       <Icon name="loader" size="sm" />
     </div>
-  {:else if hasError || !skinUrl}
+  {:else if hasError}
     <div class="fallback">
       <Icon name="user" size="sm" />
     </div>
