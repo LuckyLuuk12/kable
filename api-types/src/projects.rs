@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -439,4 +441,16 @@ pub enum FileType {
     Signature,
     #[serde(rename = "unknown")]
     Unknown,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, specta::Type)]
+pub struct ProfileProjects {
+    pub enabled: HashMap<ProjectType, Vec<KableProject>>,
+    pub disabled: HashMap<ProjectType, Vec<KableProject>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, specta::Type)]
+pub struct LikedProject {
+    pub project_id: String,
+    pub project_type: String,
 }

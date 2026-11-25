@@ -83,7 +83,7 @@ async fn collect_desired_symlinks(profile: &KableProfile, game_dir: &Path) -> Re
 
     // The returned map is the authoritative project set for this profile.
     // Mods are never inherited from the global .minecraft/mods directory.
-    let projects = crate::features::projects::management::list_profile_projects(profile.clone(), true).await?;
+    let projects = crate::features::projects::management::list_profile_projects(profile.clone(), true, false).await?;
 
     Logger::debug_global(
         &format!("Profile {} enabled mods: {:?}", profile.id, profile.settings.by_project_type(ProjectType::Mod, true)),

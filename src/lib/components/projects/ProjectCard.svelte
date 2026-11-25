@@ -94,12 +94,12 @@ async function install() {
 }
 
 async function toggleLike() {
-  if (!profile || liking) return;
+  if (liking) return;
 
   liking = true;
 
   try {
-    // await app.projectsService.toggleLike(profile, project);
+    await app.projectsService.toggleLike(project.project_id, project.project_type);
   } finally {
     liking = false;
   }
@@ -226,7 +226,7 @@ $effect(() => {
       </span>
     {/if}
 
-    <button class="action-button" type="button" disabled={!profile || liking} onclick={toggleLike} title="Like project"> Like </button>
+    <button class="action-button" type="button" disabled={liking} onclick={toggleLike} title="Like project"> Like </button>
 
     {#if hasGallery}
       <button class="action-button" type="button" onclick={showGallery}> Gallery </button>

@@ -18,10 +18,12 @@ let {
   profile,
   profileId,
   projectType,
+  updateKeys,
 }: {
   profile: KableProfile | null;
   profileId: string | null;
   projectType: ProjectType;
+  updateKeys: ReadonlySet<string>;
 } = $props();
 
 let projects = $derived(app.projectsService.getByType(projectType));
@@ -33,21 +35,17 @@ let sortOrder = $state<SortOrder>("name-asc");
 
 let enabledOpen = $state(true);
 let disabledOpen = $state(true);
-let enabledById = $state<Record<string, boolean>>({});
+
 let pendingById = $state<Record<string, boolean>>({});
-let statusLoading = $state(false);
+let optimisticEnabledById = $state<Record<string, boolean>>({});
 
-let requestGeneration = 0;
+const projectId = (project: KableProject): string => project.project.project_id;
 
-// Per-project revisions prevent stale lookups from overwriting local changes.
-// eslint-disable-next-line svelte/prefer-svelte-reactivity
-const enabledStateRevisions = new Map<string, number>();
+const projectKey = (selectedProfile: KableProfile, project: KableProject): string => `${selectedProfile.id}:${project.project.project_type}:${projectId(project)}`;
 
-const projectId = (project: KableProject) => project.project.project_id;
+const updateKey = (project: KableProject): string => `${project.project.project_type}:${project.project.project_id}:${project.filename}`;
 
-const revisionKey = (selectedProfileId: string, id: string) => `${selectedProfileId}:${id}`;
-
-const metadataOf = (project: KableProject) => project.project as ProjectMetadata;
+const metadataOf = (project: KableProject): ProjectMetadata => project.project as ProjectMetadata;
 
 function projectName(project: KableProject): string {
   const metadata = metadataOf(project);
@@ -134,7 +132,31 @@ function followers(project: KableProject): number {
   return metadata.followers ?? metadata.likes ?? 0;
 }
 
-// Debounce typing so results are recomputed only after the user pauses.
+function isProjectEnabled(project: KableProject): boolean {
+  if (!profile || profile.id !== profileId) {
+    return false;
+  }
+
+  const key = projectKey(profile, project);
+  const optimistic = optimisticEnabledById[key];
+
+  if (optimistic !== undefined) {
+    return optimistic;
+  }
+
+  return app.projectsService.enabledProjectKeys?.has(key) ?? false;
+}
+
+function isTogglePending(project: KableProject): boolean {
+  if (!profile) return false;
+
+  return pendingById[projectKey(profile, project)] === true;
+}
+
+function hasUpdate(project: KableProject): boolean {
+  return updateKeys.has(updateKey(project));
+}
+
 $effect(() => {
   const value = searchInput;
 
@@ -145,7 +167,6 @@ $effect(() => {
   return () => clearTimeout(timer);
 });
 
-// Load installed projects when the selected profile or project type changes.
 $effect(() => {
   const selectedProfile = profile;
   const selectedProfileId = profileId;
@@ -156,117 +177,12 @@ $effect(() => {
   }
 
   untrack(() => {
-    void app.projectsService.load(selectedProfile, selectedType).catch((error) => {
-      error("[InstalledProjects] Failed to load installed projects", error);
+    void app.projectsService.load(selectedProfile, selectedType).catch((err) => {
+      error("[InstalledProjects] Failed to load installed projects", err);
     });
   });
 });
 
-/**
- * Resolve the actual enabled state from the backend.
- *
- * This effect explicitly depends on enabledStateRevision. That matters
- * because installing a project can change its backend state without
- * necessarily changing the project-list reference in every consumer.
- *
- * The service revision and local per-project revisions serve different
- * purposes:
- * - service revision: triggers a new status lookup after service changes;
- * - local revision: prevents an older lookup overwriting a newer toggle.
- */
-$effect(() => {
-  const selectedProfile = profile;
-  const currentProjects = projects;
-  const currentProfileId = profileId;
-  const serviceRevision = app.projectsService.enabledStateRevision;
-  const generation = ++requestGeneration;
-
-  // Reading serviceRevision above makes this effect reactive to service
-  // notifications. The value is also used to invalidate stale lookups.
-  if (!selectedProfile || selectedProfile.id !== currentProfileId) {
-    untrack(() => {
-      enabledById = {};
-      statusLoading = false;
-    });
-    return;
-  }
-
-  const snapshot = [...currentProjects];
-
-  const revisionsAtStart = new Map(
-    snapshot.map((project) => {
-      const id = projectId(project);
-      const key = revisionKey(selectedProfile.id, id);
-
-      return [id, enabledStateRevisions.get(key) ?? 0] as const;
-    }),
-  );
-
-  untrack(() => {
-    statusLoading = snapshot.length > 0;
-
-    void (async () => {
-      try {
-        // Resolve each project independently so one failed lookup does
-        // not prevent successful lookups for other projects from applying.
-        const results = await Promise.all(
-          snapshot.map(async (project) => {
-            const id = projectId(project);
-
-            try {
-              const enabled = await app.projectsService.isEnabled(selectedProfile, project);
-
-              return { id, enabled };
-            } catch (err) {
-              error(`[InstalledProjects] Failed to resolve enabled state for ${id}`, err);
-
-              return null;
-            }
-          }),
-        );
-
-        // Discard the entire result if another snapshot or service
-        // notification superseded this lookup.
-        if (
-          generation !== requestGeneration ||
-          profile?.id !== selectedProfile.id ||
-          profileId !== selectedProfile.id ||
-          app.projectsService.enabledStateRevision !== serviceRevision
-        ) {
-          return;
-        }
-
-        const next = { ...enabledById };
-
-        for (const result of results) {
-          if (!result) continue;
-
-          const { id, enabled } = result;
-          const key = revisionKey(selectedProfile.id, id);
-
-          const initialRevision = revisionsAtStart.get(id) ?? 0;
-          const currentRevision = enabledStateRevisions.get(key) ?? 0;
-
-          // Do not overwrite a newer local change or an in-flight toggle.
-          if (initialRevision === currentRevision && !pendingById[key]) {
-            next[id] = enabled;
-          }
-        }
-
-        enabledById = next;
-      } catch (err) {
-        error("[InstalledProjects] Failed to resolve enabled states", err);
-      } finally {
-        if (generation === requestGeneration) {
-          statusLoading = false;
-        }
-      }
-    })();
-  });
-});
-
-// Optimistically update the UI before waiting for the backend.
-// Pending state belongs to the parent so it survives category movement.
 async function toggleProject(project: KableProject, nextEnabled: boolean): Promise<void> {
   const selectedProfile = profile;
 
@@ -274,54 +190,36 @@ async function toggleProject(project: KableProject, nextEnabled: boolean): Promi
     throw new Error("Cannot toggle a project without the currently selected profile.");
   }
 
-  const id = projectId(project);
-  const key = revisionKey(selectedProfile.id, id);
+  const key = projectKey(selectedProfile, project);
 
   if (pendingById[key]) {
     return;
   }
-
-  const previousEnabled = enabledById[id];
-
-  if (previousEnabled === undefined) {
-    throw new Error(`Enabled state is unresolved for project ${id}.`);
-  }
-
-  const requestRevision = (enabledStateRevisions.get(key) ?? 0) + 1;
-  enabledStateRevisions.set(key, requestRevision);
 
   pendingById = {
     ...pendingById,
     [key]: true,
   };
 
-  enabledById = {
-    ...enabledById,
-    [id]: nextEnabled,
+  optimisticEnabledById = {
+    ...optimisticEnabledById,
+    [key]: nextEnabled,
   };
 
   try {
     await app.projectsService.toggle(selectedProfile, project);
-  } catch (error) {
-    // Roll back only if this request still owns the state and the same
-    // profile is selected.
-    if (profile?.id === selectedProfile.id && (enabledStateRevisions.get(key) ?? 0) === requestRevision) {
-      enabledById = {
-        ...enabledById,
-        [id]: previousEnabled,
-      };
-    }
+  } catch (err) {
+    error(`[InstalledProjects] Failed to toggle project ${projectId(project)}`, err);
 
-    throw error;
+    throw err;
   } finally {
-    if ((enabledStateRevisions.get(key) ?? 0) === requestRevision) {
-      enabledStateRevisions.set(key, requestRevision + 1);
+    const nextOptimistic = { ...optimisticEnabledById };
+    delete nextOptimistic[key];
+    optimisticEnabledById = nextOptimistic;
 
-      pendingById = {
-        ...pendingById,
-        [key]: false,
-      };
-    }
+    const nextPending = { ...pendingById };
+    delete nextPending[key];
+    pendingById = nextPending;
   }
 }
 
@@ -379,11 +277,9 @@ function sortProjects(list: KableProject[]): KableProject[] {
   return sorted;
 }
 
-let enabledProjects = $derived(sortProjects(matchingProjects.filter((project) => enabledById[projectId(project)] === true)));
+let enabledProjects = $derived(sortProjects(matchingProjects.filter((project) => isProjectEnabled(project))));
 
-let disabledProjects = $derived(sortProjects(matchingProjects.filter((project) => enabledById[projectId(project)] === false)));
-
-let unresolvedCount = $derived(matchingProjects.filter((project) => enabledById[projectId(project)] === undefined).length);
+let disabledProjects = $derived(sortProjects(matchingProjects.filter((project) => !isProjectEnabled(project))));
 
 let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "resourcepack" ? "resource packs" : projectType === "shader" ? "shaders" : "modpacks");
 </script>
@@ -396,7 +292,10 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
   {:else}
     <div class="toolbar">
       <div class="search">
-        <label for="installed-project-search">Search {projectLabel}</label>
+        <label for="installed-project-search">
+          Search {projectLabel}
+        </label>
+
         <input
           id="installed-project-search"
           type="search"
@@ -409,6 +308,7 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
 
       <div class="sort">
         <label for="installed-project-sort">Sort by</label>
+
         <select id="installed-project-sort" bind:value={sortOrder}>
           <option value="name-asc">Name (A–Z)</option>
           <option value="name-desc">Name (Z–A)</option>
@@ -422,7 +322,7 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
 
     {#if loading}
       <p class="refresh-status" role="status">
-        Refreshing installed {projectLabel}...
+        Loading installed {projectLabel}...
       </p>
     {/if}
 
@@ -443,7 +343,10 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
         <section class="project-group">
           <button class="group-heading" type="button" aria-expanded={enabledOpen} onclick={() => (enabledOpen = !enabledOpen)}>
             <span class="group-title">Enabled</span>
-            <span class="group-count">{enabledProjects.length}</span>
+
+            <span class="group-count">
+              {enabledProjects.length}
+            </span>
 
             {#if enabledOpen}
               <Icon name="chevron-up" size="sm" forceType="svg" />
@@ -458,7 +361,8 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
                 {profile}
                 {project}
                 enabled={true}
-                togglePending={pendingById[revisionKey(profile.id, projectId(project))] === true}
+                updateAvailable={hasUpdate(project)}
+                togglePending={isTogglePending(project)}
                 onToggled={(enabled) => toggleProject(project, enabled)}
               />
             {/each}
@@ -470,7 +374,10 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
         <section class="project-group">
           <button class="group-heading" type="button" aria-expanded={disabledOpen} onclick={() => (disabledOpen = !disabledOpen)}>
             <span class="group-title">Disabled</span>
-            <span class="group-count">{disabledProjects.length}</span>
+
+            <span class="group-count">
+              {disabledProjects.length}
+            </span>
 
             {#if disabledOpen}
               <Icon name="chevron-up" size="sm" forceType="svg" />
@@ -485,16 +392,13 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
                 {profile}
                 {project}
                 enabled={false}
-                togglePending={pendingById[revisionKey(profile.id, projectId(project))] === true}
+                updateAvailable={hasUpdate(project)}
+                togglePending={isTogglePending(project)}
                 onToggled={(enabled) => toggleProject(project, enabled)}
               />
             {/each}
           </div>
         </section>
-      {/if}
-
-      {#if statusLoading || unresolvedCount > 0}
-        <p class="refresh-status" role="status">Checking enabled states...</p>
       {/if}
     {/if}
   {/if}
@@ -525,6 +429,7 @@ let projectLabel = $derived(projectType === "mod" ? "mods" : projectType === "re
     font-size: 0.8rem;
   }
 }
+
 select,
 input {
   box-sizing: border-box;
@@ -536,6 +441,7 @@ input {
   border-radius: $radius-md;
   font: inherit;
 }
+
 .refresh-status {
   margin: 0 0 $space-sm;
   color: $color-text-muted;

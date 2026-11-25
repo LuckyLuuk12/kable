@@ -5,17 +5,20 @@ Project management page for a specific project type.
 
 Provides:
 - Profile selection
-- Installed/browse navigation
+- Installed/browse/liked navigation
 - Project browsing
 - Installed project management
+- Liked project management
 - Profile launching
 -->
 
 <script lang="ts">
-import { type KableProfile, type ProjectType, app, debug, error, Icon, warn } from "#lib";
+import { type KableProfile, type KableProject, type ProjectType, type UpdateMap, app, debug, error, Icon, warn } from "#lib";
 import { untrack } from "svelte";
+import { SvelteSet } from "svelte/reactivity";
 
 import InstalledProjects from "./InstalledProjects.svelte";
+import LikedProjects from "./LikedProjects.svelte";
 import ProfilePicker from "./ProfilePicker.svelte";
 import ProjectsBrowser from "./ProjectsBrowser.svelte";
 
@@ -25,11 +28,13 @@ let {
   projectType: ProjectType;
 } = $props();
 
-let currentTab: "installed" | "browse" = $state("installed");
+let currentTab: "installed" | "browse" | "liked" = $state("installed");
 
 let profileId = $state<string | null>(app.projectsService.loadedForProfileId);
 
 let profile = $derived(app.profilesService.profiles.find((p) => p.id === profileId) ?? null);
+
+let installedProjects = $derived(app.projectsService.getByType(projectType));
 
 let pickerCollapsed = $state(false);
 
@@ -38,31 +43,51 @@ let projectLabel = $derived(projectType === "mod" ? "Mods" : projectType === "re
 let refreshing = $state(false);
 let updatingAll = $state(false);
 let checkingUpdates = $state(false);
+
 let availableUpdates = $state(0);
+// If we don't use state the installed cards don't get update border color.
+// eslint-disable-next-line svelte/no-unnecessary-state-wrap
+let availableUpdateKeys = $state<SvelteSet<string>>(new SvelteSet());
+
+let updateCheckError = $state(false);
 
 /**
- * Tracks concurrent update checks so the automatic effect and explicit
- * actions can share the same request for a given profile and project type.
- *
- * This is intentionally a regular Map: its contents are not rendered.
+ * Tracks concurrent update checks so automatic checks and explicit actions
+ * can share the same request for a given profile and project type.
  */
 // eslint-disable-next-line svelte/prefer-svelte-reactivity
-const updateChecksInFlight = new Map<string, Promise<number>>();
+const updateChecksInFlight = new Map<string, Promise<UpdateMap[]>>();
 
 /**
- * Invalidates results from automatic update checks when the selected profile
- * or project type changes.
+ * Invalidates automatic update-check results when the selection changes.
  */
 let updateEffectGeneration = 0;
 
 /**
- * Checks for available updates and updates the displayed count only when
- * the result still belongs to the currently selected profile and type.
+ * Produces the same identity used by InstalledProjects when matching
+ * update results to installed projects.
+ */
+function updateKey(project: KableProject): string {
+  return `${project.project.project_type}:${project.project.project_id}:${project.filename}`;
+}
+
+/**
+ * Clears update state for the currently selected view.
+ */
+function clearUpdateState(): void {
+  availableUpdates = 0;
+  availableUpdateKeys = new SvelteSet();
+  updateCheckError = false;
+}
+
+/**
+ * Checks for updates and publishes the result only if it still belongs
+ * to the currently selected profile and project type.
  */
 async function refreshUpdateCount(currentProfile: KableProfile | null, requestedType: ProjectType = projectType): Promise<void> {
   if (!currentProfile) {
     if (profileId === null) {
-      availableUpdates = 0;
+      clearUpdateState();
     }
 
     return;
@@ -73,19 +98,31 @@ async function refreshUpdateCount(currentProfile: KableProfile | null, requested
   let request = updateChecksInFlight.get(key);
 
   if (!request) {
-    request = app.projectsService.checkUpdates(currentProfile, requestedType).then((updates) => updates.length);
+    request = app.projectsService.checkUpdates(currentProfile, requestedType);
 
     updateChecksInFlight.set(key, request);
   }
 
   try {
-    const count = await request;
+    const updates = await request;
 
-    // A completed request must not overwrite the count for a different
-    // profile or project type.
-    if (profileId === currentProfile.id && projectType === requestedType) {
-      availableUpdates = count;
+    if (profileId !== currentProfile.id || projectType !== requestedType) {
+      return;
     }
+
+    const available = updates.filter((entry) => entry.update !== null);
+
+    availableUpdateKeys = new SvelteSet(available.map((entry) => updateKey(entry.kable_project)));
+
+    availableUpdates = available.length;
+    updateCheckError = false;
+  } catch (err) {
+    if (profileId === currentProfile.id && projectType === requestedType) {
+      clearUpdateState();
+      updateCheckError = true;
+    }
+
+    throw err;
   } finally {
     if (updateChecksInFlight.get(key) === request) {
       updateChecksInFlight.delete(key);
@@ -129,8 +166,6 @@ async function refresh(): Promise<void> {
   try {
     await app.profilesService.refreshProfiles(true);
 
-    // Do not load an old profile if the user changed selection while
-    // the profile list was being refreshed.
     if (profileId !== requestedProfileId || projectType !== requestedType) {
       return;
     }
@@ -138,7 +173,7 @@ async function refresh(): Promise<void> {
     const refreshedProfile = app.profilesService.profiles.find((candidate) => candidate.id === requestedProfileId) ?? null;
 
     if (!refreshedProfile) {
-      availableUpdates = 0;
+      clearUpdateState();
 
       warn("[ProjectsPage] Selected profile no longer exists:", requestedProfileId);
 
@@ -147,7 +182,6 @@ async function refresh(): Promise<void> {
 
     await app.projectsService.load(refreshedProfile, requestedType, true);
 
-    // The selection may have changed while the project list was loading.
     if (profileId !== requestedProfileId || projectType !== requestedType) {
       return;
     }
@@ -182,8 +216,6 @@ async function updateAll(): Promise<void> {
   try {
     await app.projectsService.updateAll(currentProfile, requestedType);
 
-    // Avoid switching the service back to an old profile if the user
-    // changed selection while the update operation was running.
     if (profileId !== requestedProfileId || projectType !== requestedType) {
       return;
     }
@@ -215,12 +247,10 @@ function launch(): void {
 }
 
 /**
- * Synchronize the service's selected profile and maintain the update count.
+ * Synchronizes the selected profile and maintains update information.
  *
- * Only profileId and projectType are tracked as dependencies. Reads from
- * the profile list and project service are untracked, preventing changes
- * to service state during selection/loading from repeatedly triggering
- * this effect.
+ * Only profileId and projectType are tracked as dependencies.
+ * Service reads are intentionally untracked.
  */
 $effect(() => {
   const selectedProfileId = profileId;
@@ -228,7 +258,7 @@ $effect(() => {
   const generation = ++updateEffectGeneration;
 
   if (!selectedProfileId) {
-    availableUpdates = 0;
+    clearUpdateState();
     return;
   }
 
@@ -239,14 +269,14 @@ $effect(() => {
 
         if (!selectedProfile) {
           if (generation === updateEffectGeneration) {
-            availableUpdates = 0;
+            clearUpdateState();
           }
 
           return;
         }
 
         if (app.projectsService.loadedForProfileId !== selectedProfileId) {
-          availableUpdates = 0;
+          clearUpdateState();
 
           await app.projectsService.select(selectedProfile);
 
@@ -254,8 +284,6 @@ $effect(() => {
             return;
           }
 
-          // Re-read the profile in case selecting it refreshed the profile
-          // list or replaced the profile object.
           selectedProfile = app.profilesService.profiles.find((candidate) => candidate.id === selectedProfileId) ?? null;
         }
 
@@ -263,7 +291,6 @@ $effect(() => {
           return;
         }
 
-        // Share the same in-flight request as manual checks and refreshes.
         await refreshUpdateCount(selectedProfile, selectedType);
       } catch (err) {
         if (generation !== updateEffectGeneration) {
@@ -272,7 +299,8 @@ $effect(() => {
 
         error("[ProjectsPage] Failed to synchronize project state:", selectedProfileId, err);
 
-        availableUpdates = 0;
+        clearUpdateState();
+        updateCheckError = true;
       }
     })();
   });
@@ -322,6 +350,10 @@ $effect(() => {
         <button class="tab-btn" class:active={currentTab === "browse"} type="button" onclick={() => (currentTab = "browse")}>
           Browse {projectLabel}
         </button>
+
+        <button class="tab-btn" class:active={currentTab === "liked"} type="button" onclick={() => (currentTab = "liked")}>
+          Liked {projectLabel}
+        </button>
       </nav>
 
       {#if profile}
@@ -345,7 +377,10 @@ $effect(() => {
               <span class="update-all-icon">
                 <Icon name="refresh" forceType="svg" size="sm" />
               </span>
-              <span>Check for updates</span>
+
+              <span>
+                {updateCheckError ? "Retry update check" : "Check for updates"}
+              </span>
             {/if}
 
             {#if updatingAll || checkingUpdates}
@@ -388,11 +423,15 @@ $effect(() => {
 
     <div class="tab-content">
       <div class="tab-panel" class:active={currentTab === "installed"}>
-        <InstalledProjects {profile} {profileId} {projectType} />
+        <InstalledProjects {profile} {profileId} {projectType} updateKeys={availableUpdateKeys} />
       </div>
 
       <div class="tab-panel" class:active={currentTab === "browse"}>
         <ProjectsBrowser {profile} {profileId} {projectType} />
+      </div>
+
+      <div class="tab-panel" class:active={currentTab === "liked"}>
+        <LikedProjects {profile} {profileId} {projectType} {installedProjects} />
       </div>
     </div>
   </main>

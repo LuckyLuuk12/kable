@@ -136,8 +136,8 @@ async fn write_profile_archive(profile: &KableProfile, destination: &Path) -> Re
     archive.write_all(&manifest_json).map_err(|e| format!("Failed to write export manifest: {e}"))?;
 
     // These lists are independent of the project type, so fetch each only once.
-    let enabled_projects = list_profile_projects(profile.clone(), true).await?;
-    let disabled_projects = list_profile_projects(profile.clone(), false).await?;
+    let enabled_projects = list_profile_projects(profile.clone(), true, false).await?;
+    let disabled_projects = list_profile_projects(profile.clone(), false, false).await?;
 
     for project_type in PROJECT_TYPES {
         let projects_dir = project_root.join(project_type_folder(project_type));

@@ -1,22 +1,10 @@
 use crate::features::profiles::kable_profile::{load_profiles, save_profiles};
-use crate::system::cache::invalidate_no_args;
 use crate::system::fs;
 use api_types::profiles::KableProfile;
 use api_types::projects::KableProject;
 
-const PROFILES_CACHE_NAME: &str = "profiles";
-const PROFILES_CACHE_FUNCTION: &str = "load_profiles";
-
-async fn invalidate_profiles_cache() {
-    // The profile mutation has already been persisted. Cache invalidation
-    // must not turn a successful mutation into an apparent failure.
-    let _ = invalidate_no_args(PROFILES_CACHE_NAME, PROFILES_CACHE_FUNCTION).await;
-}
-
-async fn save_profiles_and_invalidate(profiles: &[KableProfile]) -> Result<(), String> {
-    save_profiles(profiles).await?;
-    invalidate_profiles_cache().await;
-    Ok(())
+async fn persist_profiles(profiles: &[KableProfile]) -> Result<(), String> {
+    save_profiles(profiles).await
 }
 
 async fn modify_current_profile_unlocked<F>(profile_id: &str, modify: F) -> Result<KableProfile, String>
@@ -34,7 +22,7 @@ where
 
     let updated_profile = profile.clone();
 
-    save_profiles_and_invalidate(&profiles).await?;
+    persist_profiles(&profiles).await?;
 
     Ok(updated_profile)
 }
@@ -48,7 +36,7 @@ pub async fn save_profile(profile: KableProfile) -> Result<KableProfile, String>
         }
 
         profiles.push(profile.clone());
-        save_profiles_and_invalidate(&profiles).await?;
+        persist_profiles(&profiles).await?;
 
         Ok(profile)
     })
@@ -78,7 +66,7 @@ async fn modify_profile_unlocked(old: KableProfile, new: KableProfile) -> Result
 
     profiles[position] = new.clone();
 
-    save_profiles_and_invalidate(&profiles).await?;
+    persist_profiles(&profiles).await?;
 
     Ok(new)
 }
@@ -110,7 +98,7 @@ pub async fn delete_profile(profile_id: &str) -> Result<(), String> {
 
         profiles.remove(position);
 
-        save_profiles_and_invalidate(&profiles).await
+        persist_profiles(&profiles).await
     })
     .await
 }
@@ -159,14 +147,11 @@ pub async fn toggle_project(profile: KableProfile, project: KableProject) -> Res
 
 pub async fn is_project_enabled(profile: KableProfile, project: KableProject) -> Result<bool, String> {
     let current_profile = get_profile(&profile.id).await?;
+
     Ok(current_profile.settings.is_enabled(project))
 }
 
-pub async fn list_profiles(force: bool) -> Result<Vec<KableProfile>, String> {
-    if force {
-        invalidate_profiles_cache().await;
-    }
-
+pub async fn list_profiles(_force: bool) -> Result<Vec<KableProfile>, String> {
     load_profiles().await
 }
 

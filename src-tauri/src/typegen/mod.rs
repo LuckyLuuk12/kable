@@ -90,6 +90,11 @@ pub fn generate() -> Result<(), Box<dyn std::error::Error>> {
             api::get_modrinth_project_types,
             api::get_modrinth_side_types,
             api::resolve_project_dependencies,
+            api::list_profile_projects_with_status,
+            api::list_liked_projects,
+            api::like_project,
+            api::unlike_project,
+            api::toggle_like,
             // #endregion Projects
             // #region Skins
             api::get_player_profile,

@@ -60,6 +60,7 @@ pub const TEMP_DIR: &str = "tmp";
 pub const CACHE_DIR: &str = "cache";
 
 // File names
+pub const LIKED_PROJECTS_FILE: &str = "liked_projects.json";
 pub const SETTINGS_FILE: &str = "settings.json";
 pub const SOUNDPACK_FILE: &str = "soundpack.json";
 pub const CUSTOM_SYMLINKS_FILE: &str = "custom_symlinks.json";

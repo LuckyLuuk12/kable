@@ -2,12 +2,14 @@ use crate::constants::LAUNCHER_PROFILES_FILE;
 use crate::system::fs::{mc_dir, read_str, write_str};
 use crate::Logger;
 use api_types::profiles::LauncherProfiles;
+use kable_macros::persistent_cache;
 
 //?----------------------------------------------------------------------
 //? Load and convert launcher_profiles.json into Profile structs
 //?----------------------------------------------------------------------
 
 /// Parse the .minecraft/launcher_profiles.json file into LauncherProfiles type:
+#[persistent_cache(parent = "official_launcher_profiles")]
 pub async fn parse_launcher_profiles() -> Result<LauncherProfiles, String> {
     let launcher_profiles = mc_dir()?.join(LAUNCHER_PROFILES_FILE);
     let content = read_str(&launcher_profiles).await?;

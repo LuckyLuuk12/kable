@@ -106,7 +106,7 @@ export const commands = {
 	exportProfile: (profile: KableProfile, destination: string) => typedError<string, string>(__TAURI_INVOKE("export_profile", { profile, destination })),
 	createDesktopShortcut: (profile: KableProfile) => typedError<string, string>(__TAURI_INVOKE("create_desktop_shortcut", { profile })),
 	browse: (profile: KableProfile, search: ProjectSearch, smartFilter: boolean, projectType: ProjectType) => typedError<ModrinthResults, string>(__TAURI_INVOKE("browse", { profile, search, smartFilter, projectType })),
-	listProfileProjects: (profile: KableProfile, enabled: boolean) => typedError<Partial<{ [key in ProjectType]: KableProject[] }>, string>(__TAURI_INVOKE("list_profile_projects", { profile, enabled })),
+	listProfileProjects: (profile: KableProfile, enabled: boolean, forceRefresh: boolean) => typedError<Partial<{ [key in ProjectType]: KableProject[] }>, string>(__TAURI_INVOKE("list_profile_projects", { profile, enabled, forceRefresh })),
 	removeProject: (profile: KableProfile, kableProject: KableProject) => typedError<KableProject, string>(__TAURI_INVOKE("remove_project", { profile, kableProject })),
 	addProjectToProfile: (profile: KableProfile, project: Project, versionId: string | null) => typedError<KableProject, string>(__TAURI_INVOKE("add_project_to_profile", { profile, project, versionId })),
 	checkForUpdate: (kableProfile: KableProfile, kableProject: KableProject) => typedError<UpdateMap[], string>(__TAURI_INVOKE("check_for_update", { kableProfile, kableProject })),
@@ -119,6 +119,11 @@ export const commands = {
 	getModrinthProjectTypes: () => typedError<string[], string>(__TAURI_INVOKE("get_modrinth_project_types")),
 	getModrinthSideTypes: () => typedError<string[], string>(__TAURI_INVOKE("get_modrinth_side_types")),
 	resolveProjectDependencies: (profile: KableProfile, project: Project, versionId: string) => typedError<ResolvedDependency[], string>(__TAURI_INVOKE("resolve_project_dependencies", { profile, project, versionId })),
+	listProfileProjectsWithStatus: (profile: KableProfile, forceRefresh: boolean) => typedError<ProfileProjects, string>(__TAURI_INVOKE("list_profile_projects_with_status", { profile, forceRefresh })),
+	listLikedProjects: () => typedError<Project[], string>(__TAURI_INVOKE("list_liked_projects")),
+	likeProject: (projectId: string, projectType: string) => typedError<boolean, string>(__TAURI_INVOKE("like_project", { projectId, projectType })),
+	unlikeProject: (projectId: string, projectType: string) => typedError<boolean, string>(__TAURI_INVOKE("unlike_project", { projectId, projectType })),
+	toggleLike: (projectId: string, projectType: string) => typedError<boolean, string>(__TAURI_INVOKE("toggle_like", { projectId, projectType })),
 	getPlayerProfile: (account: KableAccount) => typedError<PlayerProfile, string>(__TAURI_INVOKE("get_player_profile", { account })),
 	getCurrentSkinInfo: (account: KableAccount) => typedError<CurrentSkin, string>(__TAURI_INVOKE("get_current_skin_info", { account })),
 	getAllAccountSkins: (account: KableAccount) => typedError<AccountSkin[], string>(__TAURI_INVOKE("get_all_account_skins", { account })),
@@ -524,6 +529,11 @@ export type ProfileMetadataOverrides = {
 	name: string | null,
 	icon: string | null,
 	description: string | null,
+};
+
+export type ProfileProjects = {
+	enabled: Partial<{ [key in ProjectType]: KableProject[] }>,
+	disabled: Partial<{ [key in ProjectType]: KableProject[] }>,
 };
 
 export type ProfileSource = 

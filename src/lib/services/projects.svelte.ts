@@ -1,6 +1,8 @@
+
 import {
   type KableProfile,
   type KableProject,
+  type ProfileProjects,
   type Project,
   ProjectDependenciesModal,
   type ProjectSearch,
@@ -11,27 +13,33 @@ import {
   app,
   debug,
   error,
-  log,
+  log
 } from "#lib";
 import { SvelteSet } from "svelte/reactivity";
 import type { Service } from "./app.svelte";
+
+const SUPPORTED_PROJECT_TYPES: ProjectType[] = [
+  "mod",
+  "resourcepack",
+  "shader",
+];
 
 export class ProjectsService implements Service {
   projects = $state<KableProject[]>([]);
   loading = $state(false);
   loadedForProfileId = $state<string | null>(null);
   loadedTypes = $state<SvelteSet<ProjectType>>(new SvelteSet());
+  enabledProjectKeys = $state<SvelteSet<string>>(new SvelteSet());
 
   enabledStateRevision = $state(0);
 
-  private pendingLoads = new Map<string, Promise<void>>();
-  private loadVersions = new Map<string, number>();
-  private activeLoadsByGeneration = new Map<number, number>();
+  private pendingLoad: Promise<void> | null = null;
+  private loadVersion = 0;
   private profileGeneration = 0;
-  private mutationVersions = new Map<string, number>();
+
   private pendingMutations = new Map<string, Promise<unknown>>();
 
-  async init() {}
+  async init() { }
 
   private getProjectId(project: KableProject): string {
     return project.project.project_id;
@@ -41,8 +49,11 @@ export class ProjectsService implements Service {
     return `${profile.id}:${project.project.project_type}:${this.getProjectId(project)}`;
   }
 
-  private getLoadKey(profileId: string, projectType: ProjectType): string {
-    return `${profileId}:${projectType}`;
+  private getEnabledKey(
+    profile: KableProfile,
+    project: KableProject,
+  ): string {
+    return this.getProjectKey(profile, project);
   }
 
   private notifyEnabledStateChanged(): void {
@@ -52,7 +63,13 @@ export class ProjectsService implements Service {
 
   private updateStoredProject(project: KableProject): void {
     const projectId = this.getProjectId(project);
-    const index = this.projects.findIndex((current) => current.project.project_type === project.project.project_type && this.getProjectId(current) === projectId);
+    const projectType = project.project.project_type;
+
+    const index = this.projects.findIndex(
+      (current) =>
+        current.project.project_type === projectType &&
+        this.getProjectId(current) === projectId,
+    );
 
     if (index === -1) {
       this.projects = [...this.projects, project];
@@ -68,11 +85,20 @@ export class ProjectsService implements Service {
     const projectId = this.getProjectId(project);
     const projectType = project.project.project_type;
 
-    this.projects = this.projects.filter((current) => current.project.project_type !== projectType || this.getProjectId(current) !== projectId);
+    this.projects = this.projects.filter(
+      (current) =>
+        current.project.project_type !== projectType ||
+        this.getProjectId(current) !== projectId,
+    );
   }
 
-  private replaceTypeProjects(projectType: ProjectType, incoming: KableProject[]): void {
-    const otherTypes = this.projects.filter((project) => project.project.project_type !== projectType);
+  private replaceTypeProjects(
+    projectType: ProjectType,
+    incoming: KableProject[],
+  ): void {
+    const otherTypes = this.projects.filter(
+      (project) => project.project.project_type !== projectType,
+    );
 
     const unique = new Map<string, KableProject>();
 
@@ -83,40 +109,18 @@ export class ProjectsService implements Service {
     this.projects = [...otherTypes, ...unique.values()];
   }
 
-  private beginLoad(generation: number): void {
-    const active = this.activeLoadsByGeneration.get(generation) ?? 0;
-    this.activeLoadsByGeneration.set(generation, active + 1);
-
-    if (generation === this.profileGeneration) {
-      this.loading = true;
-    }
-  }
-
-  private endLoad(generation: number): void {
-    const active = this.activeLoadsByGeneration.get(generation) ?? 0;
-    const remaining = Math.max(0, active - 1);
-
-    if (remaining === 0) {
-      this.activeLoadsByGeneration.delete(generation);
-    } else {
-      this.activeLoadsByGeneration.set(generation, remaining);
-    }
-
-    if (generation === this.profileGeneration) {
-      this.loading = remaining > 0;
-    }
-  }
-
   private resetProfile(profileId: string | null): void {
     this.profileGeneration++;
+    this.loadVersion++;
 
     this.projects = [];
     this.loadedForProfileId = profileId;
     this.loadedTypes = new SvelteSet();
-    this.pendingLoads.clear();
-    this.loadVersions.clear();
-    this.mutationVersions.clear();
+    this.enabledProjectKeys = new SvelteSet();
+
+    this.pendingLoad = null;
     this.pendingMutations.clear();
+
     this.loading = false;
     this.enabledStateRevision++;
   }
@@ -127,11 +131,20 @@ export class ProjectsService implements Service {
     }
   }
 
-  private isCurrentProfile(profileId: string, generation: number): boolean {
-    return this.loadedForProfileId === profileId && this.profileGeneration === generation;
+  private isCurrentProfile(
+    profileId: string,
+    generation: number,
+  ): boolean {
+    return (
+      this.loadedForProfileId === profileId &&
+      this.profileGeneration === generation
+    );
   }
 
-  private async serializeMutation<T>(key: string, operation: () => Promise<T>): Promise<T> {
+  private async serializeMutation<T>(
+    key: string,
+    operation: () => Promise<T>,
+  ): Promise<T> {
     const previous = this.pendingMutations.get(key) ?? Promise.resolve();
 
     const current = previous.catch(() => undefined).then(operation);
@@ -147,73 +160,117 @@ export class ProjectsService implements Service {
     }
   }
 
-  private bumpMutationVersion(key: string): number {
-    const next = (this.mutationVersions.get(key) ?? 0) + 1;
-    this.mutationVersions.set(key, next);
-    return next;
+  private setProjectEnabled(
+    profile: KableProfile,
+    project: KableProject,
+    enabled: boolean,
+  ): void {
+    const key = this.getEnabledKey(profile, project);
+    const next = new SvelteSet(this.enabledProjectKeys);
+
+    if (enabled) {
+      next.add(key);
+    } else {
+      next.delete(key);
+    }
+
+    this.enabledProjectKeys = next;
+    this.notifyEnabledStateChanged();
   }
 
-  async load(profile: KableProfile, projectType: ProjectType, force = false): Promise<void> {
+  private applyProfileProjects(
+    profile: KableProfile,
+    result: ProfileProjects,
+  ): void {
+    const enabledKeys = new SvelteSet<string>();
+
+    for (const projectType of SUPPORTED_PROJECT_TYPES) {
+      const enabled = result.enabled[projectType] ?? [];
+      const disabled = result.disabled[projectType] ?? [];
+
+      this.replaceTypeProjects(projectType, [...enabled, ...disabled]);
+
+      for (const project of enabled) {
+        enabledKeys.add(this.getEnabledKey(profile, project));
+      }
+    }
+
+    this.enabledProjectKeys = enabledKeys;
+    this.loadedTypes = new SvelteSet(SUPPORTED_PROJECT_TYPES);
+
+    this.notifyEnabledStateChanged();
+  }
+
+  async load(
+    profile: KableProfile,
+    projectType: ProjectType,
+    force = false,
+  ): Promise<void> {
     this.ensureProfile(profile);
 
     if (!force && this.loadedTypes.has(projectType)) {
       return;
     }
 
-    const generation = this.profileGeneration;
-    const key = this.getLoadKey(profile.id, projectType);
-    const pending = this.pendingLoads.get(key);
-
-    if (pending && !force) {
-      return pending;
+    if (!force && this.pendingLoad) {
+      return this.pendingLoad;
     }
 
-    const version = (this.loadVersions.get(key) ?? 0) + 1;
-    this.loadVersions.set(key, version);
-    this.beginLoad(generation);
+    const generation = this.profileGeneration;
+    const version = ++this.loadVersion;
+
+    this.loading = true;
 
     let request!: Promise<void>;
 
     request = (async () => {
       try {
-        const [enabled, disabled] = await Promise.all([api.listProfileProjects(profile, true), api.listProfileProjects(profile, false)]);
+        const result = await api.listProfileProjectsWithStatus(
+          profile,
+          force,
+        );
 
-        if (!this.isCurrentProfile(profile.id, generation) || this.loadVersions.get(key) !== version) {
+        if (
+          !this.isCurrentProfile(profile.id, generation) ||
+          this.loadVersion !== version
+        ) {
           return;
         }
 
-        const loadedProjects = [...(enabled[projectType] ?? []), ...(disabled[projectType] ?? [])];
-
-        this.replaceTypeProjects(projectType, loadedProjects);
-        this.loadedTypes = new SvelteSet([...this.loadedTypes, projectType]);
-        this.notifyEnabledStateChanged();
+        this.applyProfileProjects(profile, result);
       } catch (err) {
-        error(`[ProjectsService] Failed to load ${projectType} projects`, err);
+        error("[ProjectsService] Failed to load installed projects", err);
         throw err;
       } finally {
-        if (this.pendingLoads.get(key) === request) {
-          this.pendingLoads.delete(key);
-        }
+        if (
+          this.isCurrentProfile(profile.id, generation) &&
+          this.loadVersion === version
+        ) {
+          if (this.pendingLoad === request) {
+            this.pendingLoad = null;
+          }
 
-        this.endLoad(generation);
+          this.loading = false;
+        }
       }
     })();
 
-    this.pendingLoads.set(key, request);
+    this.pendingLoad = request;
+
     return request;
   }
 
-  async refresh(profile: KableProfile, projectType?: ProjectType): Promise<void> {
+  async refresh(
+    profile: KableProfile,
+    projectType?: ProjectType,
+  ): Promise<void> {
     this.ensureProfile(profile);
 
-    if (projectType) {
-      await this.load(profile, projectType, true);
-      return;
-    }
-
-    const types = [...this.loadedTypes];
-
-    await Promise.all(types.map((type) => this.load(profile, type, true)));
+    await this.load(
+      profile,
+      projectType ?? SUPPORTED_PROJECT_TYPES[0],
+      true,
+    );
   }
 
   get all(): KableProject[] {
@@ -237,10 +294,17 @@ export class ProjectsService implements Service {
   }
 
   getByType(type: ProjectType): KableProject[] {
-    return this.projects.filter((project) => project.project.project_type === type);
+    return this.projects.filter(
+      (project) => project.project.project_type === type,
+    );
   }
 
-  async browse(profile: KableProfile, search: ProjectSearch, smartFilter: boolean, projectType: ProjectType) {
+  async browse(
+    profile: KableProfile,
+    search: ProjectSearch,
+    smartFilter: boolean,
+    projectType: ProjectType,
+  ) {
     try {
       return await api.browse(profile, search, smartFilter, projectType);
     } catch (err) {
@@ -249,30 +313,58 @@ export class ProjectsService implements Service {
     }
   }
 
-  async browseMods(profile: KableProfile, search: ProjectSearch, smartFilter: boolean) {
+  async browseMods(
+    profile: KableProfile,
+    search: ProjectSearch,
+    smartFilter: boolean,
+  ) {
     return this.browse(profile, search, smartFilter, "mod");
   }
 
-  async browseResourcepacks(profile: KableProfile, search: ProjectSearch, smartFilter: boolean) {
+  async browseResourcepacks(
+    profile: KableProfile,
+    search: ProjectSearch,
+    smartFilter: boolean,
+  ) {
     return this.browse(profile, search, smartFilter, "resourcepack");
   }
 
-  async browseShaders(profile: KableProfile, search: ProjectSearch, smartFilter: boolean) {
+  async browseShaders(
+    profile: KableProfile,
+    search: ProjectSearch,
+    smartFilter: boolean,
+  ) {
     return this.browse(profile, search, smartFilter, "shader");
   }
 
-  async browseModpacks(profile: KableProfile, search: ProjectSearch, smartFilter: boolean) {
+  async browseModpacks(
+    profile: KableProfile,
+    search: ProjectSearch,
+    smartFilter: boolean,
+  ) {
     return this.browse(profile, search, smartFilter, "modpack");
   }
 
-  async install(profile: KableProfile, project: Project, versionId: string): Promise<KableProject | void> {
+  async install(
+    profile: KableProfile,
+    project: Project,
+    versionId: string,
+  ): Promise<KableProject | void> {
     try {
-      const dependencies = await api.resolveProjectDependencies(profile, project, versionId);
+      const dependencies = await api.resolveProjectDependencies(
+        profile,
+        project,
+        versionId,
+      );
 
       if (dependencies.length === 0) {
         return await this.download(profile, project, versionId);
       }
-      debug(`Project ${project.title} has ${dependencies.length} dependencies, prompting user for confirmation...`);
+
+      debug(
+        `Project ${project.title} has ${dependencies.length} dependencies, prompting user for confirmation...`,
+      );
+
       await app.show(ProjectDependenciesModal, {
         profile,
         project,
@@ -281,13 +373,19 @@ export class ProjectsService implements Service {
         onConfirm: async (selectedDependencies: KableProject[]) => {
           try {
             for (const dependency of selectedDependencies) {
-              await this.download(profile, dependency.project, dependency.version_id);
+              await this.download(
+                profile,
+                dependency.project,
+                dependency.version_id,
+              );
             }
 
             await this.download(profile, project, versionId);
           } catch (err) {
             error("Failed to install project and dependencies", err);
-            app.notificationService.error("Failed to install project or one of its dependencies.");
+            app.notificationService.error(
+              "Failed to install project or one of its dependencies.",
+            );
             throw err;
           }
         },
@@ -298,24 +396,46 @@ export class ProjectsService implements Service {
     }
   }
 
-  async hasUpdate(profile: KableProfile, project: KableProject): Promise<boolean> {
+  async hasUpdate(
+    profile: KableProfile,
+    project: KableProject,
+  ): Promise<boolean> {
     return (await this.checkUpdate(profile, project)) !== null;
   }
 
-  async download(profile: KableProfile, project: Project, versionId: string | null): Promise<KableProject> {
+  async download(
+    profile: KableProfile,
+    project: Project,
+    versionId: string | null,
+  ): Promise<KableProject> {
     const generation = this.profileGeneration;
     const profileId = profile.id;
 
     try {
-      const result = await api.addProjectToProfile(profile, project, versionId);
+      const result = await api.addProjectToProfile(
+        profile,
+        project,
+        versionId,
+      );
 
       if (this.isCurrentProfile(profileId, generation)) {
         this.updateStoredProject(result);
-        this.loadedTypes = new SvelteSet([...this.loadedTypes, result.project.project_type]);
+
+        const nextEnabled = new SvelteSet(this.enabledProjectKeys);
+        nextEnabled.add(this.getEnabledKey(profile, result));
+        this.enabledProjectKeys = nextEnabled;
+
+        this.loadedTypes = new SvelteSet([
+          ...this.loadedTypes,
+          result.project.project_type,
+        ]);
+
         this.notifyEnabledStateChanged();
       }
 
-      app.notificationService.success(`${project.title} installed successfully.`);
+      app.notificationService.success(
+        `${project.title} installed successfully.`,
+      );
 
       return result;
     } catch (err) {
@@ -325,7 +445,10 @@ export class ProjectsService implements Service {
     }
   }
 
-  async remove(profile: KableProfile, project: KableProject): Promise<KableProject> {
+  async remove(
+    profile: KableProfile,
+    project: KableProject,
+  ): Promise<KableProject> {
     const key = this.getProjectKey(profile, project);
     const generation = this.profileGeneration;
 
@@ -335,37 +458,79 @@ export class ProjectsService implements Service {
 
         if (this.isCurrentProfile(profile.id, generation)) {
           this.removeStoredProject(project);
+
+          const nextEnabled = new SvelteSet(this.enabledProjectKeys);
+          nextEnabled.delete(this.getEnabledKey(profile, project));
+          this.enabledProjectKeys = nextEnabled;
+
           this.notifyEnabledStateChanged();
         }
 
         return removed;
       });
 
-      app.notificationService.success(`${project.project.title} removed successfully.`);
+      app.notificationService.success(
+        `${project.project.title} removed successfully.`,
+      );
 
       return result;
     } catch (err) {
       error("Failed to remove project", err);
-      app.notificationService.error(`Failed to remove ${project.project.title}.`);
+      app.notificationService.error(
+        `Failed to remove ${project.project.title}.`,
+      );
       throw err;
     }
   }
 
-  async isEnabled(profile: KableProfile, project: KableProject): Promise<boolean> {
+  async isEnabled(
+    profile: KableProfile,
+    project: KableProject,
+  ): Promise<boolean> {
+    const projectType = project.project.project_type;
+
+    if (
+      this.loadedForProfileId === profile.id &&
+      this.loadedTypes.has(projectType)
+    ) {
+      return this.enabledProjectKeys.has(
+        this.getEnabledKey(profile, project),
+      );
+    }
+
     try {
-      return await api.isProjectEnabled(profile, project);
+      const enabled = await api.isProjectEnabled(profile, project);
+
+      if (this.loadedForProfileId === profile.id) {
+        const next = new SvelteSet(this.enabledProjectKeys);
+        const key = this.getEnabledKey(profile, project);
+
+        if (enabled) {
+          next.add(key);
+        } else {
+          next.delete(key);
+        }
+
+        this.enabledProjectKeys = next;
+        this.notifyEnabledStateChanged();
+      }
+
+      return enabled;
     } catch (err) {
       error("Failed to check project state", err);
       throw err;
     }
   }
 
-  async enable(profile: KableProfile, project: KableProject): Promise<KableProject> {
+  async enable(
+    profile: KableProfile,
+    project: KableProject,
+  ): Promise<KableProject> {
     const key = this.getProjectKey(profile, project);
 
     try {
       return await this.serializeMutation(key, async () => {
-        if (await api.isProjectEnabled(profile, project)) {
+        if (await this.isEnabled(profile, project)) {
           return project;
         }
 
@@ -374,31 +539,39 @@ export class ProjectsService implements Service {
         const enabled = await api.isProjectEnabled(profile, project);
 
         if (!enabled) {
-          throw new Error(`Project ${project.project.title} remained disabled after enabling.`);
+          throw new Error(
+            `Project ${project.project.title} remained disabled after enabling.`,
+          );
         }
 
         if (this.loadedForProfileId === profile.id) {
-          this.bumpMutationVersion(key);
-          this.notifyEnabledStateChanged();
+          this.setProjectEnabled(profile, project, true);
         }
 
-        app.notificationService.success(`${project.project.title} enabled.`);
+        app.notificationService.success(
+          `${project.project.title} enabled.`,
+        );
 
         return project;
       });
     } catch (err) {
       error("Failed to enable project", err);
-      app.notificationService.error(`Failed to enable ${project.project.title}.`);
+      app.notificationService.error(
+        `Failed to enable ${project.project.title}.`,
+      );
       throw err;
     }
   }
 
-  async disable(profile: KableProfile, project: KableProject): Promise<KableProject> {
+  async disable(
+    profile: KableProfile,
+    project: KableProject,
+  ): Promise<KableProject> {
     const key = this.getProjectKey(profile, project);
 
     try {
       return await this.serializeMutation(key, async () => {
-        if (!(await api.isProjectEnabled(profile, project))) {
+        if (!(await this.isEnabled(profile, project))) {
           return project;
         }
 
@@ -407,26 +580,34 @@ export class ProjectsService implements Service {
         const enabled = await api.isProjectEnabled(profile, project);
 
         if (enabled) {
-          throw new Error(`Project ${project.project.title} remained enabled after disabling.`);
+          throw new Error(
+            `Project ${project.project.title} remained enabled after disabling.`,
+          );
         }
 
         if (this.loadedForProfileId === profile.id) {
-          this.bumpMutationVersion(key);
-          this.notifyEnabledStateChanged();
+          this.setProjectEnabled(profile, project, false);
         }
 
-        app.notificationService.success(`${project.project.title} disabled.`);
+        app.notificationService.success(
+          `${project.project.title} disabled.`,
+        );
 
         return project;
       });
     } catch (err) {
       error("Failed to disable project", err);
-      app.notificationService.error(`Failed to disable ${project.project.title}.`);
+      app.notificationService.error(
+        `Failed to disable ${project.project.title}.`,
+      );
       throw err;
     }
   }
 
-  async toggle(profile: KableProfile, project: KableProject): Promise<KableProject> {
+  async toggle(
+    profile: KableProfile,
+    project: KableProject,
+  ): Promise<KableProject> {
     const key = this.getProjectKey(profile, project);
 
     try {
@@ -436,22 +617,28 @@ export class ProjectsService implements Service {
         const enabled = await api.isProjectEnabled(profile, project);
 
         if (this.loadedForProfileId === profile.id) {
-          this.bumpMutationVersion(key);
-          this.notifyEnabledStateChanged();
+          this.setProjectEnabled(profile, project, enabled);
         }
 
-        app.notificationService.success(`${project.project.title} ${enabled ? "enabled" : "disabled"}.`);
+        app.notificationService.success(
+          `${project.project.title} ${enabled ? "enabled" : "disabled"}.`,
+        );
 
         return project;
       });
     } catch (err) {
       error("Failed to toggle project", err);
-      app.notificationService.error(`Failed to change the enabled state of ${project.project.title}.`);
+      app.notificationService.error(
+        `Failed to change the enabled state of ${project.project.title}.`,
+      );
       throw err;
     }
   }
 
-  async checkUpdate(profile: KableProfile, project: KableProject): Promise<UpdateMap | null> {
+  async checkUpdate(
+    profile: KableProfile,
+    project: KableProject,
+  ): Promise<UpdateMap | null> {
     try {
       const updates = await api.checkForUpdate(profile, project);
       return updates[0] ?? null;
@@ -461,7 +648,10 @@ export class ProjectsService implements Service {
     }
   }
 
-  async checkUpdates(profile: KableProfile, projectType: ProjectType): Promise<UpdateMap[]> {
+  async checkUpdates(
+    profile: KableProfile,
+    projectType: ProjectType,
+  ): Promise<UpdateMap[]> {
     try {
       return await api.checkForUpdates(profile, projectType);
     } catch (err) {
@@ -470,13 +660,21 @@ export class ProjectsService implements Service {
     }
   }
 
-  async update(profile: KableProfile, project: KableProject, versionId: string | null = null): Promise<KableProject> {
+  async update(
+    profile: KableProfile,
+    project: KableProject,
+    versionId: string | null = null,
+  ): Promise<KableProject> {
     const key = this.getProjectKey(profile, project);
     const generation = this.profileGeneration;
 
     try {
       const updated = await this.serializeMutation(key, async () => {
-        const result = await api.updateProject(profile, project, versionId);
+        const result = await api.updateProject(
+          profile,
+          project,
+          versionId,
+        );
 
         if (this.isCurrentProfile(profile.id, generation)) {
           this.updateStoredProject(result);
@@ -486,17 +684,24 @@ export class ProjectsService implements Service {
         return result;
       });
 
-      app.notificationService.success(`${project.project.title} updated successfully.`);
+      app.notificationService.success(
+        `${project.project.title} updated successfully.`,
+      );
 
       return updated;
     } catch (err) {
       error("Failed to update project", err);
-      app.notificationService.error(`Failed to update ${project.project.title}.`);
+      app.notificationService.error(
+        `Failed to update ${project.project.title}.`,
+      );
       throw err;
     }
   }
 
-  async updateAll(profile: KableProfile, projectType: ProjectType): Promise<KableProject[]> {
+  async updateAll(
+    profile: KableProfile,
+    projectType: ProjectType,
+  ): Promise<KableProject[]> {
     const generation = this.profileGeneration;
 
     try {
@@ -507,34 +712,66 @@ export class ProjectsService implements Service {
         this.notifyEnabledStateChanged();
       }
 
-      app.notificationService.success(`All ${projectType === "resourcepack" ? "resource packs" : `${projectType}s`} updated successfully.`);
+      app.notificationService.success(
+        `All ${projectType === "resourcepack"
+          ? "resource packs"
+          : `${projectType}s`
+        } updated successfully.`,
+      );
 
       return updated;
     } catch (err) {
       error("Failed to update all projects", err);
-      app.notificationService.error(`Failed to update ${projectType} projects.`);
+      app.notificationService.error(
+        `Failed to update ${projectType} projects.`,
+      );
       throw err;
     }
   }
 
-  getCompatibleVersions(profile: KableProfile, project: Project): ProjectVersion[] {
-    return project.versions.filter((version) => this.isVersionCompatible(profile, version, project.project_type));
+  getCompatibleVersions(
+    profile: KableProfile,
+    project: Project,
+  ): ProjectVersion[] {
+    return project.versions.filter((version) =>
+      this.isVersionCompatible(profile, version, project.project_type),
+    );
   }
 
-  getLatestCompatibleVersion(profile: KableProfile, project: Project): ProjectVersion | null {
-    const compatibleVersions = this.getCompatibleVersions(profile, project);
+  getLatestCompatibleVersion(
+    profile: KableProfile,
+    project: Project,
+  ): ProjectVersion | null {
+    const compatibleVersions = this.getCompatibleVersions(
+      profile,
+      project,
+    );
 
-    return [...compatibleVersions].sort((a, b) => new Date(b.date_published).getTime() - new Date(a.date_published).getTime())[0] ?? null;
+    return (
+      [...compatibleVersions].sort(
+        (a, b) =>
+          new Date(b.date_published).getTime() -
+          new Date(a.date_published).getTime(),
+      )[0] ?? null
+    );
   }
 
-  isVersionCompatible(profile: KableProfile, version: ProjectVersion, projectType: ProjectType): boolean {
+  isVersionCompatible(
+    profile: KableProfile,
+    version: ProjectVersion,
+    projectType: ProjectType,
+  ): boolean {
     const minecraftVersion = profile.version.minecraft_version;
 
-    if (minecraftVersion && !version.game_versions.includes(minecraftVersion)) {
+    if (
+      minecraftVersion &&
+      !version.game_versions.includes(minecraftVersion)
+    ) {
       return false;
     }
 
-    const loaderRelevant = projectType === "mod" || projectType === "modpack";
+    const loaderRelevant =
+      projectType === "mod" || projectType === "modpack";
 
     if (!loaderRelevant) {
       return true;
@@ -544,7 +781,10 @@ export class ProjectsService implements Service {
       .toLowerCase()
       .replace(/^iris_/, "");
 
-    return version.loaders.some((loader) => loader.toLowerCase().replace(/^iris_/, "") === profileLoader);
+    return version.loaders.some(
+      (loader) =>
+        loader.toLowerCase().replace(/^iris_/, "") === profileLoader,
+    );
   }
 
   async destroy(): Promise<void> {
@@ -555,19 +795,32 @@ export class ProjectsService implements Service {
     this.resetProfile(profile?.id ?? null);
 
     if (!profile) {
-      log("[ProjectsService] selected profile changed to null with 0 projects loaded");
+      log(
+        "[ProjectsService] selected profile changed to null with 0 projects loaded",
+      );
       return;
     }
 
     const generation = this.profileGeneration;
 
-    await Promise.all((["mod", "resourcepack", "shader"] as ProjectType[]).map((type) => this.load(profile, type)));
+    try {
+      await this.load(profile, SUPPORTED_PROJECT_TYPES[0]);
+    } catch (err) {
+      error("[ProjectsService] Failed to load selected profile", err);
+      return;
+    }
 
     if (!this.isCurrentProfile(profile.id, generation)) {
       return;
     }
 
-    log("[ProjectsService] selected profile changed to", profile.metadata.name, "with", this.projects.length, "projects loaded");
+    log(
+      "[ProjectsService] selected profile changed to",
+      profile.metadata.name,
+      "with",
+      this.projects.length,
+      "projects loaded",
+    );
   }
 
   async getModrinthCategories(): Promise<string[]> {
@@ -611,6 +864,51 @@ export class ProjectsService implements Service {
       return await api.getModrinthSideTypes();
     } catch (err) {
       error("Failed to get Modrinth side types", err);
+      throw err;
+    }
+  }
+
+  async listLikedProjects(): Promise<Project[]> {
+    try {
+      return await api.listLikedProjects();
+    } catch (err) {
+      error("Failed to list liked projects", err);
+      throw err;
+    }
+  }
+
+  async likeProject(
+    projectId: string,
+    projectType: string,
+  ): Promise<boolean> {
+    try {
+      return await api.likeProject(projectId, projectType);
+    } catch (err) {
+      error("Failed to like project", err);
+      throw err;
+    }
+  }
+
+  async unlikeProject(
+    projectId: string,
+    projectType: string,
+  ): Promise<boolean> {
+    try {
+      return await api.unlikeProject(projectId, projectType);
+    } catch (err) {
+      error("Failed to unlike project", err);
+      throw err;
+    }
+  }
+
+  async toggleLike(
+    projectId: string,
+    projectType: string,
+  ): Promise<boolean> {
+    try {
+      return await api.toggleLike(projectId, projectType);
+    } catch (err) {
+      error("Failed to toggle like for project", err);
       throw err;
     }
   }

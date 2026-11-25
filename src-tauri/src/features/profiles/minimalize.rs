@@ -3,13 +3,11 @@ use std::{
     path::{Component, Path},
 };
 
-use api_types::{
-    profiles::KableProfile,
-    projects::{KableProject, ProjectType},
-};
+use api_types::{profiles::KableProfile, projects::ProjectType};
 
 use crate::{
     constants::{MODS_DIR, RESOURCEPACKS_DIR, RUNTIME_DIR_NAME, SHADERPACKS_DIR},
+    features::projects::management::InstalledProjectMetadata,
     system::fs as kable_fs,
     Logger,
 };
@@ -157,7 +155,7 @@ async fn cleanup_project_directory(directory: &Path, referenced_filenames: &Hash
     let mut removed_metadata = 0;
 
     for metadata_path in kable_fs::read_dir(directory).await? {
-        let metadata = match tokio::fs::symlink_metadata(&metadata_path).await {
+        let file_metadata = match tokio::fs::symlink_metadata(&metadata_path).await {
             Ok(metadata) => metadata,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
             Err(error) => {
@@ -165,7 +163,7 @@ async fn cleanup_project_directory(directory: &Path, referenced_filenames: &Hash
             }
         };
 
-        if metadata.file_type().is_symlink() || !metadata.is_file() {
+        if file_metadata.file_type().is_symlink() || !file_metadata.is_file() {
             continue;
         }
 
@@ -185,7 +183,7 @@ async fn cleanup_project_directory(directory: &Path, referenced_filenames: &Hash
             }
         };
 
-        let project: KableProject = match serde_json::from_str(&serialized) {
+        let project: InstalledProjectMetadata = match serde_json::from_str(&serialized) {
             Ok(project) => project,
             Err(error) => {
                 Logger::debug_global(&format!("[minimalize] Skipping invalid metadata {}: {}", metadata_path.display(), error), None);
