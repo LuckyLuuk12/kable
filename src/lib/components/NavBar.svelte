@@ -159,7 +159,7 @@ onDestroy(() => {
     <div class="header-section">
       <a
         use:buttonSound
-        href={resolve("/accounts", {})}
+        href={resolve("/accounts")}
         class="user-profile"
         class:active={currentPath === "/accounts"}
         data-title="Account Settings"
@@ -197,7 +197,14 @@ onDestroy(() => {
     <!-- Main Navigation -->
     <div class="nav-items">
       {#each navItems as item (item.path)}
-        <a use:buttonSound href={resolve(item.path, {})} class="nav-item" class:active={currentPath === item.path} data-title={item.label} aria-label={item.label}>
+        <a
+          use:buttonSound
+          href={resolve(item.path as `worlds#${string}`)}
+          class="nav-item"
+          class:active={currentPath === item.path}
+          data-title={item.label}
+          aria-label={item.label}
+        >
           <Icon name={item.icon} size="md" className="nav-icon" />
           <span class="label" class:collapsed={isNavCollapsed}>{item.label}</span>
         </a>
@@ -208,7 +215,7 @@ onDestroy(() => {
     <div class="bottom-section">
       <a
         use:buttonSound
-        href={resolve("/settings", {})}
+        href={resolve("/settings")}
         class="nav-item settings-item"
         class:active={currentPath === "/settings"}
         data-title="Settings"

@@ -415,6 +415,7 @@ async function selectSoundpack(packName: string) {
 
       <div class="setting-item">
         <div class="setting-info">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label>CSS Theme Management</label>
           <p class="setting-description">Install custom CSS files, manage installed themes, or open the themes directory.</p>
         </div>
@@ -496,6 +497,7 @@ async function selectSoundpack(packName: string) {
       {#if hasCustomThemes}
         <div class="setting-item">
           <div class="setting-info">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label>Custom CSS Themes</label>
             <p class="setting-description">Remove custom themes you no longer need. Built-in themes cannot be deleted.</p>
           </div>
@@ -573,6 +575,7 @@ async function selectSoundpack(packName: string) {
 
       <div class="setting-item">
         <div class="setting-info">
+          <!-- svelte-ignore a11y_label_has_associated_control -->
           <label>Icon Template Management</label>
           <p class="setting-description">Install custom icon templates, remove them, or open the templates directory.</p>
         </div>
@@ -656,6 +659,7 @@ async function selectSoundpack(packName: string) {
       {#if customIconTemplates.length > 0}
         <div class="setting-item">
           <div class="setting-info">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label>Custom Icon Templates</label>
             <p class="setting-description">Manage installed custom icon templates.</p>
           </div>
@@ -922,8 +926,7 @@ form {
 
 /* Inputs */
 
-select,
-input[type="text"] {
+select {
   width: 100%;
   max-width: 20rem;
   padding: 0.55rem 0.8rem;
@@ -1231,8 +1234,7 @@ button {
     justify-content: flex-start;
   }
 
-  select,
-  input[type="text"] {
+  select {
     max-width: none;
   }
 
