@@ -14,7 +14,7 @@ async function refreshProfiles() {
   isRefreshing = true;
 
   try {
-    await app.profilesService.refreshProfiles();
+    await app.profilesService.refreshProfiles(true);
   } finally {
     isRefreshing = false;
   }
@@ -95,8 +95,8 @@ async function refreshVersionManifests() {
 .controls-container {
   background: $color-surface-1;
   padding: $space-md;
-  margin: $space-md 0;
-  border: 1px solid $color-border;
+  margin: 0;
+  border-bottom: 1px solid $color-border;
   display: flex;
   align-items: center;
   justify-content: space-between;

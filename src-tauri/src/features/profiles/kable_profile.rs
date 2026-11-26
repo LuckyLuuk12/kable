@@ -222,6 +222,7 @@ pub async fn load_profiles() -> Result<Vec<KableProfile>, String> {
 ///
 /// Profiles are sorted by last_used before saving.
 pub async fn save_profiles(profiles: &[KableProfile]) -> Result<(), String> {
+    invalidate_no_args("kable_profiles", "load_profiles").await?;
     let launcher_dir = launcher_dir()?;
     let profiles_file = launcher_dir.join(KABLE_PROFILES_FILE);
 
@@ -230,7 +231,6 @@ pub async fn save_profiles(profiles: &[KableProfile]) -> Result<(), String> {
     profiles.sort_by(|a, b| b.metadata.last_used.cmp(&a.metadata.last_used));
 
     let content = serde_json::to_string_pretty(&profiles).map_err(|e| format!("Failed to serialize profiles: {e}"))?;
-    invalidate_no_args("kable_profiles", "save_profiles").await?;
     write_str(&profiles_file, &content, false).await?;
 
     Logger::info(format!("Saved profiles to {}", profiles_file.display()).as_str(), None);

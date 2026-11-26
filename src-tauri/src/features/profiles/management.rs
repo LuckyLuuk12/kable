@@ -1,4 +1,5 @@
 use crate::features::profiles::kable_profile::{load_profiles, save_profiles};
+use crate::system::cache::invalidate_no_args;
 use crate::system::fs;
 use api_types::profiles::KableProfile;
 use api_types::projects::KableProject;
@@ -151,7 +152,10 @@ pub async fn is_project_enabled(profile: KableProfile, project: KableProject) ->
     Ok(current_profile.settings.is_enabled(project))
 }
 
-pub async fn list_profiles(_force: bool) -> Result<Vec<KableProfile>, String> {
+pub async fn list_profiles(force: bool) -> Result<Vec<KableProfile>, String> {
+    if force {
+        invalidate_no_args("kable_profiles", "load_profiles").await?;
+    }
     load_profiles().await
 }
 

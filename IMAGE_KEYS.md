@@ -103,8 +103,8 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | delete | [CreateProfileModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/CreateProfileModal.svelte#L559) | <pre><code class="language-html">&lt;Icon name="delete" size="sm" forceType="svg" /&gt;</code></pre> |
 | delete | [LikedProjects](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/projects/LikedProjects.svelte#L307) | <pre><code class="language-html">&lt;Icon name="delete" forceType="svg" size="sm" /&gt;</code></pre> |
 | delete | [AdvancedSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AdvancedSettingsUI.svelte#L187) | <pre><code class="language-html">&lt;Icon name="delete" forceType="svg" /&gt;</code></pre> |
-| delete | [AppearanceSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AppearanceSettingsUI.svelte#L521) | <pre><code class="language-html">&lt;Icon name="delete" /&gt;</code></pre> |
-| delete | [AppearanceSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AppearanceSettingsUI.svelte#L681) | <pre><code class="language-html">&lt;Icon name="delete" /&gt;</code></pre> |
+| delete | [AppearanceSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AppearanceSettingsUI.svelte#L523) | <pre><code class="language-html">&lt;Icon name="delete" /&gt;</code></pre> |
+| delete | [AppearanceSettingsUI](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/settings/AppearanceSettingsUI.svelte#L685) | <pre><code class="language-html">&lt;Icon name="delete" /&gt;</code></pre> |
 | download | [MetricsPage](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/advanced/MetricsPage.svelte#L451) | <pre><code class="language-html">&lt;Icon name="download" forceType="svg" size="sm" /&gt;</code></pre> |
 | download | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L331) | <pre><code class="language-html">&lt;Icon name="download" size="sm" forceType="svg" /&gt;</code></pre> |
 | download | [ProfilesList](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/profiles/ProfilesList.svelte#L436) | <pre><code class="language-html">&lt;Icon name="download" size="sm" forceType="svg" /&gt;</code></pre> |
@@ -242,4 +242,4 @@ If you want to override a key with a custom image, place a file named `<key>.<ex
 | x | [UpdateModal](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/UpdateModal.svelte#L167) | <pre><code class="language-html">&lt;Icon name="x" size="md" forceType="svg" /&gt;</code></pre> |
 | zap | [LogsToolbar](https://github.com/LuckyLuuk12/kable/blob/main/src/lib/components/logs/LogsToolbar.svelte#L121) | <pre><code class="language-html">&lt;Icon name="zap" size="sm" /&gt;</code></pre> |
 
-_Generated: 2026-11-25T23:19:01.632Z_
+_Generated: 2026-11-25T23:49:05.016Z_
